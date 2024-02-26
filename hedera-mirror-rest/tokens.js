@@ -140,12 +140,15 @@ const tokenAccountJoinQuery = 'join ta on ta.token_id = t.token_id';
 const tokenInfoSelectFields = [
   ...entitySelectFields,
   ...tokenSelectFields,
-  `jsonb_build_object(
-  'created_timestamp', lower(${CustomFee.getFullName(CustomFee.TIMESTAMP_RANGE)}),
-  'fixed_fees', ${CustomFee.getFullName(CustomFee.FIXED_FEES)},
-  'fractional_fees', ${CustomFee.getFullName(CustomFee.FRACTIONAL_FEES)},
-  'royalty_fees', ${CustomFee.getFullName(CustomFee.ROYALTY_FEES)},
-  'token_id', ${CustomFee.getFullName(CustomFee.ENTITY_ID)}) as custom_fee`,
+  `(case when ${CustomFee.getFullName(CustomFee.TIMESTAMP_RANGE)} is not null 
+     then jsonb_build_object(
+      'created_timestamp', lower(${CustomFee.getFullName(CustomFee.TIMESTAMP_RANGE)}),
+      'fixed_fees', ${CustomFee.getFullName(CustomFee.FIXED_FEES)},
+      'fractional_fees', ${CustomFee.getFullName(CustomFee.FRACTIONAL_FEES)},
+      'royalty_fees', ${CustomFee.getFullName(CustomFee.ROYALTY_FEES)},
+      'token_id', ${CustomFee.getFullName(CustomFee.ENTITY_ID)})
+     else null 
+   end) as custom_fee`,
   `greatest(lower(${Token.getFullName(Token.TIMESTAMP_RANGE)}), 
             lower(${Entity.getFullName(Entity.TIMESTAMP_RANGE)})) as modified_timestamp`,
 ];
@@ -916,7 +919,7 @@ const nftTransactionHistoryDetailsQuery = `
            ${Transaction.TYPE},
            ${Transaction.VALID_START_NS}
     from ${Transaction.tableName}
-    where ${Transaction.CONSENSUS_TIMESTAMP} = any ($4)
+    where ${Transaction.CONSENSUS_TIMESTAMP} = any($4)
     order by ${Transaction.CONSENSUS_TIMESTAMP}`;
 
 /**
@@ -962,12 +965,12 @@ const extractSqlFromNftTransferHistoryRequest = (tokenId, serialNumber, filters)
   const query = `select timestamp
                  from
                      ((
-                     select lower (${Nft.TIMESTAMP_RANGE}) as timestamp
+                     select lower(${Nft.TIMESTAMP_RANGE}) as timestamp
                      from ${Nft.tableName}
                      where ${nftCondition}
                      union all
                      (
-                     select lower (${Nft.TIMESTAMP_RANGE}) as timestamp
+                     select lower(${Nft.TIMESTAMP_RANGE}) as timestamp
                      from ${NftHistory.tableName}
                      where ${nftCondition}
                      order by timestamp ${order}
@@ -976,7 +979,7 @@ const extractSqlFromNftTransferHistoryRequest = (tokenId, serialNumber, filters)
                      )
                      union all
                      (
-                     select lower (${Entity.TIMESTAMP_RANGE}) as timestamp
+                     select lower(${Entity.TIMESTAMP_RANGE}) as timestamp
                      from ${Entity.tableName}
                      where ${tokenDeleteCondition}
                      )) as nft_event
@@ -1099,7 +1102,10 @@ const acceptedTokenBalancesParameters = new Set([
 
 if (utils.isTestEnv()) {
   Object.assign(tokens, {
+    buildHistoryQuery,
+    customFeeSelectFields,
     entityIdJoinQuery,
+    entitySelectFields,
     extractSqlFromNftTokenInfoRequest,
     extractSqlFromNftTokensRequest,
     extractSqlFromNftTransferHistoryRequest,
@@ -1113,6 +1119,8 @@ if (utils.isTestEnv()) {
     nftSelectQuery,
     tokenAccountCte,
     tokenAccountJoinQuery,
+    tokenInfoSelectFields,
+    tokenSelectFields,
     tokensSelectQuery,
     validateSerialNumberParam,
     validateTokenInfoFilter,
