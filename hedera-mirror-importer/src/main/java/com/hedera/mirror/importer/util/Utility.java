@@ -116,6 +116,7 @@ public class Utility {
             log.trace("Archived file to {}", destination);
         } catch (Exception e) {
             log.error("Error archiving file to {}", destination, e);
+            if (Boolean.parseBoolean(System.getProperty(HALT_ON_ERROR_PROPERTY))) System.exit(-1);
         }
     }
 

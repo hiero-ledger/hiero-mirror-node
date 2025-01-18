@@ -25,6 +25,10 @@ public interface DownloaderProperties {
 
     void setWriteFiles(boolean keepFiles);
 
+    boolean isWriteSidecars();
+
+    void setWriteSidecars(boolean keepSidecars);
+
     boolean isWriteSignatures();
 
     void setWriteSignatures(boolean keepSignatures);
