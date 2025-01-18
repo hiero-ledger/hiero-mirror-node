@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jre-noble as builder
+FROM eclipse-temurin:21-jre-noble AS builder
 WORKDIR /app
 COPY build/libs/*.jar ./
 RUN java -Djarmode=layertools -jar *.jar extract
