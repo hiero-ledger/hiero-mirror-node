@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2022-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 import com.github.gradle.node.npm.task.NpmSetupTask
 import java.nio.file.Paths
@@ -163,25 +149,7 @@ repositories {
 }
 
 spotless {
-    val licenseHeader =
-        """
-/*
- * Copyright (C) ${'$'}YEAR Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */${"\n\n"}
-"""
-            .trimIndent()
+    val licenseHeader = "// SPDX-License-Identifier: Apache-2.0\n\n"
 
     val npmExec =
         when (System.getProperty("os.name").lowercase().contains("windows")) {
@@ -199,26 +167,34 @@ spotless {
 
     format("go") {
         endWithNewline()
-        licenseHeader(licenseHeader, "package").updateYearWithLatest(true)
+        licenseHeader(licenseHeader, "package")
         target("hedera-mirror-rosetta/**/*.go")
-        targetExclude("build/**")
+        targetExclude("**/build/**")
+        trimTrailingWhitespace()
+    }
+    format("helm") {
+        endWithNewline()
+        leadingTabsToSpaces(2)
+        licenseHeader(licenseHeader.replaceFirst("//", "#"), "^[a-zA-Z0-9{]+")
+        target("charts/**/*.yaml", "charts/**/*.yml")
         trimTrailingWhitespace()
     }
     format("javascript") {
         endWithNewline()
         leadingTabsToSpaces(2)
-        licenseHeader(licenseHeader, "$").updateYearWithLatest(true)
+        licenseHeader(licenseHeader, "$")
         prettier()
             .npmExecutable(npmExecutable)
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
             .config(mapOf("bracketSpacing" to false, "printWidth" to 120, "singleQuote" to true))
-        target("hedera-mirror-rest/**/*.js", "hedera-mirror-test/**/*.js")
+        target("hedera-mirror-rest/**/*.js", "hedera-mirror-test/k6/**/*.js", "tools/**/*.js")
         targetExclude("**/build/**", "**/node_modules/**", "**/__tests__/integration/*.test.js")
     }
     java {
         endWithNewline()
+        licenseHeader(licenseHeader, "package")
         palantirJavaFormat()
-        licenseHeader(licenseHeader, "package").updateYearWithLatest(true)
+        removeUnusedImports()
         target("**/*.java")
         targetExclude(
             "**/build/**",
@@ -226,44 +202,77 @@ spotless {
             "hedera-mirror-rosetta/**",
             // Known issue with Java 21: https://github.com/palantir/palantir-java-format/issues/933
             "hedera-mirror-rest-java/**/EntityServiceImpl.java",
+            "tools/**",
         )
         toggleOffOn()
+        trimTrailingWhitespace()
     }
     kotlin {
         endWithNewline()
         ktfmt().kotlinlangStyle()
-        licenseHeader(licenseHeader, "package").updateYearWithLatest(true)
+        licenseHeader(licenseHeader, "package")
         target("buildSrc/**/*.kt")
         targetExclude("**/build/**")
     }
     kotlinGradle {
         endWithNewline()
         ktfmt().kotlinlangStyle()
-        licenseHeader(licenseHeader, "(description|import|plugins)").updateYearWithLatest(true)
+        licenseHeader(licenseHeader, "(description|import|plugins)")
         target("*.kts", "*/*.kts", "buildSrc/**/*.kts", "hedera-mirror-rest/*/*.kts")
-        targetExclude("**/build/**")
+        targetExclude("**/build/**", "**/node_modules/**")
+        trimTrailingWhitespace()
     }
     format("miscellaneous") {
         endWithNewline()
         leadingTabsToSpaces(2)
-        prettier().npmExecutable(npmExecutable)
-        target("**/*.json", "**/*.md", "**/*.yml", "**/*.yaml")
-        targetExclude("**/build/**", "**/charts/**", "**/node_modules/**", "**/package-lock.json")
+        prettier()
+            .npmExecutable(npmExecutable)
+            .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
+        target("**/*.json", "**/*.md")
+        targetExclude(
+            "**/build/**",
+            "**/charts/**/dashboards/**",
+            "**/node_modules/**",
+            "**/package-lock.json",
+        )
         trimTrailingWhitespace()
     }
     format("proto") {
         endWithNewline()
         leadingTabsToSpaces(4)
-        licenseHeader(licenseHeader, "(package|syntax)").updateYearWithLatest(true)
+        licenseHeader(licenseHeader, "(package|syntax)")
         target("hedera-mirror-protobuf/**/*.proto")
-        targetExclude("build/**")
+        targetExclude("**/build/**")
+        trimTrailingWhitespace()
+    }
+    format("shell") {
+        endWithNewline()
+        leadingTabsToSpaces(2)
+        licenseHeader(licenseHeader.replaceFirst("//", "#"), "^#!")
+        target("**/*.sh")
+        targetExclude("**/build/**", "**/node_modules/**")
         trimTrailingWhitespace()
     }
     sql {
         endWithNewline()
         leadingTabsToSpaces()
-        target("hedera-mirror-(common|importer|rest)/**/*.sql")
+        target(
+            "hedera-mirror-common/**/*.sql",
+            "hedera-mirror-importer/**/*.sql",
+            "hedera-mirror-rest/**/*.sql",
+        )
         targetExclude("**/build/**", "**/node_modules/**")
+        trimTrailingWhitespace()
+    }
+    format("yaml") {
+        endWithNewline()
+        leadingTabsToSpaces(2)
+        prettier()
+            .npmExecutable(npmExecutable)
+            .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
+        licenseHeader(licenseHeader.replaceFirst("//", "#"), "^[a-zA-Z0-9{]+")
+        target("**/*.yaml", "**/*.yml")
+        targetExclude("**/build/**", "charts/**", "**/node_modules/**")
         trimTrailingWhitespace()
     }
 }
