@@ -1,8 +1,9 @@
 name: GitHub Pages Sync
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 * * * *'
-
+INTENTIONALLY BREAKING CI
 defaults:
   run:
     shell: bash
