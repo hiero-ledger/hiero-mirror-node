@@ -177,8 +177,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     void updateTokenKeysAndGetUpdatedTokenKeyForNFT(final KeyValueType keyValueType, final KeyType keyType) {
         // Given
         final var treasuryEntity = accountEntityPersist();
-        final var tokenEntity = nftPersist(treasuryEntity);
-        final var tokenAddress = toAddress(tokenEntity.getTokenId());
+        final var token = nftPersist(treasuryEntity.toEntityId());
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var contractAddress = contract.getContractAddress();
 
@@ -188,7 +187,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var expectedResultBytes = Bytes.fromHexString(expectedResult).toArray();
 
         final var functionCall = contract.call_updateTokenKeysAndGetUpdatedTokenKey(
-                tokenAddress.toHexString(), List.of(tokenKey), keyType.getKeyTypeNumeric());
+                toAddress(token.getTokenId()).toHexString(), List.of(tokenKey), keyType.getKeyTypeNumeric());
         final var callData =
                 Bytes.fromHexString(functionCall.encodeFunctionCall()).toArray();
 
@@ -875,28 +874,6 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                         .payerAccountId(senderEntityId.getId())
                         .transactionResult(contractResult.getTransactionResult()))
                 .persist();
-    }
-
-    private Token nftPersist(final Entity treasuryEntity) { // todo: check
-        final var nftEntity = tokenEntityPersist();
-
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.tokenId(nftEntity.getId())
-                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                        .treasuryAccountId(treasuryEntity.toEntityId()))
-                .persist();
-
-        final var treasuryEntityId = token.getTreasuryAccountId();
-        domainBuilder
-                .nft()
-                .customize(n -> n.accountId(treasuryEntityId)
-                        .spender(treasuryEntityId)
-                        .accountId(treasuryEntityId)
-                        .tokenId(nftEntity.getId())
-                        .serialNumber(1))
-                .persist();
-        return token;
     }
 
     private Entity accountPersistWithAccountBalances() {

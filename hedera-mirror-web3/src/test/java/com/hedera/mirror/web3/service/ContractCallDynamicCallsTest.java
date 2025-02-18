@@ -573,16 +573,15 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
 
-        final var tokenEntity = nftPersist(treasuryEntityId, spenderEntityId.toEntityId());
-        final var tokenAddress = toAddress(tokenEntity.getTokenId());
-        final var tokenId = tokenEntity.getTokenId();
+        final var token = nftPersist(treasuryEntityId, spenderEntityId.toEntityId());
+        final var tokenId = token.getTokenId();
 
         tokenAccountPersist(tokenId, spenderEntityId.getId());
         tokenAccountPersist(tokenId, contractEntityId.getId());
 
         // When
         final var functionCall = contract.send_approveForAllTokenTransferGetAllowance(
-                tokenAddress.toHexString(), getAliasFromEntity(spenderEntityId), BigInteger.ONE);
+                toAddress(tokenId).toHexString(), getAliasFromEntity(spenderEntityId), BigInteger.ONE);
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);
@@ -599,16 +598,15 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
 
-        final var tokenEntity = nftPersist(treasuryEntityId, spenderEntityId.toEntityId());
-        final var tokenId = tokenEntity.getTokenId();
-        final var tokenAddress = toAddress(tokenId);
+        final var token = nftPersist(treasuryEntityId, spenderEntityId.toEntityId());
+        final var tokenId = token.getTokenId();
 
         tokenAccountPersist(tokenId, spenderEntityId.getId());
         tokenAccountPersist(tokenId, contractEntityId.getId());
         nftAllowancePersist(tokenId, contractEntityId, contractEntityId);
 
         var tokenTransferList = new TokenTransferList(
-                tokenAddress.toHexString(),
+                toAddress(tokenId).toHexString(),
                 List.of(),
                 List.of(new NftTransfer(
                         contractAddress.toHexString(),
@@ -689,9 +687,8 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var treasuryEntityId = accountEntityPersist().toEntityId();
         final var spenderEntityId = accountEntityPersist().toEntityId();
 
-        final var tokenEntity = nftPersist(treasuryEntityId, spenderEntityId);
-        final var tokenId = tokenEntity.getTokenId();
-        final var tokenAddress = toAddress(tokenId);
+        final var token = nftPersist(treasuryEntityId, spenderEntityId);
+        final var tokenId = token.getTokenId();
 
         final var contract = testWeb3jService.deploy(DynamicEthCalls::deploy);
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
@@ -702,7 +699,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         nftAllowancePersist(tokenId, contractEntityId, spenderEntityId);
 
         // When
-        final var functionCall = contract.send_transferFromNFTGetAllowance(tokenAddress.toHexString(), BigInteger.ONE);
+        final var functionCall = contract.send_transferFromNFTGetAllowance(toAddress(tokenId).toHexString(), BigInteger.ONE);
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);

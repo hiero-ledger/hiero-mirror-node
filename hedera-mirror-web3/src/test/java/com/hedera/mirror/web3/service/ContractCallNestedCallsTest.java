@@ -142,8 +142,8 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     void updateTokenKeysAndGetUpdatedTokenKeyForNFT(final KeyValueType keyValueType, final KeyType keyType)
             throws Exception {
         // Given
-        final var tokenEntityId = nftPersist();
-        final var tokenAddress = toAddress(tokenEntityId.getTokenId());
+        final var token = nftPersist();
+        final var tokenAddress = toAddress(token.getTokenId()).toHexString();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var contractAddress = contract.getContractAddress();
 
@@ -152,14 +152,14 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
 
         // When
         final var result = contract.call_updateTokenKeysAndGetUpdatedTokenKey(
-                        tokenAddress.toHexString(), List.of(tokenKey), keyType.getKeyTypeNumeric())
+                        tokenAddress, List.of(tokenKey), keyType.getKeyTypeNumeric())
                 .send();
 
         // Then
         assertThat(result).isEqualTo(keyValue);
 
         final var functionCall = contract.send_updateTokenKeysAndGetUpdatedTokenKey(
-                tokenAddress.toHexString(), List.of(tokenKey), keyType.getKeyTypeNumeric());
+                tokenAddress, List.of(tokenKey), keyType.getKeyTypeNumeric());
 
         verifyEthCallAndEstimateGas(functionCall, contract);
     }

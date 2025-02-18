@@ -704,9 +704,9 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
     @Test
     void ethCallGetOwnerOfRedirect() {
         final var owner = accountPersist();
-        final var tokenEntity = nftPersist(owner);
+        final var token = nftPersist(owner);
         final var contract = testWeb3jService.deploy(RedirectTestContract::deploy);
-        final var functionCall = contract.send_getOwnerOfRedirect(toAddress(tokenEntity.getTokenId()).toHexString(), BigInteger.valueOf(1));
+        final var functionCall = contract.send_getOwnerOfRedirect(toAddress(token.getTokenId()).toHexString(), BigInteger.valueOf(1));
         verifyEthCallAndEstimateGas(functionCall, contract);
     }
     @Test
@@ -765,11 +765,10 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         postConstructMethod.setAccessible(true); // Make the method accessible
         postConstructMethod.invoke(state);
 
-        final var tokenEntity = nftPersist();
-        final var tokenAddress = toAddress(tokenEntity.getTokenId());
+        final var token = nftPersist();
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         // When
-        final var functionCall = contract.send_decimals(tokenAddress.toHexString());
+        final var functionCall = contract.send_decimals(toAddress(token.getTokenId()).toHexString());
         // Then
         assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
 
