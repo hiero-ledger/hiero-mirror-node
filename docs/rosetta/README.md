@@ -43,7 +43,7 @@ the data, and triggering the business logic services.
 
 The recommended way to run Rosetta locally is to use the all-in-one docker image. Below are the steps to build the image
 for a Hedera mirror node release. Please replace the example release `v0.60.0` with the latest release from
-our [releases page](https://github.com/hashgraph/hedera-mirror-node/releases).
+our releases page.
 
 1. Download the [Dockerfile](/hedera-mirror-rosetta/build/Dockerfile).
 

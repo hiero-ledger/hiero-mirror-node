@@ -241,7 +241,7 @@ on topic_message (realm_num, topic_num, consensus_timestamp);
 
 ## Non-Functional Requirements
 
-See GitHub issue [374](https://github.com/hashgraph/hedera-mirror-node/issues/374)
+See GitHub issue [374](/../../issues/374)
 
 ## Open Questions
 

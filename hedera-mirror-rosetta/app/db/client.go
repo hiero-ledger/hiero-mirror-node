@@ -20,7 +20,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/interfaces"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/interfaces"
 	"gorm.io/gorm"
 )
 

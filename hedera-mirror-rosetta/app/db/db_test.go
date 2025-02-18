@@ -19,7 +19,7 @@ package db
 import (
 	"testing"
 
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/test/db"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/test/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )

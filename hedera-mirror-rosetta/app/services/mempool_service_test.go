@@ -17,7 +17,7 @@
 package services
 
 import (
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/errors"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/errors"
 	"testing"
 
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"

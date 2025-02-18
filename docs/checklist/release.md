@@ -5,8 +5,8 @@ This checklist verifies a release is rolled out successfully.
 ## Preparation
 
 - [ ] Milestone created
-- [ ] Milestone field populated on relevant [issues](https://github.com/hashgraph/hedera-mirror-node/issues?q=is%3Aclosed+no%3Amilestone+sort%3Aupdated-desc)
-- [ ] Nothing open for [milestone](https://github.com/hashgraph/hedera-mirror-node/issues?q=is%3Aopen+sort%3Aupdated-desc+milestone%3A0.105.0)
+- [ ] Milestone field populated on relevant [issues](/../../issues?q=is%3Aclosed+no%3Amilestone+sort%3Aupdated-desc)
+- [ ] Nothing open for [milestone](/../../issues?q=is%3Aopen+sort%3Aupdated-desc+milestone%3A0.125.0)
 - [ ] GitHub checks for branch are passing
 - [ ] No pre-release or snapshot dependencies present in build files
 - [ ] Verify hedera-services protobuf dependency doesn't contain any unsupported fields or messages

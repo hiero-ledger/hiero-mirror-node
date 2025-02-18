@@ -52,7 +52,7 @@ spec:
   postgres:
     extensions: {{ .Values.stackgres.extensions | toYaml | nindent 6 }}
     ssl:
-      enabled: false  # Disable SSL to work around https://github.com/hashgraph/hedera-mirror-node/issues/9143
+      enabled: false  # Disable SSL to work around issue 9143
     version: {{ .Values.stackgres.postgresVersion | quote }}
   replication:
     mode: {{ .Values.stackgres.replication.mode }}

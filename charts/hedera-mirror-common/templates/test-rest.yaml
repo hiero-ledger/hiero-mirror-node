@@ -13,7 +13,7 @@ spec:
       branch: {{ $.Values.testkube.test.gitBranch | default (print "v" $.Chart.AppVersion) }}
       path: hedera-mirror-test/k6
       type: git
-      uri: https://github.com/hashgraph/hedera-mirror-node
+      uri: https://github.com/hiero-ledger/hiero-mirror-node
     type: git-dir
   executionRequest:
     args:

@@ -48,7 +48,7 @@ Please refer to the [appendix](#test-configuration-properties) for the complete 
    $ docker build --build-arg GIT_REF=${RELEASE_TAG} -t hedera-mirror-rosetta:${RELEASE_TAG} .
    ```
 
-   > Note you can check the release tags [here](https://github.com/hashgraph/hedera-mirror-node/releases)
+   > Note you can check the release tags on the releases page.
 
 2. Configure and run the online mode and offline mode rosetta containers
 
