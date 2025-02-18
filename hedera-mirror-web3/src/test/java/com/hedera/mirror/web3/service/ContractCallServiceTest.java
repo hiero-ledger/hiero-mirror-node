@@ -844,7 +844,6 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     void ercPrecompileExceptionalHaltReturnsExpectedGasToBucket(final CallType callType, final int gasUnit) {
         // Given
         final var token = fungibleTokenPersist();
-        final var payer = accountEntityWithEvmAddressPersist();
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         final var payer = accountEntityWithEvmAddressPersist();
         accountBalancePersist(payer, payer.getCreatedTimestamp());
