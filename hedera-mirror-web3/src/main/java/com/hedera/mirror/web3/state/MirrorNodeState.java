@@ -358,6 +358,7 @@ public class MirrorNodeState implements State {
 
     private void registerServices(ServicesRegistry servicesRegistry) {
         // Register all service schema RuntimeConstructable factories before platform init
+
         final var appContext = new AppContextImpl(
                 InstantSource.system(),
                 signatureVerifier(),
@@ -374,7 +375,7 @@ public class MirrorNodeState implements State {
                         new EntityIdService(),
                         new TokenServiceImpl(),
                         new FileServiceImpl(),
-                        new ContractServiceImpl(appContext),
+                        new ContractServiceImpl(appContext, UNAVAILABLE_METRICS),
                         new BlockRecordService(),
                         new FeeService(),
                         new CongestionThrottleService(),

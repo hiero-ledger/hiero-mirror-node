@@ -115,7 +115,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .entity()
                 .customize(e -> e.id(2L)
                         .num(2L)
-                        .balance(5000000000000000000L)
+                        // The balance should not be set to max value 5000000000000000000L, because if we use it as a
+                        // node operator it would not be able to receive rewards and can cause failures
+                        .balance(1000000000000000000L)
                         .createdTimestamp(genesisRecordFile.getConsensusStart())
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
@@ -143,13 +145,15 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         try {
             return contractExecutionService.callContract(serviceParameters).getGasUsed();
         } catch (MirrorEvmTransactionException e) {
-            var result = e.getResult();
-
             // Some tests expect to fail but still want to capture the gas used
-            if (result != null) {
-                return result.getGasUsed();
+            if (mirrorNodeEvmProperties.isModularizedServices()) {
+                return e.getResult().getGasUsed();
+            } else {
+                var result = e.getResult();
+                if (result != null) {
+                    return result.getGasUsed();
+                }
             }
-
             throw e;
         }
     }

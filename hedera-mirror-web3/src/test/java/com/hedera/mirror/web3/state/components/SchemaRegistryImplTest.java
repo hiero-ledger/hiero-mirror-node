@@ -227,7 +227,7 @@ class SchemaRegistryImplTest {
             assertThat(c.appConfig()).isEqualTo(config);
             assertThat(c.platformConfig()).isEqualTo(config);
             assertThat(c.genesisNetworkInfo()).isEqualTo(networkInfo);
-            assertThat(c.newEntityNum()).isEqualTo(1);
+            assertThat(c.newEntityNumForAccount()).isEqualTo(1);
             assertThat(c.sharedValues()).isEqualTo(EMPTY_MAP);
         });
     }
