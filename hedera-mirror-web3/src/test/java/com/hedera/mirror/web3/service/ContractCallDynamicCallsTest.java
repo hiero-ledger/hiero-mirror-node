@@ -311,7 +311,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var tokenEntity = tokenType == TokenTypeEnum.FUNGIBLE_COMMON
                 ? fungibleTokenCustomizable(
                         t -> t.treasuryAccountId(treasuryEntityId).kycKey(null))
-                : nftPersist(treasuryEntityId, treasuryEntityId, treasuryEntityId, null);
+                : nftPersistWithNullKycKey(treasuryEntityId);
         final var tokenAddress = toAddress(tokenEntity.getTokenId());
 
         tokenAccountPersist(tokenEntity.getTokenId(), treasuryEntityId.getId());
@@ -329,6 +329,8 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         verifyEthCallAndEstimateGas(functionCall, contract);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
+
+
 
     @ParameterizedTest
     @CsvSource(
@@ -829,41 +831,6 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
-//    private Token nftPersist(final EntityId treasuryEntityId, final EntityId ownerEntityId) {
-//        return nftPersist(treasuryEntityId, ownerEntityId, ownerEntityId);
-//    }
-//
-//    private Token nftPersist(
-//            final EntityId treasuryEntityId, final EntityId ownerEntityId, final EntityId spenderEntityId) {
-//        return nftPersist(treasuryEntityId, ownerEntityId, spenderEntityId, domainBuilder.key());
-//    }
-
-    private Token nftPersist(
-            final EntityId treasuryEntityId,
-            final EntityId ownerEntityId,
-            final EntityId spenderEntityId,
-            final byte[] kycKey) { // TODO: remove
-        final var nftEntity = tokenEntityPersist();
-
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.tokenId(nftEntity.getId())
-                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                        .treasuryAccountId(treasuryEntityId)
-                        .kycKey(kycKey))
-                .persist();
-
-        domainBuilder
-                .nft()
-                .customize(n -> n.accountId(treasuryEntityId)
-                        .spender(spenderEntityId)
-                        .accountId(ownerEntityId)
-                        .tokenId(nftEntity.getId())
-                        .serialNumber(1))
-                .persist();
-        return token;
-    }
-
     private void nftAllowancePersist(
             final long tokenEntityId, final EntityId spenderEntityId, final EntityId ownerEntityId) {
         domainBuilder
@@ -874,6 +841,12 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
                         .payerAccountId(ownerEntityId)
                         .approvedForAll(true))
                 .persist();
+    }
+
+    private Token nftPersistWithNullKycKey(EntityId treasuryEntityId) {
+        final var token = nonFungibleTokenCustomizable(n -> n.treasuryAccountId(treasuryEntityId).kycKey(null));
+        nftPersistWithSpender(token.getTokenId(), treasuryEntityId, treasuryEntityId);
+        return token;
     }
 
     private Entity setUpToken(TokenTypeEnum tokenType, Entity treasuryAccount, Entity owner, Entity spender) {

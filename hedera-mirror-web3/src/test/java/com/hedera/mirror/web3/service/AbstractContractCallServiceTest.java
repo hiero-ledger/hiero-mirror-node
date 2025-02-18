@@ -360,7 +360,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * Persists an NFT for a treasury account with self-spender.
      */
 
-    private void nftPersistWithSpender(final long tokenId, final EntityId accountId, final EntityId spender) {
+    protected void nftPersistWithSpender(final long tokenId, final EntityId accountId, final EntityId spender) {
         nftPersistCustomizable(n -> n.accountId(accountId)
                 .tokenId(tokenId)
                 .spender(spender));
