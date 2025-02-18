@@ -414,6 +414,14 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .persist();
     }
 
+    protected TokenAllowance tokenAllowancePersistCustomizable(
+            Consumer<TokenAllowance.TokenAllowanceBuilder<?,?>> customizer) {
+        return domainBuilder
+                .tokenAllowance()
+                .customize(customizer)
+                .persist();
+    }
+
     /**
      * This method creates nft allowance for all instances of a specific token type (approvedForAll). The allowance
      * allows the spender to transfer NFTs on the owner's behalf.
@@ -424,13 +432,24 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param payer   the account paying for the allowance creation
      * @return NftAllowance object that is persisted to the database
      */
-    protected NftAllowance nftAllowancePersist(Token token, Entity owner, Entity spender, Entity payer) {
+    protected NftAllowance nftAllowancePersist(Token token, Entity owner, Entity spender, Entity payer) { //TODO: refactor
         return domainBuilder
                 .nftAllowance()
                 .customize(a -> a.tokenId(token.getTokenId())
                         .owner(owner.getId())
                         .spender(spender.toEntityId().getId())
                         .payerAccountId(payer.toEntityId())
+                        .approvedForAll(true))
+                .persist();
+    }
+
+    protected void nftAllowancePersist(Long tokenId, EntityId spender, EntityId owner) {
+        domainBuilder
+                .nftAllowance()
+                .customize(a -> a.tokenId(tokenId)
+                        .spender(spender.getId())
+                        .owner(owner.getId())
+                        .payerAccountId(owner)
                         .approvedForAll(true))
                 .persist();
     }

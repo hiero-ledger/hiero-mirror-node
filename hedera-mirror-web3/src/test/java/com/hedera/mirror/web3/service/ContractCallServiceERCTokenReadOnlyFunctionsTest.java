@@ -26,7 +26,6 @@ import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.common.domain.token.TokenAccount;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.web3j.generated.ERCTestContract;
@@ -40,13 +39,13 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.hyperledger.besu.datatypes.Address;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
 class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractCallServiceTest {
 
     public static final String NFT_METADATA_URI = "NFT_METADATA_URI";
+    public static final String HBAR = "HBAR";
 
     @Test
     void ethCallGetApprovedEmptySpenderStatic() throws Exception {
@@ -353,25 +352,23 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
 
     @Test
     void ethCallSymbolStatic() throws Exception {
-        final var symbol = "HBAR";
-        final var token = fungibleTokenCustomizable(t -> t.symbol(symbol));
+        final var token = fungibleTokenCustomizable(t -> t.symbol(HBAR));
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         final var result = contract.call_symbol(tokenAddress).send();
         final var functionCall = contract.send_symbol(tokenAddress);
-        assertThat(result).isEqualTo(symbol);
+        assertThat(result).isEqualTo(HBAR);
         verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
     void ethCallSymbolNonStatic() throws Exception {
-        final var symbol = "HBAR";
-        final var token = fungibleTokenCustomizable(t -> t.symbol(symbol));
+        final var token = fungibleTokenCustomizable(t -> t.symbol(HBAR));
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         final var result = contract.call_symbolNonStatic(tokenAddress).send();
         final var functionCall = contract.send_symbolNonStatic(tokenAddress);
-        assertThat(result).isEqualTo(symbol);
+        assertThat(result).isEqualTo(HBAR);
         verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
@@ -666,8 +663,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
 
     @Test
     void ethCallSymbolRedirect() {
-        final var symbol = "HBAR"; //TODO: constant
-        final var token = fungibleTokenCustomizable(t -> t.symbol(symbol));
+        final var token = fungibleTokenCustomizable(t -> t.symbol(HBAR));
         final var contract = testWeb3jService.deploy(RedirectTestContract::deploy);
         final var functionCall = contract.send_symbolRedirect(toAddress(token.getTokenId()).toHexString());
         verifyEthCallAndEstimateGas(functionCall, contract);
@@ -862,18 +858,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         }
     }
 
-    private void nftAllowancePersist(Long tokenId, EntityId spender, EntityId owner) {
-        domainBuilder
-                .nftAllowance()
-                .customize(a -> a.tokenId(tokenId)
-                        .spender(spender.getId())
-                        .owner(owner.getId())
-                        .payerAccountId(owner)
-                        .approvedForAll(true))
-                .persist();
-    }
-
-    private TokenAccount tokenAccountPersist(EntityId owner, Long tokenId) {
+    private TokenAccount tokenAccountPersist(EntityId owner, Long tokenId) { //TODO: parent class
         return domainBuilder
                 .tokenAccount()
                 .customize(e -> e.accountId(owner.getId()).tokenId(tokenId))
@@ -881,10 +866,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
     }
 
     private TokenAllowance tokenAllowancePersist(Long tokenId, EntityId owner, EntityId spender) {
-        return  domainBuilder
-                .tokenAllowance()
-                .customize(a -> a.tokenId(tokenId).owner(owner.getNum()).spender(spender.getNum()))
-                .persist();
+        return tokenAllowancePersistCustomizable(a -> a.tokenId(tokenId).owner(owner.getNum()).spender(spender.getNum()));
     }
 
     private EntityId accountPersist() {
@@ -892,15 +874,8 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
     }
 
     private Token nftPersist() {
-        final var tokenEntity = tokenEntityPersist();
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId()).type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE))
-                .persist();
-        domainBuilder
-                .nft()
-                .customize(n -> n.tokenId(tokenEntity.getId()).serialNumber(1L))
-                .persist();
+        final var token = nonFungibleTokenPersist();
+        nftPersistCustomizable(n -> n.tokenId(token.getTokenId()));
         return token;
     }
 }
