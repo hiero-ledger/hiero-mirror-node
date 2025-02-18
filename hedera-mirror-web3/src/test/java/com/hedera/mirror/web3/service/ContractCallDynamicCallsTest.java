@@ -16,7 +16,6 @@
 
 package com.hedera.mirror.web3.service;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -830,22 +829,21 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
-    private Token nftPersist(final EntityId treasuryEntityId, final EntityId ownerEntityId) {
-        return nftPersist(treasuryEntityId, ownerEntityId, ownerEntityId);
-    }
-
-    private Token nftPersist(
-            final EntityId treasuryEntityId, final EntityId ownerEntityId, final EntityId spenderEntityId) {
-        return nftPersist(treasuryEntityId, ownerEntityId, spenderEntityId, domainBuilder.key());
-    }
+//    private Token nftPersist(final EntityId treasuryEntityId, final EntityId ownerEntityId) {
+//        return nftPersist(treasuryEntityId, ownerEntityId, ownerEntityId);
+//    }
+//
+//    private Token nftPersist(
+//            final EntityId treasuryEntityId, final EntityId ownerEntityId, final EntityId spenderEntityId) {
+//        return nftPersist(treasuryEntityId, ownerEntityId, spenderEntityId, domainBuilder.key());
+//    }
 
     private Token nftPersist(
             final EntityId treasuryEntityId,
             final EntityId ownerEntityId,
             final EntityId spenderEntityId,
-            final byte[] kycKey) {
-        final var nftEntity =
-                domainBuilder.entity().customize(e -> e.type(TOKEN)).persist();
+            final byte[] kycKey) { // TODO: remove
+        final var nftEntity = tokenEntityPersist();
 
         final var token = domainBuilder
                 .token()

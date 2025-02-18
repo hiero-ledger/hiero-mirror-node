@@ -16,7 +16,6 @@
 
 package com.hedera.mirror.web3.service;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.CREATE_TOKEN_VALUE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.NEW_ECDSA_KEY;
@@ -585,29 +584,11 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     }
 
     private Token nftPersist() {
-        return nftPersist(domainBuilder.entity().persist());
-    }
-
-    private Token nftPersist(final Entity treasuryEntity) {
-        final var nftEntity =
-                domainBuilder.entity().customize(e -> e.type(TOKEN)).persist();
-
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.tokenId(nftEntity.getId())
-                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                        .treasuryAccountId(treasuryEntity.toEntityId()))
-                .persist();
-
-        final var treasuryEntityId = token.getTreasuryAccountId();
-        domainBuilder
-                .nft()
-                .customize(n -> n.accountId(treasuryEntityId)
-                        .spender(treasuryEntityId)
-                        .accountId(treasuryEntityId)
-                        .tokenId(nftEntity.getId())
-                        .serialNumber(1))
-                .persist();
+        final var treasury = domainBuilder.entity().persist().toEntityId();
+        final var token = nonFungibleTokenPersistWithTreasury(treasury);
+        nftPersistCustomizable(n -> n.accountId(treasury)
+                .spender(treasury)
+                .tokenId(token.getTokenId()));
         return token;
     }
 }

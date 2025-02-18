@@ -877,7 +877,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 .persist();
     }
 
-    private Token nftPersist(final Entity treasuryEntity) {
+    private Token nftPersist(final Entity treasuryEntity) { // todo: check
         final var nftEntity = tokenEntityPersist();
 
         final var token = domainBuilder

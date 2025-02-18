@@ -65,6 +65,7 @@ import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.context.annotation.Import;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectWriter;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.tx.Contract;
@@ -75,6 +76,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final String TREASURY_ADDRESS = EvmTokenUtils.toAddress(2).toHexString();
     protected static final long DEFAULT_ACCOUNT_BALANCE = 100_000_000_000_000_000L;
     protected static final int DEFAULT_TOKEN_BALANCE = 100;
+    protected static final int DEFAULT_SERIAL_NUMBER = 1;
 
     @Resource
     protected TestWeb3jService testWeb3jService;
@@ -310,6 +312,79 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                         .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
                         .treasuryAccountId(treasuryAccount.toEntityId()))
                 .persist();
+    }
+
+    /**
+     * Persists a non-fungible token entity.
+     * @return Token object persisted in the database.
+     */
+    protected Token nonFungibleTokenPersist() {
+        return nonFungibleTokenCustomizable(t -> {});
+    }
+
+    /**
+     * Persists a non-fungible token with a specific treasury account.
+     * @param treasuryEntityId The treasury account ID.
+     * @return Token object persisted in the database.
+     */
+    protected Token nonFungibleTokenPersistWithTreasury(final EntityId treasuryEntityId) {
+        return nonFungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
+    }
+
+    protected Token nonFungibleTokenCustomizable(
+            Consumer<Token.TokenBuilder<?, ?>> customizer) {
+        final var nft = tokenEntityPersist();
+
+        return domainBuilder
+                .token()
+                .customize(t -> {
+                    t.tokenId(nft.getId()).type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE);
+                    customizer.accept(t);
+                })
+                .persist();
+    }
+
+    /**
+     * Creates and persists an NFT entity.
+     * @param customizer Consumer to customize NFT attributes.
+     */
+    protected void nftPersistCustomizable(Consumer<Nft.NftBuilder<?, ?>> customizer) {
+        domainBuilder.nft().customize(n -> {n.serialNumber(DEFAULT_SERIAL_NUMBER); customizer.accept(n);}).persist();
+    }
+
+    /**
+     * Persists an NFT for a treasury account with self-spender.
+     */
+
+    private void nftPersistWithSpender(final long tokenId, final EntityId accountId, final EntityId spender) {
+        nftPersistCustomizable(n -> n.accountId(accountId)
+                .tokenId(tokenId)
+                .spender(spender));
+    }
+
+    protected Token nftPersist(final EntityId treasuryEntityId) {
+        return nftPersist(treasuryEntityId, treasuryEntityId);
+    }
+
+    protected Token nftPersist(final EntityId treasuryEntityId, final EntityId ownerEntityId) {
+        return nftPersist(treasuryEntityId, ownerEntityId, ownerEntityId);
+    }
+
+    protected Token nftPersist(final EntityId treasuryEntityId, final EntityId ownerEntityId, final EntityId spender) {
+        final var token = nonFungibleTokenPersistWithTreasury(treasuryEntityId);
+        nftPersistWithSpender(token.getTokenId(), ownerEntityId, spender);
+        return token;
+    }
+
+    protected Token nftPersistWithSpenderAndTreasury(final EntityId ownerEntityId, final EntityId spender) {
+        final var treasury = accountEntityPersist().toEntityId();
+        final var token = nonFungibleTokenPersistWithTreasury(treasury);
+        nftPersistWithSpender(token.getTokenId(), ownerEntityId, spender);
+        return token;
+    }
+
+    protected Token nftPersistWithSelfSpenderAndTreasury(final EntityId ownerEntityId) {
+        return nftPersistWithSpenderAndTreasury(ownerEntityId, ownerEntityId);
     }
 
     /**

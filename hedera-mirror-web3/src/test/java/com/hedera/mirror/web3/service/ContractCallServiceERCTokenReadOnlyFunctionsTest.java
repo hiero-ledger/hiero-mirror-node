@@ -16,7 +16,6 @@
 
 package com.hedera.mirror.web3.service;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
@@ -303,7 +302,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
     void ethCallGetApprovedStatic() throws Exception {
         final var owner = accountPersist();
         final var spender = accountPersist();
-        final var tokenEntity = nftPersist(owner, owner, spender);
+        final var tokenEntity = nftPersistWithSpenderAndTreasury(owner, spender); //TODO:
         final var tokenAddress = toAddress(tokenEntity.getTokenId());
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         final var result = contract.call_getApproved(tokenAddress.toHexString(), BigInteger.valueOf(1))
@@ -317,7 +316,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
     void ethCallGetApprovedNonStatic() throws Exception {
         final var owner = accountPersist();
         final var spender = accountPersist();
-        final var tokenEntity = nftPersist(owner, owner, spender);
+        final var tokenEntity = nftPersistWithSpenderAndTreasury(owner, spender);
         final var tokenAddress = toAddress(tokenEntity.getTokenId());
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         final var result = contract.call_getApprovedNonStatic(tokenAddress.toHexString(), BigInteger.valueOf(1))
@@ -776,7 +775,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
     void ethCallGetApprovedRedirect() {
         final var owner = accountPersist();
         final var spender = accountPersist();
-        final var tokenEntity = nftPersist(owner, owner, spender);
+        final var tokenEntity = nftPersistWithSpenderAndTreasury(owner, spender); //treasury, owner, spender
         final var tokenAddress = toAddress(tokenEntity.getTokenId());
         final var contract = testWeb3jService.deploy(RedirectTestContract::deploy);
         final var functionCall = contract.send_getApprovedRedirect(tokenAddress.toHexString(), BigInteger.valueOf(1));
@@ -1072,47 +1071,6 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         domainBuilder
                 .nft()
                 .customize(n -> n.tokenId(tokenEntity.getId()).serialNumber(1L))
-                .persist();
-        return token;
-    }
-
-    private Token nftPersist(final EntityId treasuryEntityId) {
-        return nftPersist(treasuryEntityId, treasuryEntityId);
-    }
-
-    private Token nftPersist(final EntityId treasuryEntityId, final EntityId ownerEntityId) {
-        return nftPersist(treasuryEntityId, ownerEntityId, ownerEntityId);
-    }
-
-    private Token nftPersist(
-            final EntityId treasuryEntityId, final EntityId ownerEntityId, final EntityId spenderEntityId) {
-        return nftPersist(treasuryEntityId, ownerEntityId, spenderEntityId, domainBuilder.key());
-    }
-
-    private Token nftPersist(
-            final EntityId treasuryEntityId,
-            final EntityId ownerEntityId,
-            final EntityId spenderEntityId,
-            final byte[] kycKey) {
-        final var nftEntity =
-                domainBuilder.entity().customize(e -> e.type(TOKEN)).persist();
-
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.tokenId(nftEntity.getId())
-                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                        .treasuryAccountId(treasuryEntityId)
-                        .kycKey(kycKey))
-                .persist();
-
-        domainBuilder
-                .nft()
-                .customize(n -> n.accountId(treasuryEntityId)
-                        .spender(spenderEntityId)
-                        .accountId(ownerEntityId)
-                        .tokenId(nftEntity.getId())
-                        .metadata("NFT_METADATA_URI".getBytes())
-                        .serialNumber(1))
                 .persist();
         return token;
     }
