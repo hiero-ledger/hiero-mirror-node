@@ -16,6 +16,7 @@
 
 package com.hedera.mirror.web3.service;
 
+import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ECDSA_KEY;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ED25519_KEY;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
@@ -215,14 +216,15 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     void isKycGrantedForNFT() throws Exception {
         // Given
         final var account = accountEntityPersist();
-        final var tokenEntity = persistNft();
-        tokenAccountPersist(tokenEntity.getId(), account.getId());
+        final var token = nftPersist();
+        final var tokenId = token.getTokenId();
+        tokenAccountPersist(tokenId, account.getId());
 
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
         final var functionCall =
-                contract.call_isKycGranted(getAddressFromEntity(tokenEntity), getAddressFromEntity(account));
+                contract.call_isKycGranted(toAddress(tokenId).toHexString(), getAddressFromEntity(account));
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -234,14 +236,15 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     void isKycGrantedForNFTWithAlias() throws Exception {
         // Given
         final var account = accountEntityWithEvmAddressPersist();
-        final var tokenEntity = persistNft();
-        tokenAccountPersist(tokenEntity.getId(), account.getId());
+        final var token = nftPersist();
+        final var tokenId = token.getTokenId();
+        tokenAccountPersist(tokenId, account.getId());
 
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
         final var functionCall =
-                contract.call_isKycGranted(getAddressFromEntity(tokenEntity), getAliasFromEntity(account));
+                contract.call_isKycGranted(toAddress(tokenId).toHexString(), getAliasFromEntity(account));
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -268,12 +271,12 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void isTokenAddressNFT() throws Exception {
         // Given
-        final var tokenEntity = persistNft();
+        final var token = nftPersist();
 
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
-        final var functionCall = contract.call_isTokenAddress(getAddressFromEntity(tokenEntity));
+        final var functionCall = contract.call_isTokenAddress(toAddress(token.getTokenId()).toHexString());
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -349,12 +352,12 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void getTokenTypeNFT() throws Exception {
         // Given
-        final var tokenEntity = persistNft();
+        final var token = nftPersist();
 
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
-        final var functionCall = contract.call_getType(getAddressFromEntity(tokenEntity));
+        final var functionCall = contract.call_getType(toAddress(token.getTokenId()).toHexString());
 
         // Then
         assertThat(functionCall.send()).isEqualTo(BigInteger.ONE);
@@ -684,21 +687,15 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         // Given
         final var owner = accountEntityWithEvmAddressPersist();
         final var spender = accountEntityWithEvmAddressPersist();
-        final var tokenEntity = persistNft();
-
-        domainBuilder
-                .nftAllowance()
-                .customize(a -> a.tokenId(tokenEntity.getId())
-                        .owner(owner.getNum())
-                        .spender(spender.getNum())
-                        .approvedForAll(true))
-                .persist();
+        final var token = nftPersist();
+        final var tokenId = token.getTokenId();
+        nftAllowancePersist(tokenId, spender.toEntityId(), owner.toEntityId());
 
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
         final var functionCall = contract.call_htsIsApprovedForAll(
-                getAddressFromEntity(tokenEntity), getAliasFromEntity(owner), getAliasFromEntity(spender));
+                toAddress(tokenId).toHexString(), getAliasFromEntity(owner), getAliasFromEntity(spender));
 
         // Then
         assertThat(functionCall.send()).isEqualTo(Boolean.TRUE);
@@ -1052,18 +1049,10 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         };
     }
 
-    private Entity persistNft() {
-        final var tokenEntity = tokenEntityPersist();
-        domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId()).type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE))
-                .persist();
-        domainBuilder
-                .nft()
-                .customize(n -> n.tokenId(tokenEntity.getId()).serialNumber(1L))
-                .persist();
-
-        return tokenEntity;
+    private Token nftPersist() {
+        final var token = nonFungibleTokenPersist();
+        nftPersistCustomizable(n -> n.tokenId(token.getTokenId()));
+        return token;
     }
 
     private CustomFee persistCustomFeesWithFeeCollector(

@@ -44,8 +44,7 @@ import org.junit.jupiter.api.Test;
 @RequiredArgsConstructor
 class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractCallServiceTest {
 
-    public static final String NFT_METADATA_URI = "NFT_METADATA_URI";
-    public static final String HBAR = "HBAR";
+
 
     @Test
     void ethCallGetApprovedEmptySpenderStatic() throws Exception {

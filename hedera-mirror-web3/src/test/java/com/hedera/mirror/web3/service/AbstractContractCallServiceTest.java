@@ -77,6 +77,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final long DEFAULT_ACCOUNT_BALANCE = 100_000_000_000_000_000L;
     protected static final int DEFAULT_TOKEN_BALANCE = 100;
     protected static final int DEFAULT_SERIAL_NUMBER = 1;
+    protected static final String NFT_METADATA_URI = "NFT_METADATA_URI";
+    protected static final String HBAR = "HBAR";
 
     @Resource
     protected TestWeb3jService testWeb3jService;
