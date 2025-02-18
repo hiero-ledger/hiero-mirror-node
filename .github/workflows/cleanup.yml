@@ -13,7 +13,7 @@ defaults:
 
 jobs:
   images:
-    runs-on: mirror-node-linux-medium
+    runs-on: hiero-mirror-node-linux-medium
     strategy:
       matrix:
         module:

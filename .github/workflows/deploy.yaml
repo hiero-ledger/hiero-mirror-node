@@ -19,7 +19,7 @@ env:
 jobs:
   deploy:
     name: Deploy
-    runs-on: mirror-node-linux-medium
+    runs-on: hiero-mirror-node-linux-medium
     if: github.event.client_payload.severity == 'info'
     steps:
       - name: Harden Runner
