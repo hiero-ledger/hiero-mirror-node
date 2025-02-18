@@ -44,6 +44,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
@@ -713,6 +714,20 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, senderAddress);
         final var actualGas = 175242L;
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(801L)
+                        .num(801L)
+                        .createdTimestamp(genesisRecordFile.getConsensusStart())
+                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
+                .persist();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(800L)
+                        .num(800L)
+                        .createdTimestamp(genesisRecordFile.getConsensusStart())
+                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
+                .persist();
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -831,6 +846,10 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var token = fungibleTokenPersist();
         final var payer = accountEntityWithEvmAddressPersist();
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var payer = accountEntityWithEvmAddressPersist();
+        accountBalancePersist(payer, payer.getCreatedTimestamp());
+        testWeb3jService.setSender(toAddress(payer.toEntityId()).toHexString());
+
         final var functionCall = contract.send_approve(
                 toAddress(token.getTokenId()).toHexString(), getAliasFromEntity(payer), BigInteger.valueOf(2));
 
@@ -870,6 +889,10 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     void ercPrecompileContractRevertReturnsExpectedGasToBucket(
             final CallType callType, final long gasLimit, final int gasUnit) {
         // Given
+        final var payer = accountEntityWithEvmAddressPersist();
+        accountBalancePersist(payer, payer.getBalance());
+        testWeb3jService.setSender(toAddress(payer.toEntityId()).toHexString());
+
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         final var functionCall = contract.call_nameNonStatic(Address.ZERO.toHexString());
         given(throttleProperties.getGasUnit()).willReturn(gasUnit);

@@ -128,22 +128,26 @@ public abstract class ContractCallService {
     protected HederaEvmTransactionProcessingResult doProcessCall(
             CallServiceParameters params, long estimatedGas, boolean restoreGasToThrottleBucket)
             throws MirrorEvmTransactionException {
+        HederaEvmTransactionProcessingResult result = null;
+
         try {
-            HederaEvmTransactionProcessingResult result;
             if (!mirrorNodeEvmProperties.isModularizedServices()) {
                 result = mirrorEvmTxProcessor.execute(params, estimatedGas);
             } else {
                 result = transactionExecutionService.execute(params, estimatedGas, gasUsedCounter);
             }
-            if (!restoreGasToThrottleBucket) {
-                return result;
-            }
-
-            restoreGasToBucket(result, params.getGas());
-            return result;
         } catch (IllegalStateException | IllegalArgumentException e) {
             throw new MirrorEvmTransactionException(e.getMessage(), EMPTY, EMPTY);
+        } catch (MirrorEvmTransactionException e) {
+            // This result is needed in case of exception to be still able to call restoreGasToBucket method
+            result = e.getResult();
+            throw e;
+        } finally {
+            if (restoreGasToThrottleBucket) {
+                restoreGasToBucket(result, params.getGas());
+            }
         }
+        return result;
     }
 
     private void restoreGasToBucket(HederaEvmTransactionProcessingResult result, long gasLimit) {
@@ -152,7 +156,7 @@ public abstract class ContractCallService {
         // of the gasLimit value back in the bucket.
         final var gasLimitToRestoreBaseline =
                 (long) (Math.floorDiv(gasLimit, gasUnit) * throttleProperties.getGasLimitRefundPercent() / 100f);
-        if (!result.isSuccessful() && gasLimit == result.getGasUsed()) {
+        if (result == null || (!result.isSuccessful() && gasLimit == result.getGasUsed())) {
             gasLimitBucket.addTokens(gasLimitToRestoreBaseline);
         } else {
             // The transaction was successful or reverted, so restore the remaining gas back in the bucket or

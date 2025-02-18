@@ -32,7 +32,7 @@ public class StartupNetworksImpl implements StartupNetworks {
     }
 
     @Override
-    public Optional<Network> overrideNetworkFor(long roundNumber) {
+    public Optional<Network> overrideNetworkFor(long roundNumber, Configuration platformConfig) {
         return Optional.empty();
     }
 
@@ -46,9 +46,13 @@ public class StartupNetworksImpl implements StartupNetworks {
         // This is a no-op in the current context, and other implementations may provide behavior.
     }
 
-    @SuppressWarnings("deprecation")
+    /**
+     * @deprecated in the StartupNetworks interface
+     */
+    @SuppressWarnings({"java:S1133", "java:S6355"})
+    @Deprecated
     @Override
-    public Network migrationNetworkOrThrow() {
+    public Network migrationNetworkOrThrow(Configuration platformConfig) {
         return Network.DEFAULT;
     }
 }

@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.mock;
 
+import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.internal.network.Network;
 import com.swirlds.config.api.Configuration;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +43,8 @@ class StartupNetworksImplTest {
 
     @Test
     void testOverrideNetworkFor() {
-        assertThat(startupNetworks.overrideNetworkFor(0)).isEmpty();
+        final Configuration configuration = new ConfigProviderImpl().getConfiguration();
+        assertThat(startupNetworks.overrideNetworkFor(0, configuration)).isEmpty();
     }
 
     @Test
@@ -53,10 +55,5 @@ class StartupNetworksImplTest {
     @Test
     void testArchiveStartupNetworks() {
         assertDoesNotThrow(() -> startupNetworks.archiveStartupNetworks());
-    }
-
-    @Test
-    void testMigrationNetworkOrThrow() {
-        assertThat(startupNetworks.migrationNetworkOrThrow()).isEqualTo(Network.DEFAULT);
     }
 }
