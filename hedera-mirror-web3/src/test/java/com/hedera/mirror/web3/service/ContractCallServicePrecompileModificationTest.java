@@ -599,7 +599,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
 
-        domainBuilder // TODO:
+        domainBuilder
                 .tokenAccount()
                 .customize(ta -> ta.tokenId(tokenId)
                         .accountId(accountWithFreeze.getId())
@@ -643,21 +643,16 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         // Given
         final var sender = accountEntityPersist();
 
-        final var tokenEntity = tokenEntityPersist();
-        domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .treasuryAccountId(sender.toEntityId())
-                        .pauseStatus(TokenPauseStatusEnum.PAUSED))
-                .persist();
-
-        tokenAccountPersist(tokenEntity.getId(), sender.getId());
+        final var token = fungibleTokenCustomizable(
+                t -> t.treasuryAccountId(sender.toEntityId()).pauseStatus(TokenPauseStatusEnum.PAUSED));
+        final var tokenId = token.getTokenId();
+        tokenAccountPersist(tokenId, sender.getId());
 
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
         // When
-        final var functionCall = contract.call_unpauseTokenExternal(getAddressFromEntity(tokenEntity));
+        final var functionCall =
+                contract.call_unpauseTokenExternal(toAddress(tokenId).toHexString());
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);

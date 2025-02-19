@@ -577,7 +577,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         final var spender = accountPersist();
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
-        tokenAllowancePersist(tokenId, owner, spender); // TODO check order
+        tokenAllowancePersist(tokenId, owner, spender);
 
         final var contract = testWeb3jService.deploy(RedirectTestContract::deploy);
         final var functionCall = contract.send_allowanceRedirect(
@@ -661,7 +661,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         final var owner = accountEntityWithEvmAddressPersist();
         final var token = fungibleTokenPersistWithTreasuryAccount(owner.toEntityId());
         final var tokenId = token.getTokenId();
-        tokenAccountPersist(owner.toEntityId(), tokenId); // TODO: to parent class
+        tokenAccountPersist(owner.toEntityId(), tokenId);
         final var contract = testWeb3jService.deploy(RedirectTestContract::deploy);
         final var functionCall =
                 contract.send_balanceOfRedirect(toAddress(tokenId).toHexString(), getAliasFromEntity(owner));
@@ -845,7 +845,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         }
     }
 
-    private TokenAccount tokenAccountPersist(EntityId owner, Long tokenId) { // TODO: parent class
+    private TokenAccount tokenAccountPersist(EntityId owner, Long tokenId) {
         return domainBuilder
                 .tokenAccount()
                 .customize(e -> e.accountId(owner.getId()).tokenId(tokenId))
