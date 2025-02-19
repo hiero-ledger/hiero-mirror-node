@@ -26,7 +26,7 @@ export GITHUB_TOKEN=...
 export CONTEXT=preprod
 brew install fluxcd/tap/flux
 flux check --pre
-flux bootstrap github --owner=hashgraph --repository=hedera-mirror-node --branch=deploy --team=hedera-mirror-node --context="${CONTEXT}" --path="clusters/${CONTEXT}" --private=false --interval=1m
+flux bootstrap github --owner=hiero-ledger --repository=hiero-mirror-node --branch=deploy --team=hiero-mirror-node-committers --context="${CONTEXT}" --path="clusters/${CONTEXT}" --private=false --interval=1m
 ```
 
 ### GitHub
@@ -36,8 +36,16 @@ flux bootstrap github --owner=hashgraph --repository=hedera-mirror-node --branch
 For alerts of type [GitHub Dispatch](https://fluxcd.io/flux/components/notification/providers/#github-dispatch), a new GitHub
 [Personal Access Token (PAT)](https://github.com/settings/personal-access-tokens/new) will need to be created with repository
 permissions for `Contents` scope with `Read and Write` access. This PAT is created under the
-[hedera-github-bot](https://github.com/hedera-github-bot) user. The resource owner should be the hashgraph organization and
-have repository access only for `hashgraph/hedera-mirror-node`.
+[hedera-github-bot](https://github.com/hedera-github-bot) user. The resource owner should be the hiero-ledger organization and
+have repository access only for `hiero-ledger/hiero-mirror-node`.
+
+#### GitHub Commit Status
+
+For alerts of type [GitHub](https://fluxcd.io/flux/components/notification/providers/#git-commit-status-updates) that
+update the git commit status on GitHub, a new GitHub PAT will need to be created with repository permissions for
+`Commit statuses` scope with `Read and Write` access. This PAT is created under the
+[hedera-github-bot](https://github.com/hedera-github-bot) user. The resource owner should be the hiero-ledger 
+organization and have repository access only for `hiero-ledger/hiero-mirror-node`.
 
 ## Configure
 
@@ -58,7 +66,7 @@ git add sealed-secret.yaml
 
 ```bash
 brew upgrade
-flux bootstrap github --owner=hashgraph --repository=hedera-mirror-node --branch=deploy --team=hedera-mirror-node --context="${CONTEXT}" --path="clusters/${CONTEXT}" --private=false --interval=1m
+flux bootstrap github --owner=hiero-ledger --repository=hiero-mirror-node --branch=deploy --team=hiero-mirror-node-committers --context="${CONTEXT}" --path="clusters/${CONTEXT}" --private=false --interval=1m
 ```
 
 ## Restore
@@ -80,6 +88,6 @@ Simply install sealed secrets, restore the backed up private key then install Fl
 minikube start
 kubectl create ns test
 flux install
-flux create source helm hedera-mirror-node --url=https://hashgraph.github.io/hedera-mirror-node/charts -n test
+flux create source helm hedera-mirror-node --url=https://hiero-ledger.github.io/hiero-mirror-node/charts -n test
 flux create helmrelease mirror -n test --source=HelmRepository/hedera-mirror-node --chart=hedera-mirror
 

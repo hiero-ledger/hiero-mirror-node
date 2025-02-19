@@ -5,4 +5,4 @@ metadata:
   namespace: testnet-citus
 spec:
   interval: 5m
-  url: https://hashgraph.github.io/hedera-mirror-node/charts
+  url: https://hiero-ledger.github.io/hiero-mirror-node/charts

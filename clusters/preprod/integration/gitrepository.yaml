@@ -10,4 +10,4 @@ spec:
   interval: 1m0s
   ref:
     branch: main
-  url: https://github.com/hashgraph/hedera-mirror-node.git
+  url: https://github.com/hiero-ledger/hiero-mirror-node.git

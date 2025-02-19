@@ -6,7 +6,6 @@ resources:
 - gotk-components.yaml
 - gotk-sync.yaml
 - provider-github.yaml
-- provider-github-dispatch.yaml
 - provider-slack.yaml
 - sealed-secret-github.yaml
 - sealed-secret-slack.yaml

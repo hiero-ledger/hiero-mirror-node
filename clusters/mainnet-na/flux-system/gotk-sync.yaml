@@ -11,7 +11,7 @@ spec:
     branch: deploy
   secretRef:
     name: flux-system
-  url: ssh://git@github.com/hashgraph/hedera-mirror-node
+  url: ssh://git@github.com/hiero-ledger/hiero-mirror-node
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization

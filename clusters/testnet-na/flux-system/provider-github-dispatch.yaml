@@ -4,7 +4,7 @@ metadata:
   name: github-dispatch
   namespace: flux-system
 spec:
-  address: https://github.com/hashgraph/hedera-mirror-node
+  address: https://github.com/hiero-ledger/hiero-mirror-node
   secretRef:
     name: github-dispatch-token
   type: githubdispatch
