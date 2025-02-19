@@ -31,7 +31,7 @@ jobs:
           token: ${{ secrets.GH_ACCESS_TOKEN_HG }}
 
       - name: Add Remote
-        run: git remote add HIERO git@github.com:hiero-ledger/hiero-mirror-node.git
+        run: git remote add HIERO https://github.com/hiero-ledger/hiero-mirror-node.git
 
       - name: Get the latest from HIERO
         run: git fetch HIERO
