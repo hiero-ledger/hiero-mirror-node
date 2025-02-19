@@ -596,7 +596,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
 
-        final var token = nftPersist(treasuryEntityId, spenderEntityId.toEntityId());
+        final var token = nftPersist(treasuryEntityId, spender.toEntityId());
         final var tokenId = token.getTokenId();
 
         tokenAccountPersist(tokenId, spender.getId());

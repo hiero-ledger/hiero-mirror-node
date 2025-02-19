@@ -776,7 +776,6 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
     void tokenURINegative() {
         // Given
         final var token = fungibleTokenPersist();
-        final var tokenAddress = toAddress(token.getTokenId()).toHexString();
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         // When
         final var functionCall =
