@@ -25,23 +25,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          repository: "hashgraph/hedera-mirror-node"
           ref: gh-pages
           fetch-depth: "0"
-
-      - name: Setup SSH
-        env:
-          SSH_KEY: ${{ secrets.SSH_ACCESS_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "${SSH_KEY}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          token: ${{ secrets.GH_ACCESS_TOKEN_HG }}
 
       - name: Add Remote
-        run: git remote add HASHGRAPH git@github.com:hashgraph/hedera-mirror-node.git
+        run: git remote add HIERO git@github.com:hiero-ledger/hiero-mirror-node.git
 
-      - name: Fetch from target branch
-        run: git fetch HASHGRAPH
+      - name: Get the latest from HIERO
+        run: git fetch HIERO
 
-      - name: Sync target branch
-        run: git push HASHGRAPH gh-pages
+      - name: Sync gh-pages locally
+        run: git rebase --merge HIERO/gh-pages
+
+      - name: Push updates
+        run: git push --force --set-upstream origin gh-pages
