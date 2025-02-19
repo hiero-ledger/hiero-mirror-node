@@ -30,7 +30,6 @@ import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.entity.NftAllowance;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.common.domain.token.Nft;
 import com.hedera.mirror.common.domain.token.Token;
@@ -65,7 +64,6 @@ import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.context.annotation.Import;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectWriter;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.tx.Contract;
@@ -337,8 +335,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return nonFungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
     }
 
-    protected Token nonFungibleTokenCustomizable(
-            Consumer<Token.TokenBuilder<?, ?>> customizer) {
+    protected Token nonFungibleTokenCustomizable(Consumer<Token.TokenBuilder<?, ?>> customizer) {
         final var nft = tokenEntityPersist();
 
         return domainBuilder
@@ -355,17 +352,20 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param customizer Consumer to customize NFT attributes.
      */
     protected void nftPersistCustomizable(Consumer<Nft.NftBuilder<?, ?>> customizer) {
-        domainBuilder.nft().customize(n -> {n.serialNumber(DEFAULT_SERIAL_NUMBER); customizer.accept(n);}).persist();
+        domainBuilder
+                .nft()
+                .customize(n -> {
+                    n.serialNumber(DEFAULT_SERIAL_NUMBER);
+                    customizer.accept(n);
+                })
+                .persist();
     }
 
     /**
      * Persists an NFT for a treasury account with self-spender.
      */
-
     protected void nftPersistWithSpender(final long tokenId, final EntityId accountId, final EntityId spender) {
-        nftPersistCustomizable(n -> n.accountId(accountId)
-                .tokenId(tokenId)
-                .spender(spender));
+        nftPersistCustomizable(n -> n.accountId(accountId).tokenId(tokenId).spender(spender));
     }
 
     protected Token nftPersist(final EntityId treasuryEntityId) {
@@ -393,58 +393,19 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return nftPersistWithSpenderAndTreasury(ownerEntityId, ownerEntityId);
     }
 
-    /**
-     * The method creates token allowance, which defines the amount of tokens that the owner allows another account
-     * (spender) to use on its behalf.
-     *
-     * @param amountGranted - initial amount of tokens that the spender is allowed to use on owner's behalf
-     * @param tokenEntity   - the token entity the allowance is created for
-     * @param owner         - the owner of the token amount that the allowance is created for
-     * @param spenderId     - the spender id (another user's id or contract id) that is allowed to spend amountGranted
-     *                      of tokenEntity on owner's behalf
-     * @return TokenAllowance object that is persisted to the database
-     */
-    protected TokenAllowance tokenAllowancePersist(
-            Long amountGranted, Entity tokenEntity, Entity owner, EntityId spenderId) {
-        return domainBuilder
-                .tokenAllowance()
-                .customize(e -> e.owner(owner.getId())
-                        .amount(amountGranted)
-                        .amountGranted(amountGranted)
-                        .spender(spenderId.getId())
-                        .tokenId(tokenEntity.getId()))
-                .persist();
-    }
-
     protected TokenAllowance tokenAllowancePersistCustomizable(
-            Consumer<TokenAllowance.TokenAllowanceBuilder<?,?>> customizer) {
-        return domainBuilder
-                .tokenAllowance()
-                .customize(customizer)
-                .persist();
+            Consumer<TokenAllowance.TokenAllowanceBuilder<?, ?>> customizer) {
+        return domainBuilder.tokenAllowance().customize(customizer).persist();
     }
 
     /**
      * This method creates nft allowance for all instances of a specific token type (approvedForAll). The allowance
      * allows the spender to transfer NFTs on the owner's behalf.
      *
-     * @param token   the NFT token for which the allowance is created
-     * @param owner   the account owning the NFT
+     * @param tokenId   the NFT tokenId for which the allowance is created
+     * @param owner   the account owning the NFT. In this case he is payer as well
      * @param spender the account allowed to transfer the NFT on owner's behalf
-     * @param payer   the account paying for the allowance creation
-     * @return NftAllowance object that is persisted to the database
      */
-    protected NftAllowance nftAllowancePersist(Token token, Entity owner, Entity spender, Entity payer) { //TODO: refactor
-        return domainBuilder
-                .nftAllowance()
-                .customize(a -> a.tokenId(token.getTokenId())
-                        .owner(owner.getId())
-                        .spender(spender.toEntityId().getId())
-                        .payerAccountId(payer.toEntityId())
-                        .approvedForAll(true))
-                .persist();
-    }
-
     protected void nftAllowancePersist(Long tokenId, EntityId spender, EntityId owner) {
         domainBuilder
                 .nftAllowance()

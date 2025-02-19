@@ -330,8 +330,6 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
-
-
     @ParameterizedTest
     @CsvSource(
             textBlock =
@@ -699,7 +697,8 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         nftAllowancePersist(tokenId, contractEntityId, spenderEntityId);
 
         // When
-        final var functionCall = contract.send_transferFromNFTGetAllowance(toAddress(tokenId).toHexString(), BigInteger.ONE);
+        final var functionCall =
+                contract.send_transferFromNFTGetAllowance(toAddress(tokenId).toHexString(), BigInteger.ONE);
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);
@@ -841,7 +840,8 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     private Token nftPersistWithNullKycKey(EntityId treasuryEntityId) {
-        final var token = nonFungibleTokenCustomizable(n -> n.treasuryAccountId(treasuryEntityId).kycKey(null));
+        final var token = nonFungibleTokenCustomizable(
+                n -> n.treasuryAccountId(treasuryEntityId).kycKey(null));
         nftPersistWithSpender(token.getTokenId(), treasuryEntityId, treasuryEntityId);
         return token;
     }

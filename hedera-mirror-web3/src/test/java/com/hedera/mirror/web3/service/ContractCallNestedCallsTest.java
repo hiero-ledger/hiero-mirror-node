@@ -586,9 +586,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     private Token nftPersist() {
         final var treasury = domainBuilder.entity().persist().toEntityId();
         final var token = nonFungibleTokenPersistWithTreasury(treasury);
-        nftPersistCustomizable(n -> n.accountId(treasury)
-                .spender(treasury)
-                .tokenId(token.getTokenId()));
+        nftPersistCustomizable(n -> n.accountId(treasury).spender(treasury).tokenId(token.getTokenId()));
         return token;
     }
 }

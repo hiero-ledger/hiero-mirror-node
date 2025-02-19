@@ -141,7 +141,7 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
         verifyOpcodeTracerCall(function.encodeFunctionCall(), contract);
     }
 
-    private Entity nftPersistHistorical( // TODO: check if it can be refactored
+    private Entity nftPersistHistorical(
             final int nftAmountToMint,
             final EntityId ownerEntityId,
             final EntityId spenderEntityId,

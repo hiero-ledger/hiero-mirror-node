@@ -276,7 +276,8 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
-        final var functionCall = contract.call_isTokenAddress(toAddress(token.getTokenId()).toHexString());
+        final var functionCall =
+                contract.call_isTokenAddress(toAddress(token.getTokenId()).toHexString());
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -357,7 +358,8 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
-        final var functionCall = contract.call_getType(toAddress(token.getTokenId()).toHexString());
+        final var functionCall =
+                contract.call_getType(toAddress(token.getTokenId()).toHexString());
 
         // Then
         assertThat(functionCall.send()).isEqualTo(BigInteger.ONE);
