@@ -22,11 +22,11 @@ import static org.mockito.Mockito.mock;
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.mirror.web3.ContextExtension;
-import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.state.core.MapReadableKVState;
 import com.hedera.mirror.web3.state.keyvalue.AccountReadableKVState;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -39,9 +39,8 @@ class ReadableKVStateBaseTest {
     void testReadKeys() {
         final var accountID = mock(AccountID.class);
         final var account = mock(Account.class);
-        final ReadableKVStateBase<AccountID, Account> readableKVStateBase =
-                new MapReadableKVState<>(AccountReadableKVState.KEY, Map.of());
-        ContractCallContext.get().getReadCacheState(AccountReadableKVState.KEY).put(accountID, account);
+        final ReadableKVStateBase<AccountID, Account> readableKVStateBase = new MapReadableKVState<>(
+                AccountReadableKVState.KEY, new ConcurrentHashMap<>(Map.of(accountID, account)));
         assertThat(readableKVStateBase.readKeys()).isEqualTo(Set.of(accountID));
     }
 
@@ -50,7 +49,7 @@ class ReadableKVStateBaseTest {
         final var accountID = mock(AccountID.class);
         final var account = mock(Account.class);
         final ReadableKVStateBase<AccountID, Account> readableKVStateBase =
-                new MapReadableKVState<>(AccountReadableKVState.KEY, Map.of());
+                new MapReadableKVState<>(AccountReadableKVState.KEY, new ConcurrentHashMap<>());
         readableKVStateBase.markRead(accountID, account);
         assertThat(readableKVStateBase.hasBeenRead(accountID)).isTrue();
         readableKVStateBase.reset();

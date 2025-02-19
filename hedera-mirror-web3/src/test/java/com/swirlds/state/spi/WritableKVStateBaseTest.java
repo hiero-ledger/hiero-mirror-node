@@ -82,7 +82,7 @@ class WritableKVStateBaseTest {
         final var account = mock(Account.class);
         final WritableKVStateBase<AccountID, Account> writableKVStateBase =
                 new MapWritableKVState<>(AccountReadableKVState.KEY, readableKVStateBase);
-        ContractCallContext.get().getReadCacheState(AccountReadableKVState.KEY).put(accountID, account);
+        when(readableKVStateBase.get(accountID)).thenReturn(account);
         assertThat(writableKVStateBase.getForModify(accountID)).isEqualTo(account);
     }
 

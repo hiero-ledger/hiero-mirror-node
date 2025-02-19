@@ -22,6 +22,7 @@ import jakarta.annotation.Nonnull;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * A simple implementation of {@link ReadableKVState} backed by a
@@ -46,7 +47,7 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
      * @param backingStore The backing store to use
      */
     public MapReadableKVState(@Nonnull final String stateKey, @Nonnull final Map<K, V> backingStore) {
-        super(stateKey);
+        super(stateKey, (ConcurrentMap<K, V>) backingStore);
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 

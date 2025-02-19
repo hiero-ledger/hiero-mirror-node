@@ -16,24 +16,35 @@
 
 package com.swirlds.state.spi;
 
-import com.hedera.mirror.web3.common.ContractCallContext;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.Collections;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
+@SuppressWarnings("unchecked")
 /**
  * A base class for implementations of {@link ReadableKVState} and {@link WritableKVState}.
  *
  * @param <K> The key type
  * @param <V> The value type
  */
-@SuppressWarnings("unchecked")
 public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V> {
     /** The state key, which cannot be null */
     private final String stateKey;
+
+    /**
+     * A cache of all values read from this {@link ReadableKVState}. If the same value is read
+     * twice, rather than going to the underlying merkle data structures to read the data a second
+     * time, we simply return it from the cache. We also keep track of all keys read, which is
+     * critical for dealing with validating what we read during pre-handle with what may have
+     * changed before we got to handle transaction. If the value is "null", this means it was NOT
+     * FOUND when we looked it up.
+     */
+    private ConcurrentMap<K, V> readCache = new ConcurrentHashMap<>();
 
     private static final Object marker = new Object();
 
@@ -44,6 +55,16 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      */
     protected ReadableKVStateBase(@Nonnull String stateKey) {
         this.stateKey = Objects.requireNonNull(stateKey);
+    }
+
+    /**
+     * Create a new StateBase.
+     *
+     * @param stateKey The state key. Cannot be null.
+     */
+    protected ReadableKVStateBase(@Nonnull String stateKey, ConcurrentMap<K, V> readCacheSource) {
+        this.stateKey = Objects.requireNonNull(stateKey);
+        this.readCache = readCacheSource;
     }
 
     /** {@inheritDoc} */
@@ -64,8 +85,8 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
             final var value = readFromDataSource(key);
             markRead(key, value);
         }
-        final var value = getReadCache().get(key);
-        return (value == marker) ? null : (V) value;
+        final var value = readCache.get(key);
+        return (value == marker) ? null : value;
     }
 
     /**
@@ -75,7 +96,7 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      */
     @Nonnull
     public final Set<K> readKeys() {
-        return (Set<K>) getReadCache().keySet();
+        return Collections.unmodifiableSet(readCache.keySet());
     }
 
     /** {@inheritDoc} */
@@ -88,7 +109,7 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
     /** Clears all cached data, including the set of all read keys. */
     /*@OverrideMustCallSuper*/
     public void reset() {
-        getReadCache().clear();
+        readCache.clear();
     }
 
     /**
@@ -109,15 +130,17 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
     protected abstract Iterator<K> iterateFromDataSource();
 
     /**
-     * Records the given key and associated value were read. {@link WritableKVStateBase} will call
-     * this method in some cases when a key is read as part of a modification (for example, with
-     * {@link WritableKVStateBase#getForModify}).
+     * Records the given key and associated value were read.
      *
      * @param key The key
      * @param value The value
      */
     protected final void markRead(@Nonnull K key, @Nullable V value) {
-        getReadCache().put(key, Objects.requireNonNullElse(value, (V) marker));
+        if (value == null) {
+            readCache.put(key, (V) marker);
+        } else {
+            readCache.put(key, value);
+        }
     }
 
     /**
@@ -127,10 +150,6 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      * @return Whether it has been read
      */
     protected final boolean hasBeenRead(@Nonnull K key) {
-        return getReadCache().containsKey(key);
-    }
-
-    private Map<Object, Object> getReadCache() {
-        return ContractCallContext.get().getReadCacheState(getStateKey());
+        return readCache.containsKey(key);
     }
 }

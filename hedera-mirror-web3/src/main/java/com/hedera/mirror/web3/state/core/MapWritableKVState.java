@@ -16,19 +16,28 @@
 
 package com.hedera.mirror.web3.state.core;
 
+import com.google.common.collect.ForwardingMap;
+import com.hedera.mirror.web3.common.ContractCallContext;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.WritableKVStateBase;
 import jakarta.annotation.Nonnull;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Objects;
 
+@SuppressWarnings("unchecked")
 public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
 
     private final ReadableKVState<K, V> readableBackingStore;
 
     public MapWritableKVState(
             @Nonnull final String stateKey, @Nonnull final ReadableKVState<K, V> readableBackingStore) {
-        super(stateKey);
+        super(stateKey, new ForwardingMap<>() {
+            @Override
+            protected HashMap<K, V> delegate() {
+                return (HashMap<K, V>) ContractCallContext.get().getWriteCacheState(stateKey);
+            }
+        });
         this.readableBackingStore = Objects.requireNonNull(readableBackingStore);
     }
 
@@ -44,8 +53,8 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
     }
 
     @Override
-    protected V getForModifyFromDataSource(@Nonnull K key) {
-        return readableBackingStore.get(key);
+    public V getForModify(@Nonnull K key) {
+        return super.get(key);
     }
 
     @Override

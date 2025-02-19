@@ -11,6 +11,7 @@ hedera:
           150: 0.46.0
           200: 0.50.0
         network: OTHER
+        modularizedServices: true
       opcode:
         tracer:
           enabled: true

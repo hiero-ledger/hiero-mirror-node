@@ -55,9 +55,9 @@ class MapWritableKVStateTest {
     }
 
     @Test
-    void testGetForModifyFromDataSourceReturnsCorrectValue() {
+    void testGetForModifyReturnsCorrectValue() {
         when(readableKVState.get(accountID)).thenReturn(account);
-        assertThat(mapWritableKVState.getForModifyFromDataSource(accountID)).isEqualTo(account);
+        assertThat(mapWritableKVState.getForModify(accountID)).isEqualTo(account);
     }
 
     @Test

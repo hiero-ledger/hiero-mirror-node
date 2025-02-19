@@ -116,6 +116,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .entity()
                 .customize(e -> e.id(2L)
                         .num(2L)
+                        .evmAddress(null)
+                        .alias(null)
                         // The balance should not be set to max value 5000000000000000000L, because if we use it as a
                         // node operator it would not be able to receive rewards and can cause failures
                         .balance(1000000000000000000L)
