@@ -1213,7 +1213,7 @@ public class DomainBuilder {
         try {
             return Keys.createEcKeyPair();
         } catch (GeneralSecurityException e) {
-            throw new RuntimeException("Failed to generate secp256k1 key", e);
+            throw new IllegalStateException("Failed to generate secp256k1 key", e);
         }
     }
 

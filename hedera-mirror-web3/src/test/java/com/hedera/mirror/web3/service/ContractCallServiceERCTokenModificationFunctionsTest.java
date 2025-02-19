@@ -183,7 +183,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
         final var contractId = contractEntityId.getId();
-        final var token = nftPersist(treasury, entityIdFromEvmAddress(toAddress(contractId)));
+        final var token = nftPersist(treasury, contractEntityId);
         final var tokenId = token.getTokenId();
 
         final var tokenAddress = toAddress(tokenId);
@@ -673,7 +673,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
         final var token = nftPersist(treasury, ownerEntityId);
         final var tokenId = token.getTokenId();
-        final var tokenEntityId = entityIdFromEvmAddress(toAddress(token.getTokenId()));
+        final var tokenEntityId = EntityId.of(token.getTokenId());
         tokenAssociateAccountPersist(ownerEntityId.getId(), tokenId);
         tokenAssociateAccountPersist(recipient.getId(), tokenId);
         tokenAssociateAccountPersist(contractEntityId.getId(), tokenId);
