@@ -37,8 +37,11 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
-      - name: Add Remote and Sync
-        run: |
-          git remote add HASHGRAPH git@github.com:hashgraph/hedera-mirror-node.git
-          git fetch HASHGRAPH
-          git push HASHGRAPH gh-pages
+      - name: Add Remote
+        run: git remote add HASHGRAPH git@github.com:hashgraph/hedera-mirror-node.git
+
+      - name: Fetch from target branch
+        run: git fetch HASHGRAPH
+
+      - name: Sync target branch
+        run: git push HASHGRAPH gh-pages
