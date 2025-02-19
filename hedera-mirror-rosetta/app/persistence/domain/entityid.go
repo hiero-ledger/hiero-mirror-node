@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/tools"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/tools"
 )
 
 const (

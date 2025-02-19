@@ -21,11 +21,11 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/server"
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/domain/types"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/errors"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/interfaces"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/persistence"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/tools"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/domain/types"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/errors"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/interfaces"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/persistence"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/tools"
 )
 
 // networkAPIService implements the server.NetworkAPIServicer interface.

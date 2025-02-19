@@ -7,7 +7,7 @@ consensus. The trust of Hedera mainnet is derived based on the consensus reached
 transferred to the mirror nodes using cryptographic signatures on a chain of records (account balances, events,
 transactions, etc).
 
-For more information, visit our [GitHub](https://github.com/hashgraph/hedera-mirror-node) project.
+For more information, visit our [GitHub](https://github.com/hiero-ledger/hiero-mirror-node) project.
 
 For one click deployment to Google Kubernetes Engine see our
 [Google Cloud Platform Marketplace solution](https://console.cloud.google.com/marketplace/details/mirror-node-public/hedera-mirror-node)
@@ -111,7 +111,7 @@ kubectl create namespace "${NAMESPACE}"
 Clone this repository and checkout the latest stable tag:
 
 ```shell
-git clone https://github.com/hashgraph/hedera-mirror-node.git
+git clone https://github.com/hiero-ledger/hiero-mirror-node.git
 git checkout tags/v0.60.0 # Change version appropriately
 ```
 
@@ -146,14 +146,14 @@ these [on-screen instructions](https://console.cloud.google.com/marketplace/deta
 
 You can use [Google Cloud Shell](https://cloud.google.com/shell/) or a local workstation to follow the steps below.
 
-[![Open in Cloud Shell](http://gstatic.com/cloudssh/images/open-btn.svg)](https://console.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/hashgraph/hedera-mirror-node&cloudshell_open_in_editor=README.md&cloudshell_working_dir=charts/marketplace/gcp)
+[![Open in Cloud Shell](http://gstatic.com/cloudssh/images/open-btn.svg)](https://console.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/hiero-ledger/hiero-mirror-node&cloudshell_open_in_editor=README.md&cloudshell_working_dir=charts/marketplace/gcp)
 
 ### Configure
 
 Add the Hedera Mirror Node Helm chart repository:
 
 ```shell
-helm repo add hedera https://hashgraph.github.io/hedera-mirror-node/charts
+helm repo add hedera https://hiero-ledger.github.io/hiero-mirror-node/charts
 ```
 
 Optional: Use a function to generate the password for the components:

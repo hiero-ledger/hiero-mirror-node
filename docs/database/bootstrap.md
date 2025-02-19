@@ -76,8 +76,8 @@ Download the `bootstrap.sh` script and the `bootstrap.env` configuration file. T
 1. **Download `bootstrap.sh` and `bootstrap.env`:**
 
    ```bash
-   curl -O https://raw.githubusercontent.com/hashgraph/hedera-mirror-node/main/hedera-mirror-importer/src/main/resources/db/scripts/bootstrap.sh \
-        -O https://raw.githubusercontent.com/hashgraph/hedera-mirror-node/main/hedera-mirror-importer/src/main/resources/db/scripts/bootstrap.env
+   curl -O https://raw.githubusercontent.com/hiero-ledger/hiero-mirror-node/main/hedera-mirror-importer/src/main/resources/db/scripts/bootstrap.sh \
+        -O https://raw.githubusercontent.com/hiero-ledger/hiero-mirror-node/main/hedera-mirror-importer/src/main/resources/db/scripts/bootstrap.env
 
    chmod +x bootstrap.sh
    ```

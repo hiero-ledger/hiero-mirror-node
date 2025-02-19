@@ -16,7 +16,7 @@ x-google-marketplace:
   # The release version, MUST match the release tag on the deployer.
   publishedVersion: "$TAG"
   publishedVersionMetadata:
-    releaseNote: For release notes refer to https://github.com/hashgraph/hedera-mirror-node/releases
+    releaseNote: For release notes refer to https://github.com/hiero-ledger/hiero-mirror-node/releases
     # releaseTypes - Feature | BugFix | Security
     releaseTypes:
       - Feature

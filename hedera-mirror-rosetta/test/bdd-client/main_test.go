@@ -23,7 +23,7 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/cucumber/godog/colors"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/test/bdd-client/scenario"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/test/bdd-client/scenario"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )

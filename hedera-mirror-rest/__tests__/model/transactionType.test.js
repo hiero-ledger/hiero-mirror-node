@@ -18,7 +18,7 @@ import {proto} from '@hashgraph/proto';
 import {TransactionType} from '../../model';
 import {InvalidArgumentError} from '../../errors';
 
-const hederaFunctionalityLength = 79;
+const hederaFunctionalityLength = 86;
 const cryptoCreateAccountProtoId = 11;
 const unknownProtoId = 9999999;
 

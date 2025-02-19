@@ -19,8 +19,8 @@ package db
 import (
 	"time"
 
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/config"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/interfaces"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/config"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/interfaces"
 	gormlogrus "github.com/onrik/gorm-logrus"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"

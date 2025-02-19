@@ -53,6 +53,6 @@ issue should have a project assigned to ensure work is not tracked twice on the 
 Before opening a PR, the submitter should ensure all tests pass locally and any manual testing has been conducted to
 verify the new functionality. The PR should stay as draft and without requesting reviewers until all requirements of the
 ticket are complete, all checks pass, and a self-review of the changes has been conducted. Once that criteria has been
-met, the PR can be marked as ready for review and the `hashgraph/hedera-mirror-node` team requested for a review. PRs
+met, the PR can be marked as ready for review and the `@hiero-ledger/github-committers` team requested for a review. PRs
 require at least one approval to merge, but in practice we encourage at least two approvals before
 merging most PRs.

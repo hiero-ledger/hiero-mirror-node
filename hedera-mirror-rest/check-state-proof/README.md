@@ -3,7 +3,7 @@
 The Mirror Node State Proof Alpha provides the ability to cryptographically prove a transaction is valid on Hedera Network.
 It's the interim solution until [full state proof](https://www.hedera.com/blog/state-proofs-on-hedera) is implemented.
 
-Refer to the [State Proof Alpha Design](https://github.com/hashgraph/hedera-mirror-node/blob/master/docs/design/stateproofalpha.md) for more architectural details.
+Refer to the [State Proof Alpha Design](/docs/design/stateproofalpha.md) for more architectural details.
 
 A node based CLI tool `check-state-proof` is provided here to showcase the steps necessary to independently check the validity of a transaction.
 
@@ -43,7 +43,7 @@ To run the CLI you must
 1. Install the node application
 2. Point to a mirror node with the State Proof Alpha REST API enabled.
 
-If you would like to configure your mirror node to support State Proof Alpha you can follow the configuration steps [Enable State Proof Alpha](../../docs/configuration.md#enable-state-proof-alpha)
+If you would like to configure your mirror node to support State Proof Alpha you can follow the configuration steps [Enable State Proof Alpha](/docs/configuration.md#enable-state-proof-alpha)
 
 ### Install CLI
 

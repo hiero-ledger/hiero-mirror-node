@@ -158,7 +158,7 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
         assertThat(findHistory(Topic.class)).isEmpty();
     }
 
-    // https://github.com/hashgraph/hedera-mirror-node/issues/501
+    // Issue #501
     @Test
     void createTopicTestExistingAutoRenewAccount() {
         Long autoRenewAccountId = 100L;

@@ -667,7 +667,7 @@ initialize_database() {
   fi
 
   # Construct the URL for init.sh
-  INIT_SH_URL="https://raw.githubusercontent.com/hashgraph/hedera-mirror-node/refs/heads/main/hedera-mirror-importer/src/main/resources/db/scripts/init.sh"
+  INIT_SH_URL="https://raw.githubusercontent.com/hiero-ledger/hiero-mirror-node/refs/heads/main/hedera-mirror-importer/src/main/resources/db/scripts/init.sh"
 
   # Download init.sh
   log "Downloading init.sh from $INIT_SH_URL"

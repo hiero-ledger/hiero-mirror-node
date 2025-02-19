@@ -18,11 +18,11 @@ package scenario
 
 import (
 	"context"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/tools"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/tools"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/cucumber/godog"
-	types2 "github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/domain/types"
+	types2 "github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/domain/types"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	log "github.com/sirupsen/logrus"
 )

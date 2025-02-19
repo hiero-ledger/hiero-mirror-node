@@ -18,7 +18,7 @@ package types
 
 import (
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/persistence/domain"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/persistence/domain"
 )
 
 // Transaction is domain level struct used to represent Transaction conceptual mapping in Hedera

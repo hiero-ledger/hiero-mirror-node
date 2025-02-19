@@ -28,8 +28,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/config"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/interfaces"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/config"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/interfaces"
 	_ "github.com/lib/pq"
 	"github.com/ory/dockertest/v3/docker"
 	log "github.com/sirupsen/logrus"

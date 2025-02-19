@@ -18,7 +18,7 @@ package services
 
 import (
 	"context"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/errors"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/errors"
 
 	"github.com/coinbase/rosetta-sdk-go/server"
 	"github.com/coinbase/rosetta-sdk-go/types"
