@@ -149,8 +149,8 @@ const calculateScheduleMaxAge = (schedule) => {
   const consensusTimestamp = schedule.consensus_timestamp;
 
   const hasExecuted = executedTimestamp !== undefined || schedule.deleted;
-  const hasAutoExpired = expirationTime === undefined && nowNs >= consensusTimestamp + BigInt(31 * 60 * 1000000000);
-  const hasExpired = expirationTime !== undefined && nowNs >= expirationTime + BigInt(60 * 1000000000);
+  const hasAutoExpired = expirationTime === undefined && nowNs >= consensusTimestamp +  BigInt(31) * BigInt(60) * BigInt(1000000000);
+  const hasExpired = expirationTime !== undefined && nowNs >= expirationTime + BigInt(60) * BigInt(1000000000);
 
   return hasExecuted || hasAutoExpired || hasExpired ? 3600 : undefined;
 };
