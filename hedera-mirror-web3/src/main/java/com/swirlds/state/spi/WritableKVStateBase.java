@@ -18,12 +18,13 @@ package com.swirlds.state.spi;
 
 import static java.util.Objects.requireNonNull;
 
-import com.hedera.mirror.web3.common.ContractCallContext;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import com.google.common.collect.ForwardingMap;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -36,20 +37,34 @@ import java.util.Set;
  * @param <K> The key type
  * @param <V> The value type
  */
-@SuppressWarnings("unchecked")
 public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V> implements WritableKVState<K, V> {
+    /** A map of all modified values buffered in this mutable state */
+    private final Map<K, V> modifications = new LinkedHashMap<>();
     /**
      * A list of listeners to be notified of changes to the state.
      */
     private final List<KVChangeListener<K, V>> listeners = new ArrayList<>();
+
+    private ForwardingMap<K, V> forwardingWriteCache = new ForwardingMap<>() {
+        @Override
+        @NonNull
+        protected Map<K, V> delegate() {
+            return modifications;
+        }
+    };
 
     /**
      * Create a new StateBase.
      *
      * @param stateKey The state key. Cannot be null.
      */
-    protected WritableKVStateBase(@Nonnull final String stateKey) {
+    protected WritableKVStateBase(@NonNull final String stateKey) {
         super(stateKey);
+    }
+
+    protected WritableKVStateBase(@NonNull final String stateKey, @NonNull ForwardingMap<K, V> forwardingWriteCache) {
+        super(stateKey);
+        this.forwardingWriteCache = forwardingWriteCache;
     }
 
     /**
@@ -58,7 +73,7 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
      * round; and there is no use case where an application would only want to be notified of a subset of those changes.
      * @param listener the listener to register
      */
-    public void registerListener(@Nonnull final KVChangeListener<K, V> listener) {
+    public void registerListener(@NonNull final KVChangeListener<K, V> listener) {
         requireNonNull(listener);
         listeners.add(listener);
     }
@@ -69,7 +84,18 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
      * cast and commit unless you own the instance!
      */
     public void commit() {
-        // Do nothing since we do not want to propagate any changes to the underlying datasource.
+        for (final var entry : forwardingWriteCache.entrySet()) {
+            final var key = entry.getKey();
+            final var value = entry.getValue();
+            if (value == null) {
+                removeFromDataSource(key);
+                listeners.forEach(listener -> listener.mapDeleteChange(key));
+            } else {
+                putIntoDataSource(key, value);
+                listeners.forEach(listener -> listener.mapUpdateChange(key, value));
+            }
+        }
+        reset();
     }
 
     /**
@@ -81,18 +107,17 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     @Override
     public final void reset() {
         super.reset();
-        getWriteCacheState().clear();
+        forwardingWriteCache.clear();
     }
 
     /** {@inheritDoc} */
     @Override
     @Nullable
-    public final V get(@Nonnull K key) {
+    public final V get(@NonNull K key) {
         // If there is a modification, then we've already done a "put" or "remove"
         // and should return based on the modification
-        final var writeCache = getWriteCacheState();
-        if (writeCache.containsKey(key)) {
-            return (V) writeCache.get(key);
+        if (forwardingWriteCache.containsKey(key)) {
+            return forwardingWriteCache.get(key);
         } else {
             return super.get(key);
         }
@@ -101,20 +126,18 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     /** {@inheritDoc} */
     @Nullable
     @Override
-    public V getOriginalValue(@Nonnull K key) {
+    public V getOriginalValue(@NonNull K key) {
         return super.get(key);
     }
 
-    /** {@inheritDoc} */
+    @jakarta.annotation.Nullable
     @Override
-    @Nullable
-    public final V getForModify(@Nonnull final K key) {
+    public V getForModify(@NonNull K key) {
         Objects.requireNonNull(key);
         // If there is a modification, then we've already done a "put" or "remove"
         // and should return based on the modification
-        final var writeCache = getWriteCacheState();
-        if (writeCache.containsKey(key)) {
-            return (V) writeCache.get(key);
+        if (forwardingWriteCache.containsKey(key)) {
+            return forwardingWriteCache.get(key);
         }
 
         // If the modifications map does not contain an answer, but the read cache of the
@@ -126,24 +149,24 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
 
         // We have not queried this key before, so let's look it up and store that we have
         // read this key. And then return the value.
-        final var val = getForModifyFromDataSource(key);
+        final var val = getOriginalValue(key);
         markRead(key, val);
         return val;
     }
 
     /** {@inheritDoc} */
     @Override
-    public final void put(@Nonnull final K key, @Nonnull final V value) {
+    public final void put(@NonNull final K key, @NonNull final V value) {
         Objects.requireNonNull(key);
         Objects.requireNonNull(value);
-        getWriteCacheState().put(key, value);
+        forwardingWriteCache.put(key, value);
     }
 
     /** {@inheritDoc} */
     @Override
-    public final void remove(@Nonnull final K key) {
+    public final void remove(@NonNull final K key) {
         Objects.requireNonNull(key);
-        getWriteCacheState().put(key, null);
+        forwardingWriteCache.put(key, null);
     }
 
     /**
@@ -155,19 +178,19 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
      *
      * @return An iterator that iterates over all known keys.
      */
-    @Nonnull
+    @NonNull
     @Override
     public Iterator<K> keys() {
         // Capture the set of keys that have been removed, and the set of keys that have been added.
         final var removedKeys = new HashSet<K>();
         final var maybeAddedKeys = new HashSet<K>();
-        for (final var mod : getWriteCacheState().entrySet()) {
+        for (final var mod : forwardingWriteCache.entrySet()) {
             final var key = mod.getKey();
             final var val = mod.getValue();
             if (val == null) {
-                removedKeys.add((K) key);
+                removedKeys.add(key);
             } else {
-                maybeAddedKeys.add((K) key);
+                maybeAddedKeys.add(key);
             }
         }
 
@@ -181,10 +204,10 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     }
 
     /** {@inheritDoc} */
-    @Nonnull
+    @NonNull
     @Override
     public final Set<K> modifiedKeys() {
-        return (Set<K>) getWriteCacheState().keySet();
+        return forwardingWriteCache.keySet();
     }
 
     /**
@@ -201,13 +224,14 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
      * </ol>
      * @return The size of the state.
      */
+    @Deprecated
     public long size() {
         final var sizeOfBackingMap = sizeOfDataSource();
         int numAdditions = 0;
         int numRemovals = 0;
 
-        for (final var mod : getWriteCacheState().entrySet()) {
-            boolean isPresentInBackingMap = readFromDataSource((K) mod.getKey()) != null;
+        for (final var mod : forwardingWriteCache.entrySet()) {
+            boolean isPresentInBackingMap = readFromDataSource(mod.getKey()) != null;
             boolean isRemovedInMod = mod.getValue() == null;
 
             if (isPresentInBackingMap && isRemovedInMod) {
@@ -220,38 +244,25 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     }
 
     /**
-     * Reads from the underlying data source in such a way as to cause any fast-copyable data
-     * structures underneath to make a fast copy.
-     *
-     * @param key key to read from state
-     * @return The value read from the underlying data source. May be null.
-     */
-    protected abstract V getForModifyFromDataSource(@Nonnull K key);
-
-    /**
      * Puts the given key/value pair into the underlying data source.
      *
      * @param key key to update
      * @param value value to put
      */
-    protected abstract void putIntoDataSource(@Nonnull K key, @Nonnull V value);
+    protected abstract void putIntoDataSource(@NonNull K key, @NonNull V value);
 
     /**
      * Removes the given key and implicit value from the underlying data source.
      *
      * @param key key to remove from the underlying data source
      */
-    protected abstract void removeFromDataSource(@Nonnull K key);
+    protected abstract void removeFromDataSource(@NonNull K key);
 
     /**
      * Returns the size of the underlying data source. This can be a merkle map or a virtual map.
      * @return size of the underlying data source.
      */
     protected abstract long sizeOfDataSource();
-
-    private Map<Object, Object> getWriteCacheState() {
-        return ContractCallContext.get().getWriteCacheState(getStateKey());
-    }
 
     /**
      * A special iterator which includes all keys in the backend iterator, and all keys that have
@@ -277,9 +288,9 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
         private K next;
 
         private KVStateKeyIterator(
-                @Nonnull final Iterator<K> backendItr,
-                @Nonnull final Set<K> removedKeys,
-                @Nonnull final Set<K> maybeAddedKeys) {
+                @NonNull final Iterator<K> backendItr,
+                @NonNull final Set<K> removedKeys,
+                @NonNull final Set<K> maybeAddedKeys) {
             this.backendItr = backendItr;
             this.removedKeys = removedKeys;
             this.maybeAddedKeys = maybeAddedKeys;

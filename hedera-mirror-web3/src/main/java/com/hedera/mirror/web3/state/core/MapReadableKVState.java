@@ -16,8 +16,8 @@
 
 package com.hedera.mirror.web3.state.core;
 
+import com.hedera.mirror.web3.state.keyvalue.AbstractReadableKVState;
 import com.swirlds.state.spi.ReadableKVState;
-import com.swirlds.state.spi.ReadableKVStateBase;
 import jakarta.annotation.Nonnull;
 import java.util.Iterator;
 import java.util.Map;
@@ -33,37 +33,32 @@ import java.util.Objects;
  * @param <K> The key type
  * @param <V> The value type
  */
-public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
+public class MapReadableKVState<K, V> extends AbstractReadableKVState<K, V> {
     /** Represents the backing storage for this state */
-    private final Map<K, V> backingStore;
+    //    private final Map<K, V> backingStore;
 
     /**
-     * Create an instance using the given map as the backing store. This is useful when you want to
-     * pre-populate the map, or if you want to use Mockito to mock it or cause it to throw
+     * Create an instance using the given map as the backing store. This is useful when you want to* pre-populate the map, or if you want to use Mockito to mock it or cause it to throw
      * exceptions when certain keys are accessed, etc.
      *
      * @param stateKey The state key for this state
      * @param backingStore The backing store to use
      */
     public MapReadableKVState(@Nonnull final String stateKey, @Nonnull final Map<K, V> backingStore) {
-        super(stateKey);
-        this.backingStore = Objects.requireNonNull(backingStore);
+        super(stateKey, backingStore);
+        //        this.backingStore = Objects.requireNonNull(backingStore);
     }
 
     @Override
     protected V readFromDataSource(@Nonnull K key) {
-        return backingStore.get(key);
+        return super.get(key);
     }
 
     @Nonnull
     @Override
     protected Iterator<K> iterateFromDataSource() {
-        return backingStore.keySet().iterator();
-    }
-
-    @Override
-    public long size() {
-        return backingStore.size();
+        //        return backingStore.keySet().iterator();
+        return super.iterateFromDataSource();
     }
 
     @Override
@@ -71,11 +66,11 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MapReadableKVState<?, ?> that = (MapReadableKVState<?, ?>) o;
-        return Objects.equals(getStateKey(), that.getStateKey()) && Objects.equals(backingStore, that.backingStore);
+        return Objects.equals(getStateKey(), that.getStateKey());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getStateKey(), backingStore);
+        return Objects.hash(getStateKey());
     }
 }

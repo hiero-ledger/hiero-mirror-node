@@ -20,6 +20,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
+import com.hedera.mirror.web3.ContextExtension;
 import com.hedera.mirror.web3.state.keyvalue.AccountReadableKVState;
 import com.hedera.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import java.util.Map;
@@ -30,6 +31,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
+@ExtendWith(ContextExtension.class)
 class MapReadableKVStateTest {
 
     private MapReadableKVState<AccountID, Account> mapReadableKVState;

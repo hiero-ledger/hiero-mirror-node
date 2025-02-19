@@ -16,15 +16,37 @@
 
 package com.hedera.mirror.web3.state.keyvalue;
 
+import com.google.common.collect.ForwardingMap;
+import com.hedera.mirror.web3.common.ContractCallContext;
 import com.swirlds.state.spi.ReadableKVStateBase;
 import jakarta.annotation.Nonnull;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Map;
 
+@SuppressWarnings("unchecked")
 public abstract class AbstractReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
 
     protected AbstractReadableKVState(@Nonnull String stateKey) {
-        super(stateKey);
+        super(stateKey, new ForwardingMap<>() {
+            @Override
+            @Nonnull
+            protected Map<K, V> delegate() {
+                return (Map<K, V>) ContractCallContext.get().getReadCacheState(stateKey);
+            }
+        });
+    }
+
+    protected AbstractReadableKVState(@Nonnull String stateKey, @Nonnull Map<K, V> backingMap) {
+        super(stateKey, new ForwardingMap<>() {
+
+            @Override
+            @Nonnull
+            protected Map<K, V> delegate() {
+                return (Map<K, V>) ContractCallContext.get().getReadCacheState(stateKey);
+            }
+        });
+        //        ContractCallContext.get().getReadCacheState(stateKey).putAll(backingMap);
     }
 
     @Nonnull
@@ -35,6 +57,6 @@ public abstract class AbstractReadableKVState<K, V> extends ReadableKVStateBase<
 
     @Override
     public long size() {
-        return 0;
+        return readKeys().size();
     }
 }
