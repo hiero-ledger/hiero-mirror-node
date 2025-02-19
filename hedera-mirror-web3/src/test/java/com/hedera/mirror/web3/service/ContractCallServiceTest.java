@@ -567,9 +567,12 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         // Given
         final var receiverEntity = accountPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
-        final var notExistingSenderAlias = Address.fromHexString("0x6b175474e89094c44da98b954eedeac495271d0f");
-        final var serviceParameters =
-                getContractExecutionParametersWithValue(Bytes.EMPTY, notExistingSenderAlias, receiverAddress, 10L);
+        final var payer = accountEntityPersist();
+
+        assertThat(payer.getAlias()).isEqualTo(null);
+
+        final var serviceParameters = getContractExecutionParametersWithValue(
+                Bytes.EMPTY, toAddress(payer.toEntityId()), receiverAddress, 10L);
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -1118,7 +1121,8 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     @Nested
     class EVM46Validation {
 
-        private static final Address NON_EXISTING_ADDRESS = toAddress(123456789);
+        private static final Address NON_EXISTING_ADDRESS =
+                Address.fromHexString("0xA7D9ddBE1f17865597fbd27EC712455208B6B76D");
 
         @Test
         void callToNonExistingContract() {
@@ -1136,8 +1140,12 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         @Test
         void transferToNonExistingContract() {
             // Given
-            final var serviceParameters =
-                    getContractExecutionParametersWithValue(Bytes.EMPTY, NON_EXISTING_ADDRESS, 1L);
+            final var payer = accountEntityWithEvmAddressPersist();
+
+            // The NON_EXISTING_ADDRESS should be a valid EVM alias key(Ethereum-style address derived from an ECDSA
+            // public key), otherwise INVALID_ALIAS_KEY could be thrown
+            final var serviceParameters = getContractExecutionParametersWithValue(
+                    Bytes.EMPTY, getAliasAddressFromEntity(payer), NON_EXISTING_ADDRESS, 1L);
 
             // When
             final var result = contractExecutionService.processCall(serviceParameters);
