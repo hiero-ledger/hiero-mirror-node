@@ -1444,7 +1444,7 @@ describe('token extractSqlFromTokenInfoRequest tests', () => {
                    e.memo,
                    metadata,
                    metadata_key,
-                   lower(t.timestamp_range) as modified_timestamp,
+                   lower(e.timestamp_range) as modified_timestamp,
                    name,
                    pause_key,
                    pause_status,

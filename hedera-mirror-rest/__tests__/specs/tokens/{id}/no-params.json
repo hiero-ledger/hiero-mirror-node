@@ -11,6 +11,7 @@
       {
         "auto_renew_period": 6999999,
         "num": 1135,
+        "timestamp_range": "[1234567890000000002,)",
         "type": "TOKEN",
         "memo": "token.0.0.1135",
         "deleted": null
