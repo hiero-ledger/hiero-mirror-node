@@ -88,11 +88,10 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
         final var token = nftPersistWithSelfSpenderAndTreasury(contractEntityId);
         final var tokenId = token.getTokenId();
-        final var tokenAddress = toAddress(tokenId);
         tokenAccountPersist(tokenId, contractEntityId.getId());
         // When
         final var functionCall = contract.send_approveNFT(
-                tokenAddress.toHexString(), toAddress(spender).toHexString(), BigInteger.ONE);
+                toAddress(token.getTokenId()).toHexString(), toAddress(spender).toHexString(), BigInteger.ONE);
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);
     }
@@ -322,7 +321,6 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         final var recipient = accountEntityWithEvmAddressPersist();
         final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
         final var tokenId = token.getTokenId();
-        final var tokenAddress = toAddress(token.getTokenId());
         tokenAccountPersist(tokenId, owner.getId());
         tokenAccountPersist(tokenId, recipient.getId());
 
@@ -336,7 +334,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         tokenAllowancePersist(contractEntityId.getId(), owner.getId(), tokenId);
         // When
         final var functionCall = contract.send_transferFrom(
-                tokenAddress.toHexString(),
+                toAddress(tokenId).toHexString(),
                 getAliasFromEntity(owner),
                 getAliasFromEntity(recipient),
                 BigInteger.valueOf(amount));
@@ -455,11 +453,10 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
 
         final var token = nftPersistWithSelfSpenderAndTreasury(contractEntityId);
         final var tokenId = token.getTokenId();
-        final var tokenAddress = toAddress(token.getTokenId());
         tokenAccountPersist(tokenId, contractEntityId.getId());
         // When
         final var functionCall = contract.send_approveRedirect(
-                tokenAddress.toHexString(), getAliasFromEntity(spenderEntity), BigInteger.valueOf(serialNo));
+                toAddress(tokenId).toHexString(), getAliasFromEntity(spenderEntity), BigInteger.valueOf(serialNo));
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);
     }

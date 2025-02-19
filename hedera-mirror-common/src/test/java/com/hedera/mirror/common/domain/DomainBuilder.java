@@ -113,6 +113,7 @@ import com.hederahashgraph.api.proto.java.TransactionID;
 import jakarta.persistence.EntityManager;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -134,6 +135,7 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionOperations;
+import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
 import org.web3j.utils.Numeric;
 
@@ -1193,23 +1195,25 @@ public class DomainBuilder {
     }
 
     private ByteString generateSecp256k1Key() {
+        var keyPair = createKeyPair();
+        var publicKey = keyPair.getPublicKey();
+
+        // Convert BigInteger public key to a full 65-byte uncompressed key
+        var fullPublicKey = Numeric.hexStringToByteArray(Numeric.toHexStringWithPrefixZeroPadded(publicKey, 130));
+
+        // Convert to compressed format (33 bytes)
+        var prefix = (byte) (fullPublicKey[64] % 2 == 0 ? 0x02 : 0x03); // 0x02 for even Y, 0x03 for odd Y
+        var compressedKey = new byte[33];
+        compressedKey[0] = prefix;
+        System.arraycopy(fullPublicKey, 1, compressedKey, 1, 32); // Copy only X coordinate
+        return ByteString.copyFrom(compressedKey);
+    }
+
+    private ECKeyPair createKeyPair() {
         try {
-            var keyPair = Keys.createEcKeyPair();
-            var publicKey = keyPair.getPublicKey();
-
-            // Convert BigInteger public key to a full 65-byte uncompressed key
-            var fullPublicKey = Numeric.hexStringToByteArray(Numeric.toHexStringWithPrefixZeroPadded(publicKey, 130));
-
-            // Convert to compressed format (33 bytes)
-            var prefix = (byte) (fullPublicKey[64] % 2 == 0 ? 0x02 : 0x03); // 0x02 for even Y, 0x03 for odd Y
-            var compressedKey = new byte[33];
-            compressedKey[0] = prefix;
-            System.arraycopy(fullPublicKey, 1, compressedKey, 1, 32); // Copy only X coordinate
-
-            return ByteString.copyFrom(compressedKey);
-
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to generate secp256k1 key", e);
+            return Keys.createEcKeyPair();
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("Failed to generate secp256k1 key", e);
         }
     }
 

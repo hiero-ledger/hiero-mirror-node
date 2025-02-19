@@ -74,16 +74,16 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void isTokenFrozen(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var accountEntity = accountEntityNoEvmAddressPersistHistorical(historicalRange);
+        final var account = accountEntityPersistHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         fungibleTokenPersistHistorical(tokenEntity, historicalRange);
-        tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, accountEntity, historicalRange);
+        tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, account, historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
         final var functionCall =
-                contract.call_isTokenFrozen(getAddressFromEntity(tokenEntity), getAddressFromEntity(accountEntity));
+                contract.call_isTokenFrozen(getAddressFromEntity(tokenEntity), getAddressFromEntity(account));
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -110,7 +110,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void isKycGranted(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var account = accountEntityNoEvmAddressPersistHistorical(historicalRange);
+        final var account = accountEntityPersistHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         fungibleTokenPersistHistorical(tokenEntity, historicalRange);
         tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, account, historicalRange);
@@ -130,7 +130,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void isKycGrantedWithAlias(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var account = accountEntityPersistHistorical(historicalRange);
+        final var account = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         fungibleTokenPersistHistorical(tokenEntity, historicalRange);
         tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, account, historicalRange);
@@ -150,7 +150,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void isKycGrantedForNFT(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var account = accountEntityNoEvmAddressPersistHistorical(historicalRange);
+        final var account = accountEntityPersistHistorical(historicalRange);
         final var tokenEntity = nftPersistHistorical(historicalRange);
         tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, account, historicalRange);
 
@@ -169,7 +169,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void isKycGrantedForNFTWithAlias(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var account = accountEntityPersistHistorical(historicalRange);
+        final var account = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = nftPersistHistorical(historicalRange);
         tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, account, historicalRange);
 
@@ -345,7 +345,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         fungibleTokenPersistHistorical(tokenEntity, historicalRange);
-        final var collectorAccount = accountEntityPersistHistorical(historicalRange);
+        final var collectorAccount = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var fixedFee = com.hedera.mirror.common.domain.token.FixedFee.builder()
                 .amount(100L)
                 .collectorAccountId(collectorAccount.toEntityId())
@@ -383,7 +383,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void getCustomFeesForTokenWithFractionalFee(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var collectorAccount = accountEntityPersistHistorical(historicalRange);
+        final var collectorAccount = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         fungibleTokenPersistHistorical(tokenEntity, historicalRange);
         final var fractionalFee = FractionalFee.builder()
@@ -427,7 +427,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void getCustomFeesForTokenWithRoyaltyFee(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var collectorAccount = accountEntityPersistHistorical(historicalRange);
+        final var collectorAccount = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         fungibleTokenPersistHistorical(tokenEntity, historicalRange);
         final var royaltyFee = RoyaltyFee.builder()
@@ -475,7 +475,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var expiryPeriod = 9999999999999L;
         final var autoRenewExpiry = 100000000L;
-        final var autoRenewAccount = accountEntityPersistHistorical(historicalRange);
+        final var autoRenewAccount = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = domainBuilder
                 .entity()
                 .customize(e -> e.type(EntityType.TOKEN)
@@ -506,7 +506,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void getApproved(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var approvedAccount = accountEntityPersistHistorical(historicalRange);
+        final var approvedAccount = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         domainBuilder
                 .token()
@@ -539,8 +539,8 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var amountGranted = 50L;
-        final var owner = accountEntityPersistHistorical(historicalRange);
-        final var spender = accountEntityPersistHistorical(historicalRange);
+        final var owner = accountEntityPersistWithEvmAddressHistorical(historicalRange);
+        final var spender = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         fungibleTokenPersistHistorical(tokenEntity, historicalRange);
 
@@ -569,8 +569,8 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void isApprovedForAllNFT(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var owner = accountEntityPersistHistorical(historicalRange);
-        final var spender = accountEntityPersistHistorical(historicalRange);
+        final var owner = accountEntityPersistWithEvmAddressHistorical(historicalRange);
+        final var spender = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = nftPersistHistorical(historicalRange);
 
         domainBuilder
@@ -602,7 +602,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         final var treasury =
                 accountPersistWithBalanceHistorical(tokenSupply, tokenEntity.toEntityId(), historicalRange);
-        final var feeCollector = accountEntityPersistHistorical(historicalRange);
+        final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
 
         final var token = domainBuilder
                 .token()
@@ -648,9 +648,9 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
 
-        final var owner = accountEntityNoEvmAddressPersistHistorical(historicalRange);
-        final var treasury = accountEntityPersistHistorical(historicalRange);
-        final var feeCollector = accountEntityPersistHistorical(historicalRange);
+        final var owner = accountEntityPersistHistorical(historicalRange);
+        final var treasury = accountEntityPersistWithEvmAddressHistorical(historicalRange);
+        final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         final var token = domainBuilder
                 .token()
@@ -715,7 +715,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         final var treasury =
                 accountPersistWithBalanceHistorical(tokenSupply, tokenEntity.toEntityId(), historicalRange);
-        final var feeCollector = accountEntityPersistHistorical(historicalRange);
+        final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
 
         final var token = domainBuilder
                 .token()
@@ -755,8 +755,8 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void getTokenInfoNonFungible(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var treasury = accountEntityPersistHistorical(historicalRange);
-        final var feeCollector = accountEntityPersistHistorical(historicalRange);
+        final var treasury = accountEntityPersistWithEvmAddressHistorical(historicalRange);
+        final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         final var token = domainBuilder
                 .token()

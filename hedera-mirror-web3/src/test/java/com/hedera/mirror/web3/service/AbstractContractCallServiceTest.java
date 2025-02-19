@@ -547,15 +547,15 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return Pair.of(tokenToUpdateEntity, autoRenewAccount);
     }
 
-    protected String getAddressFromEntity(Entity entity) {
+    protected String getAddressFromEntity(final Entity entity) {
         return EvmTokenUtils.toAddress(entity.toEntityId()).toHexString();
     }
 
-    protected String getAliasFromEntity(Entity entity) {
+    protected String getAliasFromEntity(final Entity entity) {
         return getEvmAddressBytesFromEntity(entity).toHexString();
     }
 
-    protected Bytes getEvmAddressBytesFromEntity(Entity entity) {
+    protected Bytes getEvmAddressBytesFromEntity(final Entity entity) {
         return Bytes.wrap(entity.getEvmAddress());
     }
 

@@ -54,15 +54,15 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
     @Test
     void testGetHistoricalInfo() throws Exception {
         // Given
-        final var ownerEntity = accountEntityNoEvmAddressPersistHistorical(
+        final var owner = accountEntityPersistHistorical(
                 Range.closedOpen(recordFileBeforeEvm34.getConsensusStart(), recordFileBeforeEvm34.getConsensusEnd()));
-        final var spenderEntity = accountEntityPersistHistorical(testWeb3jService.getHistoricalRange());
+        final var spender = accountEntityPersistWithEvmAddressHistorical(testWeb3jService.getHistoricalRange());
         final var nftAmountToMint = 2;
         final var nft = nftPersistHistorical(
                 nftAmountToMint,
-                ownerEntity.toEntityId(),
-                spenderEntity.toEntityId(),
-                ownerEntity.toEntityId(),
+                owner.toEntityId(),
+                spender.toEntityId(),
+                owner.toEntityId(),
                 testWeb3jService.getHistoricalRange());
 
         final var contract = testWeb3jService.deploy(NestedCallsHistorical::deploy);
@@ -81,16 +81,16 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
     @Test
     void testGetApprovedHistorical() throws Exception {
         // When
-        final var ownerEntity = accountEntityNoEvmAddressPersistHistorical(
+        final var owner = accountEntityPersistHistorical(
                 Range.closedOpen(recordFileBeforeEvm34.getConsensusStart(), recordFileBeforeEvm34.getConsensusEnd()));
 
-        final var spenderEntity = accountEntityPersistHistorical(testWeb3jService.getHistoricalRange());
+        final var spender = accountEntityPersistWithEvmAddressHistorical(testWeb3jService.getHistoricalRange());
         final var nftAmountToMint = 2;
         final var nft = nftPersistHistorical(
                 nftAmountToMint,
-                ownerEntity.toEntityId(),
-                spenderEntity.toEntityId(),
-                ownerEntity.toEntityId(),
+                owner.toEntityId(),
+                spender.toEntityId(),
+                owner.toEntityId(),
                 testWeb3jService.getHistoricalRange());
         final var contract = testWeb3jService.deploy(NestedCallsHistorical::deploy);
 
@@ -99,7 +99,7 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
         final var result = function.send();
 
         // Then
-        final var expectedOutput = getAliasFromEntity(spenderEntity);
+        final var expectedOutput = getAliasFromEntity(spender);
         assertThat(result).isEqualTo(expectedOutput);
         verifyOpcodeTracerCall(function.encodeFunctionCall(), contract);
     }
@@ -107,21 +107,21 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
     @Test
     void testMintTokenHistorical() throws Exception {
         // Given
-        final var ownerEntity = accountEntityNoEvmAddressPersistHistorical(
+        final var owner = accountEntityPersistHistorical(
                 Range.closedOpen(recordFileBeforeEvm34.getConsensusStart(), recordFileBeforeEvm34.getConsensusEnd()));
-        final var spenderEntity = accountEntityPersistHistorical(testWeb3jService.getHistoricalRange());
+        final var spender = accountEntityPersistWithEvmAddressHistorical(testWeb3jService.getHistoricalRange());
         final var nftAmountToMint = 3;
         final var nft = nftPersistHistorical(
                 nftAmountToMint,
-                ownerEntity.toEntityId(),
-                spenderEntity.toEntityId(),
-                ownerEntity.toEntityId(),
+                owner.toEntityId(),
+                spender.toEntityId(),
+                owner.toEntityId(),
                 testWeb3jService.getHistoricalRange());
 
         domainBuilder
                 .tokenAccountHistory()
                 .customize(e -> e.freezeStatus(TokenFreezeStatusEnum.UNFROZEN)
-                        .accountId(ownerEntity.getId())
+                        .accountId(owner.getId())
                         .tokenId(nft.getId())
                         .timestampRange(testWeb3jService.getHistoricalRange()))
                 .persist();

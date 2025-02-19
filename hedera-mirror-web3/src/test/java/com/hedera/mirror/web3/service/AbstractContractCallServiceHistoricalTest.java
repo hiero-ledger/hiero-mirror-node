@@ -74,7 +74,7 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
 
     protected Pair<Entity, Entity> accountTokenAndFrozenRelationshipPersistHistorical(
             final Range<Long> historicalRange) {
-        final var account = accountEntityPersistHistorical(historicalRange);
+        final var account = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         fungibleTokenPersistHistorical(tokenEntity, historicalRange);
         domainBuilder
@@ -104,11 +104,11 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                 .persist();
     }
 
-    protected Entity accountEntityPersistHistorical(final Range<Long> timestampRange) {
+    protected Entity accountEntityPersistWithEvmAddressHistorical(final Range<Long> timestampRange) {
         return accountEntityPersistHistoricalCustomizable(timestampRange, e -> {});
     }
 
-    protected Entity accountEntityNoEvmAddressPersistHistorical(final Range<Long> timestampRange) {
+    protected Entity accountEntityPersistHistorical(final Range<Long> timestampRange) {
         return accountEntityPersistHistoricalCustomizable(
                 timestampRange, e -> e.evmAddress(null).alias(null));
     }
