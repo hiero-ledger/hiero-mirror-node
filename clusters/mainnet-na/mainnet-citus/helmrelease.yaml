@@ -69,9 +69,6 @@ spec:
     stackgres:
       coordinator:
         enableMetricsExporter: true
-        pgbouncer:
-          pgbouncer:
-            server_lifetime: "1800"
       worker:
         config:
           shared_buffers: "20GB"
@@ -89,9 +86,6 @@ spec:
             pods:
               persistentVolume:
                 size: 550Gi
-        pgbouncer:
-          pgbouncer:
-            server_lifetime: "1800"
         resources:
           cpu: "15"
           memory: 82Gi
