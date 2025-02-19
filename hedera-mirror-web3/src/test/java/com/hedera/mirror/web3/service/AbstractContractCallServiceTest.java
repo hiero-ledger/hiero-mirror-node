@@ -16,6 +16,7 @@
 
 package com.hedera.mirror.web3.service;
 
+import static com.hedera.mirror.web3.service.ContractCallServicePrecompileModificationTest.AMOUNT_GRANTED;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
@@ -396,6 +397,11 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected TokenAllowance tokenAllowancePersistCustomizable(
             Consumer<TokenAllowance.TokenAllowanceBuilder<?, ?>> customizer) {
         return domainBuilder.tokenAllowance().customize(customizer).persist();
+    }
+
+    protected void tokenAllowancePersist(final long spenderId, final long ownerId, final long tokenId) {
+        tokenAllowancePersistCustomizable(ta ->
+                ta.tokenId(tokenId).spender(spenderId).amount(AMOUNT_GRANTED).owner(ownerId));
     }
 
     /**

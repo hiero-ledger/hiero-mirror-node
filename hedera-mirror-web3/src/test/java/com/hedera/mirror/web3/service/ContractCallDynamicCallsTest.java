@@ -827,18 +827,6 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
-    private void nftAllowancePersist(
-            final long tokenEntityId, final EntityId spenderEntityId, final EntityId ownerEntityId) {
-        domainBuilder
-                .nftAllowance()
-                .customize(a -> a.tokenId(tokenEntityId)
-                        .spender(spenderEntityId.getId())
-                        .owner(ownerEntityId.getId())
-                        .payerAccountId(ownerEntityId)
-                        .approvedForAll(true))
-                .persist();
-    }
-
     private Token nftPersistWithNullKycKey(EntityId treasuryEntityId) {
         final var token = nonFungibleTokenCustomizable(
                 n -> n.treasuryAccountId(treasuryEntityId).kycKey(null));

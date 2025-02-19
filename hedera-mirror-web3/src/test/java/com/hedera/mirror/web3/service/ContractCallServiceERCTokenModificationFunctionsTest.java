@@ -24,7 +24,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.utils.BytecodeUtils;
 import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.mirror.web3.viewmodel.ContractCallRequest;
@@ -226,7 +225,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
         tokenAccountPersist(tokenId, contractEntityId.getId());
         final var amount = 10L;
-        fungibleTokenAllowancePersist(contractEntityId, owner, EntityId.of(tokenId), amount);
+        tokenAllowancePersist(contractEntityId.getId(), owner.getId(), tokenId);
         // When
         final var functionCall = contract.send_transferFrom(
                 toAddress(tokenId).toHexString(),
@@ -252,7 +251,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         tokenAccountPersist(tokenId, owner.getId());
 
         final var amount = 10L;
-        fungibleTokenAllowancePersist(contractEntityId, owner, EntityId.of(tokenId), amount);
+        tokenAllowancePersist(contractEntityId.getId(), owner.getId(), tokenId);
         // When
         final var functionCall = contract.send_transferFrom(
                 toAddress(tokenId).toHexString(),
@@ -334,7 +333,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         tokenAccountPersist(tokenId, contractEntityId.getId());
 
         final var amount = 10L;
-        fungibleTokenAllowancePersist(contractEntityId, owner.toEntityId(), EntityId.of(tokenId), amount);
+        tokenAllowancePersist(contractEntityId.getId(), owner.getId(), tokenId);
         // When
         final var functionCall = contract.send_transferFrom(
                 tokenAddress.toHexString(),
@@ -503,7 +502,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
         tokenAccountPersist(tokenId, contractEntityId.getId());
         final var amount = 10L;
-        fungibleTokenAllowancePersist(contractEntityId, owner, EntityId.of(tokenId), amount);
+        tokenAllowancePersist(contractEntityId.getId(), owner.getId(), tokenId);
         // When
         final var functionCall = contract.send_transferFromRedirect(
                 toAddress(tokenId).toHexString(),
@@ -530,7 +529,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         tokenAccountPersist(tokenId, contractEntityId.getId());
         tokenAccountPersist(tokenId, hollowAccount.getId());
         final var amount = 10L;
-        fungibleTokenAllowancePersist(contractEntityId, owner, EntityId.of(tokenId), amount);
+        tokenAllowancePersist(contractEntityId.getId(), owner.getId(), tokenId);
         // When
         final var functionCall = contract.send_transferFromRedirect(
                 toAddress(tokenId).toHexString(),
@@ -606,7 +605,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
         tokenAccountPersist(tokenId, contractEntityId.getId());
         final var amount = 10L;
-        fungibleTokenAllowancePersist(contractEntityId, owner.toEntityId(), EntityId.of(tokenId), amount);
+        tokenAllowancePersist(contractEntityId.getId(), owner.getId(), tokenId);
         // When
         final var functionCall = contract.send_transferFromRedirect(
                 toAddress(tokenId).toHexString(),
@@ -673,17 +672,6 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         return domainBuilder
                 .entity()
                 .customize(e -> e.key(null).maxAutomaticTokenAssociations(10).receiverSigRequired(false))
-                .persist();
-    }
-
-    protected void fungibleTokenAllowancePersist(
-            final EntityId spender, final EntityId owner, final EntityId tokenEntityId, final Long amount) {
-        domainBuilder
-                .tokenAllowance()
-                .customize(ta -> ta.tokenId(tokenEntityId.getId())
-                        .spender(spender.getId())
-                        .amount(amount)
-                        .owner(owner.getId()))
                 .persist();
     }
 
