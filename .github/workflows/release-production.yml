@@ -34,7 +34,7 @@ jobs:
       CONTEXT: hedera-mirror-${{ matrix.project }}
       IMAGE: gcr.io/mirrornode/hedera-mirror-${{ matrix.project }}
     name: Publish images
-    runs-on: mirror-node-linux-large
+    runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
@@ -102,7 +102,7 @@ jobs:
   chart:
     name: Publish charts
     needs: image
-    runs-on: mirror-node-linux-medium
+    runs-on: hiero-mirror-node-linux-medium
     permissions:
       contents: write
     steps:
@@ -127,7 +127,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    runs-on: mirror-node-linux-large
+    runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 15
     env:
       MPDEV: "/home/runner/mpdev"

@@ -21,7 +21,7 @@ env:
 jobs:
   release:
     name: Release
-    runs-on: mirror-node-linux-medium
+    runs-on: hiero-mirror-node-linux-medium
     env:
       RELEASE_NOTES_FILENAME: release_notes
     outputs:
@@ -143,7 +143,7 @@ jobs:
 
   create_pr:
     name: Create PR
-    runs-on: mirror-node-linux-medium
+    runs-on: hiero-mirror-node-linux-medium
     needs: release
     if: ${{ needs.release.outputs.create_pr == 'true' }}
     env:

@@ -21,8 +21,8 @@ import (
 	"strings"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/persistence/domain"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/tools"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/persistence/domain"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/tools"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	"github.com/pkg/errors"
 )

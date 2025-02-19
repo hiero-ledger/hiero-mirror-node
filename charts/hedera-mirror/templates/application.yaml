@@ -46,9 +46,9 @@ spec:
       - description: Documentation
         url: https://docs.hedera.com
       - description: Source Repository
-        url: https://github.com/hashgraph/hedera-mirror-node
+        url: https://github.com/hiero-ledger/hiero-mirror-node
       - description: User Guide
-        url: https://github.com/hashgraph/hedera-mirror-node/blob/main/charts/marketplace/gcp/README.md
+        url: https://github.com/hiero-ledger/hiero-mirror-node/blob/main/charts/marketplace/gcp/README.md
       - description: Website
         url: https://hedera.com
     maintainers:

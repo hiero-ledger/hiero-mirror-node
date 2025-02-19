@@ -1,4 +1,4 @@
-module github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta
+module github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta
 
 go 1.23
 

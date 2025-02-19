@@ -29,8 +29,8 @@ The results of these checks are exposed as a set of REST APIs by this monitoring
 - [ ] PM2
 
 ```
-git clone git@github.com:hashgraph/hedera-mirror-node.git
-cd hedera-mirror-node/hedera-mirror-rest/monitoring
+git clone git@github.com:hiero-ledger/hiero-mirror-node.git
+cd hiero-mirror-node/hedera-mirror-rest/monitoring
 ```
 
 To install the dependencies and configure the monitor:

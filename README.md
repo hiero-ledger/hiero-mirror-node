@@ -1,5 +1,5 @@
-[![Build](https://github.com/hashgraph/hedera-mirror-node/actions/workflows/gradle.yml/badge.svg)](https://github.com/hashgraph/hedera-mirror-node/actions)
-[![codecov](https://img.shields.io/codecov/c/github/hashgraph/hedera-mirror-node/main)](https://codecov.io/gh/hashgraph/hedera-mirror-node)
+[![Build](https://github.com/hiero-ledger/hiero-mirror-node/actions/workflows/gradle.yml/badge.svg)](https://github.com/hiero-ledger/hiero-mirror-node/actions)
+[![codecov](https://img.shields.io/codecov/c/github/hiero-ledger/hiero-mirror-node/main)](https://codecov.io/gh/hiero-ledger/hiero-mirror-node)
 [![Discord](https://img.shields.io/badge/discord-join%20chat-blue.svg)](https://hedera.com/discord)
 
 # Hedera Mirror Node
@@ -68,8 +68,8 @@ the [installation](docs/installation.md#running-via-docker-compose) document for
 with Docker Compose. To get up and running quickly with Docker Compose execute the following commands in your terminal:
 
 ```bash
-git clone https://github.com/hashgraph/hedera-mirror-node.git
-cd hedera-mirror-node
+git clone https://github.com/hiero-ledger/hiero-mirror-node.git
+cd hiero-mirror-node
 docker compose up
 ```
 

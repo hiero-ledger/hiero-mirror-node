@@ -88,11 +88,9 @@ class EntityMetadataRegistryTest extends ImporterIntegrationTest {
     @Test
     @Transactional
     void lookupSameColumnNameFromMultipleDomainClasses() {
-        // The test case reproduces the issue in the ticket https://github.com/hashgraph/hedera-mirror-node/issues/4265
-        // With the entity manager cache, if we look up two domain classes metadata in the same session, for columns
-        // with
-        // the same name, the defaults of the first domain class will override those of the second. For example,
-        // without the fix, entity.type's default will be "'FUNGIBLE_COMMON'"
+        // The test case reproduces the issue in 4265 With the entity manager cache, if we look up two domain classes
+        // metadata in the same session, for columns with the same name, the defaults of the first domain class will
+        // override those of the second. For example, without the fix, entity.type's default will be "'FUNGIBLE_COMMON'"
         // given, when
         var tokenMetadata = registry.lookup(Token.class);
         var entityMetadata = registry.lookup(Entity.class);
