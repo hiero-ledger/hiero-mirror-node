@@ -143,9 +143,9 @@ const getScheduleById = async (req, res) => {
 };
 
 const calculateScheduleMaxAge = (schedule) => {
-  const ONE_BILLION = BigInt(1_000_000_000);
-  const SIXTY_SECONDS = BigInt(60);
-  const THIRTY_ONE_MINUTES = BigInt(31) * BigInt(60);
+  const ONE_BILLION = 1_000_000_000n;
+  const SIXTY_SECONDS = 60n;
+  const THIRTY_ONE_MINUTES = 31n * 60n;
 
   const nowNs = utils.nowInNs();
   const executedTimestamp = schedule.executed_timestamp;
