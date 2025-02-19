@@ -41,6 +41,9 @@
   },
   "url": "/api/v1/schedules/2000",
   "responseStatus": 200,
+  "responseHeaders": {
+    "cache-control": "public, max-age=3600"
+  },
   "responseJson": {
     "schedules": [
       {

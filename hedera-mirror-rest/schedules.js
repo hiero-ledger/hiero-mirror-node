@@ -135,20 +135,24 @@ const getScheduleById = async (req, res) => {
   }
 
   const schedule = rows[0];
+  const maxAge = calculateScheduleMaxAge(schedule);
+  if (maxAge !== undefined) {
+    res.set('Cache-Control', `public, max-age=${maxAge}`);
+  }
   res.locals[constants.responseDataLabel] = formatScheduleRow(schedule);
+};
 
-  const now = Date.now() / 1000;
-  const executedTimestamp = utils.nsToSecNs(schedule.executed_timestamp);
-  const expirationTime = utils.nsToSecNs(schedule.expiration_time);
-  const consensusTimestamp = utils.nsToSecNs(schedule.consensus_timestamp);
+const calculateScheduleMaxAge = (schedule) => {
+  const nowNs = utils.nowInNs();
+  const executedTimestamp = schedule.executed_timestamp;
+  const expirationTime = schedule.expiration_time;
+  const consensusTimestamp = schedule.consensus_timestamp;
 
-  const hasExecuted = !!executedTimestamp || schedule.deleted;
-  const hasAutoExpired = !expirationTime && now >= consensusTimestamp + 1860;
-  const hasExpired = expirationTime && now >= expirationTime + 60;
-  const maxAge = hasExecuted || hasAutoExpired || hasExpired ? 3600 : 1;
+  const hasExecuted = executedTimestamp !== undefined || schedule.deleted;
+  const hasAutoExpired = expirationTime === undefined && nowNs >= consensusTimestamp + BigInt(31 * 60 * 1_000_000_000);
+  const hasExpired = expirationTime !== undefined && nowNs >= expirationTime + BigInt(60 * 1_000_000_000);
 
-  res.locals[constants.responseDataLabel] = formatScheduleRow(rows[0]);
-  res.set('Cache-Control', `public, max-age=${maxAge}`);
+  return hasExecuted || hasAutoExpired || hasExpired ? 3600 : undefined;
 };
 
 /**
