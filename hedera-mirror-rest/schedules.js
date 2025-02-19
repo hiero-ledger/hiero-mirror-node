@@ -143,14 +143,18 @@ const getScheduleById = async (req, res) => {
 };
 
 const calculateScheduleMaxAge = (schedule) => {
+  const ONE_BILLION = BigInt(1_000_000_000);
+  const SIXTY_SECONDS = BigInt(60);
+  const THIRTY_ONE_MINUTES = BigInt(31) * BigInt(60);
+
   const nowNs = utils.nowInNs();
   const executedTimestamp = schedule.executed_timestamp;
   const expirationTime = schedule.expiration_time;
   const consensusTimestamp = schedule.consensus_timestamp;
 
   const hasExecuted = executedTimestamp !== undefined || schedule.deleted;
-  const hasAutoExpired = expirationTime === undefined && nowNs >= consensusTimestamp +  BigInt(31) * BigInt(60) * BigInt(1000000000);
-  const hasExpired = expirationTime !== undefined && nowNs >= expirationTime + BigInt(60) * BigInt(1000000000);
+  const hasAutoExpired = expirationTime === undefined && nowNs >= consensusTimestamp +  THIRTY_ONE_MINUTES * ONE_BILLION;
+  const hasExpired = expirationTime !== undefined && nowNs >= expirationTime + SIXTY_SECONDS * ONE_BILLION;
 
   return hasExecuted || hasAutoExpired || hasExpired ? 3600 : undefined;
 };
