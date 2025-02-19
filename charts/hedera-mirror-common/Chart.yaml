@@ -1,5 +1,5 @@
 apiVersion: v2
-appVersion: 0.124.0-rc1
+appVersion: 0.125.0-SNAPSHOT
 dependencies:
   - alias: minio
     condition: minio.enabled
@@ -44,4 +44,4 @@ maintainers:
   - name: Hedera Mirror Node Team
     email: mirrornode@hedera.com
 name: hedera-mirror-common
-version: 0.124.0-rc1
+version: 0.125.0-SNAPSHOT
