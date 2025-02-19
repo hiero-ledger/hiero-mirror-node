@@ -153,6 +153,7 @@ hedera-mirror-test/src/test/resources/solidity/artifacts/@openzeppelin.contracts
 .gradle
 build
 !gradle/wrapper/gradle-wrapper.jar
+**/.kotlin/
 
 # Security
 .dccache

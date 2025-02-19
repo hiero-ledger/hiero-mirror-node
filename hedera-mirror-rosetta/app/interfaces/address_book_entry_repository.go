@@ -20,7 +20,7 @@ import (
 	"context"
 
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/app/domain/types"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/domain/types"
 )
 
 // AddressBookEntryRepository Interface that all AddressBookEntryRepository structs must implement

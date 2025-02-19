@@ -413,7 +413,7 @@ paths:
       description:
         Returns a result from EVM execution such as cost-free execution of read-only smart contract queries, gas estimation, and transient simulation of read-write operations. If the `estimate` field is set to true gas estimation is executed. However, gas estimation only supports the `latest` block.
         When `estimate` is false, it can process calls against the `earliest` block and specific historical blocks when a hexadecimal or decimal block number is provided in the `block` field for `eth_call` operations.
-        [Link to Supported/Unsupported Operations Table](https://github.com/hashgraph/hedera-mirror-node/blob/main/docs/web3/README.md#supported/unsupported-operations)
+        [Link to Supported/Unsupported Operations Table](https://github.com/hiero-ledger/hiero-mirror-node/blob/main/docs/web3/README.md#supported/unsupported-operations)
 
         The operations types which are not currently supported should return 501 error status.
 
@@ -1405,7 +1405,7 @@ info:
   contact:
     name: Hedera Mirror Node Team
     email: mirrornode@hedera.com
-    url: "https://github.com/hashgraph/hedera-mirror-node"
+    url: "https://github.com/hiero-ledger/hiero-mirror-node"
 externalDocs:
   description: Hedera REST API Docs
   url: "https://docs.hedera.com/guides/docs/mirror-node-api/cryptocurrency-api"

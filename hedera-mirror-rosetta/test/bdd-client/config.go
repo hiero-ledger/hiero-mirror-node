@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"reflect"
 
-	"github.com/hashgraph/hedera-mirror-node/hedera-mirror-rosetta/test/bdd-client/client"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/test/bdd-client/client"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"

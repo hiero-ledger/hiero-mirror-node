@@ -33,16 +33,22 @@ abstract class SnykCodeTask : io.snyk.gradle.plugin.SnykTask() {
 tasks.register<SnykCodeTask>("snyk-code") {
     dependsOn("snyk-check-binary")
     snyk {
-        setArguments("--all-sub-projects --json-file-output=build/reports/snyk-code.json")
+        setArguments(
+            "--all-sub-projects --json-file-output=build/reports/snyk-code.json --org=hiero-mirror-node"
+        )
         setSeverity("high")
     }
 }
 
-tasks.`snyk-monitor` { doFirst { snyk { setArguments("--all-sub-projects") } } }
+tasks.`snyk-monitor` {
+    doFirst { snyk { setArguments("--all-sub-projects --org=hiero-mirror-node") } }
+}
 
 tasks.`snyk-test` {
     snyk {
-        setArguments("--all-sub-projects --json-file-output=build/reports/snyk-test.json")
+        setArguments(
+            "--all-sub-projects --json-file-output=build/reports/snyk-test.json --org=hiero-mirror-node"
+        )
         setSeverity("high")
     }
 }

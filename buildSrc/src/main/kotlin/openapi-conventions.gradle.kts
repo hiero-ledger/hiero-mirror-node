@@ -28,7 +28,7 @@ openApiGenerate {
             "developerEmail" to "mirrornode@hedera.com",
             "developerName" to "Hedera Mirror Node Team",
             "developerOrganization" to "Hedera Hashgraph",
-            "developerOrganizationUrl" to "https://github.com/hashgraph/hedera-mirror-node",
+            "developerOrganizationUrl" to "https://github.com/hiero-ledger/hiero-mirror-node",
             "interfaceOnly" to "true",
             "licenseName" to "Apache License 2.0",
             "licenseUrl" to "https://www.apache.org/licenses/LICENSE-2.0.txt",

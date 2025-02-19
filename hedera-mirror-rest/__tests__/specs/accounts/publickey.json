@@ -1,7 +1,7 @@
 {
   "description": "Query accounts by public key and DER prefixed variations",
   "extendedDescription": [
-    "The last url has limit=3 to reproduce the issue https://github.com/hashgraph/hedera-mirror-node/issues/2759",
+    "The last url has limit=3 to reproduce the issue #2759",
     "which results in missing balance info for accounts when public key query param is present"
   ],
   "setup": {

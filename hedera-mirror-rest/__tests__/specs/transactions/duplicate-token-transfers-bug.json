@@ -1,8 +1,6 @@
 {
   "description": "Transaction api calls for token receiver shows duplicate token transfers",
-  "extendedDescription": [
-    "The test spec is used to reproduce https://github.com/hashgraph/hedera-mirror-node/issues/2066"
-  ],
+  "extendedDescription": ["The test spec is used to reproduce #2066"],
   "matrix": "bindTimestampRangeMatrix.js",
   "setup": {
     "features": {

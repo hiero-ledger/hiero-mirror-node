@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hashgraph/hedera-mirror-node.git"
+    "url": "git+https://github.com/hiero-ledger/hiero-mirror-node.git"
   },
   "keywords": [
     "hedera",
@@ -23,14 +23,14 @@
   "author": "Hedera Mirror Node Team",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/hashgraph/hedera-mirror-node/issues"
+    "url": "https://github.com/hiero-ledger/hiero-mirror-node/issues"
   },
-  "homepage": "https://github.com/hashgraph/hedera-mirror-node#readme",
+  "homepage": "https://github.com/hiero-ledger/hiero-mirror-node#readme",
   "bin": {
     "check-state-proof": "./index.js"
   },
   "dependencies": {
-    "@hashgraph/proto": "^2.15.0",
+    "@hashgraph/proto": "^2.16.0",
     "abort-controller": "^3.0.0",
     "boxen": "^8.0.1",
     "chalk": "^5.4.1",

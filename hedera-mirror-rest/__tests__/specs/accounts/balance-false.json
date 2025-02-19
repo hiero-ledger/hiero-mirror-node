@@ -124,7 +124,7 @@
       }
     },
     {
-      "description": "reproduction of issue https://github.com/hashgraph/hedera-mirror-node/issues/8971",
+      "description": "reproduction of issue #8971",
       "url": "/api/v1/accounts?account.id=0.0.7&balance=false",
       "responseStatus": 200,
       "responseJson": {

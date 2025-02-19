@@ -565,7 +565,7 @@ class RecordItemTest {
      * This test writes a TransactionBody that contains an invalid transaction body without unknown fields or a valid
      * transaction body and verifies it is still inserted into the database.
      * <p>
-     * See https://github.com/hashgraph/hedera-mirror-node/issues/4843
+     * See issue #4843
      */
     @Test
     void invalidTransactionType() {
