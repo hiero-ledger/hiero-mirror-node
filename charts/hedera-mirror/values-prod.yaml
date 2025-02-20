@@ -157,7 +157,7 @@ stackgres:
   coordinator:
     instances: 2
     resources:
-      cpu: 7350m
+      cpu: 8100m
       memory: 24Gi
       requests:
         containers:
@@ -166,10 +166,8 @@ stackgres:
             cpu: 1500m
           cluster-controller:
             cpu: 500m
-          envoy:
-            cpu: 750m
           patroni:
-            cpu: 7350m
+            cpu: 8100m
           pgbouncer:
             cpu: 300m
           prometheus-postgres-exporter:
@@ -182,7 +180,7 @@ stackgres:
     instances: 3
     replicasPerInstance: 1
     resources:
-      cpu: 9500m
+      cpu: 10250m
       memory: 40Gi
       requests:
         containers:
@@ -191,10 +189,8 @@ stackgres:
             cpu: 1500m
           cluster-controller:
             cpu: 500m
-          envoy:
-            cpu: 750m
           patroni:
-            cpu: 9500m
+            cpu: 10250m
           pgbouncer:
             cpu: 300m
           prometheus-postgres-exporter:
