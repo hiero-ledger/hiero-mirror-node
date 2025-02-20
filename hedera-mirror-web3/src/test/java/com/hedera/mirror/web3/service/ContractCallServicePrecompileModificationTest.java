@@ -73,7 +73,7 @@ import org.web3j.tx.Contract;
 
 class ContractCallServicePrecompileModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
 
-    public static final long AMOUNT_GRANTED = 10L;
+    protected static final long DEFAULT_AMOUNT_GRANTED = 10L;
 
     @Test
     void transferFrom() throws Exception {
@@ -96,8 +96,8 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         tokenAccount(ta -> ta.tokenId(tokenId).accountId(contractEntityId.getId()));
 
         tokenAllowancePersistCustomizable(e -> e.owner(spender.getId())
-                .amount(AMOUNT_GRANTED)
-                .amountGranted(AMOUNT_GRANTED)
+                .amount(DEFAULT_AMOUNT_GRANTED)
+                .amountGranted(DEFAULT_AMOUNT_GRANTED)
                 .spender(contractEntityId.getId())
                 .tokenId(tokenEntity.getId()));
 
@@ -252,17 +252,12 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     @Test
     void associateTokenHRC() throws Exception {
         // Given
-        final var tokenEntity = tokenEntityPersist();
-
-        domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId()).type(TokenTypeEnum.FUNGIBLE_COMMON))
-                .persist();
-
+        final var token = fungibleTokenPersist();
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
         // When
-        final var functionCall = contract.call_associateWithRedirect(getAddressFromEntity(tokenEntity));
+        final var functionCall = contract.call_associateWithRedirect(
+                toAddress(token.getTokenId()).toHexString());
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -275,17 +270,12 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         // Given
         final var associatedAccount = accountEntityWithEvmAddressPersist();
 
-        final var tokenEntity =
-                domainBuilder.entity().customize(e -> e.type(EntityType.TOKEN)).persist();
-
-        domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId()).type(TokenTypeEnum.FUNGIBLE_COMMON))
-                .persist();
+        final var token = fungibleTokenPersist();
+        final var tokenId = token.getTokenId();
 
         domainBuilder
                 .tokenAccount()
-                .customize(ta -> ta.tokenId(tokenEntity.getId())
+                .customize(ta -> ta.tokenId(tokenId)
                         .accountId(associatedAccount.getId())
                         .freezeStatus(TokenFreezeStatusEnum.UNFROZEN)
                         .kycStatus(TokenKycStatusEnum.GRANTED)
@@ -294,13 +284,11 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 .persist();
 
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
-
+        final var tokenAddress = toAddress(tokenId).toHexString();
         // When
         final var functionCall = single
-                ? contract.call_dissociateTokenExternal(
-                        getAliasFromEntity(associatedAccount), getAddressFromEntity(tokenEntity))
-                : contract.call_dissociateTokensExternal(
-                        getAliasFromEntity(associatedAccount), List.of(getAddressFromEntity(tokenEntity)));
+                ? contract.call_dissociateTokenExternal(getAliasFromEntity(associatedAccount), tokenAddress)
+                : contract.call_dissociateTokensExternal(getAliasFromEntity(associatedAccount), List.of(tokenAddress));
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -310,21 +298,17 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     @Test
     void dissociateTokenHRC() throws Exception {
         // Given
-        final var tokenEntity = tokenEntityPersist();
-
-        domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId()).type(TokenTypeEnum.FUNGIBLE_COMMON))
-                .persist();
-
+        final var token = fungibleTokenPersist();
+        final var tokenId = token.getTokenId();
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
-        tokenAccount(ta -> ta.tokenId(tokenEntity.getId()).accountId(contractEntityId.getId()));
+        tokenAccount(ta -> ta.tokenId(tokenId).accountId(contractEntityId.getId()));
 
         // When
-        final var functionCall = contract.call_dissociateWithRedirect(getAddressFromEntity(tokenEntity));
+        final var functionCall =
+                contract.call_dissociateWithRedirect(toAddress(tokenId).toHexString());
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -335,14 +319,9 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     void mintFungibleToken() throws Exception {
         // Given
         final var treasury = accountEntityPersist();
-        final var tokenEntity = tokenEntityPersist();
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .treasuryAccountId(treasury.toEntityId()))
-                .persist();
-        tokenAccountPersist(tokenEntity.getId(), treasury.getId());
+        final var token = fungibleTokenPersistWithTreasuryAccount(treasury.toEntityId());
+        final var tokenId = token.getTokenId();
+        tokenAccountPersist(tokenId, treasury.getId());
 
         final var totalSupply = token.getTotalSupply();
 
@@ -350,7 +329,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         // When
         final var functionCall = contract.call_mintTokenExternal(
-                getAddressFromEntity(tokenEntity), BigInteger.valueOf(30), new ArrayList<>());
+                toAddress(tokenId).toHexString(), BigInteger.valueOf(30), new ArrayList<>());
         final var result = functionCall.send();
 
         // Then
@@ -583,8 +562,9 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
         // When
-        final var functionCall =
-                contract.call_freezeTokenExternal(asHexedEvmAddress(tokenId), getAliasFromEntity(accountWithoutFreeze));
+        final var functionCall = contract.call_freezeTokenExternal(
+                asHexedEvmAddress(tokenId),
+                getAliasFromEntity(accountWithoutFreeze)); // todo: check toAddress if it works
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -599,7 +579,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
 
-        domainBuilder
+        domainBuilder // todo check customizable?
                 .tokenAccount()
                 .customize(ta -> ta.tokenId(tokenId)
                         .accountId(accountWithFreeze.getId())
@@ -1137,7 +1117,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     void transferNft(final String type) throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
-        final var contractId =
+        final var contractEntityId =
                 EvmTokenUtils.entityIdFromEvmAddress(Address.fromHexString(contract.getContractAddress()));
 
         final var sender = accountEntityWithEvmAddressPersist();
@@ -1149,7 +1129,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         nftPersistCustomizable(n -> n.tokenId(tokenId).accountId(sender.toEntityId()));
         final var receiver = accountEntityWithEvmAddressPersist();
 
-        nftAllowancePersist(tokenId, getEntity(contractId).toEntityId(), sender.toEntityId());
+        nftAllowancePersist(tokenId, contractEntityId, sender.toEntityId());
 
         tokenAccountPersist(tokenId, sender.getId());
         tokenAccountPersist(tokenId, receiver.getId());
@@ -1183,7 +1163,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     void transferFromNft() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
-        final var contractId =
+        final var contractEntityId =
                 EvmTokenUtils.entityIdFromEvmAddress(Address.fromHexString(contract.getContractAddress()));
 
         final var sender = accountEntityWithEvmAddressPersist();
@@ -1195,7 +1175,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var tokenId = token.getTokenId();
         nftPersistCustomizable(n -> n.tokenId(tokenId).accountId(sender.toEntityId()));
         final var receiver = accountEntityWithEvmAddressPersist();
-        nftAllowancePersist(tokenId, getEntity(contractId).toEntityId(), sender.toEntityId());
+        nftAllowancePersist(tokenId, contractEntityId, sender.toEntityId());
         tokenAccountPersist(tokenId, sender.getId());
         tokenAccountPersist(tokenId, receiver.getId());
 

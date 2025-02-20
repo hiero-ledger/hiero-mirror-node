@@ -275,7 +275,6 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
 
         final var token = nftPersistWithSelfSpenderAndTreasury(owner);
         final var tokenId = token.getTokenId();
-        final var tokenAddress = toAddress(tokenId);
 
         tokenAccountPersist(tokenId, owner.getId());
         tokenAccountPersist(tokenId, recipient.getId());
@@ -283,7 +282,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         nftAllowancePersist(tokenId, contractEntityId, owner);
         // When
         final var functionCall = contract.send_transferFromNFT(
-                tokenAddress.toHexString(),
+                toAddress(tokenId).toHexString(),
                 toAddress(owner).toHexString(),
                 toAddress(recipient).toHexString(),
                 BigInteger.valueOf(serialNumber));
