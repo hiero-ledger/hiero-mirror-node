@@ -20,10 +20,8 @@ import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_I
 
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
-import jakarta.inject.Named;
 import java.util.List;
 
-@Named
 abstract class AbstractTokenTransformer extends AbstractBlockItemTransformer {
 
     void updateTotalSupply(List<StateChanges> stateChangesList, TransactionRecord.Builder transactionRecordBuilder) {
