@@ -131,7 +131,7 @@ const tokenInfoSelectFields = [
   'e.memo',
   'metadata',
   'metadata_key',
-  'greatest(lower(t.timestamp_range)::bigint, lower(e.timestamp_range)::bigint) as modified_timestamp',
+  'greatest(lower(t.timestamp_range), lower(e.timestamp_range)) as modified_timestamp',
   'name',
   'pause_key',
   'pause_status',
