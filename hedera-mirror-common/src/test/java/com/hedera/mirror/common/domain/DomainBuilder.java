@@ -113,7 +113,6 @@ import com.hederahashgraph.api.proto.java.TransactionID;
 import jakarta.persistence.EntityManager;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -129,13 +128,13 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionOperations;
-import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
 import org.web3j.utils.Numeric;
 
@@ -1194,8 +1193,9 @@ public class DomainBuilder {
         return key.build().toByteArray();
     }
 
+    @SneakyThrows
     private ByteString generateSecp256k1Key() {
-        var keyPair = createKeyPair();
+        var keyPair = Keys.createEcKeyPair();
         var publicKey = keyPair.getPublicKey();
 
         // Convert BigInteger public key to a full 65-byte uncompressed key
@@ -1207,14 +1207,6 @@ public class DomainBuilder {
         compressedKey[0] = prefix;
         System.arraycopy(fullPublicKey, 1, compressedKey, 1, 32); // Copy only X coordinate
         return ByteString.copyFrom(compressedKey);
-    }
-
-    private ECKeyPair createKeyPair() {
-        try {
-            return Keys.createEcKeyPair();
-        } catch (GeneralSecurityException e) {
-            throw new IllegalStateException("Failed to generate secp256k1 key", e);
-        }
     }
 
     public long number() {
