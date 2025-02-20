@@ -115,7 +115,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
 
-        tokenAccountPersist(token.getTokenId(), spender.getId());
+        tokenAccountPersist(tokenId, spender.getId());
 
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 

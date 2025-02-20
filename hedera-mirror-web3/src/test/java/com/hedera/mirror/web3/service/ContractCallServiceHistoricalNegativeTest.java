@@ -102,8 +102,8 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var historicalRangeAfterEvm34 = setUpHistoricalContext(EVM_V_34_BLOCK);
         final var tokenEntity = tokenEntityPersistHistorical(evm30HistoricalRange);
         fungibleTokenPersistHistorical(tokenEntity, evm30HistoricalRange);
-        final var accountEntity = accountEntityNoEvmAddressPersistHistorical(evm30HistoricalRange);
-        tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, accountEntity, historicalRangeAfterEvm34);
+        final var account = accountEntityPersistHistorical(evm30HistoricalRange);
+        tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, account, historicalRangeAfterEvm34);
 
         setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
@@ -113,7 +113,7 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         // should fail as the association is not available yet.
         // When
         final var functionCall =
-                contract.call_isTokenFrozen(getAddressFromEntity(tokenEntity), getAddressFromEntity(accountEntity));
+                contract.call_isTokenFrozen(getAddressFromEntity(tokenEntity), getAddressFromEntity(account));
 
         // Then
         assertThat(functionCall.send()).isFalse();
@@ -126,8 +126,8 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var evm30RecordFile = recordFilePersist(EVM_V_34_BLOCK - 1);
         final var evm30HistoricalRange = setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
         final var historicalRangeAfterEvm34 = setUpHistoricalContext(EVM_V_34_BLOCK);
-        final var owner = accountEntityPersistHistorical(evm30HistoricalRange);
-        final var spender = accountEntityPersistHistorical(evm30HistoricalRange);
+        final var owner = accountEntityPersistWithEvmAddressHistorical(evm30HistoricalRange);
+        final var spender = accountEntityPersistWithEvmAddressHistorical(evm30HistoricalRange);
         final var tokenEntity = tokenEntityPersistHistorical(evm30HistoricalRange);
         fungibleTokenPersistHistorical(tokenEntity, evm30HistoricalRange);
 
@@ -153,8 +153,8 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var evm30RecordFile = recordFilePersist(EVM_V_34_BLOCK - 1);
         final var evm30HistoricalRange = setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
         final var historicalRangeAfterEvm34 = setUpHistoricalContext(EVM_V_34_BLOCK);
-        final var owner = accountEntityPersistHistorical(evm30HistoricalRange);
-        final var spender = accountEntityPersistHistorical(evm30HistoricalRange);
+        final var owner = accountEntityPersistWithEvmAddressHistorical(evm30HistoricalRange);
+        final var spender = accountEntityPersistWithEvmAddressHistorical(evm30HistoricalRange);
         final var tokenEntity = nftPersistHistorical(evm30HistoricalRange);
 
         // Persist the token and the accounts in block (X-1), but the nft allowance in block X. The call against block
@@ -182,7 +182,7 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var historicalRangeAfterEvm34 = setUpHistoricalContext(EVM_V_34_BLOCK);
 
         final var tokenEntity = fungibleTokenPersistHistorical(evm30HistoricalRange);
-        final var feeCollector = accountEntityPersistHistorical(evm30HistoricalRange);
+        final var feeCollector = accountEntityPersistWithEvmAddressHistorical(evm30HistoricalRange);
 
         // Persist the token and the account in block (X-1), but the custom fees in block X. The call against block
         // (X-1)
@@ -212,7 +212,7 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var historicalRangeAfterEvm34 = setUpHistoricalContext(EVM_V_34_BLOCK);
 
         final var tokenEntity = nftPersistHistorical(evm30HistoricalRange);
-        final var feeCollector = accountEntityPersistHistorical(evm30HistoricalRange);
+        final var feeCollector = accountEntityPersistWithEvmAddressHistorical(evm30HistoricalRange);
 
         // Persist the token and the account in block (X-1), but the custom fees in block X. The call against block
         // (X-1)
@@ -241,24 +241,23 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var evm38HistoricalRange = setupHistoricalStateInService(EVM_V_38_BLOCK, evm38RecordFile);
         final var historicalRangeAfterEvm38 = setUpHistoricalContext(EVM_V_38_BLOCK + 1);
 
-        final var accountEntity = accountEntityPersistHistorical(evm38HistoricalRange);
-        final var receiverEntity = accountEntityPersistHistorical(evm38HistoricalRange);
+        final var account = accountEntityPersistWithEvmAddressHistorical(evm38HistoricalRange);
+        final var receiver = accountEntityPersistWithEvmAddressHistorical(evm38HistoricalRange);
         final var tokenEntity = tokenEntityPersistHistorical(evm38HistoricalRange);
         domainBuilder
                 .tokenHistory()
                 .customize(t -> t.tokenId(tokenEntity.getId())
                         .type(TokenTypeEnum.FUNGIBLE_COMMON)
                         .kycKey(null)
-                        .treasuryAccountId(accountEntity.toEntityId())
+                        .treasuryAccountId(account.toEntityId())
                         .timestampRange(evm38HistoricalRange))
                 .persist();
-        tokenBalancePersistHistorical(accountEntity.toEntityId(), tokenEntity.toEntityId(), 1L, evm38HistoricalRange);
+        tokenBalancePersistHistorical(account.toEntityId(), tokenEntity.toEntityId(), 1L, evm38HistoricalRange);
 
         // Persist the token, the account, balance1 in block (X-1) and balance2 in block X, where balance1 < balance2.
         // The call against block (X-1)
         // should fail with balance2, since the bigger balance is not available at this point.
-        tokenBalancePersistHistorical(
-                accountEntity.toEntityId(), tokenEntity.toEntityId(), 2L, historicalRangeAfterEvm38);
+        tokenBalancePersistHistorical(account.toEntityId(), tokenEntity.toEntityId(), 2L, historicalRangeAfterEvm38);
 
         setupHistoricalStateInService(EVM_V_38_BLOCK, evm38HistoricalRange);
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
@@ -266,8 +265,8 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         // When
         final var functionCall = contract.call_transferTokenExternal(
                 getAddressFromEntity(tokenEntity),
-                getAddressFromEntity(accountEntity),
-                getAddressFromEntity(receiverEntity),
+                getAddressFromEntity(account),
+                getAddressFromEntity(receiver),
                 BigInteger.valueOf(2));
 
         // Then
@@ -281,8 +280,8 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var evm38HistoricalRange = setupHistoricalStateInService(EVM_V_38_BLOCK, evm38RecordFile);
         final var historicalRangeAfterEvm38 = setUpHistoricalContext(EVM_V_38_BLOCK + 1);
 
-        final var sender = accountEntityPersistHistorical(evm38HistoricalRange);
-        final var receiver = accountEntityPersistHistorical(evm38HistoricalRange);
+        final var sender = accountEntityPersistWithEvmAddressHistorical(evm38HistoricalRange);
+        final var receiver = accountEntityPersistWithEvmAddressHistorical(evm38HistoricalRange);
 
         setupHistoricalStateInService(EVM_V_38_BLOCK, evm38HistoricalRange);
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
@@ -312,8 +311,8 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var evm30RecordFile = recordFilePersist(EVM_V_34_BLOCK - 1);
         final var evm30HistoricalRange = setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
         final var historicalRangeAfterEvm34 = setUpHistoricalContext(EVM_V_34_BLOCK);
-        final var feeCollector =
-                accountEntityNoEvmAddressWithBalancePersistHistorical(DEFAULT_ACCOUNT_BALANCE, evm30HistoricalRange);
+        final var feeCollector = accountEntityPersistHistorical(evm30HistoricalRange);
+        accountBalancePersistHistorical(feeCollector.toEntityId(), DEFAULT_ACCOUNT_BALANCE, evm30HistoricalRange);
 
         setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
         final var contract = testWeb3jService.deploy(EvmCodesHistorical::deploy);

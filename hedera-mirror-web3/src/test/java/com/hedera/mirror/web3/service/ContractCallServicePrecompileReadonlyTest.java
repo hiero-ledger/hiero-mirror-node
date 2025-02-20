@@ -22,8 +22,6 @@ import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERR
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.KEY_WITH_ECDSA_TYPE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.KEY_WITH_ED_25519_TYPE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.LEDGER_ID;
-import static com.hedera.mirror.web3.utils.ContractCallTestUtil.SENDER_ALIAS;
-import static com.hedera.mirror.web3.utils.ContractCallTestUtil.SENDER_PUBLIC_KEY;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ZERO_VALUE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
@@ -149,12 +147,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void isTokenFrozenWithAlias() throws Exception {
         // Given
-        final var account = domainBuilder
-                .entity()
-                .customize(e -> e.type(EntityType.ACCOUNT)
-                        .alias(SENDER_PUBLIC_KEY.toByteArray())
-                        .evmAddress(SENDER_ALIAS.toArray()))
-                .persist();
+        final var account = accountEntityWithEvmAddressPersist();
         final var tokenEntity = tokenEntityPersist();
         domainBuilder
                 .token()
@@ -202,12 +195,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void isKycGrantedWithAlias() throws Exception {
         // Given
-        final var account = domainBuilder
-                .entity()
-                .customize(e -> e.type(EntityType.ACCOUNT)
-                        .alias(SENDER_PUBLIC_KEY.toByteArray())
-                        .evmAddress(SENDER_ALIAS.toArray()))
-                .persist();
+        final var account = accountEntityWithEvmAddressPersist();
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, account.getId());
@@ -245,12 +233,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void isKycGrantedForNFTWithAlias() throws Exception {
         // Given
-        final var account = domainBuilder
-                .entity()
-                .customize(e -> e.type(EntityType.ACCOUNT)
-                        .alias(SENDER_PUBLIC_KEY.toByteArray())
-                        .evmAddress(SENDER_ALIAS.toArray()))
-                .persist();
+        final var account = accountEntityWithEvmAddressPersist();
         final var tokenEntity = persistNft();
         tokenAccountPersist(tokenEntity.getId(), account.getId());
 

@@ -26,7 +26,6 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import com.google.common.collect.Range;
-import com.google.protobuf.ByteString;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.entity.Entity;
@@ -392,17 +391,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     /**
      *
-     * @param alias - the alias with which the account is created
-     * @param publicKey - the public key with which the account is created
-     * @return Entity object that is persisted in the db
-     */
-    protected Entity accountPersistWithAlias(final Address alias, final ByteString publicKey) {
-        return accountEntityPersistCustomizable(
-                e -> e.evmAddress(alias.toArray()).alias(publicKey.toByteArray()));
-    }
-
-    /**
-     *
      * @param customizer - the consumer with which to customize the entity
      * @return
      */
@@ -512,12 +500,20 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return Pair.of(tokenToUpdateEntity, autoRenewAccount);
     }
 
-    protected String getAddressFromEntity(Entity entity) {
+    protected String getAddressFromEntity(final Entity entity) {
         return EvmTokenUtils.toAddress(entity.toEntityId()).toHexString();
     }
 
-    protected String getAliasFromEntity(Entity entity) {
-        return Bytes.wrap(entity.getEvmAddress()).toHexString();
+    protected String getAliasFromEntity(final Entity entity) {
+        return getEvmAddressBytesFromEntity(entity).toHexString();
+    }
+
+    protected Bytes getEvmAddressBytesFromEntity(final Entity entity) {
+        return Bytes.wrap(entity.getEvmAddress());
+    }
+
+    protected Address getAliasAddressFromEntity(final Entity entity) {
+        return Address.wrap(getEvmAddressBytesFromEntity(entity));
     }
 
     protected ContractDebugParameters getDebugParameters(
