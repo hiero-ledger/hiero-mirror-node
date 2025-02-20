@@ -3,20 +3,18 @@
 package com.hedera.mirror.importer.downloader.block.transformer;
 
 import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
+import com.hedera.mirror.common.domain.transaction.RecordItem.RecordItemBuilder;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
-import lombok.CustomLog;
 
-@CustomLog
 @Named
-final class FileCreateTransformer extends AbstractBlockItemTransformer {
+final class ContractUpdateTransformer extends AbstractContractTransformer {
 
     @Override
     protected void doTransform(
             BlockItem blockItem,
-            RecordItem.RecordItemBuilder recordItemBuilder,
+            RecordItemBuilder recordItemBuilder,
             StateChangeContext stateChangeContext,
             TransactionBody transactionBody) {
         if (!blockItem.successful()) {
@@ -24,17 +22,12 @@ final class FileCreateTransformer extends AbstractBlockItemTransformer {
         }
 
         var receiptBuilder = recordItemBuilder.transactionRecordBuilder().getReceiptBuilder();
-        stateChangeContext
-                .getNewFileId()
-                .ifPresentOrElse(
-                        receiptBuilder::setFileID,
-                        () -> log.warn(
-                                "No new file id found for FileCreate transaction at {}",
-                                blockItem.consensusTimestamp()));
+        var contractId = transactionBody.getContractUpdateInstance().getContractID();
+        resolveEvmAddress(contractId, blockItem.consensusTimestamp(), receiptBuilder, stateChangeContext);
     }
 
     @Override
     public TransactionType getType() {
-        return TransactionType.FILECREATE;
+        return TransactionType.CONTRACTUPDATEINSTANCE;
     }
 }

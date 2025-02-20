@@ -10,7 +10,6 @@ import com.hedera.mirror.importer.downloader.StreamFileTransformer;
 import com.hedera.mirror.importer.downloader.block.transformer.BlockItemTransformerFactory;
 import jakarta.inject.Named;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -60,25 +59,48 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
                 .build();
     }
 
-    private List<RecordItem> getRecordItems(Collection<BlockItem> blockItems, Version hapiVersion) {
+    private List<RecordItem> getRecordItems(List<BlockItem> blockItems, Version hapiVersion) {
         if (blockItems.isEmpty()) {
             return Collections.emptyList();
         }
 
-        RecordItem previousItem = null;
-        var recordItems = new ArrayList<RecordItem>(blockItems.size());
-        for (var blockItem : blockItems) {
-            var recordItem = RecordItem.builder()
+        // Transform block items in reverse order. This solves the problem of inferring correct intermediate state
+        // changes for child transactions, notably, the majority should be a parent contract call transaction with
+        // multiple child transactions. For such transactions, state changes are only committed for hence written to
+        // the parent transaction. The state changes are aggregated final changes due to the execution of such
+        // transactions as a whole. As a result, intermediate state changes are lost, e.g., child transactions which
+        // change a token's supply.
+        // Some scenarios that the reverse order helps
+        // - token total supply. The state changes has the final total supply of applying all changes, reverse
+        //   processing allows applying the delta of an applicable transaction to get the correct token total supply
+        //   for the preceding
+        // - newly created entities. For example, the child transactions can create many topics, and also delete many.
+        //   It's hard to figure out which transaction creates which topic since a consensus delete topic transaction
+        //   can delete either a pre-existing topic or a new topic. With the invariance that a consensus create topic
+        //   transaction reaching consensus later should always get a larger topic id, when processing child consensus
+        //   create topic transactions in reverse order, the topic created by such a transaction is always the largest
+        //   unclaimed one
+        var builders = new ArrayList<RecordItem.RecordItemBuilder>(blockItems.size());
+        for (int index = blockItems.size() - 1; index >= 0; index--) {
+            var blockItem = blockItems.get(index);
+            var builder = RecordItem.builder()
                     .hapiVersion(hapiVersion)
-                    .previous(previousItem)
                     .transaction(blockItem.transaction())
-                    .transactionIndex(recordItems.size())
-                    .transactionRecord(blockItemTransformerFactory.getTransactionRecord(blockItem))
-                    .build();
+                    .transactionIndex(index);
+            blockItemTransformerFactory.transform(blockItem, builder);
+            builders.addFirst(builder);
+        }
+
+        // An unpleasant performance degradation of reverse order is the second pass to build the record items, just to
+        // set the previous link
+        var recordItems = new ArrayList<RecordItem>(blockItems.size());
+        RecordItem previousItem = null;
+        for (var builder : builders) {
+            var recordItem = builder.previous(previousItem).build();
             recordItems.add(recordItem);
             previousItem = recordItem;
         }
 
-        return recordItems;
+        return Collections.unmodifiableList(recordItems);
     }
 }

@@ -6,6 +6,9 @@ import static com.hedera.mirror.common.domain.DomainBuilder.KEY_LENGTH_ECDSA;
 import static com.hedera.mirror.common.domain.DomainBuilder.KEY_LENGTH_ED25519;
 import static com.hedera.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_49_0;
 import static com.hedera.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
+import static com.hedera.mirror.common.util.DomainUtils.createSha384Digest;
+import static com.hedera.mirror.common.util.DomainUtils.fromBytes;
+import static com.hedera.mirror.common.util.DomainUtils.toBytes;
 import static com.hederahashgraph.api.proto.java.CustomFee.FeeCase.FIXED_FEE;
 import static com.hederahashgraph.api.proto.java.TokenType.FUNGIBLE_COMMON;
 import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
@@ -36,6 +39,7 @@ import com.hedera.services.stream.proto.StorageChange;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.AssessedCustomFee;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusDeleteTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusMessageChunkInfo;
@@ -247,8 +251,13 @@ public class RecordItemBuilder {
                 .setTopicID(topicId);
 
         var builder = new Builder<>(TransactionType.CONSENSUSSUBMITMESSAGE, transactionBody)
-                .incrementer((b, r) -> r.getReceiptBuilder()
-                        .setTopicSequenceNumber(state.get(topicId).getSequenceNumber()))
+                .incrementer((b, r) -> {
+                    var receipt = r.getReceiptBuilder();
+                    if (receipt.getStatus() != ResponseCodeEnum.SUCCESS) {
+                        return;
+                    }
+                    receipt.setTopicSequenceNumber(state.get(topicId).getSequenceNumber());
+                })
                 .receipt(r -> r.setTopicRunningHash(bytes(48)).setTopicRunningHashVersion(3));
 
         var maxCustomFees = List.of(
@@ -577,6 +586,12 @@ public class RecordItemBuilder {
                     .build());
         }
 
+        if (transferType == TransferType.ALL
+                || transferType == TransferType.NFT
+                || transferType == TransferType.TOKEN) {
+            builder.record(r -> r.addAssessedCustomFees(assessedCustomFee()));
+        }
+
         return builder;
     }
 
@@ -608,6 +623,15 @@ public class RecordItemBuilder {
         }
 
         return customFee;
+    }
+
+    public AssessedCustomFee assessedCustomFee() {
+        return AssessedCustomFee.newBuilder()
+                .setAmount(id())
+                .addEffectivePayerAccountId(accountId())
+                .setFeeCollectorAccountId(accountId())
+                .setTokenId(tokenId())
+                .build();
     }
 
     private List<FixedCustomFee> fixedCustomFees() {
@@ -956,15 +980,32 @@ public class RecordItemBuilder {
     }
 
     public Builder<TokenMintTransactionBody.Builder> tokenMint(TokenType tokenType) {
-        var transactionBody = TokenMintTransactionBody.newBuilder().setToken(tokenId());
+        var tokenId = tokenId();
+        var tokenTransferList = TokenTransferList.newBuilder().setToken(tokenId);
+        var treasury = accountId();
+        var transactionBody = TokenMintTransactionBody.newBuilder().setToken(tokenId);
         var builder = new Builder<>(TransactionType.TOKENMINT, transactionBody);
 
         if (tokenType == FUNGIBLE_COMMON) {
             transactionBody.setAmount(1000L);
-            builder.receipt(b -> b.setNewTotalSupply(2000L));
+            builder.record(r -> r.addTokenTransferLists(tokenTransferList.addTransfers(
+                            AccountAmount.newBuilder().setAccountID(treasury).setAmount(1000L))))
+                    .receipt(b -> b.setNewTotalSupply(2000L));
         } else {
+            // randomly reverse the serial numbers
+            var serials = List.of(2L, 3L);
+            if (id() % 2 == 0) {
+                serials = serials.reversed();
+            }
+            var nftTransfers = serials.stream()
+                    .map(serial -> NftTransfer.newBuilder()
+                            .setReceiverAccountID(treasury)
+                            .setSerialNumber(serial)
+                            .build())
+                    .toList();
             transactionBody.addMetadata(bytes(16)).addMetadata(bytes(16));
-            builder.receipt(b -> b.addSerialNumbers(1L).addSerialNumbers(2L).setNewTotalSupply(3L));
+            builder.record(r -> r.addTokenTransferLists(tokenTransferList.addAllNftTransfers(nftTransfers)));
+            builder.receipt(b -> b.addSerialNumbers(2L).addSerialNumbers(3L).setNewTotalSupply(3L));
         }
 
         return builder;
@@ -1133,6 +1174,12 @@ public class RecordItemBuilder {
         return accountId;
     }
 
+    public ContractID contractId() {
+        var contractId = ContractID.newBuilder().setContractNum(entityId()).build();
+        updateState(contractId);
+        return contractId;
+    }
+
     public List<? extends Builder<?>> getCreateTransactions() {
         autoCreation.set(true);
         var createTransactions = state.entrySet().stream()
@@ -1224,12 +1271,6 @@ public class RecordItemBuilder {
         return TransactionSidecarRecord.newBuilder().setBytecode(contractBytecode);
     }
 
-    private ContractID contractId() {
-        var contractId = ContractID.newBuilder().setContractNum(entityId()).build();
-        updateState(contractId);
-        return contractId;
-    }
-
     private TransactionSidecarRecord.Builder contractStateChanges(ContractID contractId) {
         var contractStateChange = ContractStateChange.newBuilder()
                 .setContractId(contractId)
@@ -1251,7 +1292,7 @@ public class RecordItemBuilder {
         return BytesValue.of(bytes(20));
     }
 
-    private FileID fileId() {
+    public FileID fileId() {
         var fileId = FileID.newBuilder().setFileNum(entityId()).build();
         updateState(fileId);
         return fileId;
@@ -1330,7 +1371,7 @@ public class RecordItemBuilder {
         return tokenId;
     }
 
-    private TopicID topicId() {
+    public TopicID topicId() {
         var topicId = TopicID.newBuilder().setTopicNum(entityId()).build();
         updateState(topicId);
         return topicId;
@@ -1408,6 +1449,10 @@ public class RecordItemBuilder {
 
             incrementer.accept(transactionBodyWrapper, transactionRecord);
             var transaction = transaction().build();
+            if (transactionRecord.getTransactionHash() == ByteString.EMPTY) {
+                transactionRecord.setTransactionHash(
+                        fromBytes(createSha384Digest().digest(toBytes(transaction.getSignedTransactionBytes()))));
+            }
             var transactionRecordInstance = transactionRecord.build();
             var contractId = transactionRecordInstance.getReceipt().getContractID();
 
@@ -1434,6 +1479,11 @@ public class RecordItemBuilder {
                     .transaction(transaction)
                     .sidecarRecords(sidecars)
                     .build();
+        }
+
+        public Builder<T> customize(Consumer<Builder<T>> consumer) {
+            consumer.accept(this);
+            return this;
         }
 
         public Builder<T> entityTransactionPredicate(Predicate<EntityId> entityTransactionPredicate) {
@@ -1509,7 +1559,6 @@ public class RecordItemBuilder {
             TransactionRecord.Builder transactionRecordBuilder = TransactionRecord.newBuilder()
                     .setMemoBytes(ByteString.copyFromUtf8(transactionBodyWrapper.getMemo()))
                     .setTransactionFee(transactionBodyWrapper.getTransactionFee())
-                    .setTransactionHash(bytes(48))
                     .setTransferList(TransferList.newBuilder()
                             .addAccountAmounts(accountAmount(payerAccountId, -6000L))
                             .addAccountAmounts(accountAmount(NODE, 1000L))

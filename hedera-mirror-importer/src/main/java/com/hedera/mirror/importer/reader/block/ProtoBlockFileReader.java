@@ -15,6 +15,7 @@ import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.Block;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
@@ -30,6 +31,7 @@ import jakarta.inject.Named;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 import lombok.Setter;
 import lombok.Value;
@@ -145,9 +147,10 @@ public class ProtoBlockFileReader implements BlockFileReader {
                             "Missing transaction result in block file " + context.getFilename());
                 }
 
-                var transactionOutputs = new ArrayList<TransactionOutput>();
+                var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
                 while ((protoBlockItem = context.readBlockItemFor(TRANSACTION_OUTPUT)) != null) {
-                    transactionOutputs.add(protoBlockItem.getTransactionOutput());
+                    var transactionOutput = protoBlockItem.getTransactionOutput();
+                    transactionOutputs.put(transactionOutput.getTransactionCase(), transactionOutput);
                 }
 
                 var stateChangesList = new ArrayList<StateChanges>();
@@ -161,7 +164,7 @@ public class ProtoBlockFileReader implements BlockFileReader {
                     var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
                             .transaction(transaction)
                             .transactionResult(transactionResult)
-                            .transactionOutput(Collections.unmodifiableList(transactionOutputs))
+                            .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
                             .stateChanges(Collections.unmodifiableList(stateChangesList))
                             .previous(context.getLastBlockItem())
                             .build();

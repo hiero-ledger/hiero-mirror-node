@@ -34,10 +34,15 @@ transform record streams into block streams to allow the mirror node to continue
 package com.hedera.mirror.common.domain.transaction;
 
 // Multiple protobuf BlockItems will be combined into a single BlockItem
-public record BlockItem(Transaction transaction,
+public record BlockItem(long consensusTimestamp,
+                        Transaction transaction,
                         TransactionResult transactionResult,
-                        List<TransactionOutput> transactionOutput, // Note: List may be empty
-                        List<StateChanges> stateChanges // Note: List may be empty
+                        Map<TransactionCase, TransactionOutput> transactionOutputs, // Note: Map may be empty
+                        List<StateChanges> stateChanges, // Note: List may be empty
+                        BlockItem parent,
+                        Long parentConsensusTimestamp,
+                        BlockItem previous,
+                        boolean successful
 ) implements StreamItem {}
 ```
 

@@ -3,32 +3,30 @@
 package com.hedera.mirror.importer.downloader.block.transformer;
 
 import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
+import com.hedera.mirror.common.domain.transaction.RecordItem.RecordItemBuilder;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 
 @Named
-final class TokenBurnTransformer extends AbstractTokenTransformer {
+final class ContractCallTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
             BlockItem blockItem,
-            RecordItem.RecordItemBuilder recordItemBuilder,
+            RecordItemBuilder recordItemBuilder,
             StateChangeContext stateChangeContext,
             TransactionBody transactionBody) {
-        if (!blockItem.successful()) {
-            return;
+        var recordBuilder = recordItemBuilder.transactionRecordBuilder();
+        if (recordBuilder.getContractCallResult().hasContractID()) {
+            recordBuilder
+                    .getReceiptBuilder()
+                    .setContractID(recordBuilder.getContractCallResult().getContractID());
         }
-
-        var body = transactionBody.getTokenBurn();
-        var tokenId = body.getToken();
-        long amount = body.getAmount() + body.getSerialNumbersCount();
-        updateTotalSupply(blockItem.consensusTimestamp(), recordItemBuilder, stateChangeContext, tokenId, amount);
     }
 
     @Override
     public TransactionType getType() {
-        return TransactionType.TOKENBURN;
+        return TransactionType.CONTRACTCALL;
     }
 }
