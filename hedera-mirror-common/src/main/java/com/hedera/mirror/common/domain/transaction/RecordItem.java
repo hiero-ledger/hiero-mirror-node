@@ -34,6 +34,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.CustomLog;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.Value;
@@ -67,6 +68,7 @@ public class RecordItem implements StreamItem {
     private final TransactionRecord transactionRecord;
     private final int transactionType;
 
+    @EqualsAndHashCode.Exclude
     @Getter(PRIVATE)
     private final AtomicInteger logIndex = new AtomicInteger(0);
 
@@ -196,7 +198,13 @@ public class RecordItem implements StreamItem {
 
     public static class RecordItemBuilder {
 
+        private TransactionRecord.Builder transactionRecordBuilder;
+
         public RecordItem build() {
+            if (transactionRecordBuilder != null) {
+                transactionRecord = transactionRecordBuilder.build();
+            }
+
             parseTransaction();
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
             this.parent = parseParent();
@@ -204,6 +212,22 @@ public class RecordItem implements StreamItem {
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
             return buildInternal();
+        }
+
+        public RecordItemBuilder transactionRecord(TransactionRecord transactionRecord) {
+            this.transactionRecord = transactionRecord;
+            transactionRecordBuilder = null;
+            return this;
+        }
+
+        public TransactionRecord.Builder transactionRecordBuilder() {
+            if (transactionRecordBuilder == null) {
+                transactionRecordBuilder =
+                        transactionRecord != null ? transactionRecord.toBuilder() : TransactionRecord.newBuilder();
+                transactionRecord = null;
+            }
+
+            return transactionRecordBuilder;
         }
 
         private RecordItem parseParent() {

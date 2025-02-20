@@ -946,7 +946,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                         getExpectedEntityTransactions(recordItemMint).stream(),
                         Stream.of(toEntityTransaction(tokenId, recordItemMint)))
                 .flatMap(Function.identity())
-                .toList();
+                .collect(Collectors.toSet());
 
         // when
         parseRecordItemAndCommit(recordItemMint);

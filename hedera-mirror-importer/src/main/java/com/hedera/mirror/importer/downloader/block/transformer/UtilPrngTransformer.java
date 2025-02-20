@@ -2,10 +2,11 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.BlockItem;
+import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
 import lombok.CustomLog;
 
@@ -14,23 +15,25 @@ import lombok.CustomLog;
 final class UtilPrngTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void updateTransactionRecord(
-            BlockItem blockItem, TransactionBody transactionBody, TransactionRecord.Builder transactionRecordBuilder) {
-
+    protected void doTransform(
+            BlockItem blockItem,
+            RecordItem.RecordItemBuilder recordItemBuilder,
+            StateChangeContext stateChangeContext,
+            TransactionBody transactionBody) {
         if (!blockItem.successful()) {
             return;
         }
 
-        for (var transactionOutput : blockItem.transactionOutput()) {
-            if (transactionOutput.hasUtilPrng()) {
-                var utilPrng = transactionOutput.getUtilPrng();
-                switch (utilPrng.getEntropyCase()) {
-                    case PRNG_NUMBER -> transactionRecordBuilder.setPrngNumber(utilPrng.getPrngNumber());
-                    case PRNG_BYTES -> transactionRecordBuilder.setPrngBytes(utilPrng.getPrngBytes());
-                    default -> UtilPrngTransformer.log.warn("Unhandled entropy case: {}", utilPrng.getEntropyCase());
-                }
-                return;
-            }
+        var recordBuilder = recordItemBuilder.transactionRecordBuilder();
+        var utilPrng =
+                blockItem.transactionOutputs().get(TransactionCase.UTIL_PRNG).getUtilPrng();
+        switch (utilPrng.getEntropyCase()) {
+            case PRNG_NUMBER -> recordBuilder.setPrngNumber(utilPrng.getPrngNumber());
+            case PRNG_BYTES -> recordBuilder.setPrngBytes(utilPrng.getPrngBytes());
+            default -> log.warn(
+                    "Unhandled entropy case {} for transaction at {}",
+                    utilPrng.getEntropyCase(),
+                    blockItem.consensusTimestamp());
         }
     }
 

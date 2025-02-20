@@ -5,21 +5,27 @@ package com.hedera.mirror.importer.downloader.block.transformer;
 import static com.hedera.mirror.common.util.DomainUtils.createSha384Digest;
 
 import com.google.protobuf.ByteString;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.BlockItem;
+import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.security.MessageDigest;
 
 abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
 
     private static final MessageDigest DIGEST = createSha384Digest();
 
-    public TransactionRecord getTransactionRecord(BlockItem blockItem, TransactionBody transactionBody) {
+    public void transform(
+            BlockItem blockItem,
+            RecordItem.RecordItemBuilder recordItemBuilder,
+            StateChangeContext stateChangeContext,
+            TransactionBody transactionBody) {
         var transactionResult = blockItem.transactionResult();
         var receiptBuilder = TransactionReceipt.newBuilder().setStatus(transactionResult.getStatus());
-        var transactionRecordBuilder = TransactionRecord.newBuilder()
+        var recordBuilder = recordItemBuilder
+                .transactionRecordBuilder()
                 .addAllAutomaticTokenAssociations(transactionResult.getAutomaticTokenAssociationsList())
                 .addAllPaidStakingRewards(transactionResult.getPaidStakingRewardsList())
                 .addAllTokenTransferLists(transactionResult.getTokenTransferListsList())
@@ -33,22 +39,47 @@ abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
                 .setTransferList(transactionResult.getTransferList());
 
         if (transactionResult.hasParentConsensusTimestamp()) {
-            transactionRecordBuilder.setParentConsensusTimestamp(transactionResult.getParentConsensusTimestamp());
-        }
-        if (transactionResult.hasScheduleRef()) {
-            transactionRecordBuilder.setScheduleRef(transactionResult.getScheduleRef());
+            recordBuilder.setParentConsensusTimestamp(transactionResult.getParentConsensusTimestamp());
         }
 
-        updateTransactionRecord(blockItem, transactionBody, transactionRecordBuilder);
-        return transactionRecordBuilder.build();
+        if (transactionResult.hasScheduleRef()) {
+            recordBuilder.setScheduleRef(transactionResult.getScheduleRef());
+        }
+
+        processContractCallOutput(blockItem, recordItemBuilder);
+        doTransform(blockItem, recordItemBuilder, stateChangeContext, transactionBody);
     }
 
-    protected void updateTransactionRecord(
-            BlockItem blockItem, TransactionBody transactionBody, TransactionRecord.Builder transactionRecordBuilder) {
+    protected void doTransform(
+            BlockItem blockItem,
+            RecordItem.RecordItemBuilder recordItemBuilder,
+            StateChangeContext stateChangeContext,
+            TransactionBody transactionBody) {
         // do nothing
     }
 
     private ByteString calculateTransactionHash(ByteString signedTransactionBytes) {
         return DomainUtils.fromBytes(DIGEST.digest(DomainUtils.toBytes(signedTransactionBytes)));
+    }
+
+    /**
+     * Process contract call transaction output. Contract call transaction output is special that every child
+     * transaction of a contract call transaction can have one.
+     *
+     * @param blockItem
+     * @param recordItemBuilder
+     */
+    private void processContractCallOutput(BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder) {
+        var outputs = blockItem.transactionOutputs();
+        if (!outputs.containsKey(TransactionCase.CONTRACT_CALL)) {
+            return;
+        }
+
+        var contractCall = outputs.get(TransactionCase.CONTRACT_CALL).getContractCall();
+        recordItemBuilder.sidecarRecords(contractCall.getSidecarsList());
+        if (contractCall.hasContractCallResult()) {
+            var recordBuilder = recordItemBuilder.transactionRecordBuilder();
+            recordBuilder.setContractCallResult(contractCall.getContractCallResult());
+        }
     }
 }

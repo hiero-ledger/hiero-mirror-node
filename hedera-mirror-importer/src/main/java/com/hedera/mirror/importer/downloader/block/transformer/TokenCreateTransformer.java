@@ -2,35 +2,35 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
-import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS;
-
 import com.hedera.mirror.common.domain.transaction.BlockItem;
+import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
+import lombok.CustomLog;
 
+@CustomLog
 @Named
 final class TokenCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void updateTransactionRecord(
-            BlockItem blockItem, TransactionBody transactionBody, TransactionRecord.Builder transactionRecordBuilder) {
+    protected void doTransform(
+            BlockItem blockItem,
+            RecordItem.RecordItemBuilder recordItemBuilder,
+            StateChangeContext stateChangeContext,
+            TransactionBody transactionBody) {
         if (!blockItem.successful()) {
             return;
         }
 
-        for (var stateChanges : blockItem.stateChanges()) {
-            for (var stateChange : stateChanges.getStateChangesList()) {
-                if (stateChange.getStateId() == STATE_ID_TOKENS.getNumber()
-                        && stateChange.hasMapUpdate()
-                        && stateChange.getMapUpdate().getKey().hasTokenIdKey()) {
-                    var key = stateChange.getMapUpdate().getKey().getTokenIdKey();
-                    transactionRecordBuilder.getReceiptBuilder().setTokenID(key);
-                    return;
-                }
-            }
-        }
+        var receiptBuilder = recordItemBuilder.transactionRecordBuilder().getReceiptBuilder();
+        receiptBuilder.setNewTotalSupply(transactionBody.getTokenCreation().getInitialSupply());
+        stateChangeContext
+                .getNewTokenId()
+                .ifPresentOrElse(
+                        receiptBuilder::setTokenID,
+                        () -> log.warn(
+                                "No token id found for TokenCreate transaction at {}", blockItem.consensusTimestamp()));
     }
 
     @Override

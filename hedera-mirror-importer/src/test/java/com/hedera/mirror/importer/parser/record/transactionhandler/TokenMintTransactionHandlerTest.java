@@ -107,7 +107,7 @@ class TokenMintTransactionHandlerTest extends AbstractTransactionHandlerTest {
         // Given
         var recordItem = recordItemBuilder
                 .tokenMint(NON_FUNGIBLE_UNIQUE)
-                .receipt(r -> r.addSerialNumbers(3L))
+                .receipt(r -> r.addSerialNumbers(4L))
                 .build();
         var transaction = domainBuilder.transaction().get();
         var nft = ArgumentCaptor.forClass(Nft.class);
@@ -124,7 +124,7 @@ class TokenMintTransactionHandlerTest extends AbstractTransactionHandlerTest {
         assertThat(nft.getAllValues())
                 .hasSize(expectedNfts)
                 .extracting(Nft::getSerialNumber)
-                .containsExactly(1L, 2L);
+                .containsExactly(2L, 3L);
 
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));

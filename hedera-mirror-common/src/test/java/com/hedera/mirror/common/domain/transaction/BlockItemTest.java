@@ -2,8 +2,7 @@
 
 package com.hedera.mirror.common.domain.transaction;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.INCLUDE;
 
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
@@ -11,6 +10,7 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Transaction;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -28,12 +28,15 @@ class BlockItemTest {
         var blockItem = BlockItem.builder()
                 .transaction(Transaction.newBuilder().build())
                 .transactionResult(transactionResult)
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(null)
                 .build();
 
-        assertTrue(blockItem.successful());
+        assertThat(blockItem)
+                .returns(0L, BlockItem::consensusTimestamp)
+                .returns(null, BlockItem::parentConsensusTimestamp)
+                .returns(true, BlockItem::successful);
     }
 
     @ParameterizedTest
@@ -49,12 +52,13 @@ class BlockItemTest {
                         .setStatus(status)
                         .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(12345L))
                         .build())
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(null)
                 .build();
 
         var transactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(12346L))
                 .setStatus(status)
                 .setParentConsensusTimestamp(
                         Timestamp.newBuilder().setSeconds(12345L).build())
@@ -63,24 +67,27 @@ class BlockItemTest {
         var blockItem = BlockItem.builder()
                 .transaction(Transaction.newBuilder().build())
                 .transactionResult(transactionResult)
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(parentBlockItem)
                 .build();
 
-        assertTrue(blockItem.successful());
+        assertThat(blockItem)
+                .returns(12346000000000L, BlockItem::consensusTimestamp)
+                .returns(12345000000000L, BlockItem::parentConsensusTimestamp)
+                .returns(true, BlockItem::successful);
+        ;
     }
 
     @Test
     void parseSuccessParentNotSuccessfulReturnFalse() {
-
         var parentBlockItem = BlockItem.builder()
                 .transaction(Transaction.newBuilder().build())
                 .transactionResult(TransactionResult.newBuilder()
                         .setStatus(ResponseCodeEnum.INVALID_TRANSACTION)
                         .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(12345L))
                         .build())
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(null)
                 .build();
@@ -94,12 +101,12 @@ class BlockItemTest {
         var blockItem = BlockItem.builder()
                 .transaction(Transaction.newBuilder().build())
                 .transactionResult(transactionResult)
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(parentBlockItem)
                 .build();
 
-        assertFalse(blockItem.successful());
+        assertThat(blockItem.successful()).isFalse();
     }
 
     @ParameterizedTest
@@ -115,7 +122,7 @@ class BlockItemTest {
                         .setStatus(status)
                         .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(12345L))
                         .build())
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(null)
                 .build();
@@ -128,13 +135,13 @@ class BlockItemTest {
         var blockItem = BlockItem.builder()
                 .transaction(Transaction.newBuilder().build())
                 .transactionResult(transactionResult)
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(parentBlockItem) // Parent is successful but status is not one of the expected
                 .build();
 
         // Assert: The block item should not be successful because the status is not one of the expected ones
-        assertFalse(blockItem.successful());
+        assertThat(blockItem.successful()).isFalse();
     }
 
     @Test
@@ -146,7 +153,7 @@ class BlockItemTest {
         var blockItem = BlockItem.builder()
                 .transaction(Transaction.newBuilder().build())
                 .transactionResult(transactionResult)
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(null)
                 .build();
@@ -155,7 +162,7 @@ class BlockItemTest {
         var parent = blockItem.parent();
 
         // Then: The parent should remain null
-        assertNull(parent, "Parent should be null when no parent is provided");
+        assertThat(parent).isNull();
     }
 
     @Test
@@ -174,7 +181,7 @@ class BlockItemTest {
         var previousBlockItem = BlockItem.builder()
                 .transaction(previousTransaction)
                 .transactionResult(previousTransactionResult)
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(null)
                 .build();
@@ -182,7 +189,7 @@ class BlockItemTest {
         var blockItem = BlockItem.builder()
                 .transaction(Transaction.newBuilder().build())
                 .transactionResult(transactionResult)
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(previousBlockItem)
                 .build();
@@ -191,8 +198,7 @@ class BlockItemTest {
         var parent = blockItem.parent();
 
         // Then: The parent should match the previous block item
-        assertEquals(
-                previousBlockItem, parent, "Parent should match the previous block item based on consensus timestamp");
+        assertThat(parent).isSameAs(previousBlockItem);
     }
 
     @Test
@@ -212,7 +218,7 @@ class BlockItemTest {
         var previousBlockItem = BlockItem.builder()
                 .transaction(previousTransaction)
                 .transactionResult(previousTransactionResult)
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(null)
                 .build();
@@ -220,7 +226,7 @@ class BlockItemTest {
         var blockItem = BlockItem.builder()
                 .transaction(Transaction.newBuilder().build())
                 .transactionResult(transactionResult)
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(previousBlockItem)
                 .build();
@@ -229,10 +235,7 @@ class BlockItemTest {
         var parent = blockItem.parent();
 
         // Then: The parent should not match, return the parent as is
-        assertNotEquals(
-                previousBlockItem,
-                parent,
-                "Parent should not match the previous block item based on consensus timestamp");
+        assertThat(parent).isNotEqualTo(previousBlockItem);
     }
 
     @Test
@@ -244,7 +247,7 @@ class BlockItemTest {
         var parentBlockItem = BlockItem.builder()
                 .transaction(Transaction.newBuilder().build())
                 .transactionResult(parentTransactionResult)
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(null)
                 .build();
@@ -257,7 +260,7 @@ class BlockItemTest {
         var previousBlockItem = BlockItem.builder()
                 .transaction(Transaction.newBuilder().build())
                 .transactionResult(previousTransactionResult)
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(parentBlockItem)
                 .build();
@@ -271,16 +274,13 @@ class BlockItemTest {
         var blockItem = BlockItem.builder()
                 .transaction(Transaction.newBuilder().build())
                 .transactionResult(transactionResult)
-                .transactionOutput(List.of())
+                .transactionOutputs(Map.of())
                 .stateChanges(List.of())
                 .previous(previousBlockItem)
                 .build();
 
         var parent = blockItem.parent();
 
-        assertEquals(
-                parentBlockItem,
-                parent,
-                "Parent should match the previous block item's parent based on consensus timestamp");
+        assertThat(parent).isSameAs(parentBlockItem);
     }
 }

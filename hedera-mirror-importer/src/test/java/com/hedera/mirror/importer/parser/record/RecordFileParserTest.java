@@ -45,7 +45,6 @@ import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -467,7 +466,7 @@ class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile, Reco
                 .build();
     }
 
-    private RecordFile getStreamFile(final Collection<RecordItem> items, final long timestamp) {
+    private RecordFile getStreamFile(final List<RecordItem> items, final long timestamp) {
         return domainBuilder
                 .recordFile()
                 .customize(recordFileBuilder -> recordFileBuilder

@@ -5,7 +5,9 @@ package com.hedera.mirror.importer.downloader.block.transformer;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_PENDING_AIRDROPS;
 
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.BlockItem;
+import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -17,7 +19,6 @@ import com.hederahashgraph.api.proto.java.PendingAirdropRecord;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
 import java.util.HashSet;
 import java.util.List;
@@ -27,12 +28,16 @@ import java.util.Set;
 final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void updateTransactionRecord(
-            BlockItem blockItem, TransactionBody transactionBody, TransactionRecord.Builder transactionRecordBuilder) {
+    protected void doTransform(
+            BlockItem blockItem,
+            RecordItem.RecordItemBuilder recordItemBuilder,
+            StateChangeContext stateChangeContext,
+            TransactionBody transactionBody) {
         if (!blockItem.successful()) {
             return;
         }
 
+        var recordBuilder = recordItemBuilder.transactionRecordBuilder();
         var pendingAirdropIds = pendingAirdropsInState(blockItem.stateChanges());
         if (!pendingAirdropIds.isEmpty()) {
             var eligibleAirdropIds =
@@ -40,18 +45,16 @@ final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
             for (var pendingAirdrop : pendingAirdropIds) {
                 // Do not add airdrops that could not appear in the transfer list
                 if (eligibleAirdropIds.contains(pendingAirdrop.getPendingAirdropId())) {
-                    transactionRecordBuilder.addNewPendingAirdrops(pendingAirdrop);
+                    recordBuilder.addNewPendingAirdrops(pendingAirdrop);
                 }
             }
         }
 
-        for (var transactionOutput : blockItem.transactionOutput()) {
-            if (transactionOutput.hasTokenAirdrop()) {
-                var output = transactionOutput.getTokenAirdrop();
-                var assessedCustomFees = output.getAssessedCustomFeesList();
-                transactionRecordBuilder.addAllAssessedCustomFees(assessedCustomFees);
-            }
-        }
+        recordBuilder.addAllAssessedCustomFees(blockItem
+                .transactionOutputs()
+                .get(TransactionCase.TOKEN_AIRDROP)
+                .getTokenAirdrop()
+                .getAssessedCustomFeesList());
     }
 
     private Set<PendingAirdropRecord> pendingAirdropsInState(List<StateChanges> stateChangesList) {
