@@ -189,6 +189,87 @@ const verifyExtractSqlFromScheduleFilters = (filters, expectedQuery, expectedPar
   expect(limit).toStrictEqual(expectedLimit);
 };
 
+describe('getScheduleCacheControlHeader', () => {
+  const LONGER_SCHEDULE_CACHE_CONTROL_HEADER = {'cache-control': 'public, max-age=3600'};
+  const testSpecs = [
+    {
+      name: 'Schedule has executed',
+      input: {
+        executed_timestamp: utils.nowInNs() - 1_000_000_000n, // 1 second ago
+        expiration_time: undefined,
+        consensus_timestamp: undefined,
+        deleted: false,
+      },
+      expected: LONGER_SCHEDULE_CACHE_CONTROL_HEADER,
+    },
+    {
+      name: 'Schedule is deleted',
+      input: {
+        executed_timestamp: undefined,
+        expiration_time: undefined,
+        consensus_timestamp: undefined,
+        deleted: true,
+      },
+      expected: LONGER_SCHEDULE_CACHE_CONTROL_HEADER,
+    },
+    {
+      name: 'Schedule has auto-expired (no expiration_time, past 31 minutes since consensus_timestamp)',
+      input: {
+        executed_timestamp: undefined,
+        expiration_time: undefined,
+        consensus_timestamp: utils.nowInNs() - constants.THIRTY_ONE_MINUTES * constants.ONE_BILLION - 1n,
+        deleted: false,
+      },
+      expected: LONGER_SCHEDULE_CACHE_CONTROL_HEADER,
+    },
+    {
+      name: 'Schedule has not auto-expired',
+      input: {
+        executed_timestamp: undefined,
+        expiration_time: undefined,
+        consensus_timestamp: utils.nowInNs(),
+        deleted: false,
+      },
+      expected: {},
+    },
+    {
+      name: 'Schedule has expired (expiration_time set, past expiration_time + 60 seconds)',
+      input: {
+        executed_timestamp: undefined,
+        expiration_time: utils.nowInNs() - constants.SIXTY_SECONDS * constants.ONE_BILLION - 1n,
+        consensus_timestamp: undefined,
+        deleted: false,
+      },
+      expected: LONGER_SCHEDULE_CACHE_CONTROL_HEADER,
+    },
+    {
+      name: 'Schedule has not expired',
+      input: {
+        executed_timestamp: undefined,
+        expiration_time: utils.nowInNs(),
+        consensus_timestamp: undefined,
+        deleted: false,
+      },
+      expected: {},
+    },
+    {
+      name: 'Schedule has neither executed nor expired',
+      input: {
+        executed_timestamp: undefined,
+        expiration_time: undefined,
+        consensus_timestamp: utils.nowInNs(),
+        deleted: false,
+      },
+      expected: {},
+    },
+  ];
+  testSpecs.forEach(({name, input, expected}) => {
+    test(name, () => {
+      expect(schedules.getScheduleCacheControlHeader(input)).toEqual(expected);
+    });
+  });
+});
+
 describe('schedule extractSqlFromScheduleFilters tests', () => {
   test('Verify simple discovery query /api/v1/schedules', () => {
     const filters = [];

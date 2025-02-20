@@ -24,6 +24,7 @@ import {SignatureType} from './model';
 import * as utils from './utils';
 
 const {default: defaultLimit} = getResponseLimit();
+const LONGER_SCHEDULE_CACHE_CONTROL_HEADER = {'cache-control': 'public, max-age=3600'};
 
 // select columns
 const sqlQueryColumns = {
@@ -135,28 +136,25 @@ const getScheduleById = async (req, res) => {
   }
 
   const schedule = rows[0];
-  const maxAge = calculateScheduleMaxAge(schedule);
-  if (maxAge !== undefined) {
-    res.set('Cache-Control', `public, max-age=${maxAge}`);
-  }
+  res.locals[constants.responseHeadersLabel] = getScheduleCacheControlHeader(schedule);
   res.locals[constants.responseDataLabel] = formatScheduleRow(schedule);
 };
 
-const calculateScheduleMaxAge = (schedule) => {
-  const ONE_BILLION = 1_000_000_000n;
-  const SIXTY_SECONDS = 60n;
-  const THIRTY_ONE_MINUTES = 31n * 60n;
-
-  const nowNs = utils.nowInNs();
+const getScheduleCacheControlHeader = (schedule) => {
+  const nowNs = BigInt(utils.nowInNs());
   const executedTimestamp = schedule.executed_timestamp;
-  const expirationTime = schedule.expiration_time;
-  const consensusTimestamp = schedule.consensus_timestamp;
+  const expirationTime = schedule.expiration_time !== undefined ? BigInt(schedule.expiration_time) : 0n;
+  const consensusTimestamp = schedule.consensus_timestamp !== undefined ? BigInt(schedule.consensus_timestamp) : 0n;
 
   const hasExecuted = executedTimestamp !== undefined || schedule.deleted;
-  const hasAutoExpired = expirationTime === undefined && nowNs >= consensusTimestamp +  THIRTY_ONE_MINUTES * ONE_BILLION;
-  const hasExpired = expirationTime !== undefined && nowNs >= expirationTime + SIXTY_SECONDS * ONE_BILLION;
+  const hasAutoExpired =
+    expirationTime === 0n && nowNs >= consensusTimestamp + constants.THIRTY_ONE_MINUTES * constants.ONE_BILLION;
+  const hasExpired = expirationTime !== 0n && nowNs >= expirationTime + constants.SIXTY_SECONDS * constants.ONE_BILLION;
 
-  return hasExecuted || hasAutoExpired || hasExpired ? 3600 : undefined;
+  if (hasExecuted || hasAutoExpired || hasExpired) {
+    return LONGER_SCHEDULE_CACHE_CONTROL_HEADER;
+  }
+  return {};
 };
 
 /**
@@ -298,6 +296,7 @@ const getSchedules = async (req, res) => {
 const schedules = {
   getScheduleById,
   getSchedules,
+  getScheduleCacheControlHeader,
 };
 
 const acceptedSchedulesParameters = new Set([
