@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.123.0-rc2'
+      version: '0.124.0-rc1'
   dependsOn:
     - name: mirror
       namespace: common
@@ -86,6 +86,8 @@ spec:
       env:
         HEDERA_MIRROR_ROSETTA_NETWORK: "mainnet"
     stackgres:
+      backup:
+        enabled: true
       coordinator:
         enableMetricsExporter: true
       worker:
@@ -106,12 +108,12 @@ spec:
               persistentVolume:
                 size: 550Gi
         resources:
-          cpu: "15"
+          cpu: 15750m
           memory: 82Gi
           requests:
             containers:
               patroni:
-                cpu: "15"
+                cpu: 15750m
     test:
       config:
         hedera:
