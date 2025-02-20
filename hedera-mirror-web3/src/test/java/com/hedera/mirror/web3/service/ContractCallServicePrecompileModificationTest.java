@@ -130,8 +130,8 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         tokenAccount(ta -> ta.tokenId(tokenId).accountId(contractEntityId.getId()));
 
         // When
-        final var functionCall =
-                contract.call_approveExternal(asHexedEvmAddress(tokenId), getAddressFromEntity(spender), allowance);
+        final var functionCall = contract.call_approveExternal(
+                toAddress(tokenId).toHexString(), getAddressFromEntity(spender), allowance);
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -385,8 +385,8 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
         // When
-        final var functionCall =
-                contract.call_burnTokenExternal(asHexedEvmAddress(tokenId), BigInteger.valueOf(4), new ArrayList<>());
+        final var functionCall = contract.call_burnTokenExternal(
+                toAddress(tokenId).toHexString(), BigInteger.valueOf(4), new ArrayList<>());
 
         final var result = functionCall.send();
 
@@ -563,8 +563,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         // When
         final var functionCall = contract.call_freezeTokenExternal(
-                asHexedEvmAddress(tokenId),
-                getAliasFromEntity(accountWithoutFreeze)); // todo: check toAddress if it works
+                toAddress(tokenId).toHexString(), getAliasFromEntity(accountWithoutFreeze));
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -579,21 +578,16 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
 
-        domainBuilder // todo check customizable?
-                .tokenAccount()
-                .customize(ta -> ta.tokenId(tokenId)
-                        .accountId(accountWithFreeze.getId())
-                        .kycStatus(TokenKycStatusEnum.GRANTED)
-                        .freezeStatus(TokenFreezeStatusEnum.FROZEN)
-                        .associated(true)
-                        .balance(100L))
-                .persist();
+        tokenAccount(ta -> ta.tokenId(tokenId)
+                .accountId(accountWithFreeze.getId())
+                .freezeStatus(TokenFreezeStatusEnum.FROZEN)
+                .balance(100L));
 
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
         // When
-        final var functionCall =
-                contract.call_unfreezeTokenExternal(asHexedEvmAddress(tokenId), getAliasFromEntity(accountWithFreeze));
+        final var functionCall = contract.call_unfreezeTokenExternal(
+                toAddress(tokenId).toHexString(), getAliasFromEntity(accountWithFreeze));
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -706,7 +700,11 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 contract.getContractAddress(), TokenTypeEnum.FUNGIBLE_COMMON, treasuryAccount.toEntityId());
 
         final var fixedFee = new FixedFee(
-                BigInteger.valueOf(100L), asHexedEvmAddress(tokenId), false, false, getAliasFromEntity(feeCollector));
+                BigInteger.valueOf(100L),
+                toAddress(tokenId).toHexString(),
+                false,
+                false,
+                getAliasFromEntity(feeCollector));
         final var fractionalFee = new FractionalFee(
                 BigInteger.valueOf(1L),
                 BigInteger.valueOf(100L),
@@ -796,12 +794,16 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var token = populateHederaToken(
                 contract.getContractAddress(), TokenTypeEnum.NON_FUNGIBLE_UNIQUE, treasuryAccount.toEntityId());
         final var fixedFee = new FixedFee(
-                BigInteger.valueOf(100L), asHexedEvmAddress(tokenId), false, false, getAliasFromEntity(feeCollector));
+                BigInteger.valueOf(100L),
+                toAddress(tokenId).toHexString(),
+                false,
+                false,
+                getAliasFromEntity(feeCollector));
         final var royaltyFee = new RoyaltyFee(
                 BigInteger.valueOf(1L),
                 BigInteger.valueOf(100L),
                 BigInteger.valueOf(10L),
-                asHexedEvmAddress(tokenId),
+                toAddress(tokenId).toHexString(),
                 false,
                 getAliasFromEntity(feeCollector));
 
@@ -838,7 +840,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         // When
         final var functionCall = contract.call_createContractViaCreate2AndTransferFromIt(
-                asHexedEvmAddress(tokenId),
+                toAddress(tokenId).toHexString(),
                 getAliasFromEntity(sponsor),
                 getAliasFromEntity(receiver),
                 BigInteger.valueOf(10L));
@@ -1253,7 +1255,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         // When
         testWeb3jService.setSender(getAliasFromEntity(payer));
         final var tokenTransferList = new TokenTransferList(
-                asHexedEvmAddress(tokenId),
+                toAddress(tokenId).toHexString(),
                 List.of(
                         new AccountAmount(getAliasFromEntity(sender), BigInteger.valueOf(5L), false),
                         new AccountAmount(getAliasFromEntity(receiver), BigInteger.valueOf(-5L), false)),
@@ -1302,7 +1304,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 new AccountAmount(getAliasFromEntity(receiver), BigInteger.valueOf(5L), false)));
 
         final var tokenTransferList = new TokenTransferList(
-                asHexedEvmAddress(tokenId),
+                toAddress(tokenId).toHexString(),
                 List.of(
                         new AccountAmount(getAliasFromEntity(sender), BigInteger.valueOf(5L), false),
                         new AccountAmount(getAliasFromEntity(receiver), BigInteger.valueOf(-5L), false)),
