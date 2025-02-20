@@ -95,6 +95,10 @@ public class ContractCallContext {
         return SCOPED_VALUE.get();
     }
 
+    public static boolean isInitialized() {
+        return SCOPED_VALUE.isBound();
+    }
+
     public static <T> T run(Function<ContractCallContext, T> function) {
         return ScopedValue.getWhere(SCOPED_VALUE, new ContractCallContext(), () -> function.apply(SCOPED_VALUE.get()));
     }

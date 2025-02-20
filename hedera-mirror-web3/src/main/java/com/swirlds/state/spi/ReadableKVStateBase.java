@@ -16,6 +16,7 @@
 
 package com.swirlds.state.spi;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.Collections;
@@ -44,7 +45,9 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      * changed before we got to handle transaction. If the value is "null", this means it was NOT
      * FOUND when we looked it up.
      */
-    private ConcurrentMap<K, V> readCache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<K, V> readCache;
+
+    private final Set<K> unmodifiableReadKeys;
 
     private static final Object marker = new Object();
 
@@ -53,18 +56,21 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      *
      * @param stateKey The state key. Cannot be null.
      */
-    protected ReadableKVStateBase(@Nonnull String stateKey) {
-        this.stateKey = Objects.requireNonNull(stateKey);
+    protected ReadableKVStateBase(@NonNull String stateKey) {
+        this(stateKey, new ConcurrentHashMap<>());
     }
 
     /**
-     * Create a new StateBase.
+     * Create a new StateBase from the provided map.
      *
      * @param stateKey The state key. Cannot be null.
+     * @param readCache A map that is used to init the cache.
      */
-    protected ReadableKVStateBase(@Nonnull String stateKey, ConcurrentMap<K, V> readCacheSource) {
+    // This constructor is used by some consumers of the API that are outside of this repository.
+    protected ReadableKVStateBase(@NonNull String stateKey, @NonNull ConcurrentMap<K, V> readCache) {
         this.stateKey = Objects.requireNonNull(stateKey);
-        this.readCache = readCacheSource;
+        this.readCache = Objects.requireNonNull(readCache);
+        this.unmodifiableReadKeys = Collections.unmodifiableSet(readCache.keySet());
     }
 
     /** {@inheritDoc} */
@@ -96,7 +102,7 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      */
     @Nonnull
     public final Set<K> readKeys() {
-        return Collections.unmodifiableSet(readCache.keySet());
+        return unmodifiableReadKeys;
     }
 
     /** {@inheritDoc} */

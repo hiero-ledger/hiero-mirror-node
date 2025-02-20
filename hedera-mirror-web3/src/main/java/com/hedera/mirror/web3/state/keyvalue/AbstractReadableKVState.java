@@ -22,6 +22,7 @@ import com.swirlds.state.spi.ReadableKVStateBase;
 import jakarta.annotation.Nonnull;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("unchecked")
@@ -32,6 +33,15 @@ public abstract class AbstractReadableKVState<K, V> extends ReadableKVStateBase<
             @Override
             protected ConcurrentHashMap<K, V> delegate() {
                 return (ConcurrentHashMap<K, V>) ContractCallContext.get().getReadCacheState(stateKey);
+            }
+
+            @Override
+            public Set<K> keySet() {
+                return ContractCallContext.isInitialized()
+                        ? (Set<K>) ContractCallContext.get()
+                                .getReadCacheState(stateKey)
+                                .keySet()
+                        : Collections.emptySet();
             }
         });
     }

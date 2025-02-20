@@ -39,7 +39,7 @@ import java.util.Set;
  */
 public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V> implements WritableKVState<K, V> {
     /** A map of all modified values buffered in this mutable state */
-    private Map<K, V> modifications = new LinkedHashMap<>();
+    private final Map<K, V> modifications;
     /**
      * A list of listeners to be notified of changes to the state.
      */
@@ -50,18 +50,19 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
      *
      * @param stateKey The state key. Cannot be null.
      */
-    protected WritableKVStateBase(@Nonnull final String stateKey) {
-        super(stateKey);
+    protected WritableKVStateBase(@NonNull final String stateKey) {
+        this(stateKey, new LinkedHashMap<>());
     }
 
     /**
-     * Create a new StateBase.
+     * Create a new StateBase from the provided map.
      *
      * @param stateKey The state key. Cannot be null.
+     * @param modifications A map that is used to init the cache.
      */
-    protected WritableKVStateBase(@Nonnull final String stateKey, final Map<K, V> modificationsSource) {
+    protected WritableKVStateBase(@NonNull final String stateKey, @NonNull final Map<K, V> modifications) {
         super(stateKey);
-        this.modifications = modificationsSource;
+        this.modifications = Objects.requireNonNull(modifications);
     }
 
     /**
