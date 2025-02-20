@@ -16,6 +16,7 @@
 
 package com.hedera.mirror.web3.service;
 
+import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
@@ -222,6 +223,21 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .receiver(receiver)
                 .sender(new HederaEvmAccount(payerAddress))
                 .value(value)
+                .build();
+    }
+
+    protected ContractExecutionParameters getContractExecutionParams(
+            final Bytes data, final Address senderAddress, final Address receiverAddress, final CallType callType) {
+        return ContractExecutionParameters.builder()
+                .block(BlockType.LATEST)
+                .callData(data)
+                .callType(callType)
+                .gas(TRANSACTION_GAS_LIMIT)
+                .isEstimate(callType == ETH_ESTIMATE_GAS)
+                .isStatic(false)
+                .receiver(receiverAddress)
+                .sender(new HederaEvmAccount(senderAddress))
+                .value(0L)
                 .build();
     }
 

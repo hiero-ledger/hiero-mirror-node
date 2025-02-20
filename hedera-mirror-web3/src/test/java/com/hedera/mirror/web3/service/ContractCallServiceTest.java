@@ -339,14 +339,29 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
+    /**
+     * If the callContract method is invoked with the zero address (0x0) as the recipient,
+     * Hedera treats this as a contract creation request rather than a function call.
+     * The contract is then initialized using the contractCallData, which should contain the compiled bytecode of the
+     * contract.If contractCallData is empty (0x0), the contract will be deployed without any functions(no fallback
+     * function as well, which is called when the contract is called without specifying a function or when non-existent
+     * function is specified.) in its bytecode. Respectively, any call to the contract will fail with
+     * CONTRACT_BYTECODE_EMPTY, indicating that the contract exists, but does not have any executable logic.
+     */
     @Test
     void estimateGasWithoutReceiver() {
-        // Given
+        final var payer = accountEntityPersist();
+
+        final Address receiverAddress = Address.ZERO;
+        // The compiled EVM bytecode of a smart contract with a fallback function()
+        final Bytes contractCallData = Bytes.fromHexString(
+                "608060405234801561001057600080fd5b50610104806100206000396000f3fe6080604052600436106100295760003560e01c80632d353dd21461002e578063b69ef8a81461004e575b600080fd5b610048600480360381019061004391906100d5565b61006a565b005b610056610078565b60405161006391906100f8565b60405180910390f35b60008054905090565b60008135905061008a8161011a565b92915050565b6000602082840312156100a657600080fd5b60006100b484828501610080565b91505092915050565b6100c7816100de565b82525050565b60006020820190506100e260008301846100be565b92915050565b600080fd5b6100f5816100de565b811461010057600080fd5b5056fea2646970667358221220e429de601e30eb0481c0e6bc72a9f9f8e5b2e720a097394d319c2b8a55ffb2d164736f6c63430008140033");
         final var serviceParametersEthCall =
-                getContractExecutionParameters(Bytes.fromHexString(HEX_PREFIX), Address.ZERO, ETH_CALL);
+                getContractExecutionParams(contractCallData, receiverAddress, toAddress(payer.toEntityId()), ETH_CALL);
+
         final var actualGasUsed = gasUsedAfterExecution(serviceParametersEthCall);
-        final var serviceParametersEstimateGas =
-                getContractExecutionParameters(Bytes.fromHexString(HEX_PREFIX), Address.ZERO, ETH_ESTIMATE_GAS);
+        final var serviceParametersEstimateGas = getContractExecutionParams(
+                contractCallData, receiverAddress, toAddress(payer.toEntityId()), ETH_ESTIMATE_GAS);
 
         // When
         final var result = contractExecutionService.processCall(serviceParametersEstimateGas);
