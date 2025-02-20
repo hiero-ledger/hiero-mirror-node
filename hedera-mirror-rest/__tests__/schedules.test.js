@@ -195,7 +195,7 @@ describe('getScheduleCacheControlHeader', () => {
     {
       name: 'Schedule has executed',
       input: {
-        executed_timestamp: utils.nowInNs() - 1_000_000_000n, // 1 second ago
+        executed_timestamp: utils.nowInNs() - 1_000_000_000n,
         expiration_time: undefined,
         consensus_timestamp: undefined,
         deleted: false,
