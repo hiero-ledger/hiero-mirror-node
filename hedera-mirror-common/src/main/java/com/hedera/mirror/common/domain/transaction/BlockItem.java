@@ -18,18 +18,20 @@ package com.hedera.mirror.common.domain.transaction;
 
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.mirror.common.domain.StreamItem;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Transaction;
 import java.util.List;
+import java.util.Map;
 import lombok.Builder;
 
 @Builder(toBuilder = true)
 public record BlockItem(
         Transaction transaction,
         TransactionResult transactionResult,
-        List<TransactionOutput> transactionOutput,
+        Map<TransactionCase, TransactionOutput> transactionOutputs,
         List<StateChanges> stateChanges,
         BlockItem parent,
         BlockItem previous,

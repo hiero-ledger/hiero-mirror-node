@@ -18,32 +18,41 @@ package com.hedera.mirror.importer.downloader.block.transformer;
 
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
+import com.hedera.mirror.common.domain.transaction.RecordItem.RecordItemBuilder;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 
 @Named
-final class CryptoTransferTransformer extends AbstractBlockItemTransformer {
+final class ContractCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
-
-        if (!blockItem.successful()) {
+            BlockItem blockItem, RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.transactionOutputs().containsKey(TransactionCase.CONTRACT_CREATE)) {
             return;
         }
 
-        var cryptoTransfer = blockItem
+        var contractCreate = blockItem
                 .transactionOutputs()
-                .get(TransactionCase.CRYPTO_TRANSFER)
-                .getCryptoTransfer();
+                .get(TransactionCase.CONTRACT_CREATE)
+                .getContractCreate();
+        recordItemBuilder.sidecarRecords(contractCreate.getSidecarsList());
+        if (!contractCreate.hasContractCreateResult()) {
+            return;
+        }
+
         var recordBuilder = recordItemBuilder.transactionRecordBuilder();
-        recordBuilder.addAllAssessedCustomFees(cryptoTransfer.getAssessedCustomFeesList());
+        recordBuilder.setContractCreateResult(contractCreate.getContractCreateResult());
+        if (contractCreate.getContractCreateResult().hasContractID()) {
+            recordBuilder
+                    .getReceiptBuilder()
+                    .setContractID(contractCreate.getContractCreateResult().getContractID());
+        }
     }
 
     @Override
     public TransactionType getType() {
-        return TransactionType.CRYPTOTRANSFER;
+        return TransactionType.CONTRACTCREATEINSTANCE;
     }
 }

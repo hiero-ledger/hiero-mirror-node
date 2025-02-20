@@ -18,7 +18,7 @@ package com.hedera.mirror.importer.downloader.block.transformer;
 
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
+import com.hedera.mirror.common.domain.transaction.RecordItem.RecordItemBuilder;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -27,25 +27,30 @@ import lombok.CustomLog;
 
 @CustomLog
 @Named
-final class UtilPrngTransformer extends AbstractBlockItemTransformer {
+final class EthereumTransactionTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
-
-        if (!blockItem.successful()) {
+            BlockItem blockItem, RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.transactionOutputs().containsKey(TransactionCase.ETHEREUM_CALL)) {
             return;
         }
 
+        var ethereumCall = blockItem
+                .transactionOutputs()
+                .get(TransactionCase.ETHEREUM_CALL)
+                .getEthereumCall();
         var recordBuilder = recordItemBuilder.transactionRecordBuilder();
-        var utilPrng =
-                blockItem.transactionOutputs().get(TransactionCase.UTIL_PRNG).getUtilPrng();
-        switch (utilPrng.getEntropyCase()) {
-            case PRNG_NUMBER -> recordBuilder.setPrngNumber(utilPrng.getPrngNumber());
-            case PRNG_BYTES -> recordBuilder.setPrngBytes(utilPrng.getPrngBytes());
+        recordBuilder.setEthereumHash(ethereumCall.getEthereumHash());
+        recordItemBuilder.sidecarRecords(ethereumCall.getSidecarsList());
+
+        switch (ethereumCall.getEthResultCase()) {
+            case ETHEREUM_CALL_RESULT -> recordBuilder.setContractCallResult(ethereumCall.getEthereumCallResult());
+            case ETHEREUM_CREATE_RESULT -> recordBuilder.setContractCreateResult(
+                    ethereumCall.getEthereumCreateResult());
             default -> log.warn(
-                    "Unhandled entropy case {} for transaction at {}",
-                    utilPrng.getEntropyCase(),
+                    "Unhandled eth_result case {} for transaction at {}",
+                    ethereumCall.getEthResultCase(),
                     DomainUtils.timestampInNanosMax(
                             blockItem.transactionResult().getConsensusTimestamp()));
         }
@@ -53,6 +58,6 @@ final class UtilPrngTransformer extends AbstractBlockItemTransformer {
 
     @Override
     public TransactionType getType() {
-        return TransactionType.UTILPRNG;
+        return TransactionType.ETHEREUMTRANSACTION;
     }
 }

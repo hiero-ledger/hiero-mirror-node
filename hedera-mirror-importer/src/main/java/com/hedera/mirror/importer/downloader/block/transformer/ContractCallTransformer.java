@@ -16,40 +16,28 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
-import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
 import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
+import com.hedera.mirror.common.domain.transaction.RecordItem.RecordItemBuilder;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 
 @Named
-final class FileCreateTransformer extends AbstractBlockItemTransformer {
+final class ContractCallTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
-
-        if (!blockItem.successful()) {
-            return;
-        }
-
+            BlockItem blockItem, RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
         var recordBuilder = recordItemBuilder.transactionRecordBuilder();
-        for (var stateChange : blockItem.stateChanges()) {
-            for (var change : stateChange.getStateChangesList()) {
-                if (change.getStateId() == StateIdentifier.STATE_ID_FILES.getNumber() && change.hasMapUpdate()) {
-                    var key = change.getMapUpdate().getKey();
-                    if (key.hasFileIdKey()) {
-                        recordBuilder.getReceiptBuilder().setFileID(key.getFileIdKey());
-                        return;
-                    }
-                }
-            }
+        if (recordBuilder.getContractCallResult().hasContractID()) {
+            recordBuilder
+                    .getReceiptBuilder()
+                    .setContractID(recordBuilder.getContractCallResult().getContractID());
         }
     }
 
     @Override
     public TransactionType getType() {
-        return TransactionType.FILECREATE;
+        return TransactionType.CONTRACTCALL;
     }
 }

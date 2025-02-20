@@ -82,13 +82,13 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
         RecordItem previousItem = null;
         var recordItems = new ArrayList<RecordItem>(blockItems.size());
         for (var blockItem : blockItems) {
-            var recordItem = RecordItem.builder()
+            var builder = RecordItem.builder()
                     .hapiVersion(hapiVersion)
                     .previous(previousItem)
                     .transaction(blockItem.transaction())
-                    .transactionIndex(recordItems.size())
-                    .transactionRecord(blockItemTransformerFactory.getTransactionRecord(blockItem))
-                    .build();
+                    .transactionIndex(recordItems.size());
+            blockItemTransformerFactory.transform(blockItem, builder);
+            var recordItem = builder.build();
             recordItems.add(recordItem);
             previousItem = recordItem;
         }
