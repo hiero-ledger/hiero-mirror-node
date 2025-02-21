@@ -27,6 +27,7 @@ import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.rest.model.Key.TypeEnum;
 import com.hedera.mirror.rest.model.TimestampRange;
 import com.hedera.mirror.restjava.exception.InvalidMappingException;
+import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
 import java.util.List;
@@ -70,7 +71,8 @@ class CommonMapperTest {
         var innerKeyListKey = Key.newBuilder().setKeyList(innerKeyList).build();
         var bytesInnerKeyListKey = innerKeyListKey.toByteArray();
         var keyList = innerKeyList.toBuilder().addKeys(innerKeyListKey).build();
-        var feeExemptKeyList = innerKeyList.toBuilder().addKeys(innerKeyListKey).build();
+        var feeExemptKeyList =
+                FeeExemptKeyList.newBuilder().addAllKeys(keyList.getKeysList()).build();
         var expectedKeyList = List.of(
                 new com.hedera.mirror.rest.model.Key()
                         .key(Hex.encodeHexString(bytesEcdsa))
