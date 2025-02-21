@@ -10,6 +10,7 @@ spec:
   managedVersions: true
   scripts:
     - database: postgres
+      id: 0
       name: all-postgres
       retryOnError: true
       scriptFrom:
@@ -20,6 +21,7 @@ spec:
       user: postgres
       wrapInTransaction: serializable
     - database: {{ .Values.db.name }}
+      id: 1
       name: all-db
       retryOnError: true
       scriptFrom:
@@ -30,6 +32,7 @@ spec:
       user: postgres
       wrapInTransaction: serializable
     - database: {{ .Values.db.name }}
+      id: 2
       name: coordinator-owner
       retryOnError: true
       scriptFrom:
@@ -40,6 +43,7 @@ spec:
       user: {{ .Values.db.owner.username }}
       wrapInTransaction: serializable
     - database: {{ .Values.db.name }}
+      id: 3
       name: coordinator-superuser
       retryOnError: true
       scriptFrom:
