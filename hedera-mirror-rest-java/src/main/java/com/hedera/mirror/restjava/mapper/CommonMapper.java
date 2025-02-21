@@ -17,12 +17,19 @@
 package com.hedera.mirror.restjava.mapper;
 
 import com.google.common.collect.Range;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.rest.model.Key;
 import com.hedera.mirror.rest.model.Key.TypeEnum;
 import com.hedera.mirror.rest.model.TimestampRange;
+import com.hedera.mirror.restjava.exception.InvalidMappingException;
+import com.hederahashgraph.api.proto.java.KeyList;
+import jakarta.annotation.Nonnull;
+import java.util.Collections;
+import java.util.List;
 import java.util.regex.Pattern;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingInheritanceStrategy;
@@ -68,6 +75,25 @@ public interface CommonMapper {
         }
 
         return new Key().key(hex).type(TypeEnum.PROTOBUF_ENCODED);
+    }
+
+    default List<Key> mapKeyList(byte[] source) {
+        if (ArrayUtils.isEmpty(source)) {
+            return Collections.emptyList();
+        }
+
+        try {
+            var keyList = KeyList.parseFrom(source);
+            return keyList.getKeysList().stream()
+                    .map(key -> mapKey(key.toByteArray()))
+                    .toList();
+        } catch (InvalidProtocolBufferException e) {
+            throw new InvalidMappingException("Error parsing protobuf message", e);
+        }
+    }
+
+    default String mapLowerRange(@Nonnull Range<Long> source) {
+        return mapTimestamp(source.lowerEndpoint());
     }
 
     default TimestampRange mapRange(Range<Long> source) {

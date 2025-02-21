@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
+ * Copyright (C) 2025 Hedera Hashgraph, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,26 +16,14 @@
 
 package com.hedera.mirror.restjava.mapper;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import org.springframework.util.CollectionUtils;
+import com.hedera.mirror.common.domain.token.CustomFee;
+import com.hedera.mirror.rest.model.ConsensusCustomFees;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
-public interface CollectionMapper<S, T> {
+@Mapper(config = MapperConfiguration.class, uses = FixedCustomFeeMapper.class)
+public interface CustomFeeMapper {
 
-    T map(S source);
-
-    default List<T> map(Collection<S> sources) {
-        if (CollectionUtils.isEmpty(sources)) {
-            return Collections.emptyList();
-        }
-
-        List<T> list = new ArrayList<>(sources.size());
-        for (S source : sources) {
-            list.add(map(source));
-        }
-
-        return list;
-    }
+    @Mapping(source = "timestampRange", target = "createdTimestamp")
+    ConsensusCustomFees map(CustomFee customFee);
 }

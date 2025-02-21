@@ -51,6 +51,13 @@ class TopicControllerTest extends ControllerTest {
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
             var entity = domainBuilder.topicEntity().persist();
             domainBuilder
+                    .customFee()
+                    .customize(c -> c.entityId(entity.getId())
+                            .fractionalFees(null)
+                            .royaltyFees(null)
+                            .timestampRange(entity.getTimestampRange()))
+                    .persist();
+            domainBuilder
                     .topic()
                     .customize(t -> t.createdTimestamp(entity.getCreatedTimestamp())
                             .id(entity.getId())
@@ -64,6 +71,13 @@ class TopicControllerTest extends ControllerTest {
         void success(String id) {
             // Given
             var entity = domainBuilder.topicEntity().customize(e -> e.id(1000L)).persist();
+            var customFee = domainBuilder
+                    .customFee()
+                    .customize(c -> c.entityId(1000L)
+                            .fractionalFees(null)
+                            .royaltyFees(null)
+                            .timestampRange(entity.getTimestampRange()))
+                    .persist();
             var topic = domainBuilder
                     .topic()
                     .customize(t -> t.createdTimestamp(entity.getCreatedTimestamp())
@@ -75,7 +89,7 @@ class TopicControllerTest extends ControllerTest {
             var response = restClient.get().uri("", id).retrieve().toEntity(Topic.class);
 
             // Then
-            assertThat(response.getBody()).isNotNull().isEqualTo(topicMapper.map(entity, topic));
+            assertThat(response.getBody()).isNotNull().isEqualTo(topicMapper.map(customFee, entity, topic));
             // Based on application.yml response headers configuration
             assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
             assertThat(response.getHeaders().getCacheControl()).isEqualTo("public, max-age=5");

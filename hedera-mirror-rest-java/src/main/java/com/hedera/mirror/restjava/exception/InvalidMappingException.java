@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
+ * Copyright (C) 2025 Hedera Hashgraph, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@ package com.hedera.mirror.restjava.exception;
 import java.io.Serial;
 
 @SuppressWarnings("java:S110")
-public class InvalidFilterException extends RestJavaException {
+public class InvalidMappingException extends RestJavaException {
 
     @Serial
-    private static final long serialVersionUID = 1518569037954950068L;
+    private static final long serialVersionUID = -857679581991526245L;
 
-    public InvalidFilterException(String message) {
-        super(message);
+    public InvalidMappingException(String message, Throwable cause) {
+        super(message, cause);
     }
 }
