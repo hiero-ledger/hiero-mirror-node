@@ -1,3 +1,3 @@
-DROP INDEX IF EXISTS entity__id_type;
+drop index if exists entity__id_type;
 
-CREATE INDEX entity__type_id ON entity(type, id);
+create index entity__type_id on entity(type, id);
