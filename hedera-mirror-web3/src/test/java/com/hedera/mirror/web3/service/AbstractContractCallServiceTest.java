@@ -81,7 +81,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final int SYSTEM_ACCOUNT_ID_LOWER_BOUND_INCLUSIVE = 1;
     protected static final int SYSTEM_ACCOUNT_ID_HIGHER_BOUND_EXCLUSIVE = 751;
     protected static final List<Long> EXCLUDED_SPECIAL_IDS = List.of(2L, 98L);
-    protected static final long DEFAULT_SYSTEM_ACCOUNT_BALANCE = 20000L;
 
     @Resource
     protected TestWeb3jService testWeb3jService;
@@ -426,8 +425,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .customize(e -> {
                     e.id(systemAccount.getId())
                             .num(systemAccount.getNum())
-                            .alias(toEvmAddress(systemAccount))
-                            .balance(DEFAULT_SYSTEM_ACCOUNT_BALANCE);
+                            .alias(toEvmAddress(systemAccount));
                     customizer.accept(e);
                 })
                 .persist();
