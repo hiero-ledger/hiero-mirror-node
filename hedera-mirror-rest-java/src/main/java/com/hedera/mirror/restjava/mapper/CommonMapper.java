@@ -24,7 +24,6 @@ import com.hedera.mirror.rest.model.Key.TypeEnum;
 import com.hedera.mirror.rest.model.TimestampRange;
 import com.hedera.mirror.restjava.exception.InvalidMappingException;
 import com.hederahashgraph.api.proto.java.KeyList;
-import jakarta.annotation.Nonnull;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -92,7 +91,11 @@ public interface CommonMapper {
         }
     }
 
-    default String mapLowerRange(@Nonnull Range<Long> source) {
+    default String mapLowerRange(Range<Long> source) {
+        if (source == null || !source.hasLowerBound()) {
+            return null;
+        }
+
         return mapTimestamp(source.lowerEndpoint());
     }
 

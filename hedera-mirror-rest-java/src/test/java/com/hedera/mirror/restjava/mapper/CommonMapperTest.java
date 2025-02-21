@@ -129,6 +129,8 @@ class CommonMapperTest {
 
     @Test
     void mapLowerRange() {
+        assertThat(commonMapper.mapLowerRange(null)).isNull();
+        assertThat(commonMapper.mapLowerRange(Range.atMost(200L))).isNull();
         assertThat(commonMapper.mapLowerRange(Range.atLeast(0L))).isEqualTo("0.0");
         assertThat(commonMapper.mapLowerRange(Range.atLeast(1500123456789L))).isEqualTo("1500.123456789");
         assertThat(commonMapper.mapLowerRange(Range.atLeast(1500123456000L))).isEqualTo("1500.123456000");
