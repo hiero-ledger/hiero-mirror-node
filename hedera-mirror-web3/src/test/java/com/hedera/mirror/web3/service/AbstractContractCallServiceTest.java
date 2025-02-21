@@ -81,7 +81,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final int SYSTEM_ACCOUNT_ID_LOWER_BOUND_INCLUSIVE = 1;
     protected static final int SYSTEM_ACCOUNT_ID_HIGHER_BOUND_EXCLUSIVE = 751;
     protected static final List<Long> EXCLUDED_SPECIAL_IDS = List.of(2L, 98L);
-    public static final long DEFAULT_SYSTEM_ACCOUNT_BALANCE = 20000L;
+    protected static final long DEFAULT_SYSTEM_ACCOUNT_BALANCE = 20000L;
 
     @Resource
     protected TestWeb3jService testWeb3jService;
