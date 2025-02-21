@@ -407,13 +407,7 @@ Beginning from an `EventTransaction` block item, a record item is composed of on
 | token_airdrop.token_id (fungible)  | state_changes[i].state_change.map_update.key.tokenReference.fungible_token_type                   |
 | token_airdrop.token_id (nft)       | state_changes[i].state_change.map_update.key.tokenReference.non_fungible_token.nftId.tokenId      |
 | assessed_custom_fee                | Similar to crypto_transfer, retrieved from transaction_output.token_airdrop                       |
-| token_account.account_id           | transaction_output.token_airdrop.automatic_token_associations[i].accountId                        |
-| token_account.token_id             | transaction_output.token_airdrop.automatic_token_associations[i].tokenId                          |
-| token_transfer.account_id          | transaction_output.token_airdrop.token_transfer_lists[i].transfers[j].accountAmount.accountID     |
-| token_transfer.amount              | transaction_output.token_airdrop.token_transfer_lists[i].transfers[j].accountAmount.amount        |
 | token_transfer.consensus_timestamp | transaction_result.consensus_timestamp                                                            |
-| token_transfer.is_approval         | transaction_output.token_airdrop.token_transfer_lists[i].transfers[j].accountAmount.isApproval    |
-| token_transfer.token_id            | transaction_output.token_airdrop.token_transfer_lists[i].token.tokenID                            |
 
 ### Token Create Transaction
 
