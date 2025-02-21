@@ -16,7 +16,6 @@
 
 package com.hedera.mirror.web3.service;
 
-import static com.hedera.mirror.web3.service.ContractCallServicePrecompileModificationTest.DEFAULT_AMOUNT_GRANTED;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
