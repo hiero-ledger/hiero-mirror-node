@@ -1,7 +1,8 @@
-# We upload multiple separate reports, one for each GitHub action
+# SPDX-License-Identifier: Apache-2.0
+
 codecov:
   notify:
-    after_n_builds: 7
+    after_n_builds: 7 # We upload multiple separate reports, one for each GitHub action
 comment:
   after_n_builds: 7
 coverage:

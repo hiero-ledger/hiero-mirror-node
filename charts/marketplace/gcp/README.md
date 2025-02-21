@@ -336,30 +336,30 @@ To ensure a smooth upgrade process:
 2. Delete the `${APP_NAME}-importer` Stateful Set workload.
 3. Install the v0.37 solution
 4. Scale down the Importer Deployment resource
-    ```shell
-    kubectl scale deployment "${APP_NAME}-importer" --replicas=0
-    ```
-4. Scale down the REST API Deployment resource
-    ```shell
-    kubectl scale deployment "${APP_NAME}-rest" --replicas=0
-    ```
-5. Modify the `mirror-passwords` Kubernetes Secret resource
-    ```shell
-    kubectl edit secrets mirror-passwords
-    ```
-6. Set the `HEDERA_MIRROR_IMPORTER_DB_USERNAME` value to `bWlycm9yX25vZGU=` (the base64 encoded value of the
+   ```shell
+   kubectl scale deployment "${APP_NAME}-importer" --replicas=0
+   ```
+5. Scale down the REST API Deployment resource
+   ```shell
+   kubectl scale deployment "${APP_NAME}-rest" --replicas=0
+   ```
+6. Modify the `mirror-passwords` Kubernetes Secret resource
+   ```shell
+   kubectl edit secrets mirror-passwords
+   ```
+7. Set the `HEDERA_MIRROR_IMPORTER_DB_USERNAME` value to `bWlycm9yX25vZGU=` (the base64 encoded value of the
    default `mirror_node` value)
-7. Set the `HEDERA_MIRROR_IMPORTER_DB_RESTUSERNAME` value to `bWlycm9yX2FwaQ==` (the base64 encoded value of the
+8. Set the `HEDERA_MIRROR_IMPORTER_DB_RESTUSERNAME` value to `bWlycm9yX2FwaQ==` (the base64 encoded value of the
    default `mirror_api` value)
-8. Scale up the Importer Deployment resource
-    ```shell
-    kubectl scale deployment "${APP_NAME}-importer" --replicas=1
-    ```
-9. Scale up the REST API Deployment resource
+9. Scale up the Importer Deployment resource
+   ```shell
+   kubectl scale deployment "${APP_NAME}-importer" --replicas=1
+   ```
+10. Scale up the REST API Deployment resource
     ```shell
     kubectl scale deployment "${APP_NAME}-rest" --replicas=1
     ```
-10. Post importer and rest operation confirmation, delete the leftover `data-${APP_NAME}-importer-0` persistent volume
+11. Post importer and rest operation confirmation, delete the leftover `data-${APP_NAME}-importer-0` persistent volume
     claim (Importer is no longer stateful)
     ```shell
     kubectl delete pvc "data-${APP_NAME}-importer-0"
