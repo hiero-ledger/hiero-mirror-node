@@ -30,7 +30,7 @@
   "responseJson": {
     "admin_key": {
       "_type": "ProtobufEncoded",
-      "key": "AQEB"
+      "key": "010101"
     },
     "consensus_timestamp": "1234567890.000000001",
     "creator_account_id": "0.0.1024",

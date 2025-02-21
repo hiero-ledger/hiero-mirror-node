@@ -143,10 +143,10 @@ const getScheduleById = async (req, res) => {
 const getScheduleCacheControlHeader = (schedule) => {
   const nowNs = BigInt(utils.nowInNs());
   const executedTimestamp = schedule.executed_timestamp;
-  const expirationTime = schedule.expiration_time !== undefined ? BigInt(schedule.expiration_time) : 0n;
-  const consensusTimestamp = schedule.consensus_timestamp !== undefined ? BigInt(schedule.consensus_timestamp) : 0n;
+  const expirationTime = schedule.expiration_time ? BigInt(schedule.expiration_time) : 0n;
+  const consensusTimestamp = schedule.consensus_timestamp ? BigInt(schedule.consensus_timestamp) : 0n;
 
-  const hasExecuted = executedTimestamp !== undefined || schedule.deleted;
+  const hasExecuted = executedTimestamp || schedule.deleted;
   const hasAutoExpired =
     expirationTime === 0n && nowNs >= consensusTimestamp + constants.THIRTY_ONE_MINUTES * constants.ONE_BILLION;
   const hasExpired = expirationTime !== 0n && nowNs >= expirationTime + constants.SIXTY_SECONDS * constants.ONE_BILLION;
