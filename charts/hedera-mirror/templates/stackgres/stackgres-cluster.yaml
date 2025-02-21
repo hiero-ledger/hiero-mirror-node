@@ -24,7 +24,8 @@ spec:
     instances: {{ .Values.stackgres.coordinator.instances }}
     managedSql:
       scripts:
-        - sgScript: {{ include "hedera-mirror.stackgres" . }}-coordinator
+        - id: 0
+          sgScript: {{ include "hedera-mirror.stackgres" . }}-coordinator
     pods:
       disableEnvoy: {{ not .Values.stackgres.coordinator.enableEnvoy }}
       disablePostgresUtil: {{ not .Values.stackgres.coordinator.enablePostgresUtil }}
@@ -64,7 +65,8 @@ spec:
     instancesPerCluster: {{ .Values.stackgres.worker.replicasPerInstance }}
     managedSql:
       scripts:
-        - sgScript: {{ include "hedera-mirror.stackgres" . }}-worker
+        - id: 1
+          sgScript: {{ include "hedera-mirror.stackgres" . }}-worker
     overrides: {{ .Values.stackgres.worker.overrides | toYaml | nindent 6 }}
     pods:
       disableEnvoy: {{ not .Values.stackgres.worker.enableEnvoy }}
