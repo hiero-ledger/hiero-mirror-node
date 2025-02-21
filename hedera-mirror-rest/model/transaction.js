@@ -16,6 +16,8 @@
 
 import {filterKeys} from '../constants';
 import NftTransfer from './nftTransfer';
+import CustomFeeLimit from './customFeeLimit.js';
+import TransactionType from './transactionType.js';
 
 class Transaction {
   static BASE64_HASH_SIZE = 64;
@@ -30,6 +32,7 @@ class Transaction {
   static ENTITY_ID = `entity_id`;
   static INITIAL_BALANCE = `initial_balance`;
   static MAX_FEE = `max_fee`;
+  static MAX_CUSTOM_FEES = `max_custom_fees`;
   static MEMO = `memo`;
   static NFT_TRANSFER = 'nft_transfer';
   static NODE_ACCOUNT_ID = `node_account_id`;
@@ -57,6 +60,10 @@ class Transaction {
     this.entityId = transaction.entity_id;
     this.initialBalance = transaction.initial_balance;
     this.maxFee = transaction.max_fee;
+    this.maxCustomFee =
+      transaction.type === TransactionType.getName(27)
+        ? (transaction.max_custom_fees ?? []).map((n) => new CustomFeeLimit(n))
+        : [];
     this.memo = transaction.memo;
     this.nftTransfer = (transaction.nft_transfer ?? []).map((n) => new NftTransfer(n));
     this.nodeAccountId = transaction.node_account_id;

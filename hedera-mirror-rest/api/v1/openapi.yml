@@ -2694,6 +2694,17 @@ components:
           $ref: "#/components/schemas/EntityId"
         denominating_token_id:
           $ref: "#/components/schemas/EntityId"
+    CustomFeeLimit:
+      type: object
+      properties:
+        account_id:
+          $ref: "#/components/schemas/EntityId"
+        amount:
+          example: 100
+          format: int64
+          type: integer
+        denominating_token_id:
+          $ref: "#/components/schemas/EntityId"
     FractionalFee:
       type: object
       properties:
@@ -3762,6 +3773,11 @@ components:
           $ref: "#/components/schemas/EntityId"
         max_fee:
           type: string
+        max_custom_fees:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/CustomFeeLimit"
         memo_base64:
           format: byte
           nullable: true

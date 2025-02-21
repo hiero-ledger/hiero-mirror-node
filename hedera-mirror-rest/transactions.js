@@ -38,6 +38,8 @@ import {
 } from './model';
 
 import {AssessedCustomFeeViewModel, NftTransferViewModel} from './viewmodel';
+import CustomFeeLimit from './model/customFeeLimit.js';
+import CustomFeeLimitViewModel from './viewmodel/customFeeLimitViewModel.js';
 
 const SUCCESS_PROTO_IDS = TransactionResult.getSuccessProtoIds();
 
@@ -62,6 +64,7 @@ const transactionFields = [
   Transaction.CONSENSUS_TIMESTAMP,
   Transaction.ENTITY_ID,
   Transaction.MAX_FEE,
+  Transaction.MAX_CUSTOM_FEES,
   Transaction.MEMO,
   Transaction.NFT_TRANSFER,
   Transaction.NODE_ACCOUNT_ID,
@@ -179,6 +182,24 @@ const createNftTransferList = (nftTransferList) => {
 };
 
 /**
+ * Creates a custom fee limit transfer list from an aggregated array of JSON objects in the query result
+ *
+ * @param {Object[]} maxCustomFeesList - The list of max custom fees
+ * @return {CustomFeeLimitViewModel[]} An array of custom fee limit view models
+ */
+const createMaxCustomFeesTransferList = (maxCustomFeesList) => {
+  if (!maxCustomFeesList || maxCustomFeesList.length === 0) {
+    return [];
+  }
+
+  return maxCustomFeesList.map((fee) => {
+    const feeBuffers = Array.isArray(fee) ? fee.map((f) => Buffer.from(f)) : [Buffer.from(fee)];
+    const customFeeLimit = new CustomFeeLimit(feeBuffers);
+    return new CustomFeeLimitViewModel([customFeeLimit]);
+  });
+};
+
+/**
  * Format the output of the SQL query as an array of transaction objects per the view model.
  *
  * @param rows Array of rows returned as a result of the SQL query
@@ -196,6 +217,7 @@ const formatTransactionRows = async (rows) => {
       consensus_timestamp: utils.nsToSecNs(row.consensus_timestamp),
       entity_id: EntityId.parse(row.entity_id, {isNullable: true}).toString(),
       max_fee: utils.getNullableNumber(row.max_fee),
+      max_custom_fees: createMaxCustomFeesTransferList(row.max_custom_fees),
       memo_base64: utils.encodeBase64(row.memo),
       name: TransactionType.getName(row.type),
       nft_transfers: createNftTransferList(row.nft_transfer),
