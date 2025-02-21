@@ -19,7 +19,7 @@
         "memo": "token.0.0.1135",
         "expiration_timestamp": "1234567890000010001",
         "deleted": false,
-        "timestamp_range": "[1234567890000000002,)"
+        "timestamp_range": "[1234567890000000001,)"
       },
       {
         "realm": 7,
