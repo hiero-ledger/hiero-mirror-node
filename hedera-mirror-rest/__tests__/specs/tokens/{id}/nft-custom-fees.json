@@ -17,7 +17,8 @@
         "num": 1135,
         "type": "TOKEN",
         "memo": "token.0.0.1135",
-        "deleted": false
+        "deleted": false,
+        "timestamp_range": "[1234567890000000002,)"
       },
       {
         "realm": 7,
