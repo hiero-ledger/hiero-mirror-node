@@ -3771,13 +3771,13 @@ components:
           $ref: "#/components/schemas/Timestamp"
         entity_id:
           $ref: "#/components/schemas/EntityId"
-        max_fee:
-          type: string
         max_custom_fees:
           type: array
           nullable: true
           items:
             $ref: "#/components/schemas/CustomFeeLimit"
+        max_fee:
+          type: string
         memo_base64:
           format: byte
           nullable: true
