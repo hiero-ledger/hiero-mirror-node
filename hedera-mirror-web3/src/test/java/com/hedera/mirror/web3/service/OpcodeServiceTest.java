@@ -184,9 +184,9 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var tokenKey = new TokenKey(keyType.getKeyTypeNumeric(), keyValue);
         final var expectedResult = TypeEncoder.encode(keyValue);
         final var expectedResultBytes = Bytes.fromHexString(expectedResult).toArray();
-
+        final var tokenAddress = toAddress(token.getTokenId());
         final var functionCall = contract.call_updateTokenKeysAndGetUpdatedTokenKey(
-                toAddress(token.getTokenId()).toHexString(), List.of(tokenKey), keyType.getKeyTypeNumeric());
+                tokenAddress.toHexString(), List.of(tokenKey), keyType.getKeyTypeNumeric());
         final var callData =
                 Bytes.fromHexString(functionCall.encodeFunctionCall()).toArray();
 

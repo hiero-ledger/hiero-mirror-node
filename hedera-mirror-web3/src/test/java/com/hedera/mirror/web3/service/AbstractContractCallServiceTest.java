@@ -78,6 +78,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final int DEFAULT_SERIAL_NUMBER = 1;
     protected static final String NFT_METADATA_URI = "NFT_METADATA_URI";
     protected static final String HBAR = "HBAR";
+    protected static final long DEFAULT_AMOUNT_GRANTED = 10L;
 
     @Resource
     protected TestWeb3jService testWeb3jService;
@@ -462,8 +463,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .persist();
     }
 
-    protected void tokenAccountPersist(final long tokenId, final long accountId) {
-        tokenAccount(ta -> ta.tokenId(tokenId).accountId(accountId));
+    protected TokenAccount tokenAccountPersist(final long tokenId, final long accountId) {
+        return tokenAccount(ta -> ta.tokenId(tokenId).accountId(accountId));
     }
 
     /**
