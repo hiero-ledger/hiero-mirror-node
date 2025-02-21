@@ -423,9 +423,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return domainBuilder
                 .entity()
                 .customize(e -> {
-                    e.id(systemAccount.getId())
-                            .num(systemAccount.getNum())
-                            .alias(toEvmAddress(systemAccount));
+                    e.id(systemAccount.getId()).num(systemAccount.getNum()).alias(toEvmAddress(systemAccount));
                     customizer.accept(e);
                 })
                 .persist();
