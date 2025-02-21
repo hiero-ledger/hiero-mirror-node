@@ -79,8 +79,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final long DEFAULT_ACCOUNT_BALANCE = 100_000_000_000_000_000L;
     protected static final int DEFAULT_TOKEN_BALANCE = 100;
     protected static final int SYSTEM_ACCOUNT_ID_LOWER_BOUND_INCLUSIVE = 1;
-    protected static final int SYSTEM_ACCOUNT_HIGHER_BOUND_EXCLUSIVE = 751;
+    protected static final int SYSTEM_ACCOUNT_ID_HIGHER_BOUND_EXCLUSIVE = 751;
     protected static final List<Long> EXCLUDED_SPECIAL_IDS = List.of(2L, 98L);
+    public static final long DEFAULT_SYSTEM_ACCOUNT_BALANCE = 20000L;
 
     @Resource
     protected TestWeb3jService testWeb3jService;
@@ -411,7 +412,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         long id;
         do {
             id = ThreadLocalRandom.current()
-                    .nextLong(SYSTEM_ACCOUNT_ID_LOWER_BOUND_INCLUSIVE, SYSTEM_ACCOUNT_HIGHER_BOUND_EXCLUSIVE);
+                    .nextLong(SYSTEM_ACCOUNT_ID_LOWER_BOUND_INCLUSIVE, SYSTEM_ACCOUNT_ID_HIGHER_BOUND_EXCLUSIVE);
         } while (EXCLUDED_SPECIAL_IDS.contains(id));
         return id;
     }
@@ -426,7 +427,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                     e.id(systemAccount.getId())
                             .num(systemAccount.getNum())
                             .alias(toEvmAddress(systemAccount))
-                            .balance(20000L);
+                            .balance(DEFAULT_SYSTEM_ACCOUNT_BALANCE);
                     customizer.accept(e);
                 })
                 .persist();
