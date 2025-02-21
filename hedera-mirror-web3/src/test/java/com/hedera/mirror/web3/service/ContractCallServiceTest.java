@@ -16,7 +16,6 @@
 
 package com.hedera.mirror.web3.service;
 
-import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
 import static com.hedera.mirror.web3.service.ContractCallService.GAS_LIMIT_METRIC;
@@ -45,8 +44,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
 import com.hedera.mirror.web3.evm.store.Store;
 import com.hedera.mirror.web3.exception.BlockNumberOutOfRangeException;
@@ -426,7 +423,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     void balanceCallToSystemAccountReturnsZero() throws Exception {
         // Given
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
-        final var systemAccount = systemAccountEntityWithEvmAddressPersist();
+        final var systemAccount = systemAccountEntityCustomizable(e -> {});
         final var systemAccountAddress = EntityIdUtils.asHexedEvmAddress(
                 new Id(systemAccount.getShard(), systemAccount.getRealm(), systemAccount.getNum()));
         final var contract = testWeb3jService.deploy(EthCall::deploy);
@@ -445,7 +442,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     void balanceCallToSystemAccountViaAliasReturnsBalance() throws Exception {
         // Given
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
-        final var systemAccount = systemAccountEntityWithEvmAddressPersist();
+        final var systemAccount = systemAccountEntityCustomizable(e -> {});
         final var systemAccountAddress =
                 Bytes.wrap(systemAccount.getEvmAddress()).toHexString();
         final var contract = testWeb3jService.deploy(EthCall::deploy);
@@ -1083,18 +1080,6 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 .sender(new HederaEvmAccount(senderAddress))
                 .value(value)
                 .build();
-    }
-
-    private Entity systemAccountEntityWithEvmAddressPersist() {
-        final var systemAccountEntityId = EntityId.of(700);
-
-        return domainBuilder
-                .entity()
-                .customize(e -> e.id(systemAccountEntityId.getId())
-                        .num(systemAccountEntityId.getNum())
-                        .alias(toEvmAddress(systemAccountEntityId))
-                        .balance(20000L))
-                .persist();
     }
 
     @Nested

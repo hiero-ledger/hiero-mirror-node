@@ -298,16 +298,8 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     @Test
     void selfDestructCallWithSystemAccount() {
         // Given
-        final var systemAccountAddress = toAddress(700);
-        final var systemAccountEntityId = entityIdFromEvmAddress(systemAccountAddress);
-        domainBuilder
-                .entity()
-                .customize(e -> e.id(systemAccountEntityId.getId())
-                        .num(systemAccountEntityId.getNum())
-                        .evmAddress(null)
-                        .alias(toEvmAddress(systemAccountEntityId))
-                        .balance(20000L))
-                .persist();
+        final var systemAccount = systemAccountEntityCustomizable(e -> e.evmAddress(null));
+        final var systemAccountAddress = toAddress(systemAccount.toEntityId());
         // When
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
 

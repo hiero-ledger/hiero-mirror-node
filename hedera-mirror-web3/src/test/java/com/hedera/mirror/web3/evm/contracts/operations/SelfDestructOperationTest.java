@@ -54,7 +54,8 @@ class SelfDestructOperationTest extends AbstractContractCallServiceTest {
 
     @Test
     void testExecuteWithInvalidOwner() {
-        final var systemAccountAddress = toAddress(700);
+        final var systemAccountId = generateSystemAccountId();
+        final var systemAccountAddress = toAddress(systemAccountId);
         final var contract = testWeb3jService.deployWithValue(SelfDestructContract::deploy, BigInteger.valueOf(1000));
         final var functionCall = contract.send_destructContract(systemAccountAddress.toUnprefixedHexString());
 

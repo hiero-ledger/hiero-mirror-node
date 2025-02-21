@@ -16,6 +16,7 @@
 
 package com.hedera.mirror.web3.service;
 
+import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
@@ -57,6 +58,8 @@ import com.hederahashgraph.api.proto.java.Key;
 import com.swirlds.state.State;
 import jakarta.annotation.Resource;
 import java.math.BigInteger;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.tuple.Pair;
@@ -75,6 +78,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final String TREASURY_ADDRESS = EvmTokenUtils.toAddress(2).toHexString();
     protected static final long DEFAULT_ACCOUNT_BALANCE = 100_000_000_000_000_000L;
     protected static final int DEFAULT_TOKEN_BALANCE = 100;
+    protected static final int SYSTEM_ACCOUNT_ID_LOWER_BOUND_INCLUSIVE = 1;
+    protected static final int SYSTEM_ACCOUNT_HIGHER_BOUND_EXCLUSIVE = 751;
+    protected static final List<Long> EXCLUDED_SPECIAL_IDS = List.of(2L, 98L);
 
     @Resource
     protected TestWeb3jService testWeb3jService;
@@ -399,6 +405,31 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected void tokenAccountPersist(final long tokenId, final long accountId) {
         tokenAccount(ta -> ta.tokenId(tokenId).accountId(accountId));
+    }
+
+    protected long generateSystemAccountId() {
+        long id;
+        do {
+            id = ThreadLocalRandom.current()
+                    .nextLong(SYSTEM_ACCOUNT_ID_LOWER_BOUND_INCLUSIVE, SYSTEM_ACCOUNT_HIGHER_BOUND_EXCLUSIVE);
+        } while (EXCLUDED_SPECIAL_IDS.contains(id));
+        return id;
+    }
+
+    protected Entity systemAccountEntityCustomizable(Consumer<Entity.EntityBuilder<?, ?>> customizer) {
+        final long id = generateSystemAccountId();
+        final var systemAccount = EntityId.of(id);
+
+        return domainBuilder
+                .entity()
+                .customize(e -> {
+                    e.id(systemAccount.getId())
+                            .num(systemAccount.getNum())
+                            .alias(toEvmAddress(systemAccount))
+                            .balance(20000L);
+                    customizer.accept(e);
+                })
+                .persist();
     }
 
     /**
