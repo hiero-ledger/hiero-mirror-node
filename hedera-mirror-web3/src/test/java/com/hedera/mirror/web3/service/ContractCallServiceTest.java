@@ -16,6 +16,7 @@
 
 package com.hedera.mirror.web3.service;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
@@ -338,10 +339,10 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     }
 
     /**
-     * If the callContract method is invoked with the zero address (0x0) as the recipient,
+     * If we make a contract call with the zero address (0x0) set as the recipient in the contractExecutionParameters,
      * Hedera treats this as a contract creation request rather than a function call.
      * The contract is then initialized using the contractCallData, which should contain the compiled bytecode of the
-     * contract.If contractCallData is empty (0x0), the contract will be deployed without any functions(no fallback
+     * contract. If contractCallData is empty (0x0), the contract will be deployed without any functions(no fallback
      * function as well, which is called when the contract is called without specifying a function or when non-existent
      * function is specified.) in its bytecode. Respectively, any call to the contract will fail with
      * CONTRACT_BYTECODE_EMPTY, indicating that the contract exists, but does not have any executable logic.
@@ -349,17 +350,17 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     @Test
     void estimateGasWithoutReceiver() {
         final var payer = accountEntityPersist();
+        final var receiverAddress = Address.ZERO;
 
-        final Address receiverAddress = Address.ZERO;
-        // The compiled EVM bytecode of a smart contract with a fallback function()
-        final Bytes contractCallData = Bytes.fromHexString(
-                "608060405234801561001057600080fd5b50610104806100206000396000f3fe6080604052600436106100295760003560e01c80632d353dd21461002e578063b69ef8a81461004e575b600080fd5b610048600480360381019061004391906100d5565b61006a565b005b610056610078565b60405161006391906100f8565b60405180910390f35b60008054905090565b60008135905061008a8161011a565b92915050565b6000602082840312156100a657600080fd5b60006100b484828501610080565b91505092915050565b6100c7816100de565b82525050565b60006020820190506100e260008301846100be565b92915050565b600080fd5b6100f5816100de565b811461010057600080fd5b5056fea2646970667358221220e429de601e30eb0481c0e6bc72a9f9f8e5b2e720a097394d319c2b8a55ffb2d164736f6c63430008140033");
-        final var serviceParametersEthCall =
-                getContractExecutionParams(contractCallData, receiverAddress, toAddress(payer.toEntityId()), ETH_CALL);
+        final var contract = testWeb3jService.deployWithoutPersist(ERCTestContract::deploy);
+        final var contractCallData = Bytes.fromHexString(contract.getContractBinary());
+
+        final var serviceParametersEthCall = getContractExecutionParameters(
+                contractCallData, toAddress(payer.toEntityId()), receiverAddress, 0L, ETH_CALL);
 
         final var actualGasUsed = gasUsedAfterExecution(serviceParametersEthCall);
-        final var serviceParametersEstimateGas = getContractExecutionParams(
-                contractCallData, receiverAddress, toAddress(payer.toEntityId()), ETH_ESTIMATE_GAS);
+        final var serviceParametersEstimateGas = getContractExecutionParameters(
+                contractCallData, toAddress(payer.toEntityId()), receiverAddress, 0L, ETH_ESTIMATE_GAS);
 
         // When
         final var result = contractExecutionService.processCall(serviceParametersEstimateGas);
@@ -576,13 +577,11 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     }
 
     @Test
-    void ethCallWithValueAndNotExistingSenderAlias() {
+    void ethCallWithValueAndSenderWithoutAlias() {
         // Given
-        final var receiverEntity = accountPersist();
+        final var receiverEntity = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
-        final var payer = accountEntityPersist();
-
-        assertThat(payer.getAlias()).isEqualTo(null);
+        final var payer = accountEntityPersist(); // Account without alias
 
         final var serviceParameters = getContractExecutionParametersWithValue(
                 Bytes.EMPTY, toAddress(payer.toEntityId()), receiverAddress, 10L);
@@ -592,6 +591,27 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
 
         // Then
         assertThat(result).isEqualTo(HEX_PREFIX);
+        assertGasLimit(serviceParameters);
+    }
+
+    @Test
+    void ethCallWithValueAndNotExistingSenderAddress() {
+        final var receiverEntity = accountEntityWithEvmAddressPersist();
+        final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
+        final var notExistingAccountAddress = toAddress(EntityId.of(4325));
+
+        final var serviceParameters =
+                getContractExecutionParametersWithValue(Bytes.EMPTY, notExistingAccountAddress, receiverAddress, 10L);
+
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+                    .isInstanceOf(MirrorEvmTransactionException.class)
+                    .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
+        } else {
+            final var result = contractExecutionService.processCall(serviceParameters);
+            assertThat(result).isEqualTo(HEX_PREFIX);
+        }
+
         assertGasLimit(serviceParameters);
     }
 
@@ -1103,10 +1123,6 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 .build();
     }
 
-    private Entity accountPersist() {
-        return domainBuilder.entity().persist();
-    }
-
     private Entity systemAccountEntityWithEvmAddressPersist() {
         final var systemAccountEntityId = EntityId.of(700);
 
@@ -1117,10 +1133,6 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                         .alias(toEvmAddress(systemAccountEntityId))
                         .balance(20000L))
                 .persist();
-    }
-
-    protected Address getAliasAddressFromEntity(final Entity entity) {
-        return Address.wrap(Bytes.wrap(entity.getEvmAddress()));
     }
 
     @Nested
