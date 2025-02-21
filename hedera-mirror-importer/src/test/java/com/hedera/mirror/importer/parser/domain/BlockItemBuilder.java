@@ -16,8 +16,11 @@
 
 package com.hedera.mirror.importer.parser.domain;
 
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_PENDING_AIRDROPS;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_SCHEDULES_BY_ID;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS;
 
 import com.google.protobuf.UInt64Value;
 import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
@@ -32,22 +35,30 @@ import com.hedera.hapi.block.stream.output.protoc.SignScheduleOutput;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.SubmitMessageOutput;
+import com.hedera.hapi.block.stream.output.protoc.TokenAirdropOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.output.protoc.UtilPrngOutput;
 import com.hedera.mirror.common.domain.transaction.BlockItem;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.importer.util.Utility;
+import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.AssessedCustomFee;
 import com.hederahashgraph.api.proto.java.FileID;
+import com.hederahashgraph.api.proto.java.NftID;
+import com.hederahashgraph.api.proto.java.PendingAirdropId;
+import com.hederahashgraph.api.proto.java.PendingAirdropValue;
 import com.hederahashgraph.api.proto.java.Schedule;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.Token;
+import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.Topic;
 import com.hederahashgraph.api.proto.java.TopicID;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -88,11 +99,6 @@ public class BlockItemBuilder {
                 Collections.emptyList());
     }
 
-    public BlockItemBuilder.Builder scheduleCreate() {
-        var recordItem = recordItemBuilder.scheduleCreate().build();
-        return scheduleCreate(recordItem);
-    }
-
     public BlockItemBuilder.Builder scheduleCreate(RecordItem recordItem) {
         var transactionRecord = recordItem.getTransactionRecord();
         var scheduleId = transactionRecord.getReceipt().getScheduleID();
@@ -117,11 +123,6 @@ public class BlockItemBuilder {
                 transactionResult(recordItem),
                 List.of(transactionOutput),
                 List.of(stateChanges));
-    }
-
-    public BlockItemBuilder.Builder scheduleDelete() {
-        var recordItem = recordItemBuilder.scheduleDelete().build();
-        return scheduleDelete(recordItem);
     }
 
     public BlockItemBuilder.Builder scheduleDelete(RecordItem recordItem) {
@@ -152,11 +153,6 @@ public class BlockItemBuilder {
                 List.of(stateChanges));
     }
 
-    public BlockItemBuilder.Builder scheduleSign() {
-        var recordItem = recordItemBuilder.scheduleSign().build();
-        return scheduleSign(recordItem);
-    }
-
     public BlockItemBuilder.Builder scheduleSign(RecordItem recordItem) {
         var transactionRecord = recordItem.getTransactionRecord();
         var transactionId = transactionRecord.getReceipt().getScheduledTransactionID();
@@ -170,11 +166,6 @@ public class BlockItemBuilder {
                 transactionResult(recordItem),
                 List.of(transactionOutput),
                 Collections.emptyList());
-    }
-
-    public BlockItemBuilder.Builder utilPrng() {
-        var recordItem = recordItemBuilder.prng().build();
-        return utilPrng(recordItem);
     }
 
     public BlockItemBuilder.Builder utilPrng(RecordItem recordItem) {
@@ -201,64 +192,18 @@ public class BlockItemBuilder {
                 recordItem.getTransaction(), transactionResult(recordItem), List.of(), List.of(stateChanges));
     }
 
-    public BlockItemBuilder.Builder nodeUpdate(RecordItem recordItem) {
-        return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(), transactionResult(recordItem), List.of(), Collections.emptyList());
-    }
-
-    public BlockItemBuilder.Builder nodeStakeUpdate(RecordItem recordItem) {
-        return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(), transactionResult(recordItem), List.of(), Collections.emptyList());
-    }
-
-    public BlockItemBuilder.Builder nodeDelete(RecordItem recordItem) {
-        return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(), transactionResult(recordItem), List.of(), Collections.emptyList());
-    }
-
-    public Builder systemDelete(RecordItem recordItem) {
-        var instant = Instant.ofEpochSecond(0, recordItem.getConsensusTimestamp());
-        var timestamp = Utility.instantToTimestamp(instant);
-        var transactionRecord = recordItem.getTransactionRecord();
-        var transactionResult = transactionResult(transactionRecord, timestamp).build();
-
-        return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(), transactionResult, List.of(), Collections.emptyList());
-    }
-
-    public Builder systemUndelete(RecordItem recordItem) {
-        var instant = Instant.ofEpochSecond(0, recordItem.getConsensusTimestamp());
-        var timestamp = Utility.instantToTimestamp(instant);
-        var transactionRecord = recordItem.getTransactionRecord();
-        var transactionResult = transactionResult(transactionRecord, timestamp).build();
-
-        return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(), transactionResult, List.of(), Collections.emptyList());
-    }
-
-    public Builder uncheckedSubmit(RecordItem recordItem) {
-        var instant = Instant.ofEpochSecond(0, recordItem.getConsensusTimestamp());
-        var timestamp = Utility.instantToTimestamp(instant);
-        var transactionRecord = recordItem.getTransactionRecord();
-        var transactionResult = transactionResult(transactionRecord, timestamp).build();
-
-        return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(), transactionResult, List.of(), Collections.emptyList());
-    }
-
     public BlockItemBuilder.Builder unknown() {
         var recordItem = recordItemBuilder.unknown().build();
         return unknown(recordItem);
     }
 
     public BlockItemBuilder.Builder unknown(RecordItem recordItem) {
-        return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(), transactionResult(recordItem), List.of(), Collections.emptyList());
+        return defaultBlockItem(recordItem);
     }
 
-    public BlockItemBuilder.Builder cryptoCreate() {
-        var recordItem = recordItemBuilder.cryptoCreate().build();
-        return cryptoCreate(recordItem);
+    public BlockItemBuilder.Builder defaultBlockItem(RecordItem recordItem) {
+        return new BlockItemBuilder.Builder(
+                recordItem.getTransaction(), transactionResult(recordItem), List.of(), Collections.emptyList());
     }
 
     public BlockItemBuilder.Builder cryptoCreate(RecordItem recordItem) {
@@ -277,31 +222,11 @@ public class BlockItemBuilder {
                 Collections.emptyList());
     }
 
-    public Builder fileAppend(RecordItem recordItem) {
-        return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(), transactionResult(recordItem), List.of(), Collections.emptyList());
-    }
-
-    public Builder fileDelete(RecordItem recordItem) {
-        return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(), transactionResult(recordItem), List.of(), Collections.emptyList());
-    }
-
     public Builder fileCreate(RecordItem recordItem) {
         var stateChanges = buildFileIdStateChanges(recordItem);
 
         return new BlockItemBuilder.Builder(
                 recordItem.getTransaction(), transactionResult(recordItem), List.of(), List.of(stateChanges));
-    }
-
-    public Builder fileUpdate(RecordItem recordItem) {
-        return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(), transactionResult(recordItem), List.of(), Collections.emptyList());
-    }
-
-    public BlockItemBuilder.Builder defaultRecordItem(RecordItem recordItem) {
-        return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(), transactionResult(recordItem), List.of(), Collections.emptyList());
     }
 
     public Builder consensusCreateTopic(RecordItem recordItem) {
@@ -370,6 +295,145 @@ public class BlockItemBuilder {
                 transactionResult(recordItem),
                 List.of(transactionOutput),
                 List.of(stateChanges));
+    }
+
+    public Builder tokenAirdrop(RecordItem recordItem) {
+        var transactionRecord = recordItem.getTransactionRecord();
+        var pendingAirdrops = transactionRecord.getNewPendingAirdropsList();
+        List<StateChange> changes = new ArrayList<>();
+        for (var pendingAirdrop : pendingAirdrops) {
+            var accountPendingAirdrop =
+                    AccountPendingAirdrop.newBuilder().setPendingAirdropValue(pendingAirdrop.getPendingAirdropValue());
+            changes.add(StateChange.newBuilder()
+                    .setStateId(STATE_ID_PENDING_AIRDROPS.getNumber())
+                    .setMapUpdate(MapUpdateChange.newBuilder()
+                            .setKey(MapChangeKey.newBuilder()
+                                    .setPendingAirdropIdKey(pendingAirdrop.getPendingAirdropId()))
+                            .setValue(MapChangeValue.newBuilder()
+                                    .setAccountPendingAirdropValue(accountPendingAirdrop)
+                                    .build())
+                            .build())
+                    .build());
+        }
+
+        // Add state changes that are not reflected in the possible state changes from the transaction body
+        changes.add(StateChange.newBuilder()
+                .setStateId(STATE_ID_PENDING_AIRDROPS.getNumber())
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder()
+                                .setPendingAirdropIdKey(PendingAirdropId.newBuilder()
+                                        .setFungibleTokenType(recordItemBuilder.tokenId())
+                                        .setReceiverId(recordItemBuilder.accountId())
+                                        .setSenderId(recordItemBuilder.accountId())
+                                        .build()))
+                        .setValue(MapChangeValue.newBuilder()
+                                .setAccountPendingAirdropValue(AccountPendingAirdrop.newBuilder()
+                                        .setPendingAirdropValue(PendingAirdropValue.newBuilder()
+                                                .setAmount(1)
+                                                .build())
+                                        .build())
+                                .build())
+                        .build())
+                .build());
+        changes.add(StateChange.newBuilder()
+                .setStateId(STATE_ID_PENDING_AIRDROPS.getNumber())
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder()
+                                .setPendingAirdropIdKey(PendingAirdropId.newBuilder()
+                                        .setNonFungibleToken(NftID.newBuilder()
+                                                .setTokenID(recordItemBuilder.tokenId())
+                                                .setSerialNumber(5000)
+                                                .build())
+                                        .setReceiverId(recordItemBuilder.accountId())
+                                        .setSenderId(recordItemBuilder.accountId())
+                                        .build()))
+                        .build())
+                .build());
+
+        var stateChanges = StateChanges.newBuilder().addAllStateChanges(changes).build();
+
+        var transactionOutput = TransactionOutput.newBuilder()
+                .setTokenAirdrop(TokenAirdropOutput.newBuilder()
+                        .addAssessedCustomFees(assessedCustomFees())
+                        .build())
+                .build();
+
+        return new BlockItemBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                List.of(transactionOutput),
+                List.of(stateChanges));
+    }
+
+    public Builder tokenBurn(RecordItem recordItem) {
+        return tokenSupplyStateChanges(recordItem, List.of());
+    }
+
+    public Builder tokenCreate(RecordItem recordItem) {
+        var transactionRecord = recordItem.getTransactionRecord();
+        var receipt = transactionRecord.getReceipt();
+        var tokenId = receipt.getTokenID();
+        var stateChange = StateChange.newBuilder()
+                .setStateId(STATE_ID_TOKENS.getNumber())
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setTokenIdKey(tokenId))
+                        .build())
+                .build();
+        return new BlockItemBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Collections.emptyList(),
+                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()));
+    }
+
+    public Builder tokenMint(RecordItem recordItem) {
+        var serialNumbers = recordItem.getTransactionRecord().getReceipt().getSerialNumbersList();
+        return tokenSupplyStateChanges(recordItem, serialNumbers);
+    }
+
+    public Builder tokenWipe(RecordItem recordItem) {
+        var serialNumbers = recordItem.getTransactionBody().getTokenWipe().getSerialNumbersList();
+        return tokenSupplyStateChanges(recordItem, serialNumbers);
+    }
+
+    private Builder tokenSupplyStateChanges(RecordItem recordItem, List<Long> serialNumbers) {
+        var receipt = recordItem.getTransactionRecord().getReceipt();
+        var tokenId = receipt.getTokenID();
+        var stateChangesBuilder =
+                StateChanges.newBuilder().addStateChanges(getNewSupplyState(tokenId, receipt.getNewTotalSupply()));
+        stateChangesBuilder.addAllStateChanges(getSerialNumbersStateChanges(serialNumbers, tokenId));
+        return new BlockItemBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Collections.emptyList(),
+                List.of(stateChangesBuilder.build()));
+    }
+
+    private List<StateChange> getSerialNumbersStateChanges(List<Long> serialNumbers, TokenID tokenId) {
+        return serialNumbers.stream()
+                .map(serialNumber -> MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder()
+                                .setNftIdKey(NftID.newBuilder()
+                                        .setTokenID(tokenId)
+                                        .setSerialNumber(serialNumber)
+                                        .build()))
+                        .build())
+                .map(mapUpdate -> StateChange.newBuilder()
+                        .setStateId(STATE_ID_NFTS.getNumber())
+                        .setMapUpdate(mapUpdate)
+                        .build())
+                .toList();
+    }
+
+    private StateChange getNewSupplyState(TokenID tokenId, long newTotalSupply) {
+        return StateChange.newBuilder()
+                .setStateId(STATE_ID_TOKENS.getNumber())
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setTokenIdKey(tokenId))
+                        .setValue(MapChangeValue.newBuilder()
+                                .setTokenValue(Token.newBuilder().setTotalSupply(newTotalSupply)))
+                        .build())
+                .build();
     }
 
     private static StateChanges buildFileIdStateChanges(RecordItem recordItem) {
@@ -459,6 +523,7 @@ public class BlockItemBuilder {
         }
 
         return builder.addAllPaidStakingRewards(transactionRecord.getPaidStakingRewardsList())
+                .addAllAutomaticTokenAssociations(transactionRecord.getAutomaticTokenAssociationsList())
                 .addAllTokenTransferLists(transactionRecord.getTokenTransferListsList())
                 .setConsensusTimestamp(consensusTimestamp)
                 .setTransferList(transactionRecord.getTransferList())

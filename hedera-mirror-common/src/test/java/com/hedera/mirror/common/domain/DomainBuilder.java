@@ -113,7 +113,6 @@ import com.hederahashgraph.api.proto.java.TransactionID;
 import jakarta.persistence.EntityManager;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -129,12 +128,15 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionOperations;
+import org.web3j.crypto.Keys;
+import org.web3j.utils.Numeric;
 
 @Component
 @CustomLog
@@ -1183,8 +1185,7 @@ public class DomainBuilder {
     public byte[] key(KeyCase keyCase) {
         var key =
                 switch (keyCase) {
-                    case ECDSA_SECP256K1 -> Key.newBuilder()
-                            .setECDSASecp256K1(ByteString.copyFrom(generateSecp256k1Key()));
+                    case ECDSA_SECP256K1 -> Key.newBuilder().setECDSASecp256K1(generateSecp256k1Key());
                     case ED25519 -> Key.newBuilder().setEd25519(ByteString.copyFrom(bytes(KEY_LENGTH_ED25519)));
                     default -> throw new UnsupportedOperationException("Key type not supported");
                 };
@@ -1192,13 +1193,20 @@ public class DomainBuilder {
         return key.build().toByteArray();
     }
 
-    private byte[] generateSecp256k1Key() {
-        byte[] xCoordinate = bytes(32); // The x-coordinate of the elliptic curve point
-        byte prefix = (byte) (Math.random() < 0.5 ? 0x02 : 0x03); // Randomly chosen even or odd y-coordinate
-        ByteBuffer compressedKey = ByteBuffer.allocate(33);
-        compressedKey.put(prefix);
-        compressedKey.put(xCoordinate);
-        return compressedKey.array();
+    @SneakyThrows
+    private ByteString generateSecp256k1Key() {
+        var keyPair = Keys.createEcKeyPair();
+        var publicKey = keyPair.getPublicKey();
+
+        // Convert BigInteger public key to a full 65-byte uncompressed key
+        var fullPublicKey = Numeric.hexStringToByteArray(Numeric.toHexStringWithPrefixZeroPadded(publicKey, 130));
+
+        // Convert to compressed format (33 bytes)
+        var prefix = (byte) (fullPublicKey[64] % 2 == 0 ? 0x02 : 0x03); // 0x02 for even Y, 0x03 for odd Y
+        var compressedKey = new byte[33];
+        compressedKey[0] = prefix;
+        System.arraycopy(fullPublicKey, 1, compressedKey, 1, 32); // Copy only X coordinate
+        return ByteString.copyFrom(compressedKey);
     }
 
     public long number() {

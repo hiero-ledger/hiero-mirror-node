@@ -19,9 +19,6 @@ package com.hedera.mirror.web3.service;
 import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.EVM_V_34_BLOCK;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.KEY_PROTO;
-import static com.hedera.mirror.web3.utils.ContractCallTestUtil.SPENDER_ALIAS;
-import static com.hedera.mirror.web3.utils.ContractCallTestUtil.SPENDER_PUBLIC_KEY;
-import static com.hedera.node.app.service.evm.utils.EthSigsUtils.recoverAddressFromPubKey;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import com.google.common.collect.Range;
@@ -36,8 +33,6 @@ import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.mirror.web3.web3j.generated.NestedCallsHistorical;
 import java.math.BigInteger;
 import java.util.Collections;
-import org.apache.tuweni.bytes.Bytes;
-import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -59,16 +54,15 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
     @Test
     void testGetHistoricalInfo() throws Exception {
         // Given
-        final var ownerEntity = accountEntityNoEvmAddressPersistHistorical(
+        final var owner = accountEntityPersistHistorical(
                 Range.closedOpen(recordFileBeforeEvm34.getConsensusStart(), recordFileBeforeEvm34.getConsensusEnd()));
-        final var spenderEntity = accountEntityWithAliasPersistHistorical(
-                SPENDER_ALIAS, SPENDER_PUBLIC_KEY, testWeb3jService.getHistoricalRange());
+        final var spender = accountEntityPersistWithEvmAddressHistorical(testWeb3jService.getHistoricalRange());
         final var nftAmountToMint = 2;
         final var nft = nftPersistHistorical(
                 nftAmountToMint,
-                ownerEntity.toEntityId(),
-                spenderEntity.toEntityId(),
-                ownerEntity.toEntityId(),
+                owner.toEntityId(),
+                spender.toEntityId(),
+                owner.toEntityId(),
                 testWeb3jService.getHistoricalRange());
 
         final var contract = testWeb3jService.deploy(NestedCallsHistorical::deploy);
@@ -87,17 +81,16 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
     @Test
     void testGetApprovedHistorical() throws Exception {
         // When
-        final var ownerEntity = accountEntityNoEvmAddressPersistHistorical(
+        final var owner = accountEntityPersistHistorical(
                 Range.closedOpen(recordFileBeforeEvm34.getConsensusStart(), recordFileBeforeEvm34.getConsensusEnd()));
 
-        final var spenderEntity = accountEntityWithAliasPersistHistorical(
-                SPENDER_ALIAS, SPENDER_PUBLIC_KEY, testWeb3jService.getHistoricalRange());
+        final var spender = accountEntityPersistWithEvmAddressHistorical(testWeb3jService.getHistoricalRange());
         final var nftAmountToMint = 2;
         final var nft = nftPersistHistorical(
                 nftAmountToMint,
-                ownerEntity.toEntityId(),
-                spenderEntity.toEntityId(),
-                ownerEntity.toEntityId(),
+                owner.toEntityId(),
+                spender.toEntityId(),
+                owner.toEntityId(),
                 testWeb3jService.getHistoricalRange());
         final var contract = testWeb3jService.deploy(NestedCallsHistorical::deploy);
 
@@ -106,9 +99,7 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
         final var result = function.send();
 
         // Then
-        final var expectedOutput = Address.wrap(Bytes.wrap(
-                        recoverAddressFromPubKey(SPENDER_PUBLIC_KEY.substring(2).toByteArray())))
-                .toString();
+        final var expectedOutput = getAliasFromEntity(spender);
         assertThat(result).isEqualTo(expectedOutput);
         verifyOpcodeTracerCall(function.encodeFunctionCall(), contract);
     }
@@ -116,22 +107,21 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
     @Test
     void testMintTokenHistorical() throws Exception {
         // Given
-        final var ownerEntity = accountEntityNoEvmAddressPersistHistorical(
+        final var owner = accountEntityPersistHistorical(
                 Range.closedOpen(recordFileBeforeEvm34.getConsensusStart(), recordFileBeforeEvm34.getConsensusEnd()));
-        final var spenderEntity = accountEntityWithAliasPersistHistorical(
-                SPENDER_ALIAS, SPENDER_PUBLIC_KEY, testWeb3jService.getHistoricalRange());
+        final var spender = accountEntityPersistWithEvmAddressHistorical(testWeb3jService.getHistoricalRange());
         final var nftAmountToMint = 3;
         final var nft = nftPersistHistorical(
                 nftAmountToMint,
-                ownerEntity.toEntityId(),
-                spenderEntity.toEntityId(),
-                ownerEntity.toEntityId(),
+                owner.toEntityId(),
+                spender.toEntityId(),
+                owner.toEntityId(),
                 testWeb3jService.getHistoricalRange());
 
         domainBuilder
                 .tokenAccountHistory()
                 .customize(e -> e.freezeStatus(TokenFreezeStatusEnum.UNFROZEN)
-                        .accountId(ownerEntity.getId())
+                        .accountId(owner.getId())
                         .tokenId(nft.getId())
                         .timestampRange(testWeb3jService.getHistoricalRange()))
                 .persist();
