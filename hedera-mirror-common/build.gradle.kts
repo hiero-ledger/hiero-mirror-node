@@ -32,6 +32,7 @@ dependencies {
     api("org.apache.tuweni:tuweni-bytes")
     api("org.apache.tuweni:tuweni-units")
     api("org.springframework.boot:spring-boot-starter-data-jpa")
+    api("org.web3j:core")
     testImplementation("org.hyperledger.besu:evm")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql")
