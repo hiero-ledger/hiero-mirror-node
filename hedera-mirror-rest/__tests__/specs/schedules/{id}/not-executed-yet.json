@@ -38,6 +38,9 @@
       }
     ]
   },
+  "features": {
+    "fakeTime": 1234567950
+  },
   "url": "/api/v1/schedules/2000",
   "responseStatus": 200,
   "responseJson": {
