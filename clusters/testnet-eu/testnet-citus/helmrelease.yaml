@@ -68,6 +68,8 @@ spec:
       env:
         HEDERA_MIRROR_ROSETTA_NETWORK: "testnet"
     stackgres:
+      backup:
+        enabled: true
       coordinator:
         persistentVolume:
           size: 65Gi

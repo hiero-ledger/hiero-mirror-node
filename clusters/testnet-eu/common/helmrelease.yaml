@@ -36,6 +36,8 @@ spec:
         structuredConfig:
           ruler:
             external_url: https://mirrornode.grafana.net
+    minio:
+      enabled: true
     prometheus:
       prometheus:
         prometheusSpec:
