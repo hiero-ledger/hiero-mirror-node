@@ -91,22 +91,16 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
     }
 
     /**
-     * Encodes given shard, realm, and num into 8 bytes long value.
+     * Encodes given shard, realm, num into an 8 bytes long.
      * <p/>
-     * Only 63 bits (excluding the signed bit) are used for encoding to facilitate easy encoding/decoding using mathematical
-     * operations. This is necessary because JavaScript's support for bitwise operations is limited (truncating numbers to
-     * 32 bits internally before performing bitwise operations).
+     * All 64 bits (including the signed bit) are used for encoding to make it easy to encode/decode using mathematical
+     * operations too. That's because JavaScript's support for bitwise operations is very limited (truncates numbers to
+     * 32 bits internally before bitwise operation).
      * <p/>
-     * <b>Encoding Format:</b> <br/>
-     * - The first bit (sign bit) is set to 0. <br/>
-     * - The next 10 bits are reserved for the shard, followed by 16 bits for the realm, and then 37 bits for the entity num. <br/>
-     * <p/>
-     * <b>Supported Ranges:</b> <br/>
-     * - Shard: 0 - 1023 (10 bits) <br/>
-     * - Realm: 0 - 65535 (16 bits) <br/>
-     * - Entity Num: 0 - 137438953471 (37 bits) <br/>
-     * <p/>
-     * Placing the entity num at the end ensures that encoded IDs ≤ 137438953471 remain human-readable.
+     * Format: <br/> First bit (sign bit) is used for shard. <br/> Next 10 bits are for shard, followed by 16 bits for realm,
+     * and then 38 bits for entity num. <br/> This encoding will support following ranges: <br/> shard: 0 - 1023 <br/>
+     * realm: 0 - 65535 <br/> num: 0 - 274877906943 <br/> Placing entity num in the end has the advantage that encoded ids
+     * <= 274877906943 will also be human-readable.
      */
     private static long encode(long shard, long realm, long num) {
         if (shard > SHARD_MASK || shard < 0 || realm > REALM_MASK || realm < 0 || num > NUM_MASK || num < 0) {
