@@ -32,10 +32,8 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.Nft;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
 import com.hedera.mirror.common.domain.token.TokenPauseStatusEnum;
 import com.hedera.mirror.common.domain.token.TokenSupplyTypeEnum;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
@@ -163,7 +161,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var functionCall = contract.call_approveNFTExternal(
                 getAddressFromEntity(tokenEntity),
                 approve ? getAddressFromEntity(spender) : Address.ZERO.toHexString(),
-                BigInteger.ONE);
+                BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -271,15 +269,8 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
 
-        domainBuilder
-                .tokenAccount()
-                .customize(ta -> ta.tokenId(tokenId)
-                        .accountId(associatedAccount.getId())
-                        .freezeStatus(TokenFreezeStatusEnum.UNFROZEN)
-                        .kycStatus(TokenKycStatusEnum.GRANTED)
-                        .balance(0L)
-                        .associated(true))
-                .persist();
+        tokenAccount(
+                ta -> ta.tokenId(tokenId).accountId(associatedAccount.getId()).balance(0L));
 
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         final var tokenAddress = toAddress(tokenId).toHexString();
@@ -407,12 +398,8 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         tokenBalancePersist(treasury.toEntityId(), EntityId.of(tokenId), treasury.getBalanceTimestamp());
 
-        Nft nft = domainBuilder
-                .nft()
-                .customize(n -> n.tokenId(tokenId)
-                        .serialNumber(1L)
-                        .accountId(mirrorNodeEvmProperties.isModularizedServices() ? null : treasury.toEntityId()))
-                .persist();
+        final var nft = nftPersistCustomizable(n -> n.tokenId(tokenId)
+                .accountId(mirrorNodeEvmProperties.isModularizedServices() ? null : treasury.toEntityId()));
 
         domainBuilder
                 .nftHistory()
@@ -427,7 +414,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         // When
         final var functionCall = contract.call_burnTokenExternal(
-                toAddress(tokenId).toHexString(), BigInteger.ZERO, List.of(BigInteger.ONE));
+                toAddress(tokenId).toHexString(), BigInteger.ZERO, DEFAULT_SERIAL_NUMBERS_LIST);
 
         final var result = functionCall.send();
 
@@ -480,7 +467,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         // When
         final var functionCall = contract.call_wipeTokenAccountNFTExternal(
-                toAddress(tokenId).toHexString(), getAliasFromEntity(owner), List.of(BigInteger.ONE));
+                toAddress(tokenId).toHexString(), getAliasFromEntity(owner), DEFAULT_SERIAL_NUMBERS_LIST);
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -1127,7 +1114,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         nftPersistCustomizable(n -> n.tokenId(tokenId).accountId(sender.toEntityId()));
         final var receiver = accountEntityWithEvmAddressPersist();
 
-        nftAllowancePersist(tokenId, contractEntityId, sender.toEntityId());
+        nftAllowancePersist(tokenId, contractEntityId.getId(), sender.toEntityId());
 
         tokenAccountPersist(tokenId, sender.getId());
         tokenAccountPersist(tokenId, receiver.getId());
@@ -1140,12 +1127,12 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                         toAddress(tokenId).toHexString(),
                         getAliasFromEntity(sender),
                         getAliasFromEntity(receiver),
-                        BigInteger.ONE)
+                        BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
                 : contract.call_transferNFTsExternal(
                         toAddress(tokenId).toHexString(),
                         List.of(getAliasFromEntity(sender)),
                         List.of(getAliasFromEntity(receiver)),
-                        List.of(BigInteger.ONE));
+                        DEFAULT_SERIAL_NUMBERS_LIST);
 
         final var contractFunctionProvider = ContractFunctionProviderRecord.builder()
                 .contractAddress(Address.fromHexString(contract.getContractAddress()))
@@ -1173,7 +1160,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var tokenId = token.getTokenId();
         nftPersistCustomizable(n -> n.tokenId(tokenId).accountId(sender.toEntityId()));
         final var receiver = accountEntityWithEvmAddressPersist();
-        nftAllowancePersist(tokenId, contractEntityId, sender.toEntityId());
+        nftAllowancePersist(tokenId, contractEntityId.getId(), sender.toEntityId());
         tokenAccountPersist(tokenId, sender.getId());
         tokenAccountPersist(tokenId, receiver.getId());
 
@@ -1184,7 +1171,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 toAddress(tokenId).toHexString(),
                 getAliasFromEntity(sender),
                 getAliasFromEntity(receiver),
-                BigInteger.ONE);
+                BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -1339,7 +1326,10 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 toAddress(tokenId).toHexString(),
                 new ArrayList<>(),
                 List.of(new NftTransfer(
-                        getAliasFromEntity(sender), getAliasFromEntity(receiver), BigInteger.ONE, false)));
+                        getAliasFromEntity(sender),
+                        getAliasFromEntity(receiver),
+                        BigInteger.valueOf(DEFAULT_SERIAL_NUMBER),
+                        false)));
 
         final var functionCall =
                 contract.call_cryptoTransferExternal(new TransferList(new ArrayList<>()), List.of(tokenTransferList));

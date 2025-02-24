@@ -639,7 +639,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var spender = accountEntityWithEvmAddressPersist();
         final var token = nftPersist();
         final var tokenId = token.getTokenId();
-        nftAllowancePersist(tokenId, spender.toEntityId(), owner.toEntityId());
+        nftAllowancePersist(tokenId, spender.getId(), owner.toEntityId());
 
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
@@ -736,7 +736,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var nft = domainBuilder
                 .nft()
                 .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(1L)
+                        .serialNumber(DEFAULT_SERIAL_NUMBER)
                         .spender(null)
                         .accountId(owner.toEntityId()))
                 .persist();
@@ -874,7 +874,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
 
         // When
         final var functionCall = contract.call_getInformationForNonFungibleToken(
-                toAddress(token.getTokenId()).toHexString(), BigInteger.valueOf(3L));
+                toAddress(token.getTokenId()).toHexString(), BigInteger.valueOf(INVALID_SERIAL_NUMBER));
 
         // Then
         assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);

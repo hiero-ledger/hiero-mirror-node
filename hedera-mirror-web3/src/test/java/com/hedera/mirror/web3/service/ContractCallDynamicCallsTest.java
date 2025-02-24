@@ -52,7 +52,6 @@ import org.junit.jupiter.params.provider.CsvSource;
 class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTracerTest {
 
     private static final BigInteger DEFAULT_TOKEN_AMOUNT = BigInteger.ONE;
-    private static final List<BigInteger> DEFAULT_SERIAL_NUMBERS = List.of(BigInteger.ONE);
     private static final List<BigInteger> EMPTY_SERIAL_NUMBERS_LIST = List.of();
 
     @ParameterizedTest
@@ -121,7 +120,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
                 : contract.send_burnTokenGetTotalSupplyAndBalanceOfTreasury(
                         getAddressFromEntity(tokenEntity),
                         BigInteger.ZERO,
-                        DEFAULT_SERIAL_NUMBERS,
+                        DEFAULT_SERIAL_NUMBERS_LIST,
                         getAddressFromEntity(treasuryAccount));
 
         // Then
@@ -147,7 +146,9 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var functionCall = contract.send_wipeTokenGetTotalSupplyAndBalanceOfTreasury(
                 getAddressFromEntity(tokenEntity),
                 DEFAULT_TOKEN_AMOUNT,
-                tokenType.equals(TokenTypeEnum.FUNGIBLE_COMMON) ? EMPTY_SERIAL_NUMBERS_LIST : DEFAULT_SERIAL_NUMBERS,
+                tokenType.equals(TokenTypeEnum.FUNGIBLE_COMMON)
+                        ? EMPTY_SERIAL_NUMBERS_LIST
+                        : DEFAULT_SERIAL_NUMBERS_LIST,
                 getAddressFromEntity(sender));
 
         // Then
@@ -408,7 +409,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         tokenAccountPersist(tokenId, ownerEntityId.getId());
 
         if (tokenType == TokenTypeEnum.NON_FUNGIBLE_UNIQUE) {
-            nftAllowancePersist(tokenId, contractEntityId, ownerEntityId);
+            nftAllowancePersist(tokenId, contractEntityId.getId(), ownerEntityId);
         }
 
         // When
@@ -454,7 +455,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         tokenAccountPersist(tokenId, ownerEntityId.getId());
 
         if (tokenType == TokenTypeEnum.NON_FUNGIBLE_UNIQUE) {
-            nftAllowancePersist(tokenId, contractEntityId, ownerEntityId);
+            nftAllowancePersist(tokenId, contractEntityId.getId(), ownerEntityId);
         }
 
         // When
@@ -603,7 +604,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
 
         tokenAccountPersist(tokenId, spender.getId());
         tokenAccountPersist(tokenId, contractEntityId.getId());
-        nftAllowancePersist(tokenId, contractEntityId, contractEntityId);
+        nftAllowancePersist(tokenId, contractEntityId.getId(), contractEntityId);
 
         var tokenTransferList = new TokenTransferList(
                 toAddress(tokenId).toHexString(),
@@ -648,8 +649,8 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
 
         tokenAccountPersist(tokenId, spender.getId());
         tokenAccountPersist(tokenId, contractEntityId.getId());
-        nftAllowancePersist(tokenId, spender.toEntityId(), contractEntityId);
-        nftAllowancePersist(tokenId, contractEntityId, contractEntityId);
+        nftAllowancePersist(tokenId, spender.getId(), contractEntityId);
+        nftAllowancePersist(tokenId, contractEntityId.getId(), contractEntityId);
 
         TokenTransferList tokenTransferList;
         if (tokenType == TokenTypeEnum.FUNGIBLE_COMMON) {
@@ -695,7 +696,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
 
         tokenAccountPersist(tokenId, spenderEntityId.getId());
         tokenAccountPersist(tokenId, contractEntityId.getId());
-        nftAllowancePersist(tokenId, contractEntityId, spenderEntityId);
+        nftAllowancePersist(tokenId, contractEntityId.getId(), spenderEntityId);
 
         // When
         final var functionCall = contract.send_transferFromNFTGetAllowance(

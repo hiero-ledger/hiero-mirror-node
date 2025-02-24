@@ -86,7 +86,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         final var spenderEntityId = accountPersist();
         final var token = nftPersist(ownerEntityId);
         final var tokenId = token.getTokenId();
-        nftAllowancePersist(tokenId, spenderEntityId, ownerEntityId);
+        nftAllowancePersist(tokenId, spenderEntityId.getId(), ownerEntityId);
         final var tokenAddress = toAddress(tokenId).toHexString();
         final var ownerAddress = toAddress(ownerEntityId).toHexString();
         final var spenderAddress = toAddress(spenderEntityId).toHexString();
@@ -104,7 +104,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         final var spenderEntityId = accountPersist();
         final var token = nftPersist(ownerEntityId);
         final var tokenId = token.getTokenId();
-        nftAllowancePersist(tokenId, spenderEntityId, ownerEntityId);
+        nftAllowancePersist(tokenId, spenderEntityId.getId(), ownerEntityId);
         final var tokenAddress = toAddress(tokenId).toHexString();
         final var ownerAddress = toAddress(ownerEntityId).toHexString();
         final var spenderAddress = toAddress(spenderEntityId).toHexString();
@@ -124,7 +124,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         final var token = nftPersist(ownerEntityId);
         final var tokenId = token.getTokenId();
 
-        nftAllowancePersist(tokenId, spender.toEntityId(), ownerEntityId);
+        nftAllowancePersist(tokenId, spender.getId(), ownerEntityId);
         final var tokenAddress = toAddress(tokenId).toHexString();
         final var ownerAddress = toAddress(ownerEntityId).toHexString();
         final var spenderAddress = getAddressFromEntity(spender);
@@ -147,7 +147,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         final var token = nftPersist(ownerEntityId);
         final var tokenId = token.getTokenId();
 
-        nftAllowancePersist(tokenId, spender.toEntityId(), ownerEntityId);
+        nftAllowancePersist(tokenId, spender.getId(), ownerEntityId);
         final var tokenAddress = toAddress(tokenId).toHexString();
         final var ownerAddress = toAddress(ownerEntityId).toHexString();
         final var spenderAddress = getAddressFromEntity(spender);
@@ -537,7 +537,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         final var spenderEntityId = accountPersist();
         final var token = nftPersist(ownerEntityId);
         final var tokenId = token.getTokenId();
-        nftAllowancePersist(tokenId, spenderEntityId, ownerEntityId);
+        nftAllowancePersist(tokenId, spenderEntityId.getId(), ownerEntityId);
         final var tokenAddress = toAddress(tokenId).toHexString();
         final var ownerAddress = toAddress(ownerEntityId).toHexString();
         final var spenderAddress = toAddress(spenderEntityId).toHexString();
@@ -553,7 +553,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         final var ownerEntityId = owner.toEntityId();
         final var token = nftPersist(ownerEntityId);
         final var tokenId = token.getTokenId();
-        nftAllowancePersist(tokenId, spender.toEntityId(), owner.toEntityId());
+        nftAllowancePersist(tokenId, spender.getId(), owner.toEntityId());
         final var tokenAddress = toAddress(tokenId).toHexString();
         final var ownerAddress = toAddress(ownerEntityId).toHexString();
         final var spenderAddress = getAddressFromEntity(spender);
@@ -837,7 +837,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         }
     }
 
-    private TokenAllowance tokenAllowancePersist(Long tokenId, EntityId owner, EntityId spender) {
+    private TokenAllowance tokenAllowancePersist(final long tokenId, final EntityId owner, final EntityId spender) {
         return tokenAllowancePersistCustomizable(
                 a -> a.tokenId(tokenId).owner(owner.getNum()).spender(spender.getNum()));
     }
