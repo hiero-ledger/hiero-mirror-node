@@ -29,7 +29,7 @@ plugins {
 
 // We need to use this version in order to be able to decode hex data when using the hedera.app
 // dependency
-val headlongVersion = "6.1.1"
+val headlongVersion = "13.0.0"
 
 repositories {
     // Temporary repository added for com.hedera.cryptography snapshot dependencies
