@@ -16,6 +16,7 @@
 
 package com.hedera.mirror.web3.state.keyvalue;
 
+import static com.hedera.mirror.web3.state.Utils.padToBytes32;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -49,7 +50,7 @@ class ContractStorageReadableKVStateTest {
 
     private static final ContractID CONTRACT_ID =
             new ContractID(1L, 0L, new OneOf<>(ContractOneOfType.CONTRACT_NUM, 1L));
-    private static final Bytes BYTES = Bytes.fromBase64("123456");
+    private static final Bytes BYTES = Bytes.wrap(padToBytes32("123456".getBytes()));
     private static final SlotKey SLOT_KEY = new SlotKey(CONTRACT_ID, BYTES);
     private static final EntityId ENTITY_ID =
             EntityId.of(CONTRACT_ID.shardNum(), CONTRACT_ID.realmNum(), CONTRACT_ID.contractNum());

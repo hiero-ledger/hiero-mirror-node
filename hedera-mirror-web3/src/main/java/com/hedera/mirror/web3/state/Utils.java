@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.datatypes.Address;
 
 @CustomLog
@@ -68,5 +69,15 @@ public class Utils {
         }
 
         return Arrays.equals(MIRROR_PREFIX, 0, 12, address, 0, 12);
+    }
+
+    public static byte[] padToBytes32(byte[] input) {
+        if (input.length >= Bytes32.SIZE) {
+            return input;
+        }
+        byte[] padded = new byte[Bytes32.SIZE];
+        int offset = Bytes32.SIZE - input.length;
+        System.arraycopy(input, 0, padded, offset, input.length);
+        return padded;
     }
 }
