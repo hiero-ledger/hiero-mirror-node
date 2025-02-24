@@ -22,9 +22,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Exceptions;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Schedulers;
 
 @RequiredArgsConstructor
@@ -34,18 +32,10 @@ public abstract class SharedTopicListener implements TopicListener {
     protected final ListenerProperties listenerProperties;
 
     @Override
-    @SuppressWarnings("deprecation")
     public Flux<TopicMessage> listen(TopicMessageFilter filter) {
-        DirectProcessor<TopicMessage> overflowProcessor = DirectProcessor.create();
-        FluxSink<TopicMessage> overflowSink = overflowProcessor.sink();
-
-        // moving publishOn from after onBackpressureBuffer to after Flux.merge reduces CPU usage by up to 40%
-        Flux<TopicMessage> topicMessageFlux = getSharedListener(filter)
+        return getSharedListener(filter)
                 .doOnSubscribe(s -> log.info("Subscribing: {}", filter))
-                .onBackpressureBuffer(
-                        listenerProperties.getMaxBufferSize(), t -> overflowSink.error(Exceptions.failWithOverflow()))
-                .doFinally(s -> overflowSink.complete());
-        return Flux.merge(listenerProperties.getPrefetch(), topicMessageFlux, overflowProcessor)
+                .onBackpressureBuffer(listenerProperties.getMaxBufferSize(), BufferOverflowStrategy.ERROR)
                 .publishOn(Schedulers.boundedElastic(), false, listenerProperties.getPrefetch());
     }
 
