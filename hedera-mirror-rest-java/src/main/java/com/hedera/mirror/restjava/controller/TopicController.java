@@ -19,6 +19,7 @@ package com.hedera.mirror.restjava.controller;
 import com.hedera.mirror.rest.model.Topic;
 import com.hedera.mirror.restjava.common.EntityIdNumParameter;
 import com.hedera.mirror.restjava.mapper.TopicMapper;
+import com.hedera.mirror.restjava.service.CustomFeeService;
 import com.hedera.mirror.restjava.service.EntityService;
 import com.hedera.mirror.restjava.service.TopicService;
 import lombok.CustomLog;
@@ -34,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class TopicController {
 
+    private final CustomFeeService customFeeService;
     private final EntityService entityService;
     private final TopicMapper topicMapper;
     private final TopicService topicService;
@@ -42,6 +44,7 @@ public class TopicController {
     Topic getTopic(@PathVariable EntityIdNumParameter id) {
         var topic = topicService.findById(id.id());
         var entity = entityService.findById(id.id());
-        return topicMapper.map(entity, topic);
+        var customFee = customFeeService.findById(id.id());
+        return topicMapper.map(customFee, entity, topic);
     }
 }

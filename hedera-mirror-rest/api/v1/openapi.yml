@@ -3172,6 +3172,27 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/Block"
+    ConsensusCustomFees:
+      description: Custom fees assessed for each message submitted to the topic
+      type: object
+      properties:
+        created_timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        fixed_fees:
+          type: array
+          items:
+            $ref: "#/components/schemas/FixedCustomFee"
+    FixedCustomFee:
+      type: object
+      properties:
+        amount:
+          example: 100
+          format: int64
+          type: integer
+        collector_account_id:
+          $ref: "#/components/schemas/EntityId"
+        denominating_token_id:
+          $ref: "#/components/schemas/EntityId"
     NftTransactionHistory:
       type: object
       properties:
@@ -3673,11 +3694,20 @@ components:
           type: integer
         created_timestamp:
           $ref: "#/components/schemas/TimestampNullable"
+        custom_fees:
+          $ref: "#/components/schemas/ConsensusCustomFees"
         deleted:
           description: Whether the topic is deleted or not.
           example: false
           nullable: true
           type: boolean
+        fee_exempt_key_list:
+          description: Keys permitted to submit messages to the topic without paying custom fees
+          type: array
+          items:
+            $ref: "#/components/schemas/Key"
+        fee_schedule_key:
+          $ref: "#/components/schemas/Key"
         memo:
           description: The memo associated with the topic.
           example: topic memo
@@ -3693,7 +3723,10 @@ components:
         - auto_renew_account
         - auto_renew_period
         - created_timestamp
+        - custom_fees
         - deleted
+        - fee_exempt_key_list
+        - fee_schedule_key
         - memo
         - submit_key
         - timestamp
