@@ -22,7 +22,7 @@ This document details how the mirror node will be updated to support it.
 
 ```postgresql
 alter table if exists transaction
-    add column if not exists batch_key bytea default null,
+    add column if not exists batch_key          bytea default null,
     add column if not exists inner_transactions jsonb default null;
 ```
 
@@ -32,9 +32,10 @@ Create
 
 ```java
 public record InnerTransaction(
-    long payerAccountId,
-    long validStartNs
-) {}
+        long payerAccountId,
+        long validStartNs
+) {
+}
 ```
 
 Update
@@ -55,19 +56,16 @@ public class Transaction {
     @JdbcTypeCode(SqlTypes.JSON)
     private List<InnerTransaction> innerTransactions;
 
-    public void addInnerTransaction(InnerTransaction innerTransaction) {
+    public void addInnerTransaction(Transaction innerTransaction) {
+        if (innerTransaction.getNonce() != 0) {
+            return;
+        }
+
         if (innerTransactions == null) {
             innerTransactions = new ArrayList<>();
         }
-        else {
-          var lastInnerTransaction = innerTransactions.getLast();
-          var shouldAddInnerTransaction = lastInnerTransaction.getPayerAccountId() != innerTransaction.getPayerAccountId() ||
-                  lastInnerTransaction.getValidStartNs() != innerTransaction.getValidStartNs();
-          if (!shouldAddInnerTransaction) {
-              return;
-          }
-        }
-       innerTransactions.add(innerTransaction);
+
+        innerTransactions.add(innerTransaction);
     }
 }
 ```
@@ -86,26 +84,25 @@ Update
 
 ```java
 public class SqlEntityListener implements EntityListener, RecordStreamFileListener {
-  @Override
-  public void onTransaction(Transaction transaction) throws ImporterException {
-    context.add(transaction);
+    @Override
+    public void onTransaction(Transaction transaction) throws ImporterException {
+        context.add(transaction);
 
-    if (transaction.getBatchKey() != null) {
-      Transaction batchParent = context.get(Transaction.class, transaction.getParentConsensus());
+        if (transaction.getBatchKey() != null && transaction.getNonce() == 0) {
+            Transaction batchParent = context.get(Transaction.class, transaction.getParentConsensus());
 
-      while (batchParent != null && batchParent.getType() != TransactionType.BATCH) {
-        batchParent = context.get(Transaction.class, batchParent.getParentConsensus());
-      }
+            while (batchParent != null && batchParent.getType() != TransactionType.BATCH) {
+                batchParent = context.get(Transaction.class, batchParent.getParentConsensus());
+            }
 
-      if (batchParent == null) {
-          throw new ImporterException("Batch parent not found for transaction: " + transaction.getConsensusTimestamp());
-      }
+            if (batchParent == null) {
+                throw new ImporterException("Batch parent not found for transaction: " + transaction.getConsensusTimestamp());
+            }
 
-      batchParent.addInnerTransaction(new InnerTransaction(transaction.getPayerAccountId(), transaction.getValidStartNs()));
+            batchParent.addInnerTransaction(new InnerTransaction(transaction.getPayerAccountId(), transaction.getValidStartNs()));
+        }
+        // ...continue with current logic
     }
-  }
-
-  // ...continue with current logic
 }
 ```
 
@@ -118,7 +115,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
 - Change `transaction.js` constructor to add `batch_key` and `inner_transactions`
 - Include `batch_key` in transaction response
-  - Change `Transactions.formatTransactionRows` to include the `batch_key`
+    - Change `Transactions.formatTransactionRows` to include the `batch_key`
   ```json
   {
     "transactions": [
@@ -182,7 +179,8 @@ INNER_TRANSACTION_FAILED
 ## Non-Functional Requirements
 
 - The mirror node should be able to handle batch transactions with minimal performance impact on ingest
-- Retrieving transactions by transaction id should have no performance impact for non batch transactions and minimal performance impact for batch transactions
+- Retrieving transactions by transaction id should have no performance impact for non batch transactions and minimal
+  performance impact for batch transactions
 
 ## Open Questions
 
