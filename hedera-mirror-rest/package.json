@@ -28,7 +28,7 @@
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "express-http-context": "^1.2.4",
-    "express-openapi-validator": "^5.4.3",
+    "express-openapi-validator": "^5.4.4",
     "extend": "^3.0.2",
     "ioredis": "^5.5.0",
     "ip-anonymize": "^0.1.0",
