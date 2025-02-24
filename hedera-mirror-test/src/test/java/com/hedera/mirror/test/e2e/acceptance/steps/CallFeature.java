@@ -73,7 +73,6 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.util.Arrays;
 import java.util.List;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -114,7 +113,7 @@ public class CallFeature extends AbstractFeature {
         address1 = new BigInteger(address1, 16).toString(16);
         address2 = new BigInteger(address2, 16).toString(16);
 
-        return new String[]{address1, address2};
+        return new String[] {address1, address2};
     }
 
     @RetryAsserts
@@ -437,7 +436,7 @@ public class CallFeature extends AbstractFeature {
                 MINT_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
                 asAddress(fungibleTokenId),
                 1L,
-                new byte[][]{},
+                new byte[][] {},
                 asAddress(admin));
 
         var response = callContract(data, precompileContractAddress);
