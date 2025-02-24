@@ -75,8 +75,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final long DEFAULT_ACCOUNT_BALANCE = 100_000_000_000_000_000L;
     protected static final int DEFAULT_TOKEN_BALANCE = 100;
     protected static final int DEFAULT_SERIAL_NUMBER = 1;
-    protected static final String NFT_METADATA_URI = "NFT_METADATA_URI";
-    protected static final String HBAR = "HBAR";
     protected static final long DEFAULT_AMOUNT_GRANTED = 10L;
 
     @Resource
@@ -352,8 +350,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * Creates and persists an NFT entity.
      * @param customizer Consumer to customize NFT attributes.
      */
-    protected void nftPersistCustomizable(Consumer<Nft.NftBuilder<?, ?>> customizer) {
-        domainBuilder
+    protected Nft nftPersistCustomizable(Consumer<Nft.NftBuilder<?, ?>> customizer) {
+        return domainBuilder
                 .nft()
                 .customize(n -> {
                     n.serialNumber(DEFAULT_SERIAL_NUMBER);

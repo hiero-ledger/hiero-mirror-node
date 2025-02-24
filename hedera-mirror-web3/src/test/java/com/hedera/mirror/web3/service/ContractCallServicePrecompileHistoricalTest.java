@@ -526,7 +526,8 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
-        final var functionCall = contract.call_htsGetApproved(getAddressFromEntity(tokenEntity), BigInteger.ONE);
+        final var functionCall = contract.call_htsGetApproved(
+                getAddressFromEntity(tokenEntity), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
         final var result = functionCall.send();
 
         // Then
@@ -677,7 +678,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
 
         // When
         final var result = contract.call_getInformationForNonFungibleToken(
-                        getAddressFromEntity(tokenEntity), BigInteger.ONE)
+                        getAddressFromEntity(tokenEntity), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
                 .send();
 
         final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury);

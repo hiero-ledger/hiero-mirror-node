@@ -95,7 +95,8 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
         final var contract = testWeb3jService.deploy(NestedCallsHistorical::deploy);
 
         // When
-        final var function = contract.call_nestedHtsGetApproved(getAddressFromEntity(nft), BigInteger.ONE);
+        final var function = contract.call_nestedHtsGetApproved(
+                getAddressFromEntity(nft), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
         final var result = function.send();
 
         // Then
@@ -182,7 +183,6 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
                             .createdTimestamp(historicalBlock.lowerEndpoint() - 1)
                             .serialNumber(finalI + 1)
                             .spender(spenderEntityId)
-                            .metadata(NFT_METADATA_URI.getBytes())
                             .accountId(ownerEntity)
                             .tokenId(nftEntity.getId())
                             .deleted(false)
@@ -195,7 +195,6 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
                     .customize(n -> n.accountId(spenderEntityId)
                             .createdTimestamp(historicalBlock.lowerEndpoint() - 1)
                             .serialNumber(finalI + 1)
-                            .metadata(NFT_METADATA_URI.getBytes())
                             .accountId(ownerEntity)
                             .tokenId(nftEntity.getId())
                             .deleted(false)

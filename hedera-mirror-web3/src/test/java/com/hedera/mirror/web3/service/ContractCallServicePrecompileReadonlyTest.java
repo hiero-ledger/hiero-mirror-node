@@ -747,8 +747,8 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
-        final var functionCall =
-                contract.call_getInformationForNonFungibleToken(getAddressFromEntity(tokenEntity), BigInteger.ONE);
+        final var functionCall = contract.call_getInformationForNonFungibleToken(
+                getAddressFromEntity(tokenEntity), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
 
         final var expectedTokenKeys = getExpectedTokenKeys(tokenEntity, token);
 

@@ -57,8 +57,10 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             // When
             final var result = isStatic
-                    ? contract.call_getApproved(getAddressFromEntity(tokenEntity), BigInteger.valueOf(1L))
-                    : contract.call_getApprovedNonStatic(getAddressFromEntity(tokenEntity), BigInteger.valueOf(1L));
+                    ? contract.call_getApproved(
+                            getAddressFromEntity(tokenEntity), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
+                    : contract.call_getApprovedNonStatic(
+                            getAddressFromEntity(tokenEntity), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
             // Then
             assertThatThrownBy(result::send).isInstanceOf(MirrorEvmTransactionException.class);
         }
@@ -73,8 +75,10 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             // When
             final var result = isStatic
-                    ? contract.call_getApproved(getAddressFromEntity(nftToken), BigInteger.valueOf(1L))
-                    : contract.call_getApprovedNonStatic(getAddressFromEntity(nftToken), BigInteger.valueOf(1L));
+                    ? contract.call_getApproved(
+                            getAddressFromEntity(nftToken), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
+                    : contract.call_getApprovedNonStatic(
+                            getAddressFromEntity(nftToken), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
             // Then
             assertThatThrownBy(result::send).isInstanceOf(MirrorEvmTransactionException.class);
         }
@@ -275,8 +279,10 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             // When
             final var result = isStatic
-                    ? contract.call_getOwnerOf(getAddressFromEntity(nftToken), BigInteger.valueOf(1L))
-                    : contract.call_getOwnerOfNonStatic(getAddressFromEntity(nftToken), BigInteger.valueOf(1L));
+                    ? contract.call_getOwnerOf(
+                            getAddressFromEntity(nftToken), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
+                    : contract.call_getOwnerOfNonStatic(
+                            getAddressFromEntity(nftToken), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
             // Then
             assertThatThrownBy(result::send).isInstanceOf(MirrorEvmTransactionException.class);
         }
@@ -307,8 +313,10 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             // When
             final var result = isStatic
-                    ? contract.call_tokenURI(getAddressFromEntity(tokenEntity), BigInteger.valueOf(1L))
-                    : contract.call_tokenURINonStatic(getAddressFromEntity(tokenEntity), BigInteger.valueOf(1L));
+                    ? contract.call_tokenURI(
+                            getAddressFromEntity(tokenEntity), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
+                    : contract.call_tokenURINonStatic(
+                            getAddressFromEntity(tokenEntity), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
             // Then
             assertThatThrownBy(result::send).isInstanceOf(MirrorEvmTransactionException.class);
         }
@@ -330,9 +338,11 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             // When
             final var result = isStatic
-                    ? contract.call_getApproved(getAddressFromEntity(tokenEntity), BigInteger.valueOf(1L))
+                    ? contract.call_getApproved(
+                                    getAddressFromEntity(tokenEntity), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
                             .send()
-                    : contract.call_getApprovedNonStatic(getAddressFromEntity(tokenEntity), BigInteger.valueOf(1L))
+                    : contract.call_getApprovedNonStatic(
+                                    getAddressFromEntity(tokenEntity), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
                             .send();
             // Then
             assertThat(result).isEqualTo(Address.ZERO.toHexString());
@@ -348,9 +358,11 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             // When
             final var result = isStatic
-                    ? contract.call_getApproved(getAddressFromEntity(nftToken), BigInteger.valueOf(1L))
+                    ? contract.call_getApproved(
+                                    getAddressFromEntity(nftToken), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
                             .send()
-                    : contract.call_getApprovedNonStatic(getAddressFromEntity(nftToken), BigInteger.valueOf(1L))
+                    : contract.call_getApprovedNonStatic(
+                                    getAddressFromEntity(nftToken), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
                             .send();
             // Then
             assertThat(result).isEqualTo(getAliasFromEntity(spender));

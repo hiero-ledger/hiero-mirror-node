@@ -219,7 +219,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
                 getAddressFromEntity(treasuryAccount),
                 getAddressFromEntity(sender),
                 BigInteger.ZERO,
-                BigInteger.ONE);
+                BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
 
         final var contractFunctionProvider = ContractFunctionProviderRecord.builder()
                 .contractAddress(Address.fromHexString(contract.getContractAddress()))
@@ -271,7 +271,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
                     getAddressFromEntity(treasuryAccount),
                     getAddressFromEntity(sender),
                     BigInteger.ZERO,
-                    BigInteger.ONE);
+                    BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
 
             final var contractFunctionProvider = ContractFunctionProviderRecord.builder()
                     .contractAddress(Address.fromHexString(contract.getContractAddress()))
@@ -304,9 +304,9 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     void associateTokenTransfer(final TokenTypeEnum tokenType, final long amount, final long serialNumber) {
         // Given
         final var treasuryEntityId = accountEntityPersist().toEntityId();
-        final var treasuryAddress = toAddress(treasuryEntityId.getId());
+        final var treasuryAddress = toAddress(treasuryEntityId);
         final var senderEntityId = accountEntityPersist().toEntityId();
-        final var senderAddress = toAddress(senderEntityId.getId());
+        final var senderAddress = toAddress(senderEntityId);
 
         final var tokenEntity = tokenType == TokenTypeEnum.FUNGIBLE_COMMON
                 ? fungibleTokenCustomizable(
@@ -345,9 +345,9 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         // Given
         final var treasuryEntityId = accountEntityPersist().toEntityId();
         final var ownerEntityId = accountEntityPersist().toEntityId();
-        final var ownerAddress = toAddress(ownerEntityId.getId());
+        final var ownerAddress = toAddress(ownerEntityId);
         final var senderEntityId = accountEntityPersist().toEntityId();
-        final var senderAddress = toAddress(senderEntityId.getId());
+        final var senderAddress = toAddress(senderEntityId);
 
         final var token = tokenType == TokenTypeEnum.FUNGIBLE_COMMON
                 ? fungibleTokenPersistWithTreasuryAccount(treasuryEntityId)
@@ -579,7 +579,9 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
 
         // When
         final var functionCall = contract.send_approveForAllTokenTransferGetAllowance(
-                toAddress(tokenId).toHexString(), getAliasFromEntity(spender), BigInteger.ONE);
+                toAddress(tokenId).toHexString(),
+                getAliasFromEntity(spender),
+                BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);
@@ -607,7 +609,10 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
                 toAddress(tokenId).toHexString(),
                 List.of(),
                 List.of(new NftTransfer(
-                        contractAddress.toHexString(), getAliasFromEntity(spender), BigInteger.ONE, Boolean.TRUE)));
+                        contractAddress.toHexString(),
+                        getAliasFromEntity(spender),
+                        BigInteger.valueOf(DEFAULT_SERIAL_NUMBER),
+                        Boolean.TRUE)));
 
         // When
         final var functionCall = contract.send_approveForAllCryptoTransferGetAllowance(
@@ -693,8 +698,8 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         nftAllowancePersist(tokenId, contractEntityId, spenderEntityId);
 
         // When
-        final var functionCall =
-                contract.send_transferFromNFTGetAllowance(toAddress(tokenId).toHexString(), BigInteger.ONE);
+        final var functionCall = contract.send_transferFromNFTGetAllowance(
+                toAddress(tokenId).toHexString(), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);

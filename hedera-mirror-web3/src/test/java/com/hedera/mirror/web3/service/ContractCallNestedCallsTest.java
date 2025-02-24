@@ -425,8 +425,8 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
 
         // When
-        final var function =
-                contract.call_nestedHtsGetApprovedAndHardcodedResult(Address.ZERO.toHexString(), BigInteger.ONE);
+        final var function = contract.call_nestedHtsGetApprovedAndHardcodedResult(
+                Address.ZERO.toHexString(), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
         final var result = function.send();
 
         // Then
