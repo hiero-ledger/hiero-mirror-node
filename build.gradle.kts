@@ -17,6 +17,10 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("grpcVersion", "1.70.0")
+    set(
+        "jooq.version",
+        "3.20.1",
+    ) // Set whenever the version in buildSrc is different from the one in Spring Boot
     set("json-smart.version", "2.5.2") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
     set("netty.version", "4.1.118.Final") // Temporary until next Spring Boot

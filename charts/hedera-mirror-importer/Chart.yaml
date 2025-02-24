@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 apiVersion: v2
 appVersion: 0.125.0-SNAPSHOT
 description: Hedera Mirror Importer downloads and validates file streams from the cloud and imports them into the database
