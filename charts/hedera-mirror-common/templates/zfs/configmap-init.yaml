@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 {{- if .Values.zfs.enabled -}}
 apiVersion: v1
 kind: ConfigMap
@@ -79,29 +81,29 @@ data:
       NODE_NAMES="$(echo "${NODE_LIST}" | jq '. | map({(.["kubernetes.io/hostname"]): {isUpgrade: (.["operation.gke.io/type"] == "drain")}}) | add')"
 
       ## This will find all nodes that have been initialized by this script in the past
-      ## and generate its own version of the config map configuration to 
+      ## and generate its own version of the config map configuration to
       ZFS_ZONE_NODES=$(echo "${NODE_LIST}" | jq \
                       --arg NODE_ID_LABEL "${NODE_ID_LABEL}" \
                       '. | map(select(.["generated-node-id"] == "true")) |
                            map({
-                                 "nodeName": (.["kubernetes.io/hostname"]), 
+                                 "nodeName": (.["kubernetes.io/hostname"]),
                                  "nodeId": (.[$NODE_ID_LABEL]),
                                  "index": (.[$NODE_ID_LABEL] | match("\\d*$").string | tonumber)
-                               }) | 
+                               }) |
                             sort_by(.index) |
                               [
                                 range(0; ( .| max_by(.index)|.index ) + 1) as $node_index_range |
                                   . as $nodes | $node_index_range |
                                   . as $i |
                                   if ([$nodes[]|contains( { index: $i })]|any )
-                                     then 
-                                     ($nodes|map(select( .index  == $i )))|map(. | {nodeName, nodeId, diskSize})|.[0] 
-                                  else 
+                                     then
+                                     ($nodes|map(select( .index  == $i )))|map(. | {nodeName, nodeId, diskSize})|.[0]
+                                  else
                                      null
-                                  end  
+                                  end
                               ]')
       # Check if the config map matches the view from the nodes. If it finds entries
-      # in the config map for nodes that don't exist or are currently being drained, they are set to null to become 
+      # in the config map for nodes that don't exist or are currently being drained, they are set to null to become
       # available slots for future nodes that may replace it
       MERGED_ZONE_CONFIG=$(echo -e "${NODE_NAMES}\n${ZFS_ZONE_NODES}\n${ZONE_CONFIG}" | jq -s \
                       '.[0] as $node_names|
@@ -114,14 +116,14 @@ data:
                             if ($config_map[$i] != $node_config[$i])
                               then
                                   if($config_map[$i] != null and $node_names[$config_map[$i].nodeName] != null)
-                                    then 
-                                      $config_map[$i] 
-                                  else 
-                                      $node_config[$i] 
+                                    then
+                                      $config_map[$i]
+                                  else
+                                      $node_config[$i]
                                   end
                             else
                               $node_config[$i]
-                            end | 
+                            end |
                             if (. != null and $node_names[.nodeName].isUpgrade) then null else . end
                         ]')
       THIS_NODE_CONFIG="$(echo "${MERGED_ZONE_CONFIG}" |jq  --arg NODE_NAME "${NODE_NAME}" --arg ZONE "${ZONE}" '.[]?|select(.nodeName == $NODE_NAME)')"
@@ -178,7 +180,7 @@ data:
               echo "Unable to attach ${DISK_NAME} to ${NODE_NAME} in ${ZONE} ater ${ATTACH_ATTEMPTS} attempts. Exiting ..."
               exit 1
           fi
-          echo "Unable to attach ${DISK_NAME} to ${NODE_NAME} attempts ${ATTACH_ATTEMPTS}. waiting ..." 
+          echo "Unable to attach ${DISK_NAME} to ${NODE_NAME} attempts ${ATTACH_ATTEMPTS}. waiting ..."
           sleep 30
         done
     else
@@ -258,7 +260,7 @@ data:
     source "${ENV_FILE}"
     ZFS_INITIALIZED="${ZFS_INITIALIZED:-}"
     if [[ "${ZFS_INITIALIZED}" == "" ]]; then
-      echo "ZFS_INITIALIZED=\"true\"" > "${ENV_FILE}"  
+      echo "ZFS_INITIALIZED=\"true\"" > "${ENV_FILE}"
     fi
 
     {{- end -}}

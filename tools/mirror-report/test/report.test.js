@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 import console from 'console';
 import fetchMock, {manageFetchMockGlobally} from '@fetch-mock/jest';
@@ -20,7 +6,7 @@ import {InvalidArgumentError} from 'commander';
 import {jest} from '@jest/globals';
 import {report} from '../src/report.js';
 import {ReportFile} from '../src/reportfile.js';
-import fs from "fs";
+import fs from 'fs';
 
 manageFetchMockGlobally(jest);
 global.console = console;
@@ -63,7 +49,8 @@ describe('Generate report', () => {
 
   test('No transactions', async () => {
     const accountUrl = 'https://testnet.mirrornode.hedera.com/api/v1/accounts/0.0.1000?timestamp=1734393600';
-    const testnetUrl = 'https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.0.1000&limit=100&order=asc&timestamp=gt:1734393500&timestamp=lt:1734480000';
+    const testnetUrl =
+      'https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.0.1000&limit=100&order=asc&timestamp=gt:1734393500&timestamp=lt:1734480000';
 
     fetchMock.mockGlobal().get(accountUrl, {balance: {balance: 100, timestamp: 1734393500}});
     fetchMock.mockGlobal().get(testnetUrl, {_status: {messages: 'Not found'}});
@@ -74,139 +61,161 @@ describe('Generate report', () => {
 
   test('Single account', async () => {
     const accountUrl = 'https://testnet.mirrornode.hedera.com/api/v1/accounts/0.0.1000?timestamp=1734393600';
-    const testnetUrl = 'https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.0.1000&limit=100&order=asc&timestamp=gt:1734393500&timestamp=lt:1734480000';
+    const testnetUrl =
+      'https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.0.1000&limit=100&order=asc&timestamp=gt:1734393500&timestamp=lt:1734480000';
 
     fetchMock.mockGlobal().get(accountUrl, {balance: {balance: 10000, timestamp: 1734393500}});
     fetchMock.mockGlobal().get(testnetUrl, {
-      transactions: [{
-        charged_tx_fee: 10,
-        consensus_timestamp: '1734393500.000000001', // This transaction will not show up in output since it's before ts
-        transfers: [
-          {account: '0.0.3', amount: 1},
-          {account: '0.0.98', amount: 2},
-          {account: '0.0.800', amount: 3},
-          {account: '0.0.801', amount: 4},
-          {account: '0.0.1000', amount: -10},
-        ],
-        transaction_id: '0.0.1000-1734415200-000000000'
-      }, {
-        charged_tx_fee: 10,
-        consensus_timestamp: '1734415200.000000001',
-        transfers: [
-          {account: '0.0.3', amount: 1},
-          {account: '0.0.98', amount: 2},
-          {account: '0.0.800', amount: 3},
-          {account: '0.0.801', amount: 4},
-          {account: '0.0.1000', amount: -1010},
-          {account: '0.0.1001', amount: 1000},
-        ],
-        transaction_id: '0.0.1000-1734415200-000000000'
-      }, {
-        charged_tx_fee: 10,
-        consensus_timestamp: '1734415200.000000003',
-        transfers: [
-          {account: '0.0.3', amount: 1},
-          {account: '0.0.98', amount: 2},
-          {account: '0.0.800', amount: 3},
-          {account: '0.0.801', amount: 4},
-          {account: '0.0.1000', amount: 990},
-          {account: '0.0.1001', amount: -1000},
-        ],
-        transaction_id: '0.0.1000-1734415200-000000002'
-      }, {
-        charged_tx_fee: 10,
-        consensus_timestamp: '1734415200.000000005',
-        transfers: [
-          {account: '0.0.3', amount: 1},
-          {account: '0.0.98', amount: 2},
-          {account: '0.0.800', amount: 3},
-          {account: '0.0.801', amount: 4},
-          {account: '0.0.1000', amount: -10},
-        ],
-        transaction_id: '0.0.1000-1734415200-000000004'
-      }],
-      links: {next: null}
+      transactions: [
+        {
+          charged_tx_fee: 10,
+          consensus_timestamp: '1734393500.000000001', // This transaction will not show up in output since it's before ts
+          transfers: [
+            {account: '0.0.3', amount: 1},
+            {account: '0.0.98', amount: 2},
+            {account: '0.0.800', amount: 3},
+            {account: '0.0.801', amount: 4},
+            {account: '0.0.1000', amount: -10},
+          ],
+          transaction_id: '0.0.1000-1734415200-000000000',
+        },
+        {
+          charged_tx_fee: 10,
+          consensus_timestamp: '1734415200.000000001',
+          transfers: [
+            {account: '0.0.3', amount: 1},
+            {account: '0.0.98', amount: 2},
+            {account: '0.0.800', amount: 3},
+            {account: '0.0.801', amount: 4},
+            {account: '0.0.1000', amount: -1010},
+            {account: '0.0.1001', amount: 1000},
+          ],
+          transaction_id: '0.0.1000-1734415200-000000000',
+        },
+        {
+          charged_tx_fee: 10,
+          consensus_timestamp: '1734415200.000000003',
+          transfers: [
+            {account: '0.0.3', amount: 1},
+            {account: '0.0.98', amount: 2},
+            {account: '0.0.800', amount: 3},
+            {account: '0.0.801', amount: 4},
+            {account: '0.0.1000', amount: 990},
+            {account: '0.0.1001', amount: -1000},
+          ],
+          transaction_id: '0.0.1000-1734415200-000000002',
+        },
+        {
+          charged_tx_fee: 10,
+          consensus_timestamp: '1734415200.000000005',
+          transfers: [
+            {account: '0.0.3', amount: 1},
+            {account: '0.0.98', amount: 2},
+            {account: '0.0.800', amount: 3},
+            {account: '0.0.801', amount: 4},
+            {account: '0.0.1000', amount: -10},
+          ],
+          transaction_id: '0.0.1000-1734415200-000000004',
+        },
+      ],
+      links: {next: null},
     });
 
     await report({account: ['0.0.1000'], combined: true, network: 'testnet', fromDate, toDate: '2024-12-18'});
     const data = fs.readFileSync(outputFile, 'utf8');
-    expect(data).toBe(ReportFile.HEADER
-      + '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.00000010,-0.00001010,0.00008980,https://hashscan.io/testnet/transaction/1734415200.000000001\n'
-      + '2024-12-17T06:00:00.000000003Z,0.0.1001,0.0.1000,0.00000010,0.00000990,0.00009970,https://hashscan.io/testnet/transaction/1734415200.000000003\n'
-      + '2024-12-17T06:00:00.000000005Z,0.0.1000,fee accounts,0.00000010,-0.00000010,0.00009960,https://hashscan.io/testnet/transaction/1734415200.000000005\n');
+    expect(data).toBe(
+      ReportFile.HEADER +
+        '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.00000010,-0.00001010,0.00008980,https://hashscan.io/testnet/transaction/1734415200.000000001\n' +
+        '2024-12-17T06:00:00.000000003Z,0.0.1001,0.0.1000,0.00000010,0.00000990,0.00009970,https://hashscan.io/testnet/transaction/1734415200.000000003\n' +
+        '2024-12-17T06:00:00.000000005Z,0.0.1000,fee accounts,0.00000010,-0.00000010,0.00009960,https://hashscan.io/testnet/transaction/1734415200.000000005\n'
+    );
   });
 
   test('Multiple accounts, separate reports', async () => {
     const accountUrl1 = 'https://testnet.mirrornode.hedera.com/api/v1/accounts/0.0.1000?timestamp=1734393600';
     const accountUrl2 = 'https://testnet.mirrornode.hedera.com/api/v1/accounts/0.0.1001?timestamp=1734393600';
-    const testnetUrl1 = 'https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.0.1000&limit=100&order=asc&timestamp=gt:1734393500&timestamp=lt:1734480000';
-    const testnetUrl2 = 'https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.0.1001&limit=100&order=asc&timestamp=gt:1734393500&timestamp=lt:1734480000';
+    const testnetUrl1 =
+      'https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.0.1000&limit=100&order=asc&timestamp=gt:1734393500&timestamp=lt:1734480000';
+    const testnetUrl2 =
+      'https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.0.1001&limit=100&order=asc&timestamp=gt:1734393500&timestamp=lt:1734480000';
 
     fetchMock.mockGlobal().get(accountUrl1, {balance: {balance: 10000, timestamp: 1734393500}});
     fetchMock.mockGlobal().get(accountUrl2, {balance: {balance: 20000, timestamp: 1734393500}});
     fetchMock.mockGlobal().get(testnetUrl1, {
-      transactions: [{
-        charged_tx_fee: 10,
-        consensus_timestamp: '1734415200.000000001',
-        transfers: [
-          {account: '0.0.3', amount: 1},
-          {account: '0.0.98', amount: 2},
-          {account: '0.0.800', amount: 3},
-          {account: '0.0.801', amount: 4},
-          {account: '0.0.1000', amount: -1010},
-          {account: '0.0.1001', amount: 1000},
-        ],
-        transaction_id: '0.0.1000-1734415200-000000000'
-      }],
-      links: {next: null}
+      transactions: [
+        {
+          charged_tx_fee: 10,
+          consensus_timestamp: '1734415200.000000001',
+          transfers: [
+            {account: '0.0.3', amount: 1},
+            {account: '0.0.98', amount: 2},
+            {account: '0.0.800', amount: 3},
+            {account: '0.0.801', amount: 4},
+            {account: '0.0.1000', amount: -1010},
+            {account: '0.0.1001', amount: 1000},
+          ],
+          transaction_id: '0.0.1000-1734415200-000000000',
+        },
+      ],
+      links: {next: null},
     });
     fetchMock.mockGlobal().get(testnetUrl2, {
-      transactions: [{
-        charged_tx_fee: 10,
-        consensus_timestamp: '1734415200.000000003',
-        transfers: [
-          {account: '0.0.3', amount: 1},
-          {account: '0.0.98', amount: 2},
-          {account: '0.0.800', amount: 3},
-          {account: '0.0.801', amount: 4},
-          {account: '0.0.1001', amount: -10},
-        ],
-        transaction_id: '0.0.1001-1734415200-000000002'
-      }],
-      links: {next: null}
+      transactions: [
+        {
+          charged_tx_fee: 10,
+          consensus_timestamp: '1734415200.000000003',
+          transfers: [
+            {account: '0.0.3', amount: 1},
+            {account: '0.0.98', amount: 2},
+            {account: '0.0.800', amount: 3},
+            {account: '0.0.801', amount: 4},
+            {account: '0.0.1001', amount: -10},
+          ],
+          transaction_id: '0.0.1001-1734415200-000000002',
+        },
+      ],
+      links: {next: null},
     });
 
     await report({account: ['0.0.1000', '0.0.1001'], network: 'testnet', fromDate, toDate: '2024-12-18'});
     const report1 = fs.readFileSync(`report-${fromDate}-0.0.1000.csv`, 'utf8');
-    expect(report1).toBe(ReportFile.HEADER
-      + '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.00000010,-0.00001010,0.00008990,https://hashscan.io/testnet/transaction/1734415200.000000001\n');
+    expect(report1).toBe(
+      ReportFile.HEADER +
+        '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.00000010,-0.00001010,0.00008990,https://hashscan.io/testnet/transaction/1734415200.000000001\n'
+    );
 
     const report2 = fs.readFileSync(`report-${fromDate}-0.0.1001.csv`, 'utf8');
-    expect(report2).toBe(ReportFile.HEADER
-      + '2024-12-17T06:00:00.000000003Z,0.0.1001,fee accounts,0.00000010,-0.00000010,0.00019990,https://hashscan.io/testnet/transaction/1734415200.000000003\n');
+    expect(report2).toBe(
+      ReportFile.HEADER +
+        '2024-12-17T06:00:00.000000003Z,0.0.1001,fee accounts,0.00000010,-0.00000010,0.00019990,https://hashscan.io/testnet/transaction/1734415200.000000003\n'
+    );
   });
 
   test('Multiple accounts, combined report', async () => {
     const accountUrl1 = 'https://testnet.mirrornode.hedera.com/api/v1/accounts/0.0.1000?timestamp=1734393600';
     const accountUrl2 = 'https://testnet.mirrornode.hedera.com/api/v1/accounts/0.0.1001?timestamp=1734393600';
-    const testnetUrl1 = 'https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.0.1000&limit=100&order=asc&timestamp=gt:1734393500&timestamp=lt:1734480000';
-    const testnetUrl2 = 'https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.0.1001&limit=100&order=asc&timestamp=gt:1734393500&timestamp=lt:1734480000';
+    const testnetUrl1 =
+      'https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.0.1000&limit=100&order=asc&timestamp=gt:1734393500&timestamp=lt:1734480000';
+    const testnetUrl2 =
+      'https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.0.1001&limit=100&order=asc&timestamp=gt:1734393500&timestamp=lt:1734480000';
 
     const transactionsResponse = {
-      transactions: [{
-        charged_tx_fee: 10,
-        consensus_timestamp: '1734415200.000000001',
-        transfers: [
-          {account: '0.0.3', amount: 1},
-          {account: '0.0.98', amount: 2},
-          {account: '0.0.800', amount: 3},
-          {account: '0.0.801', amount: 4},
-          {account: '0.0.1000', amount: -1010},
-          {account: '0.0.1001', amount: 1000},
-        ],
-        transaction_id: '0.0.1000-1734415200-000000000'
-      }],
-      links: {next: null}
+      transactions: [
+        {
+          charged_tx_fee: 10,
+          consensus_timestamp: '1734415200.000000001',
+          transfers: [
+            {account: '0.0.3', amount: 1},
+            {account: '0.0.98', amount: 2},
+            {account: '0.0.800', amount: 3},
+            {account: '0.0.801', amount: 4},
+            {account: '0.0.1000', amount: -1010},
+            {account: '0.0.1001', amount: 1000},
+          ],
+          transaction_id: '0.0.1000-1734415200-000000000',
+        },
+      ],
+      links: {next: null},
     };
 
     fetchMock.mockGlobal().get(accountUrl1, {balance: {balance: 10000, timestamp: 1734393500}});
@@ -214,11 +223,18 @@ describe('Generate report', () => {
     fetchMock.mockGlobal().get(testnetUrl1, transactionsResponse);
     fetchMock.mockGlobal().get(testnetUrl2, transactionsResponse);
 
-    await report(
-      {account: ['0.0.1000', '0.0.1001'], combined: true, network: 'testnet', fromDate, toDate: '2024-12-18'});
+    await report({
+      account: ['0.0.1000', '0.0.1001'],
+      combined: true,
+      network: 'testnet',
+      fromDate,
+      toDate: '2024-12-18',
+    });
     const report1 = fs.readFileSync(outputFile, 'utf8');
-    expect(report1).toBe(ReportFile.HEADER
-      + '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.0,0.00001000,0.00021000,https://hashscan.io/testnet/transaction/1734415200.000000001\n'
-      + '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.00000010,-0.00001010,0.00008990,https://hashscan.io/testnet/transaction/1734415200.000000001\n');
+    expect(report1).toBe(
+      ReportFile.HEADER +
+        '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.0,0.00001000,0.00021000,https://hashscan.io/testnet/transaction/1734415200.000000001\n' +
+        '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.00000010,-0.00001010,0.00008990,https://hashscan.io/testnet/transaction/1734415200.000000001\n'
+    );
   });
 });

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 {{- if and .Values.global.middleware .Values.middleware -}}
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
