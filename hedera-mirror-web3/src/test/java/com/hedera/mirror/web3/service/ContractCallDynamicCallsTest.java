@@ -16,7 +16,6 @@
 
 package com.hedera.mirror.web3.service;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -312,7 +311,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var tokenEntity = tokenType == TokenTypeEnum.FUNGIBLE_COMMON
                 ? fungibleTokenCustomizable(
                         t -> t.treasuryAccountId(treasuryEntityId).kycKey(null))
-                : nftPersist(treasuryEntityId, treasuryEntityId, treasuryEntityId, null);
+                : nftPersistWithNullKycKey(treasuryEntityId);
         final var tokenAddress = toAddress(tokenEntity.getTokenId());
 
         tokenAccountPersist(tokenEntity.getTokenId(), treasuryEntityId.getId());
@@ -572,16 +571,15 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
 
-        final var tokenEntity = nftPersist(treasuryEntityId, spender.toEntityId());
-        final var tokenAddress = toAddress(tokenEntity.getTokenId());
-        final var tokenId = tokenEntity.getTokenId();
+        final var token = nftPersist(treasuryEntityId, spender.toEntityId());
+        final var tokenId = token.getTokenId();
 
         tokenAccountPersist(tokenId, spender.getId());
         tokenAccountPersist(tokenId, contractEntityId.getId());
 
         // When
         final var functionCall = contract.send_approveForAllTokenTransferGetAllowance(
-                tokenAddress.toHexString(), getAliasFromEntity(spender), BigInteger.ONE);
+                toAddress(tokenId).toHexString(), getAliasFromEntity(spender), BigInteger.ONE);
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);
@@ -598,16 +596,15 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
 
-        final var tokenEntity = nftPersist(treasuryEntityId, spender.toEntityId());
-        final var tokenId = tokenEntity.getTokenId();
-        final var tokenAddress = toAddress(tokenId);
+        final var token = nftPersist(treasuryEntityId, spender.toEntityId());
+        final var tokenId = token.getTokenId();
 
         tokenAccountPersist(tokenId, spender.getId());
         tokenAccountPersist(tokenId, contractEntityId.getId());
         nftAllowancePersist(tokenId, contractEntityId, contractEntityId);
 
         var tokenTransferList = new TokenTransferList(
-                tokenAddress.toHexString(),
+                toAddress(tokenId).toHexString(),
                 List.of(),
                 List.of(new NftTransfer(
                         contractAddress.toHexString(), getAliasFromEntity(spender), BigInteger.ONE, Boolean.TRUE)));
@@ -684,9 +681,8 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var treasuryEntityId = accountEntityPersist().toEntityId();
         final var spenderEntityId = accountEntityPersist().toEntityId();
 
-        final var tokenEntity = nftPersist(treasuryEntityId, spenderEntityId);
-        final var tokenId = tokenEntity.getTokenId();
-        final var tokenAddress = toAddress(tokenId);
+        final var token = nftPersist(treasuryEntityId, spenderEntityId);
+        final var tokenId = token.getTokenId();
 
         final var contract = testWeb3jService.deploy(DynamicEthCalls::deploy);
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
@@ -697,7 +693,8 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         nftAllowancePersist(tokenId, contractEntityId, spenderEntityId);
 
         // When
-        final var functionCall = contract.send_transferFromNFTGetAllowance(tokenAddress.toHexString(), BigInteger.ONE);
+        final var functionCall =
+                contract.send_transferFromNFTGetAllowance(toAddress(tokenId).toHexString(), BigInteger.ONE);
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);
@@ -826,52 +823,11 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
-    private Token nftPersist(final EntityId treasuryEntityId, final EntityId ownerEntityId) {
-        return nftPersist(treasuryEntityId, ownerEntityId, ownerEntityId);
-    }
-
-    private Token nftPersist(
-            final EntityId treasuryEntityId, final EntityId ownerEntityId, final EntityId spenderEntityId) {
-        return nftPersist(treasuryEntityId, ownerEntityId, spenderEntityId, domainBuilder.key());
-    }
-
-    private Token nftPersist(
-            final EntityId treasuryEntityId,
-            final EntityId ownerEntityId,
-            final EntityId spenderEntityId,
-            final byte[] kycKey) {
-        final var nftEntity =
-                domainBuilder.entity().customize(e -> e.type(TOKEN)).persist();
-
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.tokenId(nftEntity.getId())
-                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                        .treasuryAccountId(treasuryEntityId)
-                        .kycKey(kycKey))
-                .persist();
-
-        domainBuilder
-                .nft()
-                .customize(n -> n.accountId(treasuryEntityId)
-                        .spender(spenderEntityId)
-                        .accountId(ownerEntityId)
-                        .tokenId(nftEntity.getId())
-                        .serialNumber(1))
-                .persist();
+    private Token nftPersistWithNullKycKey(EntityId treasuryEntityId) {
+        final var token = nonFungibleTokenCustomizable(
+                n -> n.treasuryAccountId(treasuryEntityId).kycKey(null));
+        nftPersistWithSpender(token.getTokenId(), treasuryEntityId, treasuryEntityId);
         return token;
-    }
-
-    private void nftAllowancePersist(
-            final long tokenEntityId, final EntityId spenderEntityId, final EntityId ownerEntityId) {
-        domainBuilder
-                .nftAllowance()
-                .customize(a -> a.tokenId(tokenEntityId)
-                        .spender(spenderEntityId.getId())
-                        .owner(ownerEntityId.getId())
-                        .payerAccountId(ownerEntityId)
-                        .approvedForAll(true))
-                .persist();
     }
 
     private Entity setUpToken(TokenTypeEnum tokenType, Entity treasuryAccount, Entity owner, Entity spender) {
