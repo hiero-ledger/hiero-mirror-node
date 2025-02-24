@@ -85,11 +85,11 @@ public class CallFeature extends AbstractFeature {
 
     private static final String HEX_REGEX = "^[0-9a-fA-F]+$";
     private static DeployedContract deployedPrecompileContract;
-    private DeployedContract deployedErcTestContract;
-    private DeployedContract deployedEstimatePrecompileContract;
     private final AccountClient accountClient;
     private final MirrorNodeClient mirrorClient;
     private final TokenClient tokenClient;
+    private DeployedContract deployedErcTestContract;
+    private DeployedContract deployedEstimatePrecompileContract;
     private String ercContractAddress;
     private String precompileContractAddress;
     private String estimateContractAddress;
@@ -114,7 +114,7 @@ public class CallFeature extends AbstractFeature {
         address1 = new BigInteger(address1, 16).toString(16);
         address2 = new BigInteger(address2, 16).toString(16);
 
-        return new String[] {address1, address2};
+        return new String[]{address1, address2};
     }
 
     @RetryAsserts
@@ -437,7 +437,7 @@ public class CallFeature extends AbstractFeature {
                 MINT_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
                 asAddress(fungibleTokenId),
                 1L,
-                asByteArray(Arrays.asList("0x00")),
+                new byte[][]{},
                 asAddress(admin));
 
         var response = callContract(data, precompileContractAddress);
@@ -459,7 +459,7 @@ public class CallFeature extends AbstractFeature {
                 MINT_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
                 asAddress(nonFungibleTokenId),
                 0L,
-                asByteArray(Arrays.asList("0x02")),
+                asByteArray(List.of("0x02")),
                 asAddress(tokenClient
                         .getSdkClient()
                         .getExpandedOperatorAccountId()
