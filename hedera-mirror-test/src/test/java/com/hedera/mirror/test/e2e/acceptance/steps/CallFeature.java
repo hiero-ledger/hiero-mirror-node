@@ -73,7 +73,6 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.util.Arrays;
 import java.util.List;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -85,11 +84,11 @@ public class CallFeature extends AbstractFeature {
 
     private static final String HEX_REGEX = "^[0-9a-fA-F]+$";
     private static DeployedContract deployedPrecompileContract;
-    private DeployedContract deployedErcTestContract;
-    private DeployedContract deployedEstimatePrecompileContract;
     private final AccountClient accountClient;
     private final MirrorNodeClient mirrorClient;
     private final TokenClient tokenClient;
+    private DeployedContract deployedErcTestContract;
+    private DeployedContract deployedEstimatePrecompileContract;
     private String ercContractAddress;
     private String precompileContractAddress;
     private String estimateContractAddress;
@@ -437,7 +436,7 @@ public class CallFeature extends AbstractFeature {
                 MINT_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
                 asAddress(fungibleTokenId),
                 1L,
-                asByteArray(Arrays.asList("0x00")),
+                new byte[][] {},
                 asAddress(admin));
 
         var response = callContract(data, precompileContractAddress);
@@ -459,7 +458,7 @@ public class CallFeature extends AbstractFeature {
                 MINT_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
                 asAddress(nonFungibleTokenId),
                 0L,
-                asByteArray(Arrays.asList("0x02")),
+                asByteArray(List.of("0x02")),
                 asAddress(tokenClient
                         .getSdkClient()
                         .getExpandedOperatorAccountId()
