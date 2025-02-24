@@ -27,7 +27,9 @@ alter table if exists transaction
 ```
 
 ### Importer
+
 Create
+
 ```java
 public record InnerTransaction(
     long payerAccountId,
@@ -36,21 +38,23 @@ public record InnerTransaction(
 ```
 
 Update
+
 ```java
 public enum TransactionType {
     BATCH(NEW_BATCH_TYPE_PROTO_ID, EntityOperation.NONE)
 }
 ```
 
-Update 
+Update
+
 ```java
 public class Transaction {
     private byte[] batchKey;
-    
+
     @JsonSerialize(using = ObjectToStringSerializer.class)
     @JdbcTypeCode(SqlTypes.JSON)
     private List<InnerTransaction> innerTransactions;
-    
+
     public void addInnerTransaction(InnerTransaction innerTransaction) {
         if (innerTransactions == null) {
             innerTransactions = new ArrayList<>();
@@ -69,6 +73,7 @@ public class Transaction {
 ```
 
 Update
+
 ```java
 public class EntityRecordItemListener implements RecordItemListener {
     private Transaction buildTransaction(EntityId entityId, RecordItem recordItem) {
@@ -78,23 +83,24 @@ public class EntityRecordItemListener implements RecordItemListener {
 ```
 
 Update
+
 ```java
 public class SqlEntityListener implements EntityListener, RecordStreamFileListener {
   @Override
   public void onTransaction(Transaction transaction) throws ImporterException {
     context.add(transaction);
-    
+
     if (transaction.getBatchKey() != null) {
       Transaction batchParent = context.get(Transaction.class, transaction.getParentConsensus());
-      
+
       while (batchParent != null && batchParent.getType() != TransactionType.BATCH) {
         batchParent = context.get(Transaction.class, batchParent.getParentConsensus());
       }
-      
+
       if (batchParent == null) {
           throw new ImporterException("Batch parent not found for transaction: " + transaction.getConsensusTimestamp());
       }
-      
+
       batchParent.addInnerTransaction(new InnerTransaction(transaction.getPayerAccountId(), transaction.getValidStartNs()));
     }
   }
@@ -127,22 +133,26 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
   ```
 - Update `Transactions.getTransactionsByIdOrHash` to query all `payer_account_id` and `valid_start_ns` combinations
   contained in `transaction.inner_transactions` for transaction(s) matching the `transactionId`
+
 ```psudo
 const getTransactionsByIdOrHash = async (req, res) => {
-  If request by transactionId 
+  If request by transactionId
     Get Transactions by transactionId using current logic
-    For each transaction in result
-      Collect innerTransactions
-    If innerTransactions is not empty
-      Using initial requestFilters, query for all inner transactions
-    If order is asc 
-      append inner transactions to current result
-    Else 
-      prepend inner transactions to current result
+    If scheduled query param is NOT true
+      For each transaction in result
+        Collect innerTransactions
+      If innerTransactions is not empty
+        Using initial requestFilters, query for all inner transactions
+      If order is asc
+        append inner transactions to current result
+      Else
+        prepend inner transactions to current result
   Use existing result handling
 };
 ```
+
 - Update `transactionResult.js` to include new response codes
+
 ```psudo
 /**
 * The list of batch transactions is empty
@@ -164,9 +174,10 @@ BATCH_LIST_CONTAINS_NULL_VALUES
 */
 INNER_TRANSACTION_FAILED
 ```
+
 ### Acceptance Test Scenarios
 
-- Submit a batch transaction with inner transaction producing hollow create AND child transactions 
+- Submit a batch transaction with inner transaction producing hollow create AND child transactions
 
 ## Non-Functional Requirements
 
@@ -175,5 +186,4 @@ INNER_TRANSACTION_FAILED
 
 ## Open Questions
 
-- Can block streams remove duplication of inner transaction bytes? 
-
+- Can block streams remove duplication of inner transaction bytes?
