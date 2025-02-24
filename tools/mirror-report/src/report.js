@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 import {InvalidArgumentError} from 'commander';
 
@@ -45,7 +31,7 @@ export const report = async (options) => {
     }
 
     let balance = BigInt(accountResponse?.balance?.balance);
-    const balanceTimestamp = accountResponse?.balance?.timestamp
+    const balanceTimestamp = accountResponse?.balance?.timestamp;
     let next = `/transactions?account.id=${account}&limit=100&order=asc&timestamp=gt:${balanceTimestamp}&timestamp=lt:${timestampEnd}`;
     log(`Starting balance of ${balance} for account ${account} at ${balanceTimestamp}`);
 
@@ -63,7 +49,7 @@ export const report = async (options) => {
         let amount = 0n;
         let other = 'fee accounts';
 
-        transaction?.transfers.forEach(transfer => {
+        transaction?.transfers.forEach((transfer) => {
           if (transfer.account === account) {
             amount = BigInt(transfer.amount);
           } else if (!feeAccount.test(transfer.account)) {
@@ -80,7 +66,8 @@ export const report = async (options) => {
           const dateTime = toIsoString(transaction.consensus_timestamp);
           const hashscan = `https://hashscan.io/${options.network}/transaction/${transaction.consensus_timestamp}`;
           reportFile.append(
-            `${dateTime},${sender},${receiver},${toHbars(fees)},${toHbars(amount)},${toHbars(balance)},${hashscan}\n`);
+            `${dateTime},${sender},${receiver},${toHbars(fees)},${toHbars(amount)},${toHbars(balance)},${hashscan}\n`
+          );
         }
       }
 

@@ -1,4 +1,5 @@
-# These values are production values used in combination with the hedera-mirror-common chart
+# SPDX-License-Identifier: Apache-2.0
+
 alertmanager:
   inhibitRules:
     enabled: true

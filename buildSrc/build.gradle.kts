@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2022-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 plugins { `kotlin-dsl` }
 
@@ -50,7 +36,7 @@ dependencies {
     implementation("org.openapitools:openapi-generator-gradle-plugin:7.11.0")
     implementation("org.owasp:dependency-check-gradle:12.1.0")
     implementation("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:6.0.1.5171")
-    implementation("org.springframework.boot:spring-boot-gradle-plugin:3.4.2")
+    implementation("org.springframework.boot:spring-boot-gradle-plugin:3.4.3")
     implementation("org.testcontainers:postgresql:1.20.5")
     implementation("org.web3j:web3j-gradle-plugin:4.12.3")
 }

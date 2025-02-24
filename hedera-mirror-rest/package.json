@@ -19,7 +19,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@awaitjs/express": "^0.9.0",
-    "@aws-sdk/client-s3": "^3.749.0",
+    "@aws-sdk/client-s3": "^3.750.0",
     "@godaddy/terminus": "^4.12.1",
     "@hashgraph/proto": "^2.16.0",
     "@trufflesuite/bigint-buffer": "^1.1.10",
@@ -28,7 +28,7 @@
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "express-http-context": "^1.2.4",
-    "express-openapi-validator": "^5.4.3",
+    "express-openapi-validator": "^5.4.4",
     "extend": "^3.0.2",
     "ioredis": "^5.5.0",
     "ip-anonymize": "^0.1.0",
