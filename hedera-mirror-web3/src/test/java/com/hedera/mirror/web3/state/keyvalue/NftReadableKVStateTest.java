@@ -177,12 +177,15 @@ class NftReadableKVStateTest {
         assertThat(nftReadableKVState.size()).isZero();
     }
 
-    private Nft setupNft(Optional<Long> timestamp) {
+    private Nft setupNft(Optional<Long> timestamp, EntityId spender) {
         Nft databaseNft = domainBuilder
                 .nft()
-                .customize(t -> t.tokenId(entity.getId())
-                        .serialNumber(NFT_ID.serialNumber())
-                        .spender(spender))
+                .customize(t -> {
+                    t.tokenId(entity.getId()).serialNumber(NFT_ID.serialNumber());
+                    if (spender != null) {
+                        t.spender(spender);
+                    }
+                })
                 .get();
 
         Token databaseToken = domainBuilder
@@ -191,41 +194,25 @@ class NftReadableKVStateTest {
                 .get();
 
         if (timestamp.isPresent()) {
-            databaseNft.setCreatedTimestamp(timestamp.get());
-            when(tokenRepository.findByTokenIdAndTimestamp(entity.getId(), timestamp.get()))
-                    .thenReturn(Optional.of(databaseToken));
-            when(nftRepository.findActiveByIdAndTimestamp(entity.getId(), NFT_ID.serialNumber(), timestamp.get()))
+            long ts = timestamp.get();
+            databaseNft.setCreatedTimestamp(ts);
+            when(tokenRepository.findByTokenIdAndTimestamp(entity.getId(), ts)).thenReturn(Optional.of(databaseToken));
+            when(nftRepository.findActiveByIdAndTimestamp(entity.getId(), NFT_ID.serialNumber(), ts))
                     .thenReturn(Optional.of(databaseNft));
         } else {
             when(tokenRepository.findById(entity.getId())).thenReturn(Optional.of(databaseToken));
             when(nftRepository.findActiveById(entity.getId(), NFT_ID.serialNumber()))
-                    .thenReturn(Optional.ofNullable(databaseNft));
+                    .thenReturn(Optional.of(databaseNft));
         }
+
         return databaseNft;
     }
 
+    private Nft setupNft(Optional<Long> timestamp) {
+        return setupNft(timestamp, spender);
+    }
+
     private Nft setupNftMissingSpender(Optional<Long> timestamp) {
-        Nft databaseNft = domainBuilder
-                .nft()
-                .customize(t -> t.tokenId(entity.getId()).serialNumber(NFT_ID.serialNumber()))
-                .get();
-
-        Token databaseToken = domainBuilder
-                .token()
-                .customize(t -> t.tokenId(entity.getId()).treasuryAccountId(treasury))
-                .get();
-
-        if (timestamp.isPresent()) {
-            when(tokenRepository.findByTokenIdAndTimestamp(entity.getId(), timestamp.get()))
-                    .thenReturn(Optional.of(databaseToken));
-            databaseNft.setCreatedTimestamp(timestamp.get());
-            when(nftRepository.findActiveByIdAndTimestamp(entity.getId(), NFT_ID.serialNumber(), timestamp.get()))
-                    .thenReturn(Optional.of(databaseNft));
-        } else {
-            when(tokenRepository.findById(entity.getId())).thenReturn(Optional.of(databaseToken));
-            when(nftRepository.findActiveById(entity.getId(), NFT_ID.serialNumber()))
-                    .thenReturn(Optional.ofNullable(databaseNft));
-        }
-        return databaseNft;
+        return setupNft(timestamp, null);
     }
 }
