@@ -67,6 +67,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final List<BigInteger> DEFAULT_SERIAL_NUMBERS_LIST =
             List.of(BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
     protected static final long INVALID_SERIAL_NUMBER = Long.MAX_VALUE;
+    protected static final int DEFAULT_DECIMALS = 12;
 
     protected static final long DEFAULT_AMOUNT_GRANTED = 10L;
 
@@ -395,7 +396,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     protected TokenAllowance tokenAllowancePersistCustomizable(
-            Consumer<TokenAllowance.TokenAllowanceBuilder<?, ?>> customizer) {
+            final Consumer<TokenAllowance.TokenAllowanceBuilder<?, ?>> customizer) {
         return domainBuilder.tokenAllowance().customize(customizer).persist();
     }
 
@@ -414,7 +415,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param owner   the account owning the NFT. In this case he is payer as well
      * @param spenderId the account allowed to transfer the NFT on owner's behalf
      */
-    protected void nftAllowancePersist(final long tokenId, final long spenderId, EntityId owner) {
+    protected void nftAllowancePersist(final long tokenId, final long spenderId, final EntityId owner) {
         domainBuilder
                 .nftAllowance()
                 .customize(a -> a.tokenId(tokenId)

@@ -29,8 +29,6 @@ import org.junit.jupiter.api.Test;
 @RequiredArgsConstructor
 class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractCallServiceTest {
 
-    protected static final int DEFAULT_DECIMALS = 12;
-
     @Test
     void ethCallGetApprovedEmptySpenderStatic() throws Exception {
         final var treasuryEntityId = accountPersist();

@@ -13,6 +13,7 @@ import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.token.TokenHistory;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.viewmodel.BlockType;
@@ -149,9 +150,8 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
         @ValueSource(booleans = {true, false})
         void decimals(final boolean isStatic) {
             // Given
-            final var decimals = 12;
             final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-            invalidFungibleTokenPersist(tokenEntity, decimals);
+            invalidFungibleTokenPersist(tokenEntity);
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             // When
             final var result = isStatic
@@ -183,9 +183,9 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
         @ValueSource(booleans = {true, false})
         void symbol(final boolean isStatic) {
             // Given
-            final var symbol = "HBAR";
+            //            final var symbol = "HBAR";
             final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-            fungibleTokenPersistHistoricalWithSymbol(tokenEntity, symbol);
+            fungibleTokenPersistHistorical(tokenEntity);
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             // When
             final var result = isStatic
@@ -241,9 +241,8 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
         @ValueSource(booleans = {true, false})
         void name(final boolean isStatic) {
             // Given
-            final var name = "Hbars";
             final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-            fungibleTokenPersistHistoricalWithName(tokenEntity, name);
+            fungibleTokenPersistHistorical(tokenEntity);
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             // When
             final var result = isStatic
@@ -454,9 +453,8 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
         @ValueSource(booleans = {true, false})
         void decimals(final boolean isStatic) throws Exception {
             // Given
-            final var decimals = 12;
             final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-            invalidFungibleTokenPersist(tokenEntity, decimals);
+            invalidFungibleTokenPersist(tokenEntity);
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             // When
             final var result = isStatic
@@ -464,7 +462,7 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
                     : contract.call_decimalsNonStatic(getAddressFromEntity(tokenEntity))
                             .send();
             // Then
-            assertThat(result).isEqualTo(BigInteger.valueOf(decimals));
+            assertThat(result).isEqualTo(BigInteger.valueOf(DEFAULT_DECIMALS));
         }
 
         @ParameterizedTest
@@ -491,9 +489,8 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
         @ValueSource(booleans = {true, false})
         void symbol(final boolean isStatic) throws Exception {
             // Given
-            final var symbol = "HBAR";
             final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-            fungibleTokenPersistHistoricalWithSymbol(tokenEntity, symbol);
+            final var token = fungibleTokenPersistHistorical(tokenEntity);
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             // When
             final var result = isStatic
@@ -501,7 +498,7 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
                     : contract.call_symbolNonStatic(getAddressFromEntity(tokenEntity))
                             .send();
             // Then
-            assertThat(result).isEqualTo(symbol);
+            assertThat(result).isEqualTo(token.getSymbol());
         }
 
         @ParameterizedTest
@@ -554,9 +551,8 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
         @ValueSource(booleans = {true, false})
         void name(final boolean isStatic) throws Exception {
             // Given
-            final var name = "Hbars";
             final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-            fungibleTokenPersistHistoricalWithName(tokenEntity, name);
+            final var token = fungibleTokenPersistHistorical(tokenEntity);
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             // When
             final var result = isStatic
@@ -564,7 +560,7 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
                     : contract.call_nameNonStatic(getAddressFromEntity(tokenEntity))
                             .send();
             // Then
-            assertThat(result).isEqualTo(name);
+            assertThat(result).isEqualTo(token.getName());
         }
 
         @ParameterizedTest
@@ -740,12 +736,12 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
                 .persist();
     }
 
-    private void invalidFungibleTokenPersist(final Entity tokenEntity, final int decimals) {
+    private void invalidFungibleTokenPersist(final Entity tokenEntity) {
         domainBuilder
                 .tokenHistory()
                 .customize(t -> t.tokenId(tokenEntity.getId())
                         .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .decimals(decimals)
+                        .decimals(DEFAULT_DECIMALS)
                         .timestampRange(historicalRange)
                         .createdTimestamp(historicalRange.lowerEndpoint()))
                 .persist();
@@ -762,23 +758,11 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
                 .persist();
     }
 
-    private void fungibleTokenPersistHistoricalWithSymbol(final Entity tokenEntity, final String symbol) {
-        domainBuilder
+    private TokenHistory fungibleTokenPersistHistorical(final Entity tokenEntity) {
+        return domainBuilder
                 .tokenHistory()
                 .customize(t -> t.tokenId(tokenEntity.getId())
                         .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .symbol(symbol)
-                        .timestampRange(historicalRange)
-                        .createdTimestamp(historicalRange.lowerEndpoint()))
-                .persist();
-    }
-
-    private void fungibleTokenPersistHistoricalWithName(final Entity tokenEntity, final String name) {
-        domainBuilder
-                .tokenHistory()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .name(name)
                         .timestampRange(historicalRange)
                         .createdTimestamp(historicalRange.lowerEndpoint()))
                 .persist();

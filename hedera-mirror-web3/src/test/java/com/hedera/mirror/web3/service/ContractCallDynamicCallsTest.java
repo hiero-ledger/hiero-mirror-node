@@ -560,15 +560,14 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
 
         final var token = nftPersist(treasuryEntityId, spender.toEntityId());
         final var tokenId = token.getTokenId();
+        final var tokenAddress = toAddress(tokenId);
 
         tokenAccountPersist(tokenId, spender.getId());
         tokenAccountPersist(tokenId, contractEntityId.getId());
 
         // When
         final var functionCall = contract.send_approveForAllTokenTransferGetAllowance(
-                toAddress(tokenId).toHexString(),
-                getAliasFromEntity(spender),
-                BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
+                tokenAddress.toHexString(), getAliasFromEntity(spender), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);
@@ -587,13 +586,14 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
 
         final var token = nftPersist(treasuryEntityId, spender.toEntityId());
         final var tokenId = token.getTokenId();
+        final var tokenAddress = toAddress(tokenId);
 
         tokenAccountPersist(tokenId, spender.getId());
         tokenAccountPersist(tokenId, contractEntityId.getId());
         nftAllowancePersist(tokenId, contractEntityId.getId(), contractEntityId);
 
         var tokenTransferList = new TokenTransferList(
-                toAddress(tokenId).toHexString(),
+                tokenAddress.toHexString(),
                 List.of(),
                 List.of(new NftTransfer(
                         contractAddress.toHexString(),
@@ -675,6 +675,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
 
         final var token = nftPersist(treasuryEntityId, spenderEntityId);
         final var tokenId = token.getTokenId();
+        final var tokenAddress = toAddress(tokenId);
 
         final var contract = testWeb3jService.deploy(DynamicEthCalls::deploy);
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
@@ -686,7 +687,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
 
         // When
         final var functionCall = contract.send_transferFromNFTGetAllowance(
-                toAddress(tokenId).toHexString(), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
+                tokenAddress.toHexString(), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);
