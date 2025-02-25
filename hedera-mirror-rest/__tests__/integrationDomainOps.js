@@ -852,7 +852,7 @@ const defaultTransaction = {
   charged_tx_fee: NODE_FEE + NETWORK_FEE + SERVICE_FEE,
   consensus_timestamp: null,
   entity_id: null,
-  max_custom_fees: null,
+  max_custom_fees: [],
   max_fee: 33,
   nft_transfer: null,
   node_account_id: null,

@@ -12,6 +12,7 @@
     "dev": "HEDERA_MIRROR_REST_LOG_LEVEL=trace nodemon --experimental-specifier-resolution=node server.js",
     "lint": "eslint --ignore-pattern node_modules/ --fix .",
     "start": "node --experimental-specifier-resolution=node server.js",
+    "pretest": "node --experimental-specifier-resolution=node __tests__/integration/generator.js",
     "test": "node --experimental-specifier-resolution=node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "author": "Hedera Mirror Node Team",

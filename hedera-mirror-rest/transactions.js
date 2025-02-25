@@ -16,6 +16,7 @@ import {
   AssessedCustomFee,
   CryptoTransfer,
   NftTransfer,
+  CustomFeeLimits,
   StakingRewardTransfer,
   TokenTransfer,
   Transaction,
@@ -23,9 +24,7 @@ import {
   TransactionType,
 } from './model';
 
-import {AssessedCustomFeeViewModel, NftTransferViewModel} from './viewmodel';
-import CustomFeeLimit from './model/customFeeLimit.js';
-import CustomFeeLimitViewModel from './viewmodel/customFeeLimitViewModel.js';
+import {AssessedCustomFeeViewModel, NftTransferViewModel, CustomFeeLimitViewModel} from './viewmodel';
 
 const SUCCESS_PROTO_IDS = TransactionResult.getSuccessProtoIds();
 
@@ -170,19 +169,11 @@ const createNftTransferList = (nftTransferList) => {
 /**
  * Creates a custom fee limit transfer list from an aggregated array of JSON objects in the query result
  *
- * @param {Object[]} maxCustomFeesList - The list of max custom fees
- * @return {CustomFeeLimitViewModel[]} An array of custom fee limit view models
+ * @param {Buffer[]} maxCustomFeesList - The list of max custom fees
+ * @return {CustomFeeLimitViewModel} An array of custom fee limit view models
  */
 const createMaxCustomFeesTransferList = (maxCustomFeesList) => {
-  if (!maxCustomFeesList || maxCustomFeesList.length === 0) {
-    return [];
-  }
-
-  return maxCustomFeesList.map((fee) => {
-    const feeBuffers = Array.isArray(fee) ? fee.map((f) => Buffer.from(f)) : [Buffer.from(fee)];
-    const customFeeLimit = new CustomFeeLimit(feeBuffers);
-    return new CustomFeeLimitViewModel([customFeeLimit]);
-  });
+  return new CustomFeeLimitViewModel(new CustomFeeLimits(maxCustomFeesList));
 };
 
 /**

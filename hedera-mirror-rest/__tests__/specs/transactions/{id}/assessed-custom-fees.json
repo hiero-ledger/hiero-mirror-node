@@ -76,18 +76,7 @@
         "charged_tx_fee": 7,
         "consensus_timestamp": "1565779555.711927001",
         "entity_id": null,
-        "max_custom_fees": [
-          {
-            "account_id": "0.0.8",
-            "amount": 1000,
-            "denominating_token_id": null
-          },
-          {
-            "account_id": "0.0.9",
-            "amount": 500,
-            "denominating_token_id": "0.0.2000"
-          }
-        ],
+        "max_custom_fees": [],
         "max_fee": "33",
         "memo_base64": null,
         "name": "CRYPTOTRANSFER",

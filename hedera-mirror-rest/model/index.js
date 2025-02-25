@@ -16,6 +16,8 @@ import ContractStateChange from './contractStateChange';
 import ContractTransactionHash from './contractTransactionHash';
 import CryptoTransfer from './cryptoTransfer';
 import CustomFee from './customFee';
+import CustomFeeLimits from './customFeeLimits.js';
+import FixedFee from './fixedFee.js';
 import Entity from './entity';
 import EthereumTransaction from './ethereumTransaction';
 import ExchangeRate from './exchangeRate';
@@ -65,6 +67,8 @@ export {
   ContractTransactionHash,
   CryptoTransfer,
   CustomFee,
+  FixedFee,
+  CustomFeeLimits,
   Entity,
   EthereumTransaction,
   ExchangeRate,

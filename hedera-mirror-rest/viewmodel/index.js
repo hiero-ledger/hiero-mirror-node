@@ -3,6 +3,7 @@
 import AddressBookServiceEndpointViewModel from './addressBookServiceEndpointViewModel';
 import AssessedCustomFeeViewModel from './assessedCustomFeeViewModel';
 import CustomFeeViewModel from './customFeeViewModel';
+import CustomFeeLimitViewModel from './customFeeLimitViewModel';
 import ContractViewModel from './contractViewModel';
 import ContractActionViewModel from './contractActionViewModel';
 import ContractBytecodeViewModel from './contractBytecodeViewModel';
@@ -32,6 +33,7 @@ export {
   AddressBookServiceEndpointViewModel,
   AssessedCustomFeeViewModel,
   CustomFeeViewModel,
+  CustomFeeLimitViewModel,
   ContractViewModel,
   ContractActionViewModel,
   ContractBytecodeViewModel,

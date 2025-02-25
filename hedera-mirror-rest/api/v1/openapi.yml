@@ -3808,7 +3808,6 @@ components:
           $ref: "#/components/schemas/EntityId"
         max_custom_fees:
           type: array
-          nullable: true
           items:
             $ref: "#/components/schemas/CustomFeeLimit"
         max_fee:

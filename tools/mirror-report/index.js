@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0
-#!/usr/bin/env node
 
 import {Option, program} from 'commander';
 import {report} from './src/report.js';

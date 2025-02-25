@@ -31,6 +31,26 @@
         "name": "TOKENUPDATENFTS",
         "type": "53",
         "entity_id": "0.0.8"
+      },
+      {
+        "payerAccountId": "0.0.10",
+        "nodeAccountId": "0.0.3",
+        "consensus_timestamp": "1234567890000000001",
+        "name": "CONSENSUSSUBMITMESSAGE",
+        "type": 27,
+        "max_custom_fees": [
+          {
+            "account_id": "0.0.8",
+            "amount": 1000,
+            "denominating_token_id": null
+          },
+          {
+            "account_id": "0.0.9",
+            "amount": 500,
+            "denominating_token_id": "0.0.2000"
+          }
+        ],
+        "entity_id": "0.0.7"
       }
     ],
     "cryptotransfers": [
