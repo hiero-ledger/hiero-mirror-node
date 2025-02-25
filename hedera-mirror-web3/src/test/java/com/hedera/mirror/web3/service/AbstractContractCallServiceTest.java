@@ -536,7 +536,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                     .customize(n -> n.accountId(treasuryAccount.toEntityId())
                             .spender(treasuryAccount.toEntityId())
                             .tokenId(tokenToUpdateEntity.getId())
-                            .serialNumber(1))
+                            .serialNumber(DEFAULT_SERIAL_NUMBER))
                     .persist();
 
             tokenAccount(ta -> ta.tokenId(tokenToUpdateEntity.getId())

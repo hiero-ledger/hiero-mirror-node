@@ -183,7 +183,6 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
         @ValueSource(booleans = {true, false})
         void symbol(final boolean isStatic) {
             // Given
-            //            final var symbol = "HBAR";
             final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
             fungibleTokenPersistHistorical(tokenEntity);
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
@@ -729,7 +728,7 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
         domainBuilder
                 .nftHistory()
                 .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(1L)
+                        .serialNumber(DEFAULT_SERIAL_NUMBER)
                         .accountId(owner.toEntityId())
                         .metadata(metadata.getBytes())
                         .timestampRange(historicalRange))
