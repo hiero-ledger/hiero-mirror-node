@@ -14,7 +14,6 @@ import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.token.Nft;
-import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.repository.NftRepository;
 import com.hedera.mirror.web3.repository.TokenRepository;
@@ -177,8 +176,8 @@ class NftReadableKVStateTest {
         assertThat(nftReadableKVState.size()).isZero();
     }
 
-    private Nft setupNft(Optional<Long> timestamp, EntityId spender) {
-        Nft databaseNft = domainBuilder
+    private Nft setupNft(Optional<Long> timestamp, final EntityId spender) {
+        final var databaseNft = domainBuilder
                 .nft()
                 .customize(t -> {
                     t.tokenId(entity.getId()).serialNumber(NFT_ID.serialNumber());
@@ -188,7 +187,7 @@ class NftReadableKVStateTest {
                 })
                 .get();
 
-        Token databaseToken = domainBuilder
+        final var databaseToken = domainBuilder
                 .token()
                 .customize(t -> t.tokenId(entity.getId()).treasuryAccountId(treasury))
                 .get();

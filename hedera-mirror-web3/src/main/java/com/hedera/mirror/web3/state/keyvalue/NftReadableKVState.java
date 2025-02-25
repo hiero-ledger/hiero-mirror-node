@@ -31,7 +31,7 @@ public class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
     private final NftRepository nftRepository;
     private final TokenRepository tokenRepository;
 
-    public NftReadableKVState(@Nonnull NftRepository nftRepository, TokenRepository tokenRepository) {
+    public NftReadableKVState(@Nonnull NftRepository nftRepository, @Nonnull TokenRepository tokenRepository) {
         super(KEY);
         this.nftRepository = nftRepository;
         this.tokenRepository = tokenRepository;
