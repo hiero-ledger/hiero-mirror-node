@@ -193,8 +193,8 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         // When
         final var functionCall = single
                 ? contract.call_associateTokenExternal(
-                        getAddressFromEntity(notAssociatedAccount),
-                        toAddress(token.getTokenId()).toHexString())
+                getAddressFromEntity(notAssociatedAccount),
+                toAddress(token.getTokenId()).toHexString())
                 : contract.call_associateTokensExternal(
                         getAddressFromEntity(notAssociatedAccount),
                         List.of(toAddress(token.getTokenId()).toHexString()));
@@ -220,8 +220,8 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         // When
         final var functionCall = single
                 ? contract.call_associateTokenExternal(
-                        getAddressFromEntity(notAssociatedAccount),
-                        toAddress(token.getTokenId()).toHexString())
+                getAddressFromEntity(notAssociatedAccount),
+                toAddress(token.getTokenId()).toHexString())
                 : contract.call_associateTokensExternal(
                         getAddressFromEntity(notAssociatedAccount),
                         List.of(toAddress(token.getTokenId()).toHexString()));
@@ -376,7 +376,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     void burnNFT() throws Exception {
         // Given
         final var treasury = accountEntityPersist();
-        final var token = nonFungibleTokenPersistWithTreasury(treasury.toEntityId());
+        final var token = nonFungibleTokenCustomizable(t -> t.treasuryAccountId(treasury.toEntityId()));
         final var tokenId = token.getTokenId();
 
         tokenAccountPersist(tokenId, treasury.getId());
@@ -443,7 +443,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         // Given
         final var owner = accountEntityWithEvmAddressPersist();
         final var tokenTreasury = accountEntityPersist().toEntityId();
-        final var token = nonFungibleTokenPersistWithTreasury(tokenTreasury);
+        final var token = nonFungibleTokenCustomizable(t -> t.treasuryAccountId(tokenTreasury));
         final var tokenId = token.getTokenId();
 
         tokenAccountPersist(tokenId, owner.getId());
@@ -1064,10 +1064,10 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         final var functionCall = "single".equals(type)
                 ? contract.call_transferTokenExternal(
-                        getAddressFromEntity(tokenEntity),
-                        getAliasFromEntity(sender),
-                        getAliasFromEntity(receiver),
-                        BigInteger.valueOf(1L))
+                getAddressFromEntity(tokenEntity),
+                getAliasFromEntity(sender),
+                getAliasFromEntity(receiver),
+                BigInteger.valueOf(1L))
                 : contract.call_transferTokensExternal(
                         getAddressFromEntity(tokenEntity),
                         List.of(getAliasFromEntity(sender), getAliasFromEntity(receiver)),
@@ -1094,7 +1094,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var sender = accountEntityWithEvmAddressPersist();
 
         final var treasuryAccount = accountEntityPersist().toEntityId();
-        final var token = nonFungibleTokenPersistWithTreasury(treasuryAccount);
+        final var token = nonFungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryAccount));
         final var tokenId = token.getTokenId();
         accountBalanceRecordsPersist(sender);
         nftPersistCustomizable(n -> n.tokenId(tokenId).accountId(sender.toEntityId()));
@@ -1110,10 +1110,10 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         final var functionCall = "single".equals(type)
                 ? contract.call_transferNFTExternal(
-                        toAddress(tokenId).toHexString(),
-                        getAliasFromEntity(sender),
-                        getAliasFromEntity(receiver),
-                        BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
+                toAddress(tokenId).toHexString(),
+                getAliasFromEntity(sender),
+                getAliasFromEntity(receiver),
+                BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
                 : contract.call_transferNFTsExternal(
                         toAddress(tokenId).toHexString(),
                         List.of(getAliasFromEntity(sender)),
@@ -1142,7 +1142,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         accountBalanceRecordsPersist(sender);
 
         final var treasuryAccount = accountEntityPersist().toEntityId();
-        final var token = nonFungibleTokenPersistWithTreasury(treasuryAccount);
+        final var token = nonFungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryAccount));
         final var tokenId = token.getTokenId();
         nftPersistCustomizable(n -> n.tokenId(tokenId).accountId(sender.toEntityId()));
         final var receiver = accountEntityWithEvmAddressPersist();
@@ -1298,7 +1298,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var payer = accountEntityWithEvmAddressPersist();
         accountBalanceRecordsPersist(payer);
 
-        final var token = nonFungibleTokenPersistWithTreasury(treasuryEntityId);
+        final var token = nonFungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
         final var tokenId = token.getTokenId();
         nftPersistCustomizable(n -> n.tokenId(tokenId).accountId(sender.toEntityId()));
 
@@ -1490,7 +1490,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 token.getSymbol(),
                 treasuryAccountId != null
                         ? asHexedEvmAddress(new Id(
-                                treasuryAccountId.getShard(), treasuryAccountId.getRealm(), treasuryAccountId.getNum()))
+                        treasuryAccountId.getShard(), treasuryAccountId.getRealm(), treasuryAccountId.getNum()))
                         : Address.ZERO.toHexString(),
                 new String(token.getMetadata(), StandardCharsets.UTF_8),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),

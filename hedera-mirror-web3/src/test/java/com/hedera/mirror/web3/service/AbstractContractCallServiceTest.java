@@ -249,15 +249,14 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     *
      * @return Token object that is persisted in db
      */
     protected Token fungibleTokenPersist() {
-        return fungibleTokenCustomizable(t -> {});
+        return fungibleTokenCustomizable(t -> {
+        });
     }
 
     /**
-     *
      * @param treasuryEntityId - the treasuryEntityId that has to be set in the token
      * @return Token object that is persisted in db
      */
@@ -267,6 +266,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     /**
      * Method used to customize different fields of a token and persist it in db
+     *
      * @param customizer - the consumer used to customize the token
      * @return Token object which is persisted in the db
      */
@@ -284,9 +284,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Creates fungible token in the token db table.
-     * The token table stores the properties specific for tokens and each record refers to
-     * another one in the entity table, which has the properties common for all entities.
+     * Creates fungible token in the token db table. The token table stores the properties specific for tokens and each
+     * record refers to another one in the entity table, which has the properties common for all entities.
+     *
      * @param tokenEntity     The entity from the entity db table related to the created token table record
      * @param treasuryAccount The account holding the initial token supply
      */
@@ -322,19 +322,12 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     /**
      * Persists a non-fungible token entity.
+     *
      * @return Token object persisted in the database.
      */
     protected Token nonFungibleTokenPersist() {
-        return nonFungibleTokenCustomizable(t -> {});
-    }
-
-    /**
-     * Persists a non-fungible token with a specific treasury account.
-     * @param treasuryEntityId The treasury account ID.
-     * @return Token object persisted in the database.
-     */
-    protected Token nonFungibleTokenPersistWithTreasury(final EntityId treasuryEntityId) {
-        return nonFungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
+        return nonFungibleTokenCustomizable(t -> {
+        });
     }
 
     protected Token nonFungibleTokenCustomizable(Consumer<Token.TokenBuilder<?, ?>> customizer) {
@@ -351,6 +344,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     /**
      * Creates and persists an NFT entity.
+     *
      * @param customizer Consumer to customize NFT attributes.
      */
     protected Nft nftPersistCustomizable(final Consumer<Nft.NftBuilder<?, ?>> customizer) {
@@ -363,36 +357,22 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .persist();
     }
 
-    /**
-     * Persists an NFT for a treasury account with self-spender.
-     */
-    protected void nftPersistWithSpender(final long tokenId, final EntityId accountId, final EntityId spender) {
-        nftPersistCustomizable(n -> n.accountId(accountId).tokenId(tokenId).spender(spender));
-    }
-
-    protected Token nftPersist(final EntityId treasuryEntityId) {
-        return nftPersist(treasuryEntityId, treasuryEntityId);
-    }
-
-    protected Token nftPersist(final EntityId treasuryEntityId, final EntityId ownerEntityId) {
-        return nftPersist(treasuryEntityId, ownerEntityId, ownerEntityId);
-    }
 
     protected Token nftPersist(final EntityId treasuryEntityId, final EntityId ownerEntityId, final EntityId spender) {
-        final var token = nonFungibleTokenPersistWithTreasury(treasuryEntityId);
-        nftPersistWithSpender(token.getTokenId(), ownerEntityId, spender);
+        final var token = nonFungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
+        nftPersistCustomizable(n -> n.accountId(ownerEntityId).tokenId(token.getTokenId()).spender(spender));
         return token;
     }
 
-    protected Token nftPersistWithSpenderAndTreasury(final EntityId ownerEntityId, final EntityId spender) {
-        final var treasury = accountEntityPersist().toEntityId();
-        final var token = nonFungibleTokenPersistWithTreasury(treasury);
-        nftPersistWithSpender(token.getTokenId(), ownerEntityId, spender);
+    protected Token nftPersistWithSpenderAndTreasury(final EntityId ownerEntityId, final EntityId spender,
+            final EntityId treasury) {
+        final var token = nonFungibleTokenCustomizable(t -> t.treasuryAccountId(treasury));
+        nftPersistCustomizable(n -> n.accountId(ownerEntityId).tokenId(token.getTokenId()).spender(spender));
         return token;
     }
 
-    protected Token nftPersistWithSelfSpenderAndTreasury(final EntityId ownerEntityId) {
-        return nftPersistWithSpenderAndTreasury(ownerEntityId, ownerEntityId);
+    protected Token nftPersistWithSelfSpenderAndTreasury(final EntityId ownerEntityId, final EntityId treasury) {
+        return nftPersistWithSpenderAndTreasury(ownerEntityId, ownerEntityId, treasury);
     }
 
     protected TokenAllowance tokenAllowancePersistCustomizable(
@@ -412,7 +392,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * allows the spender to transfer NFTs on the owner's behalf.
      *
      * @param tokenId   the NFT tokenId for which the allowance is created
-     * @param owner   the account owning the NFT. In this case he is payer as well
+     * @param owner     the account owning the NFT. In this case he is payer as well
      * @param spenderId the account allowed to transfer the NFT on owner's behalf
      */
     protected void nftAllowancePersist(final long tokenId, final long spenderId, final EntityId owner) {
@@ -427,8 +407,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Creates entity of type account in the entity db table.
-     * The entity table stores the properties common for all type of entities.
+     * Creates entity of type account in the entity db table. The entity table stores the properties common for all type
+     * of entities.
      */
     protected Entity accountEntityPersist() {
         return accountEntityPersistCustomizable(
@@ -440,7 +420,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     *
      * @param customizer - the consumer with which to customize the entity
      * @return
      */
@@ -469,8 +448,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     /**
      * Creates a non-fungible token instance with a specific serial number(a record in the nft table is persisted). The
-     * instance is tied to a specific token in the token db table.
-     * ownerId with value null indicates that the nft instance holder is the treasury account
+     * instance is tied to a specific token in the token db table. ownerId with value null indicates that the nft
+     * instance holder is the treasury account
      *
      * @param token           the token entity that the nft instance is linked to by tokenId
      * @param nftSerialNumber the unique serial number of the nft instance
@@ -488,10 +467,12 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .persist();
     }
 
-    /** This method adds a record to the account_balance table.
-     * When an account balance is updated during a consensus event, an account_balance record with the consensus_timestamp,
-     * account_id and balance is created.The balance_timestamp for the account entry is updated as well in the entity table.
-     * @param account The account that the account_balance record is going to be created for
+    /**
+     * This method adds a record to the account_balance table. When an account balance is updated during a consensus
+     * event, an account_balance record with the consensus_timestamp, account_id and balance is created.The
+     * balance_timestamp for the account entry is updated as well in the entity table.
+     *
+     * @param account   The account that the account_balance record is going to be created for
      * @param timestamp The timestamp indicating the account balance update
      */
     protected void accountBalancePersist(final Entity account, long timestamp) {
@@ -503,10 +484,10 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Persists a record in the token_balance db table (consensus_timestamp, account_id, balance, token_id).
-     * Each record represents the fungible token balance that an account holds at a given consensus timestamp.
-     * No record for the token balance at a particular timestamp may result in INSUFFICIENT_TOKEN_BALANCE exception
-     * for a historical query with the same timestamp.
+     * Persists a record in the token_balance db table (consensus_timestamp, account_id, balance, token_id). Each record
+     * represents the fungible token balance that an account holds at a given consensus timestamp. No record for the
+     * token balance at a particular timestamp may result in INSUFFICIENT_TOKEN_BALANCE exception for a historical query
+     * with the same timestamp.
      */
     protected void tokenBalancePersist(final EntityId account, final EntityId token, final long timestamp) {
         domainBuilder

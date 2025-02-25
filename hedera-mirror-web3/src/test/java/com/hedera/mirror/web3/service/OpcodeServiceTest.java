@@ -162,7 +162,8 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     void updateTokenKeysAndGetUpdatedTokenKeyForNFT(final KeyValueType keyValueType, final KeyType keyType) {
         // Given
         final var treasuryEntity = accountEntityPersist();
-        final var token = nftPersist(treasuryEntity.toEntityId());
+        final var token = nftPersist(treasuryEntity.toEntityId(), treasuryEntity.toEntityId(),
+                treasuryEntity.toEntityId());
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var contractAddress = contract.getContractAddress();
 
@@ -482,14 +483,14 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
     @ParameterizedTest
     @CsvSource({
-        "true, true, true",
-        "false, true, true",
-        "true, false, true",
-        "true, true, false",
-        "false, false, true",
-        "false, true, false",
-        "true, false, false",
-        "false, false, false"
+            "true, true, true",
+            "false, true, true",
+            "true, false, true",
+            "true, true, false",
+            "false, false, true",
+            "false, true, false",
+            "true, false, false",
+            "false, false, false"
     })
     void callWithDifferentCombinationsOfTracerOptions(
             final boolean stack, final boolean memory, final boolean storage) {
@@ -499,7 +500,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var treasuryAddress = toAddress(treasuryEntity.getId());
 
         final var tokenEntity = persistTokenWithAutoRenewAndTreasuryAccounts(
-                        TokenTypeEnum.FUNGIBLE_COMMON, treasuryEntity)
+                TokenTypeEnum.FUNGIBLE_COMMON, treasuryEntity)
                 .getLeft();
         final var tokenAddress = toAddress(tokenEntity.getId());
         final var options = new OpcodeTracerOptions(stack, memory, storage);
@@ -619,7 +620,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         StringBuilder result = new StringBuilder();
         for (Boolean booleanValue : booleans) {
             final var byteValue = getByteFromBoolean(booleanValue);
-            result.append(DomainUtils.bytesToHex(DomainUtils.leftPadBytes(new byte[] {byteValue}, Bytes32.SIZE)));
+            result.append(DomainUtils.bytesToHex(DomainUtils.leftPadBytes(new byte[]{byteValue}, Bytes32.SIZE)));
         }
         return result.toString();
     }
