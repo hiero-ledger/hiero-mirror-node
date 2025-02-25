@@ -99,6 +99,24 @@ class NftReadableKVStateTest {
     }
 
     @Test
+    void getNftMappedValuesWithTreasuryAsOwner() {
+        when(contractCallContext.getTimestamp()).thenReturn(timestamp);
+        Nft nftDomain = setupNftWithOwner(timestamp);
+        assertThat(nftReadableKVState.readFromDataSource(NFT_ID)).satisfies(nft -> assertThat(nft)
+                .returns(NFT_ID, com.hedera.hapi.node.state.token.Nft::nftId)
+                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerId)
+                .returns(
+                        EntityIdUtils.toAccountId(nftDomain.getSpender()),
+                        com.hedera.hapi.node.state.token.Nft::spenderId)
+                .returns(
+                        convertToTimestamp(nftDomain.getCreatedTimestamp()),
+                        com.hedera.hapi.node.state.token.Nft::mintTime)
+                .returns(Bytes.wrap(nftDomain.getMetadata()), com.hedera.hapi.node.state.token.Nft::metadata)
+                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerPreviousNftId)
+                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerNextNftId));
+    }
+
+    @Test
     void getNftMappedValuesWithoutTimestamp() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         Nft nftDomain = setupNft(Optional.empty());
@@ -176,7 +194,7 @@ class NftReadableKVStateTest {
         assertThat(nftReadableKVState.size()).isZero();
     }
 
-    private Nft setupNft(Optional<Long> timestamp, final EntityId spender) {
+    private Nft setupNft(Optional<Long> timestamp, final EntityId spender, final EntityId owner) {
         final var databaseNft = domainBuilder
                 .nft()
                 .customize(t -> {
@@ -184,12 +202,20 @@ class NftReadableKVStateTest {
                     if (spender != null) {
                         t.spender(spender);
                     }
+                    if (owner != null) {
+                        t.accountId(owner);
+                    }
                 })
                 .get();
 
         final var databaseToken = domainBuilder
                 .token()
-                .customize(t -> t.tokenId(entity.getId()).treasuryAccountId(treasury))
+                .customize(t -> {
+                    t.tokenId(entity.getId()).treasuryAccountId(treasury);
+                    if (owner != null) {
+                        t.treasuryAccountId(owner);
+                    }
+                })
                 .get();
 
         if (timestamp.isPresent()) {
@@ -208,10 +234,14 @@ class NftReadableKVStateTest {
     }
 
     private Nft setupNft(Optional<Long> timestamp) {
-        return setupNft(timestamp, spender);
+        return setupNft(timestamp, spender, null);
+    }
+
+    private Nft setupNftWithOwner(Optional<Long> timestamp) {
+        return setupNft(timestamp, null, treasury);
     }
 
     private Nft setupNftMissingSpender(Optional<Long> timestamp) {
-        return setupNft(timestamp, null);
+        return setupNft(timestamp, null, null);
     }
 }
