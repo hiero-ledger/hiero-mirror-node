@@ -16,7 +16,7 @@
 
 package com.hedera.mirror.web3.state.keyvalue;
 
-import static com.hedera.mirror.web3.state.Utils.padToBytes32;
+import static com.hedera.mirror.common.util.DomainUtils.leftPadBytes;
 
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
@@ -26,6 +26,7 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
+import org.apache.tuweni.bytes.Bytes32;
 
 @Named
 public class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
@@ -51,7 +52,8 @@ public class ContractStorageReadableKVState extends AbstractReadableKVState<Slot
         return timestamp
                 .map(t -> contractStateRepository.findStorageByBlockTimestamp(entityId, keyBytes, t))
                 .orElse(contractStateRepository.findStorage(entityId, keyBytes))
-                .map(byteArr -> new SlotValue(Bytes.wrap(padToBytes32(byteArr)), Bytes.EMPTY, Bytes.EMPTY))
+                .map(byteArr ->
+                        new SlotValue(Bytes.wrap(leftPadBytes(byteArr, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY))
                 .orElse(null);
     }
 }
