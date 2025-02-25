@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -30,7 +32,7 @@ config: {}
 
 # Environment variables to add to the container. The value can either be a string or an EnvVarSource. Evaluated as a template.
 env:
-  CONFIG_PATH: "/usr/etc/hedera/"
+  HEDERA_MIRROR_ROSETTA_API_CONFIG: "/usr/etc/hedera/"
   # FOO:
   #   valueFrom:
   #     secretKeyRef:

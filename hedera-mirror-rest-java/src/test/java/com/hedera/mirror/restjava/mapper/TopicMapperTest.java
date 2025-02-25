@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.restjava.mapper;
 
@@ -21,15 +7,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.rest.model.ConsensusCustomFees;
 import com.hedera.mirror.rest.model.Key.TypeEnum;
 import com.hedera.mirror.rest.model.Topic;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
+import java.util.Collections;
 import org.apache.commons.codec.binary.Hex;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class TopicMapperTest {
 
+    private CustomFeeMapper customFeeMapper;
     private CommonMapper commonMapper;
     private DomainBuilder domainBuilder;
     private TopicMapper mapper;
@@ -37,7 +28,9 @@ class TopicMapperTest {
     @BeforeEach
     void setup() {
         commonMapper = new CommonMapperImpl();
-        mapper = new TopicMapperImpl(commonMapper);
+        var fixedCustomFeeMapper = new FixedCustomFeeMapperImpl(commonMapper);
+        customFeeMapper = new CustomFeeMapperImpl(fixedCustomFeeMapper, commonMapper);
+        mapper = new TopicMapperImpl(customFeeMapper, commonMapper);
         domainBuilder = new DomainBuilder();
     }
 
@@ -45,6 +38,10 @@ class TopicMapperTest {
     void map() {
         var key = domainBuilder.key(KeyCase.ED25519);
         var entity = domainBuilder.topicEntity().get();
+        var customFee = domainBuilder
+                .customFee()
+                .customize(c -> c.entityId(entity.getId()))
+                .get();
         var topic = domainBuilder
                 .topic()
                 .customize(t -> t.adminKey(key)
@@ -54,7 +51,7 @@ class TopicMapperTest {
                         .timestampRange(entity.getTimestampRange()))
                 .get();
 
-        assertThat(mapper.map(entity, topic))
+        assertThat(mapper.map(customFee, entity, topic))
                 .returns(TypeEnum.ED25519, t -> t.getAdminKey().getType())
                 .returns(
                         Hex.encodeHexString(topic.getAdminKey()),
@@ -62,6 +59,7 @@ class TopicMapperTest {
                 .returns(EntityId.of(entity.getAutoRenewAccountId()).toString(), Topic::getAutoRenewAccount)
                 .returns(entity.getAutoRenewPeriod(), Topic::getAutoRenewPeriod)
                 .returns(commonMapper.mapTimestamp(topic.getCreatedTimestamp()), Topic::getCreatedTimestamp)
+                .returns(customFeeMapper.map(customFee), Topic::getCustomFees)
                 .returns(entity.getDeleted(), Topic::getDeleted)
                 .returns(entity.getMemo(), Topic::getMemo)
                 .returns(TypeEnum.ED25519, t -> t.getSubmitKey().getType())
@@ -74,14 +72,24 @@ class TopicMapperTest {
                 .returns(entity.toEntityId().toString(), Topic::getTopicId);
     }
 
-    @Test
-    void mapNulls() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void mapEmptyAndNulls(boolean nullFixedFees) {
         var topicEntity = new Entity();
+        var customFee = domainBuilder
+                .customFee()
+                .customize(
+                        c -> c.entityId(topicEntity.getId()).fixedFees(nullFixedFees ? null : Collections.emptyList()))
+                .get();
         var topic = new com.hedera.mirror.common.domain.topic.Topic();
-        assertThat(mapper.map(topicEntity, topic))
+        var expectedCustomFees = new ConsensusCustomFees()
+                .createdTimestamp(commonMapper.mapLowerRange(customFee.getTimestampRange()))
+                .fixedFees(Collections.emptyList());
+        assertThat(mapper.map(customFee, topicEntity, topic))
                 .returns(null, Topic::getAdminKey)
                 .returns(null, Topic::getAutoRenewAccount)
                 .returns(null, Topic::getAutoRenewPeriod)
+                .returns(expectedCustomFees, Topic::getCustomFees)
                 .returns(null, Topic::getCreatedTimestamp)
                 .returns(null, Topic::getDeleted)
                 .returns(null, Topic::getMemo)

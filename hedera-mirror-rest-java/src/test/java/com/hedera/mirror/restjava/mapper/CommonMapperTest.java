@@ -1,23 +1,10 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.restjava.mapper;
 
 import static com.hedera.mirror.restjava.mapper.CommonMapper.NANO_DIGITS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.DomainBuilder;
@@ -25,8 +12,12 @@ import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.rest.model.Key.TypeEnum;
 import com.hedera.mirror.rest.model.TimestampRange;
+import com.hedera.mirror.restjava.exception.InvalidMappingException;
+import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
+import java.util.List;
+import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
@@ -50,6 +41,47 @@ class CommonMapperTest {
     void mapEntityIdLong() {
         assertThat(commonMapper.mapEntityId((Long) null)).isNull();
         assertThat(commonMapper.mapEntityId(0L)).isNull();
+    }
+
+    @Test
+    void mapKeyList() {
+        // Given
+        var bytesEcdsa = domainBuilder.bytes(DomainBuilder.KEY_LENGTH_ECDSA);
+        var ecdsa = Key.newBuilder()
+                .setECDSASecp256K1(DomainUtils.fromBytes(bytesEcdsa))
+                .build();
+        var bytesEd25519 = domainBuilder.bytes(DomainBuilder.KEY_LENGTH_ED25519);
+        var ed25519 =
+                Key.newBuilder().setEd25519(DomainUtils.fromBytes(bytesEd25519)).build();
+        var innerKeyList = KeyList.newBuilder().addKeys(ecdsa).addKeys(ed25519).build();
+        var innerKeyListKey = Key.newBuilder().setKeyList(innerKeyList).build();
+        var bytesInnerKeyListKey = innerKeyListKey.toByteArray();
+        var keyList = innerKeyList.toBuilder().addKeys(innerKeyListKey).build();
+        var feeExemptKeyList =
+                FeeExemptKeyList.newBuilder().addAllKeys(keyList.getKeysList()).build();
+        var expectedKeyList = List.of(
+                new com.hedera.mirror.rest.model.Key()
+                        .key(Hex.encodeHexString(bytesEcdsa))
+                        .type(TypeEnum.ECDSA_SECP256_K1),
+                new com.hedera.mirror.rest.model.Key()
+                        .key(Hex.encodeHexString(bytesEd25519))
+                        .type(TypeEnum.ED25519),
+                new com.hedera.mirror.rest.model.Key()
+                        .key(Hex.encodeHexString(bytesInnerKeyListKey))
+                        .type(TypeEnum.PROTOBUF_ENCODED));
+
+        // Then
+        assertThat(commonMapper.mapKeyList(null)).isEmpty();
+        assertThat(commonMapper.mapKeyList(new byte[0])).isEmpty();
+        assertThat(commonMapper.mapKeyList(keyList.toByteArray())).isEqualTo(expectedKeyList);
+        assertThat(commonMapper.mapKeyList(feeExemptKeyList.toByteArray())).isEqualTo(expectedKeyList);
+    }
+
+    @SneakyThrows
+    @Test
+    void mapKeyListThrow() {
+        byte[] data = Hex.decodeHex("deadbeef");
+        assertThatThrownBy(() -> commonMapper.mapKeyList(data)).isInstanceOf(InvalidMappingException.class);
     }
 
     @Test
@@ -81,6 +113,15 @@ class CommonMapperTest {
         assertThat(commonMapper.mapKey(ed25519.toByteArray())).isEqualTo(toKey(bytesEd25519, TypeEnum.ED25519));
         assertThat(commonMapper.mapKey(ed25519List.toByteArray())).isEqualTo(toKey(bytesEd25519, TypeEnum.ED25519));
         assertThat(commonMapper.mapKey(protobufEncoded)).isEqualTo(toKey(protobufEncoded, TypeEnum.PROTOBUF_ENCODED));
+    }
+
+    @Test
+    void mapLowerRange() {
+        assertThat(commonMapper.mapLowerRange(null)).isNull();
+        assertThat(commonMapper.mapLowerRange(Range.atMost(200L))).isNull();
+        assertThat(commonMapper.mapLowerRange(Range.atLeast(0L))).isEqualTo("0.0");
+        assertThat(commonMapper.mapLowerRange(Range.atLeast(1500123456789L))).isEqualTo("1500.123456789");
+        assertThat(commonMapper.mapLowerRange(Range.atLeast(1500123456000L))).isEqualTo("1500.123456000");
     }
 
     @Test
