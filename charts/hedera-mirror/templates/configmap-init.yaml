@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 {{ if .Values.postgresql.enabled }}
 apiVersion: v1
 kind: ConfigMap
@@ -56,7 +58,7 @@ data:
     create user :rosettaUsername with login password :'rosettaPassword' in role readonly;
     create user :web3Username with login password :'web3Password' in role readonly;
     alter user :ownerUsername with createrole;
-    
+
     -- Grant temp schema admin privileges
     grant temporary_admin to :ownerUsername;
     grant temporary_admin to :importerUsername;
@@ -72,7 +74,7 @@ data:
     create schema if not exists :dbSchema authorization :ownerUsername;
     grant usage on schema :dbSchema to public;
     revoke create on schema :dbSchema from public;
-    
+
     -- Create temp table schema
     create schema if not exists :tempSchema authorization temporary_admin;
     grant usage on schema :tempSchema to public;

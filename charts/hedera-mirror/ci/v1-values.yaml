@@ -1,4 +1,5 @@
-# CT generates release names that are too long for postgresql-ha, so we override it here
+# SPDX-License-Identifier: Apache-2.0
+
 graphql:
   enabled: true
   test:
