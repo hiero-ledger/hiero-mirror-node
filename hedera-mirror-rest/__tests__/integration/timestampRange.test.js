@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 import {Range} from 'pg-range';
 import sinon from 'sinon';
@@ -33,7 +19,9 @@ describe('bindTimestampRange', () => {
     let clock;
     const now = Date.parse('2022-10-15T08:10:15.333Z');
     const nowInNs = BigInt(now) * NANOSECONDS_PER_MILLISECOND;
-    const {query: {maxTransactionsTimestampRangeNs}} = config;
+    const {
+      query: {maxTransactionsTimestampRangeNs},
+    } = config;
 
     beforeEach(async () => {
       await integrationDomainOps.loadTransactions([{consensus_timestamp: 1606123456000111222n, payerAccountId: 2000}]);
@@ -64,7 +52,7 @@ describe('bindTimestampRange', () => {
         name: 'no adjustment',
         hasNext: false,
         range: Range(1000n, maxTransactionsTimestampRangeNs + 999n),
-        expected: Range(1000n, maxTransactionsTimestampRangeNs + 999n)
+        expected: Range(1000n, maxTransactionsTimestampRangeNs + 999n),
       },
       {
         name: 'adjust lower bound',
@@ -76,7 +64,7 @@ describe('bindTimestampRange', () => {
         range: Range(1000n, 1000n + maxTransactionsTimestampRangeNs),
         order: ASC,
         expected: Range(1000n, 999n + maxTransactionsTimestampRangeNs),
-      }
+      },
     ];
     test.each(spec)('$name', async ({hasNext = true, expected, range, order = DESC}) => {
       const expectedWithNext = {range: expected};

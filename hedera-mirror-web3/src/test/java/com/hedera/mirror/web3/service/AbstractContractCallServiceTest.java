@@ -1,21 +1,9 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.web3.service;
 
+import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
+import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
@@ -211,15 +199,24 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected ContractExecutionParameters getContractExecutionParameters(
             final Bytes data, final Address receiver, final Address payerAddress, final long value) {
+        return getContractExecutionParameters(data, receiver, payerAddress, value, ETH_CALL);
+    }
+
+    protected ContractExecutionParameters getContractExecutionParameters(
+            final Bytes data,
+            final Address receiverAddress,
+            final Address senderAddress,
+            final long value,
+            final CallType callType) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
                 .callData(data)
-                .callType(CallType.ETH_CALL)
+                .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
-                .isEstimate(false)
+                .isEstimate(callType == ETH_ESTIMATE_GAS)
                 .isStatic(false)
-                .receiver(receiver)
-                .sender(new HederaEvmAccount(payerAddress))
+                .receiver(receiverAddress)
+                .sender(new HederaEvmAccount(senderAddress))
                 .value(value)
                 .build();
     }

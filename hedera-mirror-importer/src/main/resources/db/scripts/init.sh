@@ -1,4 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# SPDX-License-Identifier: Apache-2.0
+
 set -e
 
 export PGCONNECT_TIMEOUT="${PGCONNECT_TIMEOUT:-3}"

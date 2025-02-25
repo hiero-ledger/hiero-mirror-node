@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.restjava.controller;
 
@@ -51,6 +37,13 @@ class TopicControllerTest extends ControllerTest {
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
             var entity = domainBuilder.topicEntity().persist();
             domainBuilder
+                    .customFee()
+                    .customize(c -> c.entityId(entity.getId())
+                            .fractionalFees(null)
+                            .royaltyFees(null)
+                            .timestampRange(entity.getTimestampRange()))
+                    .persist();
+            domainBuilder
                     .topic()
                     .customize(t -> t.createdTimestamp(entity.getCreatedTimestamp())
                             .id(entity.getId())
@@ -64,6 +57,13 @@ class TopicControllerTest extends ControllerTest {
         void success(String id) {
             // Given
             var entity = domainBuilder.topicEntity().customize(e -> e.id(1000L)).persist();
+            var customFee = domainBuilder
+                    .customFee()
+                    .customize(c -> c.entityId(1000L)
+                            .fractionalFees(null)
+                            .royaltyFees(null)
+                            .timestampRange(entity.getTimestampRange()))
+                    .persist();
             var topic = domainBuilder
                     .topic()
                     .customize(t -> t.createdTimestamp(entity.getCreatedTimestamp())
@@ -75,7 +75,7 @@ class TopicControllerTest extends ControllerTest {
             var response = restClient.get().uri("", id).retrieve().toEntity(Topic.class);
 
             // Then
-            assertThat(response.getBody()).isNotNull().isEqualTo(topicMapper.map(entity, topic));
+            assertThat(response.getBody()).isNotNull().isEqualTo(topicMapper.map(customFee, entity, topic));
             // Based on application.yml response headers configuration
             assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
             assertThat(response.getHeaders().getCacheControl()).isEqualTo("public, max-age=5");

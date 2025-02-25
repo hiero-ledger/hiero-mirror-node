@@ -1,4 +1,6 @@
-{{- if .Values.stackgres.enabled -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.stackgres.enabled -}}
 apiVersion: stackgres.io/v1
 kind: SGPostgresConfig
 metadata:
