@@ -181,9 +181,9 @@ describe('getScheduleCacheControlHeader', () => {
     {
       name: 'Schedule has executed',
       input: {
-        executed_timestamp: utils.nowInNs() - 1_000_000_000n,
-        expiration_time: undefined,
-        consensus_timestamp: undefined,
+        executed_timestamp: '1234567890000000002',
+        expiration_time: '1234567890000000000',
+        consensus_timestamp: '1234567890000000001',
         deleted: false,
       },
       expected: LONGER_SCHEDULE_CACHE_CONTROL_HEADER,
@@ -191,9 +191,9 @@ describe('getScheduleCacheControlHeader', () => {
     {
       name: 'Schedule is deleted',
       input: {
-        executed_timestamp: undefined,
-        expiration_time: undefined,
-        consensus_timestamp: undefined,
+        executed_timestamp: '1234567890000000002',
+        expiration_time: '1234567890000000000',
+        consensus_timestamp: '1234567890000000001',
         deleted: true,
       },
       expected: LONGER_SCHEDULE_CACHE_CONTROL_HEADER,
@@ -201,9 +201,9 @@ describe('getScheduleCacheControlHeader', () => {
     {
       name: 'Schedule has auto-expired (no expiration_time, past 31 minutes since consensus_timestamp)',
       input: {
-        executed_timestamp: undefined,
-        expiration_time: undefined,
-        consensus_timestamp: utils.nowInNs() - constants.THIRTY_ONE_MINUTES * constants.ONE_BILLION - 1n,
+        executed_timestamp: '1234567890000000002',
+        expiration_time: '1234567890000000000',
+        consensus_timestamp: '1234567890000000001',
         deleted: false,
       },
       expected: LONGER_SCHEDULE_CACHE_CONTROL_HEADER,
@@ -211,9 +211,9 @@ describe('getScheduleCacheControlHeader', () => {
     {
       name: 'Schedule has not auto-expired',
       input: {
-        executed_timestamp: undefined,
-        expiration_time: undefined,
-        consensus_timestamp: utils.nowInNs(),
+        executed_timestamp: null,
+        expiration_time: null,
+        consensus_timestamp: utils.nowInNs() - constants.SIXTY_SECONDS * constants.ONE_BILLION - 1n,
         deleted: false,
       },
       expected: {},
@@ -221,9 +221,9 @@ describe('getScheduleCacheControlHeader', () => {
     {
       name: 'Schedule has expired (expiration_time set, past expiration_time + 60 seconds)',
       input: {
-        executed_timestamp: undefined,
-        expiration_time: utils.nowInNs() - constants.SIXTY_SECONDS * constants.ONE_BILLION - 1n,
-        consensus_timestamp: undefined,
+        executed_timestamp: '1234567890000000002',
+        expiration_time: '1234567890000000000',
+        consensus_timestamp: '1234567890000000001',
         deleted: false,
       },
       expected: LONGER_SCHEDULE_CACHE_CONTROL_HEADER,
@@ -231,9 +231,9 @@ describe('getScheduleCacheControlHeader', () => {
     {
       name: 'Schedule has not expired',
       input: {
-        executed_timestamp: undefined,
-        expiration_time: utils.nowInNs(),
-        consensus_timestamp: undefined,
+        executed_timestamp: null,
+        expiration_time: utils.nowInNs() + constants.SIXTY_SECONDS * constants.ONE_BILLION,
+        consensus_timestamp: '1234567890000000001',
         deleted: false,
       },
       expected: {},
@@ -241,8 +241,8 @@ describe('getScheduleCacheControlHeader', () => {
     {
       name: 'Schedule has neither executed nor expired',
       input: {
-        executed_timestamp: undefined,
-        expiration_time: undefined,
+        executed_timestamp: null,
+        expiration_time: utils.nowInNs() + constants.SIXTY_SECONDS * constants.ONE_BILLION,
         consensus_timestamp: utils.nowInNs(),
         deleted: false,
       },

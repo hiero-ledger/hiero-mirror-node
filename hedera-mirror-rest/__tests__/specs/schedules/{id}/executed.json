@@ -43,61 +43,32 @@
     "cache-control": "public, max-age=3600"
   },
   "responseJson": {
-    "schedules": [
-      {
-        "admin_key": null,
-        "consensus_timestamp": "1234567890.000000001",
-        "creator_account_id": "0.0.1024",
-        "deleted": false,
-        "expiration_time": null,
-        "executed_timestamp": "1234567895.000000000",
-        "memo": "Created per council decision dated 02/01/21",
-        "payer_account_id": "0.0.1024",
-        "schedule_id": "0.0.2000",
-        "signatures": [
-          {
-            "consensus_timestamp": "1234567890.000000001",
-            "public_key_prefix": "AQEB",
-            "signature": "AgIC",
-            "type": "ED25519"
-          },
-          {
-            "consensus_timestamp": "1234567890.000000010",
-            "public_key_prefix": "AwMD",
-            "signature": "BAQE",
-            "type": "ED25519"
-          }
-        ],
-        "transaction_body": "AQECAgMD",
-        "wait_for_expiry": false
-      },
-      {
-        "admin_key": null,
-        "consensus_timestamp": "1234567890.000000001",
-        "creator_account_id": "0.0.1024",
-        "deleted": false,
-        "expiration_time": "1234567890.000000001",
-        "executed_timestamp": "1234567895.000000000",
-        "memo": "Created per council decision dated 02/01/21",
-        "payer_account_id": "0.0.1024",
-        "schedule_id": "0.0.2000",
-        "signatures": [
-          {
-            "consensus_timestamp": "1234567890.000000001",
-            "public_key_prefix": "AQEB",
-            "signature": "AgIC",
-            "type": "ED25519"
-          },
-          {
-            "consensus_timestamp": "1234567890.000000010",
-            "public_key_prefix": "AwMD",
-            "signature": "BAQE",
-            "type": "ED25519"
-          }
-        ],
-        "transaction_body": "AQECAgMD",
-        "wait_for_expiry": false
-      }
-    ]
+    "schedules": {
+      "admin_key": null,
+      "consensus_timestamp": "1234567890.000000001",
+      "creator_account_id": "0.0.1024",
+      "deleted": false,
+      "expiration_time": "1234567890.000000001",
+      "executed_timestamp": "1234567895.000000000",
+      "memo": "Created per council decision dated 02/01/21",
+      "payer_account_id": "0.0.1024",
+      "schedule_id": "0.0.2000",
+      "signatures": [
+        {
+          "consensus_timestamp": "1234567890.000000001",
+          "public_key_prefix": "AQEB",
+          "signature": "AgIC",
+          "type": "ED25519"
+        },
+        {
+          "consensus_timestamp": "1234567890.000000010",
+          "public_key_prefix": "AwMD",
+          "signature": "BAQE",
+          "type": "ED25519"
+        }
+      ],
+      "transaction_body": "AQECAgMD",
+      "wait_for_expiry": false
+    }
   }
 }
