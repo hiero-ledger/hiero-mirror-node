@@ -32,7 +32,7 @@ config: {}
 
 # Environment variables to add to the container. The value can either be a string or an EnvVarSource. Evaluated as a template.
 env:
-  HEDERA_MIRROR_ROSETTA_API_CONFIG: "/usr/etc/hedera/"
+  HEDERA_MIRROR_ROSETTA_API_CONFIG: "/usr/etc/hedera/application.yml"
   # FOO:
   #   valueFrom:
   #     secretKeyRef:

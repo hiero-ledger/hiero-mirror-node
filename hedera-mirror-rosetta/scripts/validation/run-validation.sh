@@ -1,6 +1,7 @@
+#!/usr/bin/env bash
+
 # SPDX-License-Identifier: Apache-2.0
 
-#!/bin/bash
 set -euo pipefail
 
 ROSETTA_CLI_VERSION=${ROSETTA_CLI_VERSION:-}
