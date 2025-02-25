@@ -420,9 +420,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         Nft nft = domainBuilder
                 .nft()
-                .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(1L)
-                        .accountId(mirrorNodeEvmProperties.isModularizedServices() ? null : treasury.toEntityId()))
+                .customize(n -> n.tokenId(tokenEntity.getId()).serialNumber(1L).accountId(treasury.toEntityId()))
                 .persist();
 
         domainBuilder

@@ -89,11 +89,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
             fungibleTokenPersist(tokenEntity, treasuryAccount);
         } else {
             var token = nonFungibleTokenPersist(tokenEntity, treasuryAccount);
-            nonFungibleTokenInstancePersist(
-                    token,
-                    1L,
-                    mirrorNodeEvmProperties.isModularizedServices() ? null : treasuryAccount.toEntityId(),
-                    treasuryAccount.toEntityId());
+            nonFungibleTokenInstancePersist(token, 1L, treasuryAccount.toEntityId(), treasuryAccount.toEntityId());
         }
 
         final var contract = testWeb3jService.deploy(DynamicEthCalls::deploy);
@@ -165,8 +161,9 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     /**
-     * The test calls HederaTokenService.freezeToken(token, account) precompiled system contract to
-     * freeze a given fungible/non-fungible token for a given account.
+     * The test calls HederaTokenService.freezeToken(token, account) precompiled system contract to freeze a given
+     * fungible/non-fungible token for a given account.
+     *
      * @param tokenType
      */
     @ParameterizedTest

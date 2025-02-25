@@ -27,6 +27,173 @@ import org.junit.jupiter.params.provider.ValueSource;
 class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServiceHistoricalTest {
     private Range<Long> historicalRange;
 
+    @ParameterizedTest
+    @ValueSource(longs = {51, Long.MAX_VALUE - 1})
+    void ercReadOnlyPrecompileHistoricalNotExistingBlockTest(final long blockNumber) {
+        // When
+        testWeb3jService.setUseContractCallDeploy(true);
+        testWeb3jService.setBlockType(BlockType.of(String.valueOf(blockNumber)));
+        // Then
+        assertThatThrownBy(() -> testWeb3jService.deploy(ERCTestContractHistorical::deploy))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining(UNKNOWN_BLOCK_NUMBER);
+    }
+
+    private Range<Long> setUpHistoricalContextAfterEvm34() {
+        final var recordFile = domainBuilder
+                .recordFile()
+                .customize(f -> f.index(EVM_V_34_BLOCK))
+                .persist();
+        testWeb3jService.setBlockType(BlockType.of(String.valueOf(EVM_V_34_BLOCK)));
+        final var rangeAfterEvm34 = Range.closedOpen(recordFile.getConsensusStart(), recordFile.getConsensusEnd());
+        testWeb3jService.setHistoricalRange(rangeAfterEvm34);
+        return rangeAfterEvm34;
+    }
+
+    private Range<Long> setUpHistoricalContextBeforeEvm34() {
+        final var recordFileBeforeEvm34 = domainBuilder
+                .recordFile()
+                .customize(f -> f.index(EVM_V_34_BLOCK - 1))
+                .persist();
+        final var recordFileAfterEvm34 = domainBuilder
+                .recordFile()
+                .customize(f -> f.index(EVM_V_34_BLOCK))
+                .persist();
+        final var rangeAfterEvm34 =
+                Range.closedOpen(recordFileAfterEvm34.getConsensusStart(), recordFileAfterEvm34.getConsensusEnd());
+        testWeb3jService.setBlockType(BlockType.of(String.valueOf(EVM_V_34_BLOCK - 1)));
+        testWeb3jService.setHistoricalRange(
+                Range.closedOpen(recordFileBeforeEvm34.getConsensusStart(), recordFileBeforeEvm34.getConsensusEnd()));
+        return rangeAfterEvm34;
+    }
+
+    private void balancePersistHistorical(final Address tokenAddress, Address senderAddress, Long balance) {
+        final var tokenEntityId = entityIdFromEvmAddress(tokenAddress);
+        final var accountId = entityIdFromEvmAddress(senderAddress);
+        final var tokenId = entityIdFromEvmAddress(tokenAddress);
+        domainBuilder
+                .tokenBalance()
+                .customize(tb -> tb.id(new TokenBalance.Id(treasuryEntity.getCreatedTimestamp(), accountId, tokenId))
+                        .balance(balance))
+                .persist();
+        domainBuilder
+                .tokenBalance()
+                // Expected total supply is 12345
+                .customize(tb -> tb.balance(12345L - balance)
+                        .id(new TokenBalance.Id(
+                                treasuryEntity.getCreatedTimestamp(), domainBuilder.entityId(), tokenEntityId)))
+                .persist();
+    }
+
+    private Entity nftPersistHistorical(final EntityId treasury) {
+        return nftPersistHistorical(treasury, treasury);
+    }
+
+    private Entity nftPersistHistorical(final EntityId treasury, final EntityId owner) {
+        return nftPersistHistorical(treasury, owner, owner);
+    }
+
+    private Entity nftPersistHistorical(final EntityId treasury, final EntityId owner, final EntityId spender) {
+        return nftPersistHistorical(treasury, owner, spender, domainBuilder.key());
+    }
+
+    private Entity nftPersistHistorical(
+            final EntityId treasury, final EntityId owner, final EntityId spender, final byte[] kycKey) {
+        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
+        domainBuilder
+                .tokenHistory()
+                .customize(t -> t.tokenId(tokenEntity.getId())
+                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
+                        .treasuryAccountId(treasury)
+                        .timestampRange(historicalRange)
+                        .kycKey(kycKey))
+                .persist();
+        domainBuilder
+                .nftHistory()
+                .customize(n -> n.tokenId(tokenEntity.getId())
+                        .serialNumber(1L)
+                        .spender(spender)
+                        .accountId(owner)
+                        .timestampRange(historicalRange))
+                .persist();
+        return tokenEntity;
+    }
+
+    private void nftPersistHistoricalWithMetadata(final Entity tokenEntity, final Entity owner, final String metadata) {
+        domainBuilder
+                .tokenHistory()
+                .customize(t -> t.tokenId(tokenEntity.getId())
+                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
+                        .treasuryAccountId(owner.toEntityId())
+                        .timestampRange(historicalRange))
+                .persist();
+        domainBuilder
+                .nftHistory()
+                .customize(n -> n.tokenId(tokenEntity.getId())
+                        .serialNumber(1L)
+                        .accountId(owner.toEntityId())
+                        .metadata(metadata.getBytes())
+                        .timestampRange(historicalRange))
+                .persist();
+    }
+
+    private void invalidFungibleTokenPersist(final Entity tokenEntity, final int decimals) {
+        domainBuilder
+                .tokenHistory()
+                .customize(t -> t.tokenId(tokenEntity.getId())
+                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
+                        .decimals(decimals)
+                        .timestampRange(historicalRange)
+                        .createdTimestamp(historicalRange.lowerEndpoint()))
+                .persist();
+    }
+
+    private void fungibleTokenPersistHistoricalWithTotalSupply(final Entity tokenEntity, final long totalSupply) {
+        domainBuilder
+                .tokenHistory()
+                .customize(t -> t.tokenId(tokenEntity.getId())
+                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
+                        .totalSupply(totalSupply)
+                        .timestampRange(historicalRange)
+                        .createdTimestamp(historicalRange.lowerEndpoint()))
+                .persist();
+    }
+
+    private void fungibleTokenPersistHistoricalWithSymbol(final Entity tokenEntity, final String symbol) {
+        domainBuilder
+                .tokenHistory()
+                .customize(t -> t.tokenId(tokenEntity.getId())
+                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
+                        .symbol(symbol)
+                        .timestampRange(historicalRange)
+                        .createdTimestamp(historicalRange.lowerEndpoint()))
+                .persist();
+    }
+
+    private void fungibleTokenPersistHistoricalWithName(final Entity tokenEntity, final String name) {
+        domainBuilder
+                .tokenHistory()
+                .customize(t -> t.tokenId(tokenEntity.getId())
+                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
+                        .name(name)
+                        .timestampRange(historicalRange)
+                        .createdTimestamp(historicalRange.lowerEndpoint()))
+                .persist();
+    }
+
+    private void fungibleTokenAllowancePersistHistorical(
+            final Entity token, final Entity owner, final Entity spender, final long amountGranted) {
+        domainBuilder
+                .tokenAllowance()
+                .customize(a -> a.tokenId(token.getId())
+                        .owner(owner.getNum())
+                        .spender(spender.getNum())
+                        .amount(amountGranted)
+                        .amountGranted(amountGranted)
+                        .timestampRange(historicalRange))
+                .persist();
+    }
+
     @Nested
     class BeforeEvm34Tests {
         @BeforeEach
@@ -561,7 +728,7 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
         @ValueSource(booleans = {true, false})
         void ownerOf(final boolean isStatic) throws Exception {
             // Given
-            final var owner = accountEntityPersistWithEvmAddressHistorical(historicalRange);
+            final var owner = accountEntityPersistHistorical(historicalRange);
             final var nftToken = nftPersistHistorical(owner.toEntityId());
             tokenAccountFrozenRelationshipPersistHistorical(nftToken, owner, historicalRange);
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
@@ -572,7 +739,7 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
                     : contract.call_getOwnerOfNonStatic(getAddressFromEntity(nftToken), BigInteger.valueOf(1L))
                             .send();
             // Then
-            assertThat(result).isEqualTo(getAliasFromEntity(owner));
+            assertThat(result).isEqualTo(getAddressFromEntity(owner));
         }
 
         @ParameterizedTest
@@ -612,172 +779,5 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
             // Then
             assertThat(result).isEqualTo(metadata);
         }
-    }
-
-    @ParameterizedTest
-    @ValueSource(longs = {51, Long.MAX_VALUE - 1})
-    void ercReadOnlyPrecompileHistoricalNotExistingBlockTest(final long blockNumber) {
-        // When
-        testWeb3jService.setUseContractCallDeploy(true);
-        testWeb3jService.setBlockType(BlockType.of(String.valueOf(blockNumber)));
-        // Then
-        assertThatThrownBy(() -> testWeb3jService.deploy(ERCTestContractHistorical::deploy))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining(UNKNOWN_BLOCK_NUMBER);
-    }
-
-    private Range<Long> setUpHistoricalContextAfterEvm34() {
-        final var recordFile = domainBuilder
-                .recordFile()
-                .customize(f -> f.index(EVM_V_34_BLOCK))
-                .persist();
-        testWeb3jService.setBlockType(BlockType.of(String.valueOf(EVM_V_34_BLOCK)));
-        final var rangeAfterEvm34 = Range.closedOpen(recordFile.getConsensusStart(), recordFile.getConsensusEnd());
-        testWeb3jService.setHistoricalRange(rangeAfterEvm34);
-        return rangeAfterEvm34;
-    }
-
-    private Range<Long> setUpHistoricalContextBeforeEvm34() {
-        final var recordFileBeforeEvm34 = domainBuilder
-                .recordFile()
-                .customize(f -> f.index(EVM_V_34_BLOCK - 1))
-                .persist();
-        final var recordFileAfterEvm34 = domainBuilder
-                .recordFile()
-                .customize(f -> f.index(EVM_V_34_BLOCK))
-                .persist();
-        final var rangeAfterEvm34 =
-                Range.closedOpen(recordFileAfterEvm34.getConsensusStart(), recordFileAfterEvm34.getConsensusEnd());
-        testWeb3jService.setBlockType(BlockType.of(String.valueOf(EVM_V_34_BLOCK - 1)));
-        testWeb3jService.setHistoricalRange(
-                Range.closedOpen(recordFileBeforeEvm34.getConsensusStart(), recordFileBeforeEvm34.getConsensusEnd()));
-        return rangeAfterEvm34;
-    }
-
-    private void balancePersistHistorical(final Address tokenAddress, Address senderAddress, Long balance) {
-        final var tokenEntityId = entityIdFromEvmAddress(tokenAddress);
-        final var accountId = entityIdFromEvmAddress(senderAddress);
-        final var tokenId = entityIdFromEvmAddress(tokenAddress);
-        domainBuilder
-                .tokenBalance()
-                .customize(tb -> tb.id(new TokenBalance.Id(treasuryEntity.getCreatedTimestamp(), accountId, tokenId))
-                        .balance(balance))
-                .persist();
-        domainBuilder
-                .tokenBalance()
-                // Expected total supply is 12345
-                .customize(tb -> tb.balance(12345L - balance)
-                        .id(new TokenBalance.Id(
-                                treasuryEntity.getCreatedTimestamp(), domainBuilder.entityId(), tokenEntityId)))
-                .persist();
-    }
-
-    private Entity nftPersistHistorical(final EntityId treasury) {
-        return nftPersistHistorical(treasury, treasury);
-    }
-
-    private Entity nftPersistHistorical(final EntityId treasury, final EntityId owner) {
-        return nftPersistHistorical(treasury, owner, owner);
-    }
-
-    private Entity nftPersistHistorical(final EntityId treasury, final EntityId owner, final EntityId spender) {
-        return nftPersistHistorical(treasury, owner, spender, domainBuilder.key());
-    }
-
-    private Entity nftPersistHistorical(
-            final EntityId treasury, final EntityId owner, final EntityId spender, final byte[] kycKey) {
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        domainBuilder
-                .tokenHistory()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                        .treasuryAccountId(treasury)
-                        .timestampRange(historicalRange)
-                        .kycKey(kycKey))
-                .persist();
-        domainBuilder
-                .nftHistory()
-                .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(1L)
-                        .spender(spender)
-                        .accountId(owner)
-                        .timestampRange(historicalRange))
-                .persist();
-        return tokenEntity;
-    }
-
-    private void nftPersistHistoricalWithMetadata(final Entity tokenEntity, final Entity owner, final String metadata) {
-        domainBuilder
-                .tokenHistory()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                        .treasuryAccountId(owner.toEntityId())
-                        .timestampRange(historicalRange))
-                .persist();
-        domainBuilder
-                .nftHistory()
-                .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(1L)
-                        .accountId(owner.toEntityId())
-                        .metadata(metadata.getBytes())
-                        .timestampRange(historicalRange))
-                .persist();
-    }
-
-    private void invalidFungibleTokenPersist(final Entity tokenEntity, final int decimals) {
-        domainBuilder
-                .tokenHistory()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .decimals(decimals)
-                        .timestampRange(historicalRange)
-                        .createdTimestamp(historicalRange.lowerEndpoint()))
-                .persist();
-    }
-
-    private void fungibleTokenPersistHistoricalWithTotalSupply(final Entity tokenEntity, final long totalSupply) {
-        domainBuilder
-                .tokenHistory()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .totalSupply(totalSupply)
-                        .timestampRange(historicalRange)
-                        .createdTimestamp(historicalRange.lowerEndpoint()))
-                .persist();
-    }
-
-    private void fungibleTokenPersistHistoricalWithSymbol(final Entity tokenEntity, final String symbol) {
-        domainBuilder
-                .tokenHistory()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .symbol(symbol)
-                        .timestampRange(historicalRange)
-                        .createdTimestamp(historicalRange.lowerEndpoint()))
-                .persist();
-    }
-
-    private void fungibleTokenPersistHistoricalWithName(final Entity tokenEntity, final String name) {
-        domainBuilder
-                .tokenHistory()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .name(name)
-                        .timestampRange(historicalRange)
-                        .createdTimestamp(historicalRange.lowerEndpoint()))
-                .persist();
-    }
-
-    private void fungibleTokenAllowancePersistHistorical(
-            final Entity token, final Entity owner, final Entity spender, final long amountGranted) {
-        domainBuilder
-                .tokenAllowance()
-                .customize(a -> a.tokenId(token.getId())
-                        .owner(owner.getNum())
-                        .spender(spender.getNum())
-                        .amount(amountGranted)
-                        .amountGranted(amountGranted)
-                        .timestampRange(historicalRange))
-                .persist();
     }
 }

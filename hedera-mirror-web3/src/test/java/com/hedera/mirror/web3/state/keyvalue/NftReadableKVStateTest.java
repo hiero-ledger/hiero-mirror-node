@@ -14,8 +14,10 @@ import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.token.Nft;
+import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.repository.NftRepository;
+import com.hedera.mirror.web3.repository.TokenRepository;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import java.util.Collections;
@@ -38,6 +40,7 @@ class NftReadableKVStateTest {
             TokenID.newBuilder().shardNum(0L).realmNum(0L).tokenNum(1252L).build();
     private static final Optional<Long> timestamp = Optional.of(1726231985623004672L);
     private static final EntityId spender = EntityId.of(1L, 2L, 3L);
+    private static final EntityId treasury = EntityId.of(1L, 2L, 4L);
     private static final NftID NFT_ID = new NftID(TOKEN_ID, 1L);
     private static MockedStatic<ContractCallContext> contextMockedStatic;
 
@@ -46,6 +49,9 @@ class NftReadableKVStateTest {
 
     @Mock
     private NftRepository nftRepository;
+
+    @Mock
+    private TokenRepository tokenRepository;
 
     private DomainBuilder domainBuilder;
     private Entity entity;
@@ -179,11 +185,19 @@ class NftReadableKVStateTest {
                         .spender(spender))
                 .get();
 
+        Token databaseToken = domainBuilder
+                .token()
+                .customize(t -> t.tokenId(entity.getId()).treasuryAccountId(treasury))
+                .get();
+
         if (timestamp.isPresent()) {
             databaseNft.setCreatedTimestamp(timestamp.get());
+            when(tokenRepository.findByTokenIdAndTimestamp(entity.getId(), timestamp.get()))
+                    .thenReturn(Optional.of(databaseToken));
             when(nftRepository.findActiveByIdAndTimestamp(entity.getId(), NFT_ID.serialNumber(), timestamp.get()))
                     .thenReturn(Optional.of(databaseNft));
         } else {
+            when(tokenRepository.findById(entity.getId())).thenReturn(Optional.of(databaseToken));
             when(nftRepository.findActiveById(entity.getId(), NFT_ID.serialNumber()))
                     .thenReturn(Optional.ofNullable(databaseNft));
         }
@@ -196,11 +210,19 @@ class NftReadableKVStateTest {
                 .customize(t -> t.tokenId(entity.getId()).serialNumber(NFT_ID.serialNumber()))
                 .get();
 
+        Token databaseToken = domainBuilder
+                .token()
+                .customize(t -> t.tokenId(entity.getId()).treasuryAccountId(treasury))
+                .get();
+
         if (timestamp.isPresent()) {
+            when(tokenRepository.findByTokenIdAndTimestamp(entity.getId(), timestamp.get()))
+                    .thenReturn(Optional.of(databaseToken));
             databaseNft.setCreatedTimestamp(timestamp.get());
             when(nftRepository.findActiveByIdAndTimestamp(entity.getId(), NFT_ID.serialNumber(), timestamp.get()))
                     .thenReturn(Optional.of(databaseNft));
         } else {
+            when(tokenRepository.findById(entity.getId())).thenReturn(Optional.of(databaseToken));
             when(nftRepository.findActiveById(entity.getId(), NFT_ID.serialNumber()))
                     .thenReturn(Optional.ofNullable(databaseNft));
         }
