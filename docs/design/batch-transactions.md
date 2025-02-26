@@ -56,17 +56,18 @@ public class Transaction {
     @JdbcTypeCode(SqlTypes.JSON)
     private List<InnerTransaction> innerTransactions;
 
-    public void addInnerTransaction(Transaction innerTransaction) {
-        if (innerTransaction.getNonce() != 0) {
-            return;
-        }
-
+    public void addInnerTransaction(Transaction transaction) {
         if (innerTransactions == null) {
             innerTransactions = new ArrayList<>();
         }
 
-        innerTransactions.add(innerTransaction);
+        innerTransactions.add(transaction.toInnerTransaction());
     }
+    
+    private InnerTransaction toInnerTransaction() {
+        return new InnerTransaction(payerAccountId, validStartNs);
+    }
+
 }
 ```
 
@@ -75,7 +76,9 @@ Update
 ```java
 public class EntityRecordItemListener implements RecordItemListener {
     private Transaction buildTransaction(EntityId entityId, RecordItem recordItem) {
-        transaction.setBatchKey(body.getBatchKey());
+        if (body.hasBatchKey()) {
+          transaction.setBatchKey(body.getBatchKey());
+        }
     }
 }
 ```
@@ -90,16 +93,12 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
         if (transaction.getBatchKey() != null && transaction.getNonce() == 0) {
             Transaction batchParent = context.get(Transaction.class, transaction.getParentConsensus());
-
-            while (batchParent != null && batchParent.getType() != TransactionType.BATCH) {
-                batchParent = context.get(Transaction.class, batchParent.getParentConsensus());
-            }
-
+            
             if (batchParent == null) {
                 throw new ImporterException("Batch parent not found for transaction: " + transaction.getConsensusTimestamp());
             }
 
-            batchParent.addInnerTransaction(new InnerTransaction(transaction.getPayerAccountId(), transaction.getValidStartNs()));
+            batchParent.addInnerTransaction(transaction);
         }
         // ...continue with current logic
     }
