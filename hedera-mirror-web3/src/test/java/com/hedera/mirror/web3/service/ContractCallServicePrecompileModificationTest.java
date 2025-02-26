@@ -127,10 +127,8 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var owner = accountEntityPersist();
         final var spender = accountEntityPersist();
 
-        final var tokenEntity = tokenEntityPersist();
-        final var tokenId = tokenEntity.getId();
-
-        var token = nonFungibleTokenPersist(tokenEntity);
+        var token = nonFungibleTokenPersist();
+        final var tokenId = token.getTokenId();
 
         tokenAccountPersist(tokenId, owner.getId());
         tokenAccountPersist(tokenId, spender.getId());
@@ -145,9 +143,9 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         // When
         final var functionCall = contract.call_approveNFTExternal(
-                getAddressFromEntity(tokenEntity),
+                toAddress(tokenId).toHexString(),
                 approve ? getAddressFromEntity(spender) : Address.ZERO.toHexString(),
-                BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
+                DEFAULT_SERIAL_NUMBER);
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -1113,7 +1111,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                         toAddress(tokenId).toHexString(),
                         getAliasFromEntity(sender),
                         getAliasFromEntity(receiver),
-                        BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
+                        DEFAULT_SERIAL_NUMBER)
                 : contract.call_transferNFTsExternal(
                         toAddress(tokenId).toHexString(),
                         List.of(getAliasFromEntity(sender)),
@@ -1157,7 +1155,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 toAddress(tokenId).toHexString(),
                 getAliasFromEntity(sender),
                 getAliasFromEntity(receiver),
-                BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
+                DEFAULT_SERIAL_NUMBER);
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -1312,10 +1310,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 toAddress(tokenId).toHexString(),
                 new ArrayList<>(),
                 List.of(new NftTransfer(
-                        getAliasFromEntity(sender),
-                        getAliasFromEntity(receiver),
-                        BigInteger.valueOf(DEFAULT_SERIAL_NUMBER),
-                        false)));
+                        getAliasFromEntity(sender), getAliasFromEntity(receiver), DEFAULT_SERIAL_NUMBER, false)));
 
         final var functionCall =
                 contract.call_cryptoTransferExternal(new TransferList(new ArrayList<>()), List.of(tokenTransferList));

@@ -161,8 +161,8 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                             """)
     void updateTokenKeysAndGetUpdatedTokenKeyForNFT(final KeyValueType keyValueType, final KeyType keyType) {
         // Given
-        final var treasuryEntity = accountEntityPersist();
-        final var token = nftPersist(treasuryEntity.toEntityId());
+        final var treasuryEntityId = accountEntityPersist().toEntityId();
+        final var token = nftPersist(treasuryEntityId, treasuryEntityId, treasuryEntityId);
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var contractAddress = contract.getContractAddress();
 

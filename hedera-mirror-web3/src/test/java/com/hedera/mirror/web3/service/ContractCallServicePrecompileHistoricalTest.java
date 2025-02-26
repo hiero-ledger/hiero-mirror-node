@@ -313,7 +313,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         domainBuilder
                 .nft()
                 .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(DEFAULT_SERIAL_NUMBER)
+                        .serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
                         .timestampRange(historicalRange))
                 .persist();
 
@@ -506,7 +506,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         domainBuilder
                 .nft()
                 .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(DEFAULT_SERIAL_NUMBER)
+                        .serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
                         .timestampRange(historicalRange)
                         .spender(approvedAccount.toEntityId()))
                 .persist();
@@ -514,8 +514,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
-        final var functionCall = contract.call_htsGetApproved(
-                getAddressFromEntity(tokenEntity), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
+        final var functionCall = contract.call_htsGetApproved(getAddressFromEntity(tokenEntity), DEFAULT_SERIAL_NUMBER);
         final var result = functionCall.send();
 
         // Then
@@ -652,7 +651,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var nft = domainBuilder
                 .nft()
                 .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(DEFAULT_SERIAL_NUMBER)
+                        .serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
                         .accountId(owner.toEntityId())
                         .timestampRange(historicalRange)
                         .createdTimestamp(historicalRange.lowerEndpoint()))
@@ -665,7 +664,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
 
         // When
         final var result = contract.call_getInformationForNonFungibleToken(
-                        getAddressFromEntity(tokenEntity), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER))
+                        getAddressFromEntity(tokenEntity), DEFAULT_SERIAL_NUMBER)
                 .send();
 
         final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury);
@@ -758,7 +757,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         domainBuilder
                 .nft()
                 .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(DEFAULT_SERIAL_NUMBER)
+                        .serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
                         .timestampRange(historicalRange)
                         .createdTimestamp(historicalRange.lowerEndpoint()))
                 .persist();

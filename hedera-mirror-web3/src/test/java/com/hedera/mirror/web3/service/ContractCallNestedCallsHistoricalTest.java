@@ -81,8 +81,7 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
         final var contract = testWeb3jService.deploy(NestedCallsHistorical::deploy);
 
         // When
-        final var function = contract.call_nestedHtsGetApproved(
-                getAddressFromEntity(nft), BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
+        final var function = contract.call_nestedHtsGetApproved(getAddressFromEntity(nft), DEFAULT_SERIAL_NUMBER);
         final var result = function.send();
 
         // Then

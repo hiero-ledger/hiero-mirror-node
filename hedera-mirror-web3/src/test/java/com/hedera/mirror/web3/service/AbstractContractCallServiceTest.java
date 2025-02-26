@@ -63,10 +63,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final String TREASURY_ADDRESS = EvmTokenUtils.toAddress(2).toHexString();
     protected static final long DEFAULT_ACCOUNT_BALANCE = 100_000_000_000_000_000L;
     protected static final long DEFAULT_TOKEN_BALANCE = 100;
-    protected static final long DEFAULT_SERIAL_NUMBER = 1;
-    protected static final List<BigInteger> DEFAULT_SERIAL_NUMBERS_LIST =
-            List.of(BigInteger.valueOf(DEFAULT_SERIAL_NUMBER));
-    protected static final long INVALID_SERIAL_NUMBER = Long.MAX_VALUE;
+    protected static final BigInteger DEFAULT_SERIAL_NUMBER = BigInteger.ONE;
+    protected static final List<BigInteger> DEFAULT_SERIAL_NUMBERS_LIST = List.of(DEFAULT_SERIAL_NUMBER);
+    protected static final BigInteger INVALID_SERIAL_NUMBER = BigInteger.valueOf(Long.MAX_VALUE);
     protected static final int DEFAULT_DECIMALS = 12;
 
     protected static final long DEFAULT_AMOUNT_GRANTED = 10L;
@@ -303,14 +302,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * Persists non-fungible token in the token db table.
      *
      * @param tokenEntity The entity from the entity db table related to the token
+     * @param treasuryAccount - The treasury account to be set in the token
      */
-    protected Token nonFungibleTokenPersist(final Entity tokenEntity) {
-        return domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId()).type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE))
-                .persist();
-    }
-
     protected Token nonFungibleTokenPersist(final Entity tokenEntity, final Entity treasuryAccount) {
         return domainBuilder
                 .token()
@@ -357,42 +350,17 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return domainBuilder
                 .nft()
                 .customize(n -> {
-                    n.serialNumber(DEFAULT_SERIAL_NUMBER);
+                    n.serialNumber(DEFAULT_SERIAL_NUMBER.longValue());
                     customizer.accept(n);
                 })
                 .persist();
     }
 
-    /**
-     * Persists an NFT for a treasury account with self-spender.
-     */
-    protected void nftPersistWithSpender(final long tokenId, final EntityId accountId, final EntityId spender) {
-        nftPersistCustomizable(n -> n.accountId(accountId).tokenId(tokenId).spender(spender));
-    }
-
-    protected Token nftPersist(final EntityId treasuryEntityId) {
-        return nftPersist(treasuryEntityId, treasuryEntityId);
-    }
-
-    protected Token nftPersist(final EntityId treasuryEntityId, final EntityId ownerEntityId) {
-        return nftPersist(treasuryEntityId, ownerEntityId, ownerEntityId);
-    }
-
-    protected Token nftPersist(final EntityId treasuryEntityId, final EntityId ownerEntityId, final EntityId spender) {
-        final var token = nonFungibleTokenPersistWithTreasury(treasuryEntityId);
-        nftPersistWithSpender(token.getTokenId(), ownerEntityId, spender);
-        return token;
-    }
-
-    protected Token nftPersistWithSpenderAndTreasury(final EntityId ownerEntityId, final EntityId spender) {
-        final var treasury = accountEntityPersist().toEntityId();
+    protected Token nftPersist(final EntityId treasury, final EntityId accountId, final EntityId spender) {
         final var token = nonFungibleTokenPersistWithTreasury(treasury);
-        nftPersistWithSpender(token.getTokenId(), ownerEntityId, spender);
+        nftPersistCustomizable(
+                n -> n.accountId(accountId).tokenId(token.getTokenId()).spender(spender));
         return token;
-    }
-
-    protected Token nftPersistWithSelfSpenderAndTreasury(final EntityId ownerEntityId) {
-        return nftPersistWithSpenderAndTreasury(ownerEntityId, ownerEntityId);
     }
 
     protected TokenAllowance tokenAllowancePersistCustomizable(
@@ -536,7 +504,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                     .customize(n -> n.accountId(treasuryAccount.toEntityId())
                             .spender(treasuryAccount.toEntityId())
                             .tokenId(tokenToUpdateEntity.getId())
-                            .serialNumber(DEFAULT_SERIAL_NUMBER))
+                            .serialNumber(DEFAULT_SERIAL_NUMBER.longValue()))
                     .persist();
 
             tokenAccount(ta -> ta.tokenId(tokenToUpdateEntity.getId())

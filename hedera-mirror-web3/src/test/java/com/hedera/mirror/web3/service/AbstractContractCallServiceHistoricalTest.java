@@ -168,7 +168,7 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
         domainBuilder
                 .nftHistory()
                 .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(DEFAULT_SERIAL_NUMBER)
+                        .serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
                         .timestampRange(timestampRange))
                 .persist();
 
