@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-{{- if and .Values.global.gateway.enabled .Values.global.gateway.http.enabled -}}
+{{ if and .Values.global.gateway.enabled .Values.global.gateway.http.enabled -}}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:

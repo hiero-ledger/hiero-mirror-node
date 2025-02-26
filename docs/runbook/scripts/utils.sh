@@ -1,6 +1,7 @@
+#!/usr/bin/env bash
+
 # SPDX-License-Identifier: Apache-2.0
 
-#!/usr/bin/env bash
 set -euo pipefail
 shopt -s expand_aliases
 

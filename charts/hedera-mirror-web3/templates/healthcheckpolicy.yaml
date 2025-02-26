@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-{{- if and .Values.global.gateway.enabled .Values.gateway.gcp.enabled (not (empty .Values.gateway.gcp.healthCheckPolicy)) -}}
+{{ if and .Values.global.gateway.enabled .Values.gateway.gcp.enabled (not (empty .Values.gateway.gcp.healthCheckPolicy)) -}}
 apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-{{- if .Values.test.enabled -}}
+{{ if .Values.test.enabled -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:

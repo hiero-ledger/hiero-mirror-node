@@ -8,12 +8,12 @@ import path from 'path';
 import config from '../config';
 import {getModuleDirname, isV2Schema} from './testutils';
 import {getPoolClass} from '../utils';
-import {getContainerRuntimeClient} from 'testcontainers';
 import {PostgreSqlContainer} from '@testcontainers/postgresql';
 
 const {db: defaultDbConfig} = config;
 const Pool = getPoolClass();
 
+const containers = new Map();
 const dbName = 'mirror_node';
 const ownerUser = 'mirror_node';
 const ownerPassword = 'mirror_node_pass';
@@ -60,50 +60,43 @@ const createDbContainer = async () => {
     target: '/docker-entrypoint-initdb.d/init.sql',
   };
 
-  const dockerDb = await new PostgreSqlContainer(image)
+  const container = await new PostgreSqlContainer(image)
     .withCopyFilesToContainer([initSqlCopy])
     .withDatabase(dbName)
-    .withLabels({
-      // used to differentiate between containers so that Jest workers can reuse their existing container
-      workerId: workerId,
-    })
     .withPassword(ownerPassword)
     .withUsername(ownerUser)
     .start();
   logger.info(`Started PostgreSQL container for jest worker ${workerId} with image ${image}`);
 
-  return dockerDb.getPort();
+  await flywayMigrate(container);
+  return container;
 };
 
 /**
  * Gets the port of the container in use by the Jest worker. If the container does not exist, a new container is created
  *
- * @returns {Promise<number|string>}
+ * @returns {Promise<PostgreSqlContainer>}
  */
-const getContainerPort = async () => {
-  const client = await getContainerRuntimeClient();
-  const container = await client.container.fetchByLabel('workerId', workerId);
-  let containerPort;
-  if (container) {
-    const inspectInfo = await client.container.inspect(container);
-    containerPort = inspectInfo.NetworkSettings.Ports['5432/tcp'][0].HostPort;
-  } else {
-    containerPort = await createDbContainer();
-    await flywayMigrate(containerPort);
+const getDbContainer = async () => {
+  let container = containers.get(workerId);
+
+  if (!container) {
+    container = await createDbContainer();
+    containers.set(workerId, container);
   }
 
-  return containerPort;
+  return container;
 };
 
 const createPool = async () => {
-  const containerPort = await getContainerPort();
+  const container = await getDbContainer();
   const dbConnectionParams = {
-    database: dbName,
-    host: '0.0.0.0',
-    password: ownerPassword,
-    port: containerPort,
+    database: container.getDatabase(),
+    host: container.getHost(),
+    password: container.getPassword(),
+    port: container.getPort(),
     sslmode: 'DISABLE',
-    user: ownerUser,
+    user: container.getUsername(),
   };
 
   global.ownerPool = new Pool(dbConnectionParams);
@@ -118,9 +111,10 @@ const createPool = async () => {
 /**
  * Run the SQL (non-java) based migrations stored in the Importer project against the target database.
  */
-const flywayMigrate = async (containerPort) => {
+const flywayMigrate = async (container) => {
+  const containerPort = container.getPort();
   logger.info(`Using flyway CLI to construct schema for jest worker ${workerId} on port ${containerPort}`);
-  const jdbcUrl = `jdbc:postgresql://0.0.0.0:${containerPort}/${dbName}`;
+  const jdbcUrl = `jdbc:postgresql://${container.getHost()}:${containerPort}/${dbName}`;
   const exePath = path.join('.', 'node_modules', 'node-flywaydb', 'bin', 'flyway');
   const flywayDataPath = path.join('.', 'build', `${workerId}`, 'flyway');
   const flywayConfigPath = path.join(os.tmpdir(), `config_worker_${workerId}.json`); // store configs in temp dir
