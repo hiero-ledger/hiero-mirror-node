@@ -63,7 +63,7 @@ public class Transaction {
 
         innerTransactions.add(transaction.toInnerTransaction());
     }
-    
+
     private InnerTransaction toInnerTransaction() {
         return new InnerTransaction(payerAccountId, validStartNs);
     }
@@ -93,7 +93,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
         if (transaction.getBatchKey() != null && transaction.getNonce() == 0) {
             Transaction batchParent = context.get(Transaction.class, transaction.getParentConsensus());
-            
+
             if (batchParent == null) {
                 throw new ImporterException("Batch parent not found for transaction: " + transaction.getConsensusTimestamp());
             }
@@ -114,7 +114,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
 - Change `transaction.js` constructor to add `batch_key` and `inner_transactions`
 - Include `batch_key` in transaction response
-    - Change `Transactions.formatTransactionRows` to include the `batch_key`
+  - Change `Transactions.formatTransactionRows` to include the `batch_key`
   ```json
   {
     "transactions": [
