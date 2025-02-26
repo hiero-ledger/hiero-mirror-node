@@ -312,7 +312,9 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 .persist();
         domainBuilder
                 .nft()
-                .customize(n -> n.tokenId(tokenEntity.getId()).serialNumber(1L).timestampRange(historicalRange))
+                .customize(n -> n.tokenId(tokenEntity.getId())
+                        .serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
+                        .timestampRange(historicalRange))
                 .persist();
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
@@ -504,7 +506,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         domainBuilder
                 .nft()
                 .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(1L)
+                        .serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
                         .timestampRange(historicalRange)
                         .spender(approvedAccount.toEntityId()))
                 .persist();
@@ -512,7 +514,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
-        final var functionCall = contract.call_htsGetApproved(getAddressFromEntity(tokenEntity), BigInteger.ONE);
+        final var functionCall = contract.call_htsGetApproved(getAddressFromEntity(tokenEntity), DEFAULT_SERIAL_NUMBER);
         final var result = functionCall.send();
 
         // Then
@@ -524,7 +526,6 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void getAllowanceForToken(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var amountGranted = 50L;
         final var owner = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var spender = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
@@ -535,8 +536,8 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 .customize(a -> a.tokenId(tokenEntity.getId())
                         .owner(owner.getNum())
                         .spender(spender.getNum())
-                        .amount(amountGranted)
-                        .amountGranted(amountGranted)
+                        .amount(DEFAULT_AMOUNT_GRANTED)
+                        .amountGranted(DEFAULT_AMOUNT_GRANTED)
                         .timestampRange(historicalRange))
                 .persist();
 
@@ -547,7 +548,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 getAddressFromEntity(tokenEntity), getAliasFromEntity(owner), getAliasFromEntity(spender));
 
         // Then
-        assertThat(functionCall.send()).isEqualTo(BigInteger.valueOf(amountGranted));
+        assertThat(functionCall.send()).isEqualTo(BigInteger.valueOf(DEFAULT_AMOUNT_GRANTED));
     }
 
     @ParameterizedTest
@@ -650,7 +651,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var nft = domainBuilder
                 .nft()
                 .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(1L)
+                        .serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
                         .accountId(owner.toEntityId())
                         .timestampRange(historicalRange)
                         .createdTimestamp(historicalRange.lowerEndpoint()))
@@ -663,7 +664,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
 
         // When
         final var result = contract.call_getInformationForNonFungibleToken(
-                        getAddressFromEntity(tokenEntity), BigInteger.ONE)
+                        getAddressFromEntity(tokenEntity), DEFAULT_SERIAL_NUMBER)
                 .send();
 
         final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury);
@@ -756,7 +757,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         domainBuilder
                 .nft()
                 .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(1L)
+                        .serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
                         .timestampRange(historicalRange)
                         .createdTimestamp(historicalRange.lowerEndpoint()))
                 .persist();

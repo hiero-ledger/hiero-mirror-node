@@ -17,4 +17,5 @@ dependencyCheck {
         experimentalEnabled = true
         golangModEnabled = false // Too many vulnerabilities in transitive dependencies currently
     }
+    nvd { datafeedUrl = "https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/" }
 }
