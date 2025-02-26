@@ -1,6 +1,6 @@
-# SPDX-License-Identifier: Apache-2.0
+#!/usr/bin/env bash
 
-#!/bin/bash
+# SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
 

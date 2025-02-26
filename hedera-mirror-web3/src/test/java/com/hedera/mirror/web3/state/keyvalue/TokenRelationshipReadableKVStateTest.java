@@ -39,6 +39,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("deprecation")
 class TokenRelationshipReadableKVStateTest {
 
     @InjectMocks

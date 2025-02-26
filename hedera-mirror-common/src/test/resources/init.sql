@@ -1,4 +1,5 @@
--- Create roles
+-- SPDX-License-Identifier: Apache-2.0
+
 create role readonly;
 create role readwrite in role readonly;
 create role temporary_admin in role readwrite;

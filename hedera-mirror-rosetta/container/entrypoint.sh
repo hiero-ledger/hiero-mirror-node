@@ -1,6 +1,7 @@
+#!/usr/bin/env bash
+
 # SPDX-License-Identifier: Apache-2.0
 
-#!/bin/bash
 set -eo pipefail
 
 function config_data_retention() {
