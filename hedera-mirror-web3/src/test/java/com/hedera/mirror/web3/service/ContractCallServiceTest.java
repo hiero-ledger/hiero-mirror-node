@@ -687,6 +687,10 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         assertGasLimit(ETH_CALL, TRANSACTION_GAS_LIMIT);
     }
 
+    /**
+     * Testing that sending HBAR to a randomly generated 20-byte EVM address, that
+     * is not mapped to an existing accountId will result in hollow account creation.
+     */
     @Test
     void hollowAccountCreationWorks() {
         // Given
@@ -698,7 +702,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         testWeb3jService.setSender(senderAddress.toHexString());
 
         // When
-        final var functionCall = contract.send_transferHbarsToAddress(
+        final var functionCall = contract.send_createHollowAccount(
                 Bytes.wrap(hollowAccountAlias).toHexString(), BigInteger.valueOf(value));
 
         // Then
