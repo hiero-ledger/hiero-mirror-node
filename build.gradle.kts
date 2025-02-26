@@ -17,14 +17,9 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("grpcVersion", "1.70.0")
-    set(
-        "jooq.version",
-        "3.20.1",
-    ) // Set whenever the version in buildSrc is different from the one in Spring Boot
-    set("json-smart.version", "2.5.2") // Temporary until next Spring Boot
+    set("jooq.version", "3.20.1") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
-    set("netty.version", "4.1.118.Final") // Temporary until next Spring Boot
-    set("nodeJsVersion", "18.20.5")
+    set("nodeJsVersion", "18.20.7")
     set("protobufVersion", "3.25.5")
     set("reactorGrpcVersion", "1.2.4")
     set("vertxVersion", "4.5.13")
@@ -192,7 +187,12 @@ spotless {
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
             .config(mapOf("bracketSpacing" to false, "printWidth" to 120, "singleQuote" to true))
         target("hedera-mirror-rest/**/*.js", "hedera-mirror-test/k6/**/*.js", "tools/**/*.js")
-        targetExclude("**/build/**", "**/node_modules/**", "**/__tests__/integration/*.test.js")
+        targetExclude(
+            "**/build/**",
+            "**/node_modules/**",
+            "**/__tests__/integration/*.spec.test.js",
+            "tools/mirror-report/index.js",
+        )
     }
     java {
         endWithNewline()
@@ -252,7 +252,7 @@ spotless {
     format("shell") {
         endWithNewline()
         leadingTabsToSpaces(2)
-        licenseHeader(licenseHeader.replaceFirst("//", "#"), "^#!")
+        licenseHeader("#!/usr/bin/env bash\n\n" + licenseHeader.replaceFirst("//", "#"), "^[^#\\s]")
         target("**/*.sh")
         targetExclude("**/build/**", "**/node_modules/**")
         trimTrailingWhitespace()
@@ -260,12 +260,13 @@ spotless {
     sql {
         endWithNewline()
         leadingTabsToSpaces()
+        licenseHeader(licenseHeader.replaceFirst("//", "--"), "^[^-\\s]")
         target(
-            "hedera-mirror-common/**/*.sql",
+            "hedera-mirror-common/src/test/resources/*.sql",
             "hedera-mirror-importer/**/*.sql",
-            "hedera-mirror-rest/**/*.sql",
+            "hedera-mirror-rest/__tests__/data/**/*.sql",
         )
-        targetExclude("**/build/**", "**/node_modules/**")
+        targetExclude("**/build/**", "**/db/migration/**")
         trimTrailingWhitespace()
     }
     format("yaml") {

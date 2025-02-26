@@ -1,6 +1,7 @@
+#!/usr/bin/env bash
+
 # SPDX-License-Identifier: Apache-2.0
 
-#!/bin/sh
 set -e
 
 echo "Setting user and role for Mirror Node"

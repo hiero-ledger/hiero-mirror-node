@@ -16,7 +16,6 @@ dependencies {
     // embedded in the plugin being used by testcontainers-postgresql
     implementation("com.github.docker-java:docker-java-api:$dockerJavaVersion")
     implementation("com.github.docker-java:docker-java-core:$dockerJavaVersion")
-
     implementation("com.bmuschko:gradle-docker-plugin:9.4.0")
     implementation("com.diffplug.spotless:spotless-plugin-gradle:7.0.2")
     implementation("com.gradleup.shadow:shadow-gradle-plugin:8.3.6")

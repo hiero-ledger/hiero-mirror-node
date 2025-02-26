@@ -1,24 +1,10 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 import crypto from 'crypto';
 import _ from 'lodash';
 
-import {ETH_HASH_LENGTH} from "../../constants";
-import {getTransactionHash} from "../../transactionHash";
+import {ETH_HASH_LENGTH} from '../../constants';
+import {getTransactionHash} from '../../transactionHash';
 import {opsMap} from '../../utils';
 
 import integrationDomainOps from '../integrationDomainOps';
@@ -41,7 +27,7 @@ describe('getTransactionHash', () => {
 
   const omitDistributionId = (arr) => arr.map((elem) => _.omit(elem, ['distribution_id']));
 
-  describe('simple', () =>  {
+  describe('simple', () => {
     const specs = [
       {
         name: 'first record',
@@ -63,7 +49,7 @@ describe('getTransactionHash', () => {
         hash: prefix,
         options: {order: 'desc'},
         expected: [transactionHashes[2], transactionHashes[0]],
-      }
+      },
     ];
 
     test.each(specs)('$name', async ({hash, options, expected}) => {
@@ -90,17 +76,17 @@ describe('getTransactionHash', () => {
         hash: prefix,
         timestampFilters: [
           {operator: opsMap.gte, value: transactionHashes[0].consensus_timestamp},
-            {operator: opsMap.lte, value: transactionHashes[2].consensus_timestamp},
-          ],
+          {operator: opsMap.lte, value: transactionHashes[2].consensus_timestamp},
+        ],
         expected: [transactionHashes[0], transactionHashes[2]],
       },
       {
         name: '32-byte hash prefix filtered by timestamp',
         hash: prefix,
         timestampFilters: [
-            {operator: opsMap.gte, value: transactionHashes[0].consensus_timestamp},
-            {operator: opsMap.lt, value: transactionHashes[2].consensus_timestamp},
-          ],
+          {operator: opsMap.gte, value: transactionHashes[0].consensus_timestamp},
+          {operator: opsMap.lt, value: transactionHashes[2].consensus_timestamp},
+        ],
         expected: [transactionHashes[0]],
       },
     ];

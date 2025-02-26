@@ -1,6 +1,7 @@
+#!/usr/bin/env bash
+
 # SPDX-License-Identifier: Apache-2.0
 
-#!/usr/bin/env bash
 set -emo pipefail
 
 # Print log statements to stdout
