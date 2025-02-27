@@ -70,7 +70,5 @@ class Token {
     return `${this.tableAlias}.${columnName}`;
   }
 }
-// SPDX-License-Identifier: Apache-2.0
-
 
 export default Token;

@@ -1385,37 +1385,38 @@ describe('token extractSqlFromNftTransferHistoryRequest tests', () => {
 
 describe('token extractSqlFromTokenInfoRequest tests', () => {
   const getExpectedQuery = (timestampCondition = '') => {
-    let outerSelect = `select ${tokens.tokenInfoSelectFields.join(',')}`;
     let tokenQuery = 'token';
     let entityQuery = 'entity';
     let customFeeQuery = 'custom_fee';
 
     if (!_.isEmpty(timestampCondition)) {
-      tokenQuery = `(${tokens.buildHistoryQuery(
+      tokenQuery = tokens.buildHistoryQuery(
         tokens.tokenSelectFields,
         `token_id = $1 and lower(timestamp_range) ${timestampCondition}`,
         Token.tableName,
         Token.tableAlias
-      )}) as `;
-      entityQuery = `(${tokens.buildHistoryQuery(
+      );
+      entityQuery = tokens.buildHistoryQuery(
         tokens.entitySelectFields,
         `id = $1 and lower(timestamp_range) ${timestampCondition}`,
         Entity.tableName,
         Entity.tableAlias
-      )}) as `;
-      customFeeQuery = `(${tokens.buildHistoryQuery(
+      );
+      customFeeQuery = tokens.buildHistoryQuery(
         tokens.customFeeSelectFields,
         `entity_id = $1 and lower(timestamp_range) ${timestampCondition}`,
         CustomFee.tableName,
         CustomFee.tableAlias
-      )}) as `;
+      );
     }
 
-    return `${outerSelect}
-            from ${tokenQuery} ${Token.tableAlias}
-            join ${entityQuery} ${Entity.tableAlias} on ${Entity.tableAlias}.id = ${Token.tableAlias}.token_id
-            left join ${customFeeQuery} ${CustomFee.tableAlias} on 
-                 ${CustomFee.tableAlias}.entity_id = ${Token.tableAlias}.token_id
+    return `${tokens.tokenInfoOuterSelect}
+            from ${tokenQuery} as ${Token.tableAlias}
+            join ${entityQuery} as ${Entity.tableAlias} on ${Entity.getFullName(Entity.ID)} = ${Token.getFullName(
+      Token.TOKEN_ID
+    )}
+            left join ${customFeeQuery} as ${CustomFee.tableAlias} on 
+                 ${CustomFee.getFullName(CustomFee.ENTITY_ID)} = ${Token.getFullName(Token.TOKEN_ID)}
             where token_id = $1`;
   };
 

@@ -152,6 +152,7 @@ const tokenInfoSelectFields = [
   `greatest(lower(${Token.getFullName(Token.TIMESTAMP_RANGE)}), 
             lower(${Entity.getFullName(Entity.TIMESTAMP_RANGE)})) as modified_timestamp`,
 ];
+const tokenInfoOuterSelect = `select ${tokenInfoSelectFields.join(',\n')}`;
 const tokenIdMatchQuery = 'where token_id = $1';
 
 /**
@@ -473,7 +474,9 @@ const transformTimestampFilterOp = (op) => {
  */
 const extractSqlFromTokenInfoRequest = (tokenId, filters) => {
   const params = [tokenId];
-  let queryParts = ['select', tokenInfoSelectFields.join(',\n')];
+  let tokenQuery = 'token';
+  let entityQuery = 'entity';
+  let customFeeQuery = 'custom_fee';
 
   if (filters && filters.length !== 0) {
     // honor the last timestamp filter
@@ -485,57 +488,41 @@ const extractSqlFromTokenInfoRequest = (tokenId, filters) => {
     var conditionsSql = conditions.join(' and ');
 
     // include the history table in the query
-    queryParts.push(
-      `from (${buildHistoryQuery(
-        tokenSelectFields,
-        conditionsSql.replace('entity_id', 'token_id'),
-        Token.tableName,
-        Token.tableAlias
-      )}) as ${Token.tableAlias}`
+    tokenQuery = buildHistoryQuery(
+      tokenSelectFields,
+      conditionsSql.replace('entity_id', 'token_id'),
+      Token.tableName,
+      Token.tableAlias
     );
-    queryParts.push(
-      `join (${buildHistoryQuery(
-        entitySelectFields,
-        conditionsSql.replace('entity_id', 'id'),
-        Entity.tableName,
-        Entity.tableAlias
-      )}) as ${Entity.tableAlias} on ${Entity.getFullName(Entity.ID)} = ${Token.getFullName(Token.TOKEN_ID)}`
+
+    entityQuery = buildHistoryQuery(
+      entitySelectFields,
+      conditionsSql.replace('entity_id', 'id'),
+      Entity.tableName,
+      Entity.tableAlias
     );
-    queryParts.push(
-      `left join (${buildHistoryQuery(
-        customFeeSelectFields,
-        conditionsSql,
-        CustomFee.tableName,
-        CustomFee.tableAlias
-      )}) as ${CustomFee.tableAlias} on ${CustomFee.getFullName(CustomFee.ENTITY_ID)} = ${Token.getFullName(
-        Token.TOKEN_ID
-      )}`
-    );
-  } else {
-    queryParts.push(`from ${Token.tableName} ${Token.tableAlias}`);
-    queryParts.push(
-      `join ${Entity.tableName} ${Entity.tableAlias} on ${Entity.getFullName(Entity.ID)} = ${Token.getFullName(
-        Token.TOKEN_ID
-      )}`
-    );
-    queryParts.push(
-      `left join ${CustomFee.tableName} ${CustomFee.tableAlias} on ${CustomFee.getFullName(
-        CustomFee.ENTITY_ID
-      )} = ${Token.getFullName(Token.TOKEN_ID)}`
-    );
+
+    customFeeQuery = buildHistoryQuery(customFeeSelectFields, conditionsSql, CustomFee.tableName, CustomFee.tableAlias);
   }
 
-  queryParts.push(tokenIdMatchQuery);
+  var query = `${tokenInfoOuterSelect}
+            from ${tokenQuery} as ${Token.tableAlias}
+            join ${entityQuery} as ${Entity.tableAlias} on ${Entity.getFullName(Entity.ID)} = ${Token.getFullName(
+    Token.TOKEN_ID
+  )}
+            left join ${customFeeQuery} as ${CustomFee.tableAlias} on 
+                 ${CustomFee.getFullName(CustomFee.ENTITY_ID)} = ${Token.getFullName(Token.TOKEN_ID)}
+            ${tokenIdMatchQuery}`;
 
   return {
-    query: queryParts.join('\n'),
+    query,
     params,
   };
 };
 
 const buildHistoryQuery = (selectColumns, conditions, tableName, tableAlias) => {
   return `
-   select ${selectColumns}
+   (select ${selectColumns}
     from
     (
       (select ${selectColumns}, lower(${tableAlias}.timestamp_range) as modified_timestamp
@@ -547,7 +534,7 @@ const buildHistoryQuery = (selectColumns, conditions, tableName, tableAlias) => 
         where ${conditions} 
         order by lower(${tableAlias}.timestamp_range) desc limit 1)
       order by modified_timestamp desc limit 1
-    ) as ${tableAlias}  
+    ) as ${tableAlias})
     `;
 };
 
@@ -1119,7 +1106,7 @@ if (utils.isTestEnv()) {
     nftSelectQuery,
     tokenAccountCte,
     tokenAccountJoinQuery,
-    tokenInfoSelectFields,
+    tokenInfoOuterSelect,
     tokenSelectFields,
     tokensSelectQuery,
     validateSerialNumberParam,
