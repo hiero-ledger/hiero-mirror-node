@@ -6,6 +6,7 @@ import static com.hedera.mirror.importer.domain.StreamFilename.EPOCH;
 import static com.hedera.mirror.importer.domain.StreamFilename.FileType.SIGNATURE;
 import static org.apache.commons.lang3.StringUtils.isNumeric;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.StreamType;
 import com.hedera.mirror.importer.addressbook.ConsensusNode;
 import com.hedera.mirror.importer.domain.StreamFileData;
@@ -45,15 +46,16 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
     private final Map<PathKey, PathResult> paths = new ConcurrentHashMap<>();
     private final S3AsyncClient s3Client;
 
-    public S3StreamFileProvider(CommonDownloaderProperties properties, S3AsyncClient s3Client) {
-        super(properties);
+    public S3StreamFileProvider(
+            CommonProperties commonProperties, CommonDownloaderProperties properties, S3AsyncClient s3Client) {
+        super(commonProperties, properties);
         this.s3Client = s3Client;
     }
 
     @Override
     public Flux<StreamFileData> list(ConsensusNode node, StreamFilename lastFilename) {
         // Number of items we plan do download in a single batch times 2 for file + sig.
-        int batchSize = properties.getBatchSize() * 2;
+        int batchSize = downloaderProperties.getBatchSize() * 2;
 
         var key = new PathKey(node, lastFilename.getStreamType());
         var pathResult = paths.computeIfAbsent(key, k -> new PathResult());
@@ -61,7 +63,7 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
         var startAfter = prefix + lastFilename.getFilenameAfter();
 
         var listRequest = ListObjectsV2Request.builder()
-                .bucket(properties.getBucketName())
+                .bucket(downloaderProperties.getBucketName())
                 .prefix(prefix)
                 .delimiter(SEPARATOR)
                 .startAfter(startAfter)
@@ -70,20 +72,20 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
                 .build();
 
         return Mono.fromFuture(s3Client.listObjectsV2(listRequest))
-                .timeout(properties.getTimeout())
+                .timeout(downloaderProperties.getTimeout())
                 .doOnNext(l -> {
                     pathResult.update(!l.contents().isEmpty());
                     log.debug("Returned {} s3 objects", l.contents().size());
                 })
                 .flatMapIterable(ListObjectsV2Response::contents)
-                .filter(r -> r.size() <= properties.getMaxSize())
+                .filter(r -> r.size() <= downloaderProperties.getMaxSize())
                 .map(this::toStreamFilename)
                 .filter(s -> s != EPOCH && s.getFileType() == SIGNATURE)
                 .flatMapSequential(this::doGet)
                 .doOnSubscribe(s -> log.debug(
                         "Searching for the next {} files after {}/{}",
                         batchSize,
-                        properties.getBucketName(),
+                        downloaderProperties.getBucketName(),
                         startAfter))
                 .switchIfEmpty(Flux.defer(() -> pathResult.fallback() ? list(node, lastFilename) : Flux.empty()));
     }
@@ -92,14 +94,14 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
     protected Mono<StreamFileData> doGet(StreamFilename streamFilename) {
         var s3Key = streamFilename.getFilePath();
         var request = GetObjectRequest.builder()
-                .bucket(properties.getBucketName())
+                .bucket(downloaderProperties.getBucketName())
                 .key(s3Key)
                 .requestPayer(RequestPayer.REQUESTER)
-                .range(RANGE_PREFIX + (properties.getMaxSize() - 1))
+                .range(RANGE_PREFIX + (downloaderProperties.getMaxSize() - 1))
                 .build();
         return Mono.fromFuture(s3Client.getObject(request, AsyncResponseTransformer.toBytes()))
                 .map(r -> toStreamFileData(streamFilename, r))
-                .timeout(properties.getTimeout())
+                .timeout(downloaderProperties.getTimeout())
                 .onErrorMap(NoSuchKeyException.class, TransientProviderException::new)
                 .doOnSuccess(s -> log.debug("Finished downloading {}", s3Key));
     }
@@ -107,8 +109,8 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
     @Override
     protected String getBlockStreamFilePath(long shard, long nodeId, String filename) {
         String filePath = TEMPLATE_BLOCK_STREAM_FILE_PATH.formatted(shard, nodeId, filename);
-        return StringUtils.isNotBlank(properties.getPathPrefix())
-                ? properties.getPathType() + SEPARATOR + filePath
+        return StringUtils.isNotBlank(downloaderProperties.getPathPrefix())
+                ? downloaderProperties.getPathType() + SEPARATOR + filePath
                 : filePath;
     }
 
@@ -119,8 +121,8 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
     }
 
     private String getNodeIdPrefix(PathKey key) {
-        var network = properties.getImporterProperties().getNetwork();
-        var shard = properties.getImporterProperties().getShard();
+        var network = downloaderProperties.getImporterProperties().getNetwork();
+        var shard = commonProperties.getShard();
         var streamFolder = key.type().getNodeIdBasedSuffix();
         return TEMPLATE_NODE_ID_PREFIX.formatted(network, shard, key.node().getNodeId(), streamFolder);
     }
@@ -131,8 +133,8 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
                     case ACCOUNT_ID, AUTO -> getAccountIdPrefix(key);
                     case NODE_ID -> getNodeIdPrefix(key);
                 };
-        return StringUtils.isNotBlank(properties.getPathPrefix())
-                ? properties.getPathPrefix() + SEPARATOR + basePrefix
+        return StringUtils.isNotBlank(downloaderProperties.getPathPrefix())
+                ? downloaderProperties.getPathPrefix() + SEPARATOR + basePrefix
                 : basePrefix;
     }
 
@@ -141,7 +143,7 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
         var contentLength = StringUtils.substringAfterLast(response.contentRange(), '/');
         long size = isNumeric(contentLength) ? Long.parseLong(contentLength) : response.contentLength();
 
-        if (size > properties.getMaxSize()) {
+        if (size > downloaderProperties.getMaxSize()) {
             throw new InvalidDatasetException("Stream file " + streamFilename + " size " + size + " exceeds limit");
         }
 
@@ -167,11 +169,11 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
         @Nullable
         private volatile Instant expiration;
 
-        private volatile PathType pathType = properties.getPathType();
+        private volatile PathType pathType = downloaderProperties.getPathType();
 
         private PathResult() {
-            if (properties.getPathType() == PathType.AUTO) {
-                this.expiration = Instant.now().plus(properties.getPathRefreshInterval());
+            if (downloaderProperties.getPathType() == PathType.AUTO) {
+                this.expiration = Instant.now().plus(downloaderProperties.getPathRefreshInterval());
                 this.pathType = PathType.ACCOUNT_ID;
             }
         }
@@ -197,7 +199,7 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
             // If ACCOUNT_ID auto mode interval has expired, try NODE_ID if no files were found
             var now = Instant.now();
             if (now.isAfter(expiration)) {
-                expiration = now.plus(properties.getPathRefreshInterval());
+                expiration = now.plus(downloaderProperties.getPathRefreshInterval());
                 if (!found) {
                     pathType = PathType.NODE_ID;
                 }

@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.importer.downloader.provider;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.StreamType;
 import com.hedera.mirror.importer.addressbook.ConsensusNode;
 import com.hedera.mirror.importer.domain.StreamFileData;
@@ -14,17 +15,18 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 abstract class AbstractStreamFileProvider implements StreamFileProvider {
 
-    protected final CommonDownloaderProperties properties;
+    protected final CommonProperties commonProperties;
+    protected final CommonDownloaderProperties downloaderProperties;
 
     @Override
     public final Mono<StreamFileData> get(ConsensusNode node, StreamFilename streamFilename) {
         if (streamFilename.getStreamType() == StreamType.BLOCK) {
-            if (properties.getPathType() != PathType.NODE_ID) {
+            if (downloaderProperties.getPathType() != PathType.NODE_ID) {
                 throw new IllegalStateException("Path type must be NODE_ID for block streams");
             }
 
-            String filePath = getBlockStreamFilePath(
-                    properties.getImporterProperties().getShard(), node.getNodeId(), streamFilename.getFilename());
+            String filePath =
+                    getBlockStreamFilePath(commonProperties.getShard(), node.getNodeId(), streamFilename.getFilename());
             streamFilename = StreamFilename.from(filePath);
         }
 

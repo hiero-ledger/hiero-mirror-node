@@ -19,8 +19,9 @@ public record EntityIdAliasParameter(long shard, long realm, byte[] alias) imple
             return null;
         }
 
-        long shard = DEFAULT_SHARD;
-        long realm = 0;
+        var properties = PROPERTIES.get();
+        long shard = properties.getShard();
+        long realm = properties.getRealm();
         String realmString;
 
         if ((realmString = aliasMatcher.group(4)) != null) {

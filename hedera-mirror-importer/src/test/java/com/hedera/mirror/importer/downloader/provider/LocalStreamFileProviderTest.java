@@ -39,7 +39,7 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
     @BeforeEach
     void setup() {
         super.setup();
-        streamFileProvider = new LocalStreamFileProvider(properties, localProperties);
+        streamFileProvider = new LocalStreamFileProvider(commonProperties, properties, localProperties);
     }
 
     @Test

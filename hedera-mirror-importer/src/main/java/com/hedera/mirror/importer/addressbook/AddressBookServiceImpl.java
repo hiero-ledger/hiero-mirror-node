@@ -6,6 +6,7 @@ import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_ADDRESS
 import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 
 import com.google.protobuf.ByteString;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import com.hedera.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -67,6 +68,7 @@ public class AddressBookServiceImpl implements AddressBookService {
     public static final int INITIAL_NODE_ID_ACCOUNT_ID_OFFSET = 3;
 
     private final AddressBookRepository addressBookRepository;
+    private final CommonProperties commonProperties;
     private final EntityProperties entityProperties;
     private final FileDataRepository fileDataRepository;
     private final ImporterProperties importerProperties;
@@ -255,6 +257,10 @@ public class AddressBookServiceImpl implements AddressBookService {
             var initialAddressBook =
                     currentAddressBook == null ? parse(getInitialAddressBookFileData()) : currentAddressBook;
 
+            if (initialAddressBook == null) {
+                throw new InvalidDatasetException("Unable to load starting address book");
+            }
+
             // Parse all applicable addressBook file_data entries are processed
             AddressBook latestAddressBook =
                     parseHistoricAddressBooks(initialAddressBook.getStartConsensusTimestamp() - 1, consensusTimestamp);
@@ -402,6 +408,10 @@ public class AddressBookServiceImpl implements AddressBookService {
         var nodeAccountId = nodeAddressProto.hasNodeAccountId()
                 ? EntityId.of(nodeAddressProto.getNodeAccountId())
                 : memoNodeAccountId;
+
+        if (EntityId.isEmpty(nodeAccountId) || nodeAccountId.getRealm() != commonProperties.getRealm()) {
+            throw new InvalidDatasetException("Invalid NodeAddress.nodeAccountId: " + nodeAddressProto);
+        }
 
         var nodeId = nodeAddressProto.getNodeId();
         // ensure valid nodeId. In early versions of initial addressBook (entityNum < 20) all nodeIds are set to 0

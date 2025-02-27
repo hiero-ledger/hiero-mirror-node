@@ -4,7 +4,6 @@ package com.hedera.mirror.restjava;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,9 +23,6 @@ public class RestJavaProperties {
     @NotNull
     @Valid
     private ResponseConfig response = new ResponseConfig();
-
-    @Min(0)
-    private long shard = 0L;
 
     /*
      * Post process the configured response headers. All header names are treated case insensitively, and, for each path,

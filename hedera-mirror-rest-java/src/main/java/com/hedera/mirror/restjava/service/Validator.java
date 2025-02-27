@@ -2,7 +2,7 @@
 
 package com.hedera.mirror.restjava.service;
 
-import com.hedera.mirror.restjava.RestJavaProperties;
+import com.hedera.mirror.common.CommonProperties;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 
@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class Validator {
 
-    private final RestJavaProperties properties;
+    private final CommonProperties properties;
 
     public void validateShard(Object id, long shard) {
         long expected = properties.getShard();

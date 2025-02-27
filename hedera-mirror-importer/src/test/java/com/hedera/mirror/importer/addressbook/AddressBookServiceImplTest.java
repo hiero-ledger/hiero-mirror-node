@@ -4,6 +4,7 @@ package com.hedera.mirror.importer.addressbook;
 
 import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.protobuf.ByteString;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import com.hedera.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -22,6 +24,7 @@ import com.hedera.mirror.importer.ImporterIntegrationTest;
 import com.hedera.mirror.importer.ImporterProperties;
 import com.hedera.mirror.importer.ImporterProperties.ConsensusMode;
 import com.hedera.mirror.importer.config.CacheConfiguration;
+import com.hedera.mirror.importer.exception.InvalidDatasetException;
 import com.hedera.mirror.importer.parser.record.entity.EntityProperties;
 import com.hedera.mirror.importer.repository.AddressBookEntryRepository;
 import com.hedera.mirror.importer.repository.AddressBookRepository;
@@ -79,6 +82,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     @Qualifier(CacheConfiguration.CACHE_ADDRESS_BOOK)
     private final CacheManager cacheManager;
 
+    private final CommonProperties commonProperties;
     private final EntityProperties entityProperties;
 
     private final FileDataRepository fileDataRepository;
@@ -159,6 +163,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         otherNetworkImporterProperties.setNetwork(ImporterProperties.HederaNetwork.OTHER);
         AddressBookService customAddressBookService = new AddressBookServiceImpl(
                 addressBookRepository,
+                commonProperties,
                 entityProperties,
                 fileDataRepository,
                 otherNetworkImporterProperties,
@@ -196,6 +201,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         otherNetworkImporterProperties.setNetwork(ImporterProperties.HederaNetwork.OTHER);
         AddressBookService customAddressBookService = new AddressBookServiceImpl(
                 addressBookRepository,
+                commonProperties,
                 entityProperties,
                 fileDataRepository,
                 otherNetworkImporterProperties,
@@ -472,6 +478,31 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .returns(AddressBookServiceImpl.FILE_101, AddressBook::getFileId)
                 .returns(initialTimestamp + 1, AddressBook::getStartConsensusTimestamp)
                 .returns(newTimestamp, AddressBook::getEndConsensusTimestamp);
+    }
+
+    @Test
+    void invalidInitialRealm() {
+        commonProperties.setRealm(1000L);
+        assertThatThrownBy(() -> addressBookService.getCurrent())
+                .isInstanceOf(InvalidDatasetException.class)
+                .hasMessageContaining("Unable to load starting address book");
+        commonProperties.setRealm(0L);
+    }
+
+    @Test
+    @Transactional
+    void invalidRealm() {
+        var addressBook = addressBookService.getCurrent();
+        assertThat(addressBook).isNotNull();
+
+        var badAddressBook = UPDATED.toBuilder();
+        badAddressBook
+                .getNodeAddressBuilderList()
+                .forEach(n -> n.setNodeAccountId(n.getNodeAccountIdBuilder().setRealmNum(1000L)));
+        update(badAddressBook.build().toByteArray(), 2L, true);
+
+        assertThat(addressBookService.getCurrent()).isEqualTo(addressBook);
+        assertThat(addressBookRepository.count()).isOne();
     }
 
     @Test
