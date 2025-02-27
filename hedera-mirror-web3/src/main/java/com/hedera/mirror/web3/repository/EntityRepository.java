@@ -154,6 +154,6 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             nativeQuery = true)
     Optional<Entity> findActiveByIdAndTimestamp(long id, long blockTimestamp);
 
-    @Query("select coalesce(max(e.id), 1001) from entity e where e.id > 1000")
+    @Query(value = "select coalesce(max(e.id), 1001) from entity e where e.id > 1000", nativeQuery = true)
     Long findMaxId();
 }
