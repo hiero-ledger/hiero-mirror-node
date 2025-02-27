@@ -16,6 +16,7 @@ import com.hedera.mirror.web3.state.keyvalue.TokenReadableKVState;
 import com.hedera.mirror.web3.state.keyvalue.TokenRelationshipReadableKVState;
 import com.hedera.mirror.web3.state.singleton.BlockInfoSingleton;
 import com.hedera.mirror.web3.state.singleton.DefaultSingleton;
+import com.hedera.mirror.web3.state.singleton.EntityIdSingleton;
 import com.hedera.mirror.web3.state.singleton.RunningHashesSingleton;
 import com.hedera.node.app.fees.FeeService;
 import com.hedera.node.app.ids.EntityIdService;
@@ -114,7 +115,7 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
         verifyServiceDataSources(states, RecordCacheService.NAME, recordCacheServiceDataSources);
 
         // EntityIdService
-        Map<String, Class<?>> entityIdServiceDataSources = Map.of("ENTITY_ID", DefaultSingleton.class);
+        Map<String, Class<?>> entityIdServiceDataSources = Map.of("ENTITY_ID", EntityIdSingleton.class);
         verifyServiceDataSources(states, EntityIdService.NAME, entityIdServiceDataSources);
 
         // TokenService

@@ -12,6 +12,7 @@ import org.apache.tuweni.bytes.Bytes;
 @UtilityClass
 public class ContractCallTestUtil {
 
+    public static final long FIRST_USER_ENTITY_ID = 1001;
     public static final long TRANSACTION_GAS_LIMIT = 15_000_000L;
 
     public static final double GAS_ESTIMATE_MULTIPLIER_LOWER_RANGE = 1.05;
