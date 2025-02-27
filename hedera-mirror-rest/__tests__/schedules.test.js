@@ -181,9 +181,9 @@ describe('getScheduleCacheControlHeader', () => {
     {
       name: 'Schedule has executed',
       input: {
-        executed_timestamp: '1234567890000000002',
-        expiration_time: '1234567890000000000',
-        consensus_timestamp: '1234567890000000001',
+        executed_timestamp: 1234567890000000002n,
+        expiration_time: 1234567890000000000n,
+        consensus_timestamp: 1234567890000000001n,
         deleted: false,
       },
       expected: LONGER_SCHEDULE_CACHE_CONTROL_HEADER,
@@ -191,9 +191,9 @@ describe('getScheduleCacheControlHeader', () => {
     {
       name: 'Schedule is deleted',
       input: {
-        executed_timestamp: '1234567890000000002',
-        expiration_time: '1234567890000000000',
-        consensus_timestamp: '1234567890000000001',
+        executed_timestamp: 1234567890000000002n,
+        expiration_time: 1234567890000000000n,
+        consensus_timestamp: 1234567890000000001n,
         deleted: true,
       },
       expected: LONGER_SCHEDULE_CACHE_CONTROL_HEADER,
@@ -201,9 +201,9 @@ describe('getScheduleCacheControlHeader', () => {
     {
       name: 'Schedule has auto-expired (no expiration_time, past 31 minutes since consensus_timestamp)',
       input: {
-        executed_timestamp: '1234567890000000002',
-        expiration_time: '1234567890000000000',
-        consensus_timestamp: '1234567890000000001',
+        executed_timestamp: 1234567890000000002n,
+        expiration_time: 1234567890000000000n,
+        consensus_timestamp: 1234567890000000001n,
         deleted: false,
       },
       expected: LONGER_SCHEDULE_CACHE_CONTROL_HEADER,
@@ -221,9 +221,9 @@ describe('getScheduleCacheControlHeader', () => {
     {
       name: 'Schedule has expired (expiration_time set, past expiration_time + 60 seconds)',
       input: {
-        executed_timestamp: '1234567890000000002',
-        expiration_time: '1234567890000000000',
-        consensus_timestamp: '1234567890000000001',
+        executed_timestamp: 1234567890000000002n,
+        expiration_time: 1234567890000000000n,
+        consensus_timestamp: 1234567890000000001n,
         deleted: false,
       },
       expected: LONGER_SCHEDULE_CACHE_CONTROL_HEADER,
@@ -233,7 +233,7 @@ describe('getScheduleCacheControlHeader', () => {
       input: {
         executed_timestamp: null,
         expiration_time: utils.nowInNs() + constants.SIXTY_SECONDS * constants.ONE_BILLION,
-        consensus_timestamp: '1234567890000000001',
+        consensus_timestamp: 1234567890000000001n,
         deleted: false,
       },
       expected: {},
