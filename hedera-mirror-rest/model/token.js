@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 class Token {
   static tableAlias = 't';
   static tableName = 'token';
@@ -7,7 +9,7 @@ class Token {
   static FREEZE_DEFAULT = 'freeze_default';
   static FREEZE_KEY = 'freeze_key';
   static FREEZE_STATUS = 'freeze_status';
-  static INITIAL_SUPPLY ='initial_supply';
+  static INITIAL_SUPPLY = 'initial_supply';
   static KYC_KEY = 'kyc_key';
   static KYC_STATUS = 'kyc_status';
   static MAX_SUPPLY = 'max_supply';
