@@ -28,7 +28,7 @@ class EntityIdSingletonTest {
     }
 
     @Test
-    void shouldReturnFirstUserEntityIdWhenMaxIdIsLessLastSystemAccount() {
+    void shouldReturnFirstUserEntityIdWhenMaxIdIsLessThanLastSystemAccount() {
         when(entityRepository.findMaxId()).thenReturn(900L);
         assertThat(entityIdSingleton.get().number()).isEqualTo(FIRST_USER_ENTITY_ID);
     }
