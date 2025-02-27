@@ -52,7 +52,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import lombok.CustomLog;
@@ -558,14 +557,14 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
             sendersList.add(adminAccountAddress);
         }
         var data = encodeData(
-            ESTIMATE_PRECOMPILE,
-            TRANSFER_NFTS,
-            asAddress(nonFungibleTokenId),
-            asAddressArray(sendersList),
-            asAddressArray(Arrays.asList(
-                    receiverAccountAlias,
-                    secondReceiverAccount.getAccountId().toSolidityAddress())),
-            new long[] {1, 2});
+                ESTIMATE_PRECOMPILE,
+                TRANSFER_NFTS,
+                asAddress(nonFungibleTokenId),
+                asAddressArray(sendersList),
+                asAddressArray(Arrays.asList(
+                        receiverAccountAlias,
+                        secondReceiverAccount.getAccountId().toSolidityAddress())),
+                new long[] {1, 2});
 
         validateGasEstimation(data, TRANSFER_NFTS, estimatePrecompileContractSolidityAddress);
     }
@@ -670,11 +669,12 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with CreateNFT function with custom fees")
     public void createNFTWithCustomFeesEstimateGas() {
+        // The custom fee denomination must be fungible token in modularized services.
         var data = encodeData(
                 ESTIMATE_PRECOMPILE,
                 CREATE_NFT_WITH_CUSTOM_FEES,
                 asAddress(admin),
-                asAddress(fungibleTokenId)); // The custom fee denomination must be fungible token in modularized services.
+                asAddress(fungibleTokenId));
 
         Consumer<Boolean> estimateFunction = current -> validateGasEstimationForCreateToken(
                 data, CREATE_NFT_WITH_CUSTOM_FEES.getActualGas(), calculateCreateTokenFee(2, current));
@@ -1226,8 +1226,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with isKyc function for fungible token")
     public void isKycFungibleEstimateGas() {
         final var methodInterface = getFlaggedValue(IS_KYC);
-        var data =
-                encodeData(PRECOMPILE, methodInterface, asAddress(fungibleKycUnfrozenTokenId), asAddress(receiverAccountAlias));
+        var data = encodeData(
+                PRECOMPILE, methodInterface, asAddress(fungibleKycUnfrozenTokenId), asAddress(receiverAccountAlias));
 
         validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
@@ -1649,15 +1649,9 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void estimateGasMintFungibleTokenGetTotalSupplyAndBalanceOfTreasury() {
         final var methodInterface = getFlaggedValue(MINT_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE);
         var data = encodeData(
-                PRECOMPILE,
-                methodInterface,
-                asAddress(fungibleTokenId),
-                1L,
-                new byte[][]{},
-                asAddress(admin));
+                PRECOMPILE, methodInterface, asAddress(fungibleTokenId), 1L, new byte[][] {}, asAddress(admin));
 
-        validateGasEstimation(
-                data, methodInterface, precompileTestContractSolidityAddress);
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that mints NFT token and gets the total supply and balance")
@@ -1677,15 +1671,9 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void estimateGasBurnFungibleTokenGetTotalSupplyAndBalanceOfTreasury() {
         final var methodInterface = getFlaggedValue(BURN_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE);
         var data = encodeData(
-                PRECOMPILE,
-                methodInterface,
-                asAddress(fungibleTokenId),
-                1L,
-                asLongArray(List.of()),
-                asAddress(admin));
+                PRECOMPILE, methodInterface, asAddress(fungibleTokenId), 1L, asLongArray(List.of()), asAddress(admin));
 
-        validateGasEstimation(
-                data, methodInterface, precompileTestContractSolidityAddress);
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that burns NFT token and returns the total supply and balance of treasury")
@@ -1712,8 +1700,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 asLongArray(List.of()),
                 asAddress(receiverAccountAlias));
 
-        validateGasEstimation(
-                data, methodInterface, precompileTestContractSolidityAddress);
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that wipes NFT token and gets the total supply and balance")
