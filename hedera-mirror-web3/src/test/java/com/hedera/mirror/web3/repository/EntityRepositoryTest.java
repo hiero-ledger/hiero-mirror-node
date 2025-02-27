@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.web3.repository;
 
-import static com.hedera.mirror.web3.state.singleton.EntityIdSingleton.FIRST_USER_ENTITY_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
@@ -13,8 +12,9 @@ import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-class EntityRepositoryTest extends Web3IntegrationTest {
+public class EntityRepositoryTest extends Web3IntegrationTest {
 
+    public static final long FIRST_USER_ENTITY_ID = 1001;
     private final EntityRepository entityRepository;
 
     @Test
@@ -467,13 +467,13 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findMaxIdOnlySystemAccountsPresent() {
-        assertThat(entityRepository.findMaxId()).isEqualTo(FIRST_USER_ENTITY_ID);
+        assertThat(entityRepository.findMaxId(FIRST_USER_ENTITY_ID)).isEqualTo(FIRST_USER_ENTITY_ID);
     }
 
     @Test
     void findMaxId() {
         final long lastId = 1111;
         domainBuilder.entity().customize(e -> e.id(lastId)).persist();
-        assertThat(entityRepository.findMaxId()).isEqualTo(lastId);
+        assertThat(entityRepository.findMaxId(FIRST_USER_ENTITY_ID)).isEqualTo(lastId);
     }
 }

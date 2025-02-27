@@ -5,7 +5,9 @@ package com.hedera.mirror.web3.state.singleton;
 import static com.hedera.node.app.ids.schemas.V0490EntityIdSchema.ENTITY_ID_STATE_KEY;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
+import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.repository.EntityRepository;
+import com.hedera.node.config.data.HederaConfig;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 
@@ -13,9 +15,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @SuppressWarnings("deprecation")
 public class EntityIdSingleton implements SingletonState<EntityNumber> {
-
-    public static final long FIRST_USER_ENTITY_ID = 1001;
     private final EntityRepository entityRepository;
+    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Override
     public String getKey() {
@@ -24,8 +25,12 @@ public class EntityIdSingleton implements SingletonState<EntityNumber> {
 
     @Override
     public EntityNumber get() {
-        final Long maxId = entityRepository.findMaxId();
-        final long nextId = (maxId != null && maxId >= FIRST_USER_ENTITY_ID) ? maxId + 1 : FIRST_USER_ENTITY_ID;
+        final var firstUserEntity = mirrorNodeEvmProperties
+                .getVersionedConfiguration()
+                .getConfigData(HederaConfig.class)
+                .firstUserEntity();
+        final Long maxId = entityRepository.findMaxId(firstUserEntity);
+        final long nextId = (maxId != null && maxId >= firstUserEntity) ? maxId + 1 : firstUserEntity;
         return new EntityNumber(nextId);
     }
 }
