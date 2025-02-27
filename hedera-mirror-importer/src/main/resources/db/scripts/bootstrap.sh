@@ -2,7 +2,8 @@
 
 # SPDX-License-Identifier: Apache-2.0
 
-set -m # Start a new process group and detach from terminal
+# Start a new process group and detach from terminal
+set -m
 exec 1>/dev/null 2>>bootstrap.log
 [[ -t 1 ]] && exec </dev/null >&0 2>&0
 
@@ -58,7 +59,6 @@ declare -A manifest_counts  # Map of filename to expected row count
 
 # Process tracking arrays
 declare -a pids=()          # List of background process IDs
-declare -A processing_files=()  # Map of files currently being processed
 
 ####################################
 # Functions
@@ -252,13 +252,15 @@ write_tracking_file() {
   local file="$1"
   local new_status="${2:-}"
   local new_hash_status="${3:-}"
+  local basename_file
+  basename_file=$(basename "$file")
 
   (
     flock -x 200
 
     # Pull existing line (if any)
     local existing_line
-    existing_line=$(grep "^$file " "$TRACKING_FILE" 2>/dev/null || true)
+    existing_line=$(read_tracking_status "$basename_file")
 
     local old_status=""
     local old_hash=""
@@ -288,18 +290,20 @@ write_tracking_file() {
     fi
 
     # Remove any existing entry for this file
-    grep -v "^$file " "$TRACKING_FILE" > "${TRACKING_FILE}.tmp" 2>/dev/null || true
+    grep -v "^$basename_file " "$TRACKING_FILE" > "${TRACKING_FILE}.tmp" 2>/dev/null || true
     mv "${TRACKING_FILE}.tmp" "$TRACKING_FILE"
 
     # Add the updated line with the final status and hash
-    echo "$file $new_status $new_hash_status" >> "$TRACKING_FILE"
+    echo "$basename_file $new_status $new_hash_status" >> "$TRACKING_FILE"
   ) 200>"$LOCK_FILE"
 }
 
 # Read current import status of a file from tracking file
 read_tracking_status() {
   local file="$1"
-  grep "^$file " "$TRACKING_FILE" 2>/dev/null | cut -d' ' -f2-
+  local basename_file
+  basename_file=$(basename "$file")
+  grep "^$basename_file " "$TRACKING_FILE" 2>/dev/null | tail -n 1 | awk '{print $2}' | tr -d '[:space:]'
 }
 
 # Find all .csv.gz files that need to be imported
@@ -318,7 +322,7 @@ write_discrepancy() {
 
   # Only write if not already imported successfully and not in cleanup
   discrepancy_entry="$file: expected $expected_count, got $actual_count rows"
-  if ! grep -q "^${file} IMPORTED$" "$TRACKING_FILE" 2>/dev/null && [[ ! -f "$CLEANUP_IN_PROGRESS_FILE" ]]; then
+  if [[ "$(read_tracking_status "$file")" != "IMPORTED" ]] && [[ ! -f "$CLEANUP_IN_PROGRESS_FILE" ]]; then
     echo "$discrepancy_entry" >> "$DISCREPANCY_FILE"
   fi
 }
@@ -394,7 +398,7 @@ process_manifest() {
 
     if [[ -f "$file_path" ]]; then
       # Skip validation if file is already imported successfully
-      if grep -q "^$file_path IMPORTED" "$TRACKING_FILE" 2>/dev/null; then
+      if [[ "$(read_tracking_status "$(basename "$file_path")")" == "IMPORTED" ]]; then
         continue
       fi
 
@@ -443,7 +447,7 @@ validate_file() {
   local failures=()
 
   if [[ ! -f "$file" ]]; then
-    echo "file not found"
+    log "Missing required file: $file" "ERROR"
     return 1
   fi
 
@@ -451,7 +455,7 @@ validate_file() {
   expected_size="${manifest_sizes["$filename"]}"
 
   if [[ "$actual_size" != "$expected_size" ]]; then
-    echo "size mismatch (expected: $expected_size bytes, actual: $actual_size bytes)"
+    log "SIZE_MISMATCH: Expected $expected_size bytes, Actual $actual_size bytes" "ERROR"
     return 1
   fi
 
@@ -459,7 +463,7 @@ validate_file() {
   expected_blake3_hash="${manifest_hashes["$filename"]}"
 
   if [[ "$actual_b3sum" != "$expected_blake3_hash" ]]; then
-    echo "BLAKE3 hash mismatch (expected: $expected_blake3_hash, actual: $actual_b3sum)"
+    log "HASH_MISMATCH: Expected $expected_blake3_hash, Actual $actual_b3sum" "ERROR"
     return 1
   fi
 
@@ -477,16 +481,23 @@ validate_special_files() {
 
   for filename in "${special_files[@]}"; do
     local file="$IMPORT_DIR/$filename"
-    local validation_result
+    # Check if the file has already been imported by checking the tracking file
+    if [[ "$(read_tracking_status "$filename")" == "IMPORTED" ]]; then
+      log "Special file '$filename' already verified. Skipping."
+      continue
+    fi
 
-    validation_result=$(validate_file "$file" "$filename")
-    if [[ $? -ne 0 ]]; then
+    local validation_result
+    if ! validation_result=$(validate_file "$file" "$filename"); then
       failures+=("$filename: $validation_result")
       validation_failed=true
-      write_tracking_file "$file" "FAILED_VALIDATION"
+      write_tracking_file "$filename" "FAILED_VALIDATION"
     else
       log "Successfully validated special file: $filename"
-      write_tracking_file "$file" "IMPORTED"
+      current_status=$(read_tracking_status "$file")
+      if [[ "$current_status" != "IMPORTED" ]]; then
+        write_tracking_file "$file" "IMPORTED"
+      fi
     fi
   done
 
@@ -522,7 +533,7 @@ import_file() {
   local start_ts=""
   local end_ts=""
   local data_suffix=""
-  local current_pid=$$
+  local current_pid=$BASHPID
 
   # Declare manifest_counts, manifest_sizes, and manifest_hashes as associative arrays
   declare -A manifest_counts
@@ -537,37 +548,26 @@ import_file() {
   filename=$(basename "$absolute_file")
   expected_count="${manifest_counts[$filename]}"
 
-  # Mark file as being processed
-  processing_files["$file"]=1
-
   # Perform BLAKE3 and file-size validations
-  if ! grep -q "^$file IMPORTED" "$TRACKING_FILE" 2>/dev/null; then
-    local validation_result
-    validation_result=$(validate_file "$file" "$filename")
-    if [[ $? -ne 0 ]]; then
-      if [[ ! -f "$CLEANUP_IN_PROGRESS_FILE" ]]; then
-        log "Validation failed for $filename: $validation_result" "ERROR"
-      fi
-      write_tracking_file "$file" "FAILED_VALIDATION"
-      return 1
+  local validation_result
+  if ! validation_result=$(validate_file "$file" "$filename"); then
+    if [[ ! -f "$CLEANUP_IN_PROGRESS_FILE" ]]; then
+      log "Validation failed for $filename: $validation_result" "ERROR"
     fi
-
-    log "Successfully validated file-size and BLAKE3 hash for $filename"
-    current_status=$(read_tracking_status "$file")
-    if [[ -n "$current_status" ]]; then
-      status=$(echo "$current_status" | cut -d' ' -f1)
-      write_tracking_file "$file" "$status" "HASH_VERIFIED"
-    else
-      write_tracking_file "$file" "NOT_STARTED" "HASH_VERIFIED"
-    fi
+    write_tracking_file "$filename" "FAILED_VALIDATION"
+    return 1
   fi
+
+  log "Successfully validated file-size and BLAKE3 hash for $filename"
+  write_tracking_file "$filename" "NOT_STARTED" "HASH_VERIFIED"
 
   # Skip non-table files after validation
   if [[ "$filename" == "MIRRORNODE_VERSION.gz" || "$filename" == "schema.sql.gz" ]]; then
     log "Successfully validated non-table file: $filename"
-    write_tracking_file "$file" "IMPORTED"
-    unset processing_files["$file"]
-    return 0
+    current_status=$(read_tracking_status "$file")
+    if [[ "$current_status" != "IMPORTED" ]]; then
+      return 0
+    fi
   fi
 
   # Determine if this is a small table by checking filename pattern
@@ -588,50 +588,62 @@ import_file() {
 
   # Log import start and update status
   log "Importing into table $table from $filename, PID: $current_pid"
-  write_tracking_file "$file" "IN_PROGRESS"
+  write_tracking_file "$filename" "IN_PROGRESS"
 
   # Execute the import within a transaction
-  if ! { $DECOMPRESS_TOOL $DECOMPRESS_FLAGS "$file" 2>/dev/null | PGAPPNAME="bootstrap_$current_pid" psql -q -v ON_ERROR_STOP=1 --single-transaction -c "COPY $table FROM STDIN WITH CSV HEADER;" 2>/dev/null; }; then
+  local psql_error
+  if ! psql_error=$($DECOMPRESS_TOOL $DECOMPRESS_FLAGS "$file" 2>/dev/null | PGAPPNAME="bootstrap_$current_pid" \
+    psql -v ON_ERROR_STOP=1 --single-transaction -q -c "COPY $table FROM STDIN WITH CSV HEADER;" 2>&1); then
     if [[ ! -f "$CLEANUP_IN_PROGRESS_FILE" ]]; then
-      log "Error importing data for $file" "ERROR"
+      log "Error importing data for $file: $psql_error" "ERROR"
     fi
-    write_tracking_file "$file" "FAILED_TO_IMPORT"
+    write_tracking_file "$filename" "FAILED_TO_IMPORT"
     return 1
   fi
 
-  # Skip verification if no expected count
   if [[ -z "$expected_count" || "$expected_count" == "N/A" ]]; then
     log "No expected row count for $filename in manifest, skipping verification."
-    write_tracking_file "$file" "IMPORTED"
+    write_tracking_file "$filename" "IMPORTED"
     return 0
   fi
 
-  # Row count verification based on table type
-  if [ "$is_small_table" = true ]; then
-    if ! actual_count=$(psql -qt -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) FROM \"$table\";" | xargs); then
-      if [[ ! -f "$CLEANUP_IN_PROGRESS_FILE" ]]; then
-        log "Error executing count query for $file" "ERROR"
-      fi
-      write_tracking_file "$file" "FAILED_TO_IMPORT"
-      return 1
-    fi
+  # Execute count query with retry logic
+  local retries=3
+  local delay=2
+  local psql_status
+  if [[ "$is_small_table" == "true" ]]; then
+    actual_count=$(psql -v ON_ERROR_STOP=1 -q -Atc "SELECT COUNT(*) FROM ${table};")
+    psql_status=$?
   else
-    # Use the previously captured timestamps for large table
-    if [[ -n "$start_ts" && -n "$end_ts" ]]; then
-      if ! actual_count=$(psql -qt -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) FROM \"$table\" WHERE consensus_timestamp BETWEEN $start_ts AND $end_ts;" | xargs); then
-        if [[ ! -f "$CLEANUP_IN_PROGRESS_FILE" ]]; then
-          log "Error executing count query for $file" "ERROR"
-        fi
-        write_tracking_file "$file" "FAILED_TO_IMPORT"
-        return 1
-      fi
-    else
-      if [[ ! -f "$CLEANUP_IN_PROGRESS_FILE" ]]; then
-        log "Error: Missing timestamps for large table file $filename" "ERROR"
-      fi
-      write_tracking_file "$file" "FAILED_TO_IMPORT"
-      return 1
+    actual_count=$(psql -v ON_ERROR_STOP=1 -q -Atc "SELECT COUNT(*) FROM ${table} WHERE consensus_timestamp BETWEEN '$start_ts' AND '$end_ts';")
+    psql_status=$?
+  fi
+
+  # retry row-count if psql count command fails
+  for ((i=0; i<=retries; i++)); do
+    if [ $psql_status -eq 0 ]; then
+      break
     fi
+    if [ $i -lt $retries ]; then
+      log "Count query attempt $((i+1)) failed for ${file}, retrying in ${delay}s" "WARN"
+      sleep $delay
+      delay=$((delay * 2))
+      if [[ "$is_small_table" == "true" ]]; then
+        actual_count=$(psql -v ON_ERROR_STOP=1 -q -Atc "SELECT COUNT(*) FROM ${table};")
+        psql_status=$?
+      else
+        actual_count=$(psql -v ON_ERROR_STOP=1 -q -Atc "SELECT COUNT(*) FROM ${table} WHERE consensus_timestamp BETWEEN '$start_ts' AND '$end_ts';")
+        psql_status=$?
+      fi
+    fi
+  done
+
+  # Check the exit status of the count query
+  if [ $psql_status -ne 0 ]; then
+    log "Final count query failure for ${file} after ${retries} retries" "ERROR"
+    write_discrepancy "${file}" "COUNT_QUERY_FAILURE" "${expected_count}"
+    write_tracking_file "$filename" "FAILED_TO_IMPORT"
+    return 1
   fi
 
   # Verify the count matches expected
@@ -639,16 +651,18 @@ import_file() {
     if [[ ! -f "$CLEANUP_IN_PROGRESS_FILE" ]]; then
       log "Row count mismatch for $file. Expected: $expected_count, Actual: $actual_count" "ERROR"
     fi
-    write_tracking_file "$file" "FAILED_TO_IMPORT"
     write_discrepancy "$file" "$expected_count" "$actual_count"
+    write_tracking_file "$filename" "FAILED_TO_IMPORT"
     return 1
   else
     log "Row count verified, successfully imported $file"
+    if validate_file "$file" "$filename"; then
+        write_tracking_file "$filename" "IMPORTED" "HASH_VERIFIED"
+    else
+        write_tracking_file "$filename" "IMPORTED" "HASH_UNVERIFIED"
+    fi
   fi
 
-  # Remove file from processing list when done
-  unset processing_files["$file"]
-  write_tracking_file "$file" "IMPORTED"
   return 0
 }
 
@@ -772,7 +786,7 @@ log "Script Process Group ID: $PGID"
 
 # Display help if no arguments are provided
 if [[ $# -eq 0 ]]; then
-  echo "No arguments provided. Use --help or -h for usage information."
+  log "No arguments provided. Use --help or -h for usage information." "ERROR"
   show_help
   exit 1
 fi
@@ -922,8 +936,8 @@ mapfile -t files < <(collect_import_tasks)
   flock -x 200
   for file in "${files[@]}"; do
     # Only add if not already in tracking file
-    if ! grep -q "^$file " "$TRACKING_FILE" 2>/dev/null; then
-      echo "$file NOT_STARTED HASH_UNVERIFIED" >> "$TRACKING_FILE"
+    if [[ -z "$(read_tracking_status "$file")" ]]; then
+      echo "$(basename "$file") NOT_STARTED HASH_UNVERIFIED" >> "$TRACKING_FILE"
     fi
   done
 ) 200>"$LOCK_FILE"
@@ -943,31 +957,62 @@ export \
   DECOMPRESS_TOOL DECOMPRESS_FLAGS BOOTSTRAP_ENV_FILE DISCREPANCY_FILE \
   IMPORT_DIR LOG_FILE MANIFEST_FILE TRACKING_FILE LOCK_FILE MAX_JOBS
 
+# Initialize PID tracking
+declare -A pid_to_file
+
 # Process files in parallel up to $MAX_JOBS
+total_jobs=0
+completed_jobs=0
+skipped_jobs=0
+
 for file in "${files[@]}"; do
-  # Check if the file has already been imported
-  if grep -q "^$file IMPORTED" "$TRACKING_FILE" 2>/dev/null; then
-    log "Skipping processing of already imported file: $file"
+  local base_file
+  base_file=$(basename "$file")
+  local current_status
+  current_status=$(read_tracking_status "$file")
+  if [[ "$current_status" == "IMPORTED" ]]; then
+    log "Skipping already imported file: $base_file"
+    ((skipped_jobs++))
     continue
   fi
 
-  # Wait if $MAX_JOBS are already running
+  # Mark file as IN_PROGRESS atomically in the tracking file
+  write_tracking_file "$base_file" "IN_PROGRESS"
+
+  # Wait if we've reached max concurrent jobs
   while [[ $(jobs -rp | wc -l) -ge $MAX_JOBS ]]; do
-    # Wait for any job to finish
-    if ! wait -n; then
-      overall_success=false
-      log "One or more import jobs failed" "ERROR"
-      ((failed_imports++))
-    fi
+    sleep 1
   done
 
-  # Start import in background and capture its PID
+  # Start import with PID tracking
   import_file "$file" &
-  pids+=($!)
+  pid=$!
+  pid_to_file["$pid"]="$file"
+  pids+=("$pid")
+  total_jobs=$((total_jobs + 1))
 done
 
 # Wait for all remaining jobs to finish
-wait
+for pid in "${pids[@]}"; do
+  if ! wait "$pid"; then
+    overall_success=false
+    failed_file="${pid_to_file[$pid]}"
+    log "Import failed for file: $failed_file" "ERROR"
+    ((failed_imports++))
+  else
+    ((completed_jobs++))
+  fi
+done
+
+# Summarize import statistics
+log "===================================================="
+log "Import statistics:"
+log "Total files processed: $((total_jobs + skipped_jobs))"
+log "Files skipped (already imported): $skipped_jobs"
+log "Files attempted to import: $total_jobs"
+log "Files completed: $completed_jobs"
+log "Files failed: $failed_imports"
+log "===================================================="
 
 # Summarize discrepancies
 if [[ -s "$DISCREPANCY_FILE" ]]; then
