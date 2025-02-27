@@ -23,12 +23,51 @@ import {CustomFeeViewModel, NftTransactionHistoryViewModel, NftViewModel} from '
 
 const {default: defaultLimit} = getResponseLimit();
 
-const customFeeSelect = `select jsonb_build_object(
-  'created_timestamp', lower(${CustomFee.TIMESTAMP_RANGE}),
-  'fixed_fees', ${CustomFee.FIXED_FEES},
-  'fractional_fees', ${CustomFee.FRACTIONAL_FEES},
-  'royalty_fees', ${CustomFee.ROYALTY_FEES},
-  'token_id', ${CustomFee.ENTITY_ID})`;
+const customFeeSelectFields = [
+  CustomFee.getFullName(CustomFee.TIMESTAMP_RANGE),
+  CustomFee.getFullName(CustomFee.FIXED_FEES),
+  CustomFee.getFullName(CustomFee.FRACTIONAL_FEES),
+  CustomFee.getFullName(CustomFee.ROYALTY_FEES),
+  CustomFee.getFullName(CustomFee.ENTITY_ID),
+];
+
+const entitySelectFields = [
+  Entity.getFullName(Entity.AUTO_RENEW_ACCOUNT_ID),
+  Entity.getFullName(Entity.AUTO_RENEW_PERIOD),
+  Entity.getFullName(Entity.DELETED),
+  Entity.getFullName(Entity.ID),
+  Entity.getFullName(Entity.KEY),
+  Entity.getFullName(Entity.EXPIRATION_TIMESTAMP),
+  Entity.getFullName(Entity.MEMO),
+  Entity.getFullName(Entity.TIMESTAMP_RANGE),
+];
+
+const tokenSelectFields = [
+  Token.getFullName(Token.CREATED_TIMESTAMP),
+  Token.getFullName(Token.DECIMALS),
+  Token.getFullName(Token.FEE_SCHEDULE_KEY),
+  Token.getFullName(Token.FREEZE_DEFAULT),
+  Token.getFullName(Token.FREEZE_KEY),
+  Token.getFullName(Token.FREEZE_STATUS),
+  Token.getFullName(Token.INITIAL_SUPPLY),
+  Token.getFullName(Token.KYC_KEY),
+  Token.getFullName(Token.KYC_STATUS),
+  Token.getFullName(Token.MAX_SUPPLY),
+  Token.getFullName(Token.METADATA),
+  Token.getFullName(Token.METADATA_KEY),
+  Token.getFullName(Token.NAME),
+  Token.getFullName(Token.PAUSE_KEY),
+  Token.getFullName(Token.PAUSE_STATUS),
+  Token.getFullName(Token.SUPPLY_KEY),
+  Token.getFullName(Token.SUPPLY_TYPE),
+  Token.getFullName(Token.SYMBOL),
+  Token.getFullName(Token.TIMESTAMP_RANGE),
+  Token.getFullName(Token.TOKEN_ID),
+  Token.getFullName(Token.TOTAL_SUPPLY),
+  Token.getFullName(Token.TREASURY_ACCOUNT_ID),
+  Token.getFullName(Token.TYPE),
+  Token.getFullName(Token.WIPE_KEY),
+];
 
 // select columns
 const sqlQueryColumns = {
@@ -99,37 +138,21 @@ const tokenAccountJoinQuery = 'join ta on ta.token_id = t.token_id';
 
 // token info sql queries
 const tokenInfoSelectFields = [
-  'e.auto_renew_account_id',
-  'e.auto_renew_period',
-  't.created_timestamp',
-  'decimals',
-  'e.deleted',
-  'e.expiration_timestamp',
-  'fee_schedule_key',
-  'freeze_default',
-  'freeze_key',
-  'freeze_status',
-  'initial_supply',
-  'e.key',
-  'kyc_key',
-  'kyc_status',
-  'max_supply',
-  'e.memo',
-  'metadata',
-  'metadata_key',
-  'greatest(lower(t.timestamp_range), lower(e.timestamp_range)) as modified_timestamp',
-  'name',
-  'pause_key',
-  'pause_status',
-  'supply_key',
-  'supply_type',
-  'symbol',
-  'token_id',
-  'total_supply',
-  'treasury_account_id',
-  't.type',
-  'wipe_key',
+  ...entitySelectFields,
+  ...tokenSelectFields,
+  `(case when ${CustomFee.getFullName(CustomFee.TIMESTAMP_RANGE)} is not null 
+     then jsonb_build_object(
+      'created_timestamp', lower(${CustomFee.getFullName(CustomFee.TIMESTAMP_RANGE)}),
+      'fixed_fees', ${CustomFee.getFullName(CustomFee.FIXED_FEES)},
+      'fractional_fees', ${CustomFee.getFullName(CustomFee.FRACTIONAL_FEES)},
+      'royalty_fees', ${CustomFee.getFullName(CustomFee.ROYALTY_FEES)},
+      'token_id', ${CustomFee.getFullName(CustomFee.ENTITY_ID)})
+     else null 
+   end) as custom_fee`,
+  `greatest(lower(${Token.getFullName(Token.TIMESTAMP_RANGE)}), 
+            lower(${Entity.getFullName(Entity.TIMESTAMP_RANGE)})) as modified_timestamp`,
 ];
+const tokenInfoOuterSelect = `select ${tokenInfoSelectFields.join(',\n')}`;
 const tokenIdMatchQuery = 'where token_id = $1';
 
 /**
@@ -235,7 +258,7 @@ const createCustomFeeObject = (customFee, tokenType) => {
 
   const model = new CustomFee(customFee);
   const viewModel = new CustomFeeViewModel(model);
-  const nonFixedFeesField = tokenType === Token.TYPE.FUNGIBLE_COMMON ? 'fractional_fees' : 'royalty_fees';
+  const nonFixedFeesField = tokenType === Token.TYPES.FUNGIBLE_COMMON ? 'fractional_fees' : 'royalty_fees';
   return {
     created_timestamp: utils.nsToSecNs(viewModel.created_timestamp),
     fixed_fees: viewModel.fixed_fees,
@@ -450,51 +473,69 @@ const transformTimestampFilterOp = (op) => {
  * @return {{query: string, params: []}} the query string and params
  */
 const extractSqlFromTokenInfoRequest = (tokenId, filters) => {
-  const conditions = [`${CustomFee.ENTITY_ID} = $1`];
   const params = [tokenId];
-  let customFeeQuery;
+  let tokenQuery = 'token';
+  let entityQuery = 'entity';
+  let customFeeQuery = 'custom_fee';
 
   if (filters && filters.length !== 0) {
     // honor the last timestamp filter
     const filter = filters[filters.length - 1];
     const op = transformTimestampFilterOp(filter.operator);
-    conditions.push(`lower(${CustomFee.TIMESTAMP_RANGE}) ${op} $2`);
+    const conditions = [`${CustomFee.ENTITY_ID} = $1`, `lower(${CustomFee.TIMESTAMP_RANGE}) ${op} $2`];
     params.push(filter.value);
 
+    var conditionsSql = conditions.join(' and ');
+
     // include the history table in the query
-    customFeeQuery = `
-      ${customFeeSelect}
-      from
-      (
-        (select *, lower(${CustomFee.TIMESTAMP_RANGE}) as created_timestamp
-         from ${CustomFee.tableName}
-         where ${conditions.join(' and ')})
-        union all
-        (select *, lower(${CustomFee.TIMESTAMP_RANGE}) as created_timestamp
-         from ${CustomFee.tableName}_history 
-         where ${conditions.join(' and ')} order by lower(${CustomFee.TIMESTAMP_RANGE}) desc limit 1)
-        order by created_timestamp desc
-        limit 1
-      ) as feeAndHistory`;
-  } else {
-    customFeeQuery = `
-      ${customFeeSelect}
-      from ${CustomFee.tableName}
-      where ${conditions.join(' and ')}`;
+    tokenQuery = buildHistoryQuery(
+      tokenSelectFields,
+      conditionsSql.replace('entity_id', 'token_id'),
+      Token.tableName,
+      Token.tableAlias
+    );
+
+    entityQuery = buildHistoryQuery(
+      entitySelectFields,
+      conditionsSql.replace('entity_id', 'id'),
+      Entity.tableName,
+      Entity.tableAlias
+    );
+
+    customFeeQuery = buildHistoryQuery(customFeeSelectFields, conditionsSql, CustomFee.tableName, CustomFee.tableAlias);
   }
 
-  const query = [
-    'select',
-    [...tokenInfoSelectFields, `(${customFeeQuery}) as custom_fee`].join(',\n'),
-    'from token t',
-    entityIdJoinQuery,
-    tokenIdMatchQuery,
-  ].join('\n');
+  var query = `${tokenInfoOuterSelect}
+            from ${tokenQuery} as ${Token.tableAlias}
+            join ${entityQuery} as ${Entity.tableAlias} on ${Entity.getFullName(Entity.ID)} = ${Token.getFullName(
+    Token.TOKEN_ID
+  )}
+            left join ${customFeeQuery} as ${CustomFee.tableAlias} on 
+                 ${CustomFee.getFullName(CustomFee.ENTITY_ID)} = ${Token.getFullName(Token.TOKEN_ID)}
+            ${tokenIdMatchQuery}`;
 
   return {
     query,
     params,
   };
+};
+
+const buildHistoryQuery = (selectColumns, conditions, tableName, tableAlias) => {
+  return `
+   (select ${selectColumns}
+    from
+    (
+      (select ${selectColumns}, lower(${tableAlias}.timestamp_range) as modified_timestamp
+        from ${tableName} ${tableAlias}
+        where ${conditions})
+      union all
+      (select ${selectColumns}, lower(${tableAlias}.timestamp_range) as modified_timestamp
+      from ${tableName}_history ${tableAlias}
+        where ${conditions} 
+        order by lower(${tableAlias}.timestamp_range) desc limit 1)
+      order by modified_timestamp desc limit 1
+    ) as ${tableAlias})
+    `;
 };
 
 const getTokenInfoRequest = async (req, res) => {
@@ -510,7 +551,9 @@ const getTokenInfoRequest = async (req, res) => {
   }
 
   const token = rows[0];
-  TokenService.putTokenCache(token);
+  if (filters.length === 0) {
+    TokenService.putTokenCache(token);
+  }
   res.locals[responseDataLabel] = formatTokenInfoRow(token);
 };
 
@@ -608,10 +651,10 @@ const extractSqlFromTokenBalancesRequest = async (tokenId, filters) => {
     if (balanceConditions.length) {
       // Apply balance filter after retrieving the latest balance as of the upper timestamp
       query = `with ti as (${query})
-        select *
-        from ti
-        where ${balanceConditions.join(' and ')}
-        order by account_id ${order}`;
+      select *
+      from ti
+      where ${balanceConditions.join(' and ')}
+      order by account_id ${order}`;
     }
     query += `\nlimit $${params.push(limit)}`;
   } else {
@@ -843,28 +886,28 @@ const nftTransactionHistorySelectFields = [
 ].join(',\n');
 
 const nftTransactionHistoryDetailsQuery = `
-  select
-    ${Transaction.CONSENSUS_TIMESTAMP},
-    case when ${Transaction.TYPE} = 35 then
-           jsonb_build_array(jsonb_build_object(
-             'is_approval', false,
-             'receiver_account_id', null,
-             'sender_account_id', null,
-             'serial_number', $2::bigint,
-             'token_id', $1::bigint))
-         else
-           jsonb_path_query_array(
-             ${Transaction.NFT_TRANSFER},
-             '$[*] ? (@.token_id == $token_id && @.serial_number == $serial_number)',
-             $3)
-    end as nft_transfer,
-    ${Transaction.NONCE},
-    ${Transaction.PAYER_ACCOUNT_ID},
-    ${Transaction.TYPE},
-    ${Transaction.VALID_START_NS}
-  from ${Transaction.tableName}
-  where ${Transaction.CONSENSUS_TIMESTAMP} = any($4)
-  order by ${Transaction.CONSENSUS_TIMESTAMP}`;
+    select ${Transaction.CONSENSUS_TIMESTAMP},
+           case
+               when ${Transaction.TYPE} = 35 then
+                   jsonb_build_array(jsonb_build_object(
+                           'is_approval', false,
+                           'receiver_account_id', null,
+                           'sender_account_id', null,
+                           'serial_number', $2::bigint,
+                           'token_id', $1::bigint))
+               else
+                   jsonb_path_query_array(
+                           ${Transaction.NFT_TRANSFER},
+                           '$[*] ? (@.token_id == $token_id && @.serial_number == $serial_number)',
+                           $3)
+               end as nft_transfer,
+           ${Transaction.NONCE},
+           ${Transaction.PAYER_ACCOUNT_ID},
+           ${Transaction.TYPE},
+           ${Transaction.VALID_START_NS}
+    from ${Transaction.tableName}
+    where ${Transaction.CONSENSUS_TIMESTAMP} = any($4)
+    order by ${Transaction.CONSENSUS_TIMESTAMP}`;
 
 /**
  * Extracts SQL query, params, order, and limit
@@ -907,28 +950,28 @@ const extractSqlFromNftTransferHistoryRequest = (tokenId, serialNumber, filters)
   const nftCondition = nftConditions.join(' and ');
   const tokenDeleteCondition = tokenDeleteConditions.join(' and ');
   const query = `select timestamp
-    from
-    ((
-      select lower(${Nft.TIMESTAMP_RANGE}) as timestamp
-      from ${Nft.tableName}
-      where ${nftCondition}
-      union all
-      (
-        select lower(${Nft.TIMESTAMP_RANGE}) as timestamp
-        from ${NftHistory.tableName}
-        where ${nftCondition}
-        order by timestamp ${order}
-        limit $${limitIndex}
-      )
-    )
-    union all
-    (
-      select lower(${Entity.TIMESTAMP_RANGE}) as timestamp
-      from ${Entity.tableName}
-      where ${tokenDeleteCondition}
-    )) as nft_event
-    order by timestamp ${order}
-    limit $${limitIndex}`;
+                 from
+                     ((
+                     select lower(${Nft.TIMESTAMP_RANGE}) as timestamp
+                     from ${Nft.tableName}
+                     where ${nftCondition}
+                     union all
+                     (
+                     select lower(${Nft.TIMESTAMP_RANGE}) as timestamp
+                     from ${NftHistory.tableName}
+                     where ${nftCondition}
+                     order by timestamp ${order}
+                     limit $${limitIndex}
+                     )
+                     )
+                     union all
+                     (
+                     select lower(${Entity.TIMESTAMP_RANGE}) as timestamp
+                     from ${Entity.tableName}
+                     where ${tokenDeleteCondition}
+                     )) as nft_event
+                 order by timestamp ${order}
+                     limit $${limitIndex}`;
 
   return utils.buildPgSqlObject(query, params, order, limit);
 };
@@ -1046,7 +1089,10 @@ const acceptedTokenBalancesParameters = new Set([
 
 if (utils.isTestEnv()) {
   Object.assign(tokens, {
+    buildHistoryQuery,
+    customFeeSelectFields,
     entityIdJoinQuery,
+    entitySelectFields,
     extractSqlFromNftTokenInfoRequest,
     extractSqlFromNftTokensRequest,
     extractSqlFromNftTransferHistoryRequest,
@@ -1060,6 +1106,8 @@ if (utils.isTestEnv()) {
     nftSelectQuery,
     tokenAccountCte,
     tokenAccountJoinQuery,
+    tokenInfoOuterSelect,
+    tokenSelectFields,
     tokensSelectQuery,
     validateSerialNumberParam,
     validateTokenInfoFilter,

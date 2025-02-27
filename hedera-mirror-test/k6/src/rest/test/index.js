@@ -47,6 +47,7 @@ import * as schedulesId from './schedulesId.js';
 import * as tokens from './tokens.js';
 import * as tokensFungibleCommon from './tokensFungibleCommon.js';
 import * as tokensId from './tokensId.js';
+import * as tokensIdTimestampLte from './tokensIdTimestampLte.js';
 import * as tokensIdBalances from './tokensIdBalances.js';
 import * as tokensIdBalancesTimestamp from './tokensIdBalancesTimestamp.js';
 import * as tokensName from './tokensName.js';
@@ -111,6 +112,7 @@ const tests = {
   tokens,
   tokensFungibleCommon,
   tokensId,
+  tokensIdTimestampLte,
   tokensIdBalances,
   tokensIdBalancesTimestamp,
   tokensName,

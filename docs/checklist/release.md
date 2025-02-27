@@ -20,16 +20,22 @@ This checklist verifies a release is rolled out successfully.
 Deployed automatically on every tag.
 
 - [ ] Deployed
+- [ ] Helm Controller logs show successful reconciliation check
+- [ ] Helm release status is healthy
 
 ### Performance
 
 - [ ] Deployed
+- [ ] Helm Controller logs show successful reconciliation check
+- [ ] Helm release status is healthy
 - [ ] gRPC API performance tests
 - [ ] Importer performance tests
 
 ### Mainnet Staging
 
 - [ ] Deployed
+- [ ] Helm Controller logs show successful reconciliation check
+- [ ] Helm release status is healthy
 - [ ] REST API performance tests
 - [ ] REST Java API performance tests
 - [ ] Web3 API performance tests
@@ -44,6 +50,8 @@ Deployed automatically on every tag.
 Deployed automatically on every tag.
 
 - [ ] Deployed
+- [ ] Helm Controller logs show successful reconciliation check
+- [ ] Helm release status is healthy
 
 ### Testnet
 
@@ -51,7 +59,11 @@ A GA tag will trigger an automatic deployment to NA. Upon success, a PR for EU w
 
 - [ ] Disk Snapshot for Citus is Taken (can be EU or NA)
 - [ ] Deployed NA
+- [ ] Helm Controller logs show successful reconciliation check NA
+- [ ] Helm release status is healthy NA
 - [ ] Deployed EU
+- [ ] Helm Controller logs show successful reconciliation check EU
+- [ ] Helm release status is healthy EU
 
 ### Pre-Production
 
@@ -69,7 +81,11 @@ EU will automatically get created.
 
 - [ ] Disk Snapshot for Citus is Taken (can be EU or NA)
 - [ ] Deployed NA
+- [ ] Helm Controller logs show successful reconciliation check NA
+- [ ] Helm release status is healthy NA
 - [ ] Deployed EU
+- [ ] Helm Controller logs show successful reconciliation check EU
+- [ ] Helm release status is healthy EU
 
 ## Post Release
 

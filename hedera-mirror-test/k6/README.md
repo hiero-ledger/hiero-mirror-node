@@ -78,6 +78,7 @@ The following parameters can be used to configure a REST test:
 | DEFAULT_TOKEN_BALANCE_TIMESTAMP    | now()   |                                    |
 | DEFAULT_TOKEN_ID                   |         |                                    |
 | DEFAULT_TOKEN_NAME                 |         |                                    |
+| DEFAULT_TOKEN_TIMESTAMP            | now()   |                                    |
 | DEFAULT_TOPIC_ID                   |         |                                    |
 | DEFAULT_TOPIC_SEQUENCE             |         |                                    |
 | DEFAULT_TOPIC_TIMESTAMP            |         |                                    |
