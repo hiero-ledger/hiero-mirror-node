@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.repository;
 
+import static com.hedera.mirror.web3.state.singleton.EntityIdSingleton.FIRST_USER_ENTITY_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
@@ -462,5 +463,17 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .get()
                 .usingRecursiveComparison()
                 .isEqualTo(entityHistory);
+    }
+
+    @Test
+    void findMaxIdOnlySystemAccountsPresent() {
+        assertThat(entityRepository.findMaxId()).isEqualTo(FIRST_USER_ENTITY_ID);
+    }
+
+    @Test
+    void findMaxId() {
+        final long lastId = 1111;
+        domainBuilder.entity().customize(e -> e.id(lastId)).persist();
+        assertThat(entityRepository.findMaxId()).isEqualTo(lastId);
     }
 }
