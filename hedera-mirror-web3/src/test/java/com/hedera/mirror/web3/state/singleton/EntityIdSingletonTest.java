@@ -49,6 +49,15 @@ class EntityIdSingletonTest {
     }
 
     @Test
+    void shouldReturnFirstUserEntityIdWhenMaxIdIsNull() {
+        when(mirrorNodeEvmProperties.getVersionedConfiguration()).thenReturn(versionedConfiguration);
+        when(versionedConfiguration.getConfigData(HederaConfig.class)).thenReturn(hederaConfig);
+        when(hederaConfig.firstUserEntity()).thenReturn(FIRST_USER_ENTITY_ID);
+        when(entityRepository.findMaxId(FIRST_USER_ENTITY_ID)).thenReturn(null);
+        assertThat(entityIdSingleton.get().number()).isEqualTo(FIRST_USER_ENTITY_ID);
+    }
+
+    @Test
     void shouldReturnNextIdWhenMaxIdIsGreaterThanLastSystemAccount() {
         when(mirrorNodeEvmProperties.getVersionedConfiguration()).thenReturn(versionedConfiguration);
         when(versionedConfiguration.getConfigData(HederaConfig.class)).thenReturn(hederaConfig);
