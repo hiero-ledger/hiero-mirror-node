@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.repository;
 
+import static com.hedera.mirror.web3.utils.ContractCallTestUtil.FIRST_USER_ENTITY_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
@@ -12,9 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-public class EntityRepositoryTest extends Web3IntegrationTest {
+class EntityRepositoryTest extends Web3IntegrationTest {
 
-    public static final long FIRST_USER_ENTITY_ID = 1001;
     private final EntityRepository entityRepository;
 
     @Test

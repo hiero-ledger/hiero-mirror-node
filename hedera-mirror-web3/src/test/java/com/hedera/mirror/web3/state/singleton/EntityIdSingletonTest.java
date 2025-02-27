@@ -2,7 +2,7 @@
 
 package com.hedera.mirror.web3.state.singleton;
 
-import static com.hedera.mirror.web3.repository.EntityRepositoryTest.FIRST_USER_ENTITY_ID;
+import static com.hedera.mirror.web3.utils.ContractCallTestUtil.FIRST_USER_ENTITY_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
