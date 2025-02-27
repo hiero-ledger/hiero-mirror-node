@@ -1,18 +1,15 @@
 {
-  "description": "Schedule api calls for a specific deleted schedule",
+  "description": "Schedule with implicit expiration (31m after creation)",
   "setup": {
-    "accounts": [
-      {
-        "num": 1024
-      }
-    ],
+    "features": {
+      "fakeTime": 1234569750
+    },
+    "accounts": [{ "num": 1024 }],
     "entities": [
       {
-        "num": 2000,
-        "deleted": true,
+        "num": 2002,
         "type": "SCHEDULE",
-        "memo": "Created per council decision dated 02/01/21",
-        "public_key": "7a3c7a3c5477bdf4a63742647d7cfc4544acc1899d07141caf4cd9fea2f75b28a5cc",
+        "memo": "Implicitly expired schedule",
         "key": [1, 1, 1]
       }
     ],
@@ -21,15 +18,15 @@
         "consensus_timestamp": "1234567890000000001",
         "creator_account_id": "0.0.1024",
         "payer_account_id": "0.0.1024",
-        "schedule_id": "0.0.2000"
+        "schedule_id": "0.0.2002"
       }
     ]
   },
-  "url": "/api/v1/schedules/0.0.2000",
+  "url": "/api/v1/schedules/0.0.2002",
+  "responseStatus": 200,
   "responseHeaders": {
     "cache-control": "public, max-age=3600"
   },
-  "responseStatus": 200,
   "responseJson": {
     "admin_key": {
       "_type": "ProtobufEncoded",
@@ -37,12 +34,12 @@
     },
     "consensus_timestamp": "1234567890.000000001",
     "creator_account_id": "0.0.1024",
-    "deleted": true,
+    "deleted": false,
     "expiration_time": null,
     "executed_timestamp": null,
-    "memo": "Created per council decision dated 02/01/21",
+    "memo": "Implicitly expired schedule",
     "payer_account_id": "0.0.1024",
-    "schedule_id": "0.0.2000",
+    "schedule_id": "0.0.2002",
     "signatures": [],
     "transaction_body": "AQECAgMD",
     "wait_for_expiry": false
