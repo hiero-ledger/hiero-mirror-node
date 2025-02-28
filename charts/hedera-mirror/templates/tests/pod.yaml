@@ -19,7 +19,7 @@ spec:
       env:
         - name: SPRING_CONFIG_ADDITIONALLOCATION
           value: /etc/secrets/
-        {{- range $name, $value := .Values.test.env }}
+        {{- range $name, $value := mergeOverwrite .Values.test.env .Values.global.env }}
         - name: {{ $name }}
         {{- if kindIs "string" $value }}
           value: {{ tpl $value $ | quote }}

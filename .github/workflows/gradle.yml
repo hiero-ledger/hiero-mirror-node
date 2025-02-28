@@ -97,7 +97,6 @@ jobs:
 
       - name: Execute Gradle using transaction executor
         if: ${{ matrix.project == 'web3' && matrix.schema == 'v1'}}
-        continue-on-error: true
         env:
           MIRROR_NODE_SCHEMA: ${{ matrix.schema}}
           SPRING_PROFILES_ACTIVE: ${{ matrix.schema}}

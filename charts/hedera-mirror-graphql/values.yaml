@@ -80,6 +80,8 @@ gateway:
     kind: Service
 
 global:
+  config: {}
+  env: {}
   gateway:
     enabled: false
     hostnames: []
