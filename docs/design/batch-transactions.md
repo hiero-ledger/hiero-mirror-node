@@ -74,17 +74,16 @@ Update
 
 ```java
 public class SqlEntityListener implements EntityListener, RecordStreamFileListener {
-    @Override
-    public void onTransaction(Transaction transaction) throws ImporterException {
-        context.add(transaction);
+  @Override
+  public void onTransaction(Transaction transaction) throws ImporterException {
+    context.add(transaction);
 
-        if (transaction.getBatchKey() != null && transaction.getNonce() == 0) {
-            Transaction batchParent = context.get(Transaction.class, transaction.getParentConsensus());
+    if (transaction.getBatchKey() != null && transaction.getNonce() == 0) {
+      Transaction batchParent = context.get(Transaction.class, transaction.getParentConsensus());
 
       if (batchParent == null) {
         throw new ImporterException("Batch parent not found for transaction: " + transaction.getConsensusTimestamp());
       }
-
       batchParent.addInnerTransaction(transaction);
     }
     // ...continue with current logic
@@ -175,7 +174,7 @@ INNER_TRANSACTION_FAILED
   storage for duplicated data. Only downside to not taking this approach is additional query overhead when
   retrieving batch transactions by transaction id.
 - Store inner transactions as a jsonb column on transaction with array of payer account and valid start. This approach
-  was ejected due to potential bloat from using jsonb data type.
+  was rejected due to potential bloat from using jsonb data type.
 
 ## Open Questions
 
