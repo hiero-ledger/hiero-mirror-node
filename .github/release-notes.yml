@@ -6,7 +6,7 @@ changelog:
   issues:
     exclude:
       labels: ["wontfix", "question", "duplicate", "invalid"]
-  repository: hashgraph/hedera-mirror-node
+  repository: hiero-ledger/hiero-mirror-node
   sections:
     - title: "Enhancements"
       labels: ["enhancement", "epic"]
