@@ -11,6 +11,11 @@ import (
 
 const EntityCacheKey = "entity"
 
+type CommonConfig struct {
+	Realm int64
+	Shard int64
+}
+
 type Config struct {
 	Cache               map[string]Cache
 	Db                  Db
@@ -23,9 +28,7 @@ type Config struct {
 	Nodes               NodeMap
 	Online              bool
 	Port                uint16
-	Realm               int64
 	Response            Response
-	Shard               int64
 	ShutdownTimeout     time.Duration `yaml:"shutdownTimeout"`
 }
 

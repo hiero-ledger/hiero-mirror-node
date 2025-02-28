@@ -2,7 +2,7 @@
 
 package com.hedera.mirror.restjava.common;
 
-import static com.hedera.mirror.restjava.common.EntityIdParameter.DEFAULT_SHARD;
+import static com.hedera.mirror.restjava.common.EntityIdParameter.PROPERTIES;
 
 import com.google.common.base.Splitter;
 import com.hedera.mirror.common.domain.entity.EntityId;
@@ -43,9 +43,10 @@ public record EntityIdRangeParameter(RangeOperator operator, Long value) impleme
             throw new IllegalArgumentException("Invalid entity ID: " + entityId);
         }
 
+        var properties = PROPERTIES.get();
         return switch (parts.size()) {
-            case 1 -> EntityId.of(DEFAULT_SHARD, 0, parts.get(0));
-            case 2 -> EntityId.of(DEFAULT_SHARD, parts.get(0), parts.get(1));
+            case 1 -> EntityId.of(properties.getShard(), properties.getRealm(), parts.get(0));
+            case 2 -> EntityId.of(properties.getShard(), parts.get(0), parts.get(1));
             case 3 -> EntityId.of(parts.get(0), parts.get(1), parts.get(2));
             default -> throw new IllegalArgumentException("Invalid entity ID: " + entityId);
         };

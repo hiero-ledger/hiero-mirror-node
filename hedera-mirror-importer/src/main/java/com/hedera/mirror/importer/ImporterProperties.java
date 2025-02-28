@@ -55,9 +55,6 @@ public class ImporterProperties {
 
     private String nodePublicKey;
 
-    @Min(0)
-    private long shard = 0L;
-
     private Instant startDate;
 
     @Min(0)

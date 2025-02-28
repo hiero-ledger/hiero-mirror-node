@@ -3,11 +3,12 @@
 package com.hedera.mirror.importer.downloader.record;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.importer.downloader.AbstractLinkedStreamDownloaderTest;
@@ -67,7 +68,8 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
                 new ProtoRecordFileReader());
         sidecarProperties = new SidecarProperties();
         sidecarProperties.setEnabled(true);
-        var streamFileProvider = new S3StreamFileProvider(commonDownloaderProperties, s3AsyncClient);
+        var streamFileProvider =
+                new S3StreamFileProvider(new CommonProperties(), commonDownloaderProperties, s3AsyncClient);
         return new RecordFileDownloader(
                 consensusNodeService,
                 (RecordDownloaderProperties) downloaderProperties,

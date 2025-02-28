@@ -35,7 +35,7 @@ const (
 
 var (
 	corruptedTransaction    = "0x6767"
-	defaultConfig           = &config.Config{Network: defaultNetwork, Nodes: defaultNodes}
+	defaultConfig           = &config.Mirror{Rosetta: config.Config{Network: defaultNetwork, Nodes: defaultNodes}}
 	defaultCryptoAccountId1 = types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(123352))
 	defaultCryptoAccountId2 = types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(123518))
 	defaultCryptoAccountId3 = types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(123532))
@@ -45,12 +45,12 @@ var (
 		"10.0.0.3:50211": hiero.AccountID{Account: 5},
 		"10.0.0.4:50211": hiero.AccountID{Account: 6},
 	}
-	singleNodeConfig = &config.Config{
+	singleNodeConfig = &config.Mirror{Rosetta: config.Config{
 		Network: defaultNetwork,
 		Nodes: config.NodeMap{
 			"10.0.0.1:50211": hiero.AccountID{Account: 3},
 			"10.0.0.1:50212": hiero.AccountID{Account: 3},
-		}}
+		}}}
 	invalidTransaction          = "InvalidTxHexString"
 	invalidTypeTransaction      = "0x0a332a310a2d0a140a0c08a6e4cb840610f6a3aeef0112041882810c12021805188084af5f22020878c20107320508d0c8e1031200"
 	nodeAccountId               = hiero.AccountID{Account: 7}
@@ -226,9 +226,9 @@ func TestConstructionCombine(t *testing.T) {
 	expectedConstructionCombineResponse := &rTypes.ConstructionCombineResponse{
 		SignedTransaction: validSignedTransaction,
 	}
-	rosettaConfig := *defaultConfig
-	rosettaConfig.Nodes = nil
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, &rosettaConfig, nil)
+	mirrorConfig := *defaultConfig
+	mirrorConfig.Rosetta.Nodes = nil
+	service, _ := NewConstructionAPIService(nil, onlineBaseService, &mirrorConfig, nil)
 
 	// when:
 	res, e := service.ConstructionCombine(nil, getConstructionCombineRequest())
@@ -445,10 +445,10 @@ func TestConstructionMetadataOnline(t *testing.T) {
 		Return(types.HbarAmount{Value: 100}, mocks.NilError)
 	randomNodeAccountId := hiero.AccountID{Account: uint64(rand.Intn(100) + 1)}
 	nodes := map[string]hiero.AccountID{"10.0.0.1:50211": randomNodeAccountId, "10.0.0.2:50211": randomNodeAccountId}
-	rosettaConfig := &config.Config{
+	mirrorConfig := &config.Mirror{Rosetta: config.Config{
 		Network: defaultNetwork,
 		Nodes:   nodes,
-	}
+	}}
 	request := &rTypes.ConstructionMetadataRequest{
 		NetworkIdentifier: networkIdentifier(),
 		Options: map[string]interface{}{
@@ -471,7 +471,7 @@ func TestConstructionMetadataOnline(t *testing.T) {
 	service, _ := NewConstructionAPIService(
 		mockAccountRepo,
 		onlineBaseService,
-		rosettaConfig,
+		mirrorConfig,
 		mockTransactionConstructor,
 	)
 	res, err := service.ConstructionMetadata(defaultContext, request)
@@ -1211,7 +1211,7 @@ func TestConstructionSubmitOffline(t *testing.T) {
 		SignedTransaction: "0xfc2267c53ef8a27e2ab65f0a6b5e5607ba33b9c8c8f7304d8cb4a77aee19107d",
 	}
 
-	service, _ := NewConstructionAPIService(nil, offlineBaseService, &config.Config{Network: defaultNetwork}, nil)
+	service, _ := NewConstructionAPIService(nil, offlineBaseService, &config.Mirror{Rosetta: config.Config{Network: defaultNetwork}}, nil)
 
 	// when
 	res, e := service.ConstructionSubmit(defaultContext, request)
@@ -1365,7 +1365,7 @@ func TestGetFrozenTransactionBodyBytes(t *testing.T) {
 }
 
 func TestNewConstructionAPIServiceThrowsWithUnrecognizedNetwork(t *testing.T) {
-	client, err := NewConstructionAPIService(nil, onlineBaseService, &config.Config{Network: "unknown"}, nil)
+	client, err := NewConstructionAPIService(nil, onlineBaseService, &config.Mirror{Rosetta: config.Config{Network: "unknown"}}, nil)
 	assert.Error(t, err)
 	assert.Nil(t, client)
 }
