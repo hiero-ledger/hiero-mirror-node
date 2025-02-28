@@ -3902,6 +3902,13 @@ components:
         charged_tx_fee: 7
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
+        max_custom_fees:
+          - account_id: 0.0.8
+            amount: 1000
+            denominating_token_id: 0.0.2000
+          - account_id: 0.0.8
+            amount: 1500
+            denominating_token_id: null
         max_fee: 33
         memo_base64: null
         name: CRYPTOTRANSFER
