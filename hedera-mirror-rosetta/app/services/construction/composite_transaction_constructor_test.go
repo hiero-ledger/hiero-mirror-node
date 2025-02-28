@@ -29,8 +29,8 @@ import (
 )
 
 var (
-	cryptoTransferTransaction = hiero.NewTransferTransaction()
-	tokenCreateTransaction    = hiero.NewTokenCreateTransaction()
+	cryptoTransferTransaction = *hiero.NewTransferTransaction()
+	tokenCreateTransaction    = *hiero.NewTokenCreateTransaction()
 	cryptoTransferOperations  = types.OperationSlice{{Type: types.OperationTypeCryptoTransfer}}
 	mixedOperations           = types.OperationSlice{
 		{Type: types.OperationTypeCryptoTransfer},

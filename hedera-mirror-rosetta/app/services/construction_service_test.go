@@ -75,7 +75,7 @@ var (
 	privateKey, _               = hiero.PrivateKeyFromString("302e020100300506032b6570042204207904b9687878e08e101723f7b724cd61a42bbff93923177bf3fcc2240b0dd3bc")
 	aliasStr                    = ed25519AliasPrefix + publicKeyStr
 	aliasAccount, _             = types.NewAccountIdFromString(aliasStr, 0, 0)
-	unsignedTransactionWithMemo = "0x0a332a310a2d0a0f0a0708959aef3a107b120418d8c307120218031880c2d72f220308b40132087472616e7366657272020a001200"
+	unsignedTransactionWithMemo = "0x0a4522430a140a0c08d2ec84be0610e5a2eef602120418d8c3071880c2d72f2202087832087472616e7366657272180a160a090a0418d8c30710cf0f0a090a0418fec40710d00f"
 	validSignedTransaction      = "0x0aaa012aa7010a3d0a140a0c08feafcb840610ae86c0db03120418d8c307120218041880c2d72f2202087872180a160a090a0418d8c30710cf0f0a090a0418fec40710d00f12660a640a20eba8cc093a83a4ca5e813e30d8c503babb35c22d57d34b6ec5ac0303a6aaba771a40793de745bc19dd8fe8e817891f51b8fe1e259c2e6428bd7fa075b181585a2d40e3666a7c9a1873abb5433ffe1414502836d8d37082eaf94a648b530e9fa78108"
 )
 
@@ -750,24 +750,31 @@ func TestConstructionParse(t *testing.T) {
 				getOperation(0, types.OperationTypeCryptoTransfer, defaultCryptoAccountId1, defaultSendAmount),
 				getOperation(1, types.OperationTypeCryptoTransfer, defaultCryptoAccountId2, defaultReceiveAmount),
 			}
+			operationsReversed := types.OperationSlice{
+				getOperation(0, types.OperationTypeCryptoTransfer, defaultCryptoAccountId2, defaultReceiveAmount),
+				getOperation(1, types.OperationTypeCryptoTransfer, defaultCryptoAccountId1, defaultSendAmount),
+			}
 			expected := &rTypes.ConstructionParseResponse{
 				Operations:               operations.ToRosetta(),
 				AccountIdentifierSigners: tt.signers,
 				Metadata:                 tt.metadata,
 			}
-			mockConstructor := &mocks.MockTransactionConstructor{}
-			mockConstructor.
-				On("Parse", defaultContext, mock.IsType(hiero.TransferTransaction{})).
-				Return(operations, []types.AccountId{defaultCryptoAccountId1}, mocks.NilError)
-			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
+			expectedReversed := &rTypes.ConstructionParseResponse{
+				Operations:               operationsReversed.ToRosetta(),
+				AccountIdentifierSigners: tt.signers,
+				Metadata:                 tt.metadata,
+			}
+
+			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor())
 
 			// when:
 			actual, e := service.ConstructionParse(defaultContext, tt.request)
 
 			// then:
-			assert.Equal(t, expected, actual)
+			// SDK returns transfers as a map, there's no guarantee of the keys' order when iterating, thus
+			// check both orders here
+			assert.True(t, reflect.DeepEqual(actual, expected) != reflect.DeepEqual(actual, expectedReversed))
 			assert.Nil(t, e)
-			mockConstructor.AssertExpectations(t)
 		})
 	}
 }

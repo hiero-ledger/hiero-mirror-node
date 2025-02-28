@@ -67,7 +67,7 @@ func (c *compositeTransactionConstructor) Parse(ctx context.Context, transaction
 	[]types.AccountId,
 	*rTypes.Error,
 ) {
-	name := reflect.TypeOf(transaction).Elem().Name()
+	name := reflect.TypeOf(transaction).Name()
 	h, ok := c.constructorsByTransactionType[name]
 	if !ok {
 		log.Errorf("No constructor to parse constructed transaction %s", name)
