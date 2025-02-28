@@ -9,12 +9,12 @@ describe('CustomFeeLimitViewModel', () => {
     // Construct the test input using protobuf encoding
     const testInput = [
       proto.CustomFeeLimit.encode({
-        accountId: {shardNum: 0, realmNum: 0, accountNum: 8},
-        fees: [{amount: 1000, denominatingTokenId: {shardNum: 0, realmNum: 0, tokenNum: 3001}}],
+        accountId: {accountNum: 8},
+        fees: [{amount: 1000, denominatingTokenId: {tokenNum: 3001}}],
       }).finish(),
 
       proto.CustomFeeLimit.encode({
-        accountId: {shardNum: 0, realmNum: 0, accountNum: 9},
+        accountId: {accountNum: 9},
         fees: [{amount: 500, denominatingTokenId: null}],
       }).finish(),
     ];
@@ -24,11 +24,11 @@ describe('CustomFeeLimitViewModel', () => {
     const expected = new CustomFeeLimitViewModel({
       fees: [
         {
-          accountId: {shardNum: 0, realmNum: 0, accountNum: 8},
-          fixedFees: [{amount: 1000, denominatingTokenId: {shardNum: 0, realmNum: 0, tokenNum: 3001}}],
+          accountId: {accountNum: 8},
+          fixedFees: [{amount: 1000, denominatingTokenId: {tokenNum: 3001}}],
         },
         {
-          accountId: {shardNum: 0, realmNum: 0, accountNum: 9},
+          accountId: {accountNum: 9},
           fixedFees: [{amount: 500, denominatingTokenId: null}],
         },
       ],

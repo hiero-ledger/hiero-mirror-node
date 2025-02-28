@@ -6,13 +6,14 @@ class CustomFeeLimitViewModel {
    * @param {CustomFeeLimits} customFeeLimits - Array of parsed CustomFeeLimit objects.
    */
   constructor(customFeeLimits) {
-    this.max_custom_fees = customFeeLimits.fees.flatMap((fee) =>
-      (fee.fixedFees ?? []).map((fixedFee) => ({
-        account_id: this._formatAccountId(fee.accountId),
+    this.max_custom_fees = customFeeLimits.fees.flatMap((fee) => {
+      const formattedAccountId = this._formatAccountId(fee.accountId);
+      (fee.fees ?? []).map((fixedFee) => ({
+        account_id: formattedAccountId,
         amount: BigInt(fixedFee.amount),
         denominating_token_id: this._formatTokenId(fixedFee.denominating_token_id),
-      }))
-    );
+      }));
+    });
   }
 
   _formatAccountId(accountId) {

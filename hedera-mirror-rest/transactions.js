@@ -173,7 +173,7 @@ const createNftTransferList = (nftTransferList) => {
  * @return {CustomFeeLimitViewModel} An array of custom fee limit view models
  */
 const createMaxCustomFeesTransferList = (maxCustomFeesList) => {
-  return new CustomFeeLimitViewModel(new CustomFeeLimits(maxCustomFeesList));
+  return new CustomFeeLimitViewModel(new CustomFeeLimits(maxCustomFeesList)).max_custom_fees;
 };
 
 /**

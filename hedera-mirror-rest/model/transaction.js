@@ -45,7 +45,7 @@ class Transaction {
     this.entityId = transaction.entity_id;
     this.initialBalance = transaction.initial_balance;
     this.maxFee = transaction.max_fee;
-    this.maxCustomFees = new CustomFeeLimits(transaction.max_custom_fees ?? []);
+    this.maxCustomFees = new CustomFeeLimits(transaction.max_custom_fees);
     this.memo = transaction.memo;
     this.nftTransfer = (transaction.nft_transfer ?? []).map((n) => new NftTransfer(n));
     this.nodeAccountId = transaction.node_account_id;
