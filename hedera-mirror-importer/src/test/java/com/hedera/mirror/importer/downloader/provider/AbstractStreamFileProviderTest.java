@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.collect.Streams;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.StreamType;
 import com.hedera.mirror.common.domain.transaction.BlockFile;
 import com.hedera.mirror.importer.FileCopier;
@@ -48,12 +49,14 @@ abstract class AbstractStreamFileProviderTest {
     @TempDir
     protected Path dataPath;
 
+    protected CommonProperties commonProperties;
     protected ImporterProperties importerProperties;
     protected CommonDownloaderProperties properties;
     protected StreamFileProvider streamFileProvider;
 
     @BeforeEach
     void setup() {
+        commonProperties = new CommonProperties();
         importerProperties = new ImporterProperties();
         importerProperties.setDataPath(dataPath);
         properties = new CommonDownloaderProperties(importerProperties);
@@ -433,8 +436,7 @@ abstract class AbstractStreamFileProviderTest {
     }
 
     private FileCopier createBlockStreamFileCopier() {
-        String toPath =
-                Path.of(Long.toString(importerProperties.getShard()), "0").toString(); // node id 0
+        String toPath = Path.of(Long.toString(commonProperties.getShard()), "0").toString(); // node id 0
         return createFileCopier(Path.of("data", "blockstreams"), toPath);
     }
 }

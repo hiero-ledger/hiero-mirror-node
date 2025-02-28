@@ -2,14 +2,14 @@
 
 package com.hedera.mirror.restjava.common;
 
-import com.hedera.mirror.restjava.RestJavaProperties;
+import com.hedera.mirror.common.CommonProperties;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.StringUtils;
 
 public sealed interface EntityIdParameter
         permits EntityIdNumParameter, EntityIdEvmAddressParameter, EntityIdAliasParameter {
 
-    Long DEFAULT_SHARD =
-            SpringApplicationContext.getBean(RestJavaProperties.class).getShard();
+    AtomicReference<CommonProperties> PROPERTIES = new AtomicReference<>();
 
     static EntityIdParameter valueOf(String id) {
         if (StringUtils.isBlank(id)) {

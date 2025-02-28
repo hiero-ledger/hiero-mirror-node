@@ -4,14 +4,12 @@ package com.hedera.mirror.restjava.common;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.when;
 
 import com.google.common.io.BaseEncoding;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.exception.InvalidEntityException;
-import com.hedera.mirror.restjava.RestJavaProperties;
 import org.bouncycastle.util.encoders.Hex;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,28 +17,16 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class EntityIdParameterTest {
 
-    @Mock
-    private RestJavaProperties properties;
-
-    private MockedStatic<SpringApplicationContext> context;
+    private final CommonProperties commonProperties = new CommonProperties();
 
     @BeforeEach
-    void setUp() {
-        context = Mockito.mockStatic(SpringApplicationContext.class);
-        when(SpringApplicationContext.getBean(RestJavaProperties.class)).thenReturn(properties);
-    }
-
-    @AfterEach
-    void closeMocks() {
-        context.close();
+    void setup() {
+        EntityIdParameter.PROPERTIES.set(commonProperties);
     }
 
     @ParameterizedTest
@@ -74,6 +60,16 @@ class EntityIdParameterTest {
     @DisplayName("EntityId parse from string tests, negative cases for ID having valid format")
     void testInvalidEntity(String input) {
         assertThrows(InvalidEntityException.class, () -> EntityIdParameter.valueOf(input));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1", "0x0000000000000000000000000000000000000001", "AABBCC22"})
+    void nonDefaultShardRealm(String value) {
+        commonProperties.setRealm(1000L);
+        commonProperties.setShard(1);
+        assertThat(EntityIdParameter.valueOf(value))
+                .returns(commonProperties.getRealm(), EntityIdParameter::realm)
+                .returns(commonProperties.getShard(), EntityIdParameter::shard);
     }
 
     @ParameterizedTest
