@@ -24,7 +24,7 @@ env:
 jobs:
   dependencies:
     name: Dependency Check
-    runs-on: mirror-node-linux-large
+    runs-on: hiero-mirror-node-linux-large
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Harden Runner
@@ -73,7 +73,7 @@ jobs:
     name: GoSec Code Scan
     env:
       GO111MODULE: on
-    runs-on: mirror-node-linux-large
+    runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
@@ -109,7 +109,7 @@ jobs:
   sonar:
     if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
     name: SonarCloud
-    runs-on: mirror-node-linux-large
+    runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
@@ -151,7 +151,7 @@ jobs:
   snyk:
     if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
     name: Snyk Open Source
-    runs-on: mirror-node-linux-large
+    runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
@@ -198,7 +198,7 @@ jobs:
   snyk-code:
     if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
     name: Snyk Code
-    runs-on: mirror-node-linux-large
+    runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
@@ -244,7 +244,7 @@ jobs:
 
   spotless-check:
     name: Spotless Code Format Check
-    runs-on: mirror-node-linux-medium
+    runs-on: hiero-mirror-node-linux-medium
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4

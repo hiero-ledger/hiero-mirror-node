@@ -22,7 +22,7 @@ env:
 
 jobs:
   validate:
-    runs-on: mirror-node-linux-large
+    runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 30
     env:
       ROSETTA_CLI_VERSION: v0.10.3

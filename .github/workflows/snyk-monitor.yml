@@ -20,7 +20,7 @@ env:
 jobs:
   snyk-monitor:
     name: Snyk Monitor
-    runs-on: mirror-node-linux-large
+    runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
