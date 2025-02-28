@@ -4,7 +4,6 @@ package construction
 
 import (
 	"context"
-
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/domain/types"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/errors"
