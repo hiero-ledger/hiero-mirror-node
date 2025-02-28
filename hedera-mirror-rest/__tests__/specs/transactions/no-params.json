@@ -27,6 +27,7 @@
         "payerAccountId": "0.0.8",
         "nodeAccountId": null,
         "consensus_timestamp": "1234567800000000009",
+        "max_custom_fees": null,
         "name": "CRYPTOUPDATEACCOUNT",
         "type": "15",
         "entity_id": "0.0.10"

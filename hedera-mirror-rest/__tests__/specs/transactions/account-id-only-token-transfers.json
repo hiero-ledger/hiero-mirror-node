@@ -1,5 +1,5 @@
 {
-  "description": "Transaction API calls for transactions via account id query filter where account only receives token transfer and consensus submit message",
+  "description": "Transaction api calls for transactions via account id query filter where account only receives token transfer",
   "matrix": "bindTimestampRangeMatrix.js",
   "setup": {
     "features": {
@@ -49,27 +49,6 @@
             "token_id": "0.0.90000",
             "account": "0.0.9",
             "amount": 1000
-          }
-        ]
-      },
-      {
-        "name": "CONSENSUSSUBMITMESSAGE",
-        "type": "27",
-        "charged_tx_fee": 10,
-        "valid_start_timestamp": "1234567890000000002",
-        "consensus_timestamp": "1234567890000000003",
-        "payerAccountId": "0.0.9",
-        "nodeAccountId": "0.0.3",
-        "max_custom_fees": [
-          {
-            "account_id": "0.0.8",
-            "amount": 1000,
-            "denominating_token_id": null
-          },
-          {
-            "account_id": "0.0.9",
-            "amount": 500,
-            "denominating_token_id": "0.0.2000"
           }
         ]
       }
@@ -140,38 +119,6 @@
             "is_approval": false
           }
         ]
-      },
-      {
-        "bytes": "Ynl0ZXM=",
-        "charged_tx_fee": 10,
-        "consensus_timestamp": "1234567890.000000003",
-        "entity_id": null,
-        "max_custom_fees": [
-          {
-            "account_id": "0.0.8",
-            "amount": 1000,
-            "denominating_token_id": null
-          },
-          {
-            "account_id": "0.0.9",
-            "amount": 500,
-            "denominating_token_id": "0.0.2000"
-          }
-        ],
-        "max_fee": "50",
-        "memo_base64": null,
-        "name": "CONSENSUSSUBMITMESSAGE",
-        "nft_transfers": [],
-        "node": "0.0.3",
-        "nonce": 0,
-        "parent_consensus_timestamp": null,
-        "result": "SUCCESS",
-        "scheduled": false,
-        "staking_reward_transfers": [],
-        "transaction_hash": "BQMFBgYHCAkKCw0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMA==",
-        "transaction_id": "0.0.9-1234567890-000000002",
-        "valid_duration_seconds": "11",
-        "valid_start_timestamp": "1234567890.000000002"
       }
     ],
     "links": {

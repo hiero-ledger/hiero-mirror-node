@@ -15,8 +15,8 @@ import * as utils from './utils';
 import {
   AssessedCustomFee,
   CryptoTransfer,
-  NftTransfer,
   CustomFeeLimits,
+  NftTransfer,
   StakingRewardTransfer,
   TokenTransfer,
   Transaction,
@@ -24,7 +24,7 @@ import {
   TransactionType,
 } from './model';
 
-import {AssessedCustomFeeViewModel, NftTransferViewModel, CustomFeeLimitViewModel} from './viewmodel';
+import {AssessedCustomFeeViewModel, CustomFeeLimitsViewModel, NftTransferViewModel} from './viewmodel';
 
 const SUCCESS_PROTO_IDS = TransactionResult.getSuccessProtoIds();
 
@@ -48,8 +48,8 @@ const transactionFields = [
   Transaction.CHARGED_TX_FEE,
   Transaction.CONSENSUS_TIMESTAMP,
   Transaction.ENTITY_ID,
-  Transaction.MAX_FEE,
   Transaction.MAX_CUSTOM_FEES,
+  Transaction.MAX_FEE,
   Transaction.MEMO,
   Transaction.NFT_TRANSFER,
   Transaction.NODE_ACCOUNT_ID,
@@ -167,13 +167,13 @@ const createNftTransferList = (nftTransferList) => {
 };
 
 /**
- * Creates a custom fee limit transfer list from an aggregated array of JSON objects in the query result
+ * Creates a custom fee limit list
  *
- * @param {Buffer[]} maxCustomFeesList - The list of max custom fees
- * @return {CustomFeeLimitViewModel} An array of custom fee limit view models
+ * @param {Buffer[]} maxCustomFeesList - The list of protobuf serialized bytes of proto.CustomFeeLimit
+ * @return An array of custom fee limit view models
  */
-const createMaxCustomFeesTransferList = (maxCustomFeesList) => {
-  return new CustomFeeLimitViewModel(new CustomFeeLimits(maxCustomFeesList)).max_custom_fees;
+const createMaxCustomFeesList = (maxCustomFeesList) => {
+  return new CustomFeeLimitsViewModel(new CustomFeeLimits(maxCustomFeesList)).max_custom_fees;
 };
 
 /**
@@ -194,7 +194,7 @@ const formatTransactionRows = async (rows) => {
       consensus_timestamp: utils.nsToSecNs(row.consensus_timestamp),
       entity_id: EntityId.parse(row.entity_id, {isNullable: true}).toString(),
       max_fee: utils.getNullableNumber(row.max_fee),
-      max_custom_fees: createMaxCustomFeesTransferList(row.max_custom_fees),
+      max_custom_fees: createMaxCustomFeesList(row.max_custom_fees),
       memo_base64: utils.encodeBase64(row.memo),
       name: TransactionType.getName(row.type),
       nft_transfers: createNftTransferList(row.nft_transfer),

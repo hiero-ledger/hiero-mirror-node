@@ -2704,6 +2704,7 @@ components:
         amount:
           example: 100
           format: int64
+          nullable: false
           type: integer
         denominating_token_id:
           $ref: "#/components/schemas/EntityId"

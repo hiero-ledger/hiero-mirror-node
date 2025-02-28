@@ -12,9 +12,8 @@ class CustomFeeLimits {
       this.fees = [];
       return;
     }
-    this.fees = customFeeLimits.map((feeBytes) => {
-      proto.CustomFeeLimit.decode(feeBytes);
-    });
+
+    this.fees = customFeeLimits.map((feeBytes) => proto.CustomFeeLimit.decode(feeBytes));
   }
 }
 
