@@ -671,10 +671,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void createNFTWithCustomFeesEstimateGas() {
         // The custom fee denomination must be fungible token in modularized services.
         var data = encodeData(
-                ESTIMATE_PRECOMPILE,
-                CREATE_NFT_WITH_CUSTOM_FEES,
-                asAddress(admin),
-                asAddress(fungibleTokenId));
+                ESTIMATE_PRECOMPILE, CREATE_NFT_WITH_CUSTOM_FEES, asAddress(admin), asAddress(fungibleTokenId));
 
         Consumer<Boolean> estimateFunction = current -> validateGasEstimationForCreateToken(
                 data, CREATE_NFT_WITH_CUSTOM_FEES.getActualGas(), calculateCreateTokenFee(2, current));
