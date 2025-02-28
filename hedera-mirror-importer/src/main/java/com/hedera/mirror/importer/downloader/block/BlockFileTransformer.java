@@ -88,14 +88,15 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
                     .transaction(blockItem.transaction())
                     .transactionIndex(index);
             blockItemTransformerFactory.transform(blockItem, builder);
-            builders.addFirst(builder);
+            builders.add(builder);
         }
 
         // An unpleasant performance degradation of reverse order is the second pass to build the record items, just to
         // set the previous link
         var recordItems = new ArrayList<RecordItem>(blockItems.size());
         RecordItem previousItem = null;
-        for (var builder : builders) {
+        for (int index = builders.size() - 1; index >= 0; index--) {
+            var builder = builders.get(index);
             var recordItem = builder.previous(previousItem).build();
             recordItems.add(recordItem);
             previousItem = recordItem;

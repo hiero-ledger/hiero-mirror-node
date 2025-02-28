@@ -67,7 +67,7 @@ import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -732,7 +732,6 @@ public class BlockItemBuilder {
         private final TransactionResult transactionResult;
         private final List<StateChanges> stateChanges;
 
-        @SuppressWarnings("java:S1640")
         private Builder(
                 Transaction transaction,
                 TransactionResult transactionResult,
@@ -740,7 +739,7 @@ public class BlockItemBuilder {
                 @Nonnull List<StateChanges> stateChanges) {
             this.stateChanges = new ArrayList<>(stateChanges); // make it modifiable
             this.transaction = transaction;
-            this.transactionOutputs = new HashMap<>(transactionOutputs); // make it modifiable
+            this.transactionOutputs = new EnumMap<>(transactionOutputs); // make it modifiable
             this.transactionResult = transactionResult;
         }
 
