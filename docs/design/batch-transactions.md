@@ -22,21 +22,11 @@ This document details how the mirror node will be updated to support it.
 
 ```postgresql
 alter table if exists transaction
-    add column if not exists batch_key          bytea default null,
-    add column if not exists inner_transactions jsonb default null;
+  add column if not exists batch_key          bytea      default null,
+  add column if not exists inner_transactions bigint[][] default null;
 ```
 
 ### Importer
-
-Create
-
-```java
-public record InnerTransaction(
-        long payerAccountId,
-        long validStartNs
-) {
-}
-```
 
 Update
 
@@ -50,23 +40,20 @@ Update
 
 ```java
 public class Transaction {
-    private byte[] batchKey;
+  private byte[] batchKey;
+  private List<long[]> innerTransactions;
 
-    @JsonSerialize(using = ObjectToStringSerializer.class)
-    @JdbcTypeCode(SqlTypes.JSON)
-    private List<InnerTransaction> innerTransactions;
-
-    public void addInnerTransaction(Transaction transaction) {
-        if (innerTransactions == null) {
-            innerTransactions = new ArrayList<>();
-        }
-
-        innerTransactions.add(transaction.toInnerTransaction());
+  public void addInnerTransaction(Transaction transaction) {
+    if (innerTransactions == null) {
+      innerTransactions = new ArrayList<>();
     }
 
-    private InnerTransaction toInnerTransaction() {
-        return new InnerTransaction(payerAccountId, validStartNs);
-    }
+    innerTransactions.add(transaction.toInnerTransaction());
+  }
+
+  private long[] toInnerTransaction() {
+    return new long []{payerAccountId, validStartNs};
+  }
 
 }
 ```
@@ -94,14 +81,14 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         if (transaction.getBatchKey() != null && transaction.getNonce() == 0) {
             Transaction batchParent = context.get(Transaction.class, transaction.getParentConsensus());
 
-            if (batchParent == null) {
-                throw new ImporterException("Batch parent not found for transaction: " + transaction.getConsensusTimestamp());
-            }
+      if (batchParent == null) {
+        throw new ImporterException("Batch parent not found for transaction: " + transaction.getConsensusTimestamp());
+      }
 
-            batchParent.addInnerTransaction(transaction);
-        }
-        // ...continue with current logic
+      batchParent.addInnerTransaction(transaction);
     }
+    // ...continue with current logic
+  }
 }
 ```
 
@@ -130,7 +117,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 - Update `Transactions.getTransactionsByIdOrHash` to query all `payer_account_id` and `valid_start_ns` combinations
   contained in `transaction.inner_transactions` for transaction(s) matching the `transactionId`
 
-```psudo
+```pseudo
 const getTransactionsByIdOrHash = async (req, res) => {
   If request by transactionId
     Get Transactions by transactionId using current logic
@@ -180,6 +167,15 @@ INNER_TRANSACTION_FAILED
 - The mirror node should be able to handle batch transactions with minimal performance impact on ingest
 - Retrieving transactions by transaction id should have no performance impact for non batch transactions and minimal
   performance impact for batch transactions
+
+## Rejected Ideas
+
+- Store inner transactions (with all transaction columns) in a separate table with additional column for batch payer.
+  This would allow colocating inner transactions with their batch parent, but would require additional
+  storage for duplicated data. Only downside to not taking this approach is additional query overhead when
+  retrieving batch transactions by transaction id.
+- Store inner transactions as a jsonb column on transaction with array of payer account and valid start. This approach
+  was ejected due to potential bloat from using jsonb data type.
 
 ## Open Questions
 
