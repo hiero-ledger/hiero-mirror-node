@@ -116,7 +116,7 @@ func (suite *cryptoTransferTransactionConstructorSuite) TestConstruct() {
 
 func (suite *cryptoTransferTransactionConstructorSuite) TestParse() {
 	defaultGetTransaction := func() hiero.TransactionInterface {
-		return hiero.NewTransferTransaction().
+		return *hiero.NewTransferTransaction().
 			AddHbarTransfer(sdkAccountIdA, hiero.HbarFromTinybar(-15)).
 			AddHbarTransfer(sdkAccountIdB, hiero.HbarFromTinybar(15)).
 			SetTransactionID(hiero.TransactionIDGenerate(sdkAccountIdA))
