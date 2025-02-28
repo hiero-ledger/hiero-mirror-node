@@ -57,7 +57,7 @@ func (c *cryptoTransferTransactionConstructor) Parse(_ context.Context, transact
 	[]types.AccountId,
 	*rTypes.Error,
 ) {
-	transferTransaction, ok := transaction.(*hiero.TransferTransaction)
+	transferTransaction, ok := transaction.(hiero.TransferTransaction)
 	if !ok {
 		return nil, nil, errors.ErrTransactionInvalidType
 	}
