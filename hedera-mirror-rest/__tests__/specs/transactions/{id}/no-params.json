@@ -8,30 +8,6 @@
   ],
   "matrix": "transactionHashV1Matrix.js",
   "setup": {
-    "accounts": [
-      {
-        "num": 3
-      },
-      {
-        "num": 9
-      },
-      {
-        "num": 10
-      },
-      {
-        "num": 98
-      }
-    ],
-    "entities": [
-      {
-        "num": 100,
-        "type": "SCHEDULE",
-        "memo": "Created per council decision dated 02/01/21",
-        "public_key": "7a3c7a3c5477bdf4a63742647d7cfc4544acc1899d07141caf4cd9fea2f75b28a5cc",
-        "key": [1, 1, 1]
-      }
-    ],
-    "balances": [],
     "transactions": [
       {
         "payerAccountId": "0.0.10",
@@ -66,9 +42,32 @@
         "nodeAccountId": "0.0.3",
         "consensus_timestamp": "1234567890000000002",
         "valid_start_timestamp": "1234567890000000001",
-        "name": "SCHEDULECREATE",
+        "max_custom_fees": [
+          {
+            "accountId": { "accountNum": 9 },
+            "fees": [
+              {
+                "amount": 1000,
+                "denominatingTokenId": { "tokenNum": 5100 }
+              },
+              {
+                "amount": 2000,
+                "denominatingTokenId": {}
+              }
+            ]
+          },
+          {
+            "accountId": { "accountNum": 10 },
+            "fees": [
+              {
+                "amount": 3000
+              }
+            ]
+          }
+        ],
+        "name": "CONSENSUSSUBMITMESSAGE",
         "transaction_hash": "rovr8cn6DzCTVuSAV/YEevfN5jA30FCdFt3Dsg4IUVi/3xTRU0XBsYsZm3L+1Kxv",
-        "type": 42,
+        "type": 27,
         "entity_id": "0.0.100",
         "transaction_bytes": null,
         "transfers": [
@@ -187,9 +186,26 @@
             "consensus_timestamp": "1234567890.000000002",
             "charged_tx_fee": 7,
             "entity_id": "0.0.100",
+            "max_custom_fees": [
+              {
+                "account_id": "0.0.9",
+                "amount": 1000,
+                "denominating_token_id": "0.0.5100"
+              },
+              {
+                "account_id": "0.0.9",
+                "amount": 2000,
+                "denominating_token_id": null
+              },
+              {
+                "account_id": "0.0.10",
+                "amount": 3000,
+                "denominating_token_id": null
+              }
+            ],
             "max_fee": "33",
             "memo_base64": null,
-            "name": "SCHEDULECREATE",
+            "name": "CONSENSUSSUBMITMESSAGE",
             "nft_transfers": [],
             "node": "0.0.3",
             "nonce": 0,
@@ -220,6 +236,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1234567890.000000003",
             "entity_id": null,
+            "max_custom_fees": [],
             "max_fee": "33",
             "memo_base64": null,
             "name": "CRYPTOTRANSFER",
@@ -258,6 +275,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1234567890.000000040",
             "entity_id": null,
+            "max_custom_fees": [],
             "max_fee": "33",
             "memo_base64": null,
             "name": "CRYPTOTRANSFER",
@@ -303,9 +321,26 @@
             "consensus_timestamp": "1234567890.000000002",
             "charged_tx_fee": 7,
             "entity_id": "0.0.100",
+            "max_custom_fees": [
+              {
+                "account_id": "0.0.9",
+                "amount": 1000,
+                "denominating_token_id": "0.0.5100"
+              },
+              {
+                "account_id": "0.0.9",
+                "amount": 2000,
+                "denominating_token_id": null
+              },
+              {
+                "account_id": "0.0.10",
+                "amount": 3000,
+                "denominating_token_id": null
+              }
+            ],
             "max_fee": "33",
             "memo_base64": null,
-            "name": "SCHEDULECREATE",
+            "name": "CONSENSUSSUBMITMESSAGE",
             "nft_transfers": [],
             "node": "0.0.3",
             "nonce": 0,
