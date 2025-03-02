@@ -2,7 +2,7 @@
   "description": "Schedule with implicit expiration (31m after creation)",
   "setup": {
     "features": {
-      "fakeTime": 1234569750
+      "fakeTime": 1234569700
     },
     "accounts": [{ "num": 1024 }],
     "entities": [
