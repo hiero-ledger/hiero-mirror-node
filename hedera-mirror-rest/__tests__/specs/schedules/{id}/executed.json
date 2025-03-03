@@ -17,10 +17,10 @@
       {
         "consensus_timestamp": "1234567890000000001",
         "creator_account_id": "0.0.1024",
-        "payer_account_id": "0.0.1024",
-        "schedule_id": "0.0.2000",
         "executed_timestamp": "1234567895000000000",
-        "expiration_time": "1234567896000000000"
+        "expiration_time": "1234567896000000000",
+        "payer_account_id": "0.0.1024",
+        "schedule_id": "0.0.2000"
       }
     ],
     "transactionsignatures": [
