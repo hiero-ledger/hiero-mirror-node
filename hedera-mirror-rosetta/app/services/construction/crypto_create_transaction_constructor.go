@@ -79,7 +79,7 @@ func (c *cryptoCreateTransactionConstructor) Parse(_ context.Context, transactio
 	[]types.AccountId,
 	*rTypes.Error,
 ) {
-	cryptoCreateTransaction, ok := transaction.(*hiero.AccountCreateTransaction)
+	cryptoCreateTransaction, ok := transaction.(hiero.AccountCreateTransaction)
 	if !ok {
 		return nil, nil, errors.ErrTransactionInvalidType
 	}

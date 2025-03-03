@@ -164,7 +164,7 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestConstruct() {
 
 func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 	defaultGetTransaction := func() hiero.TransactionInterface {
-		return hiero.NewAccountCreateTransaction().
+		return *hiero.NewAccountCreateTransaction().
 			SetAccountMemo(memo).
 			SetAutoRenewPeriod(time.Second * time.Duration(autoRenewPeriod)).
 			SetInitialBalance(hiero.HbarFromTinybar(initialBalance)).
@@ -194,9 +194,9 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 			name: "KeyNotSet",
 			getTransaction: func() hiero.TransactionInterface {
 				tx := defaultGetTransaction()
-				accountCreateTx, _ := tx.(*hiero.AccountCreateTransaction)
+				accountCreateTx, _ := tx.(hiero.AccountCreateTransaction)
 				accountCreateTx.SetKey(nil)
-				return tx
+				return accountCreateTx
 			},
 			expectError: true,
 		},
