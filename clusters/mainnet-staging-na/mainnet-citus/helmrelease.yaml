@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.124.0-rc1'
+      version: '0.125.0-rc1'
   dependsOn:
     - name: mirror
       namespace: common
@@ -121,7 +121,7 @@ spec:
             test:
               acceptance:
                 network: MAINNET
-      cucumberTags: "@critical and not @schedulebase"
+      cucumberTags: "@critical"
       enabled: true
     web3:
       env:
