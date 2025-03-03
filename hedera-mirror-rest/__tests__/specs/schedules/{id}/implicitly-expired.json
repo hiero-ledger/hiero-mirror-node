@@ -2,7 +2,7 @@
   "description": "Schedule with implicit expiration (31m after creation)",
   "setup": {
     "features": {
-      "fakeTime": 1234569700
+      "fakeTime": 1234569690
     },
     "accounts": [{ "num": 1024 }],
     "entities": [
@@ -15,7 +15,7 @@
     ],
     "schedules": [
       {
-        "consensus_timestamp": "1234567890000000001",
+        "consensus_timestamp": "1234567830000000000",
         "creator_account_id": "0.0.1024",
         "payer_account_id": "0.0.1024",
         "schedule_id": "0.0.2002"
@@ -32,7 +32,7 @@
       "_type": "ProtobufEncoded",
       "key": "010101"
     },
-    "consensus_timestamp": "1234567890.000000001",
+    "consensus_timestamp": "1234567830.000000000",
     "creator_account_id": "0.0.1024",
     "deleted": false,
     "expiration_time": null,
