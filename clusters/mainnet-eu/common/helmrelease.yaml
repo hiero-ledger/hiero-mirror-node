@@ -40,6 +40,8 @@ spec:
         resources:
           limits:
             memory: 1Gi
+    minio:
+      enabled: true
     prometheus:
       defaultRules:
         disabled:
@@ -68,8 +70,6 @@ spec:
           replicaExternalLabelName: __replica__
           resources:
             limits:
-              memory: 10Gi
-            requests:
               memory: 6Gi
           storageSpec:
             volumeClaimTemplate:

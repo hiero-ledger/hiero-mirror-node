@@ -76,6 +76,8 @@ spec:
       env:
         HEDERA_MIRROR_ROSETTA_NETWORK: "mainnet"
     stackgres:
+      backup:
+        enabled: true
       coordinator:
         enableMetricsExporter: true
       worker:
@@ -96,12 +98,12 @@ spec:
               persistentVolume:
                 size: 550Gi
         resources:
-          cpu: "15"
+          cpu: 15750m
           memory: 82Gi
           requests:
             containers:
               patroni:
-                cpu: "15"
+                cpu: 15750m
     test:
       config:
         hedera:
@@ -109,7 +111,7 @@ spec:
             test:
               acceptance:
                 network: MAINNET
-      cucumberTags: "@critical and not @schedulebase"
+      cucumberTags: "@critical"
       enabled: true
     web3:
       ingress:
