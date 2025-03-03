@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 apiVersion: v2
-appVersion: 0.125.0-rc1
+appVersion: 0.126.0-SNAPSHOT
 dependencies:
   - alias: grpc
     condition: grpc.enabled
@@ -73,4 +73,4 @@ maintainers:
   - name: Hedera Mirror Node Team
     email: mirrornode@hedera.com
 name: hedera-mirror
-version: 0.125.0-rc1
+version: 0.126.0-SNAPSHOT
