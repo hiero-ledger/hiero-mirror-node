@@ -191,7 +191,7 @@ public class ProtoBlockFileReaderTest {
         // when
         var blockFile = reader.read(streamFileData);
 
-        // then the block item should only has its own state changes
+        // then the block item should only have its own state changes
         assertThat(blockFile)
                 .extracting(
                         BlockFile::getItems,
@@ -202,7 +202,9 @@ public class ProtoBlockFileReaderTest {
                 .extracting(
                         com.hedera.mirror.common.domain.transaction.BlockItem::stateChanges,
                         InstanceOfAssertFactories.collection(StateChanges.class))
-                .hasSize(1);
+                .hasSize(1)
+                .first()
+                .returns(transactionTimestamp, StateChanges::getConsensusTimestamp);
     }
 
     @Test
