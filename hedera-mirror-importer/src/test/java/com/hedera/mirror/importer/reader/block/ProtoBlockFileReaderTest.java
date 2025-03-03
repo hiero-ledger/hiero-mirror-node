@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.hedera.hapi.block.stream.input.protoc.EventHeader;
 import com.hedera.hapi.block.stream.input.protoc.RoundHeader;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
+import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.Block;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
@@ -26,9 +27,11 @@ import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
@@ -36,6 +39,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+@CustomLog
 public class ProtoBlockFileReaderTest {
 
     public static final List<BlockFile> TEST_BLOCK_FILES = List.of(
@@ -67,6 +71,21 @@ public class ProtoBlockFileReaderTest {
                             "847ec86e6da4d279e0445a983f198ccf1883a2c32a7f8c8f87361e1311417b2b8d7531211aa52454a7de2aa06c162bf4")
                     .roundStart(983L)
                     .roundEnd(983L)
+                    .version(ProtoBlockFileReader.VERSION)
+                    .build(),
+            BlockFile.builder()
+                    .consensusStart(1741033890694027337L)
+                    .consensusEnd(1741033890694027337L)
+                    .count(0L)
+                    .digestAlgorithm(DigestAlgorithm.SHA_384)
+                    .hash(
+                            "61d19c07b316211e82a8f0602df493b0376f4911095095541b2934736495cf6d21a2f9c9d58ce64cfd51bfb8b1eb815a")
+                    .index(0L)
+                    .name(BlockFile.getBlockStreamFilename(0))
+                    .previousHash(
+                            "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+                    .roundStart(1L)
+                    .roundEnd(1L)
                     .version(ProtoBlockFileReader.VERSION)
                     .build());
     private static final long TIMESTAMP = 1738889423L;
@@ -132,13 +151,58 @@ public class ProtoBlockFileReaderTest {
                 .addItems(eventHeader)
                 .addItems(blockProof())
                 .build();
-        var streamFileData = StreamFileData.from("000000000000000000000000000000000001.blk.gz", gzip(block));
+        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(0), gzip(block));
         assertThat(reader.read(streamFileData))
                 .returns(TIMESTAMP * NANOS_PER_SECOND, BlockFile::getConsensusEnd)
                 .returns(TIMESTAMP * NANOS_PER_SECOND, BlockFile::getConsensusStart)
                 .returns(0L, BlockFile::getCount)
                 .returns(List.of(), BlockFile::getItems)
                 .returns(ProtoBlockFileReader.VERSION, BlockFile::getVersion);
+    }
+
+    @Test
+    void mixedStateChanges() {
+        // given standalone state changes immediately follows transactional state changes
+        var roundHeader = BlockItem.newBuilder().setRoundHeader(RoundHeader.getDefaultInstance());
+        var eventHeader = BlockItem.newBuilder().setEventHeader(EventHeader.getDefaultInstance());
+        var now = Instant.now();
+        var transactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano());
+        var transactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(transactionTimestamp)
+                .build();
+        var transactionStateChanges = StateChanges.newBuilder()
+                .setConsensusTimestamp(transactionTimestamp)
+                .build();
+        var nonTransactionStateChange = StateChanges.newBuilder()
+                .setConsensusTimestamp(TestUtils.toTimestamp(now.getEpochSecond() + 1, now.getNano()))
+                .build();
+        var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(roundHeader)
+                .addItems(eventHeader)
+                .addItems(eventTransaction())
+                .addItems(BlockItem.newBuilder().setTransactionResult(transactionResult))
+                .addItems(BlockItem.newBuilder().setStateChanges(transactionStateChanges))
+                .addItems(BlockItem.newBuilder().setStateChanges(nonTransactionStateChange))
+                .addItems(blockProof())
+                .build();
+        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(0), gzip(block));
+
+        // when
+        var blockFile = reader.read(streamFileData);
+
+        // then the block item should only has its own state changes
+        assertThat(blockFile)
+                .extracting(
+                        BlockFile::getItems,
+                        InstanceOfAssertFactories.collection(
+                                com.hedera.mirror.common.domain.transaction.BlockItem.class))
+                .hasSize(1)
+                .first()
+                .extracting(
+                        com.hedera.mirror.common.domain.transaction.BlockItem::stateChanges,
+                        InstanceOfAssertFactories.collection(StateChanges.class))
+                .hasSize(1);
     }
 
     @Test
