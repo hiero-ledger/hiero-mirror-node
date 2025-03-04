@@ -7,6 +7,9 @@ import {opsMap} from '../utils';
 import {assertSqlQueryEqual} from './testutils';
 import tokens from '../tokens';
 import _ from 'lodash';
+import CustomFee from '../model/customFee.js';
+import Entity from '../model/entity.js';
+import Token from '../model/token.js';
 
 const {default: defaultLimit} = getResponseLimit();
 
@@ -1382,69 +1385,38 @@ describe('token extractSqlFromNftTransferHistoryRequest tests', () => {
 
 describe('token extractSqlFromTokenInfoRequest tests', () => {
   const getExpectedQuery = (timestampCondition = '') => {
-    const selectStatement = `
-      (select jsonb_build_object(
-        'created_timestamp', lower(timestamp_range),
-        'fixed_fees', fixed_fees,
-        'fractional_fees', fractional_fees,
-        'royalty_fees', royalty_fees,
-        'token_id', entity_id
-      )`;
-    let customFeeQuery = `
-      ${selectStatement}
-      from custom_fee
-      where entity_id = $1
-    ) as custom_fee`;
+    let tokenQuery = 'token';
+    let entityQuery = 'entity';
+    let customFeeQuery = 'custom_fee';
 
     if (!_.isEmpty(timestampCondition)) {
-      customFeeQuery = `
-        ${selectStatement}
-        from (
-            (select *, lower(timestamp_range) as created_timestamp 
-              from custom_fee 
-              where entity_id = $1 and lower(timestamp_range) ${timestampCondition})
-            union all 
-            (select *, lower(timestamp_range) as created_timestamp
-              from custom_fee_history 
-              where entity_id = $1 and lower(timestamp_range) ${timestampCondition} 
-              order by lower(timestamp_range) desc limit 1) 
-            order by created_timestamp desc limit 1) as feeandhistory
-        ) as custom_fee`;
+      tokenQuery = tokens.buildHistoryQuery(
+        tokens.tokenSelectFields,
+        `token_id = $1 and lower(timestamp_range) ${timestampCondition}`,
+        Token.tableName,
+        Token.tableAlias
+      );
+      entityQuery = tokens.buildHistoryQuery(
+        tokens.entitySelectFields,
+        `id = $1 and lower(timestamp_range) ${timestampCondition}`,
+        Entity.tableName,
+        Entity.tableAlias
+      );
+      customFeeQuery = tokens.buildHistoryQuery(
+        tokens.customFeeSelectFields,
+        `entity_id = $1 and lower(timestamp_range) ${timestampCondition}`,
+        CustomFee.tableName,
+        CustomFee.tableAlias
+      );
     }
 
-    return `select e.auto_renew_account_id,
-                   e.auto_renew_period,
-                   t.created_timestamp,
-                   decimals,
-                   e.deleted,
-                   e.expiration_timestamp,
-                   fee_schedule_key,
-                   freeze_default,
-                   freeze_key,
-                   freeze_status,
-                   initial_supply,
-                   e.key,
-                   kyc_key,
-                   kyc_status,
-                   max_supply,
-                   e.memo,
-                   metadata,
-                   metadata_key,
-                   greatest(lower(t.timestamp_range), lower(e.timestamp_range)) as modified_timestamp,
-                   name,
-                   pause_key,
-                   pause_status,
-                   supply_key,
-                   supply_type,
-                   symbol,
-                   token_id,
-                   total_supply,
-                   treasury_account_id,
-                   t.type,
-                   wipe_key,
-                   ${customFeeQuery}
-            from token t
-            join entity e on e.id = t.token_id
+    return `${tokens.tokenInfoOuterSelect}
+            from ${tokenQuery} as ${Token.tableAlias}
+            join ${entityQuery} as ${Entity.tableAlias} on ${Entity.getFullName(Entity.ID)} = ${Token.getFullName(
+      Token.TOKEN_ID
+    )}
+            left join ${customFeeQuery} as ${CustomFee.tableAlias} on 
+                 ${CustomFee.getFullName(CustomFee.ENTITY_ID)} = ${Token.getFullName(Token.TOKEN_ID)}
             where token_id = $1`;
   };
 

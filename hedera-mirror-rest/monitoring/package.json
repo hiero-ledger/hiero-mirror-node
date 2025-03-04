@@ -1,6 +1,6 @@
 {
   "name": "@hashgraph/mirror-monitor",
-  "version": "0.125.0-SNAPSHOT",
+  "version": "0.126.0-SNAPSHOT",
   "description": "Hedera Mirror Node Monitor",
   "type": "module",
   "main": "server.js",
@@ -24,7 +24,7 @@
     "extensionless": "^1.9.9",
     "lodash": "^4.17.21",
     "log4js": "^6.9.1",
-    "mathjs": "^14.2.1",
+    "mathjs": "^14.3.0",
     "parse-duration": "^2.1.3",
     "pretty-ms": "^9.2.0"
   },

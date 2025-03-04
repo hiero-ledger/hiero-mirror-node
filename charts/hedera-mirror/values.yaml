@@ -74,6 +74,8 @@ db:
 fullnameOverride: ""
 
 global:
+  config: {}
+  env: {}
   gateway:
     annotations: {}
     className: "gke-l7-global-external-managed"

@@ -4,7 +4,6 @@ package construction
 
 import (
 	"context"
-
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/domain/types"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/errors"
@@ -57,7 +56,7 @@ func (c *cryptoTransferTransactionConstructor) Parse(_ context.Context, transact
 	[]types.AccountId,
 	*rTypes.Error,
 ) {
-	transferTransaction, ok := transaction.(*hiero.TransferTransaction)
+	transferTransaction, ok := transaction.(hiero.TransferTransaction)
 	if !ok {
 		return nil, nil, errors.ErrTransactionInvalidType
 	}

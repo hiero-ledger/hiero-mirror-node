@@ -74,6 +74,8 @@ envFrom: []
 fullnameOverride: ""
 
 global:
+  config: {}
+  env: {}
   image: {}
   namespaceOverride: ""
   podAnnotations: {}
