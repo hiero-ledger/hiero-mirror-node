@@ -20,9 +20,6 @@
       }
     ]
   },
-  "features": {
-    "fakeTime": 1234567950
-  },
   "url": "/api/v1/schedules/0.0.2001",
   "responseStatus": 200,
   "responseHeaders": {
