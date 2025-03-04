@@ -1,13 +1,12 @@
 module github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta
 
 go 1.23
-
 require (
 	github.com/Code-Hex/go-generics-cache v1.5.1
 	github.com/coinbase/rosetta-sdk-go v0.8.9
 	github.com/coinbase/rosetta-sdk-go/types v1.0.0
 	github.com/cucumber/godog v0.15.0
-	github.com/ethereum/go-ethereum v1.15.2
+	github.com/ethereum/go-ethereum v1.15.4
 	github.com/go-playground/validator/v10 v10.25.0
 	github.com/hellofresh/health-go/v4 v4.7.0
 	github.com/hiero-ledger/hiero-sdk-go/v2 v2.56.0
