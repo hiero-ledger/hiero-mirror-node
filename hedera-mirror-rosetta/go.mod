@@ -1,6 +1,9 @@
 module github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta
 
-go 1.23
+go 1.23.0
+
+toolchain go1.23.1
+
 require (
 	github.com/Code-Hex/go-generics-cache v1.5.1
 	github.com/coinbase/rosetta-sdk-go v0.8.9
