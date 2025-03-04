@@ -18,7 +18,7 @@
     },
     "schedules": [
       {
-        "consensus_timestamp":  "1234567900000000001",
+        "consensus_timestamp": "1234567900000000001",
         "creator_account_id": "0.0.1024",
         "payer_account_id": "0.0.1024",
         "schedule_id": "0.0.2000"
