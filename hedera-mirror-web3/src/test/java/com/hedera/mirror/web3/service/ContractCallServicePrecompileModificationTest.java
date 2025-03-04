@@ -38,6 +38,7 @@ import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TokenKey;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TokenTransferList;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TransferList;
+import com.hedera.mirror.web3.web3j.generated.PrecompileTestContract;
 import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
 import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
@@ -698,6 +699,74 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         verifyEthCallAndEstimateGas(functionCall, contract, value);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
+    }
+
+    @Test
+    void updateCustomFeesForTokenWithFixedFee() throws Exception {
+        final var backupProperties = mirrorNodeEvmProperties.getProperties();
+
+        try {
+            activateModularizedFlag();
+            final var collectorAccount = accountEntityWithEvmAddressPersist();
+            final var treasuryAccount = accountEntityWithEvmAddressPersist();
+            final var token = fungibleTokenPersistWithTreasuryAccount(treasuryAccount.toEntityId());
+            final var tokenId = token.getTokenId();
+
+            final var fixedFee = fixedFeePersist(token, collectorAccount, 100L);
+
+            tokenAllowancePersistCustomizable(ta -> ta.tokenId(tokenId)
+                    .spender(collectorAccount.getId())
+                    .amount(fixedFee.getAmount())
+                    .owner(treasuryAccount.getId()));
+
+            final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
+
+            final var getTokenCustomFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(
+                    toAddress(tokenId).toHexString());
+
+            final var expectedFee = new PrecompileTestContract.FixedFee(
+                    BigInteger.valueOf(100L),
+                    toAddress(tokenId).toHexString(),
+                    false,
+                    false,
+                    Address.fromHexString(
+                                    Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
+                            .toHexString());
+
+            var getTokenCustomFeesFunctionCallResult = getTokenCustomFeesFunctionCall.send();
+
+            assertThat(getTokenCustomFeesFunctionCallResult.component1().getFirst())
+                    .isEqualTo(expectedFee);
+
+            verifyEthCallAndEstimateGas(getTokenCustomFeesFunctionCall, precompileTestContract, ZERO_VALUE);
+
+            tokenAccountPersist(tokenId, collectorAccount.getId());
+
+            final var modificationPrecompileTestContract =
+                    testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+            final var newFee = new ModificationPrecompileTestContract.FixedFee(
+                    BigInteger.valueOf(110L),
+                    toAddress(tokenId).toHexString(),
+                    false,
+                    false,
+                    Address.fromHexString(
+                                    Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
+                            .toHexString());
+
+            final var updateCustomFeeFunctionCall =
+                    modificationPrecompileTestContract.call_updateFungibleTokenCustomFeesAndGetExternal(
+                            toAddress(tokenId).toHexString(), List.of(newFee), List.of(), List.of());
+
+            var updateCustomFeeFunctionCallResult = updateCustomFeeFunctionCall.send();
+
+            assertThat(updateCustomFeeFunctionCallResult.component1().getFirst().amount)
+                    .isEqualTo(newFee.amount);
+            verifyEthCallAndEstimateGas(updateCustomFeeFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
+        } finally {
+            deactivateModularizedFlag();
+            mirrorNodeEvmProperties.setProperties(backupProperties);
+        }
     }
 
     @Test

@@ -19,6 +19,7 @@ import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
+import com.hedera.mirror.common.domain.token.FixedFee;
 import com.hedera.mirror.common.domain.token.Nft;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.common.domain.token.TokenAccount;
@@ -262,6 +263,23 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      */
     protected Token fungibleTokenPersistWithTreasuryAccount(final EntityId treasuryEntityId) {
         return fungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
+    }
+
+    protected FixedFee fixedFeePersist(Token token, Entity collectorAccount, Long amount) {
+        final var fixedFee = FixedFee.builder()
+                .amount(amount)
+                .collectorAccountId(collectorAccount.toEntityId())
+                .denominatingTokenId(EntityId.of(token.getTokenId()))
+                .build();
+
+        domainBuilder
+                .customFee()
+                .customize(f -> f.entityId(token.getTokenId())
+                        .fixedFees(List.of(fixedFee))
+                        .fractionalFees(List.of())
+                        .royaltyFees(List.of()))
+                .persist();
+        return fixedFee;
     }
 
     /**
