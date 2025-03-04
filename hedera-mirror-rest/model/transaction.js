@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {filterKeys} from '../constants';
+import CustomFeeLimits from './customFeeLimits';
 import NftTransfer from './nftTransfer';
 
 class Transaction {
@@ -16,6 +17,7 @@ class Transaction {
   static ENTITY_ID = `entity_id`;
   static INITIAL_BALANCE = `initial_balance`;
   static MAX_FEE = `max_fee`;
+  static MAX_CUSTOM_FEES = `max_custom_fees`;
   static MEMO = `memo`;
   static NFT_TRANSFER = 'nft_transfer';
   static NODE_ACCOUNT_ID = `node_account_id`;
@@ -42,6 +44,7 @@ class Transaction {
     this.consensusTimestamp = transaction.consensus_timestamp;
     this.entityId = transaction.entity_id;
     this.initialBalance = transaction.initial_balance;
+    this.maxCustomFees = new CustomFeeLimits(transaction.max_custom_fees).fees;
     this.maxFee = transaction.max_fee;
     this.memo = transaction.memo;
     this.nftTransfer = (transaction.nft_transfer ?? []).map((n) => new NftTransfer(n));

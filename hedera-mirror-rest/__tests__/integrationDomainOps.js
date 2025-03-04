@@ -3,6 +3,7 @@
 import _ from 'lodash';
 import pgformat from 'pg-format';
 import {Range} from 'pg-range';
+import {proto} from '@hashgraph/proto';
 
 import base32 from '../base32';
 import config from '../config';
@@ -852,6 +853,7 @@ const defaultTransaction = {
   charged_tx_fee: NODE_FEE + NETWORK_FEE + SERVICE_FEE,
   consensus_timestamp: null,
   entity_id: null,
+  max_custom_fees: [],
   max_fee: 33,
   nft_transfer: null,
   node_account_id: null,
@@ -880,6 +882,10 @@ const addTransaction = async (transaction) => {
     payer_account_id: EntityId.parse(transaction.payerAccountId).getEncodedId(),
     valid_start_ns: transaction.valid_start_timestamp,
   };
+
+  if ((transaction.max_custom_fees ?? []).length !== 0) {
+    transaction.max_custom_fees = transaction.max_custom_fees.map((fee) => proto.CustomFeeLimit.encode(fee).finish());
+  }
 
   if (transaction.nft_transfer !== null) {
     transaction.nft_transfer.forEach((nftTransfer) => {

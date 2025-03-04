@@ -2,11 +2,12 @@
 
 package com.hedera.mirror.grpc;
 
+import com.hedera.mirror.common.CommonConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.context.annotation.Import;
 
-@ConfigurationPropertiesScan
+@Import(CommonConfiguration.class)
 @SpringBootApplication
 public class GrpcApplication {
 

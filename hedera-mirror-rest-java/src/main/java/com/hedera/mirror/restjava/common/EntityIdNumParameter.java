@@ -17,8 +17,9 @@ public record EntityIdNumParameter(EntityId id) implements EntityIdParameter {
             return null;
         }
 
-        long shard = DEFAULT_SHARD;
-        long realm = 0;
+        var properties = PROPERTIES.get();
+        long shard = properties.getShard();
+        long realm = properties.getRealm();
         String realmString;
 
         if ((realmString = matcher.group(4)) != null) {

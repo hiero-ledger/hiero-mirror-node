@@ -29,16 +29,19 @@ const (
 	nodesEnvKey     = "HEDERA_MIRROR_ROSETTA_NODES"
 )
 
+type Mirror struct {
+	Common  CommonConfig
+	Rosetta Config
+}
+
 type fullConfig struct {
 	Hedera struct {
-		Mirror struct {
-			Rosetta Config
-		}
+		Mirror Mirror
 	}
 }
 
 // LoadConfig loads configuration from yaml files and env variables
-func LoadConfig() (*Config, error) {
+func LoadConfig() (*Mirror, error) {
 	nodeMap, err := loadNodeMapFromEnv()
 	if err != nil {
 		return nil, err
@@ -81,18 +84,18 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
-	rosettaConfig := &config.Hedera.Mirror.Rosetta
-	rosettaConfig.Network = strings.ToLower(rosettaConfig.Network)
+	mirrorConfig := &config.Hedera.Mirror
+	mirrorConfig.Rosetta.Network = strings.ToLower(mirrorConfig.Rosetta.Network)
 	if len(nodeMap) != 0 {
-		rosettaConfig.Nodes = nodeMap
+		mirrorConfig.Rosetta.Nodes = nodeMap
 	}
 
-	var password = rosettaConfig.Db.Password
-	rosettaConfig.Db.Password = "" // Don't print password
-	log.Infof("Using configuration: %+v", rosettaConfig)
-	rosettaConfig.Db.Password = password
+	var password = mirrorConfig.Rosetta.Db.Password
+	mirrorConfig.Rosetta.Db.Password = "" // Don't print password
+	log.Infof("Using configuration: %+v", mirrorConfig)
+	mirrorConfig.Rosetta.Db.Password = password
 
-	return rosettaConfig, nil
+	return mirrorConfig, nil
 }
 
 func loadNodeMapFromEnv() (NodeMap, error) {

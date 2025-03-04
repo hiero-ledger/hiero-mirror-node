@@ -18,7 +18,6 @@ import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.entity.NftAllowance;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.common.domain.token.Nft;
 import com.hedera.mirror.common.domain.token.Token;
@@ -45,6 +44,7 @@ import com.hederahashgraph.api.proto.java.Key;
 import com.swirlds.state.State;
 import jakarta.annotation.Resource;
 import java.math.BigInteger;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.tuple.Pair;
@@ -62,7 +62,13 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected static final String TREASURY_ADDRESS = EvmTokenUtils.toAddress(2).toHexString();
     protected static final long DEFAULT_ACCOUNT_BALANCE = 100_000_000_000_000_000L;
-    protected static final int DEFAULT_TOKEN_BALANCE = 100;
+    protected static final long DEFAULT_TOKEN_BALANCE = 100;
+    protected static final BigInteger DEFAULT_SERIAL_NUMBER = BigInteger.ONE;
+    protected static final List<BigInteger> DEFAULT_SERIAL_NUMBERS_LIST = List.of(DEFAULT_SERIAL_NUMBER);
+    protected static final BigInteger INVALID_SERIAL_NUMBER = BigInteger.valueOf(Long.MAX_VALUE);
+    protected static final int DEFAULT_DECIMALS = 12;
+
+    protected static final long DEFAULT_AMOUNT_GRANTED = 10L;
 
     @Resource
     protected TestWeb3jService testWeb3jService;
@@ -263,7 +269,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param customizer - the consumer used to customize the token
      * @return Token object which is persisted in the db
      */
-    protected Token fungibleTokenCustomizable(Consumer<Token.TokenBuilder<?, ?>> customizer) {
+    protected Token fungibleTokenCustomizable(final Consumer<Token.TokenBuilder<?, ?>> customizer) {
         final var tokenEntity =
                 domainBuilder.entity().customize(e -> e.type(EntityType.TOKEN)).persist();
 
@@ -283,7 +289,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param tokenEntity     The entity from the entity db table related to the created token table record
      * @param treasuryAccount The account holding the initial token supply
      */
-    protected Token fungibleTokenPersist(Entity tokenEntity, Entity treasuryAccount) {
+    protected Token fungibleTokenPersist(final Entity tokenEntity, final Entity treasuryAccount) {
         return domainBuilder
                 .token()
                 .customize(t -> t.tokenId(tokenEntity.getId())
@@ -296,15 +302,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * Persists non-fungible token in the token db table.
      *
      * @param tokenEntity The entity from the entity db table related to the token
+     * @param treasuryAccount - The treasury account to be set in the token
      */
-    protected Token nonFungibleTokenPersist(Entity tokenEntity) {
-        return domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId()).type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE))
-                .persist();
-    }
-
-    protected Token nonFungibleTokenPersist(Entity tokenEntity, Entity treasuryAccount) {
+    protected Token nonFungibleTokenPersist(final Entity tokenEntity, final Entity treasuryAccount) {
         return domainBuilder
                 .token()
                 .customize(t -> t.tokenId(tokenEntity.getId())
@@ -314,45 +314,82 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * The method creates token allowance, which defines the amount of tokens that the owner allows another account
-     * (spender) to use on its behalf.
-     *
-     * @param amountGranted - initial amount of tokens that the spender is allowed to use on owner's behalf
-     * @param tokenEntity   - the token entity the allowance is created for
-     * @param owner         - the owner of the token amount that the allowance is created for
-     * @param spenderId     - the spender id (another user's id or contract id) that is allowed to spend amountGranted
-     *                      of tokenEntity on owner's behalf
-     * @return TokenAllowance object that is persisted to the database
+     * Persists a non-fungible token entity.
+     * @return Token object persisted in the database.
      */
-    protected TokenAllowance tokenAllowancePersist(
-            Long amountGranted, Entity tokenEntity, Entity owner, EntityId spenderId) {
+    protected Token nonFungibleTokenPersist() {
+        return nonFungibleTokenCustomizable(t -> {});
+    }
+
+    /**
+     * Persists a non-fungible token with a specific treasury account.
+     * @param treasuryEntityId The treasury account ID.
+     * @return Token object persisted in the database.
+     */
+    protected Token nonFungibleTokenPersistWithTreasury(final EntityId treasuryEntityId) {
+        return nonFungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
+    }
+
+    protected Token nonFungibleTokenCustomizable(Consumer<Token.TokenBuilder<?, ?>> customizer) {
+        final var nft = tokenEntityPersist();
+
         return domainBuilder
-                .tokenAllowance()
-                .customize(e -> e.owner(owner.getId())
-                        .amount(amountGranted)
-                        .amountGranted(amountGranted)
-                        .spender(spenderId.getId())
-                        .tokenId(tokenEntity.getId()))
+                .token()
+                .customize(t -> {
+                    t.tokenId(nft.getId()).type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE);
+                    customizer.accept(t);
+                })
                 .persist();
+    }
+
+    /**
+     * Creates and persists an NFT entity.
+     * @param customizer Consumer to customize NFT attributes.
+     */
+    protected Nft nftPersistCustomizable(final Consumer<Nft.NftBuilder<?, ?>> customizer) {
+        return domainBuilder
+                .nft()
+                .customize(n -> {
+                    n.serialNumber(DEFAULT_SERIAL_NUMBER.longValue());
+                    customizer.accept(n);
+                })
+                .persist();
+    }
+
+    protected Token nftPersist(final EntityId treasury, final EntityId accountId, final EntityId spender) {
+        final var token = nonFungibleTokenPersistWithTreasury(treasury);
+        nftPersistCustomizable(
+                n -> n.accountId(accountId).tokenId(token.getTokenId()).spender(spender));
+        return token;
+    }
+
+    protected TokenAllowance tokenAllowancePersistCustomizable(
+            final Consumer<TokenAllowance.TokenAllowanceBuilder<?, ?>> customizer) {
+        return domainBuilder.tokenAllowance().customize(customizer).persist();
+    }
+
+    protected void tokenAllowancePersist(final long spenderId, final long ownerId, final long tokenId) {
+        tokenAllowancePersistCustomizable(ta -> ta.tokenId(tokenId)
+                .spender(spenderId)
+                .amount(DEFAULT_AMOUNT_GRANTED)
+                .owner(ownerId));
     }
 
     /**
      * This method creates nft allowance for all instances of a specific token type (approvedForAll). The allowance
      * allows the spender to transfer NFTs on the owner's behalf.
      *
-     * @param token   the NFT token for which the allowance is created
-     * @param owner   the account owning the NFT
-     * @param spender the account allowed to transfer the NFT on owner's behalf
-     * @param payer   the account paying for the allowance creation
-     * @return NftAllowance object that is persisted to the database
+     * @param tokenId   the NFT tokenId for which the allowance is created
+     * @param owner   the account owning the NFT. In this case he is payer as well
+     * @param spenderId the account allowed to transfer the NFT on owner's behalf
      */
-    protected NftAllowance nftAllowancePersist(Token token, Entity owner, Entity spender, Entity payer) {
-        return domainBuilder
+    protected void nftAllowancePersist(final long tokenId, final long spenderId, final EntityId owner) {
+        domainBuilder
                 .nftAllowance()
-                .customize(a -> a.tokenId(token.getTokenId())
+                .customize(a -> a.tokenId(tokenId)
+                        .spender(spenderId)
                         .owner(owner.getId())
-                        .spender(spender.toEntityId().getId())
-                        .payerAccountId(payer.toEntityId())
+                        .payerAccountId(owner)
                         .approvedForAll(true))
                 .persist();
     }
@@ -375,7 +412,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param customizer - the consumer with which to customize the entity
      * @return
      */
-    protected Entity accountEntityPersistCustomizable(Consumer<Entity.EntityBuilder<?, ?>> customizer) {
+    protected Entity accountEntityPersistCustomizable(final Consumer<Entity.EntityBuilder<?, ?>> customizer) {
         return domainBuilder.entity().customize(customizer).persist();
     }
 
@@ -384,7 +421,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * hold and operate with the token. Otherwise, ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN will be thrown when executing a
      * transaction involving the token that requires the account to have KYC approval.
      */
-    protected TokenAccount tokenAccount(Consumer<TokenAccount.TokenAccountBuilder<?, ?>> consumer) {
+    protected TokenAccount tokenAccount(final Consumer<TokenAccount.TokenAccountBuilder<?, ?>> consumer) {
         return domainBuilder
                 .tokenAccount()
                 .customize(ta -> ta.freezeStatus(TokenFreezeStatusEnum.UNFROZEN)
@@ -394,8 +431,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .persist();
     }
 
-    protected void tokenAccountPersist(final long tokenId, final long accountId) {
-        tokenAccount(ta -> ta.tokenId(tokenId).accountId(accountId));
+    protected TokenAccount tokenAccountPersist(final long tokenId, final long accountId) {
+        return tokenAccount(ta -> ta.tokenId(tokenId).accountId(accountId));
     }
 
     /**
@@ -425,7 +462,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param account The account that the account_balance record is going to be created for
      * @param timestamp The timestamp indicating the account balance update
      */
-    protected void accountBalancePersist(Entity account, long timestamp) {
+    protected void accountBalancePersist(final Entity account, long timestamp) {
         domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.id(new AccountBalance.Id(timestamp, account.toEntityId()))
@@ -439,7 +476,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * No record for the token balance at a particular timestamp may result in INSUFFICIENT_TOKEN_BALANCE exception
      * for a historical query with the same timestamp.
      */
-    protected void tokenBalancePersist(EntityId account, EntityId token, long timestamp) {
+    protected void tokenBalancePersist(final EntityId account, final EntityId token, final long timestamp) {
         domainBuilder
                 .tokenBalance()
                 .customize(ab ->
@@ -467,7 +504,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                     .customize(n -> n.accountId(treasuryAccount.toEntityId())
                             .spender(treasuryAccount.toEntityId())
                             .tokenId(tokenToUpdateEntity.getId())
-                            .serialNumber(1))
+                            .serialNumber(DEFAULT_SERIAL_NUMBER.longValue()))
                     .persist();
 
             tokenAccount(ta -> ta.tokenId(tokenToUpdateEntity.getId())

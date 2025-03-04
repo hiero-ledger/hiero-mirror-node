@@ -2,13 +2,12 @@
 
 package com.hedera.mirror.web3;
 
+import com.hedera.mirror.common.CommonConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.context.annotation.Import;
 
-@ConfigurationPropertiesScan
-@EntityScan("com.hedera.mirror.common.domain")
+@Import(CommonConfiguration.class)
 @SpringBootApplication
 public class Web3Application {
 

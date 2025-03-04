@@ -20,6 +20,21 @@ contract EthCall is HederaTokenService {
         _recipient.transfer(msg.value);
     }
 
+    function createHollowAccount(address payable _recipient) public payable {
+        require(msg.value > 0, "Not enough HBAR to proceed");
+
+        (uint balance) = _recipient.balance;
+        require(balance == 0, "Account already exists and have positive balance");
+
+        //call() - Solidity function for sending funds and calling other contracts
+        //the empty payload "" means the transaction is only transferring funds
+        (bool success,) = _recipient.call{value: msg.value}("");
+        require(success, "Failed to transfer funds");
+
+        balance = _recipient.balance;
+        require(balance > 0, "Failed to update recipient balance");
+    }
+
     // External function that has an argument for test value that will be written to contract storage slot
     function writeToStorageSlot(string memory _value) payable external returns (string memory){
         emptyStorageData = _value;

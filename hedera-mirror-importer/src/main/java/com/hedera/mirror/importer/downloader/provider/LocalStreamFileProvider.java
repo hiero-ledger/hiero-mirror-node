@@ -7,6 +7,7 @@ import static com.hedera.mirror.importer.downloader.CommonDownloaderProperties.P
 import static java.util.Objects.requireNonNullElse;
 
 import com.google.common.base.Stopwatch;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.importer.addressbook.ConsensusNode;
 import com.hedera.mirror.importer.domain.StreamFileData;
 import com.hedera.mirror.importer.domain.StreamFilename;
@@ -32,21 +33,24 @@ public class LocalStreamFileProvider extends AbstractStreamFileProvider {
 
     private final LocalStreamFileProperties localProperties;
 
-    public LocalStreamFileProvider(CommonDownloaderProperties properties, LocalStreamFileProperties localProperties) {
-        super(properties);
+    public LocalStreamFileProvider(
+            CommonProperties commonProperties,
+            CommonDownloaderProperties properties,
+            LocalStreamFileProperties localProperties) {
+        super(commonProperties, properties);
         this.localProperties = localProperties;
     }
 
     @Override
     public Flux<StreamFileData> list(ConsensusNode node, StreamFilename lastFilename) {
-        var batchSize = properties.getBatchSize();
+        var batchSize = downloaderProperties.getBatchSize();
         var startAfter = lastFilename.getFilenameAfter();
         var stopwatch = Stopwatch.createStarted();
         var count = new AtomicLong(0L);
 
-        return listFiles(properties.getPathType(), node, lastFilename)
+        return listFiles(downloaderProperties.getPathType(), node, lastFilename)
                 .switchIfEmpty(listFiles(NODE_ID, node, lastFilename))
-                .timeout(properties.getTimeout())
+                .timeout(downloaderProperties.getTimeout())
                 .sort()
                 .take(batchSize)
                 .map(this::toStreamFileData)
@@ -57,11 +61,12 @@ public class LocalStreamFileProvider extends AbstractStreamFileProvider {
 
     @Override
     protected Mono<StreamFileData> doGet(StreamFilename streamFilename) {
-        var basePath = properties.getImporterProperties().getStreamPath().toFile();
+        var basePath =
+                downloaderProperties.getImporterProperties().getStreamPath().toFile();
         return Mono.fromSupplier(() -> new File(basePath, streamFilename.getFilePath()))
                 .doOnNext(this::checkSize)
                 .map(file -> StreamFileData.from(file, streamFilename))
-                .timeout(properties.getTimeout())
+                .timeout(downloaderProperties.getTimeout())
                 .onErrorMap(FileOperationException.class, TransientProviderException::new);
     }
 
@@ -71,12 +76,12 @@ public class LocalStreamFileProvider extends AbstractStreamFileProvider {
     }
 
     private Flux<File> listFiles(PathType pathType, ConsensusNode node, StreamFilename streamFilename) {
-        var pathTypeProp = properties.getPathType();
+        var pathTypeProp = downloaderProperties.getPathType();
         var streamType = streamFilename.getStreamType();
 
         // Once a node ID based file has been processed, optimize performance by disabling auto path lookup.
         if (pathTypeProp == PathType.AUTO && streamFilename.isNodeId()) {
-            properties.setPathType(NODE_ID);
+            downloaderProperties.setPathType(NODE_ID);
         } // Skip when we fall back to listing by node ID, but we're not on auto.
         else if (pathTypeProp != pathType && pathTypeProp != PathType.AUTO) {
             return Flux.empty();
@@ -89,10 +94,10 @@ public class LocalStreamFileProvider extends AbstractStreamFileProvider {
                                 case ACCOUNT_ID, AUTO -> Path.of(
                                         streamType.getPath(), streamType.getNodePrefix() + node.getNodeAccountId());
                                 case NODE_ID -> Path.of(
-                                        properties.getImporterProperties().getNetwork(),
-                                        String.valueOf(properties
+                                        downloaderProperties
                                                 .getImporterProperties()
-                                                .getShard()),
+                                                .getNetwork(),
+                                        String.valueOf(commonProperties.getShard()),
                                         String.valueOf(node.getNodeId()),
                                         streamType.getNodeIdBasedSuffix());
                             };
@@ -109,7 +114,7 @@ public class LocalStreamFileProvider extends AbstractStreamFileProvider {
      * Search YYYY-MM-DD sub-folders if present, otherwise just search streams directory.
      */
     private Flux<Path> getBasePaths(StreamFilename streamFilename) {
-        var basePath = properties.getImporterProperties().getStreamPath();
+        var basePath = downloaderProperties.getImporterProperties().getStreamPath();
         var baseFile = basePath.toFile();
         baseFile.mkdirs();
 
@@ -141,13 +146,13 @@ public class LocalStreamFileProvider extends AbstractStreamFileProvider {
 
     private void checkSize(File file) {
         long size = file.length();
-        if (size > properties.getMaxSize()) {
+        if (size > downloaderProperties.getMaxSize()) {
             throw new InvalidDatasetException("Stream file " + file + " size " + size + " exceeds limit");
         }
     }
 
     private boolean matches(String lastFilename, File file) {
-        if (!file.isFile() || !file.canRead() || file.length() > properties.getMaxSize()) {
+        if (!file.isFile() || !file.canRead() || file.length() > downloaderProperties.getMaxSize()) {
             return false;
         }
 
@@ -169,7 +174,7 @@ public class LocalStreamFileProvider extends AbstractStreamFileProvider {
     }
 
     private StreamFileData toStreamFileData(File file) {
-        var basePath = properties.getImporterProperties().getStreamPath();
+        var basePath = downloaderProperties.getImporterProperties().getStreamPath();
         var filename = StreamFilename.from(basePath.relativize(file.toPath()).toString());
         return StreamFileData.from(basePath, filename);
     }

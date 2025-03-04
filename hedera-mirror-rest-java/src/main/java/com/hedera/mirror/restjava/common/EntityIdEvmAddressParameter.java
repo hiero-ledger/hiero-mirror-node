@@ -21,8 +21,9 @@ public record EntityIdEvmAddressParameter(long shard, long realm, byte[] evmAddr
             return null;
         }
 
-        long shard = DEFAULT_SHARD;
-        long realm = 0;
+        var properties = PROPERTIES.get();
+        long shard = properties.getShard();
+        long realm = properties.getRealm();
         String realmString;
 
         if ((realmString = evmMatcher.group(4)) != null) {

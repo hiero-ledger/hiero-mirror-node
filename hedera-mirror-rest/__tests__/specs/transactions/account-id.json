@@ -62,6 +62,36 @@
         "nonce": 1,
         "type": 11,
         "entity_id": "0.0.900"
+      },
+      {
+        "name": "CONSENSUSSUBMITMESSAGE",
+        "type": "27",
+        "consensus_timestamp": "1565779444711927005",
+        "payerAccountId": "0.0.8",
+        "nodeAccountId": "0.0.3",
+        "max_custom_fees": [
+          {
+            "accountId": { "accountNum": 8 },
+            "fees": [
+              {
+                "amount": 1000,
+                "denominatingTokenId": { "tokenNum": 5100 }
+              },
+              {
+                "amount": 2000,
+                "denominatingTokenId": {}
+              }
+            ]
+          },
+          {
+            "accountId": { "accountNum": 10 },
+            "fees": [
+              {
+                "amount": 3000
+              }
+            ]
+          }
+        ]
       }
     ],
     "cryptotransfers": [
@@ -135,9 +165,65 @@
           {
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
+            "consensus_timestamp": "1565779444.711927005",
+            "entity_id": null,
+            "max_custom_fees": [
+              {
+                "account_id": "0.0.8",
+                "amount": 1000,
+                "denominating_token_id": "0.0.5100"
+              },
+              {
+                "account_id": "0.0.8",
+                "amount": 2000,
+                "denominating_token_id": null
+              },
+              {
+                "account_id": "0.0.10",
+                "amount": 3000,
+                "denominating_token_id": null
+              }
+            ],
+            "max_fee": "33",
+            "memo_base64": null,
+            "name": "CONSENSUSSUBMITMESSAGE",
+            "nft_transfers": [],
+            "node": "0.0.3",
+            "nonce": 0,
+            "parent_consensus_timestamp": null,
+            "result": "SUCCESS",
+            "scheduled": false,
+            "staking_reward_transfers": [],
+            "token_transfers": [],
+            "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+            "transaction_id": "0.0.8-1565779444-711927004",
+            "transfers": [
+              {
+                "account": "0.0.3",
+                "amount": 2,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.8",
+                "amount": -3,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.98",
+                "amount": 1,
+                "is_approval": false
+              }
+            ],
+            "valid_duration_seconds": "11",
+            "valid_start_timestamp": "1565779444.711927004"
+          },
+          {
+            "bytes": "Ynl0ZXM=",
+            "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927004",
             "entity_id": "0.0.900",
             "max_fee": "33",
+            "max_custom_fees": [],
             "memo_base64": null,
             "name": "CRYPTOCREATEACCOUNT",
             "nft_transfers": [],
@@ -176,6 +262,7 @@
             "consensus_timestamp": "1565779444.711927003",
             "entity_id": "0.0.8",
             "max_fee": "33",
+            "max_custom_fees": [],
             "memo_base64": null,
             "name": "CRYPTOUPDATEACCOUNT",
             "nft_transfers": [],
@@ -214,6 +301,7 @@
             "consensus_timestamp": "1565779444.711927001",
             "entity_id": "0.0.8",
             "max_fee": "33",
+            "max_custom_fees": [],
             "memo_base64": null,
             "name": "CRYPTOUPDATEACCOUNT",
             "nft_transfers": [],
@@ -252,6 +340,7 @@
             "consensus_timestamp": "1565779400.711927001",
             "entity_id": null,
             "max_fee": "33",
+            "max_custom_fees": [],
             "memo_base64": null,
             "name": "CRYPTOTRANSFER",
             "nft_transfers": [],
@@ -295,6 +384,7 @@
             "consensus_timestamp": "1565779333.711927001",
             "entity_id": null,
             "max_fee": "33",
+            "max_custom_fees": [],
             "memo_base64": null,
             "name": "CRYPTOTRANSFER",
             "nft_transfers": [],
@@ -333,6 +423,7 @@
             "consensus_timestamp": "1565779209.711927001",
             "entity_id": null,
             "max_fee": "33",
+            "max_custom_fees": [],
             "memo_base64": null,
             "name": "CRYPTOTRANSFER",
             "nft_transfers": [],
@@ -386,6 +477,7 @@
             "consensus_timestamp": "1565779500.711927001",
             "entity_id": null,
             "max_fee": "33",
+            "max_custom_fees": [],
             "memo_base64": null,
             "name": "CRYPTOTRANSFER",
             "nft_transfers": [],
@@ -426,9 +518,65 @@
           {
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
+            "consensus_timestamp": "1565779444.711927005",
+            "entity_id": null,
+            "max_custom_fees": [
+              {
+                "account_id": "0.0.8",
+                "amount": 1000,
+                "denominating_token_id": "0.0.5100"
+              },
+              {
+                "account_id": "0.0.8",
+                "amount": 2000,
+                "denominating_token_id": null
+              },
+              {
+                "account_id": "0.0.10",
+                "amount": 3000,
+                "denominating_token_id": null
+              }
+            ],
+            "max_fee": "33",
+            "memo_base64": null,
+            "name": "CONSENSUSSUBMITMESSAGE",
+            "nft_transfers": [],
+            "node": "0.0.3",
+            "nonce": 0,
+            "parent_consensus_timestamp": null,
+            "result": "SUCCESS",
+            "scheduled": false,
+            "staking_reward_transfers": [],
+            "token_transfers": [],
+            "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+            "transaction_id": "0.0.8-1565779444-711927004",
+            "transfers": [
+              {
+                "account": "0.0.3",
+                "amount": 2,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.8",
+                "amount": -3,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.98",
+                "amount": 1,
+                "is_approval": false
+              }
+            ],
+            "valid_duration_seconds": "11",
+            "valid_start_timestamp": "1565779444.711927004"
+          },
+          {
+            "bytes": "Ynl0ZXM=",
+            "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927004",
             "entity_id": "0.0.900",
             "max_fee": "33",
+            "max_custom_fees": [],
             "memo_base64": null,
             "name": "CRYPTOCREATEACCOUNT",
             "nft_transfers": [],
@@ -467,6 +615,7 @@
             "consensus_timestamp": "1565779444.711927003",
             "entity_id": "0.0.8",
             "max_fee": "33",
+            "max_custom_fees": [],
             "memo_base64": null,
             "name": "CRYPTOUPDATEACCOUNT",
             "nft_transfers": [],
@@ -505,6 +654,7 @@
             "consensus_timestamp": "1565779444.711927001",
             "entity_id": "0.0.8",
             "max_fee": "33",
+            "max_custom_fees": [],
             "memo_base64": null,
             "name": "CRYPTOUPDATEACCOUNT",
             "nft_transfers": [],
@@ -543,6 +693,7 @@
             "consensus_timestamp": "1565779400.711927001",
             "entity_id": null,
             "max_fee": "33",
+            "max_custom_fees": [],
             "memo_base64": null,
             "name": "CRYPTOTRANSFER",
             "nft_transfers": [],
@@ -586,6 +737,7 @@
             "consensus_timestamp": "1565779333.711927001",
             "entity_id": null,
             "max_fee": "33",
+            "max_custom_fees": [],
             "memo_base64": null,
             "name": "CRYPTOTRANSFER",
             "nft_transfers": [],
@@ -624,6 +776,7 @@
             "consensus_timestamp": "1565779209.711927001",
             "entity_id": null,
             "max_fee": "33",
+            "max_custom_fees": [],
             "memo_base64": null,
             "name": "CRYPTOTRANSFER",
             "nft_transfers": [],
@@ -661,6 +814,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779111.711927001",
             "entity_id": null,
+            "max_custom_fees": [],
             "max_fee": "33",
             "memo_base64": null,
             "name": "CRYPTOTRANSFER",

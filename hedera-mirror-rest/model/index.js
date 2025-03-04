@@ -16,10 +16,12 @@ import ContractStateChange from './contractStateChange';
 import ContractTransactionHash from './contractTransactionHash';
 import CryptoTransfer from './cryptoTransfer';
 import CustomFee from './customFee';
+import CustomFeeLimits from './customFeeLimits';
 import Entity from './entity';
 import EthereumTransaction from './ethereumTransaction';
 import ExchangeRate from './exchangeRate';
 import FileData from './fileData';
+import FixedFee from './fixedFee';
 import Node from './node';
 import NetworkNode from './networkNode';
 import NetworkStake from './networkStake';
@@ -65,10 +67,12 @@ export {
   ContractTransactionHash,
   CryptoTransfer,
   CustomFee,
+  CustomFeeLimits,
   Entity,
   EthereumTransaction,
   ExchangeRate,
   FileData,
+  FixedFee,
   Node,
   NetworkNode,
   NetworkStake,
