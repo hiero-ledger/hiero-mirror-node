@@ -19,6 +19,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.Set;
 import java.util.function.Predicate;
 
+// This class is an exact copy with the one from hedera-app. The only difference is that
+// ConsensusThrottling.OFF is passed by default instead of ConsensusThrottling.ON.
 /**
  * The options a {@link HandleContext} client can customize its dispatch with.
  */
