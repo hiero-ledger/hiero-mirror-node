@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-public class EntityIdSingletonIntegrationTest extends Web3IntegrationTest {
+class EntityIdSingletonIntegrationTest extends Web3IntegrationTest {
 
     private final EntityIdSingleton entityIdSingleton;
     private final CommonProperties commonProperties;
