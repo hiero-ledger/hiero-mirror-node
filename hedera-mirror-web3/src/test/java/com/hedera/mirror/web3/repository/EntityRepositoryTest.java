@@ -466,7 +466,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findMaxIdEmptyDb() {
-        assertThat(entityRepository.findMaxId(0, 0)).isZero();
+        assertThat(entityRepository.findMaxId(0, 0)).isNull();
     }
 
     @Test
