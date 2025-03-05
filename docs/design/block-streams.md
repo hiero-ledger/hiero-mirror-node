@@ -437,7 +437,7 @@ Beginning from an `EventTransaction` block item, a record item is composed of on
 ### Topic Create Transaction
 
 | Database             | Block Item                                                   |
-|----------------------| ------------------------------------------------------------ |
+| -------------------- | ------------------------------------------------------------ |
 | entity.id / topic.id | state_changes[i].state_change.map_update.value.topic.topicId |
 
 ### Topic Submit Message
