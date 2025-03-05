@@ -4,8 +4,6 @@ package com.hedera.mirror.importer.downloader.block.transformer;
 
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
-import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -15,7 +13,6 @@ import com.hederahashgraph.api.proto.java.PendingAirdropRecord;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
 import com.hederahashgraph.api.proto.java.TokenAirdropTransactionBody;
 import com.hederahashgraph.api.proto.java.TokenID;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -26,14 +23,15 @@ import java.util.Set;
 final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(
-            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
         if (!blockItem.isSuccessful()) {
             return;
         }
 
-        var recordBuilder = recordItemBuilder.transactionRecordBuilder();
-        var pendingAirdrops = getPendingAirdrops(transactionBody.getTokenAirdrop(), blockItem.getTransactionResult());
+        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
+        var pendingAirdrops = getPendingAirdrops(
+                blockItemTransformation.transactionBody().getTokenAirdrop(), blockItem.getTransactionResult());
         for (var pendingAirdrop : pendingAirdrops) {
             var pendingAirdropId = pendingAirdrop.id();
             if (pendingAirdropId.hasFungibleTokenType()) {

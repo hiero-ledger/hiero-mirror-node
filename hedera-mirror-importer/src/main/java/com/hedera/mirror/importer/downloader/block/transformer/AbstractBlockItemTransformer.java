@@ -9,7 +9,6 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionC
 import com.hedera.mirror.common.domain.transaction.BlockItem;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.util.DomainUtils;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import java.security.MessageDigest;
 import org.slf4j.Logger;
@@ -21,11 +20,13 @@ abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
-    public void transform(
-            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+    public void transform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
+        var transactionBody = blockItemTransformation.transactionBody();
         var transactionResult = blockItem.getTransactionResult();
         var receiptBuilder = TransactionReceipt.newBuilder().setStatus(transactionResult.getStatus());
-        var recordBuilder = recordItemBuilder
+        var recordBuilder = blockItemTransformation
+                .recordItemBuilder()
                 .transactionRecordBuilder()
                 .addAllAutomaticTokenAssociations(transactionResult.getAutomaticTokenAssociationsList())
                 .addAllPaidStakingRewards(transactionResult.getPaidStakingRewardsList())
@@ -47,12 +48,11 @@ abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
             recordBuilder.setScheduleRef(transactionResult.getScheduleRef());
         }
 
-        processContractCallOutput(blockItem, recordItemBuilder);
-        doTransform(blockItem, recordItemBuilder, transactionBody);
+        processContractCallOutput(blockItem, blockItemTransformation.recordItemBuilder());
+        doTransform(blockItemTransformation);
     }
 
-    protected void doTransform(
-            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
         // do nothing
     }
 

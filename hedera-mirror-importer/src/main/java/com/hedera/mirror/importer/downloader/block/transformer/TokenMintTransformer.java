@@ -2,10 +2,7 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,8 +11,8 @@ import java.util.Collections;
 final class TokenMintTransformer extends AbstractTokenTransformer {
 
     @Override
-    protected void doTransform(
-            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
         if (!blockItem.isSuccessful()) {
             return;
         }
@@ -28,9 +25,11 @@ final class TokenMintTransformer extends AbstractTokenTransformer {
             }
         }
         Collections.sort(serialNumbers);
+
+        var recordItemBuilder = blockItemTransformation.recordItemBuilder();
         recordItemBuilder.transactionRecordBuilder().getReceiptBuilder().addAllSerialNumbers(serialNumbers);
 
-        var body = transactionBody.getTokenMint();
+        var body = blockItemTransformation.transactionBody().getTokenMint();
         var tokenId = body.getToken();
         long amount = body.getAmount() + body.getMetadataCount();
         updateTotalSupply(recordItemBuilder, blockItem.getStateChangeContext(), tokenId, -amount);

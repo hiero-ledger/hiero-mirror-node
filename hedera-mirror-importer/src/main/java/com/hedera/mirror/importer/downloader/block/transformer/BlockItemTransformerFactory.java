@@ -32,7 +32,7 @@ public class BlockItemTransformerFactory {
         var transactionBody = parse(blockItem.getTransaction().getSignedTransactionBytes());
         var blockItemTransformer = get(transactionBody);
         // pass transactionBody for performance
-        blockItemTransformer.transform(blockItem, builder, transactionBody);
+        blockItemTransformer.transform(new BlockItemTransformation(blockItem, builder, transactionBody));
     }
 
     private BlockItemTransformer get(TransactionBody transactionBody) {

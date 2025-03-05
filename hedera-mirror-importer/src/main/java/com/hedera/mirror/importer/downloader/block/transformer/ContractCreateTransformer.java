@@ -3,22 +3,20 @@
 package com.hedera.mirror.importer.downloader.block.transformer;
 
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
-import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem.RecordItemBuilder;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 
 @Named
 final class ContractCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(
-            BlockItem blockItem, RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
         if (!blockItem.hasTransactionOutput(TransactionCase.CONTRACT_CREATE)) {
             return;
         }
 
+        var recordItemBuilder = blockItemTransformation.recordItemBuilder();
         var contractCreate =
                 blockItem.getTransactionOutput(TransactionCase.CONTRACT_CREATE).getContractCreate();
         recordItemBuilder.sidecarRecords(contractCreate.getSidecarsList());

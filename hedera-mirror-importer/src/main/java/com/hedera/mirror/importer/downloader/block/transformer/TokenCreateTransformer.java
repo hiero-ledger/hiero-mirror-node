@@ -2,24 +2,25 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 
 @Named
 final class TokenCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(
-            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
         if (!blockItem.isSuccessful()) {
             return;
         }
 
-        var receiptBuilder = recordItemBuilder.transactionRecordBuilder().getReceiptBuilder();
-        receiptBuilder.setNewTotalSupply(transactionBody.getTokenCreation().getInitialSupply());
+        var receiptBuilder = blockItemTransformation
+                .recordItemBuilder()
+                .transactionRecordBuilder()
+                .getReceiptBuilder();
+        receiptBuilder.setNewTotalSupply(
+                blockItemTransformation.transactionBody().getTokenCreation().getInitialSupply());
         blockItem
                 .getStateChangeContext()
                 .getNewTokenId()

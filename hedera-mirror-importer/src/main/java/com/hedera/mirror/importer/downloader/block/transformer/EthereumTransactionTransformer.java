@@ -3,24 +3,22 @@
 package com.hedera.mirror.importer.downloader.block.transformer;
 
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
-import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem.RecordItemBuilder;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 
 @Named
 final class EthereumTransactionTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(
-            BlockItem blockItem, RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
         if (!blockItem.hasTransactionOutput(TransactionCase.ETHEREUM_CALL)) {
             return;
         }
 
         var ethereumCall =
                 blockItem.getTransactionOutput(TransactionCase.ETHEREUM_CALL).getEthereumCall();
+        var recordItemBuilder = blockItemTransformation.recordItemBuilder();
         var recordBuilder = recordItemBuilder.transactionRecordBuilder();
         recordBuilder.setEthereumHash(ethereumCall.getEthereumHash());
         recordItemBuilder.sidecarRecords(ethereumCall.getSidecarsList());

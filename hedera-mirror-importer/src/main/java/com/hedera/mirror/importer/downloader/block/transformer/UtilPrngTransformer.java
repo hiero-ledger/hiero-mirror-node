@@ -3,10 +3,7 @@
 package com.hedera.mirror.importer.downloader.block.transformer;
 
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
-import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 import lombok.CustomLog;
 
@@ -15,13 +12,13 @@ import lombok.CustomLog;
 final class UtilPrngTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(
-            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
         if (!blockItem.isSuccessful()) {
             return;
         }
 
-        var recordBuilder = recordItemBuilder.transactionRecordBuilder();
+        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
         var utilPrng = blockItem.getTransactionOutput(TransactionCase.UTIL_PRNG).getUtilPrng();
         switch (utilPrng.getEntropyCase()) {
             case PRNG_NUMBER -> recordBuilder.setPrngNumber(utilPrng.getPrngNumber());

@@ -2,18 +2,15 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem.RecordItemBuilder;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 
 @Named
 final class ConsensusCreateTopicTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(
-            BlockItem blockItem, RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
         if (!blockItem.isSuccessful()) {
             return;
         }
@@ -22,7 +19,8 @@ final class ConsensusCreateTopicTransformer extends AbstractBlockItemTransformer
                 .getStateChangeContext()
                 .getNewTopicId()
                 .ifPresentOrElse(
-                        topicId -> recordItemBuilder
+                        topicId -> blockItemTransformation
+                                .recordItemBuilder()
                                 .transactionRecordBuilder()
                                 .getReceiptBuilder()
                                 .setTopicID(topicId),
