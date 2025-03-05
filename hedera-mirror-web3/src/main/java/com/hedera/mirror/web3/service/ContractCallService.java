@@ -117,11 +117,8 @@ public abstract class ContractCallService {
             throws MirrorEvmTransactionException {
         HederaEvmTransactionProcessingResult result = null;
 
-        double txnExecServiceTrafficSharePercentage =
-                mirrorNodeEvmProperties.getTransactionExecutionServiceTrafficSharePercentage();
-        boolean goThroughTxnExecutionService = new Random().nextDouble() < txnExecServiceTrafficSharePercentage * 0.01;
         try {
-            if (mirrorNodeEvmProperties.isModularizedServices() || goThroughTxnExecutionService) {
+            if (directTrafficThroughTransactionExecutionService()) {
                 result = transactionExecutionService.execute(params, estimatedGas, gasUsedCounter);
             } else {
                 result = mirrorEvmTxProcessor.execute(params, estimatedGas);
@@ -138,6 +135,18 @@ public abstract class ContractCallService {
             }
         }
         return result;
+    }
+
+    protected boolean directTrafficThroughTransactionExecutionService() {
+        double txnExecServiceTrafficSharePercentage =
+                mirrorNodeEvmProperties.getTransactionExecutionServiceTrafficSharePercentage();
+        boolean goThroughTxnExecutionService = new Random().nextDouble() < txnExecServiceTrafficSharePercentage * 0.01;
+
+        if (mirrorNodeEvmProperties.getModularizedServices() == null) {
+            return goThroughTxnExecutionService;
+        }
+
+        return mirrorNodeEvmProperties.getModularizedServices();
     }
 
     private void restoreGasToBucket(HederaEvmTransactionProcessingResult result, long gasLimit) {
