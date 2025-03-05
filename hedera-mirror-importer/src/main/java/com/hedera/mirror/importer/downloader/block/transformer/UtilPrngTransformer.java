@@ -16,24 +16,20 @@ final class UtilPrngTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItem.RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
-        if (!blockItem.successful()) {
+            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
         var recordBuilder = recordItemBuilder.transactionRecordBuilder();
-        var utilPrng =
-                blockItem.transactionOutputs().get(TransactionCase.UTIL_PRNG).getUtilPrng();
+        var utilPrng = blockItem.getTransactionOutput(TransactionCase.UTIL_PRNG).getUtilPrng();
         switch (utilPrng.getEntropyCase()) {
             case PRNG_NUMBER -> recordBuilder.setPrngNumber(utilPrng.getPrngNumber());
             case PRNG_BYTES -> recordBuilder.setPrngBytes(utilPrng.getPrngBytes());
             default -> log.warn(
                     "Unhandled entropy case {} for transaction at {}",
                     utilPrng.getEntropyCase(),
-                    blockItem.consensusTimestamp());
+                    blockItem.getConsensusTimestamp());
         }
     }
 

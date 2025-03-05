@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package com.hedera.mirror.importer.downloader.block.transformer;
+package com.hedera.mirror.common.domain.transaction;
 
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_FILES_VALUE;
@@ -10,7 +10,7 @@ import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_I
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ROSTER_STATE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOPICS_VALUE;
-import static com.hedera.mirror.importer.downloader.block.transformer.StateChangeContext.EMPTY_CONTEXT;
+import static com.hedera.mirror.common.domain.transaction.StateChangeContext.EMPTY_CONTEXT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.ByteString;
@@ -23,34 +23,39 @@ import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.platform.state.legacy.NodeId;
 import com.hedera.mirror.common.domain.topic.TopicMessage;
+import com.hedera.mirror.common.util.CommonUtils;
 import com.hedera.mirror.common.util.DomainUtils;
-import com.hedera.mirror.importer.parser.domain.RecordItemBuilder;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.File;
+import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.Node;
+import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
 import com.hederahashgraph.api.proto.java.Token;
+import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.Topic;
+import com.hederahashgraph.api.proto.java.TopicID;
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class StateChangeContextTest {
 
-    private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
+    private static long id = new SecureRandom().nextLong();
 
     @Test
     void contractId() {
         // given
-        var contractId1 = recordItemBuilder.accountId();
-        var evmAddress1 = recordItemBuilder.evmAddress().getValue();
-        var contractId2 = recordItemBuilder.accountId();
-        var evmAddress2 = recordItemBuilder.evmAddress().getValue();
-        var contractId3 = recordItemBuilder.accountId();
+        var contractId1 = getAccountId();
+        var evmAddress1 = evmAddress();
+        var contractId2 = getAccountId();
+        var evmAddress2 = evmAddress();
+        var contractId3 = getAccountId();
         var stateChanges = StateChanges.newBuilder()
                 .addStateChanges(accountIdMapUpdateChange())
                 .addStateChanges(accountMapUpdateChange())
@@ -77,31 +82,27 @@ class StateChangeContextTest {
                 .returns(contractId2.getRealmNum(), ContractID::getRealmNum)
                 .returns(contractId2.getAccountNum(), ContractID::getContractNum)
                 .returns(false, ContractID::hasEvmAddress);
-        assertThat(context.getContractId(recordItemBuilder.evmAddress().getValue()))
-                .isEmpty();
+        assertThat(context.getContractId(evmAddress())).isEmpty();
     }
 
     @Test
     void emptyContext() {
-        assertThat(EMPTY_CONTEXT.getContractId(recordItemBuilder.evmAddress().getValue()))
-                .isEmpty();
+        assertThat(EMPTY_CONTEXT.getContractId(evmAddress())).isEmpty();
         assertThat(EMPTY_CONTEXT.getNewFileId()).isEmpty();
         assertThat(EMPTY_CONTEXT.getNewNodeId()).isEmpty();
         assertThat(EMPTY_CONTEXT.getNewTokenId()).isEmpty();
         assertThat(EMPTY_CONTEXT.getNewTopicId()).isEmpty();
-        assertThat(EMPTY_CONTEXT.getTopicMessage(recordItemBuilder.topicId())).isEmpty();
-        assertThat(EMPTY_CONTEXT.trackPendingFungibleAirdrop(
-                        recordItemBuilder.pendingAirdropId().build(), 10))
+        assertThat(EMPTY_CONTEXT.getTopicMessage(getTopicId())).isEmpty();
+        assertThat(EMPTY_CONTEXT.trackPendingFungibleAirdrop(getPendingAirdropId(), 10))
                 .isEmpty();
-        assertThat(EMPTY_CONTEXT.trackTokenTotalSupply(recordItemBuilder.tokenId(), 10))
-                .isEmpty();
+        assertThat(EMPTY_CONTEXT.trackTokenTotalSupply(getTokenId(), 10)).isEmpty();
     }
 
     @Test
     void fileId() {
         // given
-        var fileId1 = recordItemBuilder.fileId();
-        var fileId2 = recordItemBuilder.fileId();
+        var fileId1 = getFileId();
+        var fileId2 = getFileId();
         var file1StateChange = MapUpdateChange.newBuilder()
                 .setKey(MapChangeKey.newBuilder().setFileIdKey(fileId1))
                 .setValue(MapChangeValue.newBuilder()
@@ -163,13 +164,10 @@ class StateChangeContextTest {
     @Test
     void pendingFungibleAirdrop() {
         // given
-        var pendingAirdropId = recordItemBuilder.pendingAirdropId().build();
-        var nftPendingAirdropId = recordItemBuilder
-                .pendingAirdropId()
+        var pendingAirdropId = getPendingAirdropId();
+        var nftPendingAirdropId = getPendingAirdropId().toBuilder()
                 .clearFungibleTokenType()
-                .setNonFungibleToken(NftID.newBuilder()
-                        .setTokenID(recordItemBuilder.tokenId())
-                        .setSerialNumber(1))
+                .setNonFungibleToken(NftID.newBuilder().setTokenID(getTokenId()).setSerialNumber(1))
                 .build();
         var stateChanges = StateChanges.newBuilder()
                 .addStateChanges(StateChange.newBuilder()
@@ -201,16 +199,15 @@ class StateChangeContextTest {
 
         // then
         assertThat(actual).containsExactly(Optional.of(3000L), Optional.of(2000L), Optional.empty());
-        assertThat(context.trackPendingFungibleAirdrop(
-                        recordItemBuilder.pendingAirdropId().build(), 200L))
+        assertThat(context.trackPendingFungibleAirdrop(getPendingAirdropId(), 200L))
                 .isEmpty();
     }
 
     @Test
     void token() {
         // given
-        var tokenId1 = recordItemBuilder.tokenId();
-        var tokenId2 = recordItemBuilder.tokenId();
+        var tokenId1 = getTokenId();
+        var tokenId2 = getTokenId();
         var token1StateChange = MapUpdateChange.newBuilder()
                 .setKey(MapChangeKey.newBuilder().setTokenIdKey(tokenId1))
                 .setValue(MapChangeValue.newBuilder()
@@ -234,7 +231,7 @@ class StateChangeContextTest {
                 List.of(context.trackTokenTotalSupply(tokenId1, 1000L), context.trackTokenTotalSupply(tokenId1, -500L));
         var token2TotalSupplies =
                 List.of(context.trackTokenTotalSupply(tokenId2, -2000L), context.trackTokenTotalSupply(tokenId2, 800L));
-        var otherTokenTotalSupplies = context.trackTokenTotalSupply(recordItemBuilder.tokenId(), 100L);
+        var otherTokenTotalSupplies = context.trackTokenTotalSupply(getTokenId(), 100L);
 
         // then
         assertThat(newTokenIds).containsExactly(Optional.of(tokenId2), Optional.of(tokenId1), Optional.empty());
@@ -246,15 +243,15 @@ class StateChangeContextTest {
     @Test
     void topic() {
         // given
-        var topicId1 = recordItemBuilder.topicId();
-        var topicId2 = recordItemBuilder.topicId();
+        var topicId1 = getTopicId();
+        var topicId2 = getTopicId();
         // topic1 has no messages
         var topic1StateChange = MapUpdateChange.newBuilder()
                 .setKey(MapChangeKey.newBuilder().setTopicIdKey(topicId1))
                 .setValue(MapChangeValue.newBuilder()
                         .setTopicValue(Topic.newBuilder().setTopicId(topicId1)))
                 .build();
-        var topic2RunningHash = recordItemBuilder.bytes(48);
+        var topic2RunningHash = DomainUtils.fromBytes(CommonUtils.nextBytes(48));
         var topic2StateChange = MapUpdateChange.newBuilder()
                 .setKey(MapChangeKey.newBuilder().setTopicIdKey(topicId2))
                 .setValue(MapChangeValue.newBuilder()
@@ -294,8 +291,36 @@ class StateChangeContextTest {
         assertThat(topic2Messages).containsExactlyElementsOf(expectedTopic2Messages);
     }
 
+    private ByteString evmAddress() {
+        return DomainUtils.fromBytes(CommonUtils.nextBytes(20));
+    }
+
+    private AccountID getAccountId() {
+        return AccountID.newBuilder().setAccountNum(id++).build();
+    }
+
+    private FileID getFileId() {
+        return FileID.newBuilder().setFileNum(id++).build();
+    }
+
+    private PendingAirdropId getPendingAirdropId() {
+        return PendingAirdropId.newBuilder()
+                .setReceiverId(getAccountId())
+                .setSenderId(getAccountId())
+                .setFungibleTokenType(getTokenId())
+                .build();
+    }
+
+    private TokenID getTokenId() {
+        return TokenID.newBuilder().setTokenNum(id++).build();
+    }
+
+    private TopicID getTopicId() {
+        return TopicID.newBuilder().setTopicNum(id++).build();
+    }
+
     private StateChange accountIdMapUpdateChange() {
-        var accountId = recordItemBuilder.accountId();
+        var accountId = getAccountId();
         return StateChange.newBuilder()
                 .setStateId(STATE_ID_ACCOUNTS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
@@ -306,7 +331,7 @@ class StateChangeContextTest {
     }
 
     private StateChange accountMapUpdateChange() {
-        var accountId = recordItemBuilder.accountId();
+        var accountId = getAccountId();
         return StateChange.newBuilder()
                 .setStateId(STATE_ID_ACCOUNTS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()

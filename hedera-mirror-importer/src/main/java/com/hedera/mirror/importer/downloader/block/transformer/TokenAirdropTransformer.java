@@ -21,28 +21,24 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import lombok.CustomLog;
 
-@CustomLog
 @Named
 final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItem.RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
-        if (!blockItem.successful()) {
+            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
         var recordBuilder = recordItemBuilder.transactionRecordBuilder();
-        var pendingAirdrops = getPendingAirdrops(transactionBody.getTokenAirdrop(), blockItem.transactionResult());
+        var pendingAirdrops = getPendingAirdrops(transactionBody.getTokenAirdrop(), blockItem.getTransactionResult());
         for (var pendingAirdrop : pendingAirdrops) {
             var pendingAirdropId = pendingAirdrop.id();
             if (pendingAirdropId.hasFungibleTokenType()) {
-                stateChangeContext
+                blockItem
+                        .getStateChangeContext()
                         .trackPendingFungibleAirdrop(pendingAirdropId, pendingAirdrop.amount())
                         .ifPresentOrElse(
                                 amount -> recordBuilder.addNewPendingAirdrops(PendingAirdropRecord.newBuilder()
@@ -52,7 +48,7 @@ final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
                                 () -> {
                                     log.warn(
                                             "Fungible pending airdrop not found in state at {}",
-                                            blockItem.consensusTimestamp());
+                                            blockItem.getConsensusTimestamp());
                                     recordBuilder.addNewPendingAirdrops(PendingAirdropRecord.newBuilder()
                                             .setPendingAirdropId(pendingAirdropId)
                                             .setPendingAirdropValue(PendingAirdropValue.newBuilder()
@@ -65,8 +61,7 @@ final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
         }
 
         recordBuilder.addAllAssessedCustomFees(blockItem
-                .transactionOutputs()
-                .get(TransactionCase.TOKEN_AIRDROP)
+                .getTransactionOutput(TransactionCase.TOKEN_AIRDROP)
                 .getTokenAirdrop()
                 .getAssessedCustomFeesList());
     }

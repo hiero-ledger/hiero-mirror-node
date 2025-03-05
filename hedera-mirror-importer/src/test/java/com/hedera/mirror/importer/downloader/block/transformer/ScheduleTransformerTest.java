@@ -114,4 +114,26 @@ class ScheduleTransformerTest extends AbstractTransformerTest {
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
+
+    @Test
+    void scheduledTransaction() {
+        // given
+        var scheduleId = recordItemBuilder.scheduleId();
+        var expectedRecordItem = recordItemBuilder
+                .cryptoTransfer()
+                .record(r -> r.setScheduleRef(scheduleId))
+                .customize(this::finalize)
+                .build();
+        var blockItem = blockItemBuilder
+                .cryptoTransfer(expectedRecordItem)
+                .transactionResult(r -> r.setScheduleRef(scheduleId))
+                .build();
+        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
 }

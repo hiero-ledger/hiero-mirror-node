@@ -26,13 +26,13 @@ public class BlockFileBuilder {
         String filename = StringUtils.leftPad(Long.toString(blockNumber), 36, "0") + ".blk.gz";
         var firstConsensusTimestamp = blockItems.isEmpty()
                 ? domainBuilder.protoTimestamp()
-                : blockItems.getFirst().transactionResult().getConsensusTimestamp();
+                : blockItems.getFirst().getTransactionResult().getConsensusTimestamp();
         byte[] previousHash = domainBuilder.bytes(48);
         long consensusStart = DomainUtils.timestampInNanosMax(firstConsensusTimestamp);
         long consensusEnd = blockItems.isEmpty()
                 ? consensusStart
                 : DomainUtils.timestampInNanosMax(
-                        blockItems.getLast().transactionResult().getConsensusTimestamp());
+                        blockItems.getLast().getTransactionResult().getConsensusTimestamp());
 
         return BlockFile.builder()
                 .blockHeader(BlockHeader.newBuilder()

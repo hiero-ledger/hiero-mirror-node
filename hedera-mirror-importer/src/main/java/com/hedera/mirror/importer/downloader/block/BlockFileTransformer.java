@@ -85,7 +85,7 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
             var blockItem = blockItems.get(index);
             var builder = RecordItem.builder()
                     .hapiVersion(hapiVersion)
-                    .transaction(blockItem.transaction())
+                    .transaction(blockItem.getTransaction())
                     .transactionIndex(index);
             blockItemTransformerFactory.transform(blockItem, builder);
             builders.add(builder);

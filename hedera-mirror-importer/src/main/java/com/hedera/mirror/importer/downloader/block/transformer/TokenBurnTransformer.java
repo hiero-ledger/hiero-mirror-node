@@ -13,18 +13,15 @@ final class TokenBurnTransformer extends AbstractTokenTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItem.RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
-        if (!blockItem.successful()) {
+            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
         var body = transactionBody.getTokenBurn();
         var tokenId = body.getToken();
         long amount = body.getAmount() + body.getSerialNumbersCount();
-        updateTotalSupply(blockItem.consensusTimestamp(), recordItemBuilder, stateChangeContext, tokenId, amount);
+        updateTotalSupply(recordItemBuilder, blockItem.getStateChangeContext(), tokenId, amount);
     }
 
     @Override

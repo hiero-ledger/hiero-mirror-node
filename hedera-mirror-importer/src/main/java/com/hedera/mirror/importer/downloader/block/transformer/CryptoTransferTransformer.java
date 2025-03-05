@@ -14,19 +14,13 @@ final class CryptoTransferTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItem.RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
-
-        if (!blockItem.successful()) {
+            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
-        var cryptoTransfer = blockItem
-                .transactionOutputs()
-                .get(TransactionCase.CRYPTO_TRANSFER)
-                .getCryptoTransfer();
+        var cryptoTransfer =
+                blockItem.getTransactionOutput(TransactionCase.CRYPTO_TRANSFER).getCryptoTransfer();
         var recordBuilder = recordItemBuilder.transactionRecordBuilder();
         recordBuilder.addAllAssessedCustomFees(cryptoTransfer.getAssessedCustomFeesList());
     }

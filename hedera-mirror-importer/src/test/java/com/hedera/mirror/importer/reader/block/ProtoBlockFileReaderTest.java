@@ -94,7 +94,7 @@ public class ProtoBlockFileReaderTest {
                         BlockFile::getItems,
                         InstanceOfAssertFactories.collection(
                                 com.hedera.mirror.common.domain.transaction.BlockItem.class))
-                .map(com.hedera.mirror.common.domain.transaction.BlockItem::previous)
+                .map(com.hedera.mirror.common.domain.transaction.BlockItem::getPrevious)
                 .containsExactlyElementsOf(expectedPreviousItems);
     }
 

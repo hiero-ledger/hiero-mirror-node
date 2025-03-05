@@ -11,18 +11,15 @@ import com.hedera.mirror.common.exception.ProtobufException;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.util.CollectionUtils;
 
 @Named
 public class BlockItemTransformerFactory {
 
     private final BlockItemTransformer defaultTransformer;
-    private final Map<Long, StateChangeContext> stateChangeContexts = new HashMap<>();
     private final Map<TransactionType, BlockItemTransformer> transformers;
 
     BlockItemTransformerFactory(List<BlockItemTransformer> transformers) {
@@ -32,29 +29,15 @@ public class BlockItemTransformerFactory {
     }
 
     public void transform(BlockItem blockItem, RecordItem.RecordItemBuilder builder) {
-        try {
-            var context = getContext(blockItem);
-            var transactionBody = parse(blockItem.transaction().getSignedTransactionBytes());
-            var blockItemTransformer = get(transactionBody);
-            // pass transactionBody for performance
-            blockItemTransformer.transform(blockItem, builder, context, transactionBody);
-        } finally {
-            removeContext(blockItem);
-        }
+        var transactionBody = parse(blockItem.getTransaction().getSignedTransactionBytes());
+        var blockItemTransformer = get(transactionBody);
+        // pass transactionBody for performance
+        blockItemTransformer.transform(blockItem, builder, transactionBody);
     }
 
     private BlockItemTransformer get(TransactionBody transactionBody) {
         var transactionType = TransactionType.of(transactionBody.getDataCase().getNumber());
         return transformers.getOrDefault(transactionType, defaultTransformer);
-    }
-
-    private StateChangeContext getContext(BlockItem blockItem) {
-        var parent = blockItem.parent() == null ? blockItem : blockItem.parent();
-        return stateChangeContexts.computeIfAbsent(
-                parent.consensusTimestamp(),
-                k -> CollectionUtils.isEmpty(parent.stateChanges())
-                        ? StateChangeContext.EMPTY_CONTEXT
-                        : new StateChangeContext(parent.stateChanges()));
     }
 
     private TransactionBody parse(ByteString signedTransactionBytes) {
@@ -64,9 +47,5 @@ public class BlockItemTransformerFactory {
         } catch (InvalidProtocolBufferException e) {
             throw new ProtobufException("Error parsing transaction body from signed transaction bytes", e);
         }
-    }
-
-    private void removeContext(BlockItem blockItem) {
-        stateChangeContexts.remove(blockItem.consensusTimestamp());
     }
 }

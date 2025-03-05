@@ -12,17 +12,18 @@ import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import java.security.MessageDigest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
 
     private static final MessageDigest DIGEST = createSha384Digest();
 
+    protected final Logger log = LoggerFactory.getLogger(getClass());
+
     public void transform(
-            BlockItem blockItem,
-            RecordItem.RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
-        var transactionResult = blockItem.transactionResult();
+            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        var transactionResult = blockItem.getTransactionResult();
         var receiptBuilder = TransactionReceipt.newBuilder().setStatus(transactionResult.getStatus());
         var recordBuilder = recordItemBuilder
                 .transactionRecordBuilder()
@@ -34,7 +35,7 @@ abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
                 .setReceipt(receiptBuilder)
                 .setTransactionFee(transactionResult.getTransactionFeeCharged())
                 .setTransactionHash(
-                        calculateTransactionHash(blockItem.transaction().getSignedTransactionBytes()))
+                        calculateTransactionHash(blockItem.getTransaction().getSignedTransactionBytes()))
                 .setTransactionID(transactionBody.getTransactionID())
                 .setTransferList(transactionResult.getTransferList());
 
@@ -47,14 +48,11 @@ abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
         }
 
         processContractCallOutput(blockItem, recordItemBuilder);
-        doTransform(blockItem, recordItemBuilder, stateChangeContext, transactionBody);
+        doTransform(blockItem, recordItemBuilder, transactionBody);
     }
 
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItem.RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
+            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
         // do nothing
     }
 
@@ -70,12 +68,12 @@ abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
      * @param recordItemBuilder
      */
     private void processContractCallOutput(BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder) {
-        var outputs = blockItem.transactionOutputs();
-        if (!outputs.containsKey(TransactionCase.CONTRACT_CALL)) {
+        if (!blockItem.hasTransactionOutput(TransactionCase.CONTRACT_CALL)) {
             return;
         }
 
-        var contractCall = outputs.get(TransactionCase.CONTRACT_CALL).getContractCall();
+        var contractCall =
+                blockItem.getTransactionOutput(TransactionCase.CONTRACT_CALL).getContractCall();
         recordItemBuilder.sidecarRecords(contractCall.getSidecarsList());
         if (contractCall.hasContractCallResult()) {
             var recordBuilder = recordItemBuilder.transactionRecordBuilder();

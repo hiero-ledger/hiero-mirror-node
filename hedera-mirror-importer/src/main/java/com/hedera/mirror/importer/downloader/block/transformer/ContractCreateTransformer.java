@@ -14,18 +14,13 @@ final class ContractCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
-        if (!blockItem.transactionOutputs().containsKey(TransactionCase.CONTRACT_CREATE)) {
+            BlockItem blockItem, RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.hasTransactionOutput(TransactionCase.CONTRACT_CREATE)) {
             return;
         }
 
-        var contractCreate = blockItem
-                .transactionOutputs()
-                .get(TransactionCase.CONTRACT_CREATE)
-                .getContractCreate();
+        var contractCreate =
+                blockItem.getTransactionOutput(TransactionCase.CONTRACT_CREATE).getContractCreate();
         recordItemBuilder.sidecarRecords(contractCreate.getSidecarsList());
         if (!contractCreate.hasContractCreateResult()) {
             return;

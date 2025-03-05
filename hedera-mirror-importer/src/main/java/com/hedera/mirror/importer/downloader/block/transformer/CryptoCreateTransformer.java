@@ -15,11 +15,8 @@ final class CryptoCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItem.RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
-        if (!blockItem.successful()) {
+            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
@@ -29,10 +26,8 @@ final class CryptoCreateTransformer extends AbstractBlockItemTransformer {
             recordBuilder.setEvmAddress(alias);
         }
 
-        var accountCreate = blockItem
-                .transactionOutputs()
-                .get(TransactionCase.ACCOUNT_CREATE)
-                .getAccountCreate();
+        var accountCreate =
+                blockItem.getTransactionOutput(TransactionCase.ACCOUNT_CREATE).getAccountCreate();
         var receiptBuilder = recordBuilder.getReceiptBuilder();
         receiptBuilder.setAccountID(accountCreate.getCreatedAccountId());
     }

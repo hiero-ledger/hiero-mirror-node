@@ -10,10 +10,7 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 interface BlockItemTransformer {
 
     void transform(
-            BlockItem blockItem,
-            RecordItem.RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody);
+            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody);
 
     TransactionType getType();
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package com.hedera.mirror.importer.downloader.block.transformer;
+package com.hedera.mirror.common.domain.transaction;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
@@ -14,32 +14,29 @@ import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TopicID;
 import jakarta.annotation.Nonnull;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-final class StateChangeContext {
+public final class StateChangeContext {
 
     static final StateChangeContext EMPTY_CONTEXT = new StateChangeContext();
 
-    private static final Comparator<FileID> FILE_ID_COMPARATOR =
-            Comparator.comparing(FileID::getFileNum).reversed();
-    private static final Comparator<Long> NODE_ID_COMPARATOR = Comparator.reverseOrder();
-    private static final Comparator<TokenID> TOKEN_ID_COMPARATOR =
-            Comparator.comparing(TokenID::getTokenNum).reversed();
-    private static final Comparator<TopicID> TOPIC_ID_COMPARATOR =
-            Comparator.comparing(TopicID::getTopicNum).reversed();
+    private static final Comparator<FileID> FILE_ID_COMPARATOR = Comparator.comparing(FileID::getFileNum);
+    private static final Comparator<Long> NODE_ID_COMPARATOR = Comparator.naturalOrder();
+    private static final Comparator<TokenID> TOKEN_ID_COMPARATOR = Comparator.comparing(TokenID::getTokenNum);
+    private static final Comparator<TopicID> TOPIC_ID_COMPARATOR = Comparator.comparing(TopicID::getTopicNum);
 
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
-    private final List<Long> nodeIds = new ArrayList<>();
-    private final List<FileID> fileIds = new ArrayList<>();
+    private final List<Long> nodeIds = new LinkedList<>();
+    private final List<FileID> fileIds = new LinkedList<>();
     private final Map<PendingAirdropId, Long> pendingFungibleAirdrops = new HashMap<>();
-    private final List<TokenID> tokenIds = new ArrayList<>();
+    private final List<TokenID> tokenIds = new LinkedList<>();
     private final Map<TokenID, Long> tokenTotalSupplies = new HashMap<>();
-    private final List<TopicID> topicIds = new ArrayList<>();
+    private final List<TopicID> topicIds = new LinkedList<>();
     private final Map<TopicID, TopicMessage> topicState = new HashMap<>();
 
     private StateChangeContext() {}
@@ -89,7 +86,7 @@ final class StateChangeContext {
             return Optional.empty();
         }
 
-        return Optional.of(fileIds.removeFirst());
+        return Optional.of(fileIds.removeLast());
     }
 
     public Optional<Long> getNewNodeId() {
@@ -97,7 +94,7 @@ final class StateChangeContext {
             return Optional.empty();
         }
 
-        return Optional.of(nodeIds.removeFirst());
+        return Optional.of(nodeIds.removeLast());
     }
 
     public Optional<TokenID> getNewTokenId() {
@@ -105,7 +102,7 @@ final class StateChangeContext {
             return Optional.empty();
         }
 
-        return Optional.of(tokenIds.removeFirst());
+        return Optional.of(tokenIds.removeLast());
     }
 
     public Optional<TopicID> getNewTopicId() {
@@ -113,7 +110,7 @@ final class StateChangeContext {
             return Optional.empty();
         }
 
-        return Optional.of(topicIds.removeFirst());
+        return Optional.of(topicIds.removeLast());
     }
 
     public Optional<TopicMessage> getTopicMessage(@Nonnull TopicID topicId) {

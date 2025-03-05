@@ -14,18 +14,13 @@ final class ScheduleSignTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItem.RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
-        if (!blockItem.successful()) {
+            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
-        var signSchedule = blockItem
-                .transactionOutputs()
-                .get(TransactionCase.SIGN_SCHEDULE)
-                .getSignSchedule();
+        var signSchedule =
+                blockItem.getTransactionOutput(TransactionCase.SIGN_SCHEDULE).getSignSchedule();
         if (signSchedule.hasScheduledTransactionId()) {
             recordItemBuilder
                     .transactionRecordBuilder()

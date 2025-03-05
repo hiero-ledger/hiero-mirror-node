@@ -13,10 +13,7 @@ final class ContractCallTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
+            BlockItem blockItem, RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
         var recordBuilder = recordItemBuilder.transactionRecordBuilder();
         if (recordBuilder.getContractCallResult().hasContractID()) {
             recordBuilder

@@ -7,23 +7,19 @@ import com.hedera.mirror.common.domain.transaction.RecordItem.RecordItemBuilder;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
-import lombok.CustomLog;
 
-@CustomLog
 @Named
 final class ConsensusCreateTopicTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
-        if (!blockItem.successful()) {
+            BlockItem blockItem, RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
-        stateChangeContext
+        blockItem
+                .getStateChangeContext()
                 .getNewTopicId()
                 .ifPresentOrElse(
                         topicId -> recordItemBuilder
@@ -32,7 +28,7 @@ final class ConsensusCreateTopicTransformer extends AbstractBlockItemTransformer
                                 .setTopicID(topicId),
                         () -> log.warn(
                                 "No new topic id found for ConsensusCreateTopic transaction at {}",
-                                blockItem.consensusTimestamp()));
+                                blockItem.getConsensusTimestamp()));
     }
 
     @Override

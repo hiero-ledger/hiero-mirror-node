@@ -12,36 +12,90 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Transaction;
 import java.util.List;
 import java.util.Map;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Value;
+import lombok.experimental.NonFinal;
+import org.springframework.util.CollectionUtils;
 
-@Builder(toBuilder = true)
-public record BlockItem(
-        long consensusTimestamp,
-        Transaction transaction,
-        TransactionResult transactionResult,
-        Map<TransactionCase, TransactionOutput> transactionOutputs,
-        List<StateChanges> stateChanges,
-        BlockItem parent,
-        Long parentConsensusTimestamp,
-        BlockItem previous,
-        boolean successful)
-        implements StreamItem {
+@AllArgsConstructor(access = AccessLevel.NONE)
+@Value
+public class BlockItem implements StreamItem {
 
-    public BlockItem {
+    private final long consensusTimestamp;
+    private final BlockItem parent;
+    private final Long parentConsensusTimestamp;
+    private final BlockItem previous;
+    private final List<StateChanges> stateChanges;
+    private final boolean successful;
+    private final Transaction transaction;
+
+    @Getter(value = AccessLevel.NONE)
+    private final Map<TransactionCase, TransactionOutput> transactionOutputs;
+
+    private final TransactionResult transactionResult;
+
+    @EqualsAndHashCode.Exclude
+    @NonFinal
+    private StateChangeContext stateChangeContext;
+
+    @Builder(toBuilder = true)
+    public BlockItem(
+            Transaction transaction,
+            TransactionResult transactionResult,
+            Map<TransactionCase, TransactionOutput> transactionOutputs,
+            List<StateChanges> stateChanges,
+            BlockItem previous) {
+        this.transaction = transaction;
+        this.transactionResult = transactionResult;
+        this.transactionOutputs = transactionOutputs;
+        this.stateChanges = stateChanges;
+        this.previous = previous;
+
         consensusTimestamp = DomainUtils.timestampInNanosMax(transactionResult.getConsensusTimestamp());
         parentConsensusTimestamp = transactionResult.hasParentConsensusTimestamp()
                 ? DomainUtils.timestampInNanosMax(transactionResult.getParentConsensusTimestamp())
                 : null;
-        parent = parseParent(parentConsensusTimestamp, previous);
-        successful = parseSuccess(transactionResult, parent);
+        parent = parseParent();
+        successful = parseSuccess();
     }
 
-    private BlockItem parseParent(Long parentConsensusTimestamp, BlockItem previous) {
+    public StateChangeContext getStateChangeContext() {
+        if (parent != null) {
+            return parent.getStateChangeContext();
+        }
+
+        if (stateChangeContext == null) {
+            stateChangeContext = !CollectionUtils.isEmpty(stateChanges)
+                    ? new StateChangeContext(stateChanges)
+                    : StateChangeContext.EMPTY_CONTEXT;
+        }
+
+        return stateChangeContext;
+    }
+
+    public TransactionOutput getTransactionOutput(TransactionCase transactionCase) {
+        if (!hasTransactionOutput(transactionCase)) {
+            throw new IllegalStateException(
+                    "No %s transaction output for transaction at %d".formatted(transactionCase, consensusTimestamp));
+        }
+
+        return transactionOutputs.get(transactionCase);
+    }
+
+    public boolean hasTransactionOutput(TransactionCase transactionCase) {
+        return transactionOutputs.containsKey(transactionCase);
+    }
+
+    private BlockItem parseParent() {
         // set parent, parent-child items are assured to exist in sequential order of [Parent, Child1,..., ChildN]
         if (parentConsensusTimestamp != null && previous != null) {
-            if (parentConsensusTimestamp == previous.consensusTimestamp()) {
+            if (parentConsensusTimestamp == previous.consensusTimestamp) {
                 return previous;
-            } else if (previous.parent != null && parentConsensusTimestamp == previous.parent.consensusTimestamp()) {
+            } else if (previous.parent != null && parentConsensusTimestamp == previous.parent.consensusTimestamp) {
                 // check older siblings parent, if child count is > 1 this prevents having to search to parent
                 return previous.parent;
             }
@@ -50,8 +104,8 @@ public record BlockItem(
         return this.parent;
     }
 
-    private boolean parseSuccess(TransactionResult transactionResult, BlockItem parent) {
-        if (parent != null && !parent.successful()) {
+    private boolean parseSuccess() {
+        if (parent != null && !parent.successful) {
             return false;
         }
 

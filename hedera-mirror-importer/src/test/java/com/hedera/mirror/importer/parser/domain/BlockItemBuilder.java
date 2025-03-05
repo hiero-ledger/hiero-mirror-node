@@ -729,7 +729,7 @@ public class BlockItemBuilder {
         private BlockItem previous;
         private final Transaction transaction;
         private final Map<TransactionCase, TransactionOutput> transactionOutputs;
-        private final TransactionResult transactionResult;
+        private final TransactionResult.Builder transactionResultBuilder;
         private final List<StateChanges> stateChanges;
 
         @SuppressWarnings("java:S1640")
@@ -741,14 +741,14 @@ public class BlockItemBuilder {
             this.stateChanges = new ArrayList<>(stateChanges); // make it modifiable
             this.transaction = transaction;
             this.transactionOutputs = new HashMap<>(transactionOutputs); // make it modifiable
-            this.transactionResult = transactionResult;
+            this.transactionResultBuilder = transactionResult.toBuilder();
         }
 
         public BlockItem build() {
             return BlockItem.builder()
                     .previous(previous)
                     .transaction(transaction)
-                    .transactionResult(transactionResult)
+                    .transactionResult(transactionResultBuilder.build())
                     .transactionOutputs(transactionOutputs)
                     .stateChanges(stateChanges)
                     .build();
@@ -766,6 +766,11 @@ public class BlockItemBuilder {
 
         public Builder transactionOutputs(Consumer<Map<TransactionCase, TransactionOutput>> consumer) {
             consumer.accept(transactionOutputs);
+            return this;
+        }
+
+        public Builder transactionResult(Consumer<TransactionResult.Builder> consumer) {
+            consumer.accept(transactionResultBuilder);
             return this;
         }
     }

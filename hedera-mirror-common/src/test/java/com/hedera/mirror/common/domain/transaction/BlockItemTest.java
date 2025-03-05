@@ -2,12 +2,24 @@
 
 package com.hedera.mirror.common.domain.transaction;
 
+import static com.hedera.mirror.common.domain.transaction.StateChangeContext.EMPTY_CONTEXT;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.params.provider.EnumSource.Mode.INCLUDE;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
+import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
+import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
+import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
+import com.hedera.hapi.block.stream.output.protoc.StateChange;
+import com.hedera.hapi.block.stream.output.protoc.StateChanges;
+import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.Token;
+import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.Transaction;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +32,6 @@ class BlockItemTest {
     @ParameterizedTest
     @EnumSource(
             value = ResponseCodeEnum.class,
-            mode = INCLUDE,
             names = {"FEE_SCHEDULE_FILE_PART_UPLOADED", "SUCCESS", "SUCCESS_BUT_MISSING_EXPECTED_OPERATION"})
     void parseSuccessWhenNoParentPresentAndCorrectStatusReturnTrue(ResponseCodeEnum status) {
         var transactionResult = TransactionResult.newBuilder().setStatus(status).build();
@@ -34,15 +45,14 @@ class BlockItemTest {
                 .build();
 
         assertThat(blockItem)
-                .returns(0L, BlockItem::consensusTimestamp)
-                .returns(null, BlockItem::parentConsensusTimestamp)
-                .returns(true, BlockItem::successful);
+                .returns(0L, BlockItem::getConsensusTimestamp)
+                .returns(null, BlockItem::getParentConsensusTimestamp)
+                .returns(true, BlockItem::isSuccessful);
     }
 
     @ParameterizedTest
     @EnumSource(
             value = ResponseCodeEnum.class,
-            mode = INCLUDE,
             names = {"FEE_SCHEDULE_FILE_PART_UPLOADED", "SUCCESS", "SUCCESS_BUT_MISSING_EXPECTED_OPERATION"})
     void parseSuccessWithSuccessfulParentAndCorrectStatusReturnTrue(ResponseCodeEnum status) {
 
@@ -73,9 +83,9 @@ class BlockItemTest {
                 .build();
 
         assertThat(blockItem)
-                .returns(12346000000000L, BlockItem::consensusTimestamp)
-                .returns(12345000000000L, BlockItem::parentConsensusTimestamp)
-                .returns(true, BlockItem::successful);
+                .returns(12346000000000L, BlockItem::getConsensusTimestamp)
+                .returns(12345000000000L, BlockItem::getParentConsensusTimestamp)
+                .returns(true, BlockItem::isSuccessful);
         ;
     }
 
@@ -106,13 +116,12 @@ class BlockItemTest {
                 .previous(parentBlockItem)
                 .build();
 
-        assertThat(blockItem.successful()).isFalse();
+        assertThat(blockItem.isSuccessful()).isFalse();
     }
 
     @ParameterizedTest
     @EnumSource(
             value = ResponseCodeEnum.class,
-            mode = INCLUDE,
             names = {"FEE_SCHEDULE_FILE_PART_UPLOADED", "SUCCESS", "SUCCESS_BUT_MISSING_EXPECTED_OPERATION"})
     void parseSuccessParentSuccessfulButStatusNotOneOfTheExpectedReturnFalse(ResponseCodeEnum status) {
 
@@ -141,7 +150,7 @@ class BlockItemTest {
                 .build();
 
         // Assert: The block item should not be successful because the status is not one of the expected ones
-        assertThat(blockItem.successful()).isFalse();
+        assertThat(blockItem.isSuccessful()).isFalse();
     }
 
     @Test
@@ -158,11 +167,8 @@ class BlockItemTest {
                 .previous(null)
                 .build();
 
-        // When: The parent is not set
-        var parent = blockItem.parent();
-
-        // Then: The parent should remain null
-        assertThat(parent).isNull();
+        // When, Then: The parent should remain null
+        assertThat(blockItem.getParent()).isNull();
     }
 
     @Test
@@ -194,11 +200,8 @@ class BlockItemTest {
                 .previous(previousBlockItem)
                 .build();
 
-        // When: The parent matches the consensus timestamp of the previous block item
-        var parent = blockItem.parent();
-
-        // Then: The parent should match the previous block item
-        assertThat(parent).isSameAs(previousBlockItem);
+        // When, Then: The parent should match the previous block item
+        assertThat(blockItem.getParent()).isSameAs(previousBlockItem);
     }
 
     @Test
@@ -231,11 +234,8 @@ class BlockItemTest {
                 .previous(previousBlockItem)
                 .build();
 
-        // When: The parent consensus timestamp does not match the previous block item
-        var parent = blockItem.parent();
-
-        // Then: The parent should not match, return the parent as is
-        assertThat(parent).isNotEqualTo(previousBlockItem);
+        // When, Then: The parent should not match, return the parent as is
+        assertThat(blockItem.getParent()).isNotEqualTo(previousBlockItem);
     }
 
     @Test
@@ -279,8 +279,106 @@ class BlockItemTest {
                 .previous(previousBlockItem)
                 .build();
 
-        var parent = blockItem.parent();
+        assertThat(blockItem.getParent()).isSameAs(parentBlockItem);
+    }
 
-        assertThat(parent).isSameAs(parentBlockItem);
+    @Test
+    void hasTransactionOutput() {
+        // given
+        var callContractOutput = TransactionOutput.newBuilder()
+                .setContractCall(CallContractOutput.getDefaultInstance())
+                .build();
+        var blockItem = BlockItem.builder()
+                .transaction(Transaction.newBuilder().build())
+                .transactionResult(TransactionResult.newBuilder()
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(12345L))
+                        .build())
+                .transactionOutputs(Map.of(TransactionCase.CONTRACT_CALL, callContractOutput))
+                .stateChanges(List.of())
+                .previous(null)
+                .build();
+
+        // when, then
+        assertThat(blockItem.hasTransactionOutput(TransactionCase.CONTRACT_CALL))
+                .isTrue();
+        assertThat(blockItem.hasTransactionOutput(TransactionCase.CONTRACT_CREATE))
+                .isFalse();
+    }
+
+    @Test
+    void getStateChangeContext() {
+        // given
+        var parentConsensusTimestamp = Timestamp.newBuilder().setSeconds(12345L).build();
+        var tokenId = TokenID.newBuilder().setTokenNum(123L).build();
+        var parent = BlockItem.builder()
+                .transaction(Transaction.newBuilder().build())
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(parentConsensusTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .transactionOutputs(Map.of())
+                .stateChanges(List.of(StateChanges.newBuilder()
+                        .addStateChanges(StateChange.newBuilder()
+                                .setStateId(StateIdentifier.STATE_ID_TOKENS_VALUE)
+                                .setMapUpdate(MapUpdateChange.newBuilder()
+                                        .setKey(MapChangeKey.newBuilder().setTokenIdKey(tokenId))
+                                        .setValue(MapChangeValue.newBuilder()
+                                                .setTokenValue(
+                                                        Token.newBuilder().setTokenId(tokenId)))))
+                        .build()))
+                .build();
+        var childConsensusTimestamp = Timestamp.newBuilder().setSeconds(12346L).build();
+        var child = BlockItem.builder()
+                .transaction(Transaction.newBuilder().build())
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(childConsensusTimestamp)
+                        .setParentConsensusTimestamp(parentConsensusTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .transactionOutputs(Map.of())
+                .stateChanges(List.of())
+                .previous(parent)
+                .build();
+        var failed = BlockItem.builder()
+                .transaction(Transaction.newBuilder().build())
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                Timestamp.newBuilder().setSeconds(12347L).build())
+                        .setStatus(ResponseCodeEnum.INSUFFICIENT_TX_FEE)
+                        .build())
+                .transactionOutputs(Map.of())
+                .stateChanges(List.of())
+                .previous(parent)
+                .build();
+
+        // when, then
+        assertThat(child.getStateChangeContext()).isSameAs(parent.getStateChangeContext());
+        assertThat(child.getStateChangeContext().getNewTokenId()).contains(tokenId);
+        assertThat(failed.getStateChangeContext()).isSameAs(EMPTY_CONTEXT);
+    }
+
+    @Test
+    void getTransactionOutput() {
+        // given
+        var callContractOutput = TransactionOutput.newBuilder()
+                .setContractCall(CallContractOutput.getDefaultInstance())
+                .build();
+        var blockItem = BlockItem.builder()
+                .transaction(Transaction.newBuilder().build())
+                .transactionResult(TransactionResult.newBuilder()
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(12345L))
+                        .build())
+                .transactionOutputs(Map.of(TransactionCase.CONTRACT_CALL, callContractOutput))
+                .stateChanges(List.of())
+                .previous(null)
+                .build();
+
+        // when, then
+        assertThat(blockItem.getTransactionOutput(TransactionCase.CONTRACT_CALL))
+                .isSameAs(callContractOutput);
+        assertThatThrownBy(() -> blockItem.getTransactionOutput(TransactionCase.CONTRACT_CREATE))
+                .isInstanceOf(IllegalStateException.class);
     }
 }

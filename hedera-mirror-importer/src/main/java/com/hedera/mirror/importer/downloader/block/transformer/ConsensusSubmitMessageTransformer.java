@@ -11,30 +11,24 @@ import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
-import lombok.CustomLog;
 
-@CustomLog
 @Named
 final class ConsensusSubmitMessageTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItem.RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
-        if (!blockItem.successful()) {
+            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
         var recordBuilder = recordItemBuilder.transactionRecordBuilder();
-        var submitMessageOutput = blockItem
-                .transactionOutputs()
-                .get(TransactionCase.SUBMIT_MESSAGE)
-                .getSubmitMessage();
+        var submitMessageOutput =
+                blockItem.getTransactionOutput(TransactionCase.SUBMIT_MESSAGE).getSubmitMessage();
         recordBuilder.addAllAssessedCustomFees(submitMessageOutput.getAssessedCustomFeesList());
 
-        stateChangeContext
+        blockItem
+                .getStateChangeContext()
                 .getTopicMessage(transactionBody.getConsensusSubmitMessage().getTopicID())
                 .ifPresentOrElse(
                         topicMessage -> recordBuilder
@@ -44,7 +38,7 @@ final class ConsensusSubmitMessageTransformer extends AbstractBlockItemTransform
                                 .setTopicSequenceNumber(topicMessage.getSequenceNumber()),
                         () -> log.warn(
                                 "No topic message found in state changes for ConsensusSubmitMessage transaction at {}",
-                                blockItem.consensusTimestamp()));
+                                blockItem.getConsensusTimestamp()));
     }
 
     @Override

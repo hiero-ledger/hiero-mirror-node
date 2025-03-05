@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
-import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.SUBMIT_MESSAGE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -59,11 +58,6 @@ class ConsensusTransformerTest extends AbstractTransformerTest {
                 .build();
         var blockItem =
                 blockItemBuilder.consensusSubmitMessage(expectedRecordItem).build();
-        var expectedFees = blockItem
-                .transactionOutputs()
-                .get(SUBMIT_MESSAGE)
-                .getSubmitMessage()
-                .getAssessedCustomFeesList();
         var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
 
         // when

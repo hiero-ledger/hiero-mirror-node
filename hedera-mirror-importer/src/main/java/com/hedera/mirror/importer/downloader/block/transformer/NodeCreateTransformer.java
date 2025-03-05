@@ -7,30 +7,26 @@ import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
-import lombok.CustomLog;
 
-@CustomLog
 @Named
 final class NodeCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItem.RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
-        if (!blockItem.successful()) {
+            BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
         var receiptBuilder = recordItemBuilder.transactionRecordBuilder().getReceiptBuilder();
-        stateChangeContext
+        blockItem
+                .getStateChangeContext()
                 .getNewNodeId()
                 .ifPresentOrElse(
                         receiptBuilder::setNodeId,
                         () -> log.warn(
                                 "No new node id found for NodeCreate transaction at {}",
-                                blockItem.consensusTimestamp()));
+                                blockItem.getConsensusTimestamp()));
     }
 
     @Override

@@ -6,29 +6,21 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionC
 import com.hedera.mirror.common.domain.transaction.BlockItem;
 import com.hedera.mirror.common.domain.transaction.RecordItem.RecordItemBuilder;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
-import lombok.CustomLog;
 
-@CustomLog
 @Named
 final class EthereumTransactionTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
-        if (!blockItem.transactionOutputs().containsKey(TransactionCase.ETHEREUM_CALL)) {
+            BlockItem blockItem, RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.hasTransactionOutput(TransactionCase.ETHEREUM_CALL)) {
             return;
         }
 
-        var ethereumCall = blockItem
-                .transactionOutputs()
-                .get(TransactionCase.ETHEREUM_CALL)
-                .getEthereumCall();
+        var ethereumCall =
+                blockItem.getTransactionOutput(TransactionCase.ETHEREUM_CALL).getEthereumCall();
         var recordBuilder = recordItemBuilder.transactionRecordBuilder();
         recordBuilder.setEthereumHash(ethereumCall.getEthereumHash());
         recordItemBuilder.sidecarRecords(ethereumCall.getSidecarsList());
@@ -40,8 +32,7 @@ final class EthereumTransactionTransformer extends AbstractBlockItemTransformer 
             default -> log.warn(
                     "Unhandled eth_result case {} for transaction at {}",
                     ethereumCall.getEthResultCase(),
-                    DomainUtils.timestampInNanosMax(
-                            blockItem.transactionResult().getConsensusTimestamp()));
+                    blockItem.getConsensusTimestamp());
         }
     }
 

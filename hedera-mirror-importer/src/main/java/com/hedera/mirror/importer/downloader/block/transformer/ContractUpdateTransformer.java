@@ -13,17 +13,14 @@ final class ContractUpdateTransformer extends AbstractContractTransformer {
 
     @Override
     protected void doTransform(
-            BlockItem blockItem,
-            RecordItemBuilder recordItemBuilder,
-            StateChangeContext stateChangeContext,
-            TransactionBody transactionBody) {
-        if (!blockItem.successful()) {
+            BlockItem blockItem, RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
         var receiptBuilder = recordItemBuilder.transactionRecordBuilder().getReceiptBuilder();
         var contractId = transactionBody.getContractUpdateInstance().getContractID();
-        resolveEvmAddress(contractId, blockItem.consensusTimestamp(), receiptBuilder, stateChangeContext);
+        resolveEvmAddress(contractId, receiptBuilder, blockItem.getStateChangeContext());
     }
 
     @Override
