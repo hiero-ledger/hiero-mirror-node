@@ -11,8 +11,10 @@ import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.token.AbstractCustomFee;
 import com.hedera.mirror.common.domain.token.FallbackFee;
 import com.hedera.mirror.common.domain.token.FractionalFee;
+import com.hedera.mirror.common.domain.token.NftHistory;
 import com.hedera.mirror.common.domain.token.RoyaltyFee;
 import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
+import com.hedera.mirror.common.domain.token.TokenHistory;
 import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
@@ -46,11 +48,11 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
     }
 
     protected void tokenAccountFrozenRelationshipPersistHistorical(
-            final Entity tokenEntity, final Entity accountEntity, final Range<Long> historicalRange) {
+            final long tokenId, final long accountEntityId, final Range<Long> historicalRange) {
         domainBuilder
                 .tokenAccountHistory()
-                .customize(ta -> ta.tokenId(tokenEntity.getId())
-                        .accountId(accountEntity.getId())
+                .customize(ta -> ta.tokenId(tokenId)
+                        .accountId(accountEntityId)
                         .kycStatus(TokenKycStatusEnum.GRANTED)
                         .freezeStatus(TokenFreezeStatusEnum.FROZEN)
                         .associated(true)
@@ -62,16 +64,11 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
             final Range<Long> historicalRange) {
         final var account = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        fungibleTokenPersistHistorical(tokenEntity, historicalRange);
-        domainBuilder
-                .tokenAccount()
-                .customize(ta -> ta.tokenId(tokenEntity.getId())
-                        .accountId(account.getId())
-                        .kycStatus(TokenKycStatusEnum.GRANTED)
-                        .freezeStatus(TokenFreezeStatusEnum.FROZEN)
-                        .associated(true)
-                        .timestampRange(historicalRange))
-                .persist();
+        fungibleTokenPersistHistoricalCustomizable(historicalRange, t -> t.tokenId(tokenEntity.getId()));
+        tokenAccount(ta -> ta.tokenId(tokenEntity.getId())
+                .accountId(account.getId())
+                .freezeStatus(TokenFreezeStatusEnum.FROZEN)
+                .timestampRange(historicalRange));
         return Pair.of(account, tokenEntity);
     }
 
@@ -140,59 +137,88 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                 .persist();
     }
 
-    protected void fungibleTokenPersistHistorical(Entity tokenEntity, final Range<Long> timestampRange) {
-        domainBuilder
-                .tokenHistory()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .timestampRange(timestampRange)
-                        .createdTimestamp(timestampRange.lowerEndpoint()))
-                .persist();
+    protected TokenHistory fungibleTokenPersistHistorical(final Range<Long> timestampRange) {
+        return fungibleTokenPersistHistoricalCustomizable(timestampRange, t -> {});
     }
 
-    protected Entity fungibleTokenPersistHistorical(final Range<Long> timestampRange) {
-        final var entity = tokenEntityPersistHistorical(timestampRange);
-        fungibleTokenPersistHistorical(entity, timestampRange);
-        return entity;
-    }
-
-    protected Entity nftPersistHistorical(final Range<Long> timestampRange) {
+    protected TokenHistory fungibleTokenPersistHistoricalCustomizable(
+            final Range<Long> timestampRange, final Consumer<TokenHistory.TokenHistoryBuilder<?, ?>> customizer) {
         final var tokenEntity = tokenEntityPersistHistorical(timestampRange);
-        domainBuilder
-                .tokenHistory()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                        .kycStatus(TokenKycStatusEnum.GRANTED)
-                        .timestampRange(timestampRange))
-                .persist();
-        domainBuilder
-                .nftHistory()
-                .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
-                        .timestampRange(timestampRange))
-                .persist();
 
-        return tokenEntity;
+        return domainBuilder
+                .tokenHistory()
+                .customize(t -> {
+                    t.tokenId(tokenEntity.getId())
+                            .type(TokenTypeEnum.FUNGIBLE_COMMON)
+                            .timestampRange(timestampRange)
+                            .createdTimestamp(timestampRange.lowerEndpoint());
+                    customizer.accept(t);
+                })
+                .persist();
+    }
+
+    protected TokenHistory nonFungibleTokenPersistHistoricalCustomizable(
+            final Range<Long> timestampRange, final Consumer<TokenHistory.TokenHistoryBuilder<?, ?>> customizer) {
+        final var tokenEntity = tokenEntityPersistHistorical(timestampRange);
+
+        return domainBuilder
+                .tokenHistory()
+                .customize(t -> {
+                    t.tokenId(tokenEntity.getId())
+                            .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
+                            .kycStatus(TokenKycStatusEnum.GRANTED)
+                            .timestampRange(timestampRange);
+                    customizer.accept(t);
+                })
+                .persist();
+    }
+
+    protected NftHistory nftPersistHistoricalCustomizable(
+            final Range<Long> timestampRange, final Consumer<NftHistory.NftHistoryBuilder<?, ?>> customizer) {
+        return domainBuilder
+                .nftHistory()
+                .customize(n -> {
+                    n.serialNumber(DEFAULT_SERIAL_NUMBER.longValue()).timestampRange(timestampRange);
+                    customizer.accept(n);
+                })
+                .persist();
+    }
+
+    protected TokenHistory nftPersistHistorical(
+            final Range<Long> timestampRange, final EntityId treasury, final EntityId owner, final EntityId spender) {
+        final var token =
+                nonFungibleTokenPersistHistoricalCustomizable(timestampRange, t -> t.treasuryAccountId(treasury));
+        nftPersistHistoricalCustomizable(timestampRange, n -> n.tokenId(token.getTokenId())
+                .spender(spender)
+                .accountId(owner)
+                .timestampRange(timestampRange));
+        return token;
+    }
+
+    protected TokenHistory nftPersistHistorical(final Range<Long> timestampRange) {
+        final var token = nonFungibleTokenPersistHistoricalCustomizable(timestampRange, t -> {});
+        nftPersistHistoricalCustomizable(timestampRange, n -> n.tokenId(token.getTokenId()));
+        return token;
     }
 
     protected void tokenAllowancePersistHistorical(
-            final Entity tokenEntity, final Entity owner, final Entity spender, final Range<Long> timestampRange) {
+            final long tokenId, final Entity owner, final Entity spender, final Range<Long> timestampRange) {
         domainBuilder
                 .tokenAllowanceHistory()
-                .customize(a -> a.tokenId(tokenEntity.getId())
+                .customize(a -> a.tokenId(tokenId)
                         .owner(owner.getId())
                         .spender(spender.getId())
-                        .amount(50L)
-                        .amountGranted(50L)
+                        .amount(DEFAULT_AMOUNT_GRANTED)
+                        .amountGranted(DEFAULT_AMOUNT_GRANTED)
                         .timestampRange(timestampRange))
                 .persist();
     }
 
     protected void nftAllowancePersistHistorical(
-            final Entity tokenEntity, final Entity owner, final Entity spender, final Range<Long> timestampRange) {
+            final long tokenId, final Entity owner, final Entity spender, final Range<Long> timestampRange) {
         domainBuilder
                 .nftAllowanceHistory()
-                .customize(a -> a.tokenId(tokenEntity.getId())
+                .customize(a -> a.tokenId(tokenId)
                         .owner(owner.getId())
                         .spender(spender.getId())
                         .approvedForAll(true)
@@ -214,21 +240,21 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
     }
 
     protected AbstractCustomFee customFeesWithFeeCollectorPersistHistorical(
-            final Entity feeCollector,
-            final Entity tokenEntity,
+            final EntityId feeCollector,
+            final EntityId tokenEntity,
             final TokenTypeEnum tokenType,
             final Range<Long> timestampRange) {
         final var fixedFee = com.hedera.mirror.common.domain.token.FixedFee.builder()
                 .allCollectorsAreExempt(true)
                 .amount(domainBuilder.number())
-                .collectorAccountId(feeCollector.toEntityId())
-                .denominatingTokenId(tokenEntity.toEntityId())
+                .collectorAccountId(feeCollector)
+                .denominatingTokenId(tokenEntity)
                 .build();
 
         final var fractionalFee = TokenTypeEnum.FUNGIBLE_COMMON.equals(tokenType)
                 ? FractionalFee.builder()
                         .allCollectorsAreExempt(true)
-                        .collectorAccountId(feeCollector.toEntityId())
+                        .collectorAccountId(feeCollector)
                         .denominator(domainBuilder.number())
                         .maximumAmount(domainBuilder.number())
                         .minimumAmount(1L)
@@ -239,13 +265,13 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
 
         final var fallbackFee = FallbackFee.builder()
                 .amount(domainBuilder.number())
-                .denominatingTokenId(tokenEntity.toEntityId())
+                .denominatingTokenId(tokenEntity)
                 .build();
 
         final var royaltyFee = TokenTypeEnum.NON_FUNGIBLE_UNIQUE.equals(tokenType)
                 ? RoyaltyFee.builder()
                         .allCollectorsAreExempt(true)
-                        .collectorAccountId(feeCollector.toEntityId())
+                        .collectorAccountId(feeCollector)
                         .denominator(domainBuilder.number())
                         .fallbackFee(fallbackFee)
                         .numerator(domainBuilder.number())

@@ -18,6 +18,7 @@ import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.domain.entity.NftAllowance;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.common.domain.token.Nft;
 import com.hedera.mirror.common.domain.token.Token;
@@ -67,7 +68,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final List<BigInteger> DEFAULT_SERIAL_NUMBERS_LIST = List.of(DEFAULT_SERIAL_NUMBER);
     protected static final BigInteger INVALID_SERIAL_NUMBER = BigInteger.valueOf(Long.MAX_VALUE);
     protected static final int DEFAULT_DECIMALS = 12;
-
+    protected static final Long DEFAULT_TOKEN_SUPPLY = 1000L;
     protected static final long DEFAULT_AMOUNT_GRANTED = 10L;
 
     @Resource
@@ -375,6 +376,10 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .owner(ownerId));
     }
 
+    protected void nftAllowancePersistCustomizable(final Consumer<NftAllowance.NftAllowanceBuilder<?, ?>> customizer) {
+        domainBuilder.nftAllowance().customize(customizer).persist();
+    }
+
     /**
      * This method creates nft allowance for all instances of a specific token type (approvedForAll). The allowance
      * allows the spender to transfer NFTs on the owner's behalf.
@@ -384,14 +389,11 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param spenderId the account allowed to transfer the NFT on owner's behalf
      */
     protected void nftAllowancePersist(final long tokenId, final long spenderId, final EntityId owner) {
-        domainBuilder
-                .nftAllowance()
-                .customize(a -> a.tokenId(tokenId)
-                        .spender(spenderId)
-                        .owner(owner.getId())
-                        .payerAccountId(owner)
-                        .approvedForAll(true))
-                .persist();
+        nftAllowancePersistCustomizable(a -> a.tokenId(tokenId)
+                .spender(spenderId)
+                .owner(owner.getId())
+                .payerAccountId(owner)
+                .approvedForAll(true));
     }
 
     /**
