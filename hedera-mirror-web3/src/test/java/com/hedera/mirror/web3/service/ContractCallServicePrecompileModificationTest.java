@@ -706,7 +706,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
 
         try {
-            activateModularizedFlag();
+            activateModularizedFlagAndInitializeState();
             final var collectorAccount = accountEntityWithEvmAddressPersist();
             final var treasuryAccount = accountEntityWithEvmAddressPersist();
             final var token = fungibleTokenPersistWithTreasuryAccount(treasuryAccount.toEntityId());
