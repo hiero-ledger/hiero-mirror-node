@@ -70,6 +70,11 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final int DEFAULT_DECIMALS = 12;
     protected static final Long DEFAULT_TOKEN_SUPPLY = 1000L;
     protected static final long DEFAULT_AMOUNT_GRANTED = 10L;
+    protected static final BigInteger DEFAULT_FEE_AMOUNT = BigInteger.valueOf(100L);
+    protected static final BigInteger DEFAULT_DENOMINATOR_VALUE = BigInteger.valueOf(10L);
+    protected static final BigInteger DEFAULT_NUMERATOR_VALUE = BigInteger.valueOf(20L);
+    protected static final BigInteger DEFAULT_FEE_MIN_VALUE = BigInteger.valueOf(1L);
+    protected static final BigInteger DEFAULT_FEE_MAX_VALUE = BigInteger.valueOf(1000L);
 
     @Resource
     protected TestWeb3jService testWeb3jService;

@@ -323,7 +323,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var tokenId = token.getTokenId();
         final var collectorAccount = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var fixedFee = com.hedera.mirror.common.domain.token.FixedFee.builder()
-                .amount(100L)
+                .amount(DEFAULT_FEE_AMOUNT.longValue())
                 .collectorAccountId(collectorAccount.toEntityId())
                 .denominatingTokenId(EntityId.of(tokenId))
                 .build();
@@ -343,7 +343,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var functionCall = contract.call_getCustomFeesForToken(tokenAddress);
 
         final var expectedFee = new PrecompileTestContractHistorical.FixedFee(
-                BigInteger.valueOf(100L),
+                DEFAULT_FEE_AMOUNT,
                 tokenAddress,
                 false,
                 false,
@@ -365,11 +365,11 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var tokenId = token.getTokenId();
         final var fractionalFee = FractionalFee.builder()
                 .collectorAccountId(collectorAccount.toEntityId())
-                .denominator(10L)
-                .minimumAmount(1L)
-                .maximumAmount(1000L)
+                .denominator(DEFAULT_DENOMINATOR_VALUE.longValue())
+                .minimumAmount(DEFAULT_FEE_MIN_VALUE.longValue())
+                .maximumAmount(DEFAULT_FEE_MAX_VALUE.longValue())
                 .netOfTransfers(true)
-                .numerator(100L)
+                .numerator(DEFAULT_NUMERATOR_VALUE.longValue())
                 .build();
         domainBuilder
                 .customFee()
@@ -387,10 +387,10 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 contract.call_getCustomFeesForToken(toAddress(tokenId).toHexString());
 
         final var expectedFee = new PrecompileTestContractHistorical.FractionalFee(
-                BigInteger.valueOf(100L),
-                BigInteger.valueOf(10L),
-                BigInteger.valueOf(1L),
-                BigInteger.valueOf(1000L),
+                DEFAULT_NUMERATOR_VALUE,
+                DEFAULT_DENOMINATOR_VALUE,
+                DEFAULT_FEE_MIN_VALUE,
+                DEFAULT_FEE_MAX_VALUE,
                 true,
                 Address.fromHexString(
                                 Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
@@ -413,12 +413,12 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
 
         final var royaltyFee = RoyaltyFee.builder()
                 .collectorAccountId(collectorAccount.toEntityId())
-                .denominator(10L)
+                .denominator(DEFAULT_DENOMINATOR_VALUE.longValue())
                 .fallbackFee(FallbackFee.builder()
-                        .amount(100L)
+                        .amount(DEFAULT_FEE_AMOUNT.longValue())
                         .denominatingTokenId(tokenEntityId)
                         .build())
-                .numerator(20L)
+                .numerator(DEFAULT_NUMERATOR_VALUE.longValue())
                 .build();
         domainBuilder
                 .customFee()
@@ -436,9 +436,9 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 contract.call_getCustomFeesForToken(toAddress(tokenId).toHexString());
 
         final var expectedFee = new PrecompileTestContractHistorical.RoyaltyFee(
-                BigInteger.valueOf(20L),
-                BigInteger.valueOf(10L),
-                BigInteger.valueOf(100L),
+                DEFAULT_NUMERATOR_VALUE,
+                DEFAULT_DENOMINATOR_VALUE,
+                DEFAULT_FEE_AMOUNT,
                 EntityIdUtils.asHexedEvmAddress(
                         new Id(tokenEntityId.getShard(), tokenEntityId.getRealm(), tokenEntityId.getNum())),
                 false,

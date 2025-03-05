@@ -257,7 +257,7 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                         .collectorAccountId(feeCollector)
                         .denominator(domainBuilder.number())
                         .maximumAmount(domainBuilder.number())
-                        .minimumAmount(1L)
+                        .minimumAmount(DEFAULT_FEE_MIN_VALUE.longValue())
                         .numerator(domainBuilder.number())
                         .netOfTransfers(true)
                         .build()
