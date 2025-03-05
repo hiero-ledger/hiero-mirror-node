@@ -66,6 +66,8 @@ import java.util.List;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
+// This class is an exact copy with the one from hedera-app. The only difference is that
+// ConsensusThrottling.OFF is passed by default instead of ConsensusThrottling.ON.
 /**
  * Constructs a {@link Dispatch} appropriate for a standalone transaction executor that does not want to enforce
  * normal signing requirements but simply execute one or more transactions.
