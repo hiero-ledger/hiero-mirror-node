@@ -213,7 +213,7 @@ describe('getScheduleCacheControlHeader', () => {
       input: {
         executed_timestamp: null,
         expiration_time: null,
-        consensus_timestamp: utils.nowInNs() - constants.SIXTY_SECONDS * constants.ONE_BILLION - 1n,
+        consensus_timestamp: utils.nowInNs() - constants.SIXTY_SECONDS * constants.NANOS_PER_SECOND - 1n,
         deleted: false,
       },
       expected: {},
@@ -232,7 +232,7 @@ describe('getScheduleCacheControlHeader', () => {
       name: 'Schedule has not expired',
       input: {
         executed_timestamp: null,
-        expiration_time: utils.nowInNs() + constants.SIXTY_SECONDS * constants.ONE_BILLION,
+        expiration_time: utils.nowInNs() + constants.SIXTY_SECONDS * constants.NANOS_PER_SECOND,
         consensus_timestamp: 1234567890000000001n,
         deleted: false,
       },
@@ -242,7 +242,7 @@ describe('getScheduleCacheControlHeader', () => {
       name: 'Schedule has neither executed nor expired',
       input: {
         executed_timestamp: null,
-        expiration_time: utils.nowInNs() + constants.SIXTY_SECONDS * constants.ONE_BILLION,
+        expiration_time: utils.nowInNs() + constants.SIXTY_SECONDS * constants.NANOS_PER_SECOND,
         consensus_timestamp: utils.nowInNs(),
         deleted: false,
       },

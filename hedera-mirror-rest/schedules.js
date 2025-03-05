@@ -134,9 +134,9 @@ const getScheduleCacheControlHeader = (schedule) => {
 
   const hasExecuted = executedTimestamp !== null || schedule.deleted;
   const hasAutoExpired =
-    expirationTime === null && nowNs >= consensusTimestamp + constants.THIRTY_ONE_MINUTES * constants.ONE_BILLION;
+    expirationTime === null && nowNs >= consensusTimestamp + constants.THIRTY_ONE_MINUTES * constants.NANOS_PER_SECOND;
   const hasExpired =
-    expirationTime !== null && nowNs >= expirationTime + constants.SIXTY_SECONDS * constants.ONE_BILLION;
+    expirationTime !== null && nowNs >= expirationTime + constants.SIXTY_SECONDS * constants.NANOS_PER_SECOND;
 
   if (hasExecuted || hasAutoExpired || hasExpired) {
     return LONGER_SCHEDULE_CACHE_CONTROL_HEADER;
