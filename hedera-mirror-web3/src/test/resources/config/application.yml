@@ -13,7 +13,7 @@ hedera:
           150: 0.46.0
           200: 0.50.0
         network: OTHER
-        transactionExecutionServiceTrafficSharePercentage: 20
+        transactionExecutionServiceTrafficSharePercentage: 100
       opcode:
         tracer:
           enabled: true
