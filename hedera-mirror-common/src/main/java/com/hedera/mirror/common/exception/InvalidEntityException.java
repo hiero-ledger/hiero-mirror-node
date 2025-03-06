@@ -2,8 +2,11 @@
 
 package com.hedera.mirror.common.exception;
 
+import java.io.Serial;
+
 public class InvalidEntityException extends MirrorNodeException {
 
+    @Serial
     private static final long serialVersionUID = 1988238764876411857L;
 
     public InvalidEntityException(String message) {

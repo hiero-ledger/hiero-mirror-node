@@ -28,7 +28,7 @@ describe('topicmessage validateConsensusTimestampParam tests', () => {
 
 describe('topicmessage validateGetSequenceMessageParams tests', () => {
   test('Verify validateGetSequenceMessageParams throws error for -123', () => {
-    verifyInvalidTopicAndSequenceNum(-123, -123);
+    verifyInvalidTopicAndSequenceNum(-92233720368547758080n, -123);
   });
 
   test('Verify validateGetSequenceMessageParams throws error for abc', () => {
@@ -61,8 +61,8 @@ describe('topicmessage validateGetSequenceMessageParams tests', () => {
 });
 
 describe('topicmessage validateGetTopicMessagesParams tests', () => {
-  test('Verify validateGetTopicMessagesParams throws error for -123', () => {
-    verifyInvalidTopicMessages(-123);
+  test('Verify validateGetTopicMessagesParams throws error for -92233720368547758080', () => {
+    verifyInvalidTopicMessages(-92233720368547758080);
   });
 
   test('Verify validateGetTopicMessagesParams throws error for abc', () => {

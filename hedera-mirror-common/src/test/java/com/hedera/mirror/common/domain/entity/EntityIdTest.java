@@ -5,6 +5,7 @@ package com.hedera.mirror.common.domain.entity;
 import static com.hedera.mirror.common.domain.entity.EntityId.NUM_BITS;
 import static com.hedera.mirror.common.domain.entity.EntityId.REALM_BITS;
 import static com.hedera.mirror.common.domain.entity.EntityId.SHARD_BITS;
+import static com.hedera.mirror.common.domain.entity.EntityId.UNSET;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -21,13 +22,18 @@ class EntityIdTest {
         "0, 0, 0, 0",
         "0, 0, 10, 10",
         "0, 0, 4294967295, 4294967295",
-        "10, 10, 10, 2814792716779530",
-        "32767, 65535, 4294967295, 9223372036854775807", // max +ve for shard, max for realm, max for num = max
-        // +ve long
-        "32767, 0, 0, 9223090561878065152"
+        "10, 10, 10, 180146733873889290",
+        "1023, 65535, 274877906943, -1",
+        "1023, 0, 0, -18014398509481984"
     })
     void testEntityEncoding(long shard, long realm, long num, long encodedId) {
         assertThat(EntityId.of(shard, realm, num).getId()).isEqualTo(encodedId);
+    }
+
+    @Test
+    void showValue() {
+        System.out.println(EntityId.of(511, 65535, 274877906943L).getId());
+        System.out.println(EntityId.of(512, 0, 0).getId());
     }
 
     @Test
@@ -45,18 +51,18 @@ class EntityIdTest {
         "0, 0, 0, 0",
         "10, 0, 0, 10",
         "4294967295, 0, 0, 4294967295",
-        "2814792716779530, 10, 10, 10",
-        "9223372036854775807, 32767, 65535, 4294967295", // max +ve for shard, max for realm, max for num = max
-        // +ve long
-        "9223090561878065152, 32767, 0, 0"
+        "180146733873889290, 10, 10, 10",
+        "-1, 1023, 65535, 274877906943",
+        "-18014398509481984, 1023, 0, 0"
     })
     void testEntityDecoding(long encodedId, long shard, long realm, long num) {
         assertThat(EntityId.of(encodedId)).isEqualTo(EntityId.of(shard, realm, num));
     }
 
     @Test
-    void throwsExceptionDecoding() {
-        assertThatThrownBy(() -> EntityId.of(-1)).isInstanceOf(InvalidEntityException.class);
+    void testToString() {
+        assertThat(EntityId.of(0, 1, 2).toString()).isEqualTo("0.1.2");
+        assertThat(EntityId.of(-1).toString()).isEqualTo("1023.65535.274877906943");
     }
 
     @CsvSource({"null", ".", "0..1", "0", "0.0", "0.0.0.1", "-1.-2.-3", "0.0.9223372036854775808", "foo.bar.baz"})
@@ -71,5 +77,11 @@ class EntityIdTest {
     void ofStringPositive() {
         assertThat(EntityId.of("0.0.1")).isEqualTo(EntityId.of(0, 0, 1));
         assertThat(EntityId.of("0.0.0")).isEqualTo(EntityId.EMPTY);
+    }
+
+    @Test
+    void isUnset() {
+        assertThat(EntityId.isUnset(UNSET)).isTrue();
+        assertThat(EntityId.isUnset(EntityId.of(-1))).isFalse();
     }
 }
