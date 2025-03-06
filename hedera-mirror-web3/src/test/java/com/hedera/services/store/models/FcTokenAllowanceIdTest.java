@@ -10,8 +10,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class FcTokenAllowanceIdTest {
-    private EntityNum tokenNum = EntityNum.fromLong(1L);
-    private EntityNum spenderNum = EntityNum.fromLong(2L);
+    private final EntityNum tokenNum = EntityNum.fromLong(1L);
+    private final EntityNum spenderNum = EntityNum.fromLong(2L);
 
     private FcTokenAllowanceId subject;
 
@@ -38,14 +38,13 @@ class FcTokenAllowanceIdTest {
     @Test
     void toStringWorks() {
         assertEquals(
-                "FcTokenAllowanceId{tokenNum=" + tokenNum.longValue() + ", spenderNum=" + spenderNum.longValue() + "}",
-                subject.toString());
+                "FcTokenAllowanceId{tokenNum=" + tokenNum + ", spenderNum=" + spenderNum + "}", subject.toString());
     }
 
     @Test
     void gettersWork() {
-        assertEquals(1L, subject.getTokenNum().longValue());
-        assertEquals(2L, subject.getSpenderNum().longValue());
+        assertEquals(1L, subject.getTokenNum().getId());
+        assertEquals(2L, subject.getSpenderNum().getId());
     }
 
     @Test
@@ -54,10 +53,10 @@ class FcTokenAllowanceIdTest {
         final var sameButDiff = base;
         assertEquals(0, base.compareTo(sameButDiff));
         final var largerNum = new FcTokenAllowanceId(
-                EntityNum.fromInt(tokenNum.intValue() + 1), EntityNum.fromInt(spenderNum.intValue() - 1));
+                EntityNum.fromLong(tokenNum.getId() + 1), EntityNum.fromLong(spenderNum.getId() - 1));
         assertEquals(-1, base.compareTo(largerNum));
         final var smallerKey = new FcTokenAllowanceId(
-                EntityNum.fromInt(tokenNum.intValue() - 1), EntityNum.fromInt(spenderNum.intValue() - 1));
+                EntityNum.fromLong(tokenNum.getId() - 1), EntityNum.fromLong(spenderNum.getId() - 1));
         assertEquals(+1, base.compareTo(smallerKey));
     }
 }

@@ -5,6 +5,7 @@ package com.hedera.services.utils;
 import static com.hedera.services.utils.EntityNum.MISSING_NUM;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.hedera.mirror.common.domain.entity.EntityId;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
@@ -32,11 +33,6 @@ class EntityNumTest {
     }
 
     @Test
-    void returnsMissingNumForUnusableNum() {
-        assertEquals(MISSING_NUM, EntityNum.fromLong(Long.MAX_VALUE));
-    }
-
-    @Test
     void factoriesWorkForValidShardRealm() {
         final var expected = EntityNum.fromInt(123);
 
@@ -44,12 +40,12 @@ class EntityNumTest {
     }
 
     @Test
-    void canGetLongValue() {
-        final long realNum = (long) Integer.MAX_VALUE + 10;
+    void canGetId() {
+        final long realNum = EntityId.of(Long.MAX_VALUE).getId();
 
         final var subject = EntityNum.fromLong(realNum);
 
-        assertEquals(realNum, subject.longValue());
+        assertEquals(realNum, subject.getId());
     }
 
     @Test

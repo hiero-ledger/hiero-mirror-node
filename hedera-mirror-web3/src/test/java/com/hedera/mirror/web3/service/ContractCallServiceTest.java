@@ -1129,7 +1129,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     class EVM46Validation {
 
         private static final Address NON_EXISTING_ADDRESS =
-                Address.fromHexString("0xa7d9ddbe1f17865597fbd27ec712455208b6b76d");
+                Address.fromHexString("0x000000000000000000000000000000000000b76d");
 
         @Test
         void callToNonExistingContract() {

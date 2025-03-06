@@ -2,7 +2,7 @@
 
 package com.hedera.services.store.models;
 
-import static com.hedera.services.utils.BitPackUtils.MAX_NUM_ALLOWED;
+import static com.hedera.services.store.models.Token.MAX_UNIQUE_NFTS_PER_TOKEN;
 import static com.hedera.services.utils.IdUtils.asAccount;
 import static com.hedera.services.utils.MiscUtils.asFcKeyUnchecked;
 import static com.hedera.services.utils.TxnUtils.assertFailsWith;
@@ -568,7 +568,7 @@ class TokenTest {
         subject = subject.setSupplyKey(someKey);
         subject = subject.setType(TokenType.NON_FUNGIBLE_UNIQUE);
         final var twoMeta = List.of(ByteString.copyFromUtf8("A"), ByteString.copyFromUtf8("Z"));
-        subject = subject.setLastUsedSerialNumber(MAX_NUM_ALLOWED - 1);
+        subject = subject.setLastUsedSerialNumber(MAX_UNIQUE_NFTS_PER_TOKEN - 1);
 
         assertFailsWith(
                 () -> subject.mint(treasuryRel, twoMeta, RichInstant.MISSING_INSTANT), SERIAL_NUMBER_LIMIT_REACHED);
