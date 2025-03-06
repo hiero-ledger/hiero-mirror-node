@@ -10,6 +10,7 @@ import {SignatureType} from './model';
 import * as utils from './utils';
 
 const {default: defaultLimit} = getResponseLimit();
+const LONGER_SCHEDULE_CACHE_CONTROL_HEADER = {'cache-control': 'public, max-age=3600'};
 
 // select columns
 const sqlQueryColumns = {
@@ -120,7 +121,27 @@ const getScheduleById = async (req, res) => {
     throw new NotFoundError();
   }
 
-  res.locals[constants.responseDataLabel] = formatScheduleRow(rows[0]);
+  const schedule = rows[0];
+  res.locals[constants.responseHeadersLabel] = getScheduleCacheControlHeader(schedule);
+  res.locals[constants.responseDataLabel] = formatScheduleRow(schedule);
+};
+
+const getScheduleCacheControlHeader = (schedule) => {
+  const nowNs = utils.nowInNs();
+  const executedTimestamp = schedule.executed_timestamp;
+  const expirationTime = schedule.expiration_time;
+  const consensusTimestamp = schedule.consensus_timestamp;
+
+  const hasExecuted = executedTimestamp !== null || schedule.deleted;
+  const hasAutoExpired =
+    expirationTime === null && nowNs >= consensusTimestamp + constants.THIRTY_ONE_MINUTES * constants.NANOS_PER_SECOND;
+  const hasExpired =
+    expirationTime !== null && nowNs >= expirationTime + constants.SIXTY_SECONDS * constants.NANOS_PER_SECOND;
+
+  if (hasExecuted || hasAutoExpired || hasExpired) {
+    return LONGER_SCHEDULE_CACHE_CONTROL_HEADER;
+  }
+  return {};
 };
 
 /**
@@ -262,6 +283,7 @@ const getSchedules = async (req, res) => {
 const schedules = {
   getScheduleById,
   getSchedules,
+  getScheduleCacheControlHeader,
 };
 
 const acceptedSchedulesParameters = new Set([
