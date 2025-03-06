@@ -4,6 +4,7 @@ package com.hedera.mirror.web3.evm.store.contract;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -11,12 +12,16 @@ import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class EntityAddressSequencerTest {
     private static final long CONTRACT_NUM = 1_000_000_000L;
     private static final Address sponsor = new Id(0, 0, CONTRACT_NUM).asEvmAddress();
+
+    @Mock
+    private CommonProperties commonProperties;
 
     @InjectMocks
     private EntityAddressSequencer entityAddressSequencer;

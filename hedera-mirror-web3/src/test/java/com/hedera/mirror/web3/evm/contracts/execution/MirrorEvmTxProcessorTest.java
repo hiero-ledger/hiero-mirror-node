@@ -17,6 +17,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.SemanticVersion;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.ContextExtension;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.account.MirrorEvmContractAliases;
@@ -128,6 +129,9 @@ class MirrorEvmTxProcessorTest {
     @Mock
     private TokenAccessor tokenAccessor;
 
+    @Mock
+    private CommonProperties commonProperties;
+
     private MirrorEvmTxProcessorImpl mirrorEvmTxProcessor;
 
     static Stream<Arguments> provideIsEstimateParameters() {
@@ -181,7 +185,7 @@ class MirrorEvmTxProcessorTest {
                 new AbstractCodeCache(10, hederaEvmEntityAccess),
                 Map.of(TracerType.OPERATION, () -> mirrorOperationTracer),
                 store,
-                new EntityAddressSequencer(),
+                new EntityAddressSequencer(commonProperties),
                 tokenAccessor);
     }
 

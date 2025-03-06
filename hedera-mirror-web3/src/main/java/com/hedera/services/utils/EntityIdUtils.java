@@ -37,7 +37,7 @@ public final class EntityIdUtils {
         var entity = fromEvmAddress(bytes);
 
         return entity == null
-                ? null
+                ? AccountID.getDefaultInstance()
                 : AccountID.newBuilder()
                         .setShardNum(entity.getShard())
                         .setRealmNum(entity.getRealm())
@@ -49,7 +49,7 @@ public final class EntityIdUtils {
         var entity = fromEvmAddress(bytes);
 
         return entity == null
-                ? null
+                ? ContractID.getDefaultInstance()
                 : ContractID.newBuilder()
                         .setShardNum(entity.getShard())
                         .setRealmNum(entity.getRealm())
@@ -65,7 +65,7 @@ public final class EntityIdUtils {
         var entity = fromEvmAddress(bytes);
 
         return entity == null
-                ? null
+                ? TokenID.getDefaultInstance()
                 : TokenID.newBuilder()
                         .setShardNum(entity.getShard())
                         .setRealmNum(entity.getRealm())
