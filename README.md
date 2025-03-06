@@ -10,7 +10,7 @@ The Hiero Mirror Node acts as an archive node and stores historical data for the
 
 Mirror nodes receive information from nodes of a Hiero-based network and can provide value-added services such as APIs, auditing,
 analytics, visibility services, security threat modeling, data monetization services, etc. Mirror nodes can also run
-additional business logic to support applications built using a Hiero based network.
+additional business logic to support applications built using a Hiero-based network.
 
 While mirror nodes receive information from the main nodes, they do not contribute to consensus on the network, and
 their votes are not counted. Only the votes from the main nodes are counted for determining consensus. The trust of a
