@@ -1061,9 +1061,7 @@ public class DomainBuilder {
                 .payerAccountId(entityId())
                 .result(ResponseCodeEnum.SUCCESS.getNumber())
                 .scheduled(false)
-                .transactionBytes(bytes(100))
                 .transactionHash(bytes(48))
-                .transactionRecordBytes(bytes(200))
                 .type(TransactionType.CRYPTOTRANSFER.getProtoId())
                 .validStartNs(timestamp())
                 .validDurationSeconds(120L);
