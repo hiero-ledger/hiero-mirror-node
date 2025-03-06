@@ -39,7 +39,7 @@ class EntityIdSingletonTest {
 
     @Test
     void shouldReturnFirstUserEntityIdWhenMaxIdIsNull() {
-        when(entityRepository.findMaxId(0, 0)).thenReturn(0L);
+        when(entityRepository.findMaxId(0, 0)).thenReturn(null);
         assertThat(entityIdSingleton.get().number()).isEqualTo(FIRST_USER_ENTITY_ID);
     }
 

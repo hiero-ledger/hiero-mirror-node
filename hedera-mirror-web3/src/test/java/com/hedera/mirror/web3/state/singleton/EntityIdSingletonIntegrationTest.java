@@ -39,14 +39,12 @@ class EntityIdSingletonIntegrationTest extends Web3IntegrationTest {
         final var entity3 = domainBuilder.entity().persist();
         final var entityNumber3 = entityIdSingleton.get();
 
-        assertThat(entityNumberBeforeConfig.number())
-                .isNotEqualTo(entityWithShardAndRealm.toEntityId().getNum() + 1);
+        assertThat(entityNumberBeforeConfig.number()).isNotEqualTo(entityWithShardAndRealm.getNum() + 1);
 
-        assertThat(entityNumberAfterConfig.number())
-                .isEqualTo(entityWithShardAndRealm.toEntityId().getNum() + 1);
+        assertThat(entityNumberAfterConfig.number()).isEqualTo(entityWithShardAndRealm.getNum() + 1);
 
-        assertThat(entityNumber2.number()).isEqualTo(entity2.toEntityId().getNum() + 1);
+        assertThat(entityNumber2.number()).isEqualTo(entity2.getNum() + 1);
 
-        assertThat(entityNumber3.number()).isEqualTo(entity3.toEntityId().getNum() + 1);
+        assertThat(entityNumber3.number()).isEqualTo(entity3.getNum() + 1);
     }
 }
