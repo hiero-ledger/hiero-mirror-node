@@ -340,7 +340,7 @@ class DomainUtilsTest {
                 .setAccountNum(entityId.getNum())
                 .build();
 
-        String expected = "00007FFF000000000000FFFF00000000FFFFFFFF";
+        String expected = "000001FF000000000000FFFF0000003FFFFFFFFF";
         String expectedEmpty = "0000000000000000000000000000000000000000";
         assertThat(DomainUtils.toEvmAddress(id)).asHexString().isEqualTo(expected);
         assertThat(DomainUtils.toEvmAddress(AccountID.getDefaultInstance()))
@@ -351,18 +351,16 @@ class DomainUtilsTest {
 
     @Test
     void toEvmAddressId() {
-        String expected = "00007FFF000000000000FFFF00000000FFFFFFFF";
+        String expected = "000001FF000000000000FFFF0000003FFFFFFFFF";
         assertThat(DomainUtils.toEvmAddress(Long.MAX_VALUE)).asHexString().isEqualTo(expected);
     }
 
     @Test
     void toEvmAddressShardRealmNum() {
-        var shard = 32767;
-        var realm = 65535;
-        var num = 4294967295L;
+        var entityId = EntityId.of(Long.MAX_VALUE);
 
-        String expected = "00007FFF000000000000FFFF00000000FFFFFFFF";
-        assertThat(DomainUtils.toEvmAddress(shard, realm, num)).asHexString().isEqualTo(expected);
+        String expected = "000001FF000000000000FFFF0000003FFFFFFFFF";
+        assertThat(DomainUtils.toEvmAddress(entityId.getShard(), entityId.getRealm(), entityId.getNum())).asHexString().isEqualTo(expected);
     }
 
     @Test
@@ -392,7 +390,7 @@ class DomainUtilsTest {
                 .setTokenNum(entityId.getNum())
                 .build();
 
-        String expected = "00007FFF000000000000FFFF00000000FFFFFFFF";
+        String expected = "000001FF000000000000FFFF0000003FFFFFFFFF";
         String expectedEmpty = "0000000000000000000000000000000000000000";
         assertThat(DomainUtils.toEvmAddress(id)).asHexString().isEqualTo(expected);
         assertThat(DomainUtils.toEvmAddress(AccountID.getDefaultInstance()))
