@@ -350,6 +350,22 @@ class DomainUtilsTest {
     }
 
     @Test
+    void toEvmAddressId() {
+        String expected = "00007FFF000000000000FFFF00000000FFFFFFFF";
+        assertThat(DomainUtils.toEvmAddress(Long.MAX_VALUE)).asHexString().isEqualTo(expected);
+    }
+
+    @Test
+    void toEvmAddressShardRealmNum() {
+        var shard = 32767;
+        var realm = 65535;
+        var num = 4294967295L;
+
+        String expected = "00007FFF000000000000FFFF00000000FFFFFFFF";
+        assertThat(DomainUtils.toEvmAddress(shard, realm, num)).asHexString().isEqualTo(expected);
+    }
+
+    @Test
     void toEvmAddressContractID() throws Exception {
         String expected = "00000001000000000000000200000000000000FF";
         ContractID contractId = ContractID.newBuilder()
