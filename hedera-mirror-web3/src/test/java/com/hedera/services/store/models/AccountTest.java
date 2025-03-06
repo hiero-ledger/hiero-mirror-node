@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 
 class AccountTest {
     private static final byte[] mockCreate2Addr = unhex("aaaaaaaaaaaaaaaaaaaaaaaa9abcdefabcdefbbb");
-    private final Address testAlias = Address.fromHexString("0x000000000000000000000000000000007E8d8c90");
+    private final Address testAlias = Address.fromHexString("0x6aF23eBbA9CbEd6A6a8cA16a6f9C8FAf7E8d8c90");
     private final long miscAccountNum = 12345;
     private final Id subjectId = new Id(0, 0, miscAccountNum);
     private final int numAssociations = 3;
