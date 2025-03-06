@@ -31,12 +31,6 @@ class EntityIdTest {
     }
 
     @Test
-    void showValue() {
-        System.out.println(EntityId.of(511, 65535, 274877906943L).getId());
-        System.out.println(EntityId.of(512, 0, 0).getId());
-    }
-
-    @Test
     void throwsExceptionEncoding() {
         assertThatThrownBy(() -> EntityId.of(1L << SHARD_BITS, 0, 0)).isInstanceOf(InvalidEntityException.class);
         assertThatThrownBy(() -> EntityId.of(0, 1L << REALM_BITS, 0)).isInstanceOf(InvalidEntityException.class);
@@ -82,6 +76,6 @@ class EntityIdTest {
     @Test
     void isUnset() {
         assertThat(EntityId.isUnset(UNSET)).isTrue();
-        assertThat(EntityId.isUnset(EntityId.of(-1))).isFalse();
+        assertThat(EntityId.isUnset(EntityId.of(UNSET.getId()))).isFalse();
     }
 }
