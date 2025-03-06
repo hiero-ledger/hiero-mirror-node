@@ -18,10 +18,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByIdAndDeletedIsFalseSuccessfulCall() {
-        Entity entity = domainBuilder.entity().persist();
-        assertThat(entityRepository.findByIdAndDeletedIsFalse(entity.getId()))
-                .get()
-                .isEqualTo(entity);
+        var entity = domainBuilder.entity(-2, domainBuilder.timestamp()).persist();
+        assertThat(entityRepository.findByIdAndDeletedIsFalse(-2L)).contains(entity);
     }
 
     @Test

@@ -14,10 +14,10 @@ import (
 )
 
 var (
-	accountId3   = domain.MustDecodeEntityId(3)
-	accountId4   = domain.MustDecodeEntityId(4)
-	accountId70  = domain.MustDecodeEntityId(70)
-	accountId80  = domain.MustDecodeEntityId(80)
+	accountId3   = mustEncode(1023, 0, 3)
+	accountId4   = mustEncode(1023, 0, 4)
+	accountId70  = mustEncode(1023, 0, 70)
+	accountId80  = mustEncode(1023, 0, 80)
 	addressBooks = []*domain.AddressBook{
 		getAddressBook(9, 0, 102),
 		getAddressBook(10, 19, 101),
@@ -165,4 +165,13 @@ func getAddressBookEntry(
 		NodeId:             nodeId,
 		NodeAccountId:      nodeAccountId,
 	}
+}
+
+func mustEncode(shard, realm, num int64) domain.EntityId {
+	encodedId, err := domain.EntityIdOf(shard, realm, num)
+	if err != nil {
+		panic(err)
+	}
+
+	return encodedId
 }

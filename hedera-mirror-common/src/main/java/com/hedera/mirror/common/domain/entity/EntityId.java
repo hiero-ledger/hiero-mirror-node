@@ -168,7 +168,7 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
 
     @Transient
     public long getShard() {
-        return id >> (NUM_BITS + REALM_BITS) & SHARD_MASK;
+        return (id >> (NUM_BITS + REALM_BITS)) & SHARD_MASK;
     }
 
     public Entity toEntity() {
