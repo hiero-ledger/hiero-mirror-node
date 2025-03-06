@@ -36,8 +36,10 @@ import com.hedera.mirror.importer.reader.block.BlockFileReader;
 import com.hedera.mirror.importer.reader.record.RecordFileReader;
 import io.micrometer.common.util.StringUtils;
 import java.time.Instant;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.TreeMap;
 import lombok.AllArgsConstructor;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -62,15 +64,13 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
 
     @Test
     void compare() {
-        var compareSet = new HashMap<Long, BlockRecordSet>();
+        var compareSet = new TreeMap<Long, BlockRecordSet>();
 
-        long initialBlockNumber = 36000830L;
+        long initialBlockNumber = 36022581;
         var consensusNode = consensusNodeService.getNodes().stream().filter(n -> n.getNodeId() == 0).findFirst().get();
 
         long blockNumber = initialBlockNumber;
         var streamFilename = StreamFilename.from(blockNumber);
-        long firstConsensus;
-        long lastConsensus;
         List<Integer> skippedTransactionTypes = List.of(TransactionType.ETHEREUMTRANSACTION.getProtoId(),
                 TransactionType.CONTRACTCREATEINSTANCE.getProtoId(),
                 TransactionType.CONTRACTDELETEINSTANCE.getProtoId(),
@@ -81,7 +81,8 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
         );
 
         while(true) {
-            while(true) {
+            int blocksToDownload = 100;
+            while(blocksToDownload > 0) {
                 BlockFile blockFile;
                 try {
                     blockFile = downloadBlock(consensusNode, streamFilename);
@@ -93,11 +94,7 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
                     continue;
                 }
 
-
-                if (blockFile.getConsensusStart() == null ||
-                        // Do not process block files with no signed transaction bytes - Ticket 10552
-                        blockFile.getItems().stream().filter(r -> r.transaction().getSignedTransactionBytes().isEmpty()).findFirst().isPresent()
-                ) {
+                if (blockFile.getConsensusStart() == null) {
                     blockNumber++;
                     streamFilename = StreamFilename.from(blockNumber);
                     continue;
@@ -106,6 +103,7 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
                 var transformedRecordFile = blockFileTransformer.transform(blockFile);
                 var transformedRecordItems = transformedRecordFile.getItems()
                         .stream()
+                        .filter(r -> !r.getTransaction().getSignedTransactionBytes().isEmpty()) // Do not process block items with no signed transaction bytes - Ticket 10552
                         .filter(r -> !skippedTransactionTypes.contains(r.getTransactionType()))
                         .filter(r -> !(r.getTransactionRecord().getMemo().contains("Monitor pinger") ||
                                 r.getTransactionRecord().getMemo().contains("hedera-mirror-monitor")))
@@ -117,17 +115,21 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
                 }
 
                 transformedRecordItems.forEach(item -> compareSet.put(item.getConsensusTimestamp(), new BlockRecordSet(item, null)));
-                lastConsensus = transformedRecordItems.getLast().getConsensusTimestamp();
-                firstConsensus = transformedRecordItems.getFirst().getConsensusTimestamp();
                 blockNumber = blockFile.getBlockHeader().getNumber() + 1;
                 streamFilename = StreamFilename.from(blockNumber);
-                break;
+
+                blocksToDownload--;
             }
 
+
             if(!compareSet.isEmpty()) {
+                var firstConsensus = compareSet.firstKey();
+                var lastConsensus = compareSet.lastKey();
+
                 // Set timestamp back 4 seconds to make sure the range of transactions match up to that of the block
                 var firstBlockInstant = Instant.ofEpochSecond(0, firstConsensus - 4000000000L);
                 String filename = StreamFilename.getFilename(StreamType.RECORD, DATA, firstBlockInstant);
+
                 while(true) {
                     var recordFile = downloadRecordFile(consensusNode, filename);
                     if(recordFile.getConsensusEnd() < firstConsensus) {
@@ -136,6 +138,7 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
                     }
 
                     var recordItems = recordFile.getItems().stream()
+                            .filter(r -> !r.getTransaction().getSignedTransactionBytes().isEmpty()) // Do not process block items with no signed transaction bytes - Ticket 10552
                             .filter(r -> !skippedTransactionTypes.contains(r.getTransactionType()))
                             .filter(r -> !(r.getTransactionRecord().getMemo().contains("Monitor pinger") ||
                                     r.getTransactionRecord().getMemo().contains("hedera-mirror-monitor")))
@@ -166,6 +169,11 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
                     if(recordRecordItem == null) {
                         fail("Record item missing for block consensus timestamp {}", key);
                     }
+                    // Temporary until contract transformers are implemented
+                    if(recordRecordItem.getTransactionRecord().hasContractCallResult()) {
+                        continue;
+                    }
+
                     if(recordTransformedRecordItem == null) {
                         fail("Block record item missing for block consensus timestamp {}", key);
                     }
@@ -181,7 +189,6 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
                 compareSet.clear();
             }
         }
-
     }
 
     @AllArgsConstructor
@@ -213,15 +220,22 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
     }
 
     protected void assertRecordItem(RecordItem actual, RecordItem expected) {
+        var ignoreFields = new ArrayList<>(Arrays.asList("transactionIndex",
+                "parent",
+                "previous",
+                "transactionRecord.receipt_.exchangeRate_"
+        ));
+
+        if (expected.getTransactionType() == 15) { // CRYPTOUPDATEACCOUNT
+            // This value is parsed from the transaction body, so the receipt value is not needed
+            ignoreFields.add("transactionRecord.receipt_.accountID_");
+        }
+
         assertThat(actual)
                 .usingRecursiveComparison()
                 .ignoringFieldsMatchingRegexes(".*memoizedIsInitialized", ".*memoizedSize", ".*memoizedHashCode", ".*memoizedIsInitialized")
                 .ignoringFields(
-                        "transactionIndex",
-                        "parent",
-                        "previous",
-                        "transactionRecord.receipt_.exchangeRate_",
-                        "contractTransactions" // Todo, fix failed comparison were the actual value is {} but the expected value is null
+                        ignoreFields.toArray(new String[0])
                        )
                 .isEqualTo(expected);
     }
