@@ -5,7 +5,7 @@
     "/api/v1/accounts/x/rewards",
     "/api/v1/accounts/0.x/rewards",
     "/api/v1/accounts/0.0.x/rewards",
-    "/api/v1/accounts/-1/rewards",
+    "/api/v1/accounts/-92233720368547758080/rewards",
     "/api/v1/accounts/0.-1/rewards",
     "/api/v1/accounts/0.0.-1/rewards",
     "/api/v1/accounts/ABC/rewards",

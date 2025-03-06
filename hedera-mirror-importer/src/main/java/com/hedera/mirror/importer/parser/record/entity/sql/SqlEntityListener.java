@@ -600,10 +600,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
          * An unset spender field indicates this is an NFT metadata only update, and that the existing allowance
          * information must be retained from the source.
          */
-        if (EntityId.UNSET.equals(dest.getSpender())) {
+        if (EntityId.isUnset(dest.getSpender())) {
             dest.setSpender(src.getSpender());
         }
-        if (EntityId.UNSET.equals(dest.getDelegatingSpender())) {
+
+        if (EntityId.isUnset(dest.getDelegatingSpender())) {
             dest.setDelegatingSpender(src.getDelegatingSpender());
         }
 

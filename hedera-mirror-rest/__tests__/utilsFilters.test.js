@@ -492,7 +492,7 @@ describe('utils validateAndParseFilters entity key tests', () => {
   booleanFilterKeys.forEach((key) => {
     const invalidFilters = [
       // erroneous data
-      utils.buildComparatorFilter(key, 'lt:-1'),
+      utils.buildComparatorFilter(key, 'lt:-92233720368547758080'),
       // invalid format
       utils.buildComparatorFilter(key, 'lt:0.1.23456789012345'),
     ];
@@ -628,7 +628,7 @@ describe('utils validateAndParseFilters FROM key tests', () => {
   const key = constants.filterKeys.FROM;
   const invalidFilters = [
     // erroneous data
-    utils.buildComparatorFilter(key, '-1'),
+    utils.buildComparatorFilter(key, '-92233720368547758080'),
     // invalid format
     utils.buildComparatorFilter(key, '0x'),
     utils.buildComparatorFilter(key, '0x00000000000000000000000000000000000000012'),

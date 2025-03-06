@@ -712,10 +712,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
 
-        final var treasuryAccount = domainBuilder
-                .entity()
-                .customize(e -> e.type(EntityType.ACCOUNT).deleted(false).evmAddress(null))
-                .persist();
+        final var treasuryAccount = accountEntityPersist();
         final var token = populateHederaToken(
                 contract.getContractAddress(), TokenTypeEnum.NON_FUNGIBLE_UNIQUE, treasuryAccount.toEntityId());
 
@@ -756,10 +753,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
         testWeb3jService.setValue(value);
 
-        final var treasuryAccount = domainBuilder
-                .entity()
-                .customize(e -> e.type(EntityType.ACCOUNT).deleted(false).evmAddress(null))
-                .persist();
+        final var treasuryAccount = accountEntityPersist();
         final var token = populateHederaToken(
                 contract.getContractAddress(), TokenTypeEnum.NON_FUNGIBLE_UNIQUE, treasuryAccount.toEntityId());
         final var fixedFee = new FixedFee(

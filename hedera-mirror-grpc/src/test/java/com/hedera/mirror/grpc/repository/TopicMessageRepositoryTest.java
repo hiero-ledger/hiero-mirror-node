@@ -50,14 +50,14 @@ class TopicMessageRepositoryTest extends GrpcIntegrationTest {
     @Test
     void findByFilterWithTopicId() {
         TopicMessage topicMessage1 =
-                domainBuilder.topicMessage(t -> t.topicId(EntityId.of(1))).block();
+                domainBuilder.topicMessage(t -> t.topicId(EntityId.of(-1))).block();
         TopicMessage topicMessage2 =
-                domainBuilder.topicMessage(t -> t.topicId(EntityId.of(2))).block();
+                domainBuilder.topicMessage(t -> t.topicId(EntityId.of(-2))).block();
         // third topic message
-        domainBuilder.topicMessage(t -> t.topicId(EntityId.of(3))).block();
+        domainBuilder.topicMessage(t -> t.topicId(EntityId.of(-3))).block();
 
         TopicMessageFilter filter = TopicMessageFilter.builder()
-                .topicId(EntityId.of(2L))
+                .topicId(EntityId.of(-2L))
                 .startTime(topicMessage1.getConsensusTimestamp())
                 .build();
 
