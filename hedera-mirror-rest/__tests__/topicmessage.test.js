@@ -62,7 +62,7 @@ describe('topicmessage validateGetSequenceMessageParams tests', () => {
 
 describe('topicmessage validateGetTopicMessagesParams tests', () => {
   test('Verify validateGetTopicMessagesParams throws error for -92233720368547758080', () => {
-    verifyInvalidTopicMessages(-92233720368547758080);
+    verifyInvalidTopicMessages(-92233720368547758080n);
   });
 
   test('Verify validateGetTopicMessagesParams throws error for abc', () => {

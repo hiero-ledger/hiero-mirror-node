@@ -92,6 +92,12 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
         return (num & NUM_MASK) | (realm & REALM_MASK) << NUM_BITS | (shard & SHARD_MASK) << (REALM_BITS + NUM_BITS);
     }
 
+    /**
+     * Check if the EntityId object is UNSET.
+     *
+     * @param entityId - The EntityId object to check
+     * @return True if it's UNSET, false otherwise
+     */
     public static boolean isUnset(EntityId entityId) {
         return entityId == UNSET;
     }
