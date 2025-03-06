@@ -15,9 +15,9 @@ var invalidEntityIdParts = [][3]int64{
 	{-1, 0, 0},
 	{0, -1, 0},
 	{0, 0, -1},
-	{2 << 15, 0, 0},
+	{2 << 10, 0, 0},
 	{0, 2 << 16, 0},
-	{0, 0, 2 << 32},
+	{0, 0, 2 << 38},
 }
 
 var invalidEntityIdStrs = []string{
@@ -52,13 +52,18 @@ func TestEntityIdScan(t *testing.T) {
 			expected: &EntityId{EntityNum: 100, EncodedId: 100},
 		},
 		{
-			name:     "InvalidType",
-			value:    "100",
-			expected: nil,
+			name:     "Max",
+			value:    int64(math.MaxInt64),
+			expected: &EntityId{ShardNum: 511, RealmNum: 65535, EntityNum: 274877906943, EncodedId: math.MaxInt64},
 		},
 		{
-			name:     "InvalidEncodedId",
-			value:    int64(-1),
+			name:     "Min",
+			value:    int64(math.MinInt64),
+			expected: &EntityId{ShardNum: 512, RealmNum: 0, EntityNum: 0, EncodedId: math.MinInt64},
+		},
+		{
+			name:     "InvalidType",
+			value:    "100",
 			expected: nil,
 		},
 	}
@@ -152,12 +157,12 @@ func TestEntityIdUnmarshalJSON(t *testing.T) {
 			},
 		},
 		{
-			entity: "281483566645258",
+			entity: "18014948265295882",
 			expected: EntityId{
 				ShardNum:  1,
 				RealmNum:  2,
 				EntityNum: 10,
-				EncodedId: 281483566645258,
+				EncodedId: 18014948265295882,
 			},
 		},
 		{
@@ -166,7 +171,7 @@ func TestEntityIdUnmarshalJSON(t *testing.T) {
 				ShardNum:  1,
 				RealmNum:  2,
 				EntityNum: 10,
-				EncodedId: 281483566645258,
+				EncodedId: 18014948265295882,
 			},
 		},
 		{
@@ -194,7 +199,7 @@ func TestEntityIdUnmarshalJSONThrows(t *testing.T) {
 		strs = append(strs, fmt.Sprintf("\"%s\"", invalid))
 	}
 
-	strs = append(strs, "-1")
+	strs = append(strs, "-9223372036854775809")
 
 	for _, str := range strs {
 		t.Run(str, func(t *testing.T) {
@@ -228,9 +233,10 @@ func TestEntityIdEncoding(t *testing.T) {
 	}{
 		{0, 0, 0, 0},
 		{0, 0, 10, 10},
-		{0, 0, 4294967295, 4294967295},
-		{32767, 65535, 4294967295, 9223372036854775807},
-		{32767, 0, 0, 9223090561878065152},
+		{0, 0, 274877906943, 274877906943},
+		{1023, 65535, 274877906943, -1},
+		{511, 65535, 274877906943, 9223372036854775807},
+		{512, 0, 0, -9223372036854775808},
 	}
 
 	for _, tt := range testData {
@@ -245,9 +251,9 @@ func TestEntityIdEncodeThrows(t *testing.T) {
 	var testData = []struct {
 		shard, realm, number int64
 	}{
-		{int64(math.MaxInt16 + 1), 0, 0},  // 1 << shardBits
-		{0, int64(math.MaxUint16 + 1), 0}, // 1 << realmBits
-		{0, 0, int64(math.MaxUint32 + 1)}, // 1 << numberBits
+		{1024, 0, 0},         // 1 << shardBits
+		{0, 65536, 0},        // 1 << realmBits
+		{0, 0, 274877906944}, // 1 << numberBits
 		{-1, 0, 0},
 		{0, -1, 0},
 		{0, 0, -1},
@@ -317,22 +323,28 @@ func TestEntityIdDecoding(t *testing.T) {
 	}{
 		{0, EntityId{}},
 		{10, EntityId{EntityNum: 10, EncodedId: 10}},
-		{4294967295, EntityId{EntityNum: 4294967295, EncodedId: 4294967295}},
-		{2814792716779530, EntityId{
+		{274877906943, EntityId{EntityNum: 274877906943, EncodedId: 274877906943}},
+		{180146733873889290, EntityId{
 			ShardNum:  10,
 			RealmNum:  10,
 			EntityNum: 10,
-			EncodedId: 2814792716779530,
+			EncodedId: 180146733873889290,
 		}},
 		{9223372036854775807, EntityId{
-			ShardNum:  32767,
+			ShardNum:  511,
 			RealmNum:  65535,
-			EntityNum: 4294967295,
+			EntityNum: 274877906943,
 			EncodedId: 9223372036854775807,
 		}},
-		{9223090561878065152, EntityId{
-			ShardNum:  32767,
-			EncodedId: 9223090561878065152,
+		{9205357638345293824, EntityId{
+			ShardNum:  511,
+			EncodedId: 9205357638345293824,
+		}},
+		{-9223372036854775808, EntityId{
+			ShardNum:  512,
+			RealmNum:  0,
+			EntityNum: 0,
+			EncodedId: -9223372036854775808,
 		}},
 	}
 
@@ -342,10 +354,4 @@ func TestEntityIdDecoding(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, tt.expected, res)
 	}
-}
-
-func TestEntityIdDecodeThrows(t *testing.T) {
-	res, err := DecodeEntityId(-1)
-	assert.Equal(t, EntityId{}, res)
-	assert.Error(t, err)
 }

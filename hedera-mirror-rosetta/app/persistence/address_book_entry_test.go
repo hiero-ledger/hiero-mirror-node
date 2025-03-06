@@ -135,20 +135,6 @@ func (suite *addressBookEntryRepositorySuite) TestEntriesNoFile101() {
 	assert.Equal(suite.T(), expected, actual)
 }
 
-func (suite *addressBookEntryRepositorySuite) TestEntriesDbInvalidNodeAccountId() {
-	// given
-	db.CreateDbRecords(dbClient, addressBooks, getAddressBookEntry(20, 0, domain.EntityId{EncodedId: -1}))
-
-	repo := NewAddressBookEntryRepository(dbClient)
-
-	// when
-	actual, err := repo.Entries(defaultContext)
-
-	// then
-	assert.NotNil(suite.T(), err)
-	assert.Nil(suite.T(), actual)
-}
-
 func (suite *addressBookEntryRepositorySuite) TestEntriesDbConnectionError() {
 	// given
 	repo := NewAddressBookEntryRepository(invalidDbClient)
