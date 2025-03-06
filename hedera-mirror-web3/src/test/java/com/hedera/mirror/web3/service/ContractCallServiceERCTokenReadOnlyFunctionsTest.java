@@ -585,7 +585,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
 
     @Test
     void ethCallGetDecimalsRedirect() {
-        final var token = fungibleTokenPersist();
+        final var token = fungibleTokenCustomizable(t -> t.decimals(DEFAULT_DECIMALS));
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
         final var contract = testWeb3jService.deploy(RedirectTestContract::deploy);
         final var functionCall = contract.send_decimalsRedirect(tokenAddress);
