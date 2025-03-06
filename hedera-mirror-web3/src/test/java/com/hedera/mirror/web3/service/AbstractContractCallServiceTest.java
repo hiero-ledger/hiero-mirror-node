@@ -258,11 +258,12 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @return Token object that is persisted in db
      */
     protected Token fungibleTokenPersist() {
-        return fungibleTokenCustomizable(_ -> { });
+        return fungibleTokenCustomizable(t -> {});
     }
 
     /**
      * Method used to persist Token with treasury account as specific customization
+     *
      * @param treasuryEntityId - the treasuryEntityId that has to be set in the token
      * @return Token object that is persisted in db
      */
@@ -271,9 +272,11 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Method used to customize different fields of a token and persist it in db
+     * Method used to persist Token with token entity id and additional customization
+     * provided in the customizer
+     *
      * @param customizer - the consumer used to customize the token
-     * @return Token object which is persisted in the db
+     * @return Token object which is persisted in the database
      */
     protected Token fungibleTokenCustomizable(final Consumer<Token.TokenBuilder<?, ?>> customizer) {
         final var tokenEntity =
@@ -292,6 +295,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * Creates fungible token in the token db table.
      * The token table stores the properties specific for tokens and each record refers to
      * another one in the entity table, which has the properties common for all entities.
+     *
      * @param tokenEntity     The entity from the entity db table related to the created token table record
      * @param treasuryAccount The account holding the initial token supply
      */
@@ -324,11 +328,12 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @return Token object persisted in the database.
      */
     protected Token nonFungibleTokenPersist() {
-        return nonFungibleTokenCustomizable(_ -> { });
+        return nonFungibleTokenCustomizable(t -> {});
     }
 
     /**
      * Persists a non-fungible token with a specific treasury account.
+     *
      * @param treasuryEntityId The treasury account ID.
      * @return Token object persisted in the database.
      */
@@ -339,6 +344,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     /**
      * Method used to persist non-fungible token with token id and customization
      * provided in the customizer object
+     *
      * @param customizer the consumer used to customize the Token
      * @return Token object that is persisted in the database
      */
@@ -356,6 +362,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     /**
      * Creates and persists an NFT entity.
+     *
      * @param customizer Consumer to customize NFT attributes.
      */
     protected Nft nftPersistCustomizable(final Consumer<Nft.NftBuilder<?, ?>> customizer) {
@@ -371,6 +378,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     /**
      * Method used to persist non-fungible Token with treasury account and
      * Nft with account id, token id and spender as specific customization
+     *
      * @param treasury the treasury account with which the non-fungible token is persisted
      * @param accountId the account id with which the Nft is persisted
      * @param spender the spender with which the Nft is persisted
@@ -386,6 +394,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     /**
      * Method used to persist TokenAllowance object with specific customization
      * provided in the customizer object
+     *
      * @param customizer the consumer used to customize the TokenAllowance
      * @return TokenAllowance object that is persisted in the database
      */
@@ -397,6 +406,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     /**
      * Method used to persist TokenAllowance object with token id,
      * spender id, DEFAULT_AMOUNT_GRANTED and owner id as specific customizations
+     *
      * @param spenderId the spender id with which the TokenAllowance is persisted
      * @param ownerId the owner id with which the TokenAllowance is persisted
      * @param tokenId the token id with which the TokenAllowance is persisted
@@ -411,6 +421,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     /**
      * Method used to persist NftAllowance with specific customization
      * provided in the customizer object
+     *
      * @param customizer the consumer used to customize the NftAllowance
      */
     protected void nftAllowancePersistCustomizable(final Consumer<NftAllowance.NftAllowanceBuilder<?, ?>> customizer) {
@@ -445,6 +456,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     /**
      * Method used to create an Entity of type account
      * with DEFAULT_ACCOUNT_BALANCE
+     *
      * @return Entity that is persisted in the database
      */
     protected Entity accountEntityWithEvmAddressPersist() {
@@ -454,6 +466,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     /**
      * Method used to persist an Entity with customization
      * provided in the customizer
+     *
      * @param customizer - the consumer with which to customize the entity
      * @return Entity that is persisted in the database
      */
@@ -479,6 +492,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     /**
      * Method used to persist a TokenAccount with token id and account id
      * as specific customizations
+     *
      * @param tokenId the token id with which to persist the TokenAccount
      * @param accountId the account id with which to persist the TokenAccount
      * @return TokenAccount that is persisted in the database
@@ -511,6 +525,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     /** This method adds a record to the account_balance table.
      * When an account balance is updated during a consensus event, an account_balance record with the consensus_timestamp,
      * account_id and balance is created.The balance_timestamp for the account entry is updated as well in the entity table.
+     *
      * @param account The account that the account_balance record is going to be created for
      * @param timestamp The timestamp indicating the account balance update
      */
