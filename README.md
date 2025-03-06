@@ -17,7 +17,7 @@ their votes are not counted. Only the votes from the main nodes are counted for 
 Hiero-based network is derived based on the consensus reached by the main nodes. That trust is transferred to the mirror
 nodes using cryptographic signatures on a chain of files.
 
-Eventually, the mirror nodes will be able to run the same code as a consensus nodes so that they can see the transactions
+Eventually, the mirror nodes will be able to run the same code as a consensus node so that they can see the transactions
 in real time. To make the initial deployments easier, the mirror node strives to take away the burden of running a full
 consensus node through creation of periodic files that contain processed information (such as account balances or
 transaction records), and have the full trust of the main nodes. The mirror node software reduces the processing burden
