@@ -5,9 +5,7 @@ package com.hedera.services.utils;
 import static com.hedera.mirror.common.util.DomainUtils.fromEvmAddress;
 import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
 import static com.hedera.mirror.web3.evm.account.AccountAccessorImpl.EVM_ADDRESS_SIZE;
-import static com.hedera.node.app.service.evm.store.models.HederaEvmAccount.ECDSA_SECP256K1_ALIAS_SIZE;
 
-import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.AccountID.AccountOneOfType;
 import com.hedera.mirror.common.domain.entity.Entity;
@@ -29,31 +27,6 @@ public final class EntityIdUtils {
 
     private EntityIdUtils() {
         throw new UnsupportedOperationException("Utility Class");
-    }
-
-    public static byte[] asEvmAddress(final ContractID id) {
-        if (isOfEvmAddressSize(id.getEvmAddress())) {
-            return id.getEvmAddress().toByteArray();
-        } else {
-            return toEvmAddress(id);
-        }
-    }
-
-    public static byte[] asEvmAddress(final AccountID id) {
-        return toEvmAddress(id.getShardNum(), id.getRealmNum(), id.getAccountNum());
-    }
-
-    public static byte[] asEvmAddress(final TokenID id) {
-        return toEvmAddress(id.getShardNum(), id.getRealmNum(), id.getTokenNum());
-    }
-
-    public static byte[] asEvmAddress(final long num) {
-        var entityId = EntityId.of(num);
-        return toEvmAddress(entityId.getShard(), entityId.getRealm(), entityId.getNum());
-    }
-
-    public static long numFromEvmAddress(final byte[] bytes) {
-        return Longs.fromBytes(bytes[12], bytes[13], bytes[14], bytes[15], bytes[16], bytes[17], bytes[18], bytes[19]);
     }
 
     public static AccountID accountIdFromEvmAddress(final Address address) {
@@ -84,6 +57,10 @@ public final class EntityIdUtils {
                         .build();
     }
 
+    public static ContractID contractIdFromEvmAddress(final Address address) {
+        return contractIdFromEvmAddress(address.toArrayUnsafe());
+    }
+
     public static TokenID tokenIdFromEvmAddress(final byte[] bytes) {
         var entity = fromEvmAddress(bytes);
 
@@ -96,32 +73,20 @@ public final class EntityIdUtils {
                         .build();
     }
 
-    public static Address asTypedEvmAddress(final ContractID id) {
-        return Address.wrap(Bytes.wrap(asEvmAddress(id)));
-    }
-
-    public static Address asTypedEvmAddress(final AccountID id) {
-        return Address.wrap(Bytes.wrap(asEvmAddress(id)));
-    }
-
-    public static Address asTypedEvmAddress(final TokenID id) {
-        return Address.wrap(Bytes.wrap(asEvmAddress(id)));
-    }
-
-    public static ContractID contractIdFromEvmAddress(final Address address) {
-        return contractIdFromEvmAddress(address.toArrayUnsafe());
-    }
-
     public static TokenID tokenIdFromEvmAddress(final Address address) {
         return tokenIdFromEvmAddress(address.toArrayUnsafe());
     }
 
-    public static boolean isOfEvmAddressSize(final ByteString alias) {
-        return alias.size() == EVM_ADDRESS_SIZE;
+    public static Address asTypedEvmAddress(final ContractID id) {
+        return Address.wrap(Bytes.wrap(toEvmAddress(id)));
     }
 
-    public static boolean isOfEcdsaPublicAddressSize(final ByteString alias) {
-        return alias.size() == ECDSA_SECP256K1_ALIAS_SIZE;
+    public static Address asTypedEvmAddress(final AccountID id) {
+        return Address.wrap(Bytes.wrap(toEvmAddress(id)));
+    }
+
+    public static Address asTypedEvmAddress(final TokenID id) {
+        return Address.wrap(Bytes.wrap(toEvmAddress(id)));
     }
 
     public static AccountID parseAccount(final String literal) {
@@ -138,6 +103,7 @@ public final class EntityIdUtils {
     }
 
     public static AccountID toGrpcAccountId(final int code) {
+
         return AccountID.newBuilder()
                 .setShardNum(0L)
                 .setRealmNum(0L)
@@ -278,7 +244,7 @@ public final class EntityIdUtils {
     }
 
     public static String asHexedEvmAddress(final AccountID id) {
-        return CommonUtils.hex(asEvmAddress(id));
+        return CommonUtils.hex(toEvmAddress(id));
     }
 
     public static String asHexedEvmAddress(final Id id) {
@@ -287,10 +253,6 @@ public final class EntityIdUtils {
 
     public static String asHexedEvmAddress(long id) {
         return CommonUtils.hex(toEvmAddress(EntityId.of(id)));
-    }
-
-    public static byte[] asEvmAddress(EntityId id) {
-        return toEvmAddress(id);
     }
 
     public static boolean isAlias(final AccountID idOrAlias) {

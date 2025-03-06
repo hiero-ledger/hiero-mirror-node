@@ -2,10 +2,8 @@
 
 package com.hedera.services.utils;
 
-import static com.hedera.services.utils.EntityIdUtils.asEvmAddress;
+import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.contractIdFromEvmAddress;
-import static com.hedera.services.utils.EntityIdUtils.isOfEcdsaPublicAddressSize;
-import static com.hedera.services.utils.EntityIdUtils.isOfEvmAddressSize;
 import static com.hedera.services.utils.EntityIdUtils.parseAccount;
 import static com.hedera.services.utils.EntityIdUtils.tokenIdFromEvmAddress;
 import static com.hedera.services.utils.IdUtils.asAccount;
@@ -28,7 +26,6 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.swirlds.common.utility.CommonUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.besu.datatypes.Address;
@@ -53,36 +50,6 @@ class EntityIdUtilsTest {
     private static final long SHARD = 3;
     private static final long REALM = 36222;
     private static final long NUM = 2764472319L;
-
-    @Test
-    void asSolidityAddressBytesWorksProperly() {
-        final var id = AccountID.newBuilder()
-                .setShardNum(SHARD)
-                .setRealmNum(REALM)
-                .setAccountNum(NUM)
-                .build();
-
-        final var result = asEvmAddress(id);
-
-        final var expectedBytes = new byte[] {0, 0, 0, 3, 0, 0, 0, 0, 0, 0, -115, 126, 0, 0, 0, 0, -92, -58, 127, -1};
-
-        assertArrayEquals(expectedBytes, result);
-    }
-
-    @Test
-    void asSolidityAddressBytesFromToken() {
-        final var id = TokenID.newBuilder()
-                .setShardNum(SHARD)
-                .setRealmNum(REALM)
-                .setTokenNum(NUM)
-                .build();
-
-        final var result = asEvmAddress(id);
-
-        final var expectedBytes = new byte[] {0, 0, 0, 3, 0, 0, 0, 0, 0, 0, -115, 126, 0, 0, 0, 0, -92, -58, 127, -1};
-
-        assertArrayEquals(expectedBytes, result);
-    }
 
     @Test
     void asContractWorks() {
@@ -134,11 +101,11 @@ class EntityIdUtilsTest {
                 .setEvmAddress(ByteString.copyFrom(create2AddressBytes))
                 .build();
 
-        final var actual = asEvmAddress(id);
+        final var actual = toEvmAddress(id);
         final var typedActual = EntityIdUtils.asTypedEvmAddress(equivAccount);
         final var typedToken = EntityIdUtils.asTypedEvmAddress(equivToken);
-        final var anotherActual = EntityIdUtils.asEvmAddress(equivContract);
-        final var create2Actual = EntityIdUtils.asEvmAddress(create2Contract);
+        final var anotherActual = toEvmAddress(equivContract);
+        final var create2Actual = toEvmAddress(create2Contract);
         final var actualHex = EntityIdUtils.asHexedEvmAddress(equivAccount);
 
         assertArrayEquals(expected, actual);
@@ -194,18 +161,6 @@ class EntityIdUtilsTest {
     @Test
     void idFromEntityIdNullHandling() {
         assertThat(EntityIdUtils.idFromEntityId(null)).isNull();
-    }
-
-    @Test
-    void isOfEvmAddressSizeWorks() {
-        assertThat(isOfEvmAddressSize(EVM_ADDRESS)).isTrue();
-        assertThat(isOfEvmAddressSize(WRONG_EVM_ADDRESS)).isFalse();
-    }
-
-    @Test
-    void isOfEcdsaPublicAddressSizeWorks() {
-        assertThat(isOfEcdsaPublicAddressSize(ECDSA_PUBLIC_KEY)).isTrue();
-        assertThat(isOfEcdsaPublicAddressSize(ECDSA_WRONG_PUBLIC_KEY)).isFalse();
     }
 
     @Test

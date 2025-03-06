@@ -6,6 +6,7 @@ import static com.hedera.services.utils.EntityNum.MISSING_NUM;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.util.DomainUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
@@ -65,7 +66,6 @@ class EntityNumTest {
     void factoriesWorkForInvalidShard() {
         assertEquals(MISSING_NUM, EntityNum.fromAccountId(IdUtils.asAccount("1.0.123")));
         assertEquals(
-                new EntityNum(123),
-                EntityNum.fromEvmAddress(Address.wrap(Bytes.wrap(EntityIdUtils.asEvmAddress(123)))));
+                new EntityNum(123), EntityNum.fromEvmAddress(Address.wrap(Bytes.wrap(DomainUtils.toEvmAddress(123)))));
     }
 }

@@ -13,6 +13,7 @@ import static com.hedera.services.utils.IdUtils.asContract;
 import com.esaulpaugh.headlong.abi.Tuple;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
+import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.hapi.utils.ByteStringUtils;
 import com.hedera.services.store.contracts.precompile.FungibleTokenTransfer;
 import com.hedera.services.store.contracts.precompile.HbarTransfer;
@@ -177,7 +178,7 @@ public class DecodingFacade {
     @NonNull
     public static AccountID generateAccountIDWithAliasCalculatedFrom(final AccountID accountID) {
         return AccountID.newBuilder()
-                .setAlias(wrapUnsafely(EntityIdUtils.asEvmAddress(accountID)))
+                .setAlias(wrapUnsafely(DomainUtils.toEvmAddress(accountID)))
                 .build();
     }
 

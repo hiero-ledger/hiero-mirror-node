@@ -4,10 +4,7 @@ package com.hedera.mirror.common.util;
 
 import static com.hedera.mirror.common.util.CommonUtils.nextBytes;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.ByteString;
@@ -16,11 +13,13 @@ import com.google.protobuf.UnsafeByteOperations;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.exception.InvalidEntityException;
 import com.hedera.services.stream.proto.HashObject;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.ThresholdKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.TokenID;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -333,6 +332,24 @@ class DomainUtilsTest {
     }
 
     @Test
+    void toEvmAddressAccountId() {
+        var entityId = EntityId.of(Long.MAX_VALUE);
+        var id = AccountID.newBuilder()
+                .setShardNum(entityId.getShard())
+                .setRealmNum(entityId.getRealm())
+                .setAccountNum(entityId.getNum())
+                .build();
+
+        String expected = "00007FFF000000000000FFFF00000000FFFFFFFF";
+        String expectedEmpty = "0000000000000000000000000000000000000000";
+        assertThat(DomainUtils.toEvmAddress(id)).asHexString().isEqualTo(expected);
+        assertThat(DomainUtils.toEvmAddress(AccountID.getDefaultInstance()))
+                .asHexString()
+                .isEqualTo(expectedEmpty);
+        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((AccountID) null));
+    }
+
+    @Test
     void toEvmAddressContractID() throws Exception {
         String expected = "00000001000000000000000200000000000000FF";
         ContractID contractId = ContractID.newBuilder()
@@ -348,6 +365,24 @@ class DomainUtilsTest {
         assertThat(DomainUtils.toEvmAddress(contractIdEvm)).asHexString().isEqualTo(expected);
         assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((ContractID) null));
         assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress(contractIdDefault));
+    }
+
+    @Test
+    void toEvmAddressTokenId() {
+        var entityId = EntityId.of(Long.MAX_VALUE);
+        var id = TokenID.newBuilder()
+                .setShardNum(entityId.getShard())
+                .setRealmNum(entityId.getRealm())
+                .setTokenNum(entityId.getNum())
+                .build();
+
+        String expected = "00007FFF000000000000FFFF00000000FFFFFFFF";
+        String expectedEmpty = "0000000000000000000000000000000000000000";
+        assertThat(DomainUtils.toEvmAddress(id)).asHexString().isEqualTo(expected);
+        assertThat(DomainUtils.toEvmAddress(AccountID.getDefaultInstance()))
+                .asHexString()
+                .isEqualTo(expectedEmpty);
+        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((TokenID) null));
     }
 
     @Test

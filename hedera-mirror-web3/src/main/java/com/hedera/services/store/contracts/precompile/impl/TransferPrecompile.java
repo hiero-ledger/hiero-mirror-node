@@ -38,6 +38,7 @@ import com.esaulpaugh.headlong.abi.Function;
 import com.esaulpaugh.headlong.abi.Tuple;
 import com.esaulpaugh.headlong.abi.TypeFactory;
 import com.google.protobuf.ByteString;
+import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.web3.common.PrecompileContext;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.store.Store;
@@ -151,86 +152,6 @@ public class TransferPrecompile extends AbstractWritePrecompile {
         this.autoCreationLogic = autoCreationLogic;
         this.entityAddressSequencer = entityAddressSequencer;
         this.systemAccountDetector = systemAccountDetector;
-    }
-
-    @Override
-    public TransactionBody.Builder body(Bytes input, UnaryOperator<byte[]> aliasResolver, BodyParams bodyParams) {
-        if (bodyParams instanceof TransferParams transferParams) {
-            final var transferOp =
-                    switch (transferParams.functionId()) {
-                        case ABI_ID_CRYPTO_TRANSFER -> decodeCryptoTransfer(
-                                input, aliasResolver, transferParams.exists());
-                        case ABI_ID_CRYPTO_TRANSFER_V2 -> decodeCryptoTransferV2(
-                                input, aliasResolver, transferParams.exists());
-                        case ABI_ID_TRANSFER_TOKENS -> decodeTransferTokens(input, aliasResolver);
-                        case ABI_ID_TRANSFER_TOKEN -> decodeTransferToken(input, aliasResolver);
-                        case ABI_ID_TRANSFER_NFTS -> decodeTransferNFTs(input, aliasResolver);
-                        case ABI_ID_TRANSFER_NFT -> decodeTransferNFT(input, aliasResolver);
-                        default -> null;
-                    };
-            Objects.requireNonNull(transferOp, "Unable to decode function input");
-
-            final var transactionBody = syntheticTxnFactory.createCryptoTransfer(transferOp.tokenTransferWrappers());
-            if (!transferOp.transferWrapper().hbarTransfers().isEmpty()) {
-                transactionBody.mergeFrom(
-                        syntheticTxnFactory.createCryptoTransferForHbar(transferOp.transferWrapper()));
-            }
-
-            return transactionBody;
-        }
-        return TransactionBody.newBuilder();
-    }
-
-    @Override
-    public RunResult run(final MessageFrame frame, final TransactionBody transactionBody) {
-        final var updater = (HederaEvmStackedWorldStateUpdater) frame.getWorldUpdater();
-        final var store = updater.getStore();
-        final var hederaTokenStore = initializeHederaTokenStore(store);
-        final var impliedValidity = extrapolateValidityDetailsFromSyntheticTxn(transactionBody);
-        if (impliedValidity != OK) {
-            throw new InvalidTransactionException(impliedValidity, true);
-        }
-
-        final var impliedTransfers = extrapolateImpliedTransferDetailsFromSyntheticTxn(
-                transactionBody,
-                EntityIdUtils.accountIdFromEvmAddress(((PrecompileContext)
-                                frame.getMessageFrameStack().getLast().getContextVariable(PRECOMPILE_CONTEXT))
-                        .getSenderAddress()));
-        final var changes = impliedTransfers.getAllBalanceChanges();
-
-        final Map<ByteString, EntityNum> completedLazyCreates = new HashMap<>();
-        for (int i = 0, n = changes.size(); i < n; i++) {
-            final var change = changes.get(i);
-            if (change.hasAlias()) {
-                replaceAliasWithId(change, changes, completedLazyCreates, store, entityAddressSequencer);
-            }
-
-            final var units = change.getAggregatedUnits();
-            final var isCredit = units > 0;
-
-            // Checks whether the balance modification targets the receiver account (i.e. credit operation).
-            if (isCredit && !change.isForCustomFee()) {
-                revertIfReceiverIsSystemAccount(change);
-            }
-        }
-
-        transferLogic.doZeroSum(changes, store, entityAddressSequencer, hederaTokenStore);
-        return new EmptyRunResult();
-    }
-
-    @Override
-    public Set<Integer> getFunctionSelectors() {
-        return Set.of(
-                ABI_ID_CRYPTO_TRANSFER,
-                ABI_ID_CRYPTO_TRANSFER_V2,
-                ABI_ID_TRANSFER_TOKENS,
-                ABI_ID_TRANSFER_TOKEN,
-                ABI_ID_TRANSFER_NFTS,
-                ABI_ID_TRANSFER_NFT);
-    }
-
-    private HederaTokenStore initializeHederaTokenStore(Store store) {
-        return new HederaTokenStore(contextOptionValidator, mirrorNodeEvmProperties, store);
     }
 
     /**
@@ -428,7 +349,87 @@ public class TransferPrecompile extends AbstractWritePrecompile {
     }
 
     private static byte[] resolveAlias(UnaryOperator<byte[]> aliasResolver, AccountID accountID) {
-        return aliasResolver.apply(EntityIdUtils.asEvmAddress(accountID));
+        return aliasResolver.apply(DomainUtils.toEvmAddress(accountID));
+    }
+
+    @Override
+    public TransactionBody.Builder body(Bytes input, UnaryOperator<byte[]> aliasResolver, BodyParams bodyParams) {
+        if (bodyParams instanceof TransferParams transferParams) {
+            final var transferOp =
+                    switch (transferParams.functionId()) {
+                        case ABI_ID_CRYPTO_TRANSFER -> decodeCryptoTransfer(
+                                input, aliasResolver, transferParams.exists());
+                        case ABI_ID_CRYPTO_TRANSFER_V2 -> decodeCryptoTransferV2(
+                                input, aliasResolver, transferParams.exists());
+                        case ABI_ID_TRANSFER_TOKENS -> decodeTransferTokens(input, aliasResolver);
+                        case ABI_ID_TRANSFER_TOKEN -> decodeTransferToken(input, aliasResolver);
+                        case ABI_ID_TRANSFER_NFTS -> decodeTransferNFTs(input, aliasResolver);
+                        case ABI_ID_TRANSFER_NFT -> decodeTransferNFT(input, aliasResolver);
+                        default -> null;
+                    };
+            Objects.requireNonNull(transferOp, "Unable to decode function input");
+
+            final var transactionBody = syntheticTxnFactory.createCryptoTransfer(transferOp.tokenTransferWrappers());
+            if (!transferOp.transferWrapper().hbarTransfers().isEmpty()) {
+                transactionBody.mergeFrom(
+                        syntheticTxnFactory.createCryptoTransferForHbar(transferOp.transferWrapper()));
+            }
+
+            return transactionBody;
+        }
+        return TransactionBody.newBuilder();
+    }
+
+    @Override
+    public RunResult run(final MessageFrame frame, final TransactionBody transactionBody) {
+        final var updater = (HederaEvmStackedWorldStateUpdater) frame.getWorldUpdater();
+        final var store = updater.getStore();
+        final var hederaTokenStore = initializeHederaTokenStore(store);
+        final var impliedValidity = extrapolateValidityDetailsFromSyntheticTxn(transactionBody);
+        if (impliedValidity != OK) {
+            throw new InvalidTransactionException(impliedValidity, true);
+        }
+
+        final var impliedTransfers = extrapolateImpliedTransferDetailsFromSyntheticTxn(
+                transactionBody,
+                EntityIdUtils.accountIdFromEvmAddress(((PrecompileContext)
+                                frame.getMessageFrameStack().getLast().getContextVariable(PRECOMPILE_CONTEXT))
+                        .getSenderAddress()));
+        final var changes = impliedTransfers.getAllBalanceChanges();
+
+        final Map<ByteString, EntityNum> completedLazyCreates = new HashMap<>();
+        for (int i = 0, n = changes.size(); i < n; i++) {
+            final var change = changes.get(i);
+            if (change.hasAlias()) {
+                replaceAliasWithId(change, changes, completedLazyCreates, store, entityAddressSequencer);
+            }
+
+            final var units = change.getAggregatedUnits();
+            final var isCredit = units > 0;
+
+            // Checks whether the balance modification targets the receiver account (i.e. credit operation).
+            if (isCredit && !change.isForCustomFee()) {
+                revertIfReceiverIsSystemAccount(change);
+            }
+        }
+
+        transferLogic.doZeroSum(changes, store, entityAddressSequencer, hederaTokenStore);
+        return new EmptyRunResult();
+    }
+
+    @Override
+    public Set<Integer> getFunctionSelectors() {
+        return Set.of(
+                ABI_ID_CRYPTO_TRANSFER,
+                ABI_ID_CRYPTO_TRANSFER_V2,
+                ABI_ID_TRANSFER_TOKENS,
+                ABI_ID_TRANSFER_TOKEN,
+                ABI_ID_TRANSFER_NFTS,
+                ABI_ID_TRANSFER_NFT);
+    }
+
+    private HederaTokenStore initializeHederaTokenStore(Store store) {
+        return new HederaTokenStore(contextOptionValidator, mirrorNodeEvmProperties, store);
     }
 
     @Override
