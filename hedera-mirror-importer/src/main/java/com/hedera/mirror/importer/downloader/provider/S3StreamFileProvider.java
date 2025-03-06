@@ -17,7 +17,7 @@
 package com.hedera.mirror.importer.downloader.provider;
 
 import static com.hedera.mirror.importer.domain.StreamFilename.EPOCH;
-import static com.hedera.mirror.importer.domain.StreamFilename.FileType.SIGNATURE;
+import static com.hedera.mirror.importer.domain.StreamFilename.FileType.DATA;
 import static org.apache.commons.lang3.StringUtils.isNumeric;
 
 import com.hedera.mirror.common.domain.StreamType;
@@ -92,7 +92,7 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
                 .flatMapIterable(ListObjectsV2Response::contents)
                 .filter(r -> r.size() <= properties.getMaxSize())
                 .map(this::toStreamFilename)
-                .filter(s -> s != EPOCH && s.getFileType() == SIGNATURE)
+                .filter(s -> s != EPOCH && s.getFileType() == DATA)
                 .flatMapSequential(this::doGet)
                 .doOnSubscribe(s -> log.debug(
                         "Searching for the next {} files after {}/{}",
@@ -120,6 +120,14 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
 
     @Override
     protected String getBlockStreamFilePath(long shard, long nodeId, String filename) {
+        // Override for current setup with preview buckets
+        if(true) {
+            nodeId = 0;
+            String filePath = TEMPLATE_BLOCK_STREAM_FILE_PATH.formatted(shard, nodeId, filename);
+            var blockPreview = "block-preview/testnet-date-here/";
+            return blockPreview + filePath;
+        }
+
         String filePath = TEMPLATE_BLOCK_STREAM_FILE_PATH.formatted(shard, nodeId, filename);
         return StringUtils.isNotBlank(properties.getPathPrefix())
                 ? properties.getPathType() + SEPARATOR + filePath
