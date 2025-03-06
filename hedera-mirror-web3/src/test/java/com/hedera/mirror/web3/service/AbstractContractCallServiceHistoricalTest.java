@@ -72,6 +72,13 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
         return Pair.of(account, tokenEntity);
     }
 
+    /**
+     * Method that persists Entity object of type ACCOUNT with DEFAULT_ACCOUNT_BALANCE,
+     * createdTimestamp, timestampRange and additional customization provided in customizer object
+     * @param timestampRange the timestamp range with which to persist the tokenHistory object
+     * @param customizer  the consumer used to customize the Entity
+     * @return Entity object that is persisted in the database
+     */
     protected Entity accountEntityPersistHistoricalCustomizable(
             final Range<Long> timestampRange, Consumer<Entity.EntityBuilder<?, ?>> customizer) {
 
@@ -87,10 +94,20 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                 .persist();
     }
 
+    /**
+     * Method that persists an Entity object of type ACCOUNT and no specific customization
+     * @param timestampRange the timestamp range with which to persist the Entity object
+     * @return Entity object that is persisted in the database
+     */
     protected Entity accountEntityPersistWithEvmAddressHistorical(final Range<Long> timestampRange) {
-        return accountEntityPersistHistoricalCustomizable(timestampRange, e -> {});
+        return accountEntityPersistHistoricalCustomizable(timestampRange, _ -> { });
     }
 
+    /**
+     * Method that persists an Entity object of type ACCOUNT with evmAddress and alias set to null
+     * @param timestampRange the timestamp range with which to persist the Entity object
+     * @return Entity object that is persisted in the database
+     */
     protected Entity accountEntityPersistHistorical(final Range<Long> timestampRange) {
         return accountEntityPersistHistoricalCustomizable(
                 timestampRange, e -> e.evmAddress(null).alias(null));
@@ -130,6 +147,11 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                 .persist();
     }
 
+    /**
+     * Method used to persist an Entity object of type TOKEN with timestampRange
+     * @param timestampRange the timestamp range with which to persist the Entity object
+     * @return Entity object that is persisted in the database
+     */
     protected Entity tokenEntityPersistHistorical(final Range<Long> timestampRange) {
         return domainBuilder
                 .entity()
@@ -137,10 +159,22 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                 .persist();
     }
 
+    /**
+     * Method used to persist fungible TokenHistory object with no customization
+     * @param timestampRange  the timestamp range with which to persist the tokenHistory object
+     * @return TokenHistory object that is persisted in the database
+     */
     protected TokenHistory fungibleTokenPersistHistorical(final Range<Long> timestampRange) {
-        return fungibleTokenPersistHistoricalCustomizable(timestampRange, t -> {});
+        return fungibleTokenPersistHistoricalCustomizable(timestampRange, _ -> { });
     }
 
+    /**
+     * Method used to persist fungible TokenHistory object with tokenEntity id, createdTimestamp,
+     * timestampRange and customization
+     * @param timestampRange the timestamp range with which to persist the tokenHistory object
+     * @param customizer the consumer used to customize the TokenHistory
+     * @return TokenHistory object that is persisted in the database
+     */
     protected TokenHistory fungibleTokenPersistHistoricalCustomizable(
             final Range<Long> timestampRange, final Consumer<TokenHistory.TokenHistoryBuilder<?, ?>> customizer) {
         final var tokenEntity = tokenEntityPersistHistorical(timestampRange);
@@ -157,6 +191,13 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                 .persist();
     }
 
+    /**
+     * Method used to persist non-fungible TokenHistory object with token id, kycStatus GRANTED,
+     * timestampRange and customization
+     * @param timestampRange the timestamp range with which to persist the tokenHistory object
+     * @param customizer the consumer used to customize the TokenHistory
+     * @return TokenHistory object that is persisted in the database
+     */
     protected TokenHistory nonFungibleTokenPersistHistoricalCustomizable(
             final Range<Long> timestampRange, final Consumer<TokenHistory.TokenHistoryBuilder<?, ?>> customizer) {
         final var tokenEntity = tokenEntityPersistHistorical(timestampRange);
@@ -173,6 +214,13 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                 .persist();
     }
 
+    /**
+     * Method that persist NftHistory object with DEFAULT_SERIAL_NUMBER,
+     * timestampRange and customization provided in the customizer
+     * @param timestampRange the timestamp range with which to persist the NftHistory object
+     * @param customizer the consumer used to customize the NftHistory
+     * @return NftHistory  that is persisted in the database
+     */
     protected NftHistory nftPersistHistoricalCustomizable(
             final Range<Long> timestampRange, final Consumer<NftHistory.NftHistoryBuilder<?, ?>> customizer) {
         return domainBuilder
@@ -184,6 +232,15 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                 .persist();
     }
 
+    /**
+     * Method that persists non-fungible TokenHistory object with treasury account and NftHistory with
+     * token id, spender, accountId, timestampRange as specific customization
+     * @param timestampRange the timestamp range with which to persist the TokenHistory object
+     * @param treasury the treasury object that is set in the tokenHistory object
+     * @param owner the owner object that is set in the nftHistory object
+     * @param spender the spender object that is set in the nftHistory object
+     * @return TokenHistory object that is persisted in the database
+     */
     protected TokenHistory nftPersistHistorical(
             final Range<Long> timestampRange, final EntityId treasury, final EntityId owner, final EntityId spender) {
         final var token =
@@ -195,12 +252,26 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
         return token;
     }
 
+    /**
+     * Method that persists non-fungible TokenHistory with no specific customization
+     * and NftHistory with token id as specific customization
+     * @param timestampRange the timestamp range with which to persist the TokenHistory object
+     * @return TokenHistory that is persisted in the database
+     */
     protected TokenHistory nftPersistHistorical(final Range<Long> timestampRange) {
-        final var token = nonFungibleTokenPersistHistoricalCustomizable(timestampRange, t -> {});
+        final var token = nonFungibleTokenPersistHistoricalCustomizable(timestampRange, _ -> { });
         nftPersistHistoricalCustomizable(timestampRange, n -> n.tokenId(token.getTokenId()));
         return token;
     }
 
+    /**
+     * Method that persists TokenAllowanceHistory object with token id,
+     * owner id, spender id, DEFAULT_AMOUNT_GRANTED and timestampRange as specific customization
+     * @param tokenId the tokenId that is set in the tokenAllowanceHistory
+     * @param owner the owner object that is set in tokenAllowanceHistory
+     * @param spender the spender object that is set in tokenAllowanceHistory
+     * @param timestampRange the timestamp range with which to persist the tokenAllowanceHistory object
+     */
     protected void tokenAllowancePersistHistorical(
             final long tokenId, final Entity owner, final Entity spender, final Range<Long> timestampRange) {
         domainBuilder
@@ -214,6 +285,14 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                 .persist();
     }
 
+    /**
+     * Method that persists NftAllowanceHistory with token id, owner id, spender id,
+     * approvedForAll set to true and timestampRange as specific customization
+     * @param tokenId the tokenId that is set in the nftAllowanceHistory
+     * @param owner the owner object that is set in nftAllowanceHistory
+     * @param spender the spender object that is set in nftAllowanceHistory
+     * @param timestampRange the timestamp range with which to persist the nftAllowanceHistory object
+     */
     protected void nftAllowancePersistHistorical(
             final long tokenId, final Entity owner, final Entity spender, final Range<Long> timestampRange) {
         domainBuilder

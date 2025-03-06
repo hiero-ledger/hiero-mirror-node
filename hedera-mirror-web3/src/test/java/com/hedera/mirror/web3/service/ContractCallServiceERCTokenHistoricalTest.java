@@ -214,9 +214,9 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
             // The token needs to exist in the "token" table in order to get its type, so we duplicate the data for the
             // historical token.
             final var token = fungibleTokenCustomizable(t -> t.tokenId(tokenId).treasuryAccountId(treasury));
-            balancePersistHistorical(token.getTokenId(), owner.getId(), token.getTotalSupply());
+            balancePersistHistorical(tokenId, owner.getId(), token.getTotalSupply());
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
-            final var tokenAddress = toAddress(token.getTokenId()).toHexString();
+            final var tokenAddress = toAddress(tokenId).toHexString();
             final var ownerAddress = getAddressFromEntity(owner);
             // When
             final var result = isStatic

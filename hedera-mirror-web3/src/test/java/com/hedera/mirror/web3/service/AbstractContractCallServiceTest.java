@@ -254,15 +254,15 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     *
+     * Method used to persist  Token with no specific customization
      * @return Token object that is persisted in db
      */
     protected Token fungibleTokenPersist() {
-        return fungibleTokenCustomizable(t -> {});
+        return fungibleTokenCustomizable(_ -> { });
     }
 
     /**
-     *
+     * Method used to persist Token with treasury account as specific customization
      * @param treasuryEntityId - the treasuryEntityId that has to be set in the token
      * @return Token object that is persisted in db
      */
@@ -324,7 +324,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @return Token object persisted in the database.
      */
     protected Token nonFungibleTokenPersist() {
-        return nonFungibleTokenCustomizable(t -> {});
+        return nonFungibleTokenCustomizable(_ -> { });
     }
 
     /**
@@ -336,6 +336,12 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return nonFungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
     }
 
+    /**
+     * Method used to persist non-fungible token with token id and customization
+     * provided in the customizer object
+     * @param customizer the consumer used to customize the Token
+     * @return Token object that is persisted in the database
+     */
     protected Token nonFungibleTokenCustomizable(Consumer<Token.TokenBuilder<?, ?>> customizer) {
         final var nft = tokenEntityPersist();
 
@@ -362,6 +368,14 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .persist();
     }
 
+    /**
+     * Method used to persist non-fungible Token with treasury account and
+     * Nft with account id, token id and spender as specific customization
+     * @param treasury the treasury account with which the non-fungible token is persisted
+     * @param accountId the account id with which the Nft is persisted
+     * @param spender the spender with which the Nft is persisted
+     * @return Token object that is persisted in the database
+     */
     protected Token nftPersist(final EntityId treasury, final EntityId accountId, final EntityId spender) {
         final var token = nonFungibleTokenPersistWithTreasury(treasury);
         nftPersistCustomizable(
@@ -369,11 +383,24 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return token;
     }
 
+    /**
+     * Method used to persist TokenAllowance object with specific customization
+     * provided in the customizer object
+     * @param customizer the consumer used to customize the TokenAllowance
+     * @return TokenAllowance object that is persisted in the database
+     */
     protected TokenAllowance tokenAllowancePersistCustomizable(
             final Consumer<TokenAllowance.TokenAllowanceBuilder<?, ?>> customizer) {
         return domainBuilder.tokenAllowance().customize(customizer).persist();
     }
 
+    /**
+     * Method used to persist TokenAllowance object with token id,
+     * spender id, DEFAULT_AMOUNT_GRANTED and owner id as specific customizations
+     * @param spenderId the spender id with which the TokenAllowance is persisted
+     * @param ownerId the owner id with which the TokenAllowance is persisted
+     * @param tokenId the token id with which the TokenAllowance is persisted
+     */
     protected void tokenAllowancePersist(final long spenderId, final long ownerId, final long tokenId) {
         tokenAllowancePersistCustomizable(ta -> ta.tokenId(tokenId)
                 .spender(spenderId)
@@ -381,6 +408,11 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .owner(ownerId));
     }
 
+    /**
+     * Method used to persist NftAllowance with specific customization
+     * provided in the customizer object
+     * @param customizer the consumer used to customize the NftAllowance
+     */
     protected void nftAllowancePersistCustomizable(final Consumer<NftAllowance.NftAllowanceBuilder<?, ?>> customizer) {
         domainBuilder.nftAllowance().customize(customizer).persist();
     }
@@ -410,14 +442,20 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
     }
 
+    /**
+     * Method used to create an Entity of type account
+     * with DEFAULT_ACCOUNT_BALANCE
+     * @return Entity that is persisted in the database
+     */
     protected Entity accountEntityWithEvmAddressPersist() {
         return accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT).balance(DEFAULT_ACCOUNT_BALANCE));
     }
 
     /**
-     *
+     * Method used to persist an Entity with customization
+     * provided in the customizer
      * @param customizer - the consumer with which to customize the entity
-     * @return
+     * @return Entity that is persisted in the database
      */
     protected Entity accountEntityPersistCustomizable(final Consumer<Entity.EntityBuilder<?, ?>> customizer) {
         return domainBuilder.entity().customize(customizer).persist();
@@ -438,6 +476,13 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .persist();
     }
 
+    /**
+     * Method used to persist a TokenAccount with token id and account id
+     * as specific customizations
+     * @param tokenId the token id with which to persist the TokenAccount
+     * @param accountId the account id with which to persist the TokenAccount
+     * @return TokenAccount that is persisted in the database
+     */
     protected TokenAccount tokenAccountPersist(final long tokenId, final long accountId) {
         return tokenAccount(ta -> ta.tokenId(tokenId).accountId(accountId));
     }
