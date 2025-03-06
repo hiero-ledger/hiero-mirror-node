@@ -14,7 +14,7 @@ additional business logic to support applications built using a Hiero-based netw
 
 While mirror nodes receive information from the main nodes, they do not contribute to consensus on the network, and
 their votes are not counted. Only the votes from the main nodes are counted for determining consensus. The trust of a
-Hiero based network is derived based on the consensus reached by the main nodes. That trust is transferred to the mirror
+Hiero-based network is derived based on the consensus reached by the main nodes. That trust is transferred to the mirror
 nodes using cryptographic signatures on a chain of files.
 
 Eventually, the mirror nodes will be able to run the same code as a consensus nodes so that they can see the transactions
