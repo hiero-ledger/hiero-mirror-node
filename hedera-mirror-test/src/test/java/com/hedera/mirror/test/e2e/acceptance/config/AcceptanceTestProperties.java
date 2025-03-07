@@ -105,9 +105,7 @@ public class AcceptanceTestProperties {
             } else {
                 throw new IllegalArgumentException(String.format(
                         "Operator account %s must be in shard %d and realm %d",
-                        operatorId,
-                        commonProperties.getShard(),
-                        commonProperties.getRealm()));
+                        operatorId, commonProperties.getShard(), commonProperties.getRealm()));
             }
         }
     }
