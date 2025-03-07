@@ -10,16 +10,26 @@ import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.web3.ContextExtension;
 import com.hedera.mirror.web3.common.ContractCallContext;
+import com.hedera.mirror.web3.repository.RecordFileRepository;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 
 @ExtendWith(ContextExtension.class)
 class BlockInfoSingletonTest {
 
-    private final BlockInfoSingleton blockInfoSingleton = new BlockInfoSingleton();
     private final DomainBuilder domainBuilder = new DomainBuilder();
     private final RecordFile recordFile = domainBuilder.recordFile().get();
+    private BlockInfoSingleton blockInfoSingleton;
+    @Mock
+    private RecordFileRepository recordFileRepository;
+
+    @BeforeEach
+    void setup() {
+        blockInfoSingleton = new BlockInfoSingleton(recordFileRepository);
+    }
 
     @Test
     void get() {

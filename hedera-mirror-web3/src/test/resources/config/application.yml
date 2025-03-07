@@ -4,6 +4,7 @@ hedera:
   mirror:
     web3:
       evm:
+        modularizedServices: true
         properties:
           contracts.maxRefundPercentOfGasLimit: "100"
         evm_versions:

@@ -42,6 +42,7 @@ import com.hedera.node.app.throttle.ThrottleAccumulator;
 import com.hedera.node.app.version.ServicesSoftwareVersion;
 import com.hedera.node.app.workflows.handle.metric.UnavailableMetrics;
 import com.hedera.node.config.data.VersionConfig;
+import com.swirlds.platform.system.BasicSoftwareVersion;
 import com.swirlds.state.State;
 import com.swirlds.state.StateChangeListener;
 import com.swirlds.state.lifecycle.StartupNetworks;
@@ -107,7 +108,7 @@ public class MirrorNodeState implements State {
             serviceMigrator.doMigrations(
                     this,
                     servicesRegistry,
-                    null,
+                    new BasicSoftwareVersion(47),
                     new ServicesSoftwareVersion(
                             bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion()),
                     mirrorNodeEvmProperties.getVersionedConfiguration(),
