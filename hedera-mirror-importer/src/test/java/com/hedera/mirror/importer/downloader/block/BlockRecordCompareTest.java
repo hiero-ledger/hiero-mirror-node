@@ -32,6 +32,7 @@ import com.hedera.mirror.importer.domain.StreamFilename;
 import com.hedera.mirror.importer.downloader.CommonDownloaderProperties;
 import com.hedera.mirror.importer.downloader.CommonDownloaderProperties.PathType;
 import com.hedera.mirror.importer.downloader.provider.StreamFileProvider;
+import com.hedera.mirror.importer.downloader.record.RecordFileDownloader;
 import com.hedera.mirror.importer.reader.block.BlockFileReader;
 import com.hedera.mirror.importer.reader.record.RecordFileReader;
 import io.micrometer.common.util.StringUtils;
@@ -56,6 +57,7 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
     private final ConsensusNodeService consensusNodeService;
     private final StreamFileProvider streamFileProvider;
     private final RecordFileReader recordFileReader;
+    private final RecordFileDownloader recordFileDownloader;
 
     @AfterEach
     void shutdown() {
@@ -66,7 +68,9 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
     void compare() {
         var compareSet = new TreeMap<Long, BlockRecordSet>();
 
-        long initialBlockNumber = 36022581;
+        long initialBlockNumber = 36118500; // testnet acceptance tests
+        initialBlockNumber = 36133901;
+
         var consensusNode = consensusNodeService.getNodes().stream().filter(n -> n.getNodeId() == 0).findFirst().get();
 
         long blockNumber = initialBlockNumber;
@@ -216,7 +220,9 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
                 .list(node, StreamFilename.from("recordstreams/record0.0.3/" + previous))
                 .take(1).blockLast();
         log.info("Downloaded record file {}", recordFileData.getFilename());
-        return recordFileReader.read(recordFileData);
+        var recordFile = recordFileReader.read(recordFileData);
+        recordFileDownloader.downloadSidecars(StreamFilename.from("recordstreams/record0.0.3/" + recordFileData.getFilename()), recordFile, node);
+        return recordFile;
     }
 
     protected void assertRecordItem(RecordItem actual, RecordItem expected) {
@@ -229,6 +235,9 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
         if (expected.getTransactionType() == 15) { // CRYPTOUPDATEACCOUNT
             // This value is parsed from the transaction body, so the receipt value is not needed
             ignoreFields.add("transactionRecord.receipt_.accountID_");
+        } else if(expected.getTransactionType() == 43) { // SCHEDULEDELETE
+            // This value is parsed from the transaction body, so the receipt value is not needed
+            ignoreFields.add("transactionRecord.receipt_.scheduleID_");
         }
 
         assertThat(actual)
