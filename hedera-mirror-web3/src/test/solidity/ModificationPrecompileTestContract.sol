@@ -366,15 +366,6 @@ contract ModificationPrecompileTestContract is HederaTokenService {
         return (newFixedFees, newFractionalFees, newRoyaltyFees);
     }
 
-    function updateNonFungibleTokenCustomFeesExternal(address token, IHederaTokenService.FixedFee[] memory fixedFees, IHederaTokenService.RoyaltyFee[] memory royaltyFees) external
-    returns (int64 responseCode)
-    {
-        responseCode = HederaTokenService.updateNonFungibleTokenCustomFees(token, fixedFees, royaltyFees);
-        if (responseCode != HederaResponseCodes.SUCCESS) {
-            revert();
-        }
-    }
-
     function updateTokenKeysExternal(address token, IHederaTokenService.TokenKey[] memory keys) external
     returns (int responseCode)
     {
