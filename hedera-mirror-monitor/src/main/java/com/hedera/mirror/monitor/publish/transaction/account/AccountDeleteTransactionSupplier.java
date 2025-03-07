@@ -2,6 +2,8 @@
 
 package com.hedera.mirror.monitor.publish.transaction.account;
 
+import static com.hedera.mirror.monitor.OperatorProperties.DEFAULT_OPERATOR_ACCOUNT_ID;
+
 import com.hedera.hashgraph.sdk.AccountDeleteTransaction;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Hbar;
@@ -20,7 +22,7 @@ public class AccountDeleteTransactionSupplier implements TransactionSupplier<Acc
     private long maxTransactionFee = 1_000_000_000;
 
     @NotBlank
-    private String transferAccountId = "0.0.2";
+    private String transferAccountId = DEFAULT_OPERATOR_ACCOUNT_ID;
 
     @Override
     public AccountDeleteTransaction get() {
@@ -28,6 +30,7 @@ public class AccountDeleteTransactionSupplier implements TransactionSupplier<Acc
         return new AccountDeleteTransaction()
                 .setAccountId(AccountId.fromString(accountId))
                 .setMaxTransactionFee(Hbar.fromTinybars(maxTransactionFee))
-                .setTransferAccountId(AccountId.fromString(transferAccountId));
+                .setTransferAccountId(
+                        AccountId.fromString(ACCOUNT_ID_VALIDATOR.get().validate(transferAccountId)));
     }
 }

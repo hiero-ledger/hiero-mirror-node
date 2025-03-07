@@ -9,6 +9,11 @@ plugins {
 
 dependencies {
     implementation(platform("org.springframework.cloud:spring-cloud-dependencies"))
+    implementation(project(":common")) {
+        exclude("com.google.protobuf", "protobuf-java")
+        exclude("org.springframework.boot", "spring-boot-starter-data-jpa")
+        exclude("org.web3j", "core")
+    }
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.google.guava:guava")
     implementation("com.hedera.hashgraph:sdk")
