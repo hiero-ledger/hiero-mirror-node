@@ -210,10 +210,9 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
             final var tokenHistory = fungibleTokenPersistHistorical(historicalRange);
             final var tokenId = tokenHistory.getTokenId();
             tokenAccountFrozenRelationshipPersistHistorical(tokenId, owner.getId(), historicalRange);
-            final var treasury = domainBuilder.entity().get().toEntityId();
             // The token needs to exist in the "token" table in order to get its type, so we duplicate the data for the
             // historical token.
-            final var token = fungibleTokenCustomizable(t -> t.tokenId(tokenId).treasuryAccountId(treasury));
+            final var token = fungibleTokenCustomizable(t -> t.tokenId(tokenId));
             balancePersistHistorical(tokenId, owner.getId(), token.getTotalSupply());
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             final var tokenAddress = toAddress(tokenId).toHexString();
@@ -234,10 +233,9 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
             final var tokenHistory = fungibleTokenPersistHistorical(historicalRange);
             final var tokenId = tokenHistory.getTokenId();
             tokenAccountFrozenRelationshipPersistHistorical(tokenId, owner.getId(), historicalRange);
-            final var treasury = domainBuilder.entity().get().toEntityId();
             // The token needs to exist in the "token" table in order to get its type, so we duplicate the data for the
             // historical token.
-            final var token = fungibleTokenCustomizable(t -> t.tokenId(tokenId).treasuryAccountId(treasury));
+            final var token = fungibleTokenCustomizable(t -> t.tokenId(tokenId));
             balancePersistHistorical(tokenId, owner.getId(), token.getTotalSupply());
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
             final var tokenAddress = toAddress(token.getTokenId()).toHexString();
@@ -516,10 +514,9 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
             final var owner = accountEntityPersistHistorical(historicalRange);
             final var tokenHistory = fungibleTokenPersistHistorical(historicalRange);
             final var tokenId = tokenHistory.getTokenId();
-            final var treasury = domainBuilder.entity().get().toEntityId();
             // The token needs to exist in the "token" table in order to get its type, so we duplicate the data for the
             // historical token.
-            final var token = fungibleTokenCustomizable(t -> t.tokenId(tokenId).treasuryAccountId(treasury));
+            final var token = fungibleTokenCustomizable(t -> t.tokenId(tokenId));
             tokenAccountFrozenRelationshipPersistHistorical(tokenId, owner.getId(), historicalRange);
             balancePersistHistorical(tokenId, owner.getId(), token.getTotalSupply());
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
@@ -541,10 +538,9 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
             final var owner = accountEntityPersistWithEvmAddressHistorical(historicalRange);
             final var tokenHistory = fungibleTokenPersistHistorical(historicalRange);
             final var tokenId = tokenHistory.getTokenId();
-            final var treasury = domainBuilder.entity().get().toEntityId();
             // The token needs to exist in the "token" table in order to get its type, so we duplicate the data for the
             // historical token.
-            final var token = fungibleTokenCustomizable(t -> t.tokenId(tokenId).treasuryAccountId(treasury));
+            final var token = fungibleTokenCustomizable(t -> t.tokenId(tokenId));
             tokenAccountFrozenRelationshipPersistHistorical(tokenId, owner.getId(), historicalRange);
             balancePersistHistorical(tokenId, owner.getId(), token.getTotalSupply());
             final var contract = testWeb3jService.deploy(ERCTestContractHistorical::deploy);
