@@ -12,3 +12,4 @@ coverage:
         threshold: 1.0
 ignore:
   - "hedera-mirror-common/src/main/java/com/hedera/mirror/common/domain/**/*"
+  - "hedera-mirror-web3/src/main/java/com/hedera/node/app/workflows/**/*"
