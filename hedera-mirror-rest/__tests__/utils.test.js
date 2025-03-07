@@ -860,7 +860,7 @@ describe('Utils parseTokenBalances', () => {
       balance: '7500',
     },
     {
-      token_id: '4294967396',
+      token_id: '274877907044',
       balance: '12000',
     },
   ];

@@ -35,7 +35,7 @@ exports[`topicmessage validateGetSequenceMessageParams tests Verify validateGetS
 ]
 `;
 
-exports[`topicmessage validateGetTopicMessagesParams tests Verify validateGetTopicMessagesParams throws error for -123 1`] = `
+exports[`topicmessage validateGetTopicMessagesParams tests Verify validateGetTopicMessagesParams throws error for -92233720368547758080 1`] = `
 [
   "Invalid parameter: topic.id",
 ]

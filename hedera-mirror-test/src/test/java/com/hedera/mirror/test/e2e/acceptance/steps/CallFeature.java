@@ -53,6 +53,7 @@ import com.hedera.mirror.test.e2e.acceptance.client.AccountClient;
 import com.hedera.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import com.hedera.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import com.hedera.mirror.test.e2e.acceptance.client.TokenClient;
+import com.hedera.mirror.test.e2e.acceptance.config.Web3Properties;
 import com.hedera.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
@@ -73,6 +74,7 @@ public class CallFeature extends AbstractFeature {
     private final AccountClient accountClient;
     private final MirrorNodeClient mirrorClient;
     private final TokenClient tokenClient;
+    private final Web3Properties web3Properties;
     private DeployedContract deployedErcTestContract;
     private DeployedContract deployedEstimatePrecompileContract;
     private String ercContractAddress;
@@ -319,8 +321,14 @@ public class CallFeature extends AbstractFeature {
     public void htsGetTokenDefaultKycStatus() {
         var data = encodeData(PRECOMPILE, HTS_GET_TOKEN_DEFAULT_KYC_STATUS_SELECTOR, asAddress(fungibleTokenId));
         var response = callContract(data, precompileContractAddress);
+        boolean defaultKycStatus = false;
+        // In the modularized code, the status is now true when the token has a KycNotApplicable status,
+        // whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
+        if (web3Properties.isModularizedServices()) {
+            defaultKycStatus = !defaultKycStatus;
+        }
 
-        assertThat(response.getResultAsBoolean()).isFalse();
+        assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }
 
     @Then("I call function with update and I expect return of the updated value")

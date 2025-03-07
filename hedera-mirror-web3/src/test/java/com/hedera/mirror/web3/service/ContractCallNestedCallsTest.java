@@ -437,6 +437,24 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         verifyOpcodeTracerCall(function.encodeFunctionCall(), contract);
     }
 
+    @Test
+    @SuppressWarnings("deprecation")
+    void nestedDeployTwoContracts() throws Exception {
+        // Given
+        final var contract = testWeb3jService.deploy(NestedCalls::deploy);
+        final var sender = accountEntityPersist();
+        testWeb3jService.setValue(100_000_000_000L);
+        testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
+        // When
+        final var function = contract.call_deployNestedContracts();
+        final var result = function.send();
+        // Then
+        // verify that contract addresses are different
+        assertThat(result.getValue1()).isNotEqualTo(result.getValue2());
+        // verify that contract balances are different
+        assertThat(result.getValue3()).isNotEqualTo(result.getValue4());
+    }
+
     private KeyValue getKeyValueForType(final KeyValueType keyValueType, String contractAddress) {
         return switch (keyValueType) {
             case INHERIT_ACCOUNT_KEY -> new KeyValue(

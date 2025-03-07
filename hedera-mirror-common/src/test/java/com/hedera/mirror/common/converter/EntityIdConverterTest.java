@@ -15,13 +15,12 @@ class EntityIdConverterTest {
     void testToDatabaseColumn() {
         Assertions.assertThat(INSTANCE.convertToDatabaseColumn(null)).isNull();
         Assertions.assertThat(INSTANCE.convertToDatabaseColumn(EntityId.of(10L, 10L, 10L)))
-                .isEqualTo(2814792716779530L);
+                .isEqualTo(180146733873889290L);
     }
 
     @Test
     void testToEntityAttribute() {
         assertThat(INSTANCE.convertToEntityAttribute(null)).isNull();
-        assertThat(INSTANCE.convertToEntityAttribute(9223372036854775807L))
-                .isEqualTo(EntityId.of(32767L, 65535L, 4294967295L));
+        assertThat(INSTANCE.convertToEntityAttribute(-1L)).isEqualTo(EntityId.of(1023L, 65535L, 274877906943L));
     }
 }

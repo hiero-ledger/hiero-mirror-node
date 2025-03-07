@@ -3,7 +3,7 @@
 package com.hedera.mirror.restjava.common;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 import com.google.common.io.BaseEncoding;
 import com.hedera.mirror.common.CommonProperties;
@@ -52,14 +52,14 @@ class EntityIdParameterTest {
             })
     @DisplayName("EntityId parse from string tests, negative cases")
     void entityParseFromStringFailure(String inputId) {
-        assertThrows(IllegalArgumentException.class, () -> EntityIdParameter.valueOf(inputId));
+        assertThatThrownBy(() -> EntityIdParameter.valueOf(inputId)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"0.0.4294967296", "32768.65536.4294967296"})
+    @ValueSource(strings = {"0.65536.1", "1024.1.1"})
     @DisplayName("EntityId parse from string tests, negative cases for ID having valid format")
     void testInvalidEntity(String input) {
-        assertThrows(InvalidEntityException.class, () -> EntityIdParameter.valueOf(input));
+        assertThatThrownBy(() -> EntityIdParameter.valueOf(input)).isInstanceOf(InvalidEntityException.class);
     }
 
     @ParameterizedTest
@@ -74,17 +74,17 @@ class EntityIdParameterTest {
 
     @ParameterizedTest
     @CsvSource({
-        "0.0.0,0,0,0",
+        "1.2.3,1,2,3",
         "0,0,0,0",
-        "0.1,0,0,1",
+        "2.1,0,2,1",
         "0.0.4294967295,0,0,4294967295",
-        "65535.000000001,0,65535,1",
-        "32767.65535.4294967295,32767,65535,4294967295",
+        "65535.1,0,65535,1",
+        "1023.65535.274877906943,1023,65535,274877906943",
         "4294967295,0,0,4294967295"
     })
     void valueOfId(String givenEntityId, long expectedShard, long expectedRealm, long expectedNum) {
-        assertThat(EntityId.of(expectedShard, expectedRealm, expectedNum))
-                .isEqualTo(((EntityIdNumParameter) EntityIdParameter.valueOf(givenEntityId)).id());
+        assertThat(((EntityIdNumParameter) EntityIdParameter.valueOf(givenEntityId)).id())
+                .isEqualTo(EntityId.of(expectedShard, expectedRealm, expectedNum));
     }
 
     @ParameterizedTest

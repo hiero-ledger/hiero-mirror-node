@@ -5,7 +5,6 @@ package com.hedera.mirror.importer.addressbook;
 import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_ADDRESS_BOOK;
 import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 
-import com.google.protobuf.ByteString;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
@@ -475,33 +474,26 @@ public class AddressBookServiceImpl implements AddressBookService {
 
         AddressBookServiceEndpoint addressBookServiceEndpoint = new AddressBookServiceEndpoint();
         addressBookServiceEndpoint.setConsensusTimestamp(consensusTimestamp);
+        addressBookServiceEndpoint.setDomainName(StringUtils.EMPTY);
         addressBookServiceEndpoint.setIpAddressV4(ip);
         addressBookServiceEndpoint.setPort(nodeAddressProto.getPortno());
         addressBookServiceEndpoint.setNodeId(nodeId);
-        addressBookServiceEndpoint.setDomainName("");
         return addressBookServiceEndpoint;
     }
 
     private AddressBookServiceEndpoint getAddressBookServiceEndpoint(
             ServiceEndpoint serviceEndpoint, long consensusTimestamp, long nodeId) throws UnknownHostException {
-        var ipAddressByteString =
-                serviceEndpoint.getIpAddressV4() != null ? serviceEndpoint.getIpAddressV4() : ByteString.EMPTY;
-        if (ipAddressByteString.size() != 4) {
-            throw new IllegalStateException(String.format("Invalid IpAddressV4: %s", ipAddressByteString));
-        }
-
-        var ip = InetAddress.getByAddress(ipAddressByteString.toByteArray()).getHostAddress();
         AddressBookServiceEndpoint addressBookServiceEndpoint = new AddressBookServiceEndpoint();
         addressBookServiceEndpoint.setConsensusTimestamp(consensusTimestamp);
-        addressBookServiceEndpoint.setIpAddressV4(ip);
-        addressBookServiceEndpoint.setPort(serviceEndpoint.getPort());
+        addressBookServiceEndpoint.setDomainName(serviceEndpoint.getDomainName());
+        addressBookServiceEndpoint.setIpAddressV4(StringUtils.EMPTY);
         addressBookServiceEndpoint.setNodeId(nodeId);
+        addressBookServiceEndpoint.setPort(serviceEndpoint.getPort());
 
-        if (entityProperties.getPersist().isNodes()) {
-            addressBookServiceEndpoint.setDomainName(serviceEndpoint.getDomainName());
-        } else {
-            // Setting domain_name to empty string here only until HIP 869 goes to mainnet
-            addressBookServiceEndpoint.setDomainName(StringUtils.EMPTY);
+        if (serviceEndpoint.getIpAddressV4().size() == 4) {
+            var ip = InetAddress.getByAddress(DomainUtils.toBytes(serviceEndpoint.getIpAddressV4()))
+                    .getHostAddress();
+            addressBookServiceEndpoint.setIpAddressV4(ip);
         }
 
         return addressBookServiceEndpoint;
