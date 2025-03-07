@@ -95,7 +95,7 @@ public class AcceptanceTestProperties {
     private NodeNameEnum nodeType = NodeNameEnum.MIRROR;
 
     @PostConstruct
-    public void afterPropertiesSet() throws Exception {
+    public void configureOperator() throws Exception {
         var configuredOperator = AccountId.fromString(operatorId);
         if (configuredOperator.realm != commonProperties.getRealm()
                 || configuredOperator.shard != commonProperties.getShard()) {
@@ -103,8 +103,11 @@ public class AcceptanceTestProperties {
                 operatorId = String.format(
                         "%d.%d.%d", commonProperties.getShard(), commonProperties.getRealm(), configuredOperator.num);
             } else {
-                throw new IllegalArgumentException(
-                        "Operator account must be in the same shard and realm as the network");
+                throw new IllegalArgumentException(String.format(
+                        "Operator account %s must be in shard %d and realm %d",
+                        operatorId,
+                        commonProperties.getShard(),
+                        commonProperties.getRealm()));
             }
         }
     }
