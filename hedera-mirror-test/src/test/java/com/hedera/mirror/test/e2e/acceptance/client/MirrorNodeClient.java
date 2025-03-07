@@ -271,14 +271,18 @@ public class MirrorNodeClient {
     }
 
     public List<NetworkNode> getNetworkNodes() {
+        return getNetworkNodes(25);
+    }
+
+    public List<NetworkNode> getNetworkNodes(int limit) {
         List<NetworkNode> nodes = new ArrayList<>();
-        String next = "/network/nodes?limit=25";
+        String next = "/network/nodes?limit={limit}";
 
         do {
-            var response = callRestEndpoint(next, NetworkNodesResponse.class);
+            var response = callRestEndpoint(next, NetworkNodesResponse.class, limit);
             nodes.addAll(response.getNodes());
             next = response.getLinks() != null ? response.getLinks().getNext() : null;
-        } while (next != null);
+        } while (next != null && limit >= 25);
 
         return nodes;
     }

@@ -30,6 +30,7 @@ import org.springframework.validation.annotation.Validated;
 @RequiredArgsConstructor
 @Validated
 public class AcceptanceTestProperties {
+    public static final String DEFAULT_OPERATOR_ID = "0.0.2";
 
     private final FeatureProperties featureProperties;
     private final RestProperties restProperties;
@@ -72,7 +73,7 @@ public class AcceptanceTestProperties {
     private BigDecimal operatorBalance = BigDecimal.valueOf(65); // Amount in USD
 
     @NotBlank
-    private String operatorId = "0.0.2";
+    private String operatorId = DEFAULT_OPERATOR_ID;
 
     @NotBlank
     private String operatorKey =
