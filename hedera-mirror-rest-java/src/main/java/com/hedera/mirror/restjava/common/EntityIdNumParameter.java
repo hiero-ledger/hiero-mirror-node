@@ -7,8 +7,8 @@ import java.util.regex.Pattern;
 
 public record EntityIdNumParameter(EntityId id) implements EntityIdParameter {
 
-    public static final String ENTITY_ID_REGEX = "^((\\d{1,5})\\.)?((\\d{1,5})\\.)?(\\d{1,10})$";
-    public static final Pattern ENTITY_ID_PATTERN = Pattern.compile(ENTITY_ID_REGEX);
+    private static final String ENTITY_ID_REGEX = "^((\\d{1,4})\\.)?((\\d{1,5})\\.)?(\\d{1,12})$";
+    private static final Pattern ENTITY_ID_PATTERN = Pattern.compile(ENTITY_ID_REGEX);
 
     public static EntityIdNumParameter valueOf(String id) {
         var matcher = ENTITY_ID_PATTERN.matcher(id);
@@ -20,13 +20,14 @@ public record EntityIdNumParameter(EntityId id) implements EntityIdParameter {
         var properties = PROPERTIES.get();
         long shard = properties.getShard();
         long realm = properties.getRealm();
-        String realmString;
 
-        if ((realmString = matcher.group(4)) != null) {
-            realm = Long.parseLong(realmString);
-            shard = Long.parseLong(matcher.group(2));
-        } else if ((realmString = matcher.group(2)) != null) {
-            realm = Long.parseLong(realmString);
+        String secondGroup = matcher.group(2);
+        String forthGroup = matcher.group(4);
+        if (secondGroup != null && forthGroup != null) {
+            shard = Long.parseLong(secondGroup);
+            realm = Long.parseLong(forthGroup);
+        } else if (secondGroup != null || forthGroup != null) {
+            realm = Long.parseLong(secondGroup != null ? secondGroup : forthGroup);
         }
 
         var num = Long.parseLong(matcher.group(5));

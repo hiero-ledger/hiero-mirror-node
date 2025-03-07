@@ -27,7 +27,7 @@ exports[`validateContractIdAndConsensusTimestampParam invalid case - {"contractI
 ]
 `;
 
-exports[`validateContractIdParam invalid contract ID - -1 1`] = `
+exports[`validateContractIdParam invalid contract ID - -92233720368547758080 1`] = `
 [
   "Invalid parameter: contractid",
 ]

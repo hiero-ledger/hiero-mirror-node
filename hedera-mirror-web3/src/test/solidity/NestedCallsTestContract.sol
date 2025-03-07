@@ -181,4 +181,34 @@ contract NestedCalls is HederaTokenService {
         (int responseCode, int64 newTotalSupply, int64[] memory serialNumbers) = HederaTokenService.mintToken(token, amount, metadata);
         return "hardcodedResult";
     }
+
+    function deployNestedContracts() public payable returns (address, address, uint256, uint256) {
+        require(msg.value >= 30000 wei, "Insufficient funds to deploy contracts");
+
+        // Deploy contracts with minimal balance
+        MockContract newContract1 = (new MockContract){value: 10000 wei}();
+        MockContract newContract2 = (new MockContract){value: 20000 wei}();
+
+        // Get the balance of each contract
+        uint256 contract1Balance = address(newContract1).balance;
+        uint256 contract2Balance = address(newContract2).balance;
+
+        // Return contract addresses and their balances
+        return (address(newContract1), address(newContract2), contract1Balance, contract2Balance);
+    }
+}
+
+contract MockContract {
+
+    constructor() payable {}
+
+    function getAddress() public view returns (address) {
+        return address(this);
+    }
+
+    function destroy() public {
+        selfdestruct(payable(msg.sender));
+    }
+
+    receive() external payable {}
 }

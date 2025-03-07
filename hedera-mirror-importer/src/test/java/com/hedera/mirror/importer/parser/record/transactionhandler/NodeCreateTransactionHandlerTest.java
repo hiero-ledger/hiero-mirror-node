@@ -3,7 +3,6 @@
 package com.hedera.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -12,14 +11,13 @@ import com.hedera.mirror.common.domain.entity.Node;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NodeCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class NodeCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new NodeCreateTransactionHandler(entityListener, entityProperties);
+        return new NodeCreateTransactionHandler(entityListener);
     }
 
     @Override
@@ -37,41 +35,11 @@ class NodeCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         return EntityType.ACCOUNT;
     }
 
-    @AfterEach
-    void after() {
-        entityProperties.getPersist().setNodes(false);
-    }
-
     @Test
-    void nodeCreateTransactionNoPersist() {
-        entityProperties.getPersist().setNodes(false);
-
+    void nodeCreate() {
         // given
         var recordItem = recordItemBuilder.nodeCreate().build();
-        var transaction = domainBuilder
-                .transaction()
-                .customize(t -> t.transactionBytes(null).transactionRecordBytes(null))
-                .get();
-
-        // when
-        transactionHandler.updateTransaction(transaction, recordItem);
-
-        // then
-        assertThat(transaction.getTransactionBytes()).isNull();
-        assertThat(transaction.getTransactionRecordBytes()).isNull();
-        verify(entityListener, times(0)).onNode(any());
-    }
-
-    @Test
-    void nodeCreateTransactionPersist() {
-        entityProperties.getPersist().setNodes(true);
-
-        // given
-        var recordItem = recordItemBuilder.nodeCreate().build();
-        var transaction = domainBuilder
-                .transaction()
-                .customize(t -> t.transactionBytes(null).transactionRecordBytes(null))
-                .get();
+        var transaction = domainBuilder.transaction().get();
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);

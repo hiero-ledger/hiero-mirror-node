@@ -29,6 +29,9 @@
   },
   "url": "/api/v1/schedules/0.0.2000",
   "responseStatus": 200,
+  "responseHeaders": {
+    "cache-control": "public, max-age=3600"
+  },
   "responseJson": {
     "admin_key": {
       "_type": "ProtobufEncoded",

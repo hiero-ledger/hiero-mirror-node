@@ -32,7 +32,7 @@ class AccountControllerTest extends GraphqlIntegrationTest {
               query { account(input: {}) { id }}                                                         | Must provide exactly one input value
               query { account(input: {alias: ""}) { id }}                                                | alias must match
               query { account(input: {alias: "abcZ"}) { id }}                                            | alias must match
-              query { account(input: {entityId: {num: 123456789012}}) { id }}                            | Invalid entity ID
+              query { account(input: {entityId: {num: 274877906944}}) { id }}                            | Invalid entity ID
               query { account(input: {entityId: {num: -1}}) { id }}                                      | num must be greater than or equal to 0
               query { account(input: {entityId: {realm: -1, num: 1}}) { id }}                            | realm must be greater than or equal to 0
               query { account(input: {entityId: {shard: -1, num: 1}}) { id }}                            | shard must be greater than or equal to 0

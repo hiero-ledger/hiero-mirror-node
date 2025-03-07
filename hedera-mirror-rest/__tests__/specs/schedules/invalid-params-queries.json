@@ -6,7 +6,7 @@
     "schedules": [],
     "transactionsignatures": []
   },
-  "url": "/api/v1/schedules?account.id=-1&schedule.id=x.y.z&order=d&limit=-1&timestamp=1234",
+  "url": "/api/v1/schedules?account.id=-92233720368547758080&schedule.id=x.y.z&order=d&limit=-1&timestamp=1234",
   "responseStatus": 400,
   "responseJson": {
     "_status": {

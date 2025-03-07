@@ -48,7 +48,7 @@ class TopicMessageTest {
                         + "\"consensus_timestamp\":1594401417000000000,"
                         + "\"initial_transaction_id\":\"CgQIFBAUEgIYChgBIAE=\","
                         + "\"message\":\"AQID\","
-                        + "\"payer_account_id\":4294968296,"
+                        + "\"payer_account_id\":274877907944,"
                         + "\"running_hash\":\"BAUG\","
                         + expectedVersion
                         + "\"sequence_number\":1,"
