@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.common.domain;
 
-import java.util.Collection;
 import java.util.List;
 import lombok.NonNull;
 
@@ -45,9 +44,9 @@ public interface StreamFile<T extends StreamItem> {
 
     default void setIndex(Long index) {}
 
-    Collection<T> getItems();
+    List<T> getItems();
 
-    void setItems(Collection<T> items);
+    void setItems(List<T> items);
 
     Long getLoadEnd();
 

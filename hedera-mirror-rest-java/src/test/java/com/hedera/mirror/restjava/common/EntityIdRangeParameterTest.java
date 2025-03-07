@@ -78,7 +78,7 @@ class EntityIdRangeParameterTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"0.0.4294967296", "32768.65536.4294967296", "100000.65535.000000001"})
+    @ValueSource(strings = {"0.0.180146733873889291", "1024.65536.180146733873889291", "10000.65535.000000001"})
     @DisplayName("EntityIdRangeParameter parse from string tests, negative cases for ID having valid format")
     void testInvalidEntity(String input) {
         assertThrows(InvalidEntityException.class, () -> EntityIdRangeParameter.valueOf(input));

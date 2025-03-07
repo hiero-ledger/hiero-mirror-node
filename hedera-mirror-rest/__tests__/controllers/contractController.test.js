@@ -252,7 +252,7 @@ describe('getContractByIdOrAddressContractEntityQuery', () => {
       name: 'latest',
       isCreate2Test: false,
       input: {timestampConditions: [], timestampParams: [1234, 5678], contractIdParam: '1.1.924569'},
-      expectedParams: [1234, 5678, 281479272602521],
+      expectedParams: [1234, 5678, 18014673388313497n],
       expectedQuery: (columnName) => `${queryForTable({table: 'entity', columnName})}`,
     },
   ];
@@ -515,7 +515,7 @@ describe('validateContractIdParam', () => {
 
   const inValidSpecs = [
     {
-      contractId: '-1',
+      contractId: '-92233720368547758080',
     },
     {
       contractId: 'x',

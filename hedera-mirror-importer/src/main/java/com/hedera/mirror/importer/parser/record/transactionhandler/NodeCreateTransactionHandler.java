@@ -8,14 +8,13 @@ import com.hedera.mirror.common.domain.entity.Node;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hedera.mirror.importer.parser.record.entity.EntityListener;
-import com.hedera.mirror.importer.parser.record.entity.EntityProperties;
 import jakarta.inject.Named;
 
 @Named
 class NodeCreateTransactionHandler extends AbstractNodeTransactionHandler {
 
-    public NodeCreateTransactionHandler(EntityListener entityListener, EntityProperties entityProperties) {
-        super(entityListener, entityProperties);
+    public NodeCreateTransactionHandler(EntityListener entityListener) {
+        super(entityListener);
     }
 
     @Override

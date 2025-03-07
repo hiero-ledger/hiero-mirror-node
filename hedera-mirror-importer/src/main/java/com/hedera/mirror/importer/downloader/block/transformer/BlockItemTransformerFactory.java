@@ -5,11 +5,11 @@ package com.hedera.mirror.importer.downloader.block.transformer;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.mirror.common.domain.transaction.BlockItem;
+import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hedera.mirror.common.exception.ProtobufException;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
 import java.util.List;
 import java.util.Map;
@@ -28,11 +28,11 @@ public class BlockItemTransformerFactory {
         this.defaultTransformer = this.transformers.get(TransactionType.UNKNOWN);
     }
 
-    public TransactionRecord getTransactionRecord(BlockItem blockItem) {
-        var transactionBody = parse(blockItem.transaction().getSignedTransactionBytes());
+    public void transform(BlockItem blockItem, RecordItem.RecordItemBuilder builder) {
+        var transactionBody = parse(blockItem.getTransaction().getSignedTransactionBytes());
         var blockItemTransformer = get(transactionBody);
         // pass transactionBody for performance
-        return blockItemTransformer.getTransactionRecord(blockItem, transactionBody);
+        blockItemTransformer.transform(new BlockItemTransformation(blockItem, builder, transactionBody));
     }
 
     private BlockItemTransformer get(TransactionBody transactionBody) {

@@ -682,4 +682,26 @@ abstract contract HederaTokenService {
         emit CallResponseEvent(success, result);
         (responseCode, response) = success ? (HederaResponseCodes.SUCCESS, result) : (HederaResponseCodes.UNKNOWN, bytes(""));
     }
+
+    /// Update the custom fees for a fungible token
+    /// @param token The token address
+    /// @param fixedFees Set of fixed fees for `token`
+    /// @param fractionalFees Set of fractional fees for `token`
+    /// @return responseCode The response code for the status of the request. SUCCESS is 22.
+    function updateFungibleTokenCustomFees(address token,  IHederaTokenService.FixedFee[] memory fixedFees, IHederaTokenService.FractionalFee[] memory fractionalFees) internal returns (int64 responseCode) {
+        (bool success, bytes memory result) = precompileAddress.call(
+            abi.encodeWithSelector(IHederaTokenService.updateFungibleTokenCustomFees.selector, token, fixedFees, fractionalFees));
+        responseCode = success ? abi.decode(result, (int32)) : HederaResponseCodes.UNKNOWN;
+    }
+
+    /// Update the custom fees for a non-fungible token
+    /// @param token The token address
+    /// @param fixedFees Set of fixed fees for `token`
+    /// @param royaltyFees Set of royalty fees for `token`
+    /// @return responseCode The response code for the status of the request. SUCCESS is 22.
+    function updateNonFungibleTokenCustomFees(address token, IHederaTokenService.FixedFee[] memory fixedFees, IHederaTokenService.RoyaltyFee[] memory royaltyFees) internal returns (int64 responseCode) {
+        (bool success, bytes memory result) = precompileAddress.call(
+            abi.encodeWithSelector(IHederaTokenService.updateNonFungibleTokenCustomFees.selector, token, fixedFees, royaltyFees));
+        responseCode = success ? abi.decode(result, (int32)) : HederaResponseCodes.UNKNOWN;
+    }
 }

@@ -154,4 +154,16 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     """,
             nativeQuery = true)
     Optional<Entity> findActiveByIdAndTimestamp(long id, long blockTimestamp);
+
+    @Query(
+            value =
+                    """
+                    select id
+                    from entity
+                    where shard = ?1 and realm = ?2
+                    order by id desc
+                    limit 1
+                    """,
+            nativeQuery = true)
+    Long findMaxId(long shard, long realm);
 }

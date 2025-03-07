@@ -44,7 +44,7 @@ describe('TransactionId toString', () => {
       expected: '0.0.1-1-0',
     },
     {
-      input: '32767.65535.4294967295-9223372036854775807-999999999',
+      input: '1023.65535.274877906943-9223372036854775807-999999999',
     },
   ];
 
@@ -64,8 +64,8 @@ describe('TransactionId getEntityId', () => {
       entityId: EntityId.parse('0.0.1'),
     },
     {
-      transactionIdStr: '32767.65535.4294967295-9223372036854775807-999999999',
-      entityId: EntityId.parse('32767.65535.4294967295'),
+      transactionIdStr: '1023.65535.274877906943-9223372036854775807-999999999',
+      entityId: EntityId.parse('1023.65535.274877906943'),
     },
   ];
 

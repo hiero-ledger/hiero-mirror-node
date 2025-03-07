@@ -18,10 +18,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByIdAndDeletedIsFalseSuccessfulCall() {
-        Entity entity = domainBuilder.entity().persist();
-        assertThat(entityRepository.findByIdAndDeletedIsFalse(entity.getId()))
-                .get()
-                .isEqualTo(entity);
+        var entity = domainBuilder.entity(-2, domainBuilder.timestamp()).persist();
+        assertThat(entityRepository.findByIdAndDeletedIsFalse(-2L)).contains(entity);
     }
 
     @Test
@@ -462,5 +460,17 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .get()
                 .usingRecursiveComparison()
                 .isEqualTo(entityHistory);
+    }
+
+    @Test
+    void findMaxIdEmptyDb() {
+        assertThat(entityRepository.findMaxId(0, 0)).isNull();
+    }
+
+    @Test
+    void findMaxId() {
+        final long lastId = 1111;
+        domainBuilder.entity().customize(e -> e.id(lastId)).persist();
+        assertThat(entityRepository.findMaxId(0, 0)).isEqualTo(lastId);
     }
 }

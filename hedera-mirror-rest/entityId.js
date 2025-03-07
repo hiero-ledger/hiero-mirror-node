@@ -13,7 +13,7 @@ const {
 } = config;
 
 // format: |0|15-bit shard|16-bit realm|32-bit num|
-const numBits = 32n;
+const numBits = 38n;
 const numMask = 2n ** numBits - 1n;
 const maxNum = 2n ** numBits - 1n;
 
@@ -21,18 +21,18 @@ const realmBits = 16n;
 const realmMask = 2n ** realmBits - 1n;
 const realmScale = 2 ** Number(numBits);
 const maxRealm = 2n ** realmBits - 1n;
+const maxSafeRealm = 32767;
 
-const shardBits = 15n;
+const shardBits = 10;
 const shardOffset = numBits + realmBits;
-const shardScale = 2 ** Number(shardOffset);
-const maxShard = 2n ** shardBits - 1n;
-const maxSafeShard = 2 ** 5 - 1;
+const maxShard = 2n ** BigInt(shardBits) - 1n;
 
 const maxEncodedId = 2n ** 63n - 1n;
+const minEncodedId = BigInt.asIntN(64, 1n << 63n);
 
-const entityIdRegex = /^(\d{1,5}\.){1,2}\d{1,10}$/;
-const encodedEntityIdRegex = /^\d{1,19}$/;
-const evmAddressShardRealmRegex = /^(\d{1,10}\.){0,2}[A-Fa-f0-9]{40}$/;
+const entityIdRegex = /^(\d{1,4}\.)?\d{1,5}\.\d{1,12}$/;
+const encodedEntityIdRegex = /^-?\d{1,19}$/;
+const evmAddressShardRealmRegex = /^(\d{1,4}\.)?(\d{1,5}\.)?[A-Fa-f0-9]{40}$/;
 const evmAddressRegex = /^(0x)?[A-Fa-f0-9]{40}$/;
 
 class EntityId {
@@ -63,9 +63,12 @@ class EntityId {
         this.encodedId = null;
       } else {
         this.encodedId =
-          this.shard <= maxSafeShard
-            ? this.shard * shardScale + this.realm * realmScale + this.num
-            : (BigInt(this.shard) << shardOffset) | (BigInt(this.realm) << numBits) | BigInt(this.num);
+          this.shard === 0 && this.realm <= maxSafeRealm
+            ? this.realm * realmScale + this.num
+            : BigInt.asIntN(
+                64,
+                (BigInt(this.shard) << shardOffset) | (BigInt(this.realm) << numBits) | BigInt(this.num)
+              );
       }
     }
     return this.encodedId;
@@ -200,14 +203,14 @@ const normalizeEvmAddress = (address) => (address.length === 42 ? address.substr
  */
 const parseFromEncodedId = (id, error) => {
   const encodedId = BigInt(id);
-  if (encodedId > maxEncodedId) {
+  if (encodedId > maxEncodedId || encodedId < minEncodedId) {
     throw error();
   }
 
   const num = encodedId & numMask;
   const shardRealm = encodedId >> numBits;
   const realm = shardRealm & realmMask;
-  const shard = shardRealm >> realmBits;
+  const shard = BigInt.asUintN(shardBits, shardRealm >> realmBits);
   return [shard, realm, num, null];
 };
 
