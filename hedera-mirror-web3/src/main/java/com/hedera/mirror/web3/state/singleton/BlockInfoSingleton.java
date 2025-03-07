@@ -6,7 +6,6 @@ import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCK_I
 
 import com.hedera.hapi.node.state.blockrecords.BlockInfo;
 import com.hedera.mirror.web3.common.ContractCallContext;
-import com.hedera.mirror.web3.repository.RecordFileRepository;
 import com.hedera.mirror.web3.state.Utils;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
@@ -16,8 +15,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class BlockInfoSingleton implements SingletonState<BlockInfo> {
 
-    private final RecordFileRepository recordFileRepository;
-
     @Override
     public String getKey() {
         return BLOCK_INFO_STATE_KEY;
@@ -26,10 +23,6 @@ public class BlockInfoSingleton implements SingletonState<BlockInfo> {
     @Override
     public BlockInfo get() {
         var recordFile = ContractCallContext.get().getRecordFile();
-        if (recordFile == null) {
-            // during mirror node startup, recordFile is not set in the context
-            recordFile = recordFileRepository.findLatest().get();
-        }
         var startTimestamp = Utils.convertToTimestamp(recordFile.getConsensusStart());
         var endTimestamp = Utils.convertToTimestamp(recordFile.getConsensusEnd());
 

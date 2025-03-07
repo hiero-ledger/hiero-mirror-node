@@ -13,8 +13,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
+import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import com.hedera.mirror.web3.repository.RecordFileRepository;
 import com.hedera.mirror.web3.state.core.ListReadableQueueState;
 import com.hedera.mirror.web3.state.core.ListWritableQueueState;
 import com.hedera.mirror.web3.state.core.MapReadableKVState;
@@ -68,6 +70,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -92,23 +95,28 @@ public class MirrorNodeState implements State {
     private final ServiceMigrator serviceMigrator;
     private final NetworkInfo networkInfo;
     private final StartupNetworks startupNetworks;
-
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final RecordFileRepository recordFileRepository;
 
     @PostConstruct
     private void init() {
         if (!mirrorNodeEvmProperties.isModularizedServices()) {
-            // If the flag is not enabled, we don't need to make any further initialization.
-            return;
+            return; // No further initialization needed
         }
 
+        boolean isGenesisModularized = mirrorNodeEvmProperties.isGenesisModularized();
+        var previousVersion = isGenesisModularized ? null : new BasicSoftwareVersion(47);
+        Optional<RecordFile> recordFile = isGenesisModularized ? Optional.empty() : recordFileRepository.findLatest();
+
         ContractCallContext.run(ctx -> {
+            recordFile.ifPresent(ctx::setRecordFile); // Now correctly references an effectively final variable
             registerServices(servicesRegistry);
+
             final var bootstrapConfig = new BootstrapConfigProviderImpl().getConfiguration();
             serviceMigrator.doMigrations(
                     this,
                     servicesRegistry,
-                    new BasicSoftwareVersion(47),
+                    previousVersion,
                     new ServicesSoftwareVersion(
                             bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion()),
                     mirrorNodeEvmProperties.getVersionedConfiguration(),
