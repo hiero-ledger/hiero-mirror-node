@@ -14,6 +14,11 @@ plugins {
 dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    implementation(project(":common")) {
+        exclude("com.google.protobuf", "protobuf-java")
+        exclude("org.springframework.boot", "spring-boot-starter-data-jpa")
+        exclude("org.web3j", "core")
+    }
     implementation(platform("io.cucumber:cucumber-bom"))
     implementation("io.cucumber:cucumber-java")
     implementation("org.junit.platform:junit-platform-launcher")

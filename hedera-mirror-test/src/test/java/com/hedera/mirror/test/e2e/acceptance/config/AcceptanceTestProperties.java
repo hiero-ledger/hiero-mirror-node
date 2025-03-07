@@ -2,9 +2,12 @@
 
 package com.hedera.mirror.test.e2e.acceptance.config;
 
+import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Hbar;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.test.e2e.acceptance.client.ContractClient.NodeNameEnum;
 import com.hedera.mirror.test.e2e.acceptance.props.NodeProperties;
+import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
@@ -22,6 +25,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 @Named
@@ -29,12 +33,14 @@ import org.springframework.validation.annotation.Validated;
 @Data
 @RequiredArgsConstructor
 @Validated
+@EnableConfigurationProperties({CommonProperties.class})
 public class AcceptanceTestProperties {
-    public static final String DEFAULT_OPERATOR_ID = "0.0.2";
+    private static final String DEFAULT_OPERATOR_ID = "0.0.2";
 
     private final FeatureProperties featureProperties;
     private final RestProperties restProperties;
     private final WebClientProperties webClientProperties;
+    private final CommonProperties commonProperties;
 
     @NotNull
     private Duration backOffPeriod = Duration.ofMillis(5000);
@@ -87,6 +93,21 @@ public class AcceptanceTestProperties {
 
     @NotNull
     private NodeNameEnum nodeType = NodeNameEnum.MIRROR;
+
+    @PostConstruct
+    public void afterPropertiesSet() throws Exception {
+        var configuredOperator = AccountId.fromString(operatorId);
+        if (configuredOperator.realm != commonProperties.getRealm()
+                || configuredOperator.shard != commonProperties.getShard()) {
+            if (DEFAULT_OPERATOR_ID.equals(operatorId)) {
+                operatorId = String.format(
+                        "%d.%d.%d", commonProperties.getShard(), commonProperties.getRealm(), configuredOperator.num);
+            } else {
+                throw new IllegalArgumentException(
+                        "Operator account must be in the same shard and realm as the network");
+            }
+        }
+    }
 
     @Getter
     @RequiredArgsConstructor

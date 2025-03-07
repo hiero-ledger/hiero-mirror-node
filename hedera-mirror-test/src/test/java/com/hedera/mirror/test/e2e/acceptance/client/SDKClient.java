@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.test.e2e.acceptance.client;
 
-import static com.hedera.mirror.test.e2e.acceptance.config.AcceptanceTestProperties.DEFAULT_OPERATOR_ID;
 import static com.hedera.mirror.test.e2e.acceptance.config.AcceptanceTestProperties.HederaNetwork.OTHER;
 import static org.awaitility.Awaitility.await;
 
@@ -66,7 +65,8 @@ public class SDKClient implements Cleanable {
             SdkProperties sdkProperties,
             StartupProbe startupProbe)
             throws InterruptedException, TimeoutException {
-        defaultOperator = createOperatorAccount(mirrorNodeClient, acceptanceTestProperties);
+        defaultOperator = new ExpandedAccountId(
+                acceptanceTestProperties.getOperatorId(), acceptanceTestProperties.getOperatorKey());
         this.mirrorNodeClient = mirrorNodeClient;
         this.acceptanceTestProperties = acceptanceTestProperties;
         this.sdkProperties = sdkProperties;
@@ -81,31 +81,6 @@ public class SDKClient implements Cleanable {
         expandedOperatorAccountId = getOperatorAccount(receipt);
         this.client.setOperator(expandedOperatorAccountId.getAccountId(), expandedOperatorAccountId.getPrivateKey());
         validateNetworkMap = this.client.getNetwork();
-    }
-
-    private ExpandedAccountId createOperatorAccount(
-            MirrorNodeClient mirrorNodeClient, AcceptanceTestProperties properties) {
-        var configuredOperator = properties.getOperatorId();
-        var networkResponse = mirrorNodeClient.getNetworkNodes(1);
-        if (!networkResponse.isEmpty()) {
-            var node = networkResponse.getFirst();
-            var nodeAccountId = AccountId.fromString(node.getNodeAccountId());
-            var operatorAccountId = AccountId.fromString(configuredOperator);
-
-            if (operatorAccountId.shard != nodeAccountId.shard || operatorAccountId.realm != nodeAccountId.realm) {
-                if (operatorAccountId.equals(AccountId.fromString(DEFAULT_OPERATOR_ID))) {
-                    configuredOperator =
-                            String.format("%d.%d.%d", nodeAccountId.shard, nodeAccountId.realm, operatorAccountId.num);
-                } else {
-                    throw new IllegalArgumentException(
-                            "Operator account must be in the same shard and realm as the network");
-                }
-            }
-
-            return new ExpandedAccountId(configuredOperator, properties.getOperatorKey());
-        }
-
-        throw new IllegalStateException("Unable to obtain shard/realm from network");
     }
 
     public AccountId getRandomNodeAccountId() {

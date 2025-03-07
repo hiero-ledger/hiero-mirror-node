@@ -2,6 +2,9 @@
 
 hedera:
   mirror:
+    common:
+      shard: 0
+      realm: 0
     test:
       acceptance:
         # grpc endpoint
