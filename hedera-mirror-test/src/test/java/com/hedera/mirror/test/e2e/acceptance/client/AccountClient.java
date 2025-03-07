@@ -146,7 +146,7 @@ public class AccountClient extends AbstractNetworkClient {
         return new AccountCreateTransaction()
                 .setInitialBalance(initialBalance)
                 // The only _required_ property here is `key`
-                .setKey(publicKeys)
+                .setKeyWithoutAlias(publicKeys)
                 .setAlias(alias)
                 .setAccountMemo(memo)
                 .setReceiverSignatureRequired(receiverSigRequired)
