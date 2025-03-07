@@ -16,7 +16,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
-import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.Block;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase;
@@ -69,12 +68,16 @@ public class ProtoBlockFileReader implements BlockFileReader {
 
             var blockFile = blockFileBuilder.build();
             var bytes = streamFileData.getBytes();
+            var items = blockFile.getItems();
             blockFile.setBytes(bytes);
-            blockFile.setCount((long) blockFile.getItems().size());
+            blockFile.setCount((long) items.size());
             blockFile.setHash(context.getBlockRootHashDigest().digest());
             blockFile.setSize(bytes.length);
 
-            if (blockFile.getCount() == 0) {
+            if (!items.isEmpty()) {
+                blockFile.setConsensusStart(items.getFirst().getConsensusTimestamp());
+                blockFile.setConsensusEnd(items.getLast().getConsensusTimestamp());
+            } else {
                 blockFile.setConsensusStart(context.getLastMetaTimestamp());
                 blockFile.setConsensusEnd(context.getLastMetaTimestamp());
             }
@@ -85,10 +88,6 @@ public class ProtoBlockFileReader implements BlockFileReader {
         } catch (Exception e) {
             throw new InvalidStreamFileException("Failed to read " + filename, e);
         }
-    }
-
-    private Long getTransactionConsensusTimestamp(TransactionResult transactionResult) {
-        return DomainUtils.timestampInNanosMax(transactionResult.getConsensusTimestamp());
     }
 
     private void readBlockHeader(ReaderContext context) {
@@ -182,9 +181,7 @@ public class ProtoBlockFileReader implements BlockFileReader {
                             .stateChanges(Collections.unmodifiableList(stateChangesList))
                             .previous(context.getLastBlockItem())
                             .build();
-                    context.getBlockFile()
-                            .item(blockItem)
-                            .onNewTransaction(getTransactionConsensusTimestamp(transactionResult));
+                    context.getBlockFile().item(blockItem);
                     context.setLastBlockItem(blockItem);
                 }
             } catch (InvalidProtocolBufferException e) {
@@ -214,8 +211,8 @@ public class ProtoBlockFileReader implements BlockFileReader {
         BlockItem blockItem;
         while ((blockItem = context.readBlockItemFor(STATE_CHANGES)) != null) {
             // read all standalone statechanges
-            context.lastMetaTimestamp =
-                    DomainUtils.timestampInNanosMax(blockItem.getStateChanges().getConsensusTimestamp());
+            context.setLastMetaTimestamp(
+                    DomainUtils.timestampInNanosMax(blockItem.getStateChanges().getConsensusTimestamp()));
         }
     }
 

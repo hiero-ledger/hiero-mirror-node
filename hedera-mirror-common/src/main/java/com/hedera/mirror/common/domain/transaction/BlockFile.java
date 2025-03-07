@@ -109,14 +109,5 @@ public class BlockFile implements StreamFile<BlockItem> {
             roundEnd = roundNumber;
             return this;
         }
-
-        public BlockFileBuilder onNewTransaction(long consensusTimestamp) {
-            if (consensusStart == null) {
-                consensusStart = consensusTimestamp;
-            }
-
-            consensusEnd = consensusTimestamp;
-            return this;
-        }
     }
 }

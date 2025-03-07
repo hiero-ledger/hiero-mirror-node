@@ -26,14 +26,4 @@ class BlockFileTest {
         blockFile = BlockFile.builder().onNewRound(1L).onNewRound(2L).build();
         assertThat(blockFile).returns(1L, BlockFile::getRoundStart).returns(2L, BlockFile::getRoundEnd);
     }
-
-    @Test
-    void onNewTransaction() {
-        var blockFile = BlockFile.builder().onNewTransaction(1).build();
-        assertThat(blockFile).returns(1L, BlockFile::getConsensusStart).returns(1L, BlockFile::getConsensusEnd);
-
-        blockFile =
-                BlockFile.builder().onNewTransaction(1L).onNewTransaction(2L).build();
-        assertThat(blockFile).returns(1L, BlockFile::getConsensusStart).returns(2L, BlockFile::getConsensusEnd);
-    }
 }

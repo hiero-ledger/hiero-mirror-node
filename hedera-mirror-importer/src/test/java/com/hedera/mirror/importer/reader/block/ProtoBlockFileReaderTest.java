@@ -31,7 +31,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
-import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
@@ -39,7 +38,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-@CustomLog
 public class ProtoBlockFileReaderTest {
 
     public static final List<BlockFile> TEST_BLOCK_FILES = List.of(
@@ -200,7 +198,7 @@ public class ProtoBlockFileReaderTest {
                 .hasSize(1)
                 .first()
                 .extracting(
-                        com.hedera.mirror.common.domain.transaction.BlockItem::stateChanges,
+                        com.hedera.mirror.common.domain.transaction.BlockItem::getStateChanges,
                         InstanceOfAssertFactories.collection(StateChanges.class))
                 .hasSize(1)
                 .first()
