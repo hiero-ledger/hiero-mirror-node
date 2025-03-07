@@ -2,10 +2,11 @@
 
 package com.hedera.services.utils;
 
-import static com.hedera.services.utils.BitPackUtils.*;
-import static com.hedera.services.utils.EntityIdUtils.numFromEvmAddress;
 import static com.hedera.services.utils.MiscUtils.perm64;
 
+import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.util.DomainUtils;
+import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -16,17 +17,19 @@ import org.hyperledger.besu.datatypes.Address;
  * using this type, when compared to the {@code java.lang.Integer} boxed type.
  */
 public class EntityNum implements Comparable<EntityNum> {
-    public static final EntityNum MISSING_NUM = new EntityNum(0);
+    public static final EntityNum MISSING_NUM = new EntityNum(EntityId.EMPTY);
+    private final EntityId entityId;
 
-    private final int value;
+    private EntityNum(final EntityId entityId) {
+        this.entityId = entityId;
+    }
 
     public EntityNum(final int value) {
-        this.value = value;
+        this.entityId = EntityId.of(value);
     }
 
     public static EntityNum fromEvmAddress(final Address address) {
-        final var bytes = address.toArrayUnsafe();
-        return fromLong(numFromEvmAddress(bytes));
+        return new EntityNum(DomainUtils.fromEvmAddress(address.toArrayUnsafe()));
     }
 
     public static EntityNum fromInt(final int i) {
@@ -34,14 +37,11 @@ public class EntityNum implements Comparable<EntityNum> {
     }
 
     public static EntityNum fromLong(final long l) {
-        if (!isValidNum(l)) {
-            return MISSING_NUM;
-        }
-        final var value = codeFromNum(l);
-        return new EntityNum(value);
+        return new EntityNum(EntityId.of(l));
     }
 
     public static EntityNum fromAccountId(final AccountID grpc) {
+        // Should this remain restricted?
         if (!areValidNums(grpc.getShardNum(), grpc.getRealmNum())) {
             return MISSING_NUM;
         }
@@ -59,17 +59,17 @@ public class EntityNum implements Comparable<EntityNum> {
         return shard == 0 && realm == 0;
     }
 
-    public int intValue() {
-        return value;
+    public static EntityNum fromId(Id id) {
+        return new EntityNum(EntityId.of(id.shard(), id.realm(), id.num()));
     }
 
-    public long longValue() {
-        return numFromCode(value);
+    public long getId() {
+        return entityId.getId();
     }
 
     @Override
     public int hashCode() {
-        return (int) perm64(value);
+        return (int) perm64(entityId.getId());
     }
 
     @Override
@@ -83,24 +83,33 @@ public class EntityNum implements Comparable<EntityNum> {
 
         final var that = (EntityNum) o;
 
-        return this.value == that.value;
+        return this.entityId == that.entityId;
     }
 
     @Override
     public String toString() {
-        return "EntityNum{" + "value=" + value + '}';
+        var entityString = String.format("%d.%d.%d", entityId.getShard(), entityId.getRealm(), entityId.getNum());
+        return "EntityNum{" + "value=" + entityString + '}';
     }
 
     @Override
     public int compareTo(@NonNull final EntityNum that) {
-        return Integer.compare(this.value, that.value);
+        return this.entityId.compareTo(that.entityId);
     }
 
     public AccountID scopedAccountWith() {
         return AccountID.newBuilder()
-                .setShardNum(0)
-                .setRealmNum(0)
-                .setAccountNum(value)
+                .setShardNum(entityId.getShard())
+                .setRealmNum(entityId.getRealm())
+                .setAccountNum(entityId.getNum())
+                .build();
+    }
+
+    public TokenID toTokenId() {
+        return TokenID.newBuilder()
+                .setShardNum(entityId.getShard())
+                .setRealmNum(entityId.getRealm())
+                .setTokenNum(entityId.getNum())
                 .build();
     }
 }

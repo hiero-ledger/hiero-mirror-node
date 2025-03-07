@@ -71,8 +71,8 @@ public class FcTokenAllowanceId implements Comparable<FcTokenAllowanceId> {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                 .omitNullValues()
-                .add("tokenNum", tokenNum.longValue())
-                .add("spenderNum", spenderNum.longValue())
+                .add("tokenNum", tokenNum)
+                .add("spenderNum", spenderNum)
                 .toString();
     }
 

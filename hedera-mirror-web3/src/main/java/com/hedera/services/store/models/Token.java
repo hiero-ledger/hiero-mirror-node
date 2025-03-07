@@ -4,7 +4,6 @@ package com.hedera.services.store.models;
 
 import static com.hedera.node.app.service.evm.utils.ValidationUtils.validateFalse;
 import static com.hedera.node.app.service.evm.utils.ValidationUtils.validateTrue;
-import static com.hedera.services.utils.BitPackUtils.MAX_NUM_ALLOWED;
 import static com.hedera.services.utils.MiscUtils.asUsableFcKey;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_DOES_NOT_OWN_WIPED_NFT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CANNOT_WIPE_TOKEN_TREASURY_ACCOUNT;
@@ -64,6 +63,7 @@ import java.util.function.Supplier;
  * 3. Removed OwnershipTracker
  */
 public class Token {
+    static final long MAX_UNIQUE_NFTS_PER_TOKEN = 0xFFFFFFFFL;
     private final Long entityId;
     private final Id id;
     private final List<UniqueToken> mintedUniqueTokens;
@@ -1448,7 +1448,7 @@ public class Token {
                 type == TokenType.NON_FUNGIBLE_UNIQUE,
                 FAIL_INVALID,
                 "Non-fungible mint can be invoked only on non-fungible token type");
-        validateTrue((lastUsedSerialNumber + metadataCount) <= MAX_NUM_ALLOWED, SERIAL_NUMBER_LIMIT_REACHED);
+        validateTrue((lastUsedSerialNumber + metadataCount) <= MAX_UNIQUE_NFTS_PER_TOKEN, SERIAL_NUMBER_LIMIT_REACHED);
         var tokenMod = changeSupply(treasuryRel, metadataCount, FAIL_INVALID, false);
         long newLastUsedSerialNumber = this.lastUsedSerialNumber;
 
@@ -1715,12 +1715,12 @@ public class Token {
         return supplyKey;
     }
 
-    public boolean hasSupplyKey() {
-        return supplyKey != null;
-    }
-
     public Token setSupplyKey(JKey supplyKey) {
         return createNewTokenWithSupplyKey(this, supplyKey);
+    }
+
+    public boolean hasSupplyKey() {
+        return supplyKey != null;
     }
 
     public Token setMintedUniqueTokens(final List<UniqueToken> mintedUniqueTokens) {
