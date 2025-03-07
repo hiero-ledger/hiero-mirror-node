@@ -95,30 +95,25 @@ jobs:
           SPRING_PROFILES_ACTIVE: ${{ matrix.schema}}
         run: ./gradlew :${{matrix.project}}:build --scan ${{ secrets.GRADLE_ARGS }}
 
-      - name: Upload Codacy coverage report
-        if: ${{ matrix.schema == 'v1' && matrix.project != 'rest:monitoring' && matrix.project != 'test' && always() }}
+      - name: Upload coverage report
         env:
           CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
+        if: ${{ matrix.schema == 'v1' && matrix.project != 'rest:monitoring' && matrix.project != 'test' && always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
         run: ./gradlew :${{ matrix.project }}:uploadCoverage
 
       - name: Execute Gradle using transaction executor
-        if: ${{ matrix.project == 'web3' && matrix.schema == 'v1'}}
         env:
           HEDERA_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
+        if: ${{ matrix.project == 'web3' && matrix.schema == 'v1'}}
         run: ./gradlew :${{ matrix.project }}:build
 
-      - name: Upload coverage report
-        uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574 # v5.4.0
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        if: ${{ matrix.schema == 'v1' && matrix.project != 'rest:monitoring' && matrix.project != 'test' && always() }}
-
   coverage:
-    name: Coverage
+    if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository)
+    name: Upload coverage
     needs: build
     runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Finalize coverage report
-        run: bash <(curl -Ls https://coverage.codacy.com/get.sh) final
         env:
           CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
+        run: bash <(curl -Ls https://coverage.codacy.com/get.sh) final

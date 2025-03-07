@@ -1,5 +1,6 @@
 [![Build](https://github.com/hiero-ledger/hiero-mirror-node/actions/workflows/gradle.yml/badge.svg)](https://github.com/hiero-ledger/hiero-mirror-node/actions)
-[![codecov](https://img.shields.io/codecov/c/github/hiero-ledger/hiero-mirror-node/main)](https://codecov.io/gh/hiero-ledger/hiero-mirror-node)
+[![Codacy Grade](https://app.codacy.com/project/badge/Grade/e0e3a2f2770644eaa5cfc7b274569a3a)](https://app.codacy.com/gh/hiero-ledger/hiero-mirror-node/dashboard?utm_campaign=Badge_grade)
+[![Codacy Coverage](https://app.codacy.com/project/badge/Coverage/e0e3a2f2770644eaa5cfc7b274569a3a)](https://app.codacy.com/gh/hiero-ledger/hiero-mirror-node/dashboard?utm_campaign=Badge_coverage)
 [![Discord](https://img.shields.io/badge/discord-join%20chat-blue.svg)](https://hedera.com/discord)
 
 # Hedera Mirror Node
