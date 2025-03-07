@@ -18,7 +18,6 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Value;
-import lombok.experimental.NonFinal;
 import org.springframework.util.CollectionUtils;
 
 @AllArgsConstructor(access = AccessLevel.NONE)
@@ -39,8 +38,8 @@ public class BlockItem implements StreamItem {
     private final TransactionResult transactionResult;
 
     @EqualsAndHashCode.Exclude
-    @NonFinal
-    private StateChangeContext stateChangeContext;
+    @Getter(lazy = true)
+    private final StateChangeContext stateChangeContext = createStateChangeContext();
 
     @Builder(toBuilder = true)
     public BlockItem(
@@ -63,20 +62,6 @@ public class BlockItem implements StreamItem {
         successful = parseSuccess();
     }
 
-    public StateChangeContext getStateChangeContext() {
-        if (parent != null) {
-            return parent.getStateChangeContext();
-        }
-
-        if (stateChangeContext == null) {
-            stateChangeContext = !CollectionUtils.isEmpty(stateChanges)
-                    ? new StateChangeContext(stateChanges)
-                    : StateChangeContext.EMPTY_CONTEXT;
-        }
-
-        return stateChangeContext;
-    }
-
     public TransactionOutput getTransactionOutput(TransactionCase transactionCase) {
         if (!hasTransactionOutput(transactionCase)) {
             throw new IllegalStateException(
@@ -84,6 +69,16 @@ public class BlockItem implements StreamItem {
         }
 
         return transactionOutputs.get(transactionCase);
+    }
+
+    private StateChangeContext createStateChangeContext() {
+        if (parent != null) {
+            return parent.getStateChangeContext();
+        }
+
+        return !CollectionUtils.isEmpty(stateChanges)
+                ? new StateChangeContext(stateChanges)
+                : StateChangeContext.EMPTY_CONTEXT;
     }
 
     public boolean hasTransactionOutput(TransactionCase transactionCase) {

@@ -15,18 +15,15 @@ final class ConsensusCreateTopicTransformer extends AbstractBlockItemTransformer
             return;
         }
 
+        var receiptBuilder = blockItemTransformation
+                .recordItemBuilder()
+                .transactionRecordBuilder()
+                .getReceiptBuilder();
         blockItem
                 .getStateChangeContext()
                 .getNewTopicId()
-                .ifPresentOrElse(
-                        topicId -> blockItemTransformation
-                                .recordItemBuilder()
-                                .transactionRecordBuilder()
-                                .getReceiptBuilder()
-                                .setTopicID(topicId),
-                        () -> log.warn(
-                                "No new topic id found for ConsensusCreateTopic transaction at {}",
-                                blockItem.getConsensusTimestamp()));
+                .map(receiptBuilder::setTopicID)
+                .orElseThrow();
     }
 
     @Override

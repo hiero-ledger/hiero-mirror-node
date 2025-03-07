@@ -33,9 +33,11 @@ import com.hederahashgraph.api.proto.java.TokenType;
 import com.hederahashgraph.api.proto.java.TransactionReceipt.Builder;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.apache.commons.collections4.ListUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -260,7 +262,7 @@ class ContractTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
-    void contractAllWithHTSPrecompileAndTrackPendingFungibleAirdropAmount() {
+    void contractCallWithHTSPrecompileAndTrackPendingFungibleAirdropAmount() {
         // given
         // both tokens are fungible
         // receiver2 has unlimited auto token association slot, so she never gets pending airdrops
@@ -389,14 +391,14 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 contractCallRecordItem, tokenAirdrop1RecordItem, tokenCancelAirdropRecordItem, tokenAirdrop2RecordItem);
         assertRecordFile(recordFile, blockFile, items -> {
             assertRecordItems(items, expectedItems);
-            assertThat(items.subList(1, items.size()))
-                    .map(RecordItem::getParent)
-                    .containsOnly(items.getFirst());
+            var expectedParentItems = ListUtils.union(
+                    Collections.nCopies(1, null), Collections.nCopies(items.size() - 1, items.getFirst()));
+            assertThat(items).map(RecordItem::getParent).containsExactlyInAnyOrderElementsOf(expectedParentItems);
         });
     }
 
     @Test
-    void contractAllWithHTSPrecompileAndTrackTotalSupply() {
+    void contractCallWithHTSPrecompileAndTrackTotalSupply() {
         // given
         var tokenId1 = recordItemBuilder.tokenId(); // a token created before contract call
         var contractCallRecordItem =
@@ -511,9 +513,9 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 token1DeleteRecordItem);
         assertRecordFile(recordFile, blockFile, items -> {
             assertRecordItems(items, expectedItems);
-            assertThat(items.subList(1, items.size()))
-                    .map(RecordItem::getParent)
-                    .containsOnly(items.getFirst());
+            var expectedParentItems = ListUtils.union(
+                    Collections.nCopies(1, null), Collections.nCopies(items.size() - 1, items.getFirst()));
+            assertThat(items).map(RecordItem::getParent).containsExactlyInAnyOrderElementsOf(expectedParentItems);
         });
     }
 

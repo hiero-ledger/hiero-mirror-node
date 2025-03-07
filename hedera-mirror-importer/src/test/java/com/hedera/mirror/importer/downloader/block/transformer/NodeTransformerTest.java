@@ -8,7 +8,7 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-class SystemTransformerTest extends AbstractTransformerTest {
+class NodeTransformerTest extends AbstractTransformerTest {
 
     @Test
     void nodeCreateTransform() {

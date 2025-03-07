@@ -26,8 +26,8 @@ class CryptoTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem = recordItemBuilder
                 .cryptoCreate()
-                .record(r -> r.clearEvmAddress().setEvmAddress(expectedEvmAddress))
-                .transactionBody(b -> b.clearAlias().setAlias(alias))
+                .record(r -> r.setEvmAddress(expectedEvmAddress))
+                .transactionBody(b -> b.setAlias(alias))
                 .customize(this::finalize)
                 .build();
         var blockItem = blockItemBuilder.cryptoCreate(expectedRecordItem).build();
