@@ -34,6 +34,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.testcontainers.shaded.org.apache.commons.lang3.ArrayUtils;
 
 @ExtendWith(MockitoExtension.class)
 class EntityIdUtilsTest {
@@ -45,11 +46,12 @@ class EntityIdUtilsTest {
     public static final ByteString EVM_ADDRESS = ByteString.fromHex("ebb9a1be370150759408cd7af48e9eda2b8ead57");
     public static final ByteString WRONG_EVM_ADDRESS = ByteString.fromHex("ebb9a1be3701cd7af48e9eda2b8ead57");
 
-    private static final String EXPECTED_HEXED_ADDRESS = "000000030000000000008d7e00000000a4c67fff";
-    private static final long ID = 999999999999999L;
-    private static final long SHARD = 3;
-    private static final long REALM = 36222;
-    private static final long NUM = 2764472319L;
+    private static final String EXPECTED_HEXED_ADDRESS = "000001ff000000000000ffff0000003fffffffff";
+    private static final EntityId ENTITY_ID = EntityId.of(Long.MAX_VALUE);
+    private static final long ID = ENTITY_ID.getId();
+    private static final long SHARD = ENTITY_ID.getShard();
+    private static final long REALM = ENTITY_ID.getRealm();
+    private static final long NUM = ENTITY_ID.getNum();
 
     @Test
     void asContractWorks() {
@@ -71,37 +73,20 @@ class EntityIdUtilsTest {
 
     @Test
     void serializesExpectedSolidityAddress() {
-        final byte[] shardBytes = {
-            (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0xAB,
-        };
-        final var shard = Ints.fromByteArray(shardBytes);
-        final byte[] realmBytes = {
-            (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
-            (byte) 0x00, (byte) 0x00, (byte) 0xff, (byte) 0xff
-        };
-        final var realm = Longs.fromByteArray(realmBytes);
-        final byte[] numBytes = {
-            (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
-            (byte) 0xBA, (byte) 0x00, (byte) 0x00, (byte) 0xBA
-        };
-        final var num = Longs.fromByteArray(numBytes);
-        final byte[] expected = {
-            (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0xAB,
-            (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
-            (byte) 0x00, (byte) 0x00, (byte) 0xff, (byte) 0xff,
-            (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
-            (byte) 0xBA, (byte) 0x00, (byte) 0x00, (byte) 0xBA
-        };
-        final var id = EntityId.of(shard, realm, num).getId();
+        final byte[] shardBytes = Ints.toByteArray((int) SHARD);
+        final byte[] realmBytes = Longs.toByteArray(REALM);
+        final byte[] numBytes = Longs.toByteArray(NUM);
+        final byte[] expected = ArrayUtils.addAll(ArrayUtils.addAll(shardBytes, realmBytes), numBytes);
+
         final var create2AddressBytes = Hex.decode("0102030405060708090a0b0c0d0e0f1011121314");
-        final var equivAccount = asAccount(String.format("%d.%d.%d", (long) shard, realm, num));
-        final var equivContract = asContract(String.format("%d.%d.%d", shard, realm, num));
-        final var equivToken = asToken(String.format("%d.%d.%d", shard, realm, num));
+        final var equivAccount = asAccount(String.format("%d.%d.%d", (long) SHARD, REALM, NUM));
+        final var equivContract = asContract(String.format("%d.%d.%d", SHARD, REALM, NUM));
+        final var equivToken = asToken(String.format("%d.%d.%d", SHARD, REALM, NUM));
         final var create2Contract = ContractID.newBuilder()
                 .setEvmAddress(ByteString.copyFrom(create2AddressBytes))
                 .build();
 
-        final var actual = toEvmAddress(id);
+        final var actual = toEvmAddress(ID);
         final var typedActual = EntityIdUtils.asTypedEvmAddress(equivAccount);
         final var typedToken = EntityIdUtils.asTypedEvmAddress(equivToken);
         final var anotherActual = toEvmAddress(equivContract);
@@ -115,9 +100,9 @@ class EntityIdUtilsTest {
         assertArrayEquals(create2AddressBytes, create2Actual);
         assertEquals(CommonUtils.hex(expected), actualHex);
         assertEquals(
-                asAccount(String.format("%d.%d.%d", shard, realm, num)), EntityIdUtils.accountIdFromEvmAddress(actual));
-        assertEquals(asContract(String.format("%d.%d.%d", shard, realm, num)), contractIdFromEvmAddress(actual));
-        assertEquals(asToken(String.format("%d.%d.%d", shard, realm, num)), tokenIdFromEvmAddress(actual));
+                asAccount(String.format("%d.%d.%d", SHARD, REALM, NUM)), EntityIdUtils.accountIdFromEvmAddress(actual));
+        assertEquals(asContract(String.format("%d.%d.%d", SHARD, REALM, NUM)), contractIdFromEvmAddress(actual));
+        assertEquals(asToken(String.format("%d.%d.%d", SHARD, REALM, NUM)), tokenIdFromEvmAddress(actual));
     }
 
     @ParameterizedTest

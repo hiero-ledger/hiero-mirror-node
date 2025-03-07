@@ -360,7 +360,9 @@ class DomainUtilsTest {
         var entityId = EntityId.of(Long.MAX_VALUE);
 
         String expected = "000001FF000000000000FFFF0000003FFFFFFFFF";
-        assertThat(DomainUtils.toEvmAddress(entityId.getShard(), entityId.getRealm(), entityId.getNum())).asHexString().isEqualTo(expected);
+        assertThat(DomainUtils.toEvmAddress(entityId.getShard(), entityId.getRealm(), entityId.getNum()))
+                .asHexString()
+                .isEqualTo(expected);
     }
 
     @Test
