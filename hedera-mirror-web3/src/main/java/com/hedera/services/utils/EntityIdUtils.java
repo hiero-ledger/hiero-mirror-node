@@ -103,11 +103,12 @@ public final class EntityIdUtils {
     }
 
     public static AccountID toGrpcAccountId(final int code) {
+        var entityId = EntityId.of(code);
 
         return AccountID.newBuilder()
-                .setShardNum(0L)
-                .setRealmNum(0L)
-                .setAccountNum(code)
+                .setShardNum(entityId.getShard())
+                .setRealmNum(entityId.getRealm())
+                .setAccountNum(entityId.getNum())
                 .build();
     }
 

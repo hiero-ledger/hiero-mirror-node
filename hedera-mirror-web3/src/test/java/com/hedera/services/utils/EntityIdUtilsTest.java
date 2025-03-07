@@ -3,9 +3,7 @@
 package com.hedera.services.utils;
 
 import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
-import static com.hedera.services.utils.EntityIdUtils.contractIdFromEvmAddress;
-import static com.hedera.services.utils.EntityIdUtils.parseAccount;
-import static com.hedera.services.utils.EntityIdUtils.tokenIdFromEvmAddress;
+import static com.hedera.services.utils.EntityIdUtils.*;
 import static com.hedera.services.utils.IdUtils.asAccount;
 import static com.hedera.services.utils.IdUtils.asContract;
 import static com.hedera.services.utils.IdUtils.asToken;
@@ -26,6 +24,7 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.TokenID;
 import com.swirlds.common.utility.CommonUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.besu.datatypes.Address;
@@ -79,7 +78,7 @@ class EntityIdUtilsTest {
         final byte[] expected = ArrayUtils.addAll(ArrayUtils.addAll(shardBytes, realmBytes), numBytes);
 
         final var create2AddressBytes = Hex.decode("0102030405060708090a0b0c0d0e0f1011121314");
-        final var equivAccount = asAccount(String.format("%d.%d.%d", (long) SHARD, REALM, NUM));
+        final var equivAccount = asAccount(String.format("%d.%d.%d", SHARD, REALM, NUM));
         final var equivContract = asContract(String.format("%d.%d.%d", SHARD, REALM, NUM));
         final var equivToken = asToken(String.format("%d.%d.%d", SHARD, REALM, NUM));
         final var create2Contract = ContractID.newBuilder()
@@ -89,6 +88,8 @@ class EntityIdUtilsTest {
         final var actual = toEvmAddress(ID);
         final var typedActual = EntityIdUtils.asTypedEvmAddress(equivAccount);
         final var typedToken = EntityIdUtils.asTypedEvmAddress(equivToken);
+        final var typedContract = EntityIdUtils.asTypedEvmAddress(equivContract);
+
         final var anotherActual = toEvmAddress(equivContract);
         final var create2Actual = toEvmAddress(create2Contract);
         final var actualHex = EntityIdUtils.asHexedEvmAddress(equivAccount);
@@ -97,12 +98,28 @@ class EntityIdUtilsTest {
         assertArrayEquals(expected, anotherActual);
         assertArrayEquals(expected, typedActual.toArray());
         assertArrayEquals(expected, typedToken.toArray());
+        assertArrayEquals(expected, typedContract.toArray());
         assertArrayEquals(create2AddressBytes, create2Actual);
         assertEquals(CommonUtils.hex(expected), actualHex);
-        assertEquals(
-                asAccount(String.format("%d.%d.%d", SHARD, REALM, NUM)), EntityIdUtils.accountIdFromEvmAddress(actual));
-        assertEquals(asContract(String.format("%d.%d.%d", SHARD, REALM, NUM)), contractIdFromEvmAddress(actual));
-        assertEquals(asToken(String.format("%d.%d.%d", SHARD, REALM, NUM)), tokenIdFromEvmAddress(actual));
+        assertEquals(equivAccount, accountIdFromEvmAddress(actual));
+        assertEquals(equivContract, contractIdFromEvmAddress(actual));
+        assertEquals(equivToken, tokenIdFromEvmAddress(actual));
+    }
+
+    @Test
+    void fromAddressToIdNonLongZeroAlias() {
+        var evmAddress = ArrayUtils.addAll(
+                ArrayUtils.addAll(Ints.toByteArray(Integer.MAX_VALUE), Longs.toByteArray(Long.MAX_VALUE)),
+                Longs.toByteArray(Long.MAX_VALUE));
+
+        var address = Address.fromHexString(CommonUtils.hex(evmAddress));
+
+        assertEquals(TokenID.getDefaultInstance(), tokenIdFromEvmAddress(evmAddress));
+        assertEquals(TokenID.getDefaultInstance(), tokenIdFromEvmAddress(address));
+        assertEquals(ContractID.getDefaultInstance(), contractIdFromEvmAddress(evmAddress));
+        assertEquals(ContractID.getDefaultInstance(), contractIdFromEvmAddress(address));
+        assertEquals(AccountID.getDefaultInstance(), accountIdFromEvmAddress(evmAddress));
+        assertEquals(AccountID.getDefaultInstance(), accountIdFromEvmAddress(address));
     }
 
     @ParameterizedTest
