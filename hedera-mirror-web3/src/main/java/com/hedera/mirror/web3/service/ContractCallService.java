@@ -24,6 +24,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
+import java.util.Random;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
 
@@ -117,10 +118,10 @@ public abstract class ContractCallService {
         HederaEvmTransactionProcessingResult result = null;
 
         try {
-            if (!mirrorNodeEvmProperties.isModularizedServices()) {
-                result = mirrorEvmTxProcessor.execute(params, estimatedGas);
-            } else {
+            if (mirrorNodeEvmProperties.isModularizedServices() && directTrafficThroughTransactionExecutionService()) {
                 result = transactionExecutionService.execute(params, estimatedGas, gasUsedCounter);
+            } else {
+                result = mirrorEvmTxProcessor.execute(params, estimatedGas);
             }
         } catch (IllegalStateException | IllegalArgumentException e) {
             throw new MirrorEvmTransactionException(e.getMessage(), EMPTY, EMPTY);
@@ -134,6 +135,12 @@ public abstract class ContractCallService {
             }
         }
         return result;
+    }
+
+    protected boolean directTrafficThroughTransactionExecutionService() {
+        double txnExecServiceTrafficSharePercentage =
+                mirrorNodeEvmProperties.getTransactionExecutionServiceTrafficSharePercentage();
+        return new Random().nextDouble() < txnExecServiceTrafficSharePercentage * 0.01;
     }
 
     private void restoreGasToBucket(HederaEvmTransactionProcessingResult result, long gasLimit) {
