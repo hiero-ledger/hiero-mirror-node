@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2020-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 import * as constants from '../constants';
 import {assertSqlQueryEqual} from './testutils';
@@ -42,7 +28,7 @@ describe('topicmessage validateConsensusTimestampParam tests', () => {
 
 describe('topicmessage validateGetSequenceMessageParams tests', () => {
   test('Verify validateGetSequenceMessageParams throws error for -123', () => {
-    verifyInvalidTopicAndSequenceNum(-123, -123);
+    verifyInvalidTopicAndSequenceNum(-92233720368547758080n, -123);
   });
 
   test('Verify validateGetSequenceMessageParams throws error for abc', () => {
@@ -75,8 +61,8 @@ describe('topicmessage validateGetSequenceMessageParams tests', () => {
 });
 
 describe('topicmessage validateGetTopicMessagesParams tests', () => {
-  test('Verify validateGetTopicMessagesParams throws error for -123', () => {
-    verifyInvalidTopicMessages(-123);
+  test('Verify validateGetTopicMessagesParams throws error for -92233720368547758080', () => {
+    verifyInvalidTopicMessages(-92233720368547758080n);
   });
 
   test('Verify validateGetTopicMessagesParams throws error for abc', () => {

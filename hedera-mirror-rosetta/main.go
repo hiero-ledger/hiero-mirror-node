@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2019-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package main
 
@@ -75,7 +61,7 @@ func newBlockchainOnlineRouter(
 	asserter *rosettaAsserter.Asserter,
 	dbClient interfaces.DbClient,
 	network *rTypes.NetworkIdentifier,
-	rosettaConfig *config.Config,
+	mirrorConfig *config.Mirror,
 	serverContext context.Context,
 	version *rTypes.Version,
 ) (http.Handler, error) {
@@ -92,8 +78,8 @@ func newBlockchainOnlineRouter(
 	blockAPIService := services.NewBlockAPIService(
 		accountRepo,
 		baseService,
-		rosettaConfig.Cache[config.EntityCacheKey],
-		rosettaConfig.Response.MaxTransactionsInBlock,
+		mirrorConfig.Rosetta.Cache[config.EntityCacheKey],
+		mirrorConfig.Rosetta.Response.MaxTransactionsInBlock,
 		serverContext,
 	)
 	blockAPIController := server.NewBlockAPIController(blockAPIService, asserter)
@@ -104,7 +90,7 @@ func newBlockchainOnlineRouter(
 	constructionAPIService, err := services.NewConstructionAPIService(
 		accountRepo,
 		baseService,
-		rosettaConfig,
+		mirrorConfig,
 		construction.NewTransactionConstructor(),
 	)
 	if err != nil {
@@ -112,9 +98,9 @@ func newBlockchainOnlineRouter(
 	}
 	constructionAPIController := server.NewConstructionAPIController(constructionAPIService, asserter)
 
-	accountAPIService := services.NewAccountAPIService(baseService, accountRepo, rosettaConfig.Shard, rosettaConfig.Realm)
+	accountAPIService := services.NewAccountAPIService(baseService, accountRepo, mirrorConfig.Common.Shard, mirrorConfig.Common.Realm)
 	accountAPIController := server.NewAccountAPIController(accountAPIService, asserter)
-	healthController, err := middleware.NewHealthController(rosettaConfig)
+	healthController, err := middleware.NewHealthController(&mirrorConfig.Rosetta)
 	metricsController := middleware.NewMetricsController()
 	if err != nil {
 		return nil, err
@@ -137,7 +123,7 @@ func newBlockchainOnlineRouter(
 func newBlockchainOfflineRouter(
 	asserter *rosettaAsserter.Asserter,
 	network *rTypes.NetworkIdentifier,
-	rosettaConfig *config.Config,
+	mirrorConfig *config.Mirror,
 	version *rTypes.Version,
 ) (http.Handler, error) {
 	baseService := services.NewOfflineBaseService()
@@ -145,14 +131,14 @@ func newBlockchainOfflineRouter(
 	constructionAPIService, err := services.NewConstructionAPIService(
 		nil,
 		baseService,
-		rosettaConfig,
+		mirrorConfig,
 		construction.NewTransactionConstructor(),
 	)
 	if err != nil {
 		return nil, err
 	}
 	constructionAPIController := server.NewConstructionAPIController(constructionAPIService, asserter)
-	healthController, err := middleware.NewHealthController(rosettaConfig)
+	healthController, err := middleware.NewHealthController(&mirrorConfig.Rosetta)
 	if err != nil {
 		return nil, err
 	}
@@ -167,11 +153,12 @@ func newBlockchainOfflineRouter(
 func main() {
 	configLogger("info")
 
-	rosettaConfig, err := config.LoadConfig()
+	mirrorConfig, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load config: %s", err)
 	}
 
+	rosettaConfig := mirrorConfig.Rosetta
 	log.Infof("%s version %s, rosetta api version %s", moduleName, Version, rTypes.RosettaAPIVersion)
 
 	configLogger(rosettaConfig.Log.Level)
@@ -183,7 +170,7 @@ func main() {
 
 	if rosettaConfig.Feature.SubNetworkIdentifier {
 		network.SubNetworkIdentifier = &rTypes.SubNetworkIdentifier{
-			Network: fmt.Sprintf("shard %d realm %d", rosettaConfig.Shard, rosettaConfig.Realm),
+			Network: fmt.Sprintf("shard %d realm %d", mirrorConfig.Common.Shard, mirrorConfig.Common.Realm),
 		}
 	}
 
@@ -210,14 +197,14 @@ func main() {
 	if rosettaConfig.Online {
 		dbClient := db.ConnectToDb(rosettaConfig.Db)
 
-		router, err = newBlockchainOnlineRouter(asserter, dbClient, network, rosettaConfig, ctx, version)
+		router, err = newBlockchainOnlineRouter(asserter, dbClient, network, mirrorConfig, ctx, version)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		log.Info("Serving Rosetta API in ONLINE mode")
 	} else {
-		router, err = newBlockchainOfflineRouter(asserter, network, rosettaConfig, version)
+		router, err = newBlockchainOfflineRouter(asserter, network, mirrorConfig, version)
 		if err != nil {
 			log.Fatal(err)
 		}

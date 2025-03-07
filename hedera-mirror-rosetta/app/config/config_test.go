@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2019-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package config
 
@@ -49,6 +35,9 @@ hedera:
 	yml2 = `
 hedera:
   mirror:
+    common:
+      realm: 1000
+      shard: 1
     rosetta:
       db:
         host: 192.168.120.51
@@ -103,10 +92,10 @@ func TestLoadCustomConfig(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.NotNil(t, config)
-			assert.True(t, config.Online)
-			assert.Equal(t, uint16(5431), config.Db.Port)
-			assert.Equal(t, "foobar", config.Db.Username)
-			assert.Equal(t, expectedNodeRefreshInterval, config.NodeRefreshInterval)
+			assert.True(t, config.Rosetta.Online)
+			assert.Equal(t, uint16(5431), config.Rosetta.Db.Port)
+			assert.Equal(t, "foobar", config.Rosetta.Db.Username)
+			assert.Equal(t, expectedNodeRefreshInterval, config.Rosetta.NodeRefreshInterval)
 		})
 	}
 }
@@ -129,11 +118,13 @@ func TestLoadCustomConfigFromCwdAndEnvVar(t *testing.T) {
 
 	// then
 	expected := getDefaultConfig()
-	expected.Db.Host = "192.168.120.51"
-	expected.Db.Port = 12000
-	expected.Db.Username = "foobar"
-	expected.Network = "testnet"
-	expected.NodeRefreshInterval = expectedNodeRefreshInterval
+	expected.Common.Realm = 1000
+	expected.Common.Shard = 1
+	expected.Rosetta.Db.Host = "192.168.120.51"
+	expected.Rosetta.Db.Port = 12000
+	expected.Rosetta.Db.Username = "foobar"
+	expected.Rosetta.Network = "testnet"
+	expected.Rosetta.NodeRefreshInterval = expectedNodeRefreshInterval
 	assert.NoError(t, err)
 	assert.Equal(t, expected, config)
 }
@@ -150,7 +141,7 @@ func TestLoadCustomConfigFromEnvVar(t *testing.T) {
 
 	// then
 	expected := getDefaultConfig()
-	expected.Db.Host = dbHost
+	expected.Rosetta.Db.Host = dbHost
 	assert.NoError(t, err)
 	assert.Equal(t, expected, config)
 }
@@ -230,7 +221,7 @@ func TestLoadNodeMapFromEnv(t *testing.T) {
 
 			// then
 			assert.Nil(t, err)
-			assert.Equal(t, tt.expected, config.Nodes)
+			assert.Equal(t, tt.expected, config.Rosetta.Nodes)
 		})
 	}
 }
@@ -327,8 +318,8 @@ func (e *envManager) Cleanup() {
 	}
 }
 
-func getDefaultConfig() *Config {
+func getDefaultConfig() *Mirror {
 	config := fullConfig{}
 	yaml.Unmarshal([]byte(defaultConfig), &config)
-	return &config.Hedera.Mirror.Rosetta
+	return &config.Hedera.Mirror
 }

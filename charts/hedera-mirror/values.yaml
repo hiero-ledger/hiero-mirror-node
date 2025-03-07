@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 alertmanager:
   inhibitRules:
     enabled: false
@@ -72,6 +74,8 @@ db:
 fullnameOverride: ""
 
 global:
+  config: {}
+  env: {}
   gateway:
     annotations: {}
     className: "gke-l7-global-external-managed"

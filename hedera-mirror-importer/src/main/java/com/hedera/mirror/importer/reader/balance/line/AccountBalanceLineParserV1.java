@@ -1,25 +1,11 @@
-/*
- * Copyright (C) 2020-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.importer.reader.balance.line;
 
 import com.google.common.base.Splitter;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.importer.ImporterProperties;
 import com.hedera.mirror.importer.exception.InvalidDatasetException;
 import jakarta.inject.Named;
 import java.util.Collections;
@@ -32,7 +18,7 @@ public class AccountBalanceLineParserV1 implements AccountBalanceLineParser {
 
     private static final Splitter SPLITTER = Splitter.on(',').trimResults().omitEmptyStrings();
 
-    private final ImporterProperties importerProperties;
+    private final CommonProperties commonProperties;
 
     /**
      * Parses an account balance line to extract shard, realm, account, and balance. If the shard matches
@@ -63,10 +49,10 @@ public class AccountBalanceLineParserV1 implements AccountBalanceLineParser {
                 throw new InvalidDatasetException(INVALID_BALANCE + line);
             }
 
-            if (shardNum != importerProperties.getShard()) {
+            if (shardNum != commonProperties.getShard()) {
                 throw new InvalidDatasetException(String.format(
                         "Invalid account balance line: %s. Expect " + "shard (%d), got shard (%d)",
-                        line, importerProperties.getShard(), shardNum));
+                        line, commonProperties.getShard(), shardNum));
             }
 
             return new AccountBalance(

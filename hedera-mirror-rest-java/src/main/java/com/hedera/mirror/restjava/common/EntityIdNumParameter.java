@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.restjava.common;
 
@@ -21,8 +7,8 @@ import java.util.regex.Pattern;
 
 public record EntityIdNumParameter(EntityId id) implements EntityIdParameter {
 
-    public static final String ENTITY_ID_REGEX = "^((\\d{1,5})\\.)?((\\d{1,5})\\.)?(\\d{1,10})$";
-    public static final Pattern ENTITY_ID_PATTERN = Pattern.compile(ENTITY_ID_REGEX);
+    private static final String ENTITY_ID_REGEX = "^((\\d{1,4})\\.)?((\\d{1,5})\\.)?(\\d{1,12})$";
+    private static final Pattern ENTITY_ID_PATTERN = Pattern.compile(ENTITY_ID_REGEX);
 
     public static EntityIdNumParameter valueOf(String id) {
         var matcher = ENTITY_ID_PATTERN.matcher(id);
@@ -31,15 +17,17 @@ public record EntityIdNumParameter(EntityId id) implements EntityIdParameter {
             return null;
         }
 
-        long shard = DEFAULT_SHARD;
-        long realm = 0;
-        String realmString;
+        var properties = PROPERTIES.get();
+        long shard = properties.getShard();
+        long realm = properties.getRealm();
 
-        if ((realmString = matcher.group(4)) != null) {
-            realm = Long.parseLong(realmString);
-            shard = Long.parseLong(matcher.group(2));
-        } else if ((realmString = matcher.group(2)) != null) {
-            realm = Long.parseLong(realmString);
+        String secondGroup = matcher.group(2);
+        String forthGroup = matcher.group(4);
+        if (secondGroup != null && forthGroup != null) {
+            shard = Long.parseLong(secondGroup);
+            realm = Long.parseLong(forthGroup);
+        } else if (secondGroup != null || forthGroup != null) {
+            realm = Long.parseLong(secondGroup != null ? secondGroup : forthGroup);
         }
 
         var num = Long.parseLong(matcher.group(5));

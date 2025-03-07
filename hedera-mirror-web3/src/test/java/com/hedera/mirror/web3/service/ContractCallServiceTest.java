@@ -1,21 +1,8 @@
-/*
- * Copyright (C) 2023-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.web3.service;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
@@ -54,7 +41,6 @@ import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.service.model.CallServiceParameters.CallType;
 import com.hedera.mirror.web3.service.model.ContractExecutionParameters;
 import com.hedera.mirror.web3.service.utils.BinaryGasEstimator;
-import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.throttle.ThrottleProperties;
 import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.mirror.web3.web3j.generated.ERCTestContract;
@@ -64,13 +50,9 @@ import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import io.github.bucket4j.Bucket;
-import jakarta.annotation.PostConstruct;
-import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
@@ -201,19 +183,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
 
         try {
-            mirrorNodeEvmProperties.setModularizedServices(true);
-            Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
-                    .filter(method -> method.isAnnotationPresent(PostConstruct.class))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("@PostConstruct method not found"));
-
-            postConstructMethod.setAccessible(true); // Make the method accessible
-            postConstructMethod.invoke(state);
-
-            final Map<String, String> propertiesMap = new HashMap<>();
-            propertiesMap.put("contracts.maxRefundPercentOfGasLimit", "100");
-            propertiesMap.put("contracts.maxGasPerSec", "15000000");
-            mirrorNodeEvmProperties.setProperties(propertiesMap);
+            activateModularizedFlagAndInitializeState();
 
             final var contract = testWeb3jService.deploy(EthCall::deploy);
             meterRegistry.clear(); // Clear it as the contract deploy increases the gas limit metric
@@ -337,14 +307,29 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
+    /**
+     * If we make a contract call with the zero address (0x0) set as the recipient in the contractExecutionParameters,
+     * Hedera treats this as a contract creation request rather than a function call.
+     * The contract is then initialized using the contractCallData, which should contain the compiled bytecode of the
+     * contract. If contractCallData is empty (0x0), the contract will be deployed without any functions(no fallback
+     * function as well, which is called when the contract is called without specifying a function or when non-existent
+     * function is specified.) in its bytecode. Respectively, any call to the contract will fail with
+     * CONTRACT_BYTECODE_EMPTY, indicating that the contract exists, but does not have any executable logic.
+     */
     @Test
     void estimateGasWithoutReceiver() {
-        // Given
-        final var serviceParametersEthCall =
-                getContractExecutionParameters(Bytes.fromHexString(HEX_PREFIX), Address.ZERO, ETH_CALL);
+        final var payer = accountEntityPersist();
+        final var receiverAddress = Address.ZERO;
+
+        final var contract = testWeb3jService.deployWithoutPersist(ERCTestContract::deploy);
+        final var contractCallData = Bytes.fromHexString(contract.getContractBinary());
+
+        final var serviceParametersEthCall = getContractExecutionParameters(
+                contractCallData, toAddress(payer.toEntityId()), receiverAddress, 0L, ETH_CALL);
+
         final var actualGasUsed = gasUsedAfterExecution(serviceParametersEthCall);
-        final var serviceParametersEstimateGas =
-                getContractExecutionParameters(Bytes.fromHexString(HEX_PREFIX), Address.ZERO, ETH_ESTIMATE_GAS);
+        final var serviceParametersEstimateGas = getContractExecutionParameters(
+                contractCallData, toAddress(payer.toEntityId()), receiverAddress, 0L, ETH_ESTIMATE_GAS);
 
         // When
         final var result = contractExecutionService.processCall(serviceParametersEstimateGas);
@@ -497,19 +482,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
 
         try {
-            mirrorNodeEvmProperties.setModularizedServices(true);
-            Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
-                    .filter(method -> method.isAnnotationPresent(PostConstruct.class))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("@PostConstruct method not found"));
-
-            postConstructMethod.setAccessible(true); // Make the method accessible
-            postConstructMethod.invoke(state);
-
-            final Map<String, String> propertiesMap = new HashMap<>();
-            propertiesMap.put("contracts.maxRefundPercentOfGasLimit", "100");
-            propertiesMap.put("contracts.maxGasPerSec", "15000000");
-            mirrorNodeEvmProperties.setProperties(propertiesMap);
+            activateModularizedFlagAndInitializeState();
             final var contract = testWeb3jService.deploy(EthCall::deploy);
             meterRegistry.clear();
 
@@ -561,19 +534,41 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     }
 
     @Test
-    void ethCallWithValueAndNotExistingSenderAlias() {
+    void ethCallWithValueAndSenderWithoutAlias() {
         // Given
-        final var receiver = accountEntityWithEvmAddressPersist();
-        final var receiverAddress = getAliasAddressFromEntity(receiver);
-        final var notExistingSenderAlias = Address.fromHexString("0x6b175474e89094c44da98b954eedeac495271d0f");
-        final var serviceParameters =
-                getContractExecutionParametersWithValue(Bytes.EMPTY, notExistingSenderAlias, receiverAddress, 10L);
+        final var receiverEntity = accountEntityWithEvmAddressPersist();
+        final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
+        final var payer = accountEntityPersist(); // Account without alias
+
+        final var serviceParameters = getContractExecutionParametersWithValue(
+                Bytes.EMPTY, toAddress(payer.toEntityId()), receiverAddress, 10L);
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
 
         // Then
         assertThat(result).isEqualTo(HEX_PREFIX);
+        assertGasLimit(serviceParameters);
+    }
+
+    @Test
+    void ethCallWithValueAndNotExistingSenderAddress() {
+        final var receiverEntity = accountEntityWithEvmAddressPersist();
+        final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
+        final var notExistingAccountAddress = toAddress(EntityId.of(4325));
+
+        final var serviceParameters =
+                getContractExecutionParametersWithValue(Bytes.EMPTY, notExistingAccountAddress, receiverAddress, 10L);
+
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+                    .isInstanceOf(MirrorEvmTransactionException.class)
+                    .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
+        } else {
+            final var result = contractExecutionService.processCall(serviceParameters);
+            assertThat(result).isEqualTo(HEX_PREFIX);
+        }
+
         assertGasLimit(serviceParameters);
     }
 
@@ -663,6 +658,10 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         assertGasLimit(ETH_CALL, TRANSACTION_GAS_LIMIT);
     }
 
+    /**
+     * Testing that sending HBAR to a randomly generated 20-byte EVM address, that
+     * is not mapped to an existing accountId will result in hollow account creation.
+     */
     @Test
     void hollowAccountCreationWorks() {
         // Given
@@ -674,7 +673,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         testWeb3jService.setSender(senderAddress.toHexString());
 
         // When
-        final var functionCall = contract.send_transferHbarsToAddress(
+        final var functionCall = contract.send_createHollowAccount(
                 Bytes.wrap(hollowAccountAlias).toHexString(), BigInteger.valueOf(value));
 
         // Then
@@ -1100,7 +1099,8 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     @Nested
     class EVM46Validation {
 
-        private static final Address NON_EXISTING_ADDRESS = toAddress(123456789);
+        private static final Address NON_EXISTING_ADDRESS =
+                Address.fromHexString("0xa7d9ddbe1f17865597fbd27ec712455208b6b76d");
 
         @Test
         void callToNonExistingContract() {
@@ -1118,8 +1118,12 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         @Test
         void transferToNonExistingContract() {
             // Given
-            final var serviceParameters =
-                    getContractExecutionParametersWithValue(Bytes.EMPTY, NON_EXISTING_ADDRESS, 1L);
+            final var payer = accountEntityWithEvmAddressPersist();
+
+            // The NON_EXISTING_ADDRESS should be a valid EVM alias key(Ethereum-style address derived from an ECDSA
+            // public key), otherwise INVALID_ALIAS_KEY could be thrown
+            final var serviceParameters = getContractExecutionParametersWithValue(
+                    Bytes.EMPTY, getAliasAddressFromEntity(payer), NON_EXISTING_ADDRESS, 1L);
 
             // When
             final var result = contractExecutionService.processCall(serviceParameters);

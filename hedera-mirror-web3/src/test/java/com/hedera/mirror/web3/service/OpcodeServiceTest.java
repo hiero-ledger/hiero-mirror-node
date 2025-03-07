@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.web3.service;
 
@@ -33,7 +19,6 @@ import com.hedera.mirror.common.domain.contract.ContractResult;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.common.domain.transaction.EthereumTransaction;
 import com.hedera.mirror.common.domain.transaction.Transaction;
@@ -176,9 +161,8 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                             """)
     void updateTokenKeysAndGetUpdatedTokenKeyForNFT(final KeyValueType keyValueType, final KeyType keyType) {
         // Given
-        final var treasuryEntity = accountEntityPersist();
-        final var tokenEntity = nftPersist(treasuryEntity);
-        final var tokenAddress = toAddress(tokenEntity.getTokenId());
+        final var treasuryEntityId = accountEntityPersist().toEntityId();
+        final var token = nftPersist(treasuryEntityId, treasuryEntityId, treasuryEntityId);
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var contractAddress = contract.getContractAddress();
 
@@ -186,7 +170,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var tokenKey = new TokenKey(keyType.getKeyTypeNumeric(), keyValue);
         final var expectedResult = TypeEncoder.encode(keyValue);
         final var expectedResultBytes = Bytes.fromHexString(expectedResult).toArray();
-
+        final var tokenAddress = toAddress(token.getTokenId());
         final var functionCall = contract.call_updateTokenKeysAndGetUpdatedTokenKey(
                 tokenAddress.toHexString(), List.of(tokenKey), keyType.getKeyTypeNumeric());
         final var callData =
@@ -875,28 +859,6 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                         .payerAccountId(senderEntityId.getId())
                         .transactionResult(contractResult.getTransactionResult()))
                 .persist();
-    }
-
-    private Token nftPersist(final Entity treasuryEntity) {
-        final var nftEntity = tokenEntityPersist();
-
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.tokenId(nftEntity.getId())
-                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                        .treasuryAccountId(treasuryEntity.toEntityId()))
-                .persist();
-
-        final var treasuryEntityId = token.getTreasuryAccountId();
-        domainBuilder
-                .nft()
-                .customize(n -> n.accountId(treasuryEntityId)
-                        .spender(treasuryEntityId)
-                        .accountId(treasuryEntityId)
-                        .tokenId(nftEntity.getId())
-                        .serialNumber(1))
-                .persist();
-        return token;
     }
 
     private Entity accountPersistWithAccountBalances() {

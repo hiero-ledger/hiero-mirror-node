@@ -1,4 +1,6 @@
-{{- if .Values.ingress.enabled -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.ingress.enabled -}}
 {{- $fullName := include "hedera-mirror-graphql.fullname" $ -}}
 {{- $hostname := .Values.global.hostname -}}
 {{- $servicePort := .Values.service.port -}}

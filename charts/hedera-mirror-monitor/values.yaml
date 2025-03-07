@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -72,6 +74,8 @@ envFrom: []
 fullnameOverride: ""
 
 global:
+  config: {}
+  env: {}
   image: {}
   namespaceOverride: ""
   podAnnotations: {}

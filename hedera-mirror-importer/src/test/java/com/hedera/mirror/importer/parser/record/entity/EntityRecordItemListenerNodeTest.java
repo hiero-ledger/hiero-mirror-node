@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2022-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.importer.parser.record.entity;
 
@@ -33,7 +19,6 @@ import com.hedera.mirror.importer.repository.NodeStakeRepository;
 import com.hedera.mirror.importer.util.Utility;
 import com.hederahashgraph.api.proto.java.NodeUpdateTransactionBody;
 import lombok.RequiredArgsConstructor;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
@@ -49,11 +34,6 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
                 .nodeId(recordItem.getTransactionRecord().getReceipt().getNodeId())
                 .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                 .build();
-    }
-
-    @AfterEach
-    void teardown() {
-        entityProperties.getPersist().setNodes(false);
     }
 
     @SuppressWarnings("deprecation")
@@ -116,7 +96,6 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void nodeCreate() {
-        entityProperties.getPersist().setNodes(true);
         var recordItem = recordItemBuilder.nodeCreate().build();
         var expectedNode = getExpectedNode(recordItem);
         expectedNode.setAdminKey(
@@ -136,7 +115,6 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void nodeUpdate() {
-        entityProperties.getPersist().setNodes(true);
         var recordItem = recordItemBuilder.nodeUpdate().build();
         var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
         var timestamp = recordItem.getConsensusTimestamp() - 1;
@@ -171,8 +149,6 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void nodeUpdateWithoutAdminKeyUpdate() {
-        entityProperties.getPersist().setNodes(true);
-
         var recordItem = recordItemBuilder
                 .nodeUpdate()
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearAdminKey)
@@ -210,7 +186,6 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void nodeDelete() {
-        entityProperties.getPersist().setNodes(true);
         var node = domainBuilder.node().persist();
         var recordItem = recordItemBuilder
                 .nodeDelete()

@@ -1,32 +1,23 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.web3.state.keyvalue;
 
 import static com.hedera.mirror.web3.state.Utils.convertToTimestamp;
 
+import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.NftID;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.token.Nft;
+import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.token.AbstractToken;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.repository.NftRepository;
+import com.hedera.mirror.web3.repository.TokenRepository;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
+import java.util.Optional;
 
 /**
  * This class serves as a repository layer between hedera app services read only state and the Postgres database in
@@ -38,10 +29,12 @@ public class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
 
     public static final String KEY = "NFTS";
     private final NftRepository nftRepository;
+    private final TokenRepository tokenRepository;
 
-    public NftReadableKVState(@Nonnull NftRepository nftRepository) {
+    public NftReadableKVState(@Nonnull NftRepository nftRepository, @Nonnull TokenRepository tokenRepository) {
         super(KEY);
         this.nftRepository = nftRepository;
+        this.tokenRepository = tokenRepository;
     }
 
     @Override
@@ -52,20 +45,40 @@ public class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
 
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var nftId = EntityIdUtils.toEntityId(key.tokenId()).getId();
+        final var tokenTreasury = getTokenTreasury(nftId, timestamp);
+
         return timestamp
                 .map(t -> nftRepository.findActiveByIdAndTimestamp(nftId, key.serialNumber(), t))
                 .orElseGet(() -> nftRepository.findActiveById(nftId, key.serialNumber()))
-                .map(nft -> mapToNft(nft, key.tokenId()))
+                .map(nft -> mapToNft(nft, key.tokenId(), tokenTreasury))
                 .orElse(null);
     }
 
-    private Nft mapToNft(final com.hedera.mirror.common.domain.token.Nft nft, final TokenID tokenID) {
+    private Nft mapToNft(
+            final com.hedera.mirror.common.domain.token.Nft nft,
+            final TokenID tokenID,
+            final EntityId treasuryAccountId) {
         return Nft.newBuilder()
                 .metadata(Bytes.wrap(nft.getMetadata()))
                 .mintTime(convertToTimestamp(nft.getCreatedTimestamp()))
                 .nftId(new NftID(tokenID, nft.getSerialNumber()))
-                .ownerId(EntityIdUtils.toAccountId(nft.getAccountId()))
+                .ownerId(getOwnerId(nft.getAccountId(), treasuryAccountId))
                 .spenderId(EntityIdUtils.toAccountId(nft.getSpender()))
                 .build();
+    }
+
+    private EntityId getTokenTreasury(final long nftId, Optional<Long> timestamp) {
+        return timestamp
+                .flatMap(t -> tokenRepository.findByTokenIdAndTimestamp(nftId, t))
+                .or(() -> tokenRepository.findById(nftId))
+                .map(AbstractToken::getTreasuryAccountId)
+                .orElse(null);
+    }
+
+    private AccountID getOwnerId(final EntityId accountId, final EntityId treasuryAccountId) {
+        if (accountId == null || accountId.equals(treasuryAccountId)) {
+            return null;
+        }
+        return EntityIdUtils.toAccountId(accountId);
     }
 }

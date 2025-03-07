@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2019-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package types
 
@@ -490,9 +476,9 @@ func TestNewAccountIdFromEntity(t *testing.T) {
 			expectedId:            150,
 		},
 		{
-			input:                 domain.Entity{Id: domain.MustDecodeEntityId(int64(281483566645258))},
+			input:                 domain.Entity{Id: domain.MustDecodeEntityId(int64(18014948265295882))},
 			expectedAccountString: "1.2.10",
-			expectedId:            281483566645258,
+			expectedId:            18014948265295882,
 		},
 		{
 			input:                 domain.Entity{Alias: ecdsaSecp256k1Alias, Id: domain.MustDecodeEntityId(150)},
@@ -556,7 +542,7 @@ func TestNewAccountIdFromEntityId(t *testing.T) {
 			expected: "0.0.150",
 		},
 		{
-			input:    domain.MustDecodeEntityId(int64(281483566645258)),
+			input:    domain.MustDecodeEntityId(int64(18014948265295882)),
 			expected: "1.2.10",
 		},
 	}
@@ -645,9 +631,9 @@ func TestNewAccountIdFromSdkAccountId(t *testing.T) {
 			curveType: types.Secp256k1,
 			hasAlias:  true,
 		},
-		{input: hiero.AccountID{Shard: 1 << 15}, expectErr: true},
+		{input: hiero.AccountID{Shard: 1 << 10}, expectErr: true},
 		{input: hiero.AccountID{Realm: 1 << 16}, expectErr: true},
-		{input: hiero.AccountID{Account: 1 << 32}, expectErr: true},
+		{input: hiero.AccountID{Account: 1 << 38}, expectErr: true},
 		{input: hiero.AccountID{Shard: 9223372036854775808}, expectErr: true},
 		{input: hiero.AccountID{Realm: 9223372036854775808}, expectErr: true},
 		{input: hiero.AccountID{Account: 9223372036854775808}, expectErr: true},

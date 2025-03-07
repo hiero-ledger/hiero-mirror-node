@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2019-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package services
 
@@ -603,21 +589,21 @@ func isValidTransactionValidDuration(validDuration int64) bool {
 func NewConstructionAPIService(
 	accountRepo interfaces.AccountRepository,
 	baseService BaseService,
-	config *config.Config,
+	config *config.Mirror,
 	transactionConstructor construction.TransactionConstructor,
 ) (server.ConstructionAPIServicer, error) {
 	var err error
 	var hederaClient *hiero.Client
 
 	// there is no live demo network, it's only used to run rosetta test, so replace it with testnet
-	network := strings.ToLower(config.Network)
+	network := strings.ToLower(config.Rosetta.Network)
 	if network == "demo" {
 		log.Info("Use testnet instead of demo")
 		network = "testnet"
 	}
 
-	if len(config.Nodes) > 0 {
-		hederaClient = hiero.ClientForNetwork(config.Nodes)
+	if len(config.Rosetta.Nodes) > 0 {
+		hederaClient = hiero.ClientForNetwork(config.Rosetta.Nodes)
 	} else {
 		if baseService.IsOnline() {
 			hederaClient, err = hiero.ClientForName(network)
@@ -633,9 +619,9 @@ func NewConstructionAPIService(
 		}
 	}
 
-	if baseService.IsOnline() && len(config.Nodes) == 0 {
+	if baseService.IsOnline() && len(config.Rosetta.Nodes) == 0 {
 		// Set network update period only when in online mode and there is no network nodes configuration
-		hederaClient.SetNetworkUpdatePeriod(config.NodeRefreshInterval)
+		hederaClient.SetNetworkUpdatePeriod(config.Rosetta.NodeRefreshInterval)
 	}
 
 	// disable SDK auto retry
@@ -645,8 +631,8 @@ func NewConstructionAPIService(
 		accountRepo:        accountRepo,
 		BaseService:        baseService,
 		hederaClient:       hederaClient,
-		systemShard:        config.Shard,
-		systemRealm:        config.Realm,
+		systemShard:        config.Common.Shard,
+		systemRealm:        config.Common.Realm,
 		transactionHandler: transactionConstructor,
 	}, nil
 }

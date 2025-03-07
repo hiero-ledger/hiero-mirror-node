@@ -1,0 +1,45 @@
+{
+  "description": "Schedule with explicit expiration time in past",
+  "setup": {
+    "accounts": [{ "num": 1024 }],
+    "entities": [
+      {
+        "num": 2001,
+        "type": "SCHEDULE",
+        "memo": "Explicitly expired schedule",
+        "key": [1, 1, 1]
+      }
+    ],
+    "schedules": [
+      {
+        "consensus_timestamp": "1234567890000000001",
+        "creator_account_id": "0.0.1024",
+        "payer_account_id": "0.0.1024",
+        "schedule_id": "0.0.2001",
+        "expiration_time": "1234567890600000001"
+      }
+    ]
+  },
+  "url": "/api/v1/schedules/0.0.2001",
+  "responseStatus": 200,
+  "responseHeaders": {
+    "cache-control": "public, max-age=3600"
+  },
+  "responseJson": {
+    "admin_key": {
+      "_type": "ProtobufEncoded",
+      "key": "010101"
+    },
+    "consensus_timestamp": "1234567890.000000001",
+    "creator_account_id": "0.0.1024",
+    "deleted": false,
+    "expiration_time": "1234567890.600000001",
+    "executed_timestamp": null,
+    "memo": "Explicitly expired schedule",
+    "payer_account_id": "0.0.1024",
+    "schedule_id": "0.0.2001",
+    "signatures": [],
+    "transaction_body": "AQECAgMD",
+    "wait_for_expiry": false
+  }
+}

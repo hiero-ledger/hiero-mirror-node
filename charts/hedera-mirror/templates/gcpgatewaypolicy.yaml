@@ -1,4 +1,6 @@
-{{- if and .Values.global.gateway.enabled (not (empty .Values.global.gateway.gcpGatewayPolicy)) -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if and .Values.global.gateway.enabled (not (empty .Values.global.gateway.gcpGatewayPolicy)) -}}
 apiVersion: networking.gke.io/v1
 kind: GCPGatewayPolicy
 metadata:

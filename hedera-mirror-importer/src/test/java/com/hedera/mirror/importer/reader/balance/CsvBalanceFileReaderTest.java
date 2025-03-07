@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2021-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.importer.reader.balance;
 
@@ -21,10 +7,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.collect.Collections2;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
 import com.hedera.mirror.common.util.DomainUtils;
-import com.hedera.mirror.importer.ImporterProperties;
 import com.hedera.mirror.importer.TestUtils;
 import com.hedera.mirror.importer.domain.StreamFileData;
 import com.hedera.mirror.importer.domain.StreamFilename;
@@ -52,7 +38,7 @@ import org.springframework.util.StringUtils;
 
 abstract class CsvBalanceFileReaderTest {
 
-    protected final ImporterProperties importerProperties;
+    protected final CommonProperties commonProperties;
     protected final BalanceParserProperties balanceParserProperties;
     protected final File balanceFile;
     protected final CsvBalanceFileReader balanceFileReader;
@@ -69,13 +55,12 @@ abstract class CsvBalanceFileReaderTest {
             Class<? extends AccountBalanceLineParser> accountBalanceLineParserClass,
             String balanceFilePath,
             long expectedCount) {
-        importerProperties = new ImporterProperties();
+        commonProperties = new CommonProperties();
         balanceParserProperties = new BalanceParserProperties();
         balanceFile = TestUtils.getResource(balanceFilePath);
         parser = (AccountBalanceLineParser) ReflectUtils.newInstance(
-                accountBalanceLineParserClass,
-                new Class<?>[] {ImporterProperties.class},
-                new Object[] {importerProperties});
+                accountBalanceLineParserClass, new Class<?>[] {CommonProperties.class}, new Object[] {commonProperties
+                });
         balanceFileReader = (CsvBalanceFileReader) ReflectUtils.newInstance(
                 balanceFileReaderClass,
                 new Class<?>[] {BalanceParserProperties.class, accountBalanceLineParserClass},
@@ -201,7 +186,7 @@ abstract class CsvBalanceFileReaderTest {
     void readValidWhenFileHasLinesWithDifferentShardNum() throws IOException {
         List<String> lines = FileUtils.readLines(balanceFile, CsvBalanceFileReader.CHARSET);
         FileUtils.writeLines(testFile, lines);
-        long otherShard = importerProperties.getShard() + 1;
+        long otherShard = commonProperties.getShard() + 1;
         FileUtils.writeStringToFile(
                 testFile,
                 String.format("%n%d,0,3,340%n%d,0,4,340%n", otherShard, otherShard),

@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2021-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 import _ from 'lodash';
 
@@ -24,6 +10,7 @@ import {SignatureType} from './model';
 import * as utils from './utils';
 
 const {default: defaultLimit} = getResponseLimit();
+const LONGER_SCHEDULE_CACHE_CONTROL_HEADER = {'cache-control': 'public, max-age=3600'};
 
 // select columns
 const sqlQueryColumns = {
@@ -134,7 +121,27 @@ const getScheduleById = async (req, res) => {
     throw new NotFoundError();
   }
 
-  res.locals[constants.responseDataLabel] = formatScheduleRow(rows[0]);
+  const schedule = rows[0];
+  res.locals[constants.responseHeadersLabel] = getScheduleCacheControlHeader(schedule);
+  res.locals[constants.responseDataLabel] = formatScheduleRow(schedule);
+};
+
+const getScheduleCacheControlHeader = (schedule) => {
+  const nowNs = utils.nowInNs();
+  const executedTimestamp = schedule.executed_timestamp;
+  const expirationTime = schedule.expiration_time;
+  const consensusTimestamp = schedule.consensus_timestamp;
+
+  const hasExecuted = executedTimestamp !== null || schedule.deleted;
+  const hasAutoExpired =
+    expirationTime === null && nowNs >= consensusTimestamp + constants.THIRTY_ONE_MINUTES * constants.NANOS_PER_SECOND;
+  const hasExpired =
+    expirationTime !== null && nowNs >= expirationTime + constants.SIXTY_SECONDS * constants.NANOS_PER_SECOND;
+
+  if (hasExecuted || hasAutoExpired || hasExpired) {
+    return LONGER_SCHEDULE_CACHE_CONTROL_HEADER;
+  }
+  return {};
 };
 
 /**
@@ -276,6 +283,7 @@ const getSchedules = async (req, res) => {
 const schedules = {
   getScheduleById,
   getSchedules,
+  getScheduleCacheControlHeader,
 };
 
 const acceptedSchedulesParameters = new Set([

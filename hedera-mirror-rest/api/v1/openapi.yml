@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 openapi: 3.0.3
 paths:
   /api/v1/accounts:
@@ -1397,7 +1399,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Hedera Mirror Node REST API
-  version: 0.125.0-SNAPSHOT
+  version: 0.126.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -2694,6 +2696,18 @@ components:
           $ref: "#/components/schemas/EntityId"
         denominating_token_id:
           $ref: "#/components/schemas/EntityId"
+    CustomFeeLimit:
+      type: object
+      properties:
+        account_id:
+          $ref: "#/components/schemas/EntityId"
+        amount:
+          example: 100
+          format: int64
+          nullable: false
+          type: integer
+        denominating_token_id:
+          $ref: "#/components/schemas/EntityId"
     FractionalFee:
       type: object
       properties:
@@ -3172,6 +3186,27 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/Block"
+    ConsensusCustomFees:
+      description: Custom fees assessed for each message submitted to the topic
+      type: object
+      properties:
+        created_timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        fixed_fees:
+          type: array
+          items:
+            $ref: "#/components/schemas/FixedCustomFee"
+    FixedCustomFee:
+      type: object
+      properties:
+        amount:
+          example: 100
+          format: int64
+          type: integer
+        collector_account_id:
+          $ref: "#/components/schemas/EntityId"
+        denominating_token_id:
+          $ref: "#/components/schemas/EntityId"
     NftTransactionHistory:
       type: object
       properties:
@@ -3673,11 +3708,20 @@ components:
           type: integer
         created_timestamp:
           $ref: "#/components/schemas/TimestampNullable"
+        custom_fees:
+          $ref: "#/components/schemas/ConsensusCustomFees"
         deleted:
           description: Whether the topic is deleted or not.
           example: false
           nullable: true
           type: boolean
+        fee_exempt_key_list:
+          description: Keys permitted to submit messages to the topic without paying custom fees
+          type: array
+          items:
+            $ref: "#/components/schemas/Key"
+        fee_schedule_key:
+          $ref: "#/components/schemas/Key"
         memo:
           description: The memo associated with the topic.
           example: topic memo
@@ -3693,7 +3737,10 @@ components:
         - auto_renew_account
         - auto_renew_period
         - created_timestamp
+        - custom_fees
         - deleted
+        - fee_exempt_key_list
+        - fee_schedule_key
         - memo
         - submit_key
         - timestamp
@@ -3760,6 +3807,10 @@ components:
           $ref: "#/components/schemas/Timestamp"
         entity_id:
           $ref: "#/components/schemas/EntityId"
+        max_custom_fees:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomFeeLimit"
         max_fee:
           type: string
         memo_base64:
@@ -3851,6 +3902,13 @@ components:
         charged_tx_fee: 7
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
+        max_custom_fees:
+          - account_id: 0.0.8
+            amount: 1000
+            denominating_token_id: 0.0.2000
+          - account_id: 0.0.8
+            amount: 1500
+            denominating_token_id: null
         max_fee: 33
         memo_base64: null
         name: CRYPTOTRANSFER

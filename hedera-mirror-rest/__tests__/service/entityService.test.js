@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2021-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 import {EntityService} from '../../service';
 import AccountAlias from '../../accountAlias';
@@ -26,7 +12,7 @@ const defaultInputEntity = [
   {
     alias: defaultEntityAlias.base32Alias,
     evm_address: 'ac384c53f03855fa1b3616052f8ba32c6c2a2fec',
-    id: 281483566645248,
+    id: 18014948265295872n,
     num: 0,
     shard: 1,
     realm: 2,
@@ -35,15 +21,15 @@ const defaultInputEntity = [
 const defaultInputContract = [
   {
     evm_address: 'cef2a2c6c23ab8f2506163b1af55830f35c483ca',
-    id: 4295062919,
+    id: 274878002567,
     num: 95623,
     shard: 0,
     realm: 1,
   },
 ];
 
-const defaultExpectedEntity = {id: 281483566645248};
-const defaultExpectedContractId = {id: 4295062919};
+const defaultExpectedEntity = {id: 18014948265295872n};
+const defaultExpectedContractId = {id: 274878002567};
 
 describe('EntityService.getAccountFromAlias tests', () => {
   test('EntityService.getAccountFromAlias - No match', async () => {
@@ -119,7 +105,7 @@ describe('EntityService.getEntityIdFromEvmAddress tests', () => {
       defaultInputEntity[0],
       {
         ...defaultInputEntity[0],
-        id: defaultInputEntity[0].id + 1,
+        id: defaultInputEntity[0].id + 1n,
         num: defaultInputEntity[0].num + 1,
       },
     ];

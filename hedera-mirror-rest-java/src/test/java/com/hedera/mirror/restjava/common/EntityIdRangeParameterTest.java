@@ -1,64 +1,37 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.restjava.common;
 
+import static com.hedera.mirror.restjava.common.RangeOperator.EQ;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.exception.InvalidEntityException;
-import com.hedera.mirror.restjava.RestJavaProperties;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class EntityIdRangeParameterTest {
 
-    @Mock
-    private RestJavaProperties properties;
-
-    private MockedStatic<SpringApplicationContext> context;
+    private final CommonProperties commonProperties = new CommonProperties();
 
     @BeforeEach
-    void setUp() {
-        context = Mockito.mockStatic(SpringApplicationContext.class);
-        when(SpringApplicationContext.getBean(RestJavaProperties.class)).thenReturn(properties);
-    }
-
-    @AfterEach
-    void closeMocks() {
-        context.close();
+    void setup() {
+        EntityIdParameter.PROPERTIES.set(commonProperties);
     }
 
     @Test
     void testConversion() {
         assertThat(new EntityIdRangeParameter(RangeOperator.GTE, EntityId.of("0.0.2000")))
                 .isEqualTo(EntityIdRangeParameter.valueOf("gte:0.0.2000"));
-        assertThat(new EntityIdRangeParameter(RangeOperator.EQ, EntityId.of("0.0.2000")))
+        assertThat(new EntityIdRangeParameter(EQ, EntityId.of("0.0.2000")))
                 .isEqualTo(EntityIdRangeParameter.valueOf("0.0.2000"));
         assertThat(EntityIdRangeParameter.EMPTY)
                 .isEqualTo(EntityIdRangeParameter.valueOf(""))
@@ -70,8 +43,15 @@ class EntityIdRangeParameterTest {
     @DisplayName("EntityIdRangeParameter parse from string tests, valid cases")
     void testValidParam(String input) {
         var entityId = EntityId.of(0, 0, 2);
-        assertThat(new EntityIdRangeParameter(RangeOperator.EQ, entityId))
-                .isEqualTo(EntityIdRangeParameter.valueOf(input));
+        assertThat(new EntityIdRangeParameter(EQ, entityId)).isEqualTo(EntityIdRangeParameter.valueOf(input));
+    }
+
+    @Test
+    void nonDefaultShardRealm() {
+        commonProperties.setRealm(1000L);
+        commonProperties.setShard(1);
+        var id = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1);
+        assertThat(EntityIdRangeParameter.valueOf("1")).isEqualTo(new EntityIdRangeParameter(EQ, id));
     }
 
     @ParameterizedTest
@@ -98,7 +78,7 @@ class EntityIdRangeParameterTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"0.0.4294967296", "32768.65536.4294967296", "100000.65535.000000001"})
+    @ValueSource(strings = {"0.0.180146733873889291", "1024.65536.180146733873889291", "10000.65535.000000001"})
     @DisplayName("EntityIdRangeParameter parse from string tests, negative cases for ID having valid format")
     void testInvalidEntity(String input) {
         assertThrows(InvalidEntityException.class, () -> EntityIdRangeParameter.valueOf(input));

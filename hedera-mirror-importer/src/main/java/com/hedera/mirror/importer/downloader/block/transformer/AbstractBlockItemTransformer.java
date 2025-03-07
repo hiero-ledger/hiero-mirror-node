@@ -1,39 +1,33 @@
-/*
- * Copyright (C) 2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
 import static com.hedera.mirror.common.util.DomainUtils.createSha384Digest;
 
 import com.google.protobuf.ByteString;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.BlockItem;
+import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.util.DomainUtils;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.security.MessageDigest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
 
     private static final MessageDigest DIGEST = createSha384Digest();
 
-    public TransactionRecord getTransactionRecord(BlockItem blockItem, TransactionBody transactionBody) {
-        var transactionResult = blockItem.transactionResult();
+    protected final Logger log = LoggerFactory.getLogger(getClass());
+
+    public void transform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
+        var transactionBody = blockItemTransformation.transactionBody();
+        var transactionResult = blockItem.getTransactionResult();
         var receiptBuilder = TransactionReceipt.newBuilder().setStatus(transactionResult.getStatus());
-        var transactionRecordBuilder = TransactionRecord.newBuilder()
+        var recordBuilder = blockItemTransformation
+                .recordItemBuilder()
+                .transactionRecordBuilder()
                 .addAllAutomaticTokenAssociations(transactionResult.getAutomaticTokenAssociationsList())
                 .addAllPaidStakingRewards(transactionResult.getPaidStakingRewardsList())
                 .addAllTokenTransferLists(transactionResult.getTokenTransferListsList())
@@ -42,27 +36,48 @@ abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
                 .setReceipt(receiptBuilder)
                 .setTransactionFee(transactionResult.getTransactionFeeCharged())
                 .setTransactionHash(
-                        calculateTransactionHash(blockItem.transaction().getSignedTransactionBytes()))
+                        calculateTransactionHash(blockItem.getTransaction().getSignedTransactionBytes()))
                 .setTransactionID(transactionBody.getTransactionID())
                 .setTransferList(transactionResult.getTransferList());
 
         if (transactionResult.hasParentConsensusTimestamp()) {
-            transactionRecordBuilder.setParentConsensusTimestamp(transactionResult.getParentConsensusTimestamp());
-        }
-        if (transactionResult.hasScheduleRef()) {
-            transactionRecordBuilder.setScheduleRef(transactionResult.getScheduleRef());
+            recordBuilder.setParentConsensusTimestamp(transactionResult.getParentConsensusTimestamp());
         }
 
-        updateTransactionRecord(blockItem, transactionBody, transactionRecordBuilder);
-        return transactionRecordBuilder.build();
+        if (transactionResult.hasScheduleRef()) {
+            recordBuilder.setScheduleRef(transactionResult.getScheduleRef());
+        }
+
+        processContractCallOutput(blockItem, blockItemTransformation.recordItemBuilder());
+        doTransform(blockItemTransformation);
     }
 
-    protected void updateTransactionRecord(
-            BlockItem blockItem, TransactionBody transactionBody, TransactionRecord.Builder transactionRecordBuilder) {
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
         // do nothing
     }
 
     private ByteString calculateTransactionHash(ByteString signedTransactionBytes) {
         return DomainUtils.fromBytes(DIGEST.digest(DomainUtils.toBytes(signedTransactionBytes)));
+    }
+
+    /**
+     * Process contract call transaction output. Contract call transaction output is special that every child
+     * transaction of a contract call transaction can have one.
+     *
+     * @param blockItem
+     * @param recordItemBuilder
+     */
+    private void processContractCallOutput(BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder) {
+        if (!blockItem.hasTransactionOutput(TransactionCase.CONTRACT_CALL)) {
+            return;
+        }
+
+        var contractCall =
+                blockItem.getTransactionOutput(TransactionCase.CONTRACT_CALL).getContractCall();
+        recordItemBuilder.sidecarRecords(contractCall.getSidecarsList());
+        if (contractCall.hasContractCallResult()) {
+            var recordBuilder = recordItemBuilder.transactionRecordBuilder();
+            recordBuilder.setContractCallResult(contractCall.getContractCallResult());
+        }
     }
 }

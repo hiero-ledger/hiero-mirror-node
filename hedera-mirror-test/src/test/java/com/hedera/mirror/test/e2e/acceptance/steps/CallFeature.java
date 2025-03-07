@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2023-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.test.e2e.acceptance.steps;
 
@@ -67,13 +53,13 @@ import com.hedera.mirror.test.e2e.acceptance.client.AccountClient;
 import com.hedera.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import com.hedera.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import com.hedera.mirror.test.e2e.acceptance.client.TokenClient;
+import com.hedera.mirror.test.e2e.acceptance.config.Web3Properties;
 import com.hedera.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.util.Arrays;
 import java.util.List;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -85,11 +71,12 @@ public class CallFeature extends AbstractFeature {
 
     private static final String HEX_REGEX = "^[0-9a-fA-F]+$";
     private static DeployedContract deployedPrecompileContract;
-    private DeployedContract deployedErcTestContract;
-    private DeployedContract deployedEstimatePrecompileContract;
     private final AccountClient accountClient;
     private final MirrorNodeClient mirrorClient;
     private final TokenClient tokenClient;
+    private final Web3Properties web3Properties;
+    private DeployedContract deployedErcTestContract;
+    private DeployedContract deployedEstimatePrecompileContract;
     private String ercContractAddress;
     private String precompileContractAddress;
     private String estimateContractAddress;
@@ -334,8 +321,14 @@ public class CallFeature extends AbstractFeature {
     public void htsGetTokenDefaultKycStatus() {
         var data = encodeData(PRECOMPILE, HTS_GET_TOKEN_DEFAULT_KYC_STATUS_SELECTOR, asAddress(fungibleTokenId));
         var response = callContract(data, precompileContractAddress);
+        boolean defaultKycStatus = false;
+        // In the modularized code, the status is now true when the token has a KycNotApplicable status,
+        // whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
+        if (web3Properties.isModularizedServices()) {
+            defaultKycStatus = !defaultKycStatus;
+        }
 
-        assertThat(response.getResultAsBoolean()).isFalse();
+        assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }
 
     @Then("I call function with update and I expect return of the updated value")
@@ -437,7 +430,7 @@ public class CallFeature extends AbstractFeature {
                 MINT_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
                 asAddress(fungibleTokenId),
                 1L,
-                asByteArray(Arrays.asList("0x00")),
+                new byte[][] {},
                 asAddress(admin));
 
         var response = callContract(data, precompileContractAddress);
@@ -459,7 +452,7 @@ public class CallFeature extends AbstractFeature {
                 MINT_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
                 asAddress(nonFungibleTokenId),
                 0L,
-                asByteArray(Arrays.asList("0x02")),
+                asByteArray(List.of("0x02")),
                 asAddress(tokenClient
                         .getSdkClient()
                         .getExpandedOperatorAccountId()

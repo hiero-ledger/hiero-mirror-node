@@ -1,23 +1,10 @@
-/*
- * Copyright (C) 2020-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.importer.addressbook;
 
 import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.protobuf.ByteString;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import com.hedera.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -36,12 +24,11 @@ import com.hedera.mirror.importer.ImporterIntegrationTest;
 import com.hedera.mirror.importer.ImporterProperties;
 import com.hedera.mirror.importer.ImporterProperties.ConsensusMode;
 import com.hedera.mirror.importer.config.CacheConfiguration;
-import com.hedera.mirror.importer.parser.record.entity.EntityProperties;
+import com.hedera.mirror.importer.exception.InvalidDatasetException;
 import com.hedera.mirror.importer.repository.AddressBookEntryRepository;
 import com.hedera.mirror.importer.repository.AddressBookRepository;
 import com.hedera.mirror.importer.repository.AddressBookServiceEndpointRepository;
 import com.hedera.mirror.importer.repository.FileDataRepository;
-import com.hedera.mirror.importer.repository.NodeStakeRepository;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.NodeAddressBook;
@@ -59,20 +46,20 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.platform.commons.util.StringUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.interceptor.SimpleKey;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.ResourceUtils;
 
 @RequiredArgsConstructor
@@ -93,12 +80,10 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     @Qualifier(CacheConfiguration.CACHE_ADDRESS_BOOK)
     private final CacheManager cacheManager;
 
-    private final EntityProperties entityProperties;
+    private final CommonProperties commonProperties;
 
     private final FileDataRepository fileDataRepository;
     private final ImporterProperties importerProperties;
-    private final NodeStakeRepository nodeStakeRepository;
-    private final TransactionTemplate transactionTemplate;
 
     @TempDir
     private Path dataPath;
@@ -144,6 +129,11 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         initialAddressBookBytes = Files.readAllBytes(addressBookPath);
     }
 
+    @BeforeEach
+    void setup() {
+        importerProperties.setInitialAddressBook(null);
+    }
+
     private FileData createFileData(
             byte[] contents, long consensusTimeStamp, boolean is102, TransactionType transactionType) {
         EntityId entityId = is102 ? AddressBookServiceImpl.FILE_102 : AddressBookServiceImpl.FILE_101;
@@ -167,18 +157,8 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
 
     @Test
     void startupWithOtherNetworkIncorrectInitialAddressBookPath() {
-        ImporterProperties otherNetworkImporterProperties = new ImporterProperties();
-        otherNetworkImporterProperties.setDataPath(dataPath);
-        otherNetworkImporterProperties.setInitialAddressBook(dataPath.resolve("test-v1"));
-        otherNetworkImporterProperties.setNetwork(ImporterProperties.HederaNetwork.OTHER);
-        AddressBookService customAddressBookService = new AddressBookServiceImpl(
-                addressBookRepository,
-                entityProperties,
-                fileDataRepository,
-                otherNetworkImporterProperties,
-                nodeStakeRepository,
-                transactionTemplate);
-        assertThrows(IllegalStateException.class, customAddressBookService::getCurrent);
+        importerProperties.setInitialAddressBook(dataPath.resolve("test-v1"));
+        assertThrows(IllegalStateException.class, addressBookService::getCurrent);
         assertEquals(0, addressBookRepository.count());
     }
 
@@ -204,18 +184,8 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .to("");
         fileCopier.copy();
 
-        ImporterProperties otherNetworkImporterProperties = new ImporterProperties();
-        otherNetworkImporterProperties.setDataPath(dataPath);
-        otherNetworkImporterProperties.setInitialAddressBook(dataPath.resolve("test-v1"));
-        otherNetworkImporterProperties.setNetwork(ImporterProperties.HederaNetwork.OTHER);
-        AddressBookService customAddressBookService = new AddressBookServiceImpl(
-                addressBookRepository,
-                entityProperties,
-                fileDataRepository,
-                otherNetworkImporterProperties,
-                nodeStakeRepository,
-                transactionTemplate);
-        AddressBook addressBook = customAddressBookService.getCurrent();
+        importerProperties.setInitialAddressBook(dataPath.resolve("test-v1"));
+        AddressBook addressBook = addressBookService.getCurrent();
         assertThat(addressBook.getStartConsensusTimestamp()).isEqualTo(1L);
         assertEquals(1, addressBookRepository.count());
     }
@@ -489,6 +459,31 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void invalidInitialRealm() {
+        commonProperties.setRealm(1000L);
+        assertThatThrownBy(() -> addressBookService.getCurrent())
+                .isInstanceOf(InvalidDatasetException.class)
+                .hasMessageContaining("Unable to load starting address book");
+        commonProperties.setRealm(0L);
+    }
+
+    @Test
+    @Transactional
+    void invalidRealm() {
+        var addressBook = addressBookService.getCurrent();
+        assertThat(addressBook).isNotNull();
+
+        var badAddressBook = UPDATED.toBuilder();
+        badAddressBook
+                .getNodeAddressBuilderList()
+                .forEach(n -> n.setNodeAccountId(n.getNodeAccountIdBuilder().setRealmNum(1000L)));
+        update(badAddressBook.build().toByteArray(), 2L, true);
+
+        assertThat(addressBookService.getCurrent()).isEqualTo(addressBook);
+        assertThat(addressBookRepository.count()).isOne();
+    }
+
+    @Test
     void verify101DoesntUpdate102() {
         long timestamp102 = 2L;
         byte[] addressBookBytes102 = UPDATED.toByteArray();
@@ -657,8 +652,6 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
 
     @Test
     void verifyAddressBookWithServiceEndpointsOnly() throws UnknownHostException {
-        entityProperties.getPersist().setNodes(true);
-
         List<NodeAddress> nodeAddressList = new ArrayList<>();
         int nodeAccountStart = 3;
         int addressBookEntries = 5;
@@ -688,7 +681,6 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertEquals(2, addressBookRepository.count()); // bootstrap and new address book with service endpoints
         assertEquals(TEST_INITIAL_ADDRESS_BOOK_NODE_COUNT + addressBookEntries, addressBookEntryRepository.count());
         assertEquals(addressBookEntries * numEndpointsPerNode, addressBookServiceEndpointRepository.count());
-        entityProperties.getPersist().setNodes(false);
     }
 
     @Test
@@ -750,41 +742,40 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertEquals(addressBookEntries * numEndpointsPerNode, addressBookServiceEndpointRepository.count());
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"1.0.0.0", ""})
-    void verifyAddressBookWithInvalidIp(String ip) {
-        entityProperties.getPersist().setNodes(true);
+    @Test
+    void verifyAddressBookWitDomainName() throws Exception {
+        var domainName = "localhost";
+        var nodeAddressBook = NodeAddressBook.newBuilder()
+                .addNodeAddress(NodeAddress.newBuilder()
+                        .addServiceEndpoint(ServiceEndpoint.newBuilder()
+                                .setDomainName(domainName)
+                                .setPort(BASE_PORT))
+                        .setNodeId(0L)
+                        .setNodeAccountId(AccountID.newBuilder().setAccountNum(3)))
+                .build();
 
-        List<NodeAddress> nodeAddressList = new ArrayList<>();
-        int nodeAccountStart = 1;
-        NodeAddress.Builder nodeAddressBuilder = NodeAddress.newBuilder()
-                .setDescription("NodeAddressWithServiceEndpoint")
-                .setNodeAccountId(
-                        AccountID.newBuilder().setAccountNum(nodeAccountStart).build())
-                .setNodeCertHash(ByteString.copyFromUtf8(nodeAccountStart + "NodeCertHash"))
-                .setNodeId(nodeAccountStart - AddressBookServiceImpl.INITIAL_NODE_ID_ACCOUNT_ID_OFFSET)
-                .setRSAPubKey(nodeAccountStart + "RSAPubKey");
+        var path = dataPath.resolve("addressbook.bin");
+        var bytes = nodeAddressBook.toByteArray();
+        Files.write(path, bytes);
+        importerProperties.setInitialAddressBook(path);
 
-        nodeAddressBuilder.addServiceEndpoint(ServiceEndpoint.newBuilder()
-                .setIpAddressV4(ByteString.copyFromUtf8(ip))
-                .setPort(52118)
-                .build());
-        nodeAddressList.add(nodeAddressBuilder.build());
-        NodeAddressBook.Builder nodeAddressBookBuilder =
-                NodeAddressBook.newBuilder().addAllNodeAddress(nodeAddressList);
-
-        byte[] addressBookBytes = nodeAddressBookBuilder.build().toByteArray();
-        update(addressBookBytes, 2L, false);
-
-        assertThat(addressBookRepository.count())
-                .isOne(); // only gets the bootstrap addressbook, cannot parse the one with service endpoints
-        assertThat(addressBookServiceEndpointRepository.count()).isZero();
-        entityProperties.getPersist().setNodes(false);
+        assertThat(addressBookService.migrate())
+                .extracting(AddressBook::getEntries, InstanceOfAssertFactories.list(AddressBookEntry.class))
+                .hasSize(1)
+                .first()
+                .extracting(
+                        AddressBookEntry::getServiceEndpoints,
+                        InstanceOfAssertFactories.set(AddressBookServiceEndpoint.class))
+                .hasSize(1)
+                .first()
+                .returns("", AddressBookServiceEndpoint::getIpAddressV4)
+                .returns(BASE_PORT, AddressBookServiceEndpoint::getPort)
+                .returns(domainName, AddressBookServiceEndpoint::getDomainName);
+        assertThat(addressBookRepository.count()).isOne();
     }
 
     @Test
     void verifyDuplicateNodeAddressPerNodeIdAreCollapsed() throws UnknownHostException {
-
         List<NodeAddress> nodeAddressList = new ArrayList<>();
         int nodeAccountStart = 3;
         int addressBookEntries = 5;

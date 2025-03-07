@@ -1,20 +1,8 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.web3.state.keyvalue;
+
+import static com.hedera.mirror.common.util.DomainUtils.leftPadBytes;
 
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
@@ -24,6 +12,7 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
+import org.apache.tuweni.bytes.Bytes32;
 
 @Named
 public class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
@@ -49,7 +38,8 @@ public class ContractStorageReadableKVState extends AbstractReadableKVState<Slot
         return timestamp
                 .map(t -> contractStateRepository.findStorageByBlockTimestamp(entityId, keyBytes, t))
                 .orElse(contractStateRepository.findStorage(entityId, keyBytes))
-                .map(byteArr -> new SlotValue(Bytes.wrap(byteArr), Bytes.EMPTY, Bytes.EMPTY))
+                .map(byteArr ->
+                        new SlotValue(Bytes.wrap(leftPadBytes(byteArr, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY))
                 .orElse(null);
     }
 }

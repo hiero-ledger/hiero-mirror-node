@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2021-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.common.domain;
 
@@ -103,6 +89,7 @@ import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractAction.ResultDataCase;
 import com.hedera.services.stream.proto.ContractActionType;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
 import com.hederahashgraph.api.proto.java.FreezeType;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
@@ -425,6 +412,7 @@ public class DomainBuilder {
     }
 
     public DomainWrapper<Entity, Entity.EntityBuilder<?, ?>> entity(long id, long createdTimestamp) {
+        var entityId = EntityId.of(id);
         var builder = Entity.builder()
                 .alias(key())
                 .autoRenewAccountId(id())
@@ -444,10 +432,10 @@ public class DomainBuilder {
                 .obtainerId(entityId())
                 .permanentRemoval(false)
                 .proxyAccountId(entityId())
-                .num(id)
-                .realm(0L)
+                .num(entityId.getNum())
+                .realm(entityId.getRealm())
                 .receiverSigRequired(true)
-                .shard(0L)
+                .shard(entityId.getShard())
                 .stakedNodeId(-1L)
                 .stakePeriodStart(-1L)
                 .timestampRange(Range.atLeast(createdTimestamp))
@@ -569,34 +557,6 @@ public class DomainBuilder {
                 .entityId(entityId())
                 .transactionType(TransactionType.FILECREATE.getProtoId());
         return new DomainWrapperImpl<>(builder, builder::build);
-    }
-
-    private FallbackFee fallbackFee() {
-        return FallbackFee.builder()
-                .amount(number())
-                .denominatingTokenId(entityId())
-                .build();
-    }
-
-    private FixedFee fixedFee() {
-        return FixedFee.builder()
-                .allCollectorsAreExempt(true)
-                .amount(number())
-                .collectorAccountId(entityId())
-                .denominatingTokenId(entityId())
-                .build();
-    }
-
-    private FractionalFee fractionalFee() {
-        return FractionalFee.builder()
-                .allCollectorsAreExempt(true)
-                .collectorAccountId(entityId())
-                .denominator(number())
-                .maximumAmount(number())
-                .minimumAmount(1L)
-                .numerator(number())
-                .netOfTransfers(true)
-                .build();
     }
 
     public DomainWrapper<LiveHash, LiveHash.LiveHashBuilder> liveHash() {
@@ -798,16 +758,6 @@ public class DomainBuilder {
                 .softwareVersionPatch(0)
                 .version(6);
         return new DomainWrapperImpl<>(builder, builder::build);
-    }
-
-    private RoyaltyFee royaltyFee() {
-        return RoyaltyFee.builder()
-                .allCollectorsAreExempt(true)
-                .collectorAccountId(entityId())
-                .denominator(number())
-                .fallbackFee(fallbackFee())
-                .numerator(number())
-                .build();
     }
 
     public DomainWrapper<Schedule, Schedule.ScheduleBuilder> schedule() {
@@ -1025,7 +975,7 @@ public class DomainBuilder {
                 .adminKey(bytes(32))
                 .createdTimestamp(timestamp)
                 .id(id())
-                .feeExemptKeyList(bytes(32))
+                .feeExemptKeyList(feeExemptKeyList())
                 .feeScheduleKey(bytes(32))
                 .submitKey(bytes(32))
                 .timestampRange(Range.atLeast(timestamp));
@@ -1112,9 +1062,7 @@ public class DomainBuilder {
                 .payerAccountId(entityId())
                 .result(ResponseCodeEnum.SUCCESS.getNumber())
                 .scheduled(false)
-                .transactionBytes(bytes(100))
                 .transactionHash(bytes(48))
-                .transactionRecordBytes(bytes(200))
                 .type(TransactionType.CRYPTOTRANSFER.getProtoId())
                 .validStartNs(timestamp())
                 .validDurationSeconds(120L);
@@ -1155,12 +1103,25 @@ public class DomainBuilder {
         return bytes;
     }
 
+    public EntityId entityId() {
+        return EntityId.of(0L, 0L, id());
+    }
+
     public byte[] evmAddress() {
         return bytes(20);
     }
 
-    public EntityId entityId() {
-        return EntityId.of(0L, 0L, id());
+    public FixedFee fixedFee() {
+        return FixedFee.builder()
+                .allCollectorsAreExempt(true)
+                .amount(number())
+                .collectorAccountId(entityId())
+                .denominatingTokenId(entityId())
+                .build();
+    }
+
+    public String hash(int characters) {
+        return RandomStringUtils.secure().next(characters, "0123456789abcdef");
     }
 
     /**
@@ -1173,24 +1134,94 @@ public class DomainBuilder {
         return id.incrementAndGet() + LAST_RESERVED_ID;
     }
 
-    // SQL timestamp type only supports up to microsecond granularity
-    private Instant instant() {
-        return now.truncatedTo(ChronoUnit.MILLIS).plusMillis(number());
-    }
-
     public byte[] key() {
         return id.get() % 2 == 0 ? key(KeyCase.ECDSA_SECP256K1) : key(KeyCase.ED25519);
     }
 
     public byte[] key(KeyCase keyCase) {
-        var key =
-                switch (keyCase) {
-                    case ECDSA_SECP256K1 -> Key.newBuilder().setECDSASecp256K1(generateSecp256k1Key());
-                    case ED25519 -> Key.newBuilder().setEd25519(ByteString.copyFrom(bytes(KEY_LENGTH_ED25519)));
-                    default -> throw new UnsupportedOperationException("Key type not supported");
-                };
+        return protobufKey(keyCase).toByteArray();
+    }
 
-        return key.build().toByteArray();
+    public byte[] nonZeroBytes(int length) {
+        var bytes = bytes(length);
+        for (int i = 0; i < length; i++) {
+            if (bytes[i] == 0) {
+                bytes[i] = (byte) random.nextInt(1, Byte.MAX_VALUE);
+            }
+        }
+        return bytes;
+    }
+
+    public long number() {
+        return id.incrementAndGet();
+    }
+
+    public Key protobufKey(KeyCase keyCase) {
+        return switch (keyCase) {
+            case ECDSA_SECP256K1 -> Key.newBuilder()
+                    .setECDSASecp256K1(generateSecp256k1Key())
+                    .build();
+            case ED25519 -> Key.newBuilder()
+                    .setEd25519(ByteString.copyFrom(bytes(KEY_LENGTH_ED25519)))
+                    .build();
+            default -> throw new UnsupportedOperationException("Key type not supported");
+        };
+    }
+
+    public Timestamp protoTimestamp() {
+        long timestamp = timestamp();
+        return Timestamp.newBuilder()
+                .setSeconds(timestamp / DomainUtils.NANOS_PER_SECOND)
+                .setNanos((int) (timestamp % DomainUtils.NANOS_PER_SECOND))
+                .build();
+    }
+
+    /**
+     * Reset the timestamp, so next call of timestamp() will return value + 1
+     *
+     * @param value The timestamp to reset to
+     */
+    public void resetTimestamp(long value) {
+        timestampOffset = value - timestampNoOffset();
+    }
+
+    public String text(int characters) {
+        return RandomStringUtils.secure().nextAlphanumeric(characters);
+    }
+
+    public long timestamp() {
+        return timestampNoOffset() + timestampOffset;
+    }
+
+    private long tinybar() {
+        return number() * TINYBARS_IN_ONE_HBAR;
+    }
+
+    private FallbackFee fallbackFee() {
+        return FallbackFee.builder()
+                .amount(number())
+                .denominatingTokenId(entityId())
+                .build();
+    }
+
+    private byte[] feeExemptKeyList() {
+        return FeeExemptKeyList.newBuilder()
+                .addKeys(protobufKey(KeyCase.ECDSA_SECP256K1))
+                .addKeys(protobufKey(KeyCase.ED25519))
+                .build()
+                .toByteArray();
+    }
+
+    private FractionalFee fractionalFee() {
+        return FractionalFee.builder()
+                .allCollectorsAreExempt(true)
+                .collectorAccountId(entityId())
+                .denominator(number())
+                .maximumAmount(number())
+                .minimumAmount(1L)
+                .numerator(number())
+                .netOfTransfers(true)
+                .build();
     }
 
     @SneakyThrows
@@ -1209,58 +1240,26 @@ public class DomainBuilder {
         return ByteString.copyFrom(compressedKey);
     }
 
-    public long number() {
-        return id.incrementAndGet();
-    }
-
-    public byte[] nonZeroBytes(int length) {
-        var bytes = bytes(length);
-        for (int i = 0; i < length; i++) {
-            if (bytes[i] == 0) {
-                bytes[i] = (byte) random.nextInt(1, Byte.MAX_VALUE);
-            }
-        }
-        return bytes;
-    }
-
-    public String text(int characters) {
-        return RandomStringUtils.secure().nextAlphanumeric(characters);
-    }
-
-    public String hash(int characters) {
-        return RandomStringUtils.secure().next(characters, "0123456789abcdef");
-    }
-
-    /**
-     * Reset the timestamp, so next call of timestamp() will return value + 1
-     *
-     * @param value The timestamp to reset to
-     */
-    public void resetTimestamp(long value) {
-        timestampOffset = value - timestampNoOffset();
-    }
-
-    public Timestamp protoTimestamp() {
-        long timestamp = timestamp();
-        return Timestamp.newBuilder()
-                .setSeconds(timestamp / DomainUtils.NANOS_PER_SECOND)
-                .setNanos((int) (timestamp % DomainUtils.NANOS_PER_SECOND))
-                .build();
-    }
-
-    public long timestamp() {
-        return timestampNoOffset() + timestampOffset;
-    }
-
-    private long tinybar() {
-        return number() * TINYBARS_IN_ONE_HBAR;
-    }
-
     private long getEpochDay(long timestamp) {
         return LocalDate.ofInstant(Instant.ofEpochSecond(0, timestamp), ZoneId.of("UTC"))
                 .atStartOfDay()
                 .toLocalDate()
                 .toEpochDay();
+    }
+
+    // SQL timestamp type only supports up to microsecond granularity
+    private Instant instant() {
+        return now.truncatedTo(ChronoUnit.MILLIS).plusMillis(number());
+    }
+
+    private RoyaltyFee royaltyFee() {
+        return RoyaltyFee.builder()
+                .allCollectorsAreExempt(true)
+                .collectorAccountId(entityId())
+                .denominator(number())
+                .fallbackFee(fallbackFee())
+                .numerator(number())
+                .build();
     }
 
     private long timestampNoOffset() {

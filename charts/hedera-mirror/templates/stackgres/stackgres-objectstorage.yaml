@@ -1,4 +1,6 @@
-{{- if and .Values.stackgres.enabled .Values.stackgres.backup.enabled -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if and .Values.stackgres.enabled .Values.stackgres.backup.enabled -}}
 apiVersion: stackgres.io/v1beta1
 kind: SGObjectStorage
 metadata:

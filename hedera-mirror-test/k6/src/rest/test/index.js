@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2022-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 import {getSequentialTestScenarios} from '../../lib/common.js';
 
@@ -61,6 +47,7 @@ import * as schedulesId from './schedulesId.js';
 import * as tokens from './tokens.js';
 import * as tokensFungibleCommon from './tokensFungibleCommon.js';
 import * as tokensId from './tokensId.js';
+import * as tokensIdTimestampLte from './tokensIdTimestampLte.js';
 import * as tokensIdBalances from './tokensIdBalances.js';
 import * as tokensIdBalancesTimestamp from './tokensIdBalancesTimestamp.js';
 import * as tokensName from './tokensName.js';
@@ -125,6 +112,7 @@ const tests = {
   tokens,
   tokensFungibleCommon,
   tokensId,
+  tokensIdTimestampLte,
   tokensIdBalances,
   tokensIdBalancesTimestamp,
   tokensName,

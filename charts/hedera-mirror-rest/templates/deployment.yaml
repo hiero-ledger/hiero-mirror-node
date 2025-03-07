@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,7 +28,7 @@ spec:
       containers:
         - name: {{ .Chart.Name }}
           env:
-            {{- range $name, $value := .Values.env }}
+            {{- range $name, $value := mergeOverwrite .Values.env .Values.global.env }}
             - name: {{ $name }}
             {{- if kindIs "string" $value }}
               value: {{ tpl $value $ | quote }}

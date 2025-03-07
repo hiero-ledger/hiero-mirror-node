@@ -481,7 +481,7 @@ abstract contract HederaTokenService {
         responseCode = success ? abi.decode(result, (int32)) : HederaResponseCodes.UNKNOWN;
     }
 
-    /// Initiates a Non-Fungable Token Transfer
+    /// Initiates a Non-Fungible Token Transfer
     /// @param token The ID of the token as a solidity address
     /// @param sender the sender of an nft
     /// @param receiver the receiver of the nft sent by the same index at sender
@@ -668,6 +668,6 @@ abstract contract HederaTokenService {
         );
 
         emit CallResponseEvent(success, result);
-        (responseCode, response) = success ? abi.decode(result, (int32, bytes)) : (HederaResponseCodes.UNKNOWN, bytes(""));
+        (responseCode, response) = success ? (HederaResponseCodes.SUCCESS, result) : (HederaResponseCodes.UNKNOWN, bytes(""));
     }
 }

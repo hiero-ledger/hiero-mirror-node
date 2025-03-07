@@ -1,21 +1,8 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.web3.service;
 
+import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
 import static com.hedera.mirror.web3.service.AbstractContractCallServiceTest.KeyType.FEE_SCHEDULE_KEY;
 import static com.hedera.mirror.web3.service.AbstractContractCallServiceTest.KeyType.FREEZE_KEY;
@@ -75,15 +62,15 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var account = accountEntityPersistHistorical(historicalRange);
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        fungibleTokenPersistHistorical(tokenEntity, historicalRange);
-        tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, account, historicalRange);
+        final var token = fungibleTokenPersistHistorical(historicalRange);
+        final var tokenId = token.getTokenId();
+        tokenAccountFrozenRelationshipPersistHistorical(tokenId, account.getId(), historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
         final var functionCall =
-                contract.call_isTokenFrozen(getAddressFromEntity(tokenEntity), getAddressFromEntity(account));
+                contract.call_isTokenFrozen(toAddress(tokenId).toHexString(), getAddressFromEntity(account));
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -111,15 +98,15 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var account = accountEntityPersistHistorical(historicalRange);
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        fungibleTokenPersistHistorical(tokenEntity, historicalRange);
-        tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, account, historicalRange);
+        final var token = fungibleTokenPersistHistorical(historicalRange);
+        final var tokenId = token.getTokenId();
+        tokenAccountFrozenRelationshipPersistHistorical(tokenId, account.getId(), historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
         final var functionCall =
-                contract.call_isKycGranted(getAddressFromEntity(tokenEntity), getAddressFromEntity(account));
+                contract.call_isKycGranted(toAddress(tokenId).toHexString(), getAddressFromEntity(account));
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -131,15 +118,15 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var account = accountEntityPersistWithEvmAddressHistorical(historicalRange);
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        fungibleTokenPersistHistorical(tokenEntity, historicalRange);
-        tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, account, historicalRange);
+        final var token = fungibleTokenPersistHistorical(historicalRange);
+        final var tokenId = token.getTokenId();
+        tokenAccountFrozenRelationshipPersistHistorical(tokenId, account.getId(), historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
         final var functionCall =
-                contract.call_isKycGranted(getAddressFromEntity(tokenEntity), getAliasFromEntity(account));
+                contract.call_isKycGranted(toAddress(tokenId).toHexString(), getAliasFromEntity(account));
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -151,14 +138,15 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var account = accountEntityPersistHistorical(historicalRange);
-        final var tokenEntity = nftPersistHistorical(historicalRange);
-        tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, account, historicalRange);
+        final var token = nftPersistHistorical(historicalRange);
+        final var tokenId = token.getTokenId();
+        tokenAccountFrozenRelationshipPersistHistorical(tokenId, account.getId(), historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
         final var functionCall =
-                contract.call_isKycGranted(getAddressFromEntity(tokenEntity), getAddressFromEntity(account));
+                contract.call_isKycGranted(toAddress(tokenId).toHexString(), getAddressFromEntity(account));
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -170,14 +158,15 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var account = accountEntityPersistWithEvmAddressHistorical(historicalRange);
-        final var tokenEntity = nftPersistHistorical(historicalRange);
-        tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, account, historicalRange);
+        final var token = nftPersistHistorical(historicalRange);
+        final var tokenId = token.getTokenId();
+        tokenAccountFrozenRelationshipPersistHistorical(tokenId, account.getId(), historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
         final var functionCall =
-                contract.call_isKycGranted(getAddressFromEntity(tokenEntity), getAliasFromEntity(account));
+                contract.call_isKycGranted(toAddress(tokenId).toHexString(), getAliasFromEntity(account));
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -188,13 +177,13 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void isTokenAddress(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        fungibleTokenPersistHistorical(tokenEntity, historicalRange);
+        final var token = fungibleTokenPersistHistorical(historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
-        final var functionCall = contract.call_isTokenAddress(getAddressFromEntity(tokenEntity));
+        final var functionCall =
+                contract.call_isTokenAddress(toAddress(token.getTokenId()).toHexString());
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -205,12 +194,13 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void isTokenAddressNFT(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var tokenEntity = nftPersistHistorical(historicalRange);
+        final var token = nftPersistHistorical(historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
-        final var functionCall = contract.call_isTokenAddress(getAddressFromEntity(tokenEntity));
+        final var functionCall =
+                contract.call_isTokenAddress(toAddress(token.getTokenId()).toHexString());
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -222,13 +212,9 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .kycStatus(TokenKycStatusEnum.GRANTED)
-                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .timestampRange(historicalRange))
-                .persist();
+        fungibleTokenCustomizable(t -> t.tokenId(tokenEntity.getId())
+                .kycStatus(TokenKycStatusEnum.GRANTED)
+                .timestampRange(historicalRange));
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
@@ -244,12 +230,13 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void getDefaultKycNFT(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var tokenEntity = nftPersistHistorical(historicalRange);
+        final var token = nftPersistHistorical(historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
-        final var functionCall = contract.call_getTokenDefaultKyc(getAddressFromEntity(tokenEntity));
+        final var functionCall =
+                contract.call_getTokenDefaultKyc(toAddress(token.getTokenId()).toHexString());
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -260,13 +247,13 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void getTokenType(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        fungibleTokenPersistHistorical(tokenEntity, historicalRange);
+        final var token = fungibleTokenPersistHistorical(historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
-        final var functionCall = contract.call_getType(getAddressFromEntity(tokenEntity));
+        final var functionCall =
+                contract.call_getType(toAddress(token.getTokenId()).toHexString());
 
         // Then
         assertThat(functionCall.send()).isEqualTo(BigInteger.ZERO);
@@ -277,12 +264,13 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void getTokenTypeNFT(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var tokenEntity = nftPersistHistorical(historicalRange);
+        final var token = nftPersistHistorical(historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
-        final var functionCall = contract.call_getType(getAddressFromEntity(tokenEntity));
+        final var functionCall =
+                contract.call_getType(toAddress(token.getTokenId()).toHexString());
 
         // Then
         assertThat(functionCall.send()).isEqualTo(BigInteger.ONE);
@@ -294,13 +282,8 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .freezeDefault(true)
-                        .timestampRange(historicalRange))
-                .persist();
+        fungibleTokenCustomizable(
+                t -> t.tokenId(tokenEntity.getId()).freezeDefault(true).timestampRange(historicalRange));
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
@@ -317,17 +300,10 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                        .freezeDefault(true)
-                        .timestampRange(historicalRange))
-                .persist();
-        domainBuilder
-                .nft()
-                .customize(n -> n.tokenId(tokenEntity.getId()).serialNumber(1L).timestampRange(historicalRange))
-                .persist();
+        final var tokenId = tokenEntity.getId();
+        nonFungibleTokenCustomizable(t -> t.tokenId(tokenId).freezeDefault(true).timestampRange(historicalRange));
+
+        nftPersistCustomizable(n -> n.tokenId(tokenId).timestampRange(historicalRange));
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
@@ -343,17 +319,17 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void getCustomFeesForTokenWithFixedFee(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        fungibleTokenPersistHistorical(tokenEntity, historicalRange);
+        final var token = fungibleTokenPersistHistorical(historicalRange);
+        final var tokenId = token.getTokenId();
         final var collectorAccount = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var fixedFee = com.hedera.mirror.common.domain.token.FixedFee.builder()
-                .amount(100L)
+                .amount(DEFAULT_FEE_AMOUNT.longValue())
                 .collectorAccountId(collectorAccount.toEntityId())
-                .denominatingTokenId(tokenEntity.toEntityId())
+                .denominatingTokenId(EntityId.of(tokenId))
                 .build();
         domainBuilder
                 .customFee()
-                .customize(f -> f.entityId(tokenEntity.getId())
+                .customize(f -> f.entityId(tokenId)
                         .fixedFees(List.of(fixedFee))
                         .fractionalFees(List.of())
                         .royaltyFees(List.of())
@@ -361,13 +337,14 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 .persist();
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
+        final var tokenAddress = toAddress(tokenId).toHexString();
 
         // When
-        final var functionCall = contract.call_getCustomFeesForToken(getAddressFromEntity(tokenEntity));
+        final var functionCall = contract.call_getCustomFeesForToken(tokenAddress);
 
         final var expectedFee = new PrecompileTestContractHistorical.FixedFee(
-                BigInteger.valueOf(100L),
-                getAddressFromEntity(tokenEntity),
+                DEFAULT_FEE_AMOUNT,
+                tokenAddress,
                 false,
                 false,
                 Address.fromHexString(
@@ -384,19 +361,19 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var collectorAccount = accountEntityPersistWithEvmAddressHistorical(historicalRange);
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        fungibleTokenPersistHistorical(tokenEntity, historicalRange);
+        final var token = fungibleTokenPersistHistorical(historicalRange);
+        final var tokenId = token.getTokenId();
         final var fractionalFee = FractionalFee.builder()
                 .collectorAccountId(collectorAccount.toEntityId())
-                .denominator(10L)
-                .minimumAmount(1L)
-                .maximumAmount(1000L)
+                .denominator(DEFAULT_DENOMINATOR_VALUE.longValue())
+                .minimumAmount(DEFAULT_FEE_MIN_VALUE.longValue())
+                .maximumAmount(DEFAULT_FEE_MAX_VALUE.longValue())
                 .netOfTransfers(true)
-                .numerator(100L)
+                .numerator(DEFAULT_NUMERATOR_VALUE.longValue())
                 .build();
         domainBuilder
                 .customFee()
-                .customize(f -> f.entityId(tokenEntity.getId())
+                .customize(f -> f.entityId(tokenId)
                         .fractionalFees(List.of(fractionalFee))
                         .fixedFees(List.of())
                         .royaltyFees(List.of())
@@ -406,13 +383,14 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
-        final var functionCall = contract.call_getCustomFeesForToken(getAddressFromEntity(tokenEntity));
+        final var functionCall =
+                contract.call_getCustomFeesForToken(toAddress(tokenId).toHexString());
 
         final var expectedFee = new PrecompileTestContractHistorical.FractionalFee(
-                BigInteger.valueOf(100L),
-                BigInteger.valueOf(10L),
-                BigInteger.valueOf(1L),
-                BigInteger.valueOf(1000L),
+                DEFAULT_NUMERATOR_VALUE,
+                DEFAULT_DENOMINATOR_VALUE,
+                DEFAULT_FEE_MIN_VALUE,
+                DEFAULT_FEE_MAX_VALUE,
                 true,
                 Address.fromHexString(
                                 Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
@@ -428,20 +406,23 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var collectorAccount = accountEntityPersistWithEvmAddressHistorical(historicalRange);
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        fungibleTokenPersistHistorical(tokenEntity, historicalRange);
+
+        final var token = fungibleTokenPersistHistorical(historicalRange);
+        final var tokenId = token.getTokenId();
+        final var tokenEntityId = EntityId.of(tokenId);
+
         final var royaltyFee = RoyaltyFee.builder()
                 .collectorAccountId(collectorAccount.toEntityId())
-                .denominator(10L)
+                .denominator(DEFAULT_DENOMINATOR_VALUE.longValue())
                 .fallbackFee(FallbackFee.builder()
-                        .amount(100L)
-                        .denominatingTokenId(tokenEntity.toEntityId())
+                        .amount(DEFAULT_FEE_AMOUNT.longValue())
+                        .denominatingTokenId(tokenEntityId)
                         .build())
-                .numerator(20L)
+                .numerator(DEFAULT_NUMERATOR_VALUE.longValue())
                 .build();
         domainBuilder
                 .customFee()
-                .customize(f -> f.entityId(tokenEntity.getId())
+                .customize(f -> f.entityId(tokenId)
                         .royaltyFees(List.of(royaltyFee))
                         .fixedFees(List.of())
                         .fractionalFees(List.of())
@@ -451,14 +432,15 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
-        final var functionCall = contract.call_getCustomFeesForToken(getAddressFromEntity(tokenEntity));
+        final var functionCall =
+                contract.call_getCustomFeesForToken(toAddress(tokenId).toHexString());
 
         final var expectedFee = new PrecompileTestContractHistorical.RoyaltyFee(
-                BigInteger.valueOf(20L),
-                BigInteger.valueOf(10L),
-                BigInteger.valueOf(100L),
+                DEFAULT_NUMERATOR_VALUE,
+                DEFAULT_DENOMINATOR_VALUE,
+                DEFAULT_FEE_AMOUNT,
                 EntityIdUtils.asHexedEvmAddress(
-                        new Id(tokenEntity.getShard(), tokenEntity.getRealm(), tokenEntity.getNum())),
+                        new Id(tokenEntityId.getShard(), tokenEntityId.getRealm(), tokenEntityId.getNum())),
                 false,
                 Address.fromHexString(
                                 Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
@@ -484,7 +466,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                         .timestampRange(historicalRange)
                         .autoRenewPeriod(autoRenewExpiry))
                 .persist();
-        fungibleTokenPersistHistorical(tokenEntity, historicalRange);
+        fungibleTokenPersistHistoricalCustomizable(historicalRange, t -> t.tokenId(tokenEntity.getId()));
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
@@ -508,25 +490,15 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var approvedAccount = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                        .freezeDefault(true)
-                        .timestampRange(historicalRange))
-                .persist();
-        domainBuilder
-                .nft()
-                .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(1L)
-                        .timestampRange(historicalRange)
-                        .spender(approvedAccount.toEntityId()))
-                .persist();
+        final var tokenId = tokenEntity.getId();
+        nonFungibleTokenCustomizable(t -> t.tokenId(tokenId).freezeDefault(true).timestampRange(historicalRange));
+        nftPersistCustomizable(
+                n -> n.tokenId(tokenId).timestampRange(historicalRange).spender(approvedAccount.toEntityId()));
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
-        final var functionCall = contract.call_htsGetApproved(getAddressFromEntity(tokenEntity), BigInteger.ONE);
+        final var functionCall = contract.call_htsGetApproved(getAddressFromEntity(tokenEntity), DEFAULT_SERIAL_NUMBER);
         final var result = functionCall.send();
 
         // Then
@@ -538,30 +510,26 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void getAllowanceForToken(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var amountGranted = 50L;
         final var owner = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var spender = accountEntityPersistWithEvmAddressHistorical(historicalRange);
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        fungibleTokenPersistHistorical(tokenEntity, historicalRange);
+        final var token = fungibleTokenPersistHistorical(historicalRange);
+        final var tokenId = token.getTokenId();
 
-        domainBuilder
-                .tokenAllowance()
-                .customize(a -> a.tokenId(tokenEntity.getId())
-                        .owner(owner.getNum())
-                        .spender(spender.getNum())
-                        .amount(amountGranted)
-                        .amountGranted(amountGranted)
-                        .timestampRange(historicalRange))
-                .persist();
+        tokenAllowancePersistCustomizable(a -> a.tokenId(tokenId)
+                .owner(owner.getNum())
+                .spender(spender.getNum())
+                .amount(DEFAULT_AMOUNT_GRANTED)
+                .amountGranted(DEFAULT_AMOUNT_GRANTED)
+                .timestampRange(historicalRange));
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
         final var functionCall = contract.call_htsAllowance(
-                getAddressFromEntity(tokenEntity), getAliasFromEntity(owner), getAliasFromEntity(spender));
+                toAddress(tokenId).toHexString(), getAliasFromEntity(owner), getAliasFromEntity(spender));
 
         // Then
-        assertThat(functionCall.send()).isEqualTo(BigInteger.valueOf(amountGranted));
+        assertThat(functionCall.send()).isEqualTo(BigInteger.valueOf(DEFAULT_AMOUNT_GRANTED));
     }
 
     @ParameterizedTest
@@ -571,22 +539,20 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var owner = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var spender = accountEntityPersistWithEvmAddressHistorical(historicalRange);
-        final var tokenEntity = nftPersistHistorical(historicalRange);
+        final var token = nftPersistHistorical(historicalRange);
+        final var tokenId = token.getTokenId();
 
-        domainBuilder
-                .nftAllowance()
-                .customize(a -> a.tokenId(tokenEntity.getId())
-                        .owner(owner.getNum())
-                        .spender(spender.getNum())
-                        .timestampRange(historicalRange)
-                        .approvedForAll(true))
-                .persist();
+        nftAllowancePersistCustomizable(a -> a.tokenId(tokenId)
+                .owner(owner.getNum())
+                .spender(spender.getNum())
+                .timestampRange(historicalRange)
+                .approvedForAll(true));
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
         final var functionCall = contract.call_htsIsApprovedForAll(
-                getAddressFromEntity(tokenEntity), getAliasFromEntity(owner), getAliasFromEntity(spender));
+                toAddress(tokenId).toHexString(), getAliasFromEntity(owner), getAliasFromEntity(spender));
 
         // Then
         assertThat(functionCall.send()).isEqualTo(Boolean.TRUE);
@@ -597,24 +563,19 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void getFungibleTokenInfo(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var tokenSupply = 900L;
 
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         final var treasury =
-                accountPersistWithBalanceHistorical(tokenSupply, tokenEntity.toEntityId(), historicalRange);
+                accountPersistWithBalanceHistorical(DEFAULT_TOKEN_SUPPLY, tokenEntity.toEntityId(), historicalRange);
         final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
 
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .treasuryAccountId(treasury.toEntityId())
-                        .timestampRange(historicalRange)
-                        .totalSupply(tokenSupply))
-                .persist();
+        final var token = fungibleTokenCustomizable(t -> t.tokenId(tokenEntity.getId())
+                .treasuryAccountId(treasury.toEntityId())
+                .timestampRange(historicalRange)
+                .totalSupply(DEFAULT_TOKEN_SUPPLY));
 
         final var customFees = customFeesWithFeeCollectorPersistHistorical(
-                feeCollector, tokenEntity, TokenTypeEnum.FUNGIBLE_COMMON, historicalRange);
+                feeCollector.toEntityId(), tokenEntity.toEntityId(), TokenTypeEnum.FUNGIBLE_COMMON, historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
@@ -652,32 +613,28 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var treasury = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                        .treasuryAccountId(treasury.toEntityId())
-                        .timestampRange(historicalRange)
-                        .createdTimestamp(historicalRange.lowerEndpoint())
-                        .totalSupply(1L))
-                .persist();
-        final var nft = domainBuilder
-                .nft()
-                .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(1L)
-                        .accountId(owner.toEntityId())
-                        .timestampRange(historicalRange)
-                        .createdTimestamp(historicalRange.lowerEndpoint()))
-                .persist();
+        final var token = nonFungibleTokenCustomizable(t -> t.tokenId(tokenEntity.getId())
+                .treasuryAccountId(treasury.toEntityId())
+                .timestampRange(historicalRange)
+                .createdTimestamp(historicalRange.lowerEndpoint())
+                .totalSupply(1L));
+
+        final var nft = nftPersistCustomizable(n -> n.tokenId(tokenEntity.getId())
+                .accountId(owner.toEntityId())
+                .timestampRange(historicalRange)
+                .createdTimestamp(historicalRange.lowerEndpoint()));
 
         final var customFees = customFeesWithFeeCollectorPersistHistorical(
-                feeCollector, tokenEntity, TokenTypeEnum.NON_FUNGIBLE_UNIQUE, historicalRange);
+                feeCollector.toEntityId(),
+                tokenEntity.toEntityId(),
+                TokenTypeEnum.NON_FUNGIBLE_UNIQUE,
+                historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
         final var result = contract.call_getInformationForNonFungibleToken(
-                        getAddressFromEntity(tokenEntity), BigInteger.ONE)
+                        getAddressFromEntity(tokenEntity), DEFAULT_SERIAL_NUMBER)
                 .send();
 
         final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury);
@@ -710,24 +667,19 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void getTokenInfoFungible(long blockNumber) throws Exception {
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
-        final var tokenSupply = 1000L;
 
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         final var treasury =
-                accountPersistWithBalanceHistorical(tokenSupply, tokenEntity.toEntityId(), historicalRange);
+                accountPersistWithBalanceHistorical(DEFAULT_TOKEN_SUPPLY, tokenEntity.toEntityId(), historicalRange);
         final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
 
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
-                        .treasuryAccountId(treasury.toEntityId())
-                        .timestampRange(historicalRange)
-                        .totalSupply(tokenSupply))
-                .persist();
+        final var token = fungibleTokenCustomizable(t -> t.tokenId(tokenEntity.getId())
+                .treasuryAccountId(treasury.toEntityId())
+                .timestampRange(historicalRange)
+                .totalSupply(DEFAULT_TOKEN_SUPPLY));
 
         final var customFees = customFeesWithFeeCollectorPersistHistorical(
-                feeCollector, tokenEntity, TokenTypeEnum.FUNGIBLE_COMMON, historicalRange);
+                feeCollector.toEntityId(), tokenEntity.toEntityId(), TokenTypeEnum.FUNGIBLE_COMMON, historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
@@ -758,25 +710,21 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var treasury = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.tokenId(tokenEntity.getId())
-                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                        .treasuryAccountId(treasury.toEntityId())
-                        .timestampRange(historicalRange)
-                        .createdTimestamp(historicalRange.lowerEndpoint())
-                        .totalSupply(1L))
-                .persist();
-        domainBuilder
-                .nft()
-                .customize(n -> n.tokenId(tokenEntity.getId())
-                        .serialNumber(1L)
-                        .timestampRange(historicalRange)
-                        .createdTimestamp(historicalRange.lowerEndpoint()))
-                .persist();
+        final var token = nonFungibleTokenCustomizable(t -> t.tokenId(tokenEntity.getId())
+                .treasuryAccountId(treasury.toEntityId())
+                .timestampRange(historicalRange)
+                .createdTimestamp(historicalRange.lowerEndpoint())
+                .totalSupply(1L));
+
+        nftPersistCustomizable(n -> n.tokenId(tokenEntity.getId())
+                .timestampRange(historicalRange)
+                .createdTimestamp(historicalRange.lowerEndpoint()));
 
         final var customFees = customFeesWithFeeCollectorPersistHistorical(
-                feeCollector, tokenEntity, TokenTypeEnum.NON_FUNGIBLE_UNIQUE, historicalRange);
+                feeCollector.toEntityId(),
+                tokenEntity.toEntityId(),
+                TokenTypeEnum.NON_FUNGIBLE_UNIQUE,
+                historicalRange);
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 

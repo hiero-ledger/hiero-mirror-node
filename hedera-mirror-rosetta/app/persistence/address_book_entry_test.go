@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2019-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package persistence
 
@@ -28,10 +14,10 @@ import (
 )
 
 var (
-	accountId3   = domain.MustDecodeEntityId(3)
-	accountId4   = domain.MustDecodeEntityId(4)
-	accountId70  = domain.MustDecodeEntityId(70)
-	accountId80  = domain.MustDecodeEntityId(80)
+	accountId3   = mustEncode(1023, 0, 3)
+	accountId4   = mustEncode(1023, 0, 4)
+	accountId70  = mustEncode(1023, 0, 70)
+	accountId80  = mustEncode(1023, 0, 80)
 	addressBooks = []*domain.AddressBook{
 		getAddressBook(9, 0, 102),
 		getAddressBook(10, 19, 101),
@@ -149,20 +135,6 @@ func (suite *addressBookEntryRepositorySuite) TestEntriesNoFile101() {
 	assert.Equal(suite.T(), expected, actual)
 }
 
-func (suite *addressBookEntryRepositorySuite) TestEntriesDbInvalidNodeAccountId() {
-	// given
-	db.CreateDbRecords(dbClient, addressBooks, getAddressBookEntry(20, 0, domain.EntityId{EncodedId: -1}))
-
-	repo := NewAddressBookEntryRepository(dbClient)
-
-	// when
-	actual, err := repo.Entries(defaultContext)
-
-	// then
-	assert.NotNil(suite.T(), err)
-	assert.Nil(suite.T(), actual)
-}
-
 func (suite *addressBookEntryRepositorySuite) TestEntriesDbConnectionError() {
 	// given
 	repo := NewAddressBookEntryRepository(invalidDbClient)
@@ -193,4 +165,13 @@ func getAddressBookEntry(
 		NodeId:             nodeId,
 		NodeAccountId:      nodeAccountId,
 	}
+}
+
+func mustEncode(shard, realm, num int64) domain.EntityId {
+	encodedId, err := domain.EntityIdOf(shard, realm, num)
+	if err != nil {
+		panic(err)
+	}
+
+	return encodedId
 }

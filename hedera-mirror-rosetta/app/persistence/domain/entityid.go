@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2019-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package domain
 
@@ -26,9 +12,9 @@ import (
 )
 
 const (
-	shardBits  int   = 15
+	shardBits  int   = 10
 	realmBits  int   = 16
-	numberBits int   = 32
+	numberBits int   = 38
 	shardMask  int64 = (int64(1) << shardBits) - 1
 	realmMask  int64 = (int64(1) << realmBits) - 1
 	numberMask int64 = (int64(1) << numberBits) - 1
@@ -122,12 +108,8 @@ func EncodeEntityId(shardNum int64, realmNum int64, entityNum int64) (int64, err
 
 // DecodeEntityId - decodes the Entity DB id into EntityId struct
 func DecodeEntityId(encodedID int64) (EntityId, error) {
-	if encodedID < 0 {
-		return EntityId{}, fmt.Errorf("encodedID cannot be negative: %d", encodedID)
-	}
-
 	return EntityId{
-		ShardNum:  encodedID >> (realmBits + numberBits),
+		ShardNum:  encodedID >> (realmBits + numberBits) & shardMask,
 		RealmNum:  (encodedID >> numberBits) & realmMask,
 		EntityNum: encodedID & numberMask,
 		EncodedId: encodedID,

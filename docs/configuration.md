@@ -16,6 +16,15 @@ passwords be changed from the default**.
 Depending upon your deployment tool, the process to modify this configuration may vary. For our Helm charts, we do
 support automatic generation of random [passwords](/charts/README.md#passwords).
 
+## Common
+
+Some variables are common to more than one module.
+
+| Name                         | Default | Description                                                |
+| ---------------------------- | ------- | ---------------------------------------------------------- |
+| `hedera.mirror.common.realm` | 0       | The default base realm the mirror node participates in.    |
+| `hedera.mirror.common.shard` | 0       | The default shard number this mirror node participates in. |
+
 ## Importer
 
 The Importer component uses [Spring Boot](https://spring.io/projects/spring-boot) properties to configure the
@@ -142,7 +151,6 @@ value, it is recommended to only populate overridden properties in the custom `a
 | `hedera.mirror.importer.parser.record.entity.persist.ethereumTransactions`       | true                                                 | Persist all ethereum transactions data to the database                                                                                                                                                                                                             |
 | `hedera.mirror.importer.parser.record.entity.persist.files`                      | true                                                 | Persist all file data to the database                                                                                                                                                                                                                              |
 | `hedera.mirror.importer.parser.record.entity.persist.itemizedTransfers`          | false                                                | Persist itemized transfers for transactions that explicitly request hbar transfers                                                                                                                                                                                 |
-| `hedera.mirror.importer.parser.record.entity.persist.nodes`                      | true                                                 | Persist node transaction data to the database                                                                                                                                                                                                                      |
 | `hedera.mirror.importer.parser.record.entity.persist.pendingReward`              | true                                                 | Calculate pending reward and update entity stake state                                                                                                                                                                                                             |
 | `hedera.mirror.importer.parser.record.entity.persist.schedules`                  | true                                                 | Persist schedule transactions to the database                                                                                                                                                                                                                      |
 | `hedera.mirror.importer.parser.record.entity.persist.syntheticContractLogs`      | true                                                 | Persist synthetic contract logs from HAPI transaction to the database                                                                                                                                                                                              |
@@ -194,7 +202,6 @@ value, it is recommended to only populate overridden properties in the custom `a
 | `hedera.mirror.importer.retention.include`                                       | []                                                   | Which tables to include when pruning data. By default it is empty to indicate all tables that can be pruned will be.                                                                                                                                               |
 | `hedera.mirror.importer.retention.period`                                        | 90d                                                  | How far in the past to remove data. This value is relative to the timestamp of the last transaction in the database and not to the current time.                                                                                                                   |
 | `hedera.mirror.importer.topicRunningHashV2AddedTimestamp`                        | Network-based                                        | Unix timestamp (in nanos) of first topic message with v2 as running hash version. Use this config to override the default network based value                                                                                                                      |
-| `hedera.mirror.importer.shard`                                                   | 0                                                    | The default shard number that the component participates in                                                                                                                                                                                                        |
 | `hedera.mirror.importer.startDate`                                               |                                                      | The start date (inclusive) of the data to import. It takes effect 1) if it's set and the date is after the last downloaded file or the database is empty; 2) if it's not set and the database is empty, it defaults to now. Format: YYYY-MM-ddTHH:mm:ss.nnnnnnnnnZ |
 | `hedera.mirror.importer.startBlockNumber`                                        | null                                                 | The block number that will be set as the downloaded stream files starting index. For block stream files, it's the first block to download and ignored if there are existing blocks in database.                                                                    |
 
@@ -632,7 +639,6 @@ value, it is recommended to only populate overridden properties in the custom `a
 | `hedera.mirror.restJava.db.username`               | mirror_rest_java      | The username used to connect to the database                                                                                                                  |
 | `hedera.mirror.restJava.response.headers.defaults` | See application.yml   | The default headers to add to every response. For each header, specify its `name: value`                                                                      |
 | `hedera.mirror.restJava.response.headers.path`     | See application.yml   | Override default or add headers per path to add to every response. The key is the controller request mapping, then for each header, specify its `name: value` |
-| `hedera.mirror.restJava.shard`                     | 0                     | The default shard number that this mirror node participates in                                                                                                |
 
 ## Rosetta API
 
@@ -671,8 +677,6 @@ The following table lists the available properties along with their default valu
 | `hedera.mirror.rosetta.nodes`                      | {}                  | A map of main nodes with its service endpoint as the key and the node account id as its value       |
 | `hedera.mirror.rosetta.online`                     | true                | The default online mode of the Rosetta interface                                                    |
 | `hedera.mirror.rosetta.port`                       | 5700                | The REST API port                                                                                   |
-| `hedera.mirror.rosetta.realm`                      | 0                   | The default realm number within the shard                                                           |
-| `hedera.mirror.rosetta.shard`                      | 0                   | The default shard number that this mirror node participates in                                      |
 | `hedera.mirror.rosetta.shutdownTimeout`            | 10s                 | The time to wait for the server to shutdown gracefully                                              |
 
 ## Web3 API

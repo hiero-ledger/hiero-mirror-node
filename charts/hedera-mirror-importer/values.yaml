@@ -1,5 +1,6 @@
-# Base64 encoded contents of a bootstrap address book
-addressBook: ""
+# SPDX-License-Identifier: Apache-2.0
+
+addressBook: ""  # Base64 encoded contents of a bootstrap address book
 
 affinity:
   podAntiAffinity:
@@ -126,6 +127,8 @@ envFrom: []
 fullnameOverride: ""
 
 global:
+  config: {}
+  env: {}
   image: {}
   namespaceOverride: ""
   podAnnotations: {}

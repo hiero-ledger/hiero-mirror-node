@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2019-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package config
 
@@ -43,16 +29,19 @@ const (
 	nodesEnvKey     = "HEDERA_MIRROR_ROSETTA_NODES"
 )
 
+type Mirror struct {
+	Common  CommonConfig
+	Rosetta Config
+}
+
 type fullConfig struct {
 	Hedera struct {
-		Mirror struct {
-			Rosetta Config
-		}
+		Mirror Mirror
 	}
 }
 
 // LoadConfig loads configuration from yaml files and env variables
-func LoadConfig() (*Config, error) {
+func LoadConfig() (*Mirror, error) {
 	nodeMap, err := loadNodeMapFromEnv()
 	if err != nil {
 		return nil, err
@@ -95,18 +84,18 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
-	rosettaConfig := &config.Hedera.Mirror.Rosetta
-	rosettaConfig.Network = strings.ToLower(rosettaConfig.Network)
+	mirrorConfig := &config.Hedera.Mirror
+	mirrorConfig.Rosetta.Network = strings.ToLower(mirrorConfig.Rosetta.Network)
 	if len(nodeMap) != 0 {
-		rosettaConfig.Nodes = nodeMap
+		mirrorConfig.Rosetta.Nodes = nodeMap
 	}
 
-	var password = rosettaConfig.Db.Password
-	rosettaConfig.Db.Password = "" // Don't print password
-	log.Infof("Using configuration: %+v", rosettaConfig)
-	rosettaConfig.Db.Password = password
+	var password = mirrorConfig.Rosetta.Db.Password
+	mirrorConfig.Rosetta.Db.Password = "" // Don't print password
+	log.Infof("Using configuration: %+v", mirrorConfig)
+	mirrorConfig.Rosetta.Db.Password = password
 
-	return rosettaConfig, nil
+	return mirrorConfig, nil
 }
 
 func loadNodeMapFromEnv() (NodeMap, error) {

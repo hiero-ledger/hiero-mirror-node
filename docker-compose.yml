@@ -1,21 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0
+
 services:
   api-proxy:
+    configs:
+      - source: proxy-config
+        target: /etc/nginx/conf.d/default.conf
     image: nginx:1-alpine
     restart: unless-stopped
     ports:
       - 8080:8080
     tty: true
-    configs:
-      - source: api-proxy-inline-config
-        target: /etc/nginx/conf.d/default.conf
 
   db:
-    image: postgres:16-alpine
     environment:
       PGDATA: /var/lib/postgresql/data
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
       POSTGRES_PASSWORD: postgres_password
+    image: postgres:16-alpine
     ports:
       - 5432:5432
     restart: unless-stopped
@@ -27,54 +29,60 @@ services:
       - ./hedera-mirror-importer/src/main/resources/db/scripts/init.sh:/docker-entrypoint-initdb.d/init.sh
 
   graphql:
-    image: gcr.io/mirrornode/hedera-mirror-graphql:0.125.0-SNAPSHOT
-    pull_policy: always
+    configs:
+      - source: app-config
+        target: /usr/etc/hedera/application.yml
     deploy:
       replicas: 0
     environment:
       HEDERA_MIRROR_GRAPHQL_DB_HOST: db
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera-mirror-graphql/
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
+    image: gcr.io/mirrornode/hedera-mirror-graphql:0.126.0-SNAPSHOT
     ports:
       - 8083:8083
+    pull_policy: always
     restart: unless-stopped
     tty: true
-    volumes:
-      - ./application.yml:/usr/etc/hedera-mirror-graphql/application.yml
 
   grpc:
-    image: gcr.io/mirrornode/hedera-mirror-grpc:0.125.0-SNAPSHOT
-    pull_policy: always
-    restart: unless-stopped
+    configs:
+      - source: app-config
+        target: /usr/etc/hedera/application.yml
     environment:
       HEDERA_MIRROR_GRPC_DB_HOST: db
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera-mirror-grpc/
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
       SPRING_DATA_REDIS_HOST: redis
+    image: gcr.io/mirrornode/hedera-mirror-grpc:0.126.0-SNAPSHOT
     ports:
       - 5600:5600
-    volumes:
-      - ./application.yml:/usr/etc/hedera-mirror-grpc/application.yml
+    pull_policy: always
+    restart: unless-stopped
+    tty: true
 
   importer:
-    image: gcr.io/mirrornode/hedera-mirror-importer:0.125.0-SNAPSHOT
-    pull_policy: always
-    restart: unless-stopped
+    configs:
+      - source: app-config
+        target: /usr/etc/hedera/application.yml
     environment:
       HEDERA_MIRROR_IMPORTER_DB_HOST: db
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera-mirror-importer/
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
       SPRING_DATA_REDIS_HOST: redis
-    volumes:
-      - ./application.yml:/usr/etc/hedera-mirror-importer/application.yml
-
-  monitor:
-    deploy:
-      replicas: 0
-    image: gcr.io/mirrornode/hedera-mirror-monitor:0.125.0-SNAPSHOT
+    image: gcr.io/mirrornode/hedera-mirror-importer:0.126.0-SNAPSHOT
     pull_policy: always
     restart: unless-stopped
+    tty: true
+
+  monitor:
+    configs:
+      - source: app-config
+        target: /usr/etc/hedera/application.yml
+    deploy:
+      replicas: 0
     environment:
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera-mirror-monitor/
-    volumes:
-      - ./application.yml:/usr/etc/hedera-mirror-monitor/application.yml
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
+    image: gcr.io/mirrornode/hedera-mirror-monitor:0.126.0-SNAPSHOT
+    pull_policy: always
+    restart: unless-stopped
 
   redis:
     image: redis:6-alpine
@@ -86,58 +94,78 @@ services:
     tty: true
 
   rest:
-    image: gcr.io/mirrornode/hedera-mirror-rest:0.125.0-SNAPSHOT
-    pull_policy: always
+    configs:
+      - source: app-config
+        target: /usr/etc/hedera/application.yml
     environment:
+      CONFIG_PATH: /usr/etc/hedera/
       HEDERA_MIRROR_REST_DB_HOST: db
       HEDERA_MIRROR_REST_REDIS_URI: redis://redis:6379
+    image: gcr.io/mirrornode/hedera-mirror-rest:0.126.0-SNAPSHOT
+    pull_policy: always
     ports:
       - 5551:5551
     restart: unless-stopped
     tty: true
 
   rest-java:
-    image: gcr.io/mirrornode/hedera-mirror-rest-java:0.125.0-SNAPSHOT
-    pull_policy: always
+    configs:
+      - source: app-config
+        target: /usr/etc/hedera/application.yml
     environment:
       HEDERA_MIRROR_RESTJAVA_DB_HOST: db
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera-mirror-rest-java/
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
+    image: gcr.io/mirrornode/hedera-mirror-rest-java:0.126.0-SNAPSHOT
+    pull_policy: always
     ports:
       - 8084:8084
     restart: unless-stopped
     tty: true
-    volumes:
-      - ./application.yml:/usr/etc/hedera-mirror-rest-java/application.yml
 
   rosetta:
-    image: gcr.io/mirrornode/hedera-mirror-rosetta:0.125.0-SNAPSHOT
+    configs:
+      - source: app-config
+        target: /usr/etc/hedera/application.yml
     deploy:
       replicas: 0
-    pull_policy: always
     environment:
+      HEDERA_MIRROR_ROSETTA_API_CONFIG: /usr/etc/hedera/application.yml
       HEDERA_MIRROR_ROSETTA_DB_HOST: db
+    image: gcr.io/mirrornode/hedera-mirror-rosetta:0.126.0-SNAPSHOT
+    pull_policy: always
     ports:
       - 5700:5700
     restart: unless-stopped
     tty: true
-    volumes:
-      - ./application.yml:/src/hedera-mirror-rosetta/application.yml
 
   web3:
-    image: gcr.io/mirrornode/hedera-mirror-web3:0.125.0-SNAPSHOT
-    pull_policy: always
+    configs:
+      - source: app-config
+        target: /usr/etc/hedera/application.yml
     environment:
       HEDERA_MIRROR_WEB3_DB_HOST: db
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera-mirror-web3/
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
+    image: gcr.io/mirrornode/hedera-mirror-web3:0.126.0-SNAPSHOT
+    pull_policy: always
     ports:
       - 8545:8545
     restart: unless-stopped
     tty: true
-    volumes:
-      - ./application.yml:/usr/etc/hedera-mirror-web3/application.yml
 
 configs:
-  api-proxy-inline-config:
+  app-config:
+    content: |
+      hedera:
+        mirror:
+          importer:
+            network: DEMO # Select one of PREVIEWNET/TESTNET/MAINNET and populate below config
+      #     downloader:
+      #       accessKey: {GOOG1E/AWS....}
+      #       cloudProvider: "GCP/S3"
+      #       gcpProjectId: {projectId} # N/A for AWS
+      #       secretKey: {GOOG1E/AWS....}
+
+  proxy-config:
     content: |
       # YAML uses $ for variable substitution, so we use $$ when using nginx variables.
 

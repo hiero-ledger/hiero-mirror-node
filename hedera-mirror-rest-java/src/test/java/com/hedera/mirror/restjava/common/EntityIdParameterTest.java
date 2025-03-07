@@ -1,31 +1,15 @@
-/*
- * Copyright (C) 2024-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.restjava.common;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 import com.google.common.io.BaseEncoding;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.exception.InvalidEntityException;
-import com.hedera.mirror.restjava.RestJavaProperties;
 import org.bouncycastle.util.encoders.Hex;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,28 +17,16 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class EntityIdParameterTest {
 
-    @Mock
-    private RestJavaProperties properties;
-
-    private MockedStatic<SpringApplicationContext> context;
+    private final CommonProperties commonProperties = new CommonProperties();
 
     @BeforeEach
-    void setUp() {
-        context = Mockito.mockStatic(SpringApplicationContext.class);
-        when(SpringApplicationContext.getBean(RestJavaProperties.class)).thenReturn(properties);
-    }
-
-    @AfterEach
-    void closeMocks() {
-        context.close();
+    void setup() {
+        EntityIdParameter.PROPERTIES.set(commonProperties);
     }
 
     @ParameterizedTest
@@ -80,29 +52,39 @@ class EntityIdParameterTest {
             })
     @DisplayName("EntityId parse from string tests, negative cases")
     void entityParseFromStringFailure(String inputId) {
-        assertThrows(IllegalArgumentException.class, () -> EntityIdParameter.valueOf(inputId));
+        assertThatThrownBy(() -> EntityIdParameter.valueOf(inputId)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"0.0.4294967296", "32768.65536.4294967296"})
+    @ValueSource(strings = {"0.65536.1", "1024.1.1"})
     @DisplayName("EntityId parse from string tests, negative cases for ID having valid format")
     void testInvalidEntity(String input) {
-        assertThrows(InvalidEntityException.class, () -> EntityIdParameter.valueOf(input));
+        assertThatThrownBy(() -> EntityIdParameter.valueOf(input)).isInstanceOf(InvalidEntityException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1", "0x0000000000000000000000000000000000000001", "AABBCC22"})
+    void nonDefaultShardRealm(String value) {
+        commonProperties.setRealm(1000L);
+        commonProperties.setShard(1);
+        assertThat(EntityIdParameter.valueOf(value))
+                .returns(commonProperties.getRealm(), EntityIdParameter::realm)
+                .returns(commonProperties.getShard(), EntityIdParameter::shard);
     }
 
     @ParameterizedTest
     @CsvSource({
-        "0.0.0,0,0,0",
+        "1.2.3,1,2,3",
         "0,0,0,0",
-        "0.1,0,0,1",
+        "2.1,0,2,1",
         "0.0.4294967295,0,0,4294967295",
-        "65535.000000001,0,65535,1",
-        "32767.65535.4294967295,32767,65535,4294967295",
+        "65535.1,0,65535,1",
+        "1023.65535.274877906943,1023,65535,274877906943",
         "4294967295,0,0,4294967295"
     })
     void valueOfId(String givenEntityId, long expectedShard, long expectedRealm, long expectedNum) {
-        assertThat(EntityId.of(expectedShard, expectedRealm, expectedNum))
-                .isEqualTo(((EntityIdNumParameter) EntityIdParameter.valueOf(givenEntityId)).id());
+        assertThat(((EntityIdNumParameter) EntityIdParameter.valueOf(givenEntityId)).id())
+                .isEqualTo(EntityId.of(expectedShard, expectedRealm, expectedNum));
     }
 
     @ParameterizedTest

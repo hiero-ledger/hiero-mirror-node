@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.importer.downloader.block;
 
@@ -37,6 +23,7 @@ import static org.mockito.Mockito.when;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.transaction.BlockFile;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.importer.FileCopier;
@@ -101,7 +88,8 @@ class BlockStreamPollerTest {
     @TempDir
     private Path dataPath;
 
-    private CommonDownloaderProperties commonProperties;
+    private CommonProperties commonProperties;
+    private CommonDownloaderProperties commonDownloaderProperties;
     private FileCopier fileCopier;
     private ImporterProperties importerProperties;
     private List<ConsensusNode> nodes;
@@ -112,16 +100,21 @@ class BlockStreamPollerTest {
 
     private S3Proxy s3Proxy;
 
+    private static BlockFile blockFile(int index) {
+        return TEST_BLOCK_FILES.get(index);
+    }
+
     @BeforeEach
     void setup() {
         if (LoggerFactory.getLogger(getClass().getPackageName()) instanceof Logger log) {
             log.setLevel(Level.DEBUG);
         }
 
+        commonProperties = new CommonProperties();
         importerProperties = new ImporterProperties();
         importerProperties.setDataPath(archivePath);
-        commonProperties = new CommonDownloaderProperties(importerProperties);
-        commonProperties.setPathType(PathType.NODE_ID);
+        commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
+        commonDownloaderProperties.setPathType(PathType.NODE_ID);
         properties = new BlockPollerProperties();
         properties.setEnabled(true);
 
@@ -137,9 +130,9 @@ class BlockStreamPollerTest {
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .endpointOverride(URI.create("http://localhost:" + S3_PROXY_PORT))
                 .forcePathStyle(true)
-                .region(Region.of(commonProperties.getRegion()))
+                .region(Region.of(commonDownloaderProperties.getRegion()))
                 .build();
-        var streamFileProvider = new S3StreamFileProvider(commonProperties, s3AsyncClient);
+        var streamFileProvider = new S3StreamFileProvider(commonProperties, commonDownloaderProperties, s3AsyncClient);
         var blockFileTransformer = mock(BlockFileTransformer.class);
         lenient()
                 .doAnswer(invocation -> {
@@ -157,7 +150,7 @@ class BlockStreamPollerTest {
         blockStreamPoller = new BlockStreamPoller(
                 new ProtoBlockFileReader(),
                 blockStreamVerifier,
-                commonProperties,
+                commonDownloaderProperties,
                 consensusNodeService,
                 properties,
                 streamFileProvider);
@@ -165,8 +158,8 @@ class BlockStreamPollerTest {
         var fromPath = Path.of("data", "blockstreams");
         fileCopier = FileCopier.create(
                         TestUtils.getResource(fromPath.toString()).toPath(), dataPath)
-                .to(commonProperties.getBucketName())
-                .to(Long.toString(importerProperties.getShard()));
+                .to(commonDownloaderProperties.getBucketName())
+                .to(Long.toString(commonProperties.getShard()));
     }
 
     @AfterEach
@@ -323,14 +316,14 @@ class BlockStreamPollerTest {
     void timeout(CapturedOutput output) {
         // given
         String filename = BlockFile.getBlockStreamFilename(0L);
-        commonProperties.setTimeout(Duration.ofMillis(100L));
+        commonDownloaderProperties.setTimeout(Duration.ofMillis(100L));
         var streamFileProvider = mock(StreamFileProvider.class);
         when(streamFileProvider.get(any(), any()))
                 .thenReturn(Mono.delay(Duration.ofMillis(120L)).then(Mono.empty()));
         var poller = new BlockStreamPoller(
                 new ProtoBlockFileReader(),
                 blockStreamVerifier,
-                commonProperties,
+                commonDownloaderProperties,
                 consensusNodeService,
                 properties,
                 streamFileProvider);
@@ -427,10 +420,6 @@ class BlockStreamPollerTest {
                 .isZero();
     }
 
-    private static BlockFile blockFile(int index) {
-        return TEST_BLOCK_FILES.get(index);
-    }
-
     private long blockNumber(int index) {
         return blockFile(index).getIndex();
     }
@@ -444,7 +433,7 @@ class BlockStreamPollerTest {
                 .toFile());
         var actualFile = importerProperties
                 .getStreamPath()
-                .resolve(Long.toString(importerProperties.getShard()))
+                .resolve(Long.toString(commonProperties.getShard()))
                 .resolve(Long.toString(nodeId))
                 .resolve(filename)
                 .toFile();

@@ -86,6 +86,7 @@ a [Standalone NEG](https://cloud.google.com/kubernetes-engine/docs/how-to/standa
 1. Create a Kubernetes cluster utilizing a custom subnet.
 
    This can be done by setting a unique name for the subnet in the UI or through the console with the following command
+
    ```shell script
    gcloud container clusters create mirror-node \
        --enable-ip-alias \

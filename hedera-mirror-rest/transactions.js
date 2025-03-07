@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2019-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 import _ from 'lodash';
 
@@ -29,6 +15,7 @@ import * as utils from './utils';
 import {
   AssessedCustomFee,
   CryptoTransfer,
+  CustomFeeLimits,
   NftTransfer,
   StakingRewardTransfer,
   TokenTransfer,
@@ -37,7 +24,7 @@ import {
   TransactionType,
 } from './model';
 
-import {AssessedCustomFeeViewModel, NftTransferViewModel} from './viewmodel';
+import {AssessedCustomFeeViewModel, CustomFeeLimitsViewModel, NftTransferViewModel} from './viewmodel';
 
 const SUCCESS_PROTO_IDS = TransactionResult.getSuccessProtoIds();
 
@@ -61,6 +48,7 @@ const transactionFields = [
   Transaction.CHARGED_TX_FEE,
   Transaction.CONSENSUS_TIMESTAMP,
   Transaction.ENTITY_ID,
+  Transaction.MAX_CUSTOM_FEES,
   Transaction.MAX_FEE,
   Transaction.MEMO,
   Transaction.NFT_TRANSFER,
@@ -179,6 +167,16 @@ const createNftTransferList = (nftTransferList) => {
 };
 
 /**
+ * Creates a custom fee limit list
+ *
+ * @param {Buffer[]} maxCustomFeesList - The list of protobuf serialized bytes of proto.CustomFeeLimit
+ * @return An array of custom fee limit view models
+ */
+const createMaxCustomFeesList = (maxCustomFeesList) => {
+  return new CustomFeeLimitsViewModel(new CustomFeeLimits(maxCustomFeesList)).max_custom_fees;
+};
+
+/**
  * Format the output of the SQL query as an array of transaction objects per the view model.
  *
  * @param rows Array of rows returned as a result of the SQL query
@@ -196,6 +194,7 @@ const formatTransactionRows = async (rows) => {
       consensus_timestamp: utils.nsToSecNs(row.consensus_timestamp),
       entity_id: EntityId.parse(row.entity_id, {isNullable: true}).toString(),
       max_fee: utils.getNullableNumber(row.max_fee),
+      max_custom_fees: createMaxCustomFeesList(row.max_custom_fees),
       memo_base64: utils.encodeBase64(row.memo),
       name: TransactionType.getName(row.type),
       nft_transfers: createNftTransferList(row.nft_transfer),

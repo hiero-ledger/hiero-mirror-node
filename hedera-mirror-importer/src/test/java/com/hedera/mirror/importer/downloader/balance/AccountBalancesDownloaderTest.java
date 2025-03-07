@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2019-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.importer.downloader.balance;
 
@@ -21,6 +7,7 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
@@ -48,6 +35,7 @@ import org.mockito.Mock;
 
 class AccountBalancesDownloaderTest extends AbstractDownloaderTest<AccountBalanceFile> {
 
+    private final CommonProperties commonProperties = new CommonProperties();
     private final DomainBuilder domainBuilder = new DomainBuilder();
 
     @Mock
@@ -63,8 +51,8 @@ class AccountBalancesDownloaderTest extends AbstractDownloaderTest<AccountBalanc
     @Override
     protected Downloader<AccountBalanceFile, AccountBalance> getDownloader() {
         BalanceFileReader balanceFileReader = new BalanceFileReaderImplV1(
-                new BalanceParserProperties(), new AccountBalanceLineParserV1(importerProperties));
-        var streamFileProvider = new S3StreamFileProvider(commonDownloaderProperties, s3AsyncClient);
+                new BalanceParserProperties(), new AccountBalanceLineParserV1(commonProperties));
+        var streamFileProvider = new S3StreamFileProvider(commonProperties, commonDownloaderProperties, s3AsyncClient);
         return new AccountBalancesDownloader(
                 accountBalanceFileRepository,
                 consensusNodeService,
@@ -103,7 +91,7 @@ class AccountBalancesDownloaderTest extends AbstractDownloaderTest<AccountBalanc
         // .csv_sig files are intentionally made empty so if two account balance files are processed, they must be
         // the .pb.gz files
         ProtoBalanceFileReader protoBalanceFileReader = new ProtoBalanceFileReader();
-        var streamFileProvider = new S3StreamFileProvider(commonDownloaderProperties, s3AsyncClient);
+        var streamFileProvider = new S3StreamFileProvider(commonProperties, commonDownloaderProperties, s3AsyncClient);
         downloader = new AccountBalancesDownloader(
                 accountBalanceFileRepository,
                 consensusNodeService,

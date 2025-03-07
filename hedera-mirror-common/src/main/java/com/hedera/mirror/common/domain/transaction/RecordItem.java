@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2019-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.common.domain.transaction;
 
@@ -48,6 +34,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.CustomLog;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.Value;
@@ -81,6 +68,7 @@ public class RecordItem implements StreamItem {
     private final TransactionRecord transactionRecord;
     private final int transactionType;
 
+    @EqualsAndHashCode.Exclude
     @Getter(PRIVATE)
     private final AtomicInteger logIndex = new AtomicInteger(0);
 
@@ -210,7 +198,13 @@ public class RecordItem implements StreamItem {
 
     public static class RecordItemBuilder {
 
+        private TransactionRecord.Builder transactionRecordBuilder;
+
         public RecordItem build() {
+            if (transactionRecordBuilder != null) {
+                transactionRecord = transactionRecordBuilder.build();
+            }
+
             parseTransaction();
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
             this.parent = parseParent();
@@ -218,6 +212,22 @@ public class RecordItem implements StreamItem {
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
             return buildInternal();
+        }
+
+        public RecordItemBuilder transactionRecord(TransactionRecord transactionRecord) {
+            this.transactionRecord = transactionRecord;
+            transactionRecordBuilder = null;
+            return this;
+        }
+
+        public TransactionRecord.Builder transactionRecordBuilder() {
+            if (transactionRecordBuilder == null) {
+                transactionRecordBuilder =
+                        transactionRecord != null ? transactionRecord.toBuilder() : TransactionRecord.newBuilder();
+                transactionRecord = null;
+            }
+
+            return transactionRecordBuilder;
         }
 
         private RecordItem parseParent() {

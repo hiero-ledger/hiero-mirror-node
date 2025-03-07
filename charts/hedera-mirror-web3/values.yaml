@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -81,6 +83,8 @@ gateway:
     kind: Service
 
 global:
+  config: {}
+  env: {}
   gateway:
     enabled: false
     hostnames: []

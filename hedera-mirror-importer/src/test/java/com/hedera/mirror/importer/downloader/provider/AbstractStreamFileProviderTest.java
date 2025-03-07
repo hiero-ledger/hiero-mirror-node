@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2022-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.importer.downloader.provider;
 
@@ -22,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.collect.Streams;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.StreamType;
 import com.hedera.mirror.common.domain.transaction.BlockFile;
 import com.hedera.mirror.importer.FileCopier;
@@ -62,12 +49,14 @@ abstract class AbstractStreamFileProviderTest {
     @TempDir
     protected Path dataPath;
 
+    protected CommonProperties commonProperties;
     protected ImporterProperties importerProperties;
     protected CommonDownloaderProperties properties;
     protected StreamFileProvider streamFileProvider;
 
     @BeforeEach
     void setup() {
+        commonProperties = new CommonProperties();
         importerProperties = new ImporterProperties();
         importerProperties.setDataPath(dataPath);
         properties = new CommonDownloaderProperties(importerProperties);
@@ -447,8 +436,7 @@ abstract class AbstractStreamFileProviderTest {
     }
 
     private FileCopier createBlockStreamFileCopier() {
-        String toPath =
-                Path.of(Long.toString(importerProperties.getShard()), "0").toString(); // node id 0
+        String toPath = Path.of(Long.toString(commonProperties.getShard()), "0").toString(); // node id 0
         return createFileCopier(Path.of("data", "blockstreams"), toPath);
     }
 }

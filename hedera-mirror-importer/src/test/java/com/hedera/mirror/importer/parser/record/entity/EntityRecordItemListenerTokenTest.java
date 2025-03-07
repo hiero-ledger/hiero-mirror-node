@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2020-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.importer.parser.record.entity;
 
@@ -1378,7 +1364,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .tokenMint()
                 .transactionBody(
                         b -> b.setToken(protoTokenId).clearMetadata().addAllMetadata(Collections.nCopies(3, metadata)))
-                .record(r -> r.addTokenTransferLists(nftMintTransferList))
+                .record(r -> r.clearTokenTransferLists().addTokenTransferLists(nftMintTransferList))
                 .receipt(r -> r.clearSerialNumbers().addAllSerialNumbers(mintSerials))
                 .build();
         recordItems.add(nftMintRecordItem);
@@ -2314,6 +2300,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .transactionBody(b -> b.clear().setToken(TOKEN_ID).addMetadata(metadata))
                 .receipt(r -> r.clearSerialNumbers().addSerialNumbers(1).setNewTotalSupply(1))
                 .record(r -> r.setConsensusTimestamp(TestUtils.toTimestamp(mintTimestamp))
+                        .clearTokenTransferLists()
                         .addTokenTransferLists(TokenTransferList.newBuilder()
                                 .setToken(TOKEN_ID)
                                 .addNftTransfers(NftTransfer.newBuilder()
@@ -2441,6 +2428,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                         .addSerialNumbers(2)
                         .setNewTotalSupply(2))
                 .record(r -> r.setConsensusTimestamp(TestUtils.toTimestamp(mintTimestamp))
+                        .clearTokenTransferLists()
                         .addTokenTransferLists(
                                 TokenTransferList.newBuilder()
                                         .setToken(TOKEN_ID)
@@ -2557,6 +2545,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .transactionBody(b -> b.clear().setToken(TOKEN_ID).addMetadata(metadata))
                 .receipt(r -> r.clearSerialNumbers().addSerialNumbers(1).setNewTotalSupply(1))
                 .record(r -> r.setConsensusTimestamp(TestUtils.toTimestamp(mintTimestamp))
+                        .clearTokenTransferLists()
                         .addTokenTransferLists(TokenTransferList.newBuilder()
                                 .setToken(TOKEN_ID)
                                 .addNftTransfers(NftTransfer.newBuilder()
@@ -4011,15 +4000,14 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                         .build())
                 .build();
 
-        var tokenMintRecordItem = recordItemBuilder
-                .tokenMint()
-                .transactionBody(b -> b.setToken(TOKEN_ID).addMetadata(DomainUtils.fromBytes(METADATA)))
-                .receipt(r -> r.clearSerialNumbers().addSerialNumbers(SERIAL_NUMBER_1))
+        var cryptoTransferRecordItem = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBody(b -> b.addTokenTransfers(nftTransfer))
                 .record(r -> r.addTokenTransferLists(nftTransfer)
                         .setConsensusTimestamp(TestUtils.toTimestamp(transferTimestamp)))
                 .build();
 
-        parseRecordItemAndCommit(tokenMintRecordItem);
+        parseRecordItemAndCommit(cryptoTransferRecordItem);
 
         var expectedNft = domainBuilder.nftTransfer().customize(t -> {
             t.receiverAccountId(EntityId.of(RECEIVER))

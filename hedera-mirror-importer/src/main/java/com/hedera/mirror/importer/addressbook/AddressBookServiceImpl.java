@@ -1,25 +1,11 @@
-/*
- * Copyright (C) 2020-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package com.hedera.mirror.importer.addressbook;
 
 import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_ADDRESS_BOOK;
 import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 
-import com.google.protobuf.ByteString;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import com.hedera.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -81,6 +67,7 @@ public class AddressBookServiceImpl implements AddressBookService {
     public static final int INITIAL_NODE_ID_ACCOUNT_ID_OFFSET = 3;
 
     private final AddressBookRepository addressBookRepository;
+    private final CommonProperties commonProperties;
     private final EntityProperties entityProperties;
     private final FileDataRepository fileDataRepository;
     private final ImporterProperties importerProperties;
@@ -269,6 +256,10 @@ public class AddressBookServiceImpl implements AddressBookService {
             var initialAddressBook =
                     currentAddressBook == null ? parse(getInitialAddressBookFileData()) : currentAddressBook;
 
+            if (initialAddressBook == null) {
+                throw new InvalidDatasetException("Unable to load starting address book");
+            }
+
             // Parse all applicable addressBook file_data entries are processed
             AddressBook latestAddressBook =
                     parseHistoricAddressBooks(initialAddressBook.getStartConsensusTimestamp() - 1, consensusTimestamp);
@@ -417,6 +408,10 @@ public class AddressBookServiceImpl implements AddressBookService {
                 ? EntityId.of(nodeAddressProto.getNodeAccountId())
                 : memoNodeAccountId;
 
+        if (EntityId.isEmpty(nodeAccountId) || nodeAccountId.getRealm() != commonProperties.getRealm()) {
+            throw new InvalidDatasetException("Invalid NodeAddress.nodeAccountId: " + nodeAddressProto);
+        }
+
         var nodeId = nodeAddressProto.getNodeId();
         // ensure valid nodeId. In early versions of initial addressBook (entityNum < 20) all nodeIds are set to 0
         if (nodeId == 0 && nodeAccountId.getNum() < 20 && nodeAccountId.getNum() != INITIAL_NODE_ID_ACCOUNT_ID_OFFSET) {
@@ -479,33 +474,26 @@ public class AddressBookServiceImpl implements AddressBookService {
 
         AddressBookServiceEndpoint addressBookServiceEndpoint = new AddressBookServiceEndpoint();
         addressBookServiceEndpoint.setConsensusTimestamp(consensusTimestamp);
+        addressBookServiceEndpoint.setDomainName(StringUtils.EMPTY);
         addressBookServiceEndpoint.setIpAddressV4(ip);
         addressBookServiceEndpoint.setPort(nodeAddressProto.getPortno());
         addressBookServiceEndpoint.setNodeId(nodeId);
-        addressBookServiceEndpoint.setDomainName("");
         return addressBookServiceEndpoint;
     }
 
     private AddressBookServiceEndpoint getAddressBookServiceEndpoint(
             ServiceEndpoint serviceEndpoint, long consensusTimestamp, long nodeId) throws UnknownHostException {
-        var ipAddressByteString =
-                serviceEndpoint.getIpAddressV4() != null ? serviceEndpoint.getIpAddressV4() : ByteString.EMPTY;
-        if (ipAddressByteString.size() != 4) {
-            throw new IllegalStateException(String.format("Invalid IpAddressV4: %s", ipAddressByteString));
-        }
-
-        var ip = InetAddress.getByAddress(ipAddressByteString.toByteArray()).getHostAddress();
         AddressBookServiceEndpoint addressBookServiceEndpoint = new AddressBookServiceEndpoint();
         addressBookServiceEndpoint.setConsensusTimestamp(consensusTimestamp);
-        addressBookServiceEndpoint.setIpAddressV4(ip);
-        addressBookServiceEndpoint.setPort(serviceEndpoint.getPort());
+        addressBookServiceEndpoint.setDomainName(serviceEndpoint.getDomainName());
+        addressBookServiceEndpoint.setIpAddressV4(StringUtils.EMPTY);
         addressBookServiceEndpoint.setNodeId(nodeId);
+        addressBookServiceEndpoint.setPort(serviceEndpoint.getPort());
 
-        if (entityProperties.getPersist().isNodes()) {
-            addressBookServiceEndpoint.setDomainName(serviceEndpoint.getDomainName());
-        } else {
-            // Setting domain_name to empty string here only until HIP 869 goes to mainnet
-            addressBookServiceEndpoint.setDomainName(StringUtils.EMPTY);
+        if (serviceEndpoint.getIpAddressV4().size() == 4) {
+            var ip = InetAddress.getByAddress(DomainUtils.toBytes(serviceEndpoint.getIpAddressV4()))
+                    .getHostAddress();
+            addressBookServiceEndpoint.setIpAddressV4(ip);
         }
 
         return addressBookServiceEndpoint;

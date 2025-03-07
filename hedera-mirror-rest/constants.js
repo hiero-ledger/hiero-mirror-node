@@ -1,20 +1,9 @@
-/*
- * Copyright (C) 2019-2025 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 const NANOSECONDS_PER_MILLISECOND = 10n ** 6n;
+const NANOS_PER_SECOND = 1_000_000_000n;
+const SIXTY_SECONDS = 60n;
+const THIRTY_ONE_MINUTES = 31n * 60n;
 const MAX_INT32 = 2147483647;
 const MAX_LONG = 2n ** 63n - 1n;
 const ONE_DAY_IN_NS = 86_400_000_000_000n;
@@ -232,6 +221,9 @@ export {
   EVM_ADDRESS_LENGTH,
   ETH_HASH_LENGTH,
   NANOSECONDS_PER_MILLISECOND,
+  NANOS_PER_SECOND,
+  SIXTY_SECONDS,
+  THIRTY_ONE_MINUTES,
   MAX_INT32,
   MAX_LONG,
   ONE_DAY_IN_NS,
