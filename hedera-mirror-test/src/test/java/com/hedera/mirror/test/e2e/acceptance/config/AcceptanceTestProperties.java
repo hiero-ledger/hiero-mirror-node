@@ -7,7 +7,6 @@ import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.test.e2e.acceptance.client.ContractClient.NodeNameEnum;
 import com.hedera.mirror.test.e2e.acceptance.props.NodeProperties;
-import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
@@ -33,8 +32,8 @@ import org.springframework.validation.annotation.Validated;
 @Data
 @RequiredArgsConstructor
 @Validated
-@EnableConfigurationProperties({CommonProperties.class})
-public class AcceptanceTestProperties {
+@EnableConfigurationProperties(CommonProperties.class)
+public final class AcceptanceTestProperties {
     private static final String DEFAULT_OPERATOR_ID = "0.0.2";
 
     private final FeatureProperties featureProperties;
@@ -79,7 +78,7 @@ public class AcceptanceTestProperties {
     private BigDecimal operatorBalance = BigDecimal.valueOf(65); // Amount in USD
 
     @NotBlank
-    private String operatorId = DEFAULT_OPERATOR_ID;
+    private String operatorId;
 
     @NotBlank
     private String operatorKey =
@@ -94,20 +93,22 @@ public class AcceptanceTestProperties {
     @NotNull
     private NodeNameEnum nodeType = NodeNameEnum.MIRROR;
 
-    @PostConstruct
-    public void configureOperator() throws Exception {
+    public void setOperatorId(String operatorId) {
         var configuredOperator = AccountId.fromString(operatorId);
-        if (configuredOperator.realm != commonProperties.getRealm()
-                || configuredOperator.shard != commonProperties.getShard()) {
-            if (DEFAULT_OPERATOR_ID.equals(operatorId)) {
-                operatorId = String.format(
-                        "%d.%d.%d", commonProperties.getShard(), commonProperties.getRealm(), configuredOperator.num);
-            } else {
-                throw new IllegalArgumentException(String.format(
-                        "Operator account %s must be in shard %d and realm %d",
-                        operatorId, commonProperties.getShard(), commonProperties.getRealm()));
-            }
+        var configuredShard = commonProperties.getShard();
+        var configuredRealm = commonProperties.getRealm();
+
+        var shardRealmMismatch =
+                configuredOperator.realm != configuredRealm || configuredOperator.shard != configuredShard;
+        var configInvalid = shardRealmMismatch && !DEFAULT_OPERATOR_ID.equals(operatorId);
+
+        if (configInvalid) {
+            throw new IllegalArgumentException(String.format(
+                    "Operator account %s must be in shard %d and realm %d",
+                    operatorId, configuredShard, configuredRealm));
         }
+
+        this.operatorId = String.format("%d.%d.%d", configuredShard, configuredRealm, configuredOperator.num);
     }
 
     @Getter
