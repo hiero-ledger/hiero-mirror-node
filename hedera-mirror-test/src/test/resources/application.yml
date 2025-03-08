@@ -4,6 +4,7 @@ hedera:
   mirror:
     test:
       acceptance:
+        operatorId: 0.0.2
         # grpc endpoint
         mirrorNodeAddress: testnet.mirrornode.hedera.com:443
         network: testnet
