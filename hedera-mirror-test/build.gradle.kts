@@ -14,11 +14,6 @@ plugins {
 dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-    testImplementation(project(":common")) {
-        exclude("com.google.protobuf", "protobuf-java")
-        exclude("org.springframework.boot", "spring-boot-starter-data-jpa")
-        exclude("org.web3j", "core")
-    }
     implementation(platform("io.cucumber:cucumber-bom"))
     implementation("io.cucumber:cucumber-java")
     implementation("org.junit.platform:junit-platform-launcher")
@@ -33,6 +28,11 @@ dependencies {
     // for that yet.
     testImplementation("com.hedera.hashgraph:sdk") {
         exclude(group = "com.esaulpaugh", module = "headlong")
+    }
+    testImplementation(project(":common")) {
+        exclude("com.google.protobuf", "protobuf-java")
+        exclude("org.springframework.boot", "spring-boot-starter-data-jpa")
+        exclude("org.web3j", "core")
     }
     testImplementation("io.cucumber:cucumber-junit-platform-engine")
     testImplementation("io.cucumber:cucumber-spring")
