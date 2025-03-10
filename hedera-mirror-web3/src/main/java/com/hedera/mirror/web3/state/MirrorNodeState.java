@@ -106,12 +106,11 @@ public class MirrorNodeState implements State {
             return;
         }
 
-        boolean isGenesisModularized = mirrorNodeEvmProperties.isGenesisModularized();
-        var previousVersion = isGenesisModularized ? null : new BasicSoftwareVersion(PREVIOUS_VERSION);
-        Optional<RecordFile> recordFile = isGenesisModularized ? Optional.empty() : recordFileRepository.findLatest();
+        Optional<RecordFile> latest = recordFileRepository.findLatest();
+        var previousVersion = !latest.isPresent() ? null : new BasicSoftwareVersion(PREVIOUS_VERSION);
 
         ContractCallContext.run(ctx -> {
-            recordFile.ifPresent(ctx::setRecordFile); // Now correctly references an effectively final variable
+            latest.ifPresent(ctx::setRecordFile); // Now correctly references an effectively final variable
             registerServices(servicesRegistry);
 
             final var bootstrapConfig = new BootstrapConfigProviderImpl().getConfiguration();

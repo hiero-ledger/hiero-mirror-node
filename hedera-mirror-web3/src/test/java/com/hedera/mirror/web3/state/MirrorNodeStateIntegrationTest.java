@@ -175,7 +175,6 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
     private void prepareNonGenesisTestEnvironment() throws NoSuchFieldException, IllegalAccessException {
         // Persist a record file to ensure we can start in non-genesis mode
         domainBuilder.recordFile().persist();
-        mirrorNodeEvmProperties.setGenesisModularized(false);
 
         // Clear existing registrations from servicesRegistry
         clearServiceRegistryEntries();
@@ -201,7 +200,6 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
     }
 
     private void resetProperties(boolean initialModularized) {
-        mirrorNodeEvmProperties.setGenesisModularized(true);
         mirrorNodeEvmProperties.setModularizedServices(initialModularized);
     }
 
