@@ -127,7 +127,7 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
         long upperTimestamp = endPeriodTimestamp.get() + 1;
         long lowerTimestamp = upperTimestamp - ONE_MONTH_IN_NS;
         var balanceSnapshotTimestamp =
-                accountBalanceRepository.getMaxConsensusTimestampInRange(lowerTimestamp, upperTimestamp);
+                accountBalanceRepository.getMaxConsensusTimestampInRange(lowerTimestamp, upperTimestamp, 2L);
         if (balanceSnapshotTimestamp.isEmpty()) {
             return;
         }

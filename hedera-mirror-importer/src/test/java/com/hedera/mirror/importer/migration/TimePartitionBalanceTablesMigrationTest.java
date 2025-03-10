@@ -2,7 +2,7 @@
 
 package com.hedera.mirror.importer.migration;
 
-import static com.hedera.mirror.importer.parser.domain.RecordItemBuilder.TREASURY;
+import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
@@ -103,7 +103,7 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
     @Test
     void migrate() {
         // given
-        var treasury = EntityId.of(TREASURY);
+        var treasury = EntityId.of(TREASURY_NUM);
         var account2 = domainBuilder.entityId();
         var account3 = domainBuilder.entityId();
         var account4 = domainBuilder.entityId();

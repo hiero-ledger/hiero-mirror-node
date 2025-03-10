@@ -2,10 +2,10 @@
 
 package com.hedera.mirror.importer.parser.record.entity.staking;
 
+import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static com.hedera.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 import static com.hedera.mirror.importer.domain.StreamFilename.FileType.DATA;
 import static com.hedera.mirror.importer.parser.domain.RecordItemBuilder.STAKING_REWARD_ACCOUNT;
-import static com.hedera.mirror.importer.parser.domain.RecordItemBuilder.TREASURY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -82,7 +82,8 @@ class EntityStakeCalculatorIntegrationTest extends ImporterIntegrationTest {
                         .stakeTotalStart(0L)
                         .timestampRange(Range.atLeast(entityStakeLowerTimestamp)))
                 .persist();
-        var treasury = domainBuilder.entity(TREASURY, domainBuilder.timestamp()).persist();
+        var treasury =
+                domainBuilder.entity(TREASURY_NUM, domainBuilder.timestamp()).persist();
 
         // account1 was created two staking periods ago, there should be a row in entity_stake
         var account1 = domainBuilder
@@ -294,24 +295,24 @@ class EntityStakeCalculatorIntegrationTest extends ImporterIntegrationTest {
         var treasury = domainBuilder
                 .entity()
                 .customize(e -> e.createdTimestamp(balanceTimestamp - 6000)
-                        .id(TREASURY)
+                        .id(TREASURY_NUM)
                         .stakedNodeId(1L)
                         .timestampRange(Range.atLeast(secondLastNodeStakeTimestamp)))
                 .persist();
         var entityStakeTreasury = domainBuilder
                 .entityStake()
                 .customize(e -> e.endStakePeriod(epochDay - 2)
-                        .id(TREASURY)
+                        .id(TREASURY_NUM)
                         .timestampRange(Range.atLeast(secondLastNodeStakeTimestamp)))
                 .persist();
         // account balance
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new Id(balanceTimestamp, EntityId.of(TREASURY))))
+                .customize(ab -> ab.id(new Id(balanceTimestamp, EntityId.of(TREASURY_NUM))))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new Id(previousBalanceTimestamp, EntityId.of(TREASURY))))
+                .customize(ab -> ab.id(new Id(previousBalanceTimestamp, EntityId.of(TREASURY_NUM))))
                 .persist();
         domainBuilder
                 .accountBalance()

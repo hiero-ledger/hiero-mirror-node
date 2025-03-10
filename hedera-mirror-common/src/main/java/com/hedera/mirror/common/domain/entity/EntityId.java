@@ -29,6 +29,7 @@ import lombok.Value;
 public final class EntityId implements Serializable, Comparable<EntityId> {
 
     public static final EntityId EMPTY = new EntityId(0L);
+    public static final long TREASURY_NUM = 2;
 
     /*
      * Indicates a domain entity ID is not being set (to null or non-null) in the current operation and that

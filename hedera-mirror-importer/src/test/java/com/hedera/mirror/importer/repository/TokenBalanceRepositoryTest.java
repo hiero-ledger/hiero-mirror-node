@@ -2,7 +2,7 @@
 
 package com.hedera.mirror.importer.repository;
 
-import static com.hedera.mirror.importer.parser.domain.RecordItemBuilder.TREASURY;
+import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.mirror.common.domain.balance.AccountBalance;
@@ -16,6 +16,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 @RequiredArgsConstructor
 class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
@@ -23,18 +25,23 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenBalanceRepository tokenBalanceRepository;
 
-    @Test
-    void balanceSnapshot() {
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 0
+            1023, 100
+            """)
+    void balanceSnapshot(long shard, long realm) {
         // given
-        var tokenAccount1 = domainBuilder.tokenAccount().persist();
+        var treasury = EntityId.of(shard, realm, TREASURY_NUM);
+        var tokenAccount1 = domainBuilder.tokenAccount(shard, realm).persist();
         var tokenAccount2 = domainBuilder
-                .tokenAccount()
+                .tokenAccount(shard, realm)
                 .customize(ta -> ta.associated(false).balance(0))
                 .persist();
 
         // when
         long snapshotTimestamp = domainBuilder.timestamp();
-        tokenBalanceRepository.balanceSnapshot(snapshotTimestamp);
+        tokenBalanceRepository.balanceSnapshot(snapshotTimestamp, treasury.getId());
 
         // then
         var expected = List.of(
@@ -49,7 +56,7 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
         long lastSnapshotTimestamp = domainBuilder.timestamp();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(lastSnapshotTimestamp, EntityId.of(TREASURY))))
+                .customize(ab -> ab.id(new AccountBalance.Id(lastSnapshotTimestamp, EntityId.of(TREASURY_NUM))))
                 .persist();
         // dissociated before last snapshot, will not appear in full snapshot
         domainBuilder
@@ -67,33 +74,38 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
         // newSnapshotTimestamp
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(newSnapshotTimestamp, EntityId.of(TREASURY))))
+                .customize(ab -> ab.id(new AccountBalance.Id(newSnapshotTimestamp, EntityId.of(TREASURY_NUM))))
                 .persist();
         var expected = List.of(
                 buildTokenBalance(tokenAccount1, newSnapshotTimestamp),
                 buildTokenBalance(tokenAccount2, newSnapshotTimestamp));
 
         // when
-        tokenBalanceRepository.balanceSnapshot(newSnapshotTimestamp);
+        tokenBalanceRepository.balanceSnapshot(newSnapshotTimestamp, TREASURY_NUM);
 
         // then
         assertThat(tokenBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
     }
 
-    @Test
-    void balanceSnapshotDeduplicate() {
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 0
+            1023, 100
+            """)
+    void balanceSnapshotDeduplicate(long shard, long realm) {
         long lowerRangeTimestamp = 0L;
         long timestamp = 100;
-        assertThat(tokenBalanceRepository.balanceSnapshotDeduplicate(lowerRangeTimestamp, timestamp))
+        var treasury = EntityId.of(shard, realm, TREASURY_NUM);
+        assertThat(tokenBalanceRepository.balanceSnapshotDeduplicate(lowerRangeTimestamp, timestamp, treasury.getId()))
                 .isZero();
         assertThat(tokenBalanceRepository.findAll()).isEmpty();
 
         var tokenAccount = domainBuilder
-                .tokenAccount()
+                .tokenAccount(shard, realm)
                 .customize(t -> t.balanceTimestamp(1L))
                 .persist();
         var tokenAccount2 = domainBuilder
-                .tokenAccount()
+                .tokenAccount(shard, realm)
                 .customize(t -> t.balanceTimestamp(1L))
                 .persist();
 
@@ -102,7 +114,7 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
                 .collect(Collectors.toList());
 
         // Update Balance Snapshot includes all balances
-        assertThat(tokenBalanceRepository.balanceSnapshotDeduplicate(lowerRangeTimestamp, timestamp))
+        assertThat(tokenBalanceRepository.balanceSnapshotDeduplicate(lowerRangeTimestamp, timestamp, treasury.getId()))
                 .isEqualTo(expected.size());
         assertThat(tokenBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
 
@@ -113,7 +125,7 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
         expected.add(buildTokenBalance(tokenAccount, timestamp2));
 
         // Update includes only the updated token account
-        assertThat(tokenBalanceRepository.balanceSnapshotDeduplicate(timestamp, timestamp2))
+        assertThat(tokenBalanceRepository.balanceSnapshotDeduplicate(timestamp, timestamp2, treasury.getId()))
                 .isOne();
         assertThat(tokenBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
 
@@ -123,13 +135,13 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
         tokenAccountRepository.save(tokenAccount2);
         expected.add(buildTokenBalance(tokenAccount2, timestamp3));
         var tokenAccount3 = domainBuilder
-                .tokenAccount()
+                .tokenAccount(shard, realm)
                 .customize(t -> t.balanceTimestamp(timestamp3))
                 .persist();
         expected.add(buildTokenBalance(tokenAccount3, timestamp3));
 
         // Update includes only the token accounts with a balance timestamp greater than the max timestamp
-        assertThat(tokenBalanceRepository.balanceSnapshotDeduplicate(timestamp2, timestamp3))
+        assertThat(tokenBalanceRepository.balanceSnapshotDeduplicate(timestamp2, timestamp3, treasury.getId()))
                 .isEqualTo(2);
         assertThat(tokenBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
 
@@ -138,7 +150,7 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
         tokenAccount.setBalanceTimestamp(timestamp4);
         tokenAccountRepository.save(tokenAccount);
         // Update with no change as the update happens at a timestamp equal to the max consensus timestamp
-        assertThat(tokenBalanceRepository.balanceSnapshotDeduplicate(timestamp4, timestamp4))
+        assertThat(tokenBalanceRepository.balanceSnapshotDeduplicate(timestamp4, timestamp4, treasury.getId()))
                 .isZero();
         assertThat(tokenBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
     }
@@ -150,7 +162,7 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
         var tokenBalance3 = domainBuilder.tokenBalance().get();
 
         tokenBalanceRepository.saveAll(List.of(tokenBalance1, tokenBalance2, tokenBalance3));
-        assertThat(tokenBalanceRepository.findById(tokenBalance1.getId())).get().isEqualTo(tokenBalance1);
+        assertThat(tokenBalanceRepository.findById(tokenBalance1.getId())).contains(tokenBalance1);
         assertThat(tokenBalanceRepository.findAll())
                 .containsExactlyInAnyOrder(tokenBalance1, tokenBalance2, tokenBalance3);
     }
