@@ -7,6 +7,10 @@ plugins {
     id("org.springframework.boot")
 }
 
+gitProperties {
+    dotGitDirectory = rootDir.resolve(".git")
+}
+
 springBoot {
     // Creates META-INF/build-info.properties for Spring Boot Actuator
     buildInfo()
