@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import com.hedera.mirror.web3.repository.RecordFileRepository;
 import com.hedera.mirror.web3.state.core.MapReadableStates;
 import com.hedera.mirror.web3.state.core.MapWritableKVState;
 import com.hedera.mirror.web3.state.core.MapWritableStates;
@@ -99,6 +100,9 @@ class MirrorNodeStateTest {
 
     @Mock
     private StateChangeListener listener;
+
+    @Mock
+    private RecordFileRepository recordFileRepository;
 
     private List<ReadableKVState> readableKVStates;
 
@@ -494,6 +498,7 @@ class MirrorNodeStateTest {
                 serviceMigrator,
                 networkInfo,
                 startupNetworks,
-                mirrorNodeEvmProperties);
+                mirrorNodeEvmProperties,
+                recordFileRepository);
     }
 }
