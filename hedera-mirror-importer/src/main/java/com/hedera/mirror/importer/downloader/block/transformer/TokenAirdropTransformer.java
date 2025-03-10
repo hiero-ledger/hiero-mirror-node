@@ -58,10 +58,12 @@ final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
             }
         }
 
-        recordBuilder.addAllAssessedCustomFees(blockItem
-                .getTransactionOutput(TransactionCase.TOKEN_AIRDROP)
-                .getTokenAirdrop()
-                .getAssessedCustomFeesList());
+        if(blockItem.hasTransactionOutput(TransactionCase.TOKEN_AIRDROP)) {
+            recordBuilder.addAllAssessedCustomFees(blockItem
+                    .getTransactionOutput(TransactionCase.TOKEN_AIRDROP)
+                    .getTokenAirdrop()
+                    .getAssessedCustomFeesList());
+        }
     }
 
     @Override

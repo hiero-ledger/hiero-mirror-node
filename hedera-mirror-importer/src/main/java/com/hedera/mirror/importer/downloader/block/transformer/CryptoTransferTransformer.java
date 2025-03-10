@@ -16,10 +16,12 @@ final class CryptoTransferTransformer extends AbstractBlockItemTransformer {
             return;
         }
 
-        var cryptoTransfer =
-                blockItem.getTransactionOutput(TransactionCase.CRYPTO_TRANSFER).getCryptoTransfer();
-        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
-        recordBuilder.addAllAssessedCustomFees(cryptoTransfer.getAssessedCustomFeesList());
+        if(blockItem.hasTransactionOutput(TransactionCase.CRYPTO_TRANSFER)) {
+            var cryptoTransfer =
+                    blockItem.getTransactionOutput(TransactionCase.CRYPTO_TRANSFER).getCryptoTransfer();
+            var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
+            recordBuilder.addAllAssessedCustomFees(cryptoTransfer.getAssessedCustomFeesList());
+        }
     }
 
     @Override

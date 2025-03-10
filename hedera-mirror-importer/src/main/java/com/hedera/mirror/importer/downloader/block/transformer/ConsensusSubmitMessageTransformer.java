@@ -20,9 +20,11 @@ final class ConsensusSubmitMessageTransformer extends AbstractBlockItemTransform
         }
 
         var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
-        var submitMessageOutput =
-                blockItem.getTransactionOutput(TransactionCase.SUBMIT_MESSAGE).getSubmitMessage();
-        recordBuilder.addAllAssessedCustomFees(submitMessageOutput.getAssessedCustomFeesList());
+        if (blockItem.hasTransactionOutput(TransactionCase.SUBMIT_MESSAGE)) {
+            var submitMessageOutput =
+                    blockItem.getTransactionOutput(TransactionCase.SUBMIT_MESSAGE).getSubmitMessage();
+            recordBuilder.addAllAssessedCustomFees(submitMessageOutput.getAssessedCustomFeesList());
+        }
 
         blockItem
                 .getStateChangeContext()

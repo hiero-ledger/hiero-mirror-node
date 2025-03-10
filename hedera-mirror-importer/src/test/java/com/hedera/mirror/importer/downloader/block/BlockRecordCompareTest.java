@@ -69,23 +69,20 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
         var compareSet = new TreeMap<Long, BlockRecordSet>();
 
         long initialBlockNumber = 36118500; // testnet acceptance tests
-        initialBlockNumber = 36133901;
+        initialBlockNumber = 36394120;
+
+
 
         var consensusNode = consensusNodeService.getNodes().stream().filter(n -> n.getNodeId() == 0).findFirst().get();
 
         long blockNumber = initialBlockNumber;
         var streamFilename = StreamFilename.from(blockNumber);
         List<Integer> skippedTransactionTypes = List.of(TransactionType.ETHEREUMTRANSACTION.getProtoId(),
-                TransactionType.CONTRACTCREATEINSTANCE.getProtoId(),
-                TransactionType.CONTRACTDELETEINSTANCE.getProtoId(),
-                TransactionType.CONTRACTUPDATEINSTANCE.getProtoId(),
-                TransactionType.CONTRACTCALL.getProtoId(),
-                TransactionType.CRYPTOCREATEACCOUNT.getProtoId(), // Not available until 0.59
-                TransactionType.CRYPTOAPPROVEALLOWANCE.getProtoId() // Ticket 10558
+                TransactionType.CRYPTOCREATEACCOUNT.getProtoId() // Not available until 0.59
         );
 
         while(true) {
-            int blocksToDownload = 100;
+            int blocksToDownload = 1;
             while(blocksToDownload > 0) {
                 BlockFile blockFile;
                 try {
@@ -232,12 +229,25 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
                 "transactionRecord.receipt_.exchangeRate_"
         ));
 
-        if (expected.getTransactionType() == 15) { // CRYPTOUPDATEACCOUNT
-            // This value is parsed from the transaction body, so the receipt value is not needed
-            ignoreFields.add("transactionRecord.receipt_.accountID_");
-        } else if(expected.getTransactionType() == 43) { // SCHEDULEDELETE
-            // This value is parsed from the transaction body, so the receipt value is not needed
-            ignoreFields.add("transactionRecord.receipt_.scheduleID_");
+        switch (expected.getTransactionType()) {
+            case 8 :// :CONTRACT CREATE INSTANCE
+                // Field not used by importer
+                ignoreFields.add("transactionRecord.body_.errorMessage_");
+                // Ticket 10590
+                ignoreFields.add("transactionRecord.receipt_.contractID_");
+                break;
+            case 15: // CRYPTO UPDATE ACCOUNT
+                // This value is parsed from the transaction body, so the receipt value is not needed
+                ignoreFields.add("transactionRecord.receipt_.accountID_");
+                break;
+            case 29: // TOKEN CREATE
+                // Importer parses total supply from transaction body initial supply, so this value is not needed
+                ignoreFields.add("transactionRecord.receipt_.newTotalSupply_");
+                break;
+            case 43: // SCHEDULE DELETE
+                // This value is parsed from the transaction body, so the receipt value is not needed
+                ignoreFields.add("transactionRecord.receipt_.scheduleID_");
+                break;
         }
 
         assertThat(actual)
