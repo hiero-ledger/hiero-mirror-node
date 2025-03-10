@@ -4,5 +4,5 @@ package com.hedera.mirror.importer.repository;
 
 interface EntityStakeRepositoryCustom {
 
-    void createEntityStateStart();
+    void createEntityStateStart(long entityId);
 }

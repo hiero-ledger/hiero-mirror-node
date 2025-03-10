@@ -3,7 +3,9 @@
 package com.hedera.mirror.importer.parser.record.entity.staking;
 
 import com.google.common.base.Stopwatch;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.importer.parser.record.entity.EntityProperties;
+import com.hedera.mirror.importer.parser.record.entity.ImmutableAccount;
 import com.hedera.mirror.importer.repository.EntityStakeRepository;
 import jakarta.inject.Named;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -20,6 +22,7 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
     private final EntityStakeRepository entityStakeRepository;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final TransactionOperations transactionOperations;
+    private final CommonProperties commonProperties;
 
     @Override
     public void calculate() {
@@ -33,23 +36,25 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
         }
 
         try {
+            var entityStakeId = commonProperties.getScopedId(ImmutableAccount.ENTITY_STAKE.getNum());
+
             while (true) {
-                if (entityStakeRepository.updated()) {
+                if (entityStakeRepository.updated(entityStakeId)) {
                     log.info("Skipping since the entity stake is up-to-date");
                     return;
                 }
 
                 var stopwatch = Stopwatch.createStarted();
                 var lastEndStakePeriod =
-                        entityStakeRepository.getEndStakePeriod().orElse(0L);
+                        entityStakeRepository.getEndStakePeriod(entityStakeId).orElse(0L);
                 transactionOperations.executeWithoutResult(s -> {
                     entityStakeRepository.lockFromConcurrentUpdates();
-                    entityStakeRepository.createEntityStateStart();
+                    entityStakeRepository.createEntityStateStart(entityStakeId);
                     log.info("Created entity_state_start in {}", stopwatch);
-                    entityStakeRepository.updateEntityStake();
+                    entityStakeRepository.updateEntityStake(entityStakeId);
                 });
 
-                var endStakePeriod = entityStakeRepository.getEndStakePeriod();
+                var endStakePeriod = entityStakeRepository.getEndStakePeriod(entityStakeId);
                 if (endStakePeriod
                         .filter(stakePeriod -> stakePeriod > lastEndStakePeriod)
                         .isPresent()) {

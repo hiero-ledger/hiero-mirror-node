@@ -4,6 +4,7 @@ package com.hedera.mirror.importer.parser.record.entity.staking;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -12,7 +13,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.importer.parser.record.entity.EntityProperties;
+import com.hedera.mirror.importer.parser.record.entity.ImmutableAccount;
 import com.hedera.mirror.importer.repository.EntityStakeRepository;
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -31,20 +35,24 @@ import org.springframework.transaction.support.TransactionOperations;
 @ExtendWith(MockitoExtension.class)
 class EntityStakeCalculatorImplTest {
 
+    private static final long ENTITY_STAKE_ID = ImmutableAccount.ENTITY_STAKE.getNum();
+
     private EntityProperties entityProperties;
 
     @Mock(strictness = LENIENT)
     private EntityStakeRepository entityStakeRepository;
 
     private EntityStakeCalculatorImpl entityStakeCalculator;
+    private CommonProperties commonProperties;
 
     @BeforeEach
     void setup() {
+        commonProperties = new CommonProperties();
         entityProperties = new EntityProperties();
         entityStakeCalculator = new EntityStakeCalculatorImpl(
-                entityProperties, entityStakeRepository, TransactionOperations.withoutTransaction());
-        when(entityStakeRepository.updated()).thenReturn(false, true);
-        when(entityStakeRepository.getEndStakePeriod())
+                entityProperties, entityStakeRepository, TransactionOperations.withoutTransaction(), commonProperties);
+        when(entityStakeRepository.updated(anyLong())).thenReturn(false, true);
+        when(entityStakeRepository.getEndStakePeriod(anyLong()))
                 .thenReturn(Optional.of(100L))
                 .thenReturn(Optional.of(101L));
     }
@@ -56,18 +64,46 @@ class EntityStakeCalculatorImplTest {
             , 101
             """)
     void calculate(Long endStakePeriodBefore, Long endStakePeriodAfter) {
-        when(entityStakeRepository.getEndStakePeriod())
+        when(entityStakeRepository.getEndStakePeriod(ENTITY_STAKE_ID))
                 .thenReturn(Optional.ofNullable(endStakePeriodBefore))
                 .thenReturn(Optional.of(endStakePeriodAfter));
         var inorder = inOrder(entityStakeRepository);
         entityStakeCalculator.calculate();
-        inorder.verify(entityStakeRepository).updated();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
+        inorder.verify(entityStakeRepository).updated(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(ENTITY_STAKE_ID);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart();
-        inorder.verify(entityStakeRepository).updateEntityStake();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
-        inorder.verify(entityStakeRepository).updated();
+        inorder.verify(entityStakeRepository).createEntityStateStart(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).updateEntityStake(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).updated(ENTITY_STAKE_ID);
+        inorder.verifyNoMoreInteractions();
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            100, 101
+            100, 102
+            , 101
+            """)
+    void calculateNonZeroShardRealm(Long endStakePeriodBefore, Long endStakePeriodAfter) {
+        commonProperties.setShard(1);
+        commonProperties.setRealm(1);
+
+        var entityStakeId = EntityId.of(1, 1, ENTITY_STAKE_ID).getId();
+
+        when(entityStakeRepository.getEndStakePeriod(entityStakeId))
+                .thenReturn(Optional.ofNullable(endStakePeriodBefore))
+                .thenReturn(Optional.of(endStakePeriodAfter));
+        var inorder = inOrder(entityStakeRepository);
+
+        entityStakeCalculator.calculate();
+        inorder.verify(entityStakeRepository).updated(entityStakeId);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(entityStakeId);
+        inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
+        inorder.verify(entityStakeRepository).createEntityStateStart(entityStakeId);
+        inorder.verify(entityStakeRepository).updateEntityStake(entityStakeId);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(entityStakeId);
+        inorder.verify(entityStakeRepository).updated(entityStakeId);
         inorder.verifyNoMoreInteractions();
     }
 
@@ -75,17 +111,17 @@ class EntityStakeCalculatorImplTest {
     @CsvSource({"99", "100", ","})
     @Timeout(5)
     void calculateWhenEndStakePeriodAfterIsIncorrect(Long endStakePeriodAfter) {
-        when(entityStakeRepository.getEndStakePeriod())
+        when(entityStakeRepository.getEndStakePeriod(ENTITY_STAKE_ID))
                 .thenReturn(Optional.of(100L))
                 .thenReturn(Optional.ofNullable(endStakePeriodAfter));
         var inorder = inOrder(entityStakeRepository);
         entityStakeCalculator.calculate();
-        inorder.verify(entityStakeRepository).updated();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
+        inorder.verify(entityStakeRepository).updated(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(ENTITY_STAKE_ID);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart();
-        inorder.verify(entityStakeRepository).updateEntityStake();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
+        inorder.verify(entityStakeRepository).createEntityStateStart(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).updateEntityStake(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(ENTITY_STAKE_ID);
         inorder.verifyNoMoreInteractions();
     }
 
@@ -98,39 +134,39 @@ class EntityStakeCalculatorImplTest {
 
     @Test
     void calculateWhenUpdated() {
-        when(entityStakeRepository.updated()).thenReturn(true);
+        when(entityStakeRepository.updated(ENTITY_STAKE_ID)).thenReturn(true);
         entityStakeCalculator.calculate();
-        verify(entityStakeRepository).updated();
-        verify(entityStakeRepository, never()).getEndStakePeriod();
+        verify(entityStakeRepository).updated(ENTITY_STAKE_ID);
+        verify(entityStakeRepository, never()).getEndStakePeriod(ENTITY_STAKE_ID);
         verify(entityStakeRepository, never()).lockFromConcurrentUpdates();
-        verify(entityStakeRepository, never()).createEntityStateStart();
-        verify(entityStakeRepository, never()).updateEntityStake();
+        verify(entityStakeRepository, never()).createEntityStateStart(ENTITY_STAKE_ID);
+        verify(entityStakeRepository, never()).updateEntityStake(ENTITY_STAKE_ID);
     }
 
     @Test
     void calculateWhenExceptionThrown() {
-        when(entityStakeRepository.updated()).thenThrow(new RuntimeException());
+        when(entityStakeRepository.updated(ENTITY_STAKE_ID)).thenThrow(new RuntimeException());
         assertThrows(RuntimeException.class, () -> entityStakeCalculator.calculate());
-        verify(entityStakeRepository).updated();
+        verify(entityStakeRepository).updated(ENTITY_STAKE_ID);
         verify(entityStakeRepository, never()).lockFromConcurrentUpdates();
-        verify(entityStakeRepository, never()).createEntityStateStart();
-        verify(entityStakeRepository, never()).updateEntityStake();
-        verify(entityStakeRepository, never()).getEndStakePeriod();
+        verify(entityStakeRepository, never()).createEntityStateStart(ENTITY_STAKE_ID);
+        verify(entityStakeRepository, never()).updateEntityStake(ENTITY_STAKE_ID);
+        verify(entityStakeRepository, never()).getEndStakePeriod(ENTITY_STAKE_ID);
 
         // calculate again
         reset(entityStakeRepository);
         var inorder = inOrder(entityStakeRepository);
-        when(entityStakeRepository.updated()).thenReturn(false, true);
-        when(entityStakeRepository.getEndStakePeriod())
+        when(entityStakeRepository.updated(ENTITY_STAKE_ID)).thenReturn(false, true);
+        when(entityStakeRepository.getEndStakePeriod(ENTITY_STAKE_ID))
                 .thenReturn(Optional.of(100L))
                 .thenReturn(Optional.of(101L));
         entityStakeCalculator.calculate();
-        inorder.verify(entityStakeRepository).updated();
+        inorder.verify(entityStakeRepository).updated(ENTITY_STAKE_ID);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart();
-        inorder.verify(entityStakeRepository).updateEntityStake();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
-        inorder.verify(entityStakeRepository).updated();
+        inorder.verify(entityStakeRepository).createEntityStateStart(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).updateEntityStake(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).updated(ENTITY_STAKE_ID);
         inorder.verifyNoMoreInteractions();
     }
 
@@ -139,7 +175,7 @@ class EntityStakeCalculatorImplTest {
         // given
         var pool = Executors.newFixedThreadPool(2);
         var semaphore = new Semaphore(0);
-        when(entityStakeRepository.updated())
+        when(entityStakeRepository.updated(ENTITY_STAKE_ID))
                 // block until the other task has completed
                 .thenAnswer(invocation -> {
                     semaphore.acquire();
@@ -164,13 +200,13 @@ class EntityStakeCalculatorImplTest {
                 .atMost(Durations.TWO_SECONDS)
                 .until(() -> task1.isDone() && task2.isDone());
         var inorder = inOrder(entityStakeRepository);
-        inorder.verify(entityStakeRepository).updated();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
+        inorder.verify(entityStakeRepository).updated(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(ENTITY_STAKE_ID);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart();
-        inorder.verify(entityStakeRepository).updateEntityStake();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
-        inorder.verify(entityStakeRepository).updated();
+        inorder.verify(entityStakeRepository).createEntityStateStart(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).updateEntityStake(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(ENTITY_STAKE_ID);
+        inorder.verify(entityStakeRepository).updated(ENTITY_STAKE_ID);
         inorder.verifyNoMoreInteractions();
         pool.shutdown();
     }

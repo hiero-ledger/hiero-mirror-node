@@ -11,8 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>, EntityStakeRepositoryCustom {
 
-    @Query(value = "select endStakePeriod from EntityStake where id = 800")
-    Optional<Long> getEndStakePeriod();
+    @Query(value = "select endStakePeriod from EntityStake where id = ?1")
+    Optional<Long> getEndStakePeriod(long entityId);
 
     @Modifying
     @Query(value = "lock table entity_stake in share row exclusive mode nowait", nativeQuery = true)
@@ -25,9 +25,9 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
             with last_epoch_day as (
               select coalesce((select epoch_day from node_stake order by consensus_timestamp desc limit 1), -1) as epoch_day
             ), entity_stake_info as (
-              select coalesce((select end_stake_period from entity_stake where id = 800), -1) as end_stake_period
+              select coalesce((select end_stake_period from entity_stake where id = ?1), -1) as end_stake_period
             ), staking_reward_account as (
-              select (select id from entity where id = 800) as account_id
+              select (select id from entity where id = ?1) as account_id
             )
             select case when account_id is null then true
                         when (select epoch_day from last_epoch_day)
@@ -37,7 +37,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
             from staking_reward_account
             """,
             nativeQuery = true)
-    boolean updated();
+    boolean updated(long entityId);
 
     /**
      * Updates entity stake state based on the current entity stake state, the ending period node reward rate and the
@@ -75,14 +75,14 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
               select epoch_day, consensus_timestamp
               from node_stake
               where epoch_day >= coalesce(
-                (select end_stake_period + 1 from entity_stake where id = 800),
+                (select end_stake_period + 1 from entity_stake where id = ?1),
                 (
                   select epoch_day
                   from node_stake
                   where consensus_timestamp > (
-                    select lower(timestamp_range) as timestamp from entity where id = 800
+                    select lower(timestamp_range) as timestamp from entity where id = ?1
                     union all
-                    select lower(timestamp_range) as timestamp from entity_history where id = 800
+                    select lower(timestamp_range) as timestamp from entity_history where id = ?1
                     order by timestamp
                     limit 1
                   )
@@ -140,7 +140,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
               left join ending_period_stake_state on entity_id = ess.id
               left join proxy_staking ps on ps.staked_account_id = ess.id,
               ending_period ep
-            where ess.id = 800 or ess.staked_node_id <> -1;
+            where ess.id = ?1 or ess.staked_node_id <> -1;
 
             create index if not exists entity_stake_temp__id on entity_stake_temp (id);
 
@@ -195,5 +195,5 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
             """,
             nativeQuery = true)
     @Transactional
-    void updateEntityStake();
+    void updateEntityStake(long entityId);
 }
