@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import com.hedera.mirror.web3.state.components.ServicesRegistryImpl;
 import com.hedera.mirror.web3.state.keyvalue.AccountReadableKVState;
 import com.hedera.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import com.hedera.mirror.web3.state.keyvalue.ContractBytecodeReadableKVState;
@@ -32,11 +33,17 @@ import com.hedera.node.app.services.ServicesRegistry;
 import com.hedera.node.app.state.recordcache.RecordCacheService;
 import com.hedera.node.app.throttle.CongestionThrottleService;
 import com.swirlds.state.lifecycle.Service;
+import jakarta.annotation.PostConstruct;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
@@ -54,26 +61,7 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
             return;
         }
 
-        Set<Class<? extends Service>> expectedServices = new HashSet<>(List.of(
-                EntityIdService.class,
-                TokenServiceImpl.class,
-                FileServiceImpl.class,
-                ContractServiceImpl.class,
-                BlockRecordService.class,
-                FeeService.class,
-                CongestionThrottleService.class,
-                RecordCacheService.class,
-                ScheduleServiceImpl.class));
-
-        final var registeredServices = servicesRegistry.registrations();
-        assertThat(registeredServices).hasSameSizeAs(expectedServices);
-
-        for (var expectedService : expectedServices) {
-            assertThat(registeredServices.stream()
-                            .anyMatch(registration ->
-                                    registration.service().getClass().equals(expectedService)))
-                    .isTrue();
-        }
+        verifyRegisteredServices();
     }
 
     @Test
@@ -135,6 +123,86 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
                 "STAKING_NETWORK_REWARDS",
                 AtomicReference.class);
         verifyServiceDataSources(states, TokenService.NAME, tokenServiceDataSources);
+    }
+
+    @Test
+    void verifyMirrorNodeNonGenesisStateHasRegisteredServices() throws Exception {
+        boolean initialModularized = mirrorNodeEvmProperties.isModularizedServices();
+        if (!initialModularized) {
+            mirrorNodeEvmProperties.setModularizedServices(true);
+        }
+
+        try {
+            // Prepare for the test
+            prepareNonGenesisTestEnvironment();
+
+            // Execute the init method to initialize the state
+            initializeMirrorNodeState();
+
+            // Verify the expected services are registered
+            verifyRegisteredServices();
+        } finally {
+            // Reset properties to their initial state
+            resetProperties(initialModularized);
+        }
+    }
+
+    private void verifyRegisteredServices() {
+        Set<Class<? extends Service>> expectedServices = new HashSet<>(List.of(
+                EntityIdService.class,
+                TokenServiceImpl.class,
+                FileServiceImpl.class,
+                ContractServiceImpl.class,
+                BlockRecordService.class,
+                FeeService.class,
+                CongestionThrottleService.class,
+                RecordCacheService.class,
+                ScheduleServiceImpl.class));
+
+        final var registeredServices = servicesRegistry.registrations();
+
+        // Verify the servicesRegistry has the expected services registered
+        assertThat(registeredServices).hasSameSizeAs(expectedServices);
+
+        for (var expectedService : expectedServices) {
+            assertThat(registeredServices.stream()
+                            .anyMatch(registration ->
+                                    registration.service().getClass().equals(expectedService)))
+                    .isTrue();
+        }
+    }
+
+    private void prepareNonGenesisTestEnvironment() throws NoSuchFieldException, IllegalAccessException {
+        // Persist a record file to ensure we can start in non-genesis mode
+        domainBuilder.recordFile().persist();
+        mirrorNodeEvmProperties.setGenesisModularized(false);
+
+        // Clear existing registrations from servicesRegistry
+        clearServiceRegistryEntries();
+    }
+
+    private void clearServiceRegistryEntries() throws NoSuchFieldException, IllegalAccessException {
+        Field entriesField = ServicesRegistryImpl.class.getDeclaredField("entries");
+        entriesField.setAccessible(true);
+
+        SortedSet<?> entriesSet = (SortedSet<?>) entriesField.get(servicesRegistry);
+        entriesSet.clear();
+    }
+
+    private void initializeMirrorNodeState() throws IllegalAccessException, InvocationTargetException {
+        // Find and invoke the @PostConstruct method
+        Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
+                .filter(method -> method.isAnnotationPresent(PostConstruct.class))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("@PostConstruct method not found"));
+
+        postConstructMethod.setAccessible(true);
+        postConstructMethod.invoke(mirrorNodeState);
+    }
+
+    private void resetProperties(boolean initialModularized) {
+        mirrorNodeEvmProperties.setGenesisModularized(true);
+        mirrorNodeEvmProperties.setModularizedServices(initialModularized);
     }
 
     private void verifyServiceDataSources(

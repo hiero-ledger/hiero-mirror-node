@@ -13,8 +13,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
+import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import com.hedera.mirror.web3.repository.RecordFileRepository;
 import com.hedera.mirror.web3.state.core.ListReadableQueueState;
 import com.hedera.mirror.web3.state.core.ListWritableQueueState;
 import com.hedera.mirror.web3.state.core.MapReadableKVState;
@@ -42,6 +44,7 @@ import com.hedera.node.app.throttle.ThrottleAccumulator;
 import com.hedera.node.app.version.ServicesSoftwareVersion;
 import com.hedera.node.app.workflows.handle.metric.UnavailableMetrics;
 import com.hedera.node.config.data.VersionConfig;
+import com.swirlds.platform.system.BasicSoftwareVersion;
 import com.swirlds.state.State;
 import com.swirlds.state.StateChangeListener;
 import com.swirlds.state.lifecycle.StartupNetworks;
@@ -67,6 +70,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -78,6 +82,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MirrorNodeState implements State {
 
+    private static final int PREVIOUS_VERSION = 49;
     private final Map<String, ReadableStates> readableStates = new ConcurrentHashMap<>();
     private final Map<String, WritableStates> writableStates = new ConcurrentHashMap<>();
 
@@ -91,8 +96,8 @@ public class MirrorNodeState implements State {
     private final ServiceMigrator serviceMigrator;
     private final NetworkInfo networkInfo;
     private final StartupNetworks startupNetworks;
-
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final RecordFileRepository recordFileRepository;
 
     @PostConstruct
     private void init() {
@@ -101,13 +106,19 @@ public class MirrorNodeState implements State {
             return;
         }
 
+        boolean isGenesisModularized = mirrorNodeEvmProperties.isGenesisModularized();
+        var previousVersion = isGenesisModularized ? null : new BasicSoftwareVersion(PREVIOUS_VERSION);
+        Optional<RecordFile> recordFile = isGenesisModularized ? Optional.empty() : recordFileRepository.findLatest();
+
         ContractCallContext.run(ctx -> {
+            recordFile.ifPresent(ctx::setRecordFile); // Now correctly references an effectively final variable
             registerServices(servicesRegistry);
+
             final var bootstrapConfig = new BootstrapConfigProviderImpl().getConfiguration();
             serviceMigrator.doMigrations(
                     this,
                     servicesRegistry,
-                    null,
+                    previousVersion,
                     new ServicesSoftwareVersion(
                             bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion()),
                     mirrorNodeEvmProperties.getVersionedConfiguration(),
