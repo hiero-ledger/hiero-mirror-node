@@ -26,10 +26,11 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TRANSA
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,6 +43,7 @@ import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.store.Store;
 import com.hedera.mirror.web3.exception.BlockNumberOutOfRangeException;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
+import com.hedera.mirror.web3.service.model.CallServiceParameters;
 import com.hedera.mirror.web3.service.model.CallServiceParameters.CallType;
 import com.hedera.mirror.web3.service.model.ContractExecutionParameters;
 import com.hedera.mirror.web3.service.utils.BinaryGasEstimator;
@@ -65,7 +67,6 @@ import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1176,11 +1177,69 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
 
             when(mirrorNodeEvmProperties.getTransactionExecutionServiceTrafficSharePercentage())
                     .thenReturn(100.0);
-            assertTrue(contractCallService.directTrafficThroughTransactionExecutionService());
+            assertThat(contractCallService.directTrafficThroughTransactionExecutionService())
+                    .isTrue();
 
             when(mirrorNodeEvmProperties.getTransactionExecutionServiceTrafficSharePercentage())
                     .thenReturn(0.0);
-            Assertions.assertFalse(contractCallService.directTrafficThroughTransactionExecutionService());
+            assertThat(contractCallService.directTrafficThroughTransactionExecutionService())
+                    .isFalse();
+        }
+
+        @Test
+        void shouldCallTransactionExecutionService() throws MirrorEvmTransactionException {
+            MirrorNodeEvmProperties mirrorNodeEvmProperties = mock(MirrorNodeEvmProperties.class);
+            TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
+            MirrorEvmTxProcessor mirrorEvmTxProcessor = mock(MirrorEvmTxProcessor.class);
+            CallServiceParameters params = mock(CallServiceParameters.class);
+
+            ContractCallService contractCallService = new ContractCallService(
+                    mirrorEvmTxProcessor,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    mirrorNodeEvmProperties,
+                    txnExecutionService) {};
+
+            when(mirrorNodeEvmProperties.isModularizedServices()).thenReturn(true);
+            when(mirrorNodeEvmProperties.getTransactionExecutionServiceTrafficSharePercentage())
+                    .thenReturn(100.0);
+
+            contractCallService.doProcessCall(params, 1000L, false);
+
+            verify(txnExecutionService, times(1)).execute(any(), anyLong(), any());
+            verify(mirrorEvmTxProcessor, never()).execute(any(), anyLong());
+        }
+
+        @ParameterizedTest
+        @CsvSource({"true, 0.0", "false, 100.0", "false, 0.0"})
+        void shouldNotCallTransactionExecutionService(boolean isModularizedServices, double trafficShare)
+                throws MirrorEvmTransactionException {
+            MirrorNodeEvmProperties mirrorNodeEvmProperties = mock(MirrorNodeEvmProperties.class);
+            TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
+            MirrorEvmTxProcessor mirrorEvmTxProcessor = mock(MirrorEvmTxProcessor.class);
+            CallServiceParameters params = mock(CallServiceParameters.class);
+
+            ContractCallService contractCallService = new ContractCallService(
+                    mirrorEvmTxProcessor,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    mirrorNodeEvmProperties,
+                    txnExecutionService) {};
+
+            when(mirrorNodeEvmProperties.isModularizedServices()).thenReturn(isModularizedServices);
+            when(mirrorNodeEvmProperties.getTransactionExecutionServiceTrafficSharePercentage())
+                    .thenReturn(trafficShare);
+
+            contractCallService.doProcessCall(params, 1000L, false);
+
+            verify(txnExecutionService, never()).execute(any(), anyLong(), any());
+            verify(mirrorEvmTxProcessor, times(1)).execute(any(), anyLong());
         }
     }
 }

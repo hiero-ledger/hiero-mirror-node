@@ -137,6 +137,11 @@ public abstract class ContractCallService {
         return result;
     }
 
+    /**
+     * Used to determine whether a transaction should go through the txn execution service based on
+     * transactionExecutionServiceTrafficSharePercentage property in the config/application.yml
+     * @return true if the random value between 0 and 1 is less than txnExecServiceTrafficSharePercentage * 0.01
+     */
     protected boolean directTrafficThroughTransactionExecutionService() {
         double txnExecServiceTrafficSharePercentage =
                 mirrorNodeEvmProperties.getTransactionExecutionServiceTrafficSharePercentage();
