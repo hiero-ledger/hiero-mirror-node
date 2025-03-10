@@ -183,7 +183,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private boolean modularizedServices;
 
     @Getter
-    private boolean genesisModularized;
+    private boolean genesisModularized = true;
 
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);

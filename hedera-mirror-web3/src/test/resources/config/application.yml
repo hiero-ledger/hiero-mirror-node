@@ -4,7 +4,6 @@ hedera:
   mirror:
     web3:
       evm:
-        genesisModularized: true
         properties:
           contracts.maxRefundPercentOfGasLimit: "100"
         evm_versions:
