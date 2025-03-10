@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.hedera.services.store.contracts.precompile.HbarTransfer;
 import com.hedera.services.store.contracts.precompile.TransferWrapper;
+import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TransferList;
@@ -14,6 +15,13 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class TransferWrapperTest {
+
+    private final long aChange = -100L;
+    private final long bChange = +75;
+    private final long cChange = +25;
+    private final AccountID anAccount = toGrpcAccountId(new Id(0, 0, 1234));
+    private final AccountID otherAccount = toGrpcAccountId(new Id(0, 0, 2345));
+    private final AccountID anotherAccount = toGrpcAccountId(new Id(0, 0, 3456));
 
     @Test
     void translatesFungibleTransfersAsExpected() {
@@ -42,11 +50,4 @@ class TransferWrapperTest {
                 new HbarTransfer(Math.abs(bChange), false, null, otherAccount),
                 new HbarTransfer(Math.abs(cChange), false, null, anotherAccount));
     }
-
-    private final long aChange = -100L;
-    private final long bChange = +75;
-    private final long cChange = +25;
-    private final AccountID anAccount = toGrpcAccountId(1234);
-    private final AccountID otherAccount = toGrpcAccountId(2345);
-    private final AccountID anotherAccount = toGrpcAccountId(3456);
 }

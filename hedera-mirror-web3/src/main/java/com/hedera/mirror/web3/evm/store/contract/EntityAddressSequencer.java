@@ -4,6 +4,7 @@ package com.hedera.mirror.web3.evm.store.contract;
 
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import jakarta.inject.Named;
@@ -15,6 +16,7 @@ import org.hyperledger.besu.datatypes.Address;
 @RequiredArgsConstructor
 public class EntityAddressSequencer {
     private final AtomicLong entityIds = new AtomicLong(1_000_000_000);
+    private final CommonProperties commonProperties;
 
     public ContractID getNewContractId(Address sponsor) {
         final var newContractSponsor = accountIdFromEvmAddress(sponsor.toArrayUnsafe());
@@ -27,8 +29,8 @@ public class EntityAddressSequencer {
 
     public AccountID getNewAccountId() {
         return AccountID.newBuilder()
-                .setRealmNum(0)
-                .setShardNum(0)
+                .setRealmNum(commonProperties.getRealm())
+                .setShardNum(commonProperties.getShard())
                 .setAccountNum(getNextEntityId())
                 .build();
     }

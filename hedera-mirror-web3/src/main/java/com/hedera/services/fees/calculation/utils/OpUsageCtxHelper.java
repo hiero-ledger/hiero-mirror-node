@@ -2,11 +2,11 @@
 
 package com.hedera.services.fees.calculation.utils;
 
+import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
 import static com.hedera.services.fees.usage.token.TokenOpsUsageUtils.TOKEN_OPS_USAGE_UTILS;
 import static com.hedera.services.txns.crypto.helpers.AllowanceHelpers.getCryptoAllowancesList;
 import static com.hedera.services.txns.crypto.helpers.AllowanceHelpers.getFungibleTokenAllowancesList;
 import static com.hedera.services.txns.crypto.helpers.AllowanceHelpers.getNftApprovedForAll;
-import static com.hedera.services.utils.EntityIdUtils.asEvmAddress;
 import static com.hedera.services.utils.MiscUtils.asKeyUnchecked;
 
 import com.hedera.mirror.web3.evm.store.Store;
@@ -41,7 +41,7 @@ public class OpUsageCtxHelper {
         final var op = txn.getCryptoUpdateAccount();
         final var id = op.getAccountIDToUpdate();
         final var accountOrAlias = id.getAlias().isEmpty()
-                ? Address.wrap(Bytes.wrap(asEvmAddress(id)))
+                ? Address.wrap(Bytes.wrap(toEvmAddress(id)))
                 : hederaEvmContractAliases.resolveForEvm(
                         Address.wrap(Bytes.wrap(id.getAlias().toByteArray())));
         final var account = store.getAccount(accountOrAlias, OnMissing.DONT_THROW);
@@ -78,7 +78,7 @@ public class OpUsageCtxHelper {
     public ExtantCryptoContext ctxForCryptoAllowance(TxnAccessor accessor) {
         final var id = accessor.getPayer();
         final var accountOrAlias = id.getAlias().isEmpty()
-                ? Address.wrap(Bytes.wrap(asEvmAddress(id)))
+                ? Address.wrap(Bytes.wrap(toEvmAddress(id)))
                 : hederaEvmContractAliases.resolveForEvm(
                         Address.wrap(Bytes.wrap(id.getAlias().toByteArray())));
         final var account = store.getAccount(accountOrAlias, OnMissing.DONT_THROW);
