@@ -81,7 +81,7 @@ import lombok.RequiredArgsConstructor;
 @Named
 @RequiredArgsConstructor
 public class MirrorNodeState implements State {
-
+    private static final int PREVIOUS_VERSION = 49;
     private final Map<String, ReadableStates> readableStates = new ConcurrentHashMap<>();
     private final Map<String, WritableStates> writableStates = new ConcurrentHashMap<>();
 
@@ -105,7 +105,7 @@ public class MirrorNodeState implements State {
         }
 
         boolean isGenesisModularized = mirrorNodeEvmProperties.isGenesisModularized();
-        var previousVersion = isGenesisModularized ? null : new BasicSoftwareVersion(47);
+        var previousVersion = isGenesisModularized ? null : new BasicSoftwareVersion(PREVIOUS_VERSION);
         Optional<RecordFile> recordFile = isGenesisModularized ? Optional.empty() : recordFileRepository.findLatest();
 
         ContractCallContext.run(ctx -> {
