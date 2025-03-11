@@ -7,14 +7,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.monitor.validator.AccountIdValidator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class MonitorPropertiesTest {
 
-    private final MonitorProperties monitorProperties =
-            new MonitorProperties(new AccountIdValidator(new CommonProperties()));
+    private MonitorProperties monitorProperties;
+
+    @BeforeEach
+    void setup() {
+        monitorProperties = new MonitorProperties();
+        monitorProperties.setAccountIdValidator(new AccountIdValidator(new CommonProperties()));
+    }
 
     @ParameterizedTest
     @CsvSource(

@@ -45,8 +45,7 @@ import reactor.core.publisher.Mono;
 class ExpressionConverterImplTest {
 
     @Spy
-    private final MonitorProperties monitorProperties =
-            new MonitorProperties(new AccountIdValidator(new CommonProperties()));
+    private final MonitorProperties monitorProperties = new MonitorProperties();
 
     @Mock
     private TransactionPublisher transactionPublisher;
@@ -59,6 +58,7 @@ class ExpressionConverterImplTest {
 
     @BeforeEach
     void setup() {
+        monitorProperties.setAccountIdValidator(new AccountIdValidator(new CommonProperties()));
         monitorProperties.getOperator().setAccountId("0.0.2");
         monitorProperties
                 .getOperator()

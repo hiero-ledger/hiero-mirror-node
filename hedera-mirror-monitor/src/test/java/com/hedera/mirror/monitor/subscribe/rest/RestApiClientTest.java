@@ -47,7 +47,8 @@ class RestApiClientTest {
 
     @BeforeEach
     void setup() {
-        monitorProperties = new MonitorProperties(new AccountIdValidator(new CommonProperties()));
+        monitorProperties = new MonitorProperties();
+        monitorProperties.setAccountIdValidator(new AccountIdValidator(new CommonProperties()));
         monitorProperties.setMirrorNode(new MirrorNodeProperties());
         monitorProperties.getMirrorNode().getRest().setHost("127.0.0.1");
 

@@ -6,7 +6,7 @@ import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.monitor.validator.AccountIdValidator;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
-import jakarta.inject.Named;
+import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.LinkedHashSet;
@@ -17,14 +17,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
-@Named
 @Data
 @EnableConfigurationProperties(CommonProperties.class)
 @Validated
 @ConfigurationProperties("hedera.mirror.monitor")
 public class MonitorProperties {
 
-    private final AccountIdValidator accountIdValidator;
+    @Resource
+    private AccountIdValidator accountIdValidator;
 
     @Nullable
     @Valid

@@ -55,7 +55,8 @@ class GrpcClientSDKTest {
         properties.setName(testInfo.getDisplayName());
         properties.setTopicId("0.0.1000");
         subscription = new GrpcSubscription(1, properties);
-        var monitorProperties = new MonitorProperties(new AccountIdValidator(new CommonProperties()));
+        var monitorProperties = new MonitorProperties();
+        monitorProperties.setAccountIdValidator(new AccountIdValidator(new CommonProperties()));
         monitorProperties.getMirrorNode().getGrpc().setHost("in-process:test");
         grpcClientSDK = new GrpcClientSDK(monitorProperties, new SubscribeProperties());
 

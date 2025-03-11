@@ -86,7 +86,8 @@ class NodeSupplierTest {
         publishScenarioProperties = new PublishScenarioProperties();
         publishScenarioProperties.setName("test");
         publishScenarioProperties.setType(TransactionType.CRYPTO_TRANSFER);
-        monitorProperties = new MonitorProperties(new AccountIdValidator(new CommonProperties()));
+        monitorProperties = new MonitorProperties();
+        monitorProperties.setAccountIdValidator(new AccountIdValidator(new CommonProperties()));
         monitorProperties.setNodes(Set.of(node));
         OperatorProperties operatorProperties = monitorProperties.getOperator();
         operatorProperties.setAccountId("0.0.100");
