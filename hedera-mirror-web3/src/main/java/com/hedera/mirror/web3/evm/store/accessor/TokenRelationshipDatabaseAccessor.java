@@ -2,6 +2,10 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
+import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
+
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.AbstractTokenAccount;
 import com.hedera.mirror.common.domain.token.TokenAccount;
 import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
@@ -27,6 +31,8 @@ import org.hyperledger.besu.datatypes.Address;
 @Named
 @RequiredArgsConstructor
 public class TokenRelationshipDatabaseAccessor extends DatabaseAccessor<Object, TokenRelationship> {
+
+    private final CommonProperties commonProperties;
     private final TokenDatabaseAccessor tokenDatabaseAccessor;
     private final AccountDatabaseAccessor accountDatabaseAccessor;
     private final TokenAccountRepository tokenAccountRepository;
@@ -104,8 +110,11 @@ public class TokenRelationshipDatabaseAccessor extends DatabaseAccessor<Object, 
         return timestamp
                 .map(t -> {
                     if (t >= accountCreatedTimestamp) {
+                        long treasuryAccountId = EntityId.of(
+                                        commonProperties.getShard(), commonProperties.getRealm(), TREASURY_NUM)
+                                .getId();
                         return tokenBalanceRepository.findHistoricalTokenBalanceUpToTimestamp(
-                                tokenAccount.getTokenId(), tokenAccount.getAccountId(), t);
+                                tokenAccount.getTokenId(), tokenAccount.getAccountId(), t, treasuryAccountId);
                     } else {
                         return ZERO_BALANCE;
                     }

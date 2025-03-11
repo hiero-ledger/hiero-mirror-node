@@ -2,11 +2,13 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
+import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
 import static com.hedera.services.utils.MiscUtils.asFcKeyUnchecked;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.TokenPauseStatusEnum;
@@ -39,6 +41,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class TokenDatabaseAccessor extends DatabaseAccessor<Object, Token> {
 
+    private final CommonProperties commonProperties;
     private final TokenRepository tokenRepository;
     private final EntityDatabaseAccessor entityDatabaseAccessor;
     private final EntityRepository entityRepository;
@@ -106,15 +109,17 @@ public class TokenDatabaseAccessor extends DatabaseAccessor<Object, Token> {
     private Supplier<Long> getTotalSupply(
             final com.hedera.mirror.common.domain.token.Token token, final Optional<Long> timestamp) {
         return Suppliers.memoize(() -> timestamp
-                .map(t -> Optional.of(getTotalSupplyHistorical(
-                        token.getType().equals(TokenTypeEnum.FUNGIBLE_COMMON), token.getTokenId(), t)))
-                .orElseGet(() -> Optional.ofNullable(token.getTotalSupply()))
+                .map(t -> getTotalSupplyHistorical(
+                        token.getType().equals(TokenTypeEnum.FUNGIBLE_COMMON), token.getTokenId(), t))
+                .or(() -> Optional.ofNullable(token.getTotalSupply()))
                 .orElse(0L));
     }
 
     private Long getTotalSupplyHistorical(boolean isFungible, long tokenId, long timestamp) {
         if (isFungible) {
-            return tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(tokenId, timestamp);
+            long treasuryAccountId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), TREASURY_NUM)
+                    .getId();
+            return tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(tokenId, timestamp, treasuryAccountId);
         } else {
             return nftRepository.findNftTotalSupplyByTokenIdAndTimestamp(tokenId, timestamp);
         }

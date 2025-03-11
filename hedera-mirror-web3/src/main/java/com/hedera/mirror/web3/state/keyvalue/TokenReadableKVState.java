@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.state.keyvalue;
 
+import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static com.hedera.mirror.web3.state.Utils.DEFAULT_AUTO_RENEW_PERIOD;
 import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
@@ -17,6 +18,7 @@ import com.hedera.hapi.node.transaction.CustomFee.FeeOneOfType;
 import com.hedera.hapi.node.transaction.FixedFee;
 import com.hedera.hapi.node.transaction.FractionalFee;
 import com.hedera.hapi.node.transaction.RoyaltyFee;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
@@ -48,7 +50,9 @@ import org.springframework.util.CollectionUtils;
 public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token> {
 
     public static final String KEY = "TOKENS";
+
     private final CommonEntityAccessor commonEntityAccessor;
+    private final CommonProperties commonProperties;
     private final CustomFeeRepository customFeeRepository;
     private final TokenRepository tokenRepository;
     private final EntityRepository entityRepository;
@@ -56,12 +60,14 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
 
     protected TokenReadableKVState(
             final CommonEntityAccessor commonEntityAccessor,
+            final CommonProperties commonProperties,
             final CustomFeeRepository customFeeRepository,
             final TokenRepository tokenRepository,
             final EntityRepository entityRepository,
             final NftRepository nftRepository) {
         super(KEY);
         this.commonEntityAccessor = commonEntityAccessor;
+        this.commonProperties = commonProperties;
         this.customFeeRepository = customFeeRepository;
         this.tokenRepository = tokenRepository;
         this.entityRepository = entityRepository;
@@ -135,7 +141,9 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
 
     private Long getTotalSupplyHistorical(boolean isFungible, long tokenId, long timestamp) {
         if (isFungible) {
-            return tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(tokenId, timestamp);
+            long treasuryAccountId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), TREASURY_NUM)
+                    .getId();
+            return tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(tokenId, timestamp, treasuryAccountId);
         } else {
             return nftRepository.findNftTotalSupplyByTokenIdAndTimestamp(tokenId, timestamp);
         }

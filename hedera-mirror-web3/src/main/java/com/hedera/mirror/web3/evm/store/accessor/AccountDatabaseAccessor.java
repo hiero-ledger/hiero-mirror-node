@@ -10,6 +10,7 @@ import static com.hedera.services.utils.MiscUtils.asFcKeyUnchecked;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.AbstractTokenAllowance;
 import com.hedera.mirror.common.domain.entity.CryptoAllowance;
 import com.hedera.mirror.common.domain.entity.Entity;
@@ -57,6 +58,7 @@ public class AccountDatabaseAccessor extends DatabaseAccessor<Object, Account> {
         throw new IllegalStateException(String.format("Duplicate key for values %s and %s", v1, v2));
     };
 
+    private final CommonProperties commonProperties;
     private final EntityDatabaseAccessor entityDatabaseAccessor;
     private final NftAllowanceRepository nftAllowanceRepository;
     private final NftRepository nftRepository;
@@ -128,8 +130,12 @@ public class AccountDatabaseAccessor extends DatabaseAccessor<Object, Account> {
         return Suppliers.memoize(() -> timestamp
                 .map(t -> {
                     Long createdTimestamp = entity.getCreatedTimestamp();
+                    long treasuryAccountId = EntityId.of(
+                                    commonProperties.getShard(), commonProperties.getRealm(), EntityId.TREASURY_NUM)
+                            .getId();
                     if (createdTimestamp == null || t >= createdTimestamp) {
-                        return accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(entity.getId(), t);
+                        return accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
+                                entity.getId(), t, treasuryAccountId);
                     } else {
                         return ZERO_BALANCE;
                     }

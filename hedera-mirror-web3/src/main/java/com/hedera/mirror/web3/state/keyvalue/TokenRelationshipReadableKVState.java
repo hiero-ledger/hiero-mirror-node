@@ -2,12 +2,15 @@
 
 package com.hedera.mirror.web3.state.keyvalue;
 
+import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.common.EntityIDPair;
 import com.hedera.hapi.node.state.token.TokenRelation;
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.AbstractTokenAccount;
 import com.hedera.mirror.common.domain.token.TokenAccount;
 import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
@@ -29,17 +32,21 @@ import java.util.function.Supplier;
 public class TokenRelationshipReadableKVState extends AbstractReadableKVState<EntityIDPair, TokenRelation> {
 
     public static final String KEY = "TOKEN_RELS";
+
+    private final CommonProperties commonProperties;
     private final NftRepository nftRepository;
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenBalanceRepository tokenBalanceRepository;
     private final TokenRepository tokenRepository;
 
     protected TokenRelationshipReadableKVState(
+            final CommonProperties commonProperties,
             final NftRepository nftRepository,
             final TokenAccountRepository tokenAccountRepository,
             final TokenBalanceRepository tokenBalanceRepository,
             final TokenRepository tokenRepository) {
         super(KEY);
+        this.commonProperties = commonProperties;
         this.nftRepository = nftRepository;
         this.tokenAccountRepository = tokenAccountRepository;
         this.tokenBalanceRepository = tokenBalanceRepository;
@@ -112,9 +119,11 @@ public class TokenRelationshipReadableKVState extends AbstractReadableKVState<En
     }
 
     private Long getFungibleBalance(final TokenAccount tokenAccount, final long timestamp) {
+        long treasuryAccountId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), TREASURY_NUM)
+                .getId();
         return tokenBalanceRepository
                 .findHistoricalTokenBalanceUpToTimestamp(
-                        tokenAccount.getTokenId(), tokenAccount.getAccountId(), timestamp)
+                        tokenAccount.getTokenId(), tokenAccount.getAccountId(), timestamp, treasuryAccountId)
                 .orElse(0L);
     }
 
