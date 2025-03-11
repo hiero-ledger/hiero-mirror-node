@@ -31,6 +31,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -1170,42 +1171,29 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
 
         @Test
         void testDirectTrafficThroughTransactionExecutionService() {
-            MirrorNodeEvmProperties mirrorNodeEvmProperties = mock(MirrorNodeEvmProperties.class);
+            MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
 
-            ContractCallService contractCallService =
-                    new ContractCallService(null, null, null, null, null, null, mirrorNodeEvmProperties, null) {};
-
-            when(mirrorNodeEvmProperties.getTransactionExecutionServiceTrafficSharePercentage())
-                    .thenReturn(100.0);
-            assertThat(contractCallService.directTrafficThroughTransactionExecutionService())
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(100.0);
+            assertThat(spyEvmProperties.directTrafficThroughTransactionExecutionService())
                     .isTrue();
 
-            when(mirrorNodeEvmProperties.getTransactionExecutionServiceTrafficSharePercentage())
-                    .thenReturn(0.0);
-            assertThat(contractCallService.directTrafficThroughTransactionExecutionService())
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(0.0);
+            assertThat(spyEvmProperties.directTrafficThroughTransactionExecutionService())
                     .isFalse();
         }
 
         @Test
         void shouldCallTransactionExecutionService() throws MirrorEvmTransactionException {
-            MirrorNodeEvmProperties mirrorNodeEvmProperties = mock(MirrorNodeEvmProperties.class);
+            MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
             TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
             MirrorEvmTxProcessor mirrorEvmTxProcessor = mock(MirrorEvmTxProcessor.class);
             CallServiceParameters params = mock(CallServiceParameters.class);
 
             ContractCallService contractCallService = new ContractCallService(
-                    mirrorEvmTxProcessor,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    mirrorNodeEvmProperties,
-                    txnExecutionService) {};
+                    mirrorEvmTxProcessor, null, null, null, null, null, spyEvmProperties, txnExecutionService) {};
 
-            when(mirrorNodeEvmProperties.isModularizedServices()).thenReturn(true);
-            when(mirrorNodeEvmProperties.getTransactionExecutionServiceTrafficSharePercentage())
-                    .thenReturn(100.0);
+            when(spyEvmProperties.isModularizedServices()).thenReturn(true);
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(100.0);
 
             contractCallService.doProcessCall(params, 1000L, false);
 
@@ -1217,24 +1205,16 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         @CsvSource({"true, 0.0", "false, 100.0", "false, 0.0"})
         void shouldNotCallTransactionExecutionService(boolean isModularizedServices, double trafficShare)
                 throws MirrorEvmTransactionException {
-            MirrorNodeEvmProperties mirrorNodeEvmProperties = mock(MirrorNodeEvmProperties.class);
+            MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
             TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
             MirrorEvmTxProcessor mirrorEvmTxProcessor = mock(MirrorEvmTxProcessor.class);
             CallServiceParameters params = mock(CallServiceParameters.class);
 
             ContractCallService contractCallService = new ContractCallService(
-                    mirrorEvmTxProcessor,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    mirrorNodeEvmProperties,
-                    txnExecutionService) {};
+                    mirrorEvmTxProcessor, null, null, null, null, null, spyEvmProperties, txnExecutionService) {};
 
-            when(mirrorNodeEvmProperties.isModularizedServices()).thenReturn(isModularizedServices);
-            when(mirrorNodeEvmProperties.getTransactionExecutionServiceTrafficSharePercentage())
-                    .thenReturn(trafficShare);
+            when(spyEvmProperties.isModularizedServices()).thenReturn(isModularizedServices);
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(trafficShare);
 
             contractCallService.doProcessCall(params, 1000L, false);
 

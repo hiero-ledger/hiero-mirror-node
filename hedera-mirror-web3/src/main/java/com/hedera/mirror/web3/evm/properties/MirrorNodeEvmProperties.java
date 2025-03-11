@@ -36,6 +36,7 @@ import java.util.regex.Pattern;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hibernate.validator.constraints.time.DurationMin;
@@ -183,7 +184,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private boolean modularizedServices;
 
     @Getter
-    private double transactionExecutionServiceTrafficSharePercentage;
+    private double modularizedTrafficPercent;
 
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);
@@ -333,6 +334,16 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
         props.putAll(properties); // Allow user defined properties to override the defaults
         return Collections.unmodifiableMap(props);
+    }
+
+    /**
+     * Used to determine whether a transaction should go through the txn execution service based on
+     * modularizedTrafficPercent property in the config/application.yml
+     * @return true if the random value between 0 and 1 is less than txnExecServiceTrafficSharePercentage * 0.01
+     */
+    public boolean directTrafficThroughTransactionExecutionService() {
+        double txnExecServiceTrafficSharePercentage = getModularizedTrafficPercent();
+        return RandomUtils.secure().randomDouble(0.0d, 1.0d) < txnExecServiceTrafficSharePercentage * 0.01;
     }
 
     @Getter
