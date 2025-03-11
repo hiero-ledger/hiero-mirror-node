@@ -2,26 +2,24 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.BlockItem;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
 
 @Named
 final class CryptoTransferTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void updateTransactionRecord(
-            BlockItem blockItem, TransactionBody transactionBody, TransactionRecord.Builder transactionRecordBuilder) {
-        for (var transactionOutput : blockItem.transactionOutput()) {
-            if (transactionOutput.hasCryptoTransfer()) {
-                var cryptoTransferOutput = transactionOutput.getCryptoTransfer();
-                var assessedCustomFees = cryptoTransferOutput.getAssessedCustomFeesList();
-                transactionRecordBuilder.addAllAssessedCustomFees(assessedCustomFees);
-                break;
-            }
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
+        if (!blockItem.isSuccessful()) {
+            return;
         }
+
+        var cryptoTransfer =
+                blockItem.getTransactionOutput(TransactionCase.CRYPTO_TRANSFER).getCryptoTransfer();
+        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
+        recordBuilder.addAllAssessedCustomFees(cryptoTransfer.getAssessedCustomFeesList());
     }
 
     @Override

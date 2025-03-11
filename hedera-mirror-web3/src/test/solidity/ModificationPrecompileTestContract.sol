@@ -321,6 +321,51 @@ contract ModificationPrecompileTestContract is HederaTokenService {
         }
     }
 
+    function updateFungibleTokenCustomFeesExternal(address token, IHederaTokenService.FixedFee[] memory fixedFees, IHederaTokenService.FractionalFee[] memory fractionalFees) external
+    returns (int64 responseCode)
+    {
+        responseCode = HederaTokenService.updateFungibleTokenCustomFees(token, fixedFees, fractionalFees);
+        if (responseCode != HederaResponseCodes.SUCCESS) {
+            revert();
+        }
+    }
+
+    function getCustomFeesForToken(address token) internal
+    returns (
+        IHederaTokenService.FixedFee[] memory fixedFees,
+        IHederaTokenService.FractionalFee[] memory fractionalFees,
+        IHederaTokenService.RoyaltyFee[] memory royaltyFees)
+    {
+        int responseCode;
+        (responseCode, fixedFees, fractionalFees, royaltyFees) = HederaTokenService.getTokenCustomFees(token);
+
+        if (responseCode != HederaResponseCodes.SUCCESS) {
+            revert("Failed to fetch custom fees");
+        }
+
+        return (fixedFees, fractionalFees, royaltyFees);
+    }
+
+    function updateFungibleTokenCustomFeesAndGetExternal(
+        address token,
+        IHederaTokenService.FixedFee[] memory fixedFees,
+        IHederaTokenService.FractionalFee[] memory fractionalFees,
+        IHederaTokenService.RoyaltyFee[] memory royaltyFees) external
+    returns (
+        IHederaTokenService.FixedFee[] memory newFixedFees,
+        IHederaTokenService.FractionalFee[] memory newFractionalFees,
+        IHederaTokenService.RoyaltyFee[] memory newRoyaltyFees)
+    {
+        int64 responseCode = HederaTokenService.updateFungibleTokenCustomFees(token, fixedFees, fractionalFees);
+        if (responseCode != HederaResponseCodes.SUCCESS) {
+            revert("Failed to update fungible token custom fees");
+        }
+
+        (newFixedFees, newFractionalFees, newRoyaltyFees) = getCustomFeesForToken(token);
+
+        return (newFixedFees, newFractionalFees, newRoyaltyFees);
+    }
+
     function updateTokenKeysExternal(address token, IHederaTokenService.TokenKey[] memory keys) external
     returns (int responseCode)
     {

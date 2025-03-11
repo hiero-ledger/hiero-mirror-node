@@ -1364,7 +1364,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .tokenMint()
                 .transactionBody(
                         b -> b.setToken(protoTokenId).clearMetadata().addAllMetadata(Collections.nCopies(3, metadata)))
-                .record(r -> r.addTokenTransferLists(nftMintTransferList))
+                .record(r -> r.clearTokenTransferLists().addTokenTransferLists(nftMintTransferList))
                 .receipt(r -> r.clearSerialNumbers().addAllSerialNumbers(mintSerials))
                 .build();
         recordItems.add(nftMintRecordItem);
@@ -2300,6 +2300,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .transactionBody(b -> b.clear().setToken(TOKEN_ID).addMetadata(metadata))
                 .receipt(r -> r.clearSerialNumbers().addSerialNumbers(1).setNewTotalSupply(1))
                 .record(r -> r.setConsensusTimestamp(TestUtils.toTimestamp(mintTimestamp))
+                        .clearTokenTransferLists()
                         .addTokenTransferLists(TokenTransferList.newBuilder()
                                 .setToken(TOKEN_ID)
                                 .addNftTransfers(NftTransfer.newBuilder()
@@ -2427,6 +2428,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                         .addSerialNumbers(2)
                         .setNewTotalSupply(2))
                 .record(r -> r.setConsensusTimestamp(TestUtils.toTimestamp(mintTimestamp))
+                        .clearTokenTransferLists()
                         .addTokenTransferLists(
                                 TokenTransferList.newBuilder()
                                         .setToken(TOKEN_ID)
@@ -2543,6 +2545,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .transactionBody(b -> b.clear().setToken(TOKEN_ID).addMetadata(metadata))
                 .receipt(r -> r.clearSerialNumbers().addSerialNumbers(1).setNewTotalSupply(1))
                 .record(r -> r.setConsensusTimestamp(TestUtils.toTimestamp(mintTimestamp))
+                        .clearTokenTransferLists()
                         .addTokenTransferLists(TokenTransferList.newBuilder()
                                 .setToken(TOKEN_ID)
                                 .addNftTransfers(NftTransfer.newBuilder()
@@ -3997,15 +4000,14 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                         .build())
                 .build();
 
-        var tokenMintRecordItem = recordItemBuilder
-                .tokenMint()
-                .transactionBody(b -> b.setToken(TOKEN_ID).addMetadata(DomainUtils.fromBytes(METADATA)))
-                .receipt(r -> r.clearSerialNumbers().addSerialNumbers(SERIAL_NUMBER_1))
+        var cryptoTransferRecordItem = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBody(b -> b.addTokenTransfers(nftTransfer))
                 .record(r -> r.addTokenTransferLists(nftTransfer)
                         .setConsensusTimestamp(TestUtils.toTimestamp(transferTimestamp)))
                 .build();
 
-        parseRecordItemAndCommit(tokenMintRecordItem);
+        parseRecordItemAndCommit(cryptoTransferRecordItem);
 
         var expectedNft = domainBuilder.nftTransfer().customize(t -> {
             t.receiverAccountId(EntityId.of(RECEIVER))
