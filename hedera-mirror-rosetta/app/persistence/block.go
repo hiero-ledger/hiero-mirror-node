@@ -45,7 +45,14 @@ const (
 
 	// selectGenesis - Selects the first block whose consensus_end is after the genesis account balance
 	// timestamp. Return the record file with adjusted consensus start
-	selectGenesis string = "with" + genesisTimestampCte + `select
+	selectGenesis string = `with genesis as (
+                              select consensus_timestamp as timestamp
+                              from account_balance
+                               where account_id = @treasury_entity_id
+                               order by consensus_timestamp
+                               limit 1
+                            )
+                            select
                               hash,
                               index,
                               case
@@ -109,16 +116,18 @@ func (rb *recordBlock) ToBlock(genesisBlock recordBlock) *types.Block {
 
 // blockRepository struct that has connection to the Database
 type blockRepository struct {
-	dbClient     interfaces.DbClient
-	genesisBlock recordBlock
-	once         sync.Once
+	dbClient         interfaces.DbClient
+	genesisBlock     recordBlock
+	once             sync.Once
+	treasuryEntityId int64
 }
 
 // NewBlockRepository creates an instance of a blockRepository struct
-func NewBlockRepository(dbClient interfaces.DbClient) interfaces.BlockRepository {
+func NewBlockRepository(dbClient interfaces.DbClient, treasuryEntityId int64) interfaces.BlockRepository {
 	return &blockRepository{
-		dbClient:     dbClient,
-		genesisBlock: recordBlock{ConsensusStart: genesisConsensusStartUnset},
+		dbClient:         dbClient,
+		genesisBlock:     recordBlock{ConsensusStart: genesisConsensusStartUnset},
+		treasuryEntityId: treasuryEntityId,
 	}
 }
 
@@ -239,7 +248,8 @@ func (br *blockRepository) initGenesisRecordFile(ctx context.Context) *rTypes.Er
 	defer cancel()
 
 	var rb recordBlock
-	if err := db.Raw(selectGenesis).First(&rb).Error; err != nil {
+	if err := db.Raw(selectGenesis, sql.Named("treasury_entity_id", br.treasuryEntityId)).
+		First(&rb).Error; err != nil {
 		return handleDatabaseError(err, hErrors.ErrNodeIsStarting)
 	}
 

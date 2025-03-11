@@ -3,13 +3,13 @@
 package config
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/persistence/domain"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
@@ -23,6 +23,13 @@ hedera:
     rosetta:
       nodes:
         "192.168.0.1:50211": 0.3`
+	invalidYamlShardRealm = `
+hedera:
+  mirror:
+    common:
+      shard: 1024
+      realm: 65537
+`
 	testConfigFilename = "application.yml"
 	yml1               = `
 hedera:
@@ -53,6 +60,7 @@ func TestLoadDefaultConfig(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, getDefaultConfig(), config)
+	assert.Equal(t, getDefaultConfig().GetTreasuryEntityId(), config.GetTreasuryEntityId())
 }
 
 func TestLoadDefaultConfigInvalidYamlString(t *testing.T) {
@@ -125,8 +133,10 @@ func TestLoadCustomConfigFromCwdAndEnvVar(t *testing.T) {
 	expected.Rosetta.Db.Username = "foobar"
 	expected.Rosetta.Network = "testnet"
 	expected.Rosetta.NodeRefreshInterval = expectedNodeRefreshInterval
+	expected.treasuryEntityId = domain.MustDecodeEntityId(18289276416425986).EncodedId
 	assert.NoError(t, err)
 	assert.Equal(t, expected, config)
+	assert.Equal(t, expected.treasuryEntityId, config.GetTreasuryEntityId())
 }
 
 func TestLoadCustomConfigFromEnvVar(t *testing.T) {
@@ -155,6 +165,7 @@ func TestLoadCustomConfigInvalidYaml(t *testing.T) {
 		{name: "invalid yaml", content: invalidYaml},
 		{name: "invalid yaml from cwd", content: invalidYaml, fromCwd: true},
 		{name: "incorrect account id", content: invalidYamlIncorrectAccountId},
+		{name: "invalid shard / realm", content: invalidYamlShardRealm},
 	}
 
 	for _, tt := range tests {
@@ -289,14 +300,14 @@ func TestNodeMapDecodeHookFunc(t *testing.T) {
 }
 
 func createYamlConfigFile(content string, t *testing.T) (string, string) {
-	tempDir, err := ioutil.TempDir("", "rosetta")
+	tempDir, err := os.MkdirTemp("", "rosetta")
 	if err != nil {
 		assert.Fail(t, "Unable to create temp dir", err)
 	}
 
 	customConfig := filepath.Join(tempDir, testConfigFilename)
 
-	if err = ioutil.WriteFile(customConfig, []byte(content), 0644); err != nil {
+	if err = os.WriteFile(customConfig, []byte(content), 0644); err != nil {
 		assert.Fail(t, "Unable to create custom config", err)
 	}
 
@@ -321,5 +332,6 @@ func (e *envManager) Cleanup() {
 func getDefaultConfig() *Mirror {
 	config := fullConfig{}
 	yaml.Unmarshal([]byte(defaultConfig), &config)
+	config.Hedera.Mirror.treasuryEntityId = 2
 	return &config.Hedera.Mirror
 }

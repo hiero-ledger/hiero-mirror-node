@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/domain/types"
 	hErrors "github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/errors"
@@ -19,7 +18,7 @@ import (
 )
 
 const (
-	balanceChangeBetween = "with" + genesisTimestampCte + `select
+	balanceChangeBetween = `select
                               coalesce((
                                 select sum(amount) from crypto_transfer
                                 where
@@ -43,7 +42,7 @@ const (
                                     from (
                                       select consensus_timestamp
                                       from account_balance
-                                      where account_id = 2 and
+                                      where account_id = @treasury_entity_id and
                                         consensus_timestamp >= @lower_bound and
                                         consensus_timestamp <= @timestamp
                                       order by consensus_timestamp desc
@@ -90,12 +89,13 @@ type accountBalance struct {
 
 // accountRepository struct that has connection to the Database
 type accountRepository struct {
-	dbClient interfaces.DbClient
+	dbClient         interfaces.DbClient
+	treasuryEntityId int64
 }
 
 // NewAccountRepository creates an instance of a accountRepository struct
-func NewAccountRepository(dbClient interfaces.DbClient) interfaces.AccountRepository {
-	return &accountRepository{dbClient}
+func NewAccountRepository(dbClient interfaces.DbClient, treasuryEntityId int64) interfaces.AccountRepository {
+	return &accountRepository{dbClient, treasuryEntityId}
 }
 
 func (ar *accountRepository) GetAccountAlias(ctx context.Context, accountId types.AccountId) (
@@ -277,6 +277,7 @@ func (ar *accountRepository) getLatestBalanceSnapshot(ctx context.Context, accou
 		sql.Named("account_id", accountId),
 		sql.Named("lower_bound", partitionLowerBound),
 		sql.Named("timestamp", timestamp),
+		sql.Named("treasury_entity_id", ar.treasuryEntityId),
 	).First(ab).Error; err != nil {
 		log.Errorf(
 			databaseErrorFormat,
