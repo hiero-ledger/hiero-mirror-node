@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.common;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import jakarta.validation.constraints.Min;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -17,8 +16,4 @@ public class CommonProperties {
 
     @Min(0)
     private long shard = 0L;
-
-    public long getScopedId(long num) {
-        return EntityId.of(shard, realm, num).getId();
-    }
 }

@@ -6,6 +6,7 @@ import static com.hedera.mirror.common.domain.transaction.TransactionType.CONSEN
 import static com.hedera.mirror.common.domain.transaction.TransactionType.SCHEDULECREATE;
 import static com.hedera.mirror.common.domain.transaction.TransactionType.SCHEDULESIGN;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.validation.Valid;
@@ -13,6 +14,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.EnumSet;
 import java.util.Set;
 import lombok.Data;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -20,14 +22,22 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties("hedera.mirror.importer.parser.record.entity")
 @Validated
 public class EntityProperties {
+    private final CommonProperties commonProperties;
 
     @NotNull
     @Valid
-    private PersistProperties persist = new PersistProperties();
+    private PersistProperties persist;
+
+    @Autowired
+    public EntityProperties(CommonProperties commonProperties) {
+        this.commonProperties = commonProperties;
+        this.persist = new PersistProperties(commonProperties);
+    }
 
     @Data
     @Validated
     public static class PersistProperties {
+        private final CommonProperties commonProperties;
 
         private boolean claims = false;
 
@@ -47,7 +57,7 @@ public class EntityProperties {
          * A set of entity ids to exclude from entity_transaction table
          */
         @NotNull
-        private Set<EntityId> entityTransactionExclusion = Set.of(EntityId.of(98), EntityId.of(800));
+        private Set<EntityId> entityTransactionExclusion;
 
         private boolean entityTransactions = false;
 
@@ -102,6 +112,13 @@ public class EntityProperties {
 
         @NotNull
         private Set<TransactionType> transactionSignatures = EnumSet.of(SCHEDULECREATE, SCHEDULESIGN);
+
+        public PersistProperties(CommonProperties commonProperties) {
+            this.commonProperties = commonProperties;
+            this.entityTransactionExclusion = Set.of(
+                    ImmutableAccount.FEE_COLLECTOR.getScopedEntityId(commonProperties),
+                    ImmutableAccount.ENTITY_STAKE.getScopedEntityId(commonProperties));
+        }
 
         public boolean isTokenAirdrops() {
             return tokenAirdrops && tokens;

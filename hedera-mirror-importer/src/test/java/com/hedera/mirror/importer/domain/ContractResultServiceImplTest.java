@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.contract.ContractTransaction;
 import com.hedera.mirror.common.domain.entity.EntityId;
@@ -49,7 +50,7 @@ class ContractResultServiceImplTest {
     private static final String RECOVERABLE_ERROR_LOG_PREFIX = "Recoverable error. ";
 
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
-    private final EntityProperties entityProperties = new EntityProperties();
+    private final EntityProperties entityProperties = new EntityProperties(new CommonProperties());
     private final DomainBuilder domainBuilder = new DomainBuilder();
 
     @Mock(strictness = LENIENT)

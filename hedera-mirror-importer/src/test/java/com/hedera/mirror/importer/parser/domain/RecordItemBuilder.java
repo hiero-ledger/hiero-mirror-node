@@ -20,6 +20,7 @@ import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.StringValue;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
@@ -205,7 +206,7 @@ public class RecordItemBuilder {
     private final Map<GeneratedMessageV3, EntityState> state = new ConcurrentHashMap<>();
 
     @Getter
-    private final PersistProperties persistProperties = new PersistProperties();
+    private final PersistProperties persistProperties = new PersistProperties(new CommonProperties());
 
     private Instant now = Instant.now();
 

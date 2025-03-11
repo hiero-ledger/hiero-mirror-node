@@ -97,8 +97,11 @@ public class RecalculatePendingRewardMigration extends AbstractJavaMigration {
         }
 
         var stopwatch = Stopwatch.createStarted();
+        var entityStakeId = ImmutableAccount.ENTITY_STAKE
+                .getScopedEntityId(commonProperties)
+                .getId();
         var params = new MapSqlParameterSource("firstRewardTimestamp", consensusTimestamp)
-                .addValue("entityStakeId", commonProperties.getScopedId(ImmutableAccount.ENTITY_STAKE.getNum()));
+                .addValue("entityStakeId", entityStakeId);
         int count = jdbcOperations.update(MIGRATION_SQL, params);
         log.info("Recalculated pending reward for {} {} entities in {}", count, hederaNetwork, stopwatch);
     }

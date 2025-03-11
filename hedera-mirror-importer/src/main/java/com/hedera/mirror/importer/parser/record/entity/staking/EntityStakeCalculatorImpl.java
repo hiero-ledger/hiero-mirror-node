@@ -36,7 +36,9 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
         }
 
         try {
-            var entityStakeId = commonProperties.getScopedId(ImmutableAccount.ENTITY_STAKE.getNum());
+            var entityStakeId = ImmutableAccount.ENTITY_STAKE
+                    .getScopedEntityId(commonProperties)
+                    .getId();
 
             while (true) {
                 if (entityStakeRepository.updated(entityStakeId)) {

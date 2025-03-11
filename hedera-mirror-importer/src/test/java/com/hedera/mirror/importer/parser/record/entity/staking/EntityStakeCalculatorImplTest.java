@@ -48,7 +48,7 @@ class EntityStakeCalculatorImplTest {
     @BeforeEach
     void setup() {
         commonProperties = new CommonProperties();
-        entityProperties = new EntityProperties();
+        entityProperties = new EntityProperties(commonProperties);
         entityStakeCalculator = new EntityStakeCalculatorImpl(
                 entityProperties, entityStakeRepository, TransactionOperations.withoutTransaction(), commonProperties);
         when(entityStakeRepository.updated(anyLong())).thenReturn(false, true);

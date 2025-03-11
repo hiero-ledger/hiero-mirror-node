@@ -2,6 +2,8 @@
 
 package com.hedera.mirror.importer.parser.record.entity;
 
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.entity.EntityId;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -12,4 +14,8 @@ public enum ImmutableAccount {
     ENTITY_STAKE(800);
 
     private final long num;
+
+    public EntityId getScopedEntityId(CommonProperties commonProperties) {
+        return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), num);
+    }
 }

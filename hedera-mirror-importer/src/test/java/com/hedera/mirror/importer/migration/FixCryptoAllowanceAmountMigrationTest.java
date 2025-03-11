@@ -5,6 +5,7 @@ package com.hedera.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.CryptoAllowance;
 import com.hedera.mirror.common.domain.entity.CryptoAllowanceHistory;
 import com.hedera.mirror.common.domain.entity.EntityId;
@@ -269,7 +270,7 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
     @ValueSource(booleans = {true, false})
     void skipMigration(boolean trackAllowance) {
         // given
-        var entityProps = new EntityProperties();
+        var entityProps = new EntityProperties(new CommonProperties());
         entityProps.getPersist().setTrackAllowance(trackAllowance);
         var allowanceAmountMigration = new FixCryptoAllowanceAmountMigration(
                 dbProperties, entityProps, new ImporterProperties(), ownerJdbcTemplate);
