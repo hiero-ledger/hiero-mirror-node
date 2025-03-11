@@ -2,30 +2,37 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.BlockItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
+import java.util.ArrayList;
+import java.util.Collections;
 
 @Named
 final class TokenMintTransformer extends AbstractTokenTransformer {
 
     @Override
-    protected void updateTransactionRecord(
-            BlockItem blockItem, TransactionBody transactionBody, TransactionRecord.Builder transactionRecordBuilder) {
-        if (!blockItem.successful()) {
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
-        updateTotalSupply(blockItem.stateChanges(), transactionRecordBuilder);
-
-        var tokenTransferLists = blockItem.transactionResult().getTokenTransferListsList();
+        var tokenTransferLists = blockItem.getTransactionResult().getTokenTransferListsList();
+        var serialNumbers = new ArrayList<Long>();
         for (var tokenTransferList : tokenTransferLists) {
             for (var nftTransfer : tokenTransferList.getNftTransfersList()) {
-                transactionRecordBuilder.getReceiptBuilder().addSerialNumbers(nftTransfer.getSerialNumber());
+                serialNumbers.add(nftTransfer.getSerialNumber());
             }
         }
+        Collections.sort(serialNumbers);
+
+        var recordItemBuilder = blockItemTransformation.recordItemBuilder();
+        recordItemBuilder.transactionRecordBuilder().getReceiptBuilder().addAllSerialNumbers(serialNumbers);
+
+        var body = blockItemTransformation.transactionBody().getTokenMint();
+        var tokenId = body.getToken();
+        long amount = body.getAmount() + body.getMetadataCount();
+        updateTotalSupply(recordItemBuilder, blockItem.getStateChangeContext(), tokenId, -amount);
     }
 
     @Override

@@ -801,4 +801,18 @@ interface IHederaTokenService {
     /// @return responseCode The response code for the status of the request. SUCCESS is 22.
     /// @return response The result of the call that had been encoded and sent for execution.
     function redirectForToken(address token, bytes memory encodedFunctionSelector) external returns (int64 responseCode, bytes memory response);
+
+    /// Update the custom fees for a fungible token
+    /// @param token The token address
+    /// @param fixedFees Set of fixed fees for `token`
+    /// @param fractionalFees Set of fractional fees for `token`
+    /// @return responseCode The response code for the status of the request. SUCCESS is 22.
+    function updateFungibleTokenCustomFees(address token,  IHederaTokenService.FixedFee[] memory fixedFees, IHederaTokenService.FractionalFee[] memory fractionalFees) external returns (int64 responseCode);
+
+    /// Update the custom fees for a non-fungible token
+    /// @param token The token address
+    /// @param fixedFees Set of fixed fees for `token`
+    /// @param royaltyFees Set of royalty fees for `token`
+    /// @return responseCode The response code for the status of the request. SUCCESS is 22.
+    function updateNonFungibleTokenCustomFees(address token, IHederaTokenService.FixedFee[] memory fixedFees, IHederaTokenService.RoyaltyFee[] memory royaltyFees) external returns (int64 responseCode);
 }

@@ -29,6 +29,11 @@ dependencies {
     testImplementation("com.hedera.hashgraph:sdk") {
         exclude(group = "com.esaulpaugh", module = "headlong")
     }
+    testImplementation(project(":common")) {
+        exclude("com.google.protobuf", "protobuf-java")
+        exclude("org.springframework.boot", "spring-boot-starter-data-jpa")
+        exclude("org.web3j", "core")
+    }
     testImplementation("io.cucumber:cucumber-junit-platform-engine")
     testImplementation("io.cucumber:cucumber-spring")
     testImplementation("io.grpc:grpc-okhttp")

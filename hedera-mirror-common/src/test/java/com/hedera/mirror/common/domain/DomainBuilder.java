@@ -412,6 +412,7 @@ public class DomainBuilder {
     }
 
     public DomainWrapper<Entity, Entity.EntityBuilder<?, ?>> entity(long id, long createdTimestamp) {
+        var entityId = EntityId.of(id);
         var builder = Entity.builder()
                 .alias(key())
                 .autoRenewAccountId(id())
@@ -431,10 +432,10 @@ public class DomainBuilder {
                 .obtainerId(entityId())
                 .permanentRemoval(false)
                 .proxyAccountId(entityId())
-                .num(id)
-                .realm(0L)
+                .num(entityId.getNum())
+                .realm(entityId.getRealm())
                 .receiverSigRequired(true)
-                .shard(0L)
+                .shard(entityId.getShard())
                 .stakedNodeId(-1L)
                 .stakePeriodStart(-1L)
                 .timestampRange(Range.atLeast(createdTimestamp))
@@ -1061,9 +1062,7 @@ public class DomainBuilder {
                 .payerAccountId(entityId())
                 .result(ResponseCodeEnum.SUCCESS.getNumber())
                 .scheduled(false)
-                .transactionBytes(bytes(100))
                 .transactionHash(bytes(48))
-                .transactionRecordBytes(bytes(200))
                 .type(TransactionType.CRYPTOTRANSFER.getProtoId())
                 .validStartNs(timestamp())
                 .validDurationSeconds(120L);

@@ -34,13 +34,14 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
      * Indicates a domain entity ID is not being set (to null or non-null) in the current operation and that
      * the existing DB column value is to be preserved. This is reflected as the value of -1 that can be
      * referenced within the @UpsertColumn syntax. See the AbstractNft delegatingSpender and spender
-     * fields as examples. In this case, this sentinel value is set in TokenUpdateNftsTransactionHandler.
+     * fields as examples. In this case, this sentinel value is set in TokenUpdateNftsTransactionHandler. Note always
+     * use Object identity instead of equality to determine if it's UNSET.
      */
-    public static final EntityId UNSET = new EntityId();
+    public static final EntityId UNSET = new EntityId(-1L);
 
-    static final int NUM_BITS = 32;
+    static final int NUM_BITS = 38;
     static final int REALM_BITS = 16;
-    static final int SHARD_BITS = 15;
+    static final int SHARD_BITS = 10;
 
     private static final long NUM_MASK = (1L << NUM_BITS) - 1;
     private static final long REALM_MASK = (1L << REALM_BITS) - 1;
@@ -64,16 +65,7 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
     private final long id;
 
     private EntityId(long id) {
-        if (id < 0) {
-            throw new InvalidEntityException("Entity ID can not be negative: " + id);
-        }
-
         this.id = id;
-    }
-
-    // Used only to construct constant UNSET above
-    private EntityId() {
-        this.id = -1L;
     }
 
     /**
@@ -98,6 +90,16 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
         }
 
         return (num & NUM_MASK) | (realm & REALM_MASK) << NUM_BITS | (shard & SHARD_MASK) << (REALM_BITS + NUM_BITS);
+    }
+
+    /**
+     * Check if the EntityId object is UNSET.
+     *
+     * @param entityId - The EntityId object to check
+     * @return True if it's UNSET, false otherwise
+     */
+    public static boolean isUnset(EntityId entityId) {
+        return entityId == UNSET;
     }
 
     public static EntityId of(AccountID accountID) {
@@ -166,7 +168,7 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
 
     @Transient
     public long getShard() {
-        return id >> (NUM_BITS + REALM_BITS);
+        return (id >> (NUM_BITS + REALM_BITS)) & SHARD_MASK;
     }
 
     public Entity toEntity() {

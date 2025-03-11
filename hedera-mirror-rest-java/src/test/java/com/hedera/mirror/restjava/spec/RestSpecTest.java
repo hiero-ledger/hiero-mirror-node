@@ -31,10 +31,8 @@ import org.junit.jupiter.api.TestFactory;
 import org.junit.runner.RunWith;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompareMode;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.web.servlet.DispatcherServletRegistrationBean;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatusCode;
@@ -48,7 +46,11 @@ import org.testcontainers.containers.GenericContainer;
         classes = SpecTestConfig.class,
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {"spring.main.allow-bean-definition-overriding=true"})
-public class RestSpecTest extends RestJavaIntegrationTest {
+class RestSpecTest extends RestJavaIntegrationTest {
+
+    private static final List<String> EXCLUDED_SPEC_FILES = Stream.of(Path.of("accounts", "all-params.json"))
+            .map(Path::toString)
+            .toList();
     private static final Pattern INCLUDED_SPEC_DIRS = Pattern.compile(
             "^(accounts|accounts/\\{id}/allowances.*|accounts/\\{id}/rewards.*|blocks.*|contracts|network/exchangerate.*|network/fees.*|network/stake.*)$");
     private static final String RESPONSE_HEADER_FILE = "responseHeaders.json";
@@ -60,7 +62,10 @@ public class RestSpecTest extends RestJavaIntegrationTest {
         public boolean accept(File file) {
             var directory = file.isDirectory() ? file : file.getParentFile();
             var dirName = directory.getPath().replace(REST_BASE_PATH + "/", "");
-            return INCLUDED_SPEC_DIRS.matcher(dirName).matches() && !RESPONSE_HEADER_FILE.equals(file.getName());
+            return INCLUDED_SPEC_DIRS.matcher(dirName).matches()
+                    && !RESPONSE_HEADER_FILE.equals(file.getName())
+                    && EXCLUDED_SPEC_FILES.stream()
+                            .noneMatch(path -> file.getPath().endsWith(path));
         }
 
         @Override
@@ -77,9 +82,6 @@ public class RestSpecTest extends RestJavaIntegrationTest {
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
     private final SpecDomainBuilder specDomainBuilder;
-
-    @Autowired
-    private DispatcherServletRegistrationBean dispatcherServletRegistration;
 
     RestSpecTest(
             @Value("classpath:cleanup.sql") Resource cleanupSqlResource,

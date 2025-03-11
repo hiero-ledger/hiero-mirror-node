@@ -22,9 +22,6 @@
 /README.md                                      @hiero-ledger/github-maintainers  @hiero-ledger/hiero-mirror-node-maintainers
 **/LICENSE                                      @hiero-ledger/github-maintainers
 
-# CodeCov configuration
-**/codecov.yml                                  @hiero-ledger/github-maintainers  @hiero-ledger/hiero-mirror-node-maintainers
-
 # Git Ignore definitions
 **/.gitignore                                   @hiero-ledger/github-maintainers  @hiero-ledger/hiero-mirror-node-maintainers
 **/.gitignore.*                                 @hiero-ledger/github-maintainers  @hiero-ledger/hiero-mirror-node-maintainers

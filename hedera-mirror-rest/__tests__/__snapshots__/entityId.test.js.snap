@@ -1,7 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`EntityId parse from entityId string -1 1`] = `"Invalid entity ID "-1""`;
-
 exports[`EntityId parse from entityId string -1.-1.-1 1`] = `"Invalid entity ID "-1.-1.-1""`;
 
 exports[`EntityId parse from entityId string 0.1.2.3 1`] = `"Invalid entity ID "0.1.2.3""`;

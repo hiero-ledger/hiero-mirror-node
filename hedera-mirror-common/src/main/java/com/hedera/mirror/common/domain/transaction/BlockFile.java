@@ -10,7 +10,7 @@ import com.hedera.hapi.block.stream.protoc.RecordFileItem;
 import com.hedera.mirror.common.domain.DigestAlgorithm;
 import com.hedera.mirror.common.domain.StreamFile;
 import com.hedera.mirror.common.domain.StreamType;
-import java.util.Collection;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -53,7 +53,7 @@ public class BlockFile implements StreamFile<BlockItem> {
     @EqualsAndHashCode.Exclude
     @Singular
     @ToString.Exclude
-    private Collection<BlockItem> items;
+    private List<BlockItem> items;
 
     private Long loadEnd;
 
@@ -107,15 +107,6 @@ public class BlockFile implements StreamFile<BlockItem> {
             }
 
             roundEnd = roundNumber;
-            return this;
-        }
-
-        public BlockFileBuilder onNewTransaction(long consensusTimestamp) {
-            if (consensusStart == null) {
-                consensusStart = consensusTimestamp;
-            }
-
-            consensusEnd = consensusTimestamp;
             return this;
         }
     }

@@ -7,7 +7,6 @@ import com.hedera.mirror.common.domain.StreamType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Transient;
-import java.util.Collection;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -41,7 +40,7 @@ public class AccountBalanceFile implements StreamFile<AccountBalance> {
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     @Transient
-    private Collection<AccountBalance> items = List.of();
+    private List<AccountBalance> items = List.of();
 
     private Long loadEnd;
 

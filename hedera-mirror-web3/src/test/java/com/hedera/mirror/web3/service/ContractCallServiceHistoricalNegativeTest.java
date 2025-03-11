@@ -3,6 +3,7 @@
 package com.hedera.mirror.web3.service;
 
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
+import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.EVM_V_34_BLOCK;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.EVM_V_38_BLOCK;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_CONTRACT_ID;
@@ -10,6 +11,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TRANSA
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.web3j.generated.EvmCodesHistorical;
@@ -32,7 +34,7 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         // Given
         final var evm30RecordFile = recordFilePersist(EVM_V_34_BLOCK - 1);
         final var historicalRangeAfterEvm34 = setUpHistoricalContext(EVM_V_34_BLOCK);
-        final var tokenEntity = nftPersistHistorical(historicalRangeAfterEvm34);
+        final var token = nftPersistHistorical(historicalRangeAfterEvm34);
 
         // Deploy the contract against block X, make the contract call against block (X-1) -> throw an exception as the
         // contract does not exist yet.
@@ -40,7 +42,8 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
 
         // When
-        final var functionCall = contract.call_isTokenAddress(getAddressFromEntity(tokenEntity));
+        final var functionCall =
+                contract.call_isTokenAddress(toAddress(token.getTokenId()).toHexString());
         // Then
         final var expectedErrorMessage = mirrorNodeEvmProperties.isModularizedServices()
                 ? INVALID_CONTRACT_ID.name()
@@ -57,7 +60,7 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         // Given
         final var evm30RecordFile = recordFilePersist(EVM_V_34_BLOCK - 1);
         final var historicalRangeAfterEvm34 = setUpHistoricalContext(EVM_V_34_BLOCK);
-        final var tokenEntity = isNft
+        final var token = isNft
                 ? nftPersistHistorical(historicalRangeAfterEvm34)
                 : fungibleTokenPersistHistorical(historicalRangeAfterEvm34);
 
@@ -67,7 +70,8 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         // Persist the token against block X, make the call against block (X-1) -> throw an exception as the token does
         // not exist yet.
         // When
-        final var functionCall = contract.call_isTokenAddress(getAddressFromEntity(tokenEntity));
+        final var functionCall =
+                contract.call_isTokenAddress(toAddress(token.getTokenId()).toHexString());
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -86,10 +90,10 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var evm30RecordFile = recordFilePersist(EVM_V_34_BLOCK - 1);
         final var evm30HistoricalRange = setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
         final var historicalRangeAfterEvm34 = setUpHistoricalContext(EVM_V_34_BLOCK);
-        final var tokenEntity = tokenEntityPersistHistorical(evm30HistoricalRange);
-        fungibleTokenPersistHistorical(tokenEntity, evm30HistoricalRange);
+        final var token = fungibleTokenPersistHistorical(evm30HistoricalRange);
+        final var tokenId = token.getTokenId();
         final var account = accountEntityPersistHistorical(evm30HistoricalRange);
-        tokenAccountFrozenRelationshipPersistHistorical(tokenEntity, account, historicalRangeAfterEvm34);
+        tokenAccountFrozenRelationshipPersistHistorical(tokenId, account.getId(), historicalRangeAfterEvm34);
 
         setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
@@ -99,7 +103,7 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         // should fail as the association is not available yet.
         // When
         final var functionCall =
-                contract.call_isTokenFrozen(getAddressFromEntity(tokenEntity), getAddressFromEntity(account));
+                contract.call_isTokenFrozen(toAddress(tokenId).toHexString(), getAddressFromEntity(account));
 
         // Then
         assertThat(functionCall.send()).isFalse();
@@ -114,19 +118,18 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var historicalRangeAfterEvm34 = setUpHistoricalContext(EVM_V_34_BLOCK);
         final var owner = accountEntityPersistWithEvmAddressHistorical(evm30HistoricalRange);
         final var spender = accountEntityPersistWithEvmAddressHistorical(evm30HistoricalRange);
-        final var tokenEntity = tokenEntityPersistHistorical(evm30HistoricalRange);
-        fungibleTokenPersistHistorical(tokenEntity, evm30HistoricalRange);
-
+        final var token = fungibleTokenPersistHistorical(evm30HistoricalRange);
+        final var tokenId = token.getTokenId();
         // Persist the token and the accounts in block (X-1), but the token allowance in block X. The call against block
         // (X-1) should fail as the allowance is not available yet.
-        tokenAllowancePersistHistorical(tokenEntity, owner, spender, historicalRangeAfterEvm34);
+        tokenAllowancePersistHistorical(tokenId, owner, spender, historicalRangeAfterEvm34);
 
         setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
         final var functionCall = contract.call_htsAllowance(
-                getAddressFromEntity(tokenEntity), getAddressFromEntity(owner), getAddressFromEntity(spender));
+                toAddress(tokenId).toHexString(), getAddressFromEntity(owner), getAddressFromEntity(spender));
 
         // Then
         assertThat(functionCall.send()).isEqualTo(BigInteger.ZERO);
@@ -141,19 +144,20 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var historicalRangeAfterEvm34 = setUpHistoricalContext(EVM_V_34_BLOCK);
         final var owner = accountEntityPersistWithEvmAddressHistorical(evm30HistoricalRange);
         final var spender = accountEntityPersistWithEvmAddressHistorical(evm30HistoricalRange);
-        final var tokenEntity = nftPersistHistorical(evm30HistoricalRange);
+        final var token = nftPersistHistorical(evm30HistoricalRange);
+        final var tokenId = token.getTokenId();
 
         // Persist the token and the accounts in block (X-1), but the nft allowance in block X. The call against block
         // (X-1)
         // should fail as the allowance is not available yet.
-        nftAllowancePersistHistorical(tokenEntity, owner, spender, historicalRangeAfterEvm34);
+        nftAllowancePersistHistorical(tokenId, owner, spender, historicalRangeAfterEvm34);
 
         setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
         final var functionCall = contract.call_htsAllowance(
-                getAddressFromEntity(tokenEntity), getAddressFromEntity(owner), getAddressFromEntity(spender));
+                toAddress(tokenId).toHexString(), getAddressFromEntity(owner), getAddressFromEntity(spender));
 
         // Then
         assertThat(functionCall.send()).isEqualTo(BigInteger.ZERO);
@@ -167,20 +171,25 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var evm30HistoricalRange = setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
         final var historicalRangeAfterEvm34 = setUpHistoricalContext(EVM_V_34_BLOCK);
 
-        final var tokenEntity = fungibleTokenPersistHistorical(evm30HistoricalRange);
+        final var token = fungibleTokenPersistHistorical(evm30HistoricalRange);
         final var feeCollector = accountEntityPersistWithEvmAddressHistorical(evm30HistoricalRange);
+        final var tokenId = token.getTokenId();
 
         // Persist the token and the account in block (X-1), but the custom fees in block X. The call against block
         // (X-1)
         // should fail as the custom fees are not available yet.
         customFeesWithFeeCollectorPersistHistorical(
-                feeCollector, tokenEntity, TokenTypeEnum.FUNGIBLE_COMMON, historicalRangeAfterEvm34);
+                feeCollector.toEntityId(),
+                EntityId.of(tokenId),
+                TokenTypeEnum.FUNGIBLE_COMMON,
+                historicalRangeAfterEvm34);
 
         setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
-        final var result = contract.call_getInformationForFungibleToken(getAddressFromEntity(tokenEntity))
+        final var result = contract.call_getInformationForFungibleToken(
+                        toAddress(tokenId).toHexString())
                 .send();
 
         // Then
@@ -197,20 +206,24 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var evm30HistoricalRange = setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
         final var historicalRangeAfterEvm34 = setUpHistoricalContext(EVM_V_34_BLOCK);
 
-        final var tokenEntity = nftPersistHistorical(evm30HistoricalRange);
+        final var token = nftPersistHistorical(evm30HistoricalRange);
         final var feeCollector = accountEntityPersistWithEvmAddressHistorical(evm30HistoricalRange);
-
+        final var tokenId = token.getTokenId();
         // Persist the token and the account in block (X-1), but the custom fees in block X. The call against block
         // (X-1)
         // should fail as the custom fees are not available yet.
         customFeesWithFeeCollectorPersistHistorical(
-                feeCollector, tokenEntity, TokenTypeEnum.NON_FUNGIBLE_UNIQUE, historicalRangeAfterEvm34);
+                feeCollector.toEntityId(),
+                EntityId.of(tokenId),
+                TokenTypeEnum.NON_FUNGIBLE_UNIQUE,
+                historicalRangeAfterEvm34);
 
         setupHistoricalStateInService(EVM_V_34_BLOCK - 1, evm30RecordFile);
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 
         // When
-        final var result = contract.call_getInformationForToken(getAddressFromEntity(tokenEntity))
+        final var result = contract.call_getInformationForToken(
+                        toAddress(tokenId).toHexString())
                 .send();
 
         // Then

@@ -32,9 +32,13 @@ public class EntityProperties {
         private boolean claims = false;
 
         private boolean contracts = true;
+
         private boolean contractResults = true;
+
         private boolean contractTransaction = true;
+
         private boolean contractTransactionHash = true;
+
         private boolean cryptoTransferAmounts = true;
 
         private boolean entityHistory = true;
@@ -52,8 +56,6 @@ public class EntityProperties {
         private boolean files = true;
 
         private boolean itemizedTransfers = false;
-
-        private boolean nodes = true;
 
         private boolean pendingReward = true;
 
