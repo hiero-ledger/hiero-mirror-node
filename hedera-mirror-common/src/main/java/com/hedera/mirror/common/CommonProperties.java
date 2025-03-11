@@ -11,6 +11,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties("hedera.mirror.common")
 public class CommonProperties {
+
     @Min(0)
     private long realm = 0L;
 

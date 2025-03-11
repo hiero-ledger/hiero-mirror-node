@@ -22,7 +22,6 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties("hedera.mirror.importer.parser.record.entity")
 @Validated
 public class EntityProperties {
-    private final CommonProperties commonProperties;
 
     @NotNull
     @Valid
@@ -30,14 +29,12 @@ public class EntityProperties {
 
     @Autowired
     public EntityProperties(CommonProperties commonProperties) {
-        this.commonProperties = commonProperties;
         this.persist = new PersistProperties(commonProperties);
     }
 
     @Data
     @Validated
     public static class PersistProperties {
-        private final CommonProperties commonProperties;
 
         private boolean claims = false;
 
@@ -114,7 +111,6 @@ public class EntityProperties {
         private Set<TransactionType> transactionSignatures = EnumSet.of(SCHEDULECREATE, SCHEDULESIGN);
 
         public PersistProperties(CommonProperties commonProperties) {
-            this.commonProperties = commonProperties;
             this.entityTransactionExclusion = Set.of(
                     ImmutableAccount.FEE_COLLECTOR.getScopedEntityId(commonProperties),
                     ImmutableAccount.ENTITY_STAKE.getScopedEntityId(commonProperties));
