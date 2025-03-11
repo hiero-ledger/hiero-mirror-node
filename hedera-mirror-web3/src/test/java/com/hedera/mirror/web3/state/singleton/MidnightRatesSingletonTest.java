@@ -8,18 +8,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.hedera.hapi.node.base.TimestampSeconds;
 import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
-import com.hedera.node.app.config.BootstrapConfigProviderImpl;
+import com.hedera.mirror.web3.Web3IntegrationTest;
+import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.node.config.data.BootstrapConfig;
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
 
-class MidnightRatesSingletonTest {
+@RequiredArgsConstructor
+class MidnightRatesSingletonTest extends Web3IntegrationTest {
 
-    private final MidnightRatesSingleton midnightRatesSingleton = new MidnightRatesSingleton();
+    private final MidnightRatesSingleton midnightRatesSingleton;
+    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Test
     void get() {
         final var bootstrapConfig =
-                new BootstrapConfigProviderImpl().getConfiguration().getConfigData(BootstrapConfig.class);
+                mirrorNodeEvmProperties.getVersionedConfiguration().getConfigData(BootstrapConfig.class);
 
         final var expected = ExchangeRateSet.newBuilder()
                 .currentRate(ExchangeRate.newBuilder()

@@ -4,36 +4,30 @@ package com.hedera.mirror.web3.state.singleton;
 
 import static com.hedera.node.app.fees.schemas.V0490FeeSchema.MIDNIGHT_RATES_STATE_KEY;
 
-import com.hedera.hapi.node.base.TimestampSeconds;
-import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
-import com.hedera.node.app.config.BootstrapConfigProviderImpl;
-import com.hedera.node.config.data.BootstrapConfig;
+import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import jakarta.inject.Named;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 
 @Named
+@RequiredArgsConstructor
 public class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
+
+    private final V0490FileSchema fileSchema = new V0490FileSchema();
+
+    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Override
     public String getKey() {
         return MIDNIGHT_RATES_STATE_KEY;
     }
 
+    @SneakyThrows
     @Override
     public ExchangeRateSet get() {
-        final var bootstrapConfig =
-                new BootstrapConfigProviderImpl().getConfiguration().getConfigData(BootstrapConfig.class);
-        return com.hedera.hapi.node.transaction.ExchangeRateSet.newBuilder()
-                .currentRate(ExchangeRate.newBuilder()
-                        .centEquiv(bootstrapConfig.ratesCurrentCentEquiv())
-                        .hbarEquiv(bootstrapConfig.ratesCurrentHbarEquiv())
-                        .expirationTime(TimestampSeconds.newBuilder().seconds(bootstrapConfig.ratesCurrentExpiry()))
-                        .build())
-                .nextRate(ExchangeRate.newBuilder()
-                        .centEquiv(bootstrapConfig.ratesNextCentEquiv())
-                        .hbarEquiv(bootstrapConfig.ratesNextHbarEquiv())
-                        .expirationTime(TimestampSeconds.newBuilder().seconds(bootstrapConfig.ratesNextExpiry()))
-                        .build())
-                .build();
+        return ExchangeRateSet.PROTOBUF.parse(
+                fileSchema.genesisExchangeRates(mirrorNodeEvmProperties.getVersionedConfiguration()));
     }
 }
