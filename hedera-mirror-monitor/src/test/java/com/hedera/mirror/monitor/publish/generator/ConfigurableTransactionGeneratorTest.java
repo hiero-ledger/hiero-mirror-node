@@ -9,20 +9,26 @@ import static org.assertj.core.api.Assertions.within;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
+import com.hedera.hashgraph.sdk.AccountDeleteTransaction;
 import com.hedera.hashgraph.sdk.TopicId;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.monitor.publish.PublishRequest;
 import com.hedera.mirror.monitor.publish.PublishScenarioProperties;
 import com.hedera.mirror.monitor.publish.transaction.TransactionType;
+import com.hedera.mirror.monitor.validator.AccountIdValidator;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ConfigurableTransactionGeneratorTest {
@@ -44,8 +50,8 @@ class ConfigurableTransactionGeneratorTest {
         properties.setProperties(Map.of("topicId", TOPIC_ID));
         properties.setTps(100_000);
         properties.setType(TransactionType.CONSENSUS_SUBMIT_MESSAGE);
-        generator = Suppliers.memoize(
-                () -> new ConfigurableTransactionGenerator(p -> p, Collections::unmodifiableMap, properties));
+        generator = Suppliers.memoize(() -> new ConfigurableTransactionGenerator(
+                new AccountIdValidator(new CommonProperties()), p -> p, Collections::unmodifiableMap, properties));
     }
 
     @Test
@@ -204,6 +210,60 @@ class ConfigurableTransactionGeneratorTest {
                 .satisfies(r -> assertThat(r.getTransaction().getTransactionMemo())
                         .containsPattern(Pattern.compile("\\d+ Monitor test on \\w+"))
                         .hasSize(MEMO_SIZE)));
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+            textBlock =
+                    """
+            , 0.0.2, 0, 0
+            0.0.2, 0.0.2, 0, 0,
+            0.0.2, 1.5.2, 5, 1
+            0.0.100, 0.0.100, 0, 0
+            """)
+    void accountDeleteTransaction(String obtainerId, String expected, long realm, long shard) {
+        // given
+        properties = new PublishScenarioProperties();
+        var supplierProperties = new HashMap<>(Map.of("accountId", "0.0.500"));
+        properties.setProperties(supplierProperties);
+        properties.setType(TransactionType.ACCOUNT_DELETE);
+        if (obtainerId != null) {
+            supplierProperties.put("transferAccountId", obtainerId);
+        }
+
+        var commProperties = new CommonProperties();
+        commProperties.setRealm(realm);
+        commProperties.setShard(shard);
+        var transactionSupplier = new ConfigurableTransactionGenerator(
+                new AccountIdValidator(commProperties), p -> p, Collections::unmodifiableMap, properties);
+
+        // when
+        var request = transactionSupplier.next();
+
+        // then
+        assertThat(request)
+                .hasSize(1)
+                .first()
+                .extracting(PublishRequest::getTransaction)
+                .asInstanceOf(InstanceOfAssertFactories.type(AccountDeleteTransaction.class))
+                .returns(expected, t -> t.getTransferAccountId().toString());
+    }
+
+    @Test
+    void accountDeleteTransactionThrows() {
+        // given
+        properties = new PublishScenarioProperties();
+        properties.setType(TransactionType.ACCOUNT_DELETE);
+        properties.setProperties(Map.of("accountId", "0.0.500", "transferAccountId", "0.0.501"));
+
+        var commProperties = new CommonProperties();
+        commProperties.setRealm(2);
+        commProperties.setShard(1);
+        var transactionSupplier = new ConfigurableTransactionGenerator(
+                new AccountIdValidator(commProperties), p -> p, Collections::unmodifiableMap, properties);
+
+        // when, then
+        assertThatThrownBy(transactionSupplier::next).isInstanceOf(IllegalArgumentException.class);
     }
 
     private void assertRequests(List<PublishRequest> publishRequests) {

@@ -11,16 +11,15 @@ import com.hedera.mirror.monitor.publish.PublishRequest;
 import com.hedera.mirror.monitor.publish.PublishScenario;
 import com.hedera.mirror.monitor.publish.PublishScenarioProperties;
 import com.hedera.mirror.monitor.publish.transaction.TransactionSupplier;
-import jakarta.validation.ConstraintViolation;
+import com.hedera.mirror.monitor.publish.transaction.account.AccountDeleteTransactionSupplier;
+import com.hedera.mirror.monitor.validator.AccountIdValidator;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
-import jakarta.validation.Validator;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import lombok.CustomLog;
@@ -40,6 +39,7 @@ public class ConfigurableTransactionGenerator implements TransactionGenerator {
     @Getter
     private final PublishScenarioProperties properties;
 
+    private final AccountIdValidator accountIdValidator;
     private final Supplier<TransactionSupplier<?>> transactionSupplier;
     private final AtomicLong remaining;
     private final long stopTime;
@@ -47,9 +47,11 @@ public class ConfigurableTransactionGenerator implements TransactionGenerator {
     private final PublishScenario scenario;
 
     public ConfigurableTransactionGenerator(
+            AccountIdValidator accountIdValidator,
             ExpressionConverter expressionConverter,
             ScenarioPropertiesAggregator scenarioPropertiesAggregator,
             PublishScenarioProperties properties) {
+        this.accountIdValidator = accountIdValidator;
         this.expressionConverter = expressionConverter;
         this.scenarioPropertiesAggregator = scenarioPropertiesAggregator;
         this.properties = properties;
@@ -114,15 +116,21 @@ public class ConfigurableTransactionGenerator implements TransactionGenerator {
     }
 
     private void validateSupplier(TransactionSupplier<?> supplier) {
-        Validator validator = Validation.byDefaultProvider()
+        try (var validatorFactory = Validation.byDefaultProvider()
                 .configure()
                 .messageInterpolator(new ParameterMessageInterpolator())
-                .buildValidatorFactory()
-                .getValidator();
-        Set<ConstraintViolation<TransactionSupplier<?>>> validations = validator.validate(supplier);
+                .buildValidatorFactory()) {
+            var validator = validatorFactory.getValidator();
+            var validations = validator.validate(supplier);
 
-        if (!validations.isEmpty()) {
-            throw new ConstraintViolationException(validations);
+            if (!validations.isEmpty()) {
+                throw new ConstraintViolationException(validations);
+            }
+
+            if (supplier instanceof AccountDeleteTransactionSupplier accountDeleteTransactionSupplier) {
+                String accountId = accountDeleteTransactionSupplier.getTransferAccountId();
+                accountDeleteTransactionSupplier.setTransferAccountId(accountIdValidator.validate(accountId));
+            }
         }
     }
 

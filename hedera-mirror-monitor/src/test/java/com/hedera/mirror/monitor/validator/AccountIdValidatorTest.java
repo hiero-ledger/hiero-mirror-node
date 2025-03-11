@@ -5,13 +5,23 @@ package com.hedera.mirror.monitor.validator;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.hedera.mirror.common.CommonProperties;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class AccountIdValidatorTest {
 
-    private final AccountIdValidator validator = new AccountIdValidator(1, 2);
+    private AccountIdValidator validator;
+
+    @BeforeEach
+    void setup() {
+        var commonProperties = new CommonProperties();
+        commonProperties.setRealm(2);
+        commonProperties.setShard(1);
+        validator = new AccountIdValidator(commonProperties);
+    }
 
     @ParameterizedTest
     @CsvSource(textBlock = """

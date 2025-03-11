@@ -4,9 +4,12 @@ package com.hedera.mirror.monitor.validator;
 
 import static com.hedera.mirror.monitor.OperatorProperties.DEFAULT_OPERATOR_ACCOUNT_ID;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import jakarta.inject.Named;
 
-public record AccountIdValidator(long shard, long realm) {
+@Named
+public record AccountIdValidator(CommonProperties commonProperties) {
 
     /**
      * Validates that the accountId has matching shard and realm. If the accountId is the default operator account id
@@ -16,13 +19,15 @@ public record AccountIdValidator(long shard, long realm) {
      * @return accountId with shard and realm matching the network if it's the default operator account id
      */
     public String validate(String accountId) {
+        long shard = commonProperties.getShard();
+        long realm = commonProperties.getRealm();
         var entityId = EntityId.of(accountId);
         if (entityId.getShard() != shard || entityId.getRealm() != realm) {
             if (DEFAULT_OPERATOR_ACCOUNT_ID.equals(accountId)) {
                 return EntityId.of(shard, realm, entityId.getNum()).toString();
             } else {
-                throw new IllegalArgumentException(
-                        "Account ID %s should have shard=%d and realm=%d".formatted(accountId, shard, realm));
+                throw new IllegalArgumentException("Account id %s has invalid shard/realm, expect shard=%d and realm=%d"
+                        .formatted(accountId, shard, realm));
             }
         }
 

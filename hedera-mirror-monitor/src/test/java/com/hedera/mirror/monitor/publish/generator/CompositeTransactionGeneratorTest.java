@@ -10,12 +10,14 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.monitor.ScenarioStatus;
 import com.hedera.mirror.monitor.publish.PublishProperties;
 import com.hedera.mirror.monitor.publish.PublishRequest;
 import com.hedera.mirror.monitor.publish.PublishScenario;
 import com.hedera.mirror.monitor.publish.PublishScenarioProperties;
 import com.hedera.mirror.monitor.publish.transaction.TransactionType;
+import com.hedera.mirror.monitor.validator.AccountIdValidator;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,6 +58,7 @@ class CompositeTransactionGeneratorTest {
         properties.getScenarios().put(publishScenarioProperties1.getName(), publishScenarioProperties1);
         properties.getScenarios().put(publishScenarioProperties2.getName(), publishScenarioProperties2);
         supplier = Suppliers.memoize(() -> new CompositeTransactionGenerator(
+                new AccountIdValidator(new CommonProperties()),
                 p -> p,
                 p -> p.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
                 properties));
@@ -246,6 +249,7 @@ class CompositeTransactionGeneratorTest {
     private void prepare() {
         // warmup so in tests the timing will be accurate
         TransactionGenerator generator = Suppliers.synchronizedSupplier(() -> new CompositeTransactionGenerator(
+                        new AccountIdValidator(new CommonProperties()),
                         p -> p,
                         p -> p.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
                         properties))

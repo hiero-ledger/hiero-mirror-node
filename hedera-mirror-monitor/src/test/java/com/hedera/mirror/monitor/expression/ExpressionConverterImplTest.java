@@ -20,12 +20,14 @@ import com.hedera.hashgraph.sdk.proto.TokenID;
 import com.hedera.hashgraph.sdk.proto.TopicID;
 import com.hedera.hashgraph.sdk.proto.TransactionReceipt;
 import com.hedera.hashgraph.sdk.proto.TransactionRecord;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.monitor.MonitorProperties;
 import com.hedera.mirror.monitor.exception.ExpressionConversionException;
 import com.hedera.mirror.monitor.publish.PublishRequest;
 import com.hedera.mirror.monitor.publish.PublishResponse;
 import com.hedera.mirror.monitor.publish.TransactionPublisher;
 import com.hedera.mirror.monitor.publish.transaction.TransactionType;
+import com.hedera.mirror.monitor.validator.AccountIdValidator;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +45,8 @@ import reactor.core.publisher.Mono;
 class ExpressionConverterImplTest {
 
     @Spy
-    private final MonitorProperties monitorProperties = new MonitorProperties();
+    private final MonitorProperties monitorProperties =
+            new MonitorProperties(new AccountIdValidator(new CommonProperties()));
 
     @Mock
     private TransactionPublisher transactionPublisher;

@@ -30,7 +30,6 @@ public class AccountDeleteTransactionSupplier implements TransactionSupplier<Acc
         return new AccountDeleteTransaction()
                 .setAccountId(AccountId.fromString(accountId))
                 .setMaxTransactionFee(Hbar.fromTinybars(maxTransactionFee))
-                .setTransferAccountId(
-                        AccountId.fromString(ACCOUNT_ID_VALIDATOR.get().validate(transferAccountId)));
+                .setTransferAccountId(AccountId.fromString(transferAccountId));
     }
 }

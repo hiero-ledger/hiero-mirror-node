@@ -2,7 +2,11 @@
 
 package com.hedera.mirror.monitor;
 
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.monitor.validator.AccountIdValidator;
 import jakarta.annotation.Nullable;
+import jakarta.annotation.PostConstruct;
+import jakarta.inject.Named;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.LinkedHashSet;
@@ -10,12 +14,17 @@ import java.util.Objects;
 import java.util.Set;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
+@Named
 @Data
+@EnableConfigurationProperties(CommonProperties.class)
 @Validated
 @ConfigurationProperties("hedera.mirror.monitor")
 public class MonitorProperties {
+
+    private final AccountIdValidator accountIdValidator;
 
     @Nullable
     @Valid
@@ -38,5 +47,10 @@ public class MonitorProperties {
 
     public MirrorNodeProperties getMirrorNode() {
         return Objects.requireNonNullElseGet(this.mirrorNode, network::getMirrorNode);
+    }
+
+    @PostConstruct
+    void init() {
+        operator.setAccountId(accountIdValidator.validate(operator.getAccountId()));
     }
 }

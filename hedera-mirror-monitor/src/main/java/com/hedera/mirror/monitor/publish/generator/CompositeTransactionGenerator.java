@@ -9,6 +9,7 @@ import com.hedera.mirror.monitor.publish.PublishProperties;
 import com.hedera.mirror.monitor.publish.PublishRequest;
 import com.hedera.mirror.monitor.publish.PublishScenario;
 import com.hedera.mirror.monitor.publish.PublishScenarioProperties;
+import com.hedera.mirror.monitor.validator.AccountIdValidator;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ public class CompositeTransactionGenerator implements TransactionGenerator {
     final AtomicInteger batchSize = new AtomicInteger(1);
 
     public CompositeTransactionGenerator(
+            AccountIdValidator accountIdValidator,
             ExpressionConverter expressionConverter,
             ScenarioPropertiesAggregator scenarioPropertiesAggregator,
             PublishProperties properties) {
@@ -48,7 +50,7 @@ public class CompositeTransactionGenerator implements TransactionGenerator {
         this.transactionGenerators = properties.getScenarios().values().stream()
                 .filter(PublishScenarioProperties::isEnabled)
                 .map(scenarioProperties -> new ConfigurableTransactionGenerator(
-                        expressionConverter, scenarioPropertiesAggregator, scenarioProperties))
+                        accountIdValidator, expressionConverter, scenarioPropertiesAggregator, scenarioProperties))
                 .collect(Collectors.toList());
         rebuild();
     }
