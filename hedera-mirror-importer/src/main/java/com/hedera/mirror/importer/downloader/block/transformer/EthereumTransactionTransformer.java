@@ -4,6 +4,8 @@ package com.hedera.mirror.importer.downloader.block.transformer;
 
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
+import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import jakarta.inject.Named;
 
 @Named
@@ -16,6 +18,10 @@ final class EthereumTransactionTransformer extends AbstractBlockItemTransformer 
             return;
         }
 
+        if(blockItem.getConsensusTimestamp() == 1741124076285233115L) {
+            System.out.println("EthereumTransactionTransformer");
+        }
+
         var ethereumCall =
                 blockItem.getTransactionOutput(TransactionCase.ETHEREUM_CALL).getEthereumCall();
         var recordItemBuilder = blockItemTransformation.recordItemBuilder();
@@ -23,14 +29,28 @@ final class EthereumTransactionTransformer extends AbstractBlockItemTransformer 
         recordBuilder.setEthereumHash(ethereumCall.getEthereumHash());
         recordItemBuilder.sidecarRecords(ethereumCall.getSidecarsList());
 
+        var receiptBuilder = recordBuilder.getReceiptBuilder();
         switch (ethereumCall.getEthResultCase()) {
-            case ETHEREUM_CALL_RESULT -> recordBuilder.setContractCallResult(ethereumCall.getEthereumCallResult());
-            case ETHEREUM_CREATE_RESULT -> recordBuilder.setContractCreateResult(
-                    ethereumCall.getEthereumCreateResult());
+            case ETHEREUM_CALL_RESULT -> {
+                var result = ethereumCall.getEthereumCallResult();
+                recordBuilder.setContractCallResult(result);
+                setReceipt(result, receiptBuilder);
+            }
+            case ETHEREUM_CREATE_RESULT -> {
+                var result = ethereumCall.getEthereumCreateResult();
+                recordBuilder.setContractCreateResult(result);
+                setReceipt(result, receiptBuilder);
+            }
             default -> log.warn(
                     "Unhandled eth_result case {} for transaction at {}",
                     ethereumCall.getEthResultCase(),
                     blockItem.getConsensusTimestamp());
+        }
+    }
+
+    private void setReceipt(ContractFunctionResult result, TransactionReceipt.Builder receiptBuilder) {
+        if(result.getGasUsed() > 0) {
+            receiptBuilder.setContractID(result.getContractID());
         }
     }
 
