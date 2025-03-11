@@ -4,6 +4,7 @@ import _ from 'lodash';
 
 import AccountAlias from '../accountAlias';
 import {getAllAccountAliases, invalidBase32Strs} from './testutils';
+import {InvalidArgumentError} from '../errors/index.js';
 
 describe('AccountAlias', () => {
   describe('fromString', () => {
@@ -18,18 +19,26 @@ describe('AccountAlias', () => {
           expected: new AccountAlias(null, '0', 'AABBCC22'),
         },
         {
+          input: '0.0.AABBCC22',
+          expected: new AccountAlias('0', '0', 'AABBCC22'),
+        },
+        {
           input: '0.1.AABBCC22',
-          expected: new AccountAlias('0', '1', 'AABBCC22'),
+          expected: InvalidArgumentError,
         },
         {
           input: '99999.99999.AABBCC22',
-          expected: new AccountAlias('99999', '99999', 'AABBCC22'),
+          expected: InvalidArgumentError,
         },
       ];
 
       testSpecs.forEach((spec) => {
         test(spec.input, () => {
-          expect(AccountAlias.fromString(spec.input)).toEqual(spec.expected);
+          if (spec.expected instanceof AccountAlias) {
+            expect(AccountAlias.fromString(spec.input)).toEqual(spec.expected);
+          } else {
+            expect(() => AccountAlias.fromString(spec.input)).toThrowErrorMatchingSnapshot();
+          }
         });
       });
     });
@@ -76,11 +85,11 @@ describe('AccountAlias', () => {
     });
     test('realm and alias', () => {
       const accountAlias = new AccountAlias(null, '0', 'AABBCC22');
-      expect(accountAlias.toString()).toBe('0.AABBCC22');
+      expect(accountAlias.toString()).toBe('AABBCC22');
     });
     test('shard, realm and alias', () => {
-      const accountAlias = new AccountAlias('0', '1', 'AABBCC22');
-      expect(accountAlias.toString()).toBe('0.1.AABBCC22');
+      const accountAlias = new AccountAlias('0', '0', 'AABBCC22');
+      expect(accountAlias.toString()).toBe('AABBCC22');
     });
   });
 });

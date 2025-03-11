@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {getMirrorConfig} from '../config';
 import * as constants from '../constants';
 import EntityId from '../entityId';
 import {InvalidArgumentError} from '../errors';
+
+const {
+  common: {realm, shard},
+} = getMirrorConfig();
 
 describe('EntityId isValidEntityId tests', () => {
   test('Verify invalid for null', () => {
@@ -101,60 +106,68 @@ describe('EntityId parse from entityId string', () => {
     },
     {
       entityIdStr: '0',
-      expected: EntityId.of(0, 0, 0),
+      expected: EntityId.of(shard, realm, 0),
     },
     {
       entityIdStr: '10',
-      expected: EntityId.of(0, 0, 10),
+      expected: EntityId.of(shard, realm, 10),
     },
     {
       entityIdStr: '274877906943',
-      expected: EntityId.of(0, 0, 274877906943),
+      expected: EntityId.of(shard, realm, 274877906943),
     },
     {
       entityIdStr: '1377209665535',
-      expected: EntityId.of(0, 5, 2820130815),
+      expected: EntityId.of(shard, 5, 2820130815),
     },
     {
-      entityIdStr: '0.1',
-      expected: EntityId.of(0, 0, 1),
+      entityIdStr: '5.1',
+      expected: EntityId.of(shard, 5, 1),
     },
     {
       entityIdStr: '0x0000000000000000000000000000000000000001',
       options: {paramName: constants.filterKeys.FROM},
-      expected: EntityId.of(0, 0, 1),
+      expected: EntityId.of(shard, realm, 1),
     },
     {
       entityIdStr: '0000000000000000000000000000000000000001',
       options: {paramName: constants.filterKeys.CONTRACT_ID},
-      expected: EntityId.of(0, 0, 1),
+      expected: EntityId.of(shard, realm, 1),
     },
     {
       entityIdStr: '0x0000000100000000000000020000000000000003',
       options: {paramName: constants.filterKeys.FROM},
-      expected: EntityId.of(1, 2, 3),
+      expected: EntityId.of(shard, realm, null, '0000000100000000000000020000000000000003'),
     },
     {
       entityIdStr: '0x000003ff000000000000ffff0000003fffffffff',
       options: {paramName: constants.filterKeys.FROM},
-      expected: EntityId.of(1023, 65535, 274877906943),
+      expected: EntityId.of(shard, realm, null, '000003ff000000000000ffff0000003fffffffff'),
     },
     {
       entityIdStr: '0.0.000000000000000000000000000000000186Fb1b',
       expected: EntityId.of(0, 0, 25623323),
     },
     {
+      entityIdStr: '1.2.000000000000000000000000000000000186Fb1b',
+      expectErr: true,
+    },
+    {
       entityIdStr: '0.000000000000000000000000000000000186Fb1b',
-      expected: EntityId.of(0, 0, 25623323),
+      expected: EntityId.of(shard, realm, 25623323),
+    },
+    {
+      entityIdStr: '1.000000000000000000000000000000000186Fb1b',
+      expectErr: true,
     },
     {
       entityIdStr: '000000000000000000000000000000000186Fb1b',
-      expected: EntityId.of(0, 0, 25623323),
+      expected: EntityId.of(shard, realm, 25623323),
     },
     {
       entityIdStr: '0x000000000000000000000000000000000186Fb1b',
       options: {paramName: constants.filterKeys.FROM},
-      expected: EntityId.of(0, 0, 25623323),
+      expected: EntityId.of(shard, realm, 25623323),
     },
     {
       entityIdStr: null,
@@ -167,27 +180,27 @@ describe('EntityId parse from entityId string', () => {
     },
     {
       entityIdStr: '0000000100000000000000020000000000000007',
-      expected: EntityId.of(1, 2, 7),
+      expected: EntityId.of(shard, realm, '0000000100000000000000020000000000000007'),
     },
     {
       entityIdStr: '0x0000000100000000000000020000000000000007',
-      expected: EntityId.of(1, 2, 7),
+      expected: EntityId.of(shard, realm, '0000000100000000000000020000000000000007'),
     },
     {
       entityIdStr: '1.2.0000000100000000000000020000000000000007',
-      expected: EntityId.of(1, 2, 7),
+      expectErr: true,
     },
     {
       entityIdStr: '71eaa748d5252be68c1185588beca495459fdba4',
-      expected: EntityId.of(null, null, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+      expected: EntityId.of(shard, realm, null, '71eaa748d5252be68c1185588beca495459fdba4'),
     },
     {
       entityIdStr: '0x71eaa748d5252be68c1185588beca495459fdba4',
-      expected: EntityId.of(null, null, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+      expected: EntityId.of(shard, realm, null, '71eaa748d5252be68c1185588beca495459fdba4'),
     },
     {
       entityIdStr: '1.2.71eaa748d5252be68c1185588beca495459fdba4',
-      expected: EntityId.of(1, 2, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+      expectErr: true,
     },
     {
       entityIdStr: '-1',
@@ -307,11 +320,11 @@ describe('EntityId parse from encoded entityId', () => {
   const specs = [
     {
       encodedId: 0,
-      expected: EntityId.of(0, 0, 0),
+      expected: EntityId.of(shard, realm, 0),
     },
     {
       encodedId: 274877906943,
-      expected: EntityId.of(0, 0, 274877906943),
+      expected: EntityId.of(shard, realm, 274877906943),
     },
     {
       encodedId: 180146733873889290n,
@@ -319,15 +332,15 @@ describe('EntityId parse from encoded entityId', () => {
     },
     {
       encodedId: BigInt(0),
-      expected: EntityId.of(0, 0, 0),
+      expected: EntityId.of(shard, realm, 0),
     },
     {
       encodedId: BigInt(274877906943),
-      expected: EntityId.of(0, 0, 274877906943),
+      expected: EntityId.of(shard, realm, 274877906943),
     },
     {
       encodedId: '274877906943',
-      expected: EntityId.of(0, 0, 274877906943),
+      expected: EntityId.of(shard, realm, 274877906943),
     },
     {
       encodedId: 9223372036854775807n,

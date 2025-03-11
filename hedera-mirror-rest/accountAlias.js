@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {getMirrorConfig} from './config';
 import base32 from './base32';
 import {InvalidArgumentError} from './errors';
 
@@ -7,6 +8,7 @@ import {InvalidArgumentError} from './errors';
 // the check here because base32.decode allows lower case letters, padding, and auto corrects some typos.
 const accountAliasRegex = /^(\d{1,5}\.){0,2}[A-Z2-7]+$/;
 const noShardRealmAccountAliasRegex = /^[A-Z2-7]+$/;
+const {common} = getMirrorConfig();
 
 class AccountAlias {
   /**
@@ -16,22 +18,17 @@ class AccountAlias {
    * @param {string} base32Alias
    */
   constructor(shard, realm, base32Alias) {
-    this.shard = shard;
-    this.realm = realm;
+    this.shard = AccountAlias.validate(shard, common.shard, 'shard');
+    this.realm = AccountAlias.validate(realm, common.realm, 'realm');
     this.alias = base32.decode(base32Alias);
     this.base32Alias = base32Alias;
   }
 
-  toString() {
-    if (this.realm === null) {
-      return this.base32Alias;
+  static validate(num, configured, name) {
+    if (num && BigInt(num) !== configured) {
+      throw new InvalidArgumentError(`Unsupported ${name} ${num}`);
     }
-
-    if (this.shard === null) {
-      return `${this.realm}.${this.base32Alias}`;
-    }
-
-    return `${this.shard}.${this.realm}.${this.base32Alias}`;
+    return configured;
   }
 
   /**
@@ -63,6 +60,10 @@ class AccountAlias {
     } catch (err) {
       throw new InvalidArgumentError(`Invalid accountAlias string ${str}`);
     }
+  }
+
+  toString() {
+    return this.base32Alias;
   }
 }
 

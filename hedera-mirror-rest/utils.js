@@ -97,7 +97,7 @@ const isPositiveLong = (num, allowZero = false) => {
  * @returns {*}
  */
 const stripHexPrefix = (val) => {
-  if (typeof val === 'string' && val.startsWith(hexPrefix)) {
+  if (typeof val === 'string' && val.startsWith(constants.HEX_PREFIX)) {
     return val.substring(2);
   }
 
@@ -111,7 +111,7 @@ const stripHexPrefix = (val) => {
  * @returns {boolean}
  */
 const isHexPositiveInt = (num, allowZero = false) => {
-  if (typeof num === 'string' && num.startsWith(hexPrefix)) {
+  if (typeof num === 'string' && num.startsWith(constants.HEX_PREFIX)) {
     num = parseInt(num, 16);
     return isPositiveLong(num, allowZero);
   }
@@ -937,14 +937,13 @@ const randomString = async (length) => {
   return bytes.toString('hex');
 };
 
-const hexPrefix = '0x';
 const addHexPrefix = (hexData) => {
   if (_.isEmpty(hexData)) {
-    return hexPrefix;
+    return constants.HEX_PREFIX;
   }
 
   const hexString = typeof hexData === 'string' ? hexData : Buffer.from(hexData).toString();
-  return hexString.substring(0, 2) === hexPrefix ? hexString : `${hexPrefix}${hexString}`;
+  return hexString.substring(0, 2) === constants.HEX_PREFIX ? hexString : `${constants.HEX_PREFIX}${hexString}`;
 };
 
 /**
@@ -978,7 +977,7 @@ const toHexString = (byteArray, addPrefix = false, padLength = undefined) => {
   }
 
   if (_.isEmpty(byteArray)) {
-    return hexPrefix;
+    return constants.HEX_PREFIX;
   }
 
   const modifiers = [];
@@ -1271,12 +1270,10 @@ const formatComparator = (comparator) => {
         comparator.value = parsePublicKey(comparator.value);
         break;
       case constants.filterKeys.BLOCK_HASH:
-        if (comparator.value.startsWith(hexPrefix)) {
-          comparator.value = comparator.value.slice(hexPrefix.length);
-        }
+        comparator.value = stripHexPrefix(comparator.value);
         break;
       case constants.filterKeys.BLOCK_NUMBER:
-        if (comparator.value.startsWith(hexPrefix)) {
+        if (comparator.value.startsWith(constants.HEX_PREFIX)) {
           comparator.value = parseInt(comparator.value, 16);
         }
         break;

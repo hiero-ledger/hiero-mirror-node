@@ -20,14 +20,14 @@ public record EntityIdNumParameter(EntityId id) implements EntityIdParameter {
         var properties = PROPERTIES.get();
         long shard = properties.getShard();
         long realm = properties.getRealm();
+        var secondGroup = matcher.group(2);
+        var fourthGroup = matcher.group(4);
 
-        String secondGroup = matcher.group(2);
-        String forthGroup = matcher.group(4);
-        if (secondGroup != null && forthGroup != null) {
+        if (secondGroup != null && fourthGroup != null) {
             shard = Long.parseLong(secondGroup);
-            realm = Long.parseLong(forthGroup);
-        } else if (secondGroup != null || forthGroup != null) {
-            realm = Long.parseLong(secondGroup != null ? secondGroup : forthGroup);
+            realm = Long.parseLong(fourthGroup);
+        } else if (secondGroup != null || fourthGroup != null) {
+            realm = Long.parseLong(secondGroup != null ? secondGroup : fourthGroup);
         }
 
         var num = Long.parseLong(matcher.group(5));

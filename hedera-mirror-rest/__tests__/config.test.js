@@ -12,6 +12,9 @@ let tempDir;
 const custom = {
   hedera: {
     mirror: {
+      common: {
+        shard: 1,
+      },
       rest: {
         response: {
           compression: false,
@@ -19,7 +22,6 @@ const custom = {
             max: 101,
           },
         },
-        shard: 1,
       },
     },
   },
@@ -39,16 +41,16 @@ afterEach(() => {
 
 const assertCustomConfig = (actual, customConfig) => {
   // fields custom doesn't override
-  expect(actual.response.includeHostInLink).toBe(false);
-  expect(actual.log.level).toBe('info');
+  expect(actual.rest.response.includeHostInLink).toBe(false);
+  expect(actual.rest.log.level).toBe('info');
 
   // fields overridden by custom
-  expect(actual.shard).toBe(customConfig.hedera.mirror.rest.shard);
-  expect(actual.response.limit.max).toBe(customConfig.hedera.mirror.rest.response.limit.max);
-  expect(actual.response.compression).toBe(customConfig.hedera.mirror.rest.response.compression);
+  expect(Number(actual.common.shard)).toBe(customConfig.hedera.mirror.common.shard);
+  expect(actual.rest.response.limit.max).toBe(customConfig.hedera.mirror.rest.response.limit.max);
+  expect(actual.rest.response.compression).toBe(customConfig.hedera.mirror.rest.response.compression);
 };
 
-const loadConfig = async () => (await import('../config')).default;
+const loadConfig = async () => (await import('../config')).getMirrorConfig();
 
 const loadCustomConfig = async (customConfig, filename = 'application.yml') => {
   fs.writeFileSync(path.join(tempDir, filename), yaml.dump(customConfig));
@@ -58,9 +60,9 @@ const loadCustomConfig = async (customConfig, filename = 'application.yml') => {
 describe('Load YAML configuration:', () => {
   test('./config/application.yml', async () => {
     const config = await loadConfig();
-    expect(config.shard).toBe(0);
-    expect(config.response.includeHostInLink).toBe(false);
-    expect(config.log.level).toBe('info');
+    expect(config.common.shard).toBe(0n);
+    expect(config.rest.response.includeHostInLink).toBe(false);
+    expect(config.rest.log.level).toBe('info');
   });
 
   test('./application.yml', async () => {
@@ -88,72 +90,72 @@ describe('Load YAML configuration:', () => {
 
 describe('Load environment configuration:', () => {
   test('Number', async () => {
-    process.env = {HEDERA_MIRROR_REST_SHARD: '2', HEDERA_MIRROR_REST_PORT: '5552'};
+    process.env = {HEDERA_MIRROR_COMMON_SHARD: '2', HEDERA_MIRROR_REST_PORT: '5552'};
     const config = await loadConfig();
-    expect(config.shard).toBe(2);
-    expect(config.port).toBe(5552);
+    expect(config.common.shard).toBe(2n);
+    expect(config.rest.port).toBe(5552);
   });
 
   test('Secret', async () => {
     const secret = 'secret';
     process.env = {HEDERA_MIRROR_REST_DB_PASSWORD: secret, HEDERA_MIRROR_REST_DB_TLS_KEY: secret};
     const config = await loadConfig();
-    expect(config.db.password).toBe(secret);
-    expect(config.db.tls.key).toBe(secret);
+    expect(config.rest.db.password).toBe(secret);
+    expect(config.rest.db.tls.key).toBe(secret);
   });
 
   test('String', async () => {
     process.env = {HEDERA_MIRROR_REST_LOG_LEVEL: 'warn'};
     const config = await loadConfig();
-    expect(config.log.level).toBe('warn');
+    expect(config.rest.log.level).toBe('warn');
   });
 
   test('Boolean', async () => {
     process.env = {HEDERA_MIRROR_REST_RESPONSE_INCLUDEHOSTINLINK: 'true'};
     const config = await loadConfig();
-    expect(config.response.includeHostInLink).toBe(true);
+    expect(config.rest.response.includeHostInLink).toBe(true);
   });
 
   test('Camel case', async () => {
     process.env = {HEDERA_MIRROR_REST_QUERY_MAXREPEATEDQUERYPARAMETERS: '50'};
     const config = await loadConfig();
-    expect(config.query.maxRepeatedQueryParameters).toBe(50);
+    expect(config.rest.query.maxRepeatedQueryParameters).toBe(50);
   });
 
   test('Unknown property', async () => {
     process.env = {HEDERA_MIRROR_REST_FOO: '3'};
     const config = await loadConfig();
-    expect(config.foo).toBeUndefined();
+    expect(config.rest.foo).toBeUndefined();
   });
 
   test('Invalid property path', async () => {
-    process.env = {HEDERA_MIRROR_REST_SHARD_FOO: '3'};
+    process.env = {HEDERA_MIRROR_COMMON_SHARD_FOO: '3'};
     const config = await loadConfig();
-    expect(config.shard).toBe(0);
+    expect(config.common.shard).toBe(0n);
   });
 
   test('Unexpected prefix', async () => {
     process.env = {HEDERA_MIRROR_NODE_REST_PORT: '80'};
     const config = await loadConfig();
-    expect(config.port).not.toBe(80);
+    expect(config.rest.port).not.toBe(80);
   });
 
   test('Extra path', async () => {
     process.env = {HEDERA_MIRROR_REST_SERVICE_PORT: '80'};
     const config = await loadConfig();
-    expect(config.port).not.toBe(80);
+    expect(config.rest.port).not.toBe(80);
   });
 
   test('Max Timestamp Range 3d', async () => {
     process.env = {HEDERA_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: '3d'};
     const config = await loadConfig();
-    expect(config.query.maxTimestampRangeNs).toBe(259200000000000n);
+    expect(config.rest.query.maxTimestampRangeNs).toBe(259200000000000n);
   });
 
   test('Max Timestamp Range 120d - larger than js MAX_SAFE_INTEGER', async () => {
     process.env = {HEDERA_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: '120d'};
     const config = await loadConfig();
-    expect(config.query.maxTimestampRangeNs).toBe(10368000000000000n);
+    expect(config.rest.query.maxTimestampRangeNs).toBe(10368000000000000n);
   });
 
   test('Max Timestamp Range invalid', async () => {
@@ -208,7 +210,7 @@ describe('Override query config', () => {
       },
     };
     const config = await loadCustomConfig(customConfig(queryConfig));
-    expect(config.query).toEqual(expected);
+    expect(config.rest.query).toEqual(expected);
   });
 
   test.each`
@@ -330,10 +332,10 @@ describe('Override stateproof config', () => {
       if (!testSpec.expectThrow) {
         const config = await loadCustomConfig(customConfig(stateproof));
         if (testSpec.enabled) {
-          expect(config.stateproof.enabled).toBeTruthy();
-          expect(config.stateproof.streams).toEqual(getExpectedStreamsConfig(testSpec.override));
+          expect(config.rest.stateproof.enabled).toBeTruthy();
+          expect(config.rest.stateproof.streams).toEqual(getExpectedStreamsConfig(testSpec.override));
         } else {
-          expect(config.stateproof.enabled).toBeFalsy();
+          expect(config.rest.stateproof.enabled).toBeFalsy();
         }
       } else {
         await expect(loadCustomConfig(customConfig(stateproof))).rejects.toThrow();
@@ -407,7 +409,7 @@ describe('Override db pool config', () => {
       if (!expectThrow) {
         const config = await loadCustomConfig(customConfig(override));
         if (expected) {
-          expect(config.db.pool).toEqual(expected);
+          expect(config.rest.db.pool).toEqual(expected);
         }
       } else {
         await expect(loadCustomConfig(customConfig(override))).rejects.toThrow();
