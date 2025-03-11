@@ -4,6 +4,7 @@ package com.hedera.services.utils;
 
 import static com.hedera.services.utils.MiscUtils.perm64;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.store.models.Id;
@@ -40,14 +41,19 @@ public class EntityNum implements Comparable<EntityNum> {
         return new EntityNum(EntityId.of(l));
     }
 
+    /**
+     * This method is unsafe to use before the spring context is fully initialized.
+     * */
     public static EntityNum fromAccountId(final AccountID grpc) {
-        // Should this remain restricted?
         if (!areValidNums(grpc.getShardNum(), grpc.getRealmNum())) {
             return MISSING_NUM;
         }
         return fromLong(grpc.getAccountNum());
     }
 
+    /**
+     * This method is unsafe to use before the spring context is fully initialized.
+     * */
     public static EntityNum fromTokenId(final TokenID grpc) {
         if (!areValidNums(grpc.getShardNum(), grpc.getRealmNum())) {
             return MISSING_NUM;
@@ -55,8 +61,12 @@ public class EntityNum implements Comparable<EntityNum> {
         return fromLong(grpc.getTokenNum());
     }
 
+    /**
+     * This method is unsafe to use before the spring context is fully initialized.
+     * */
     static boolean areValidNums(final long shard, final long realm) {
-        return shard == 0 && realm == 0;
+        var commonProps = CommonProperties.getInstance();
+        return shard == commonProps.getShard() && realm == commonProps.getRealm();
     }
 
     public static EntityNum fromId(Id id) {

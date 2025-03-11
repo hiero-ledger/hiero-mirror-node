@@ -7,11 +7,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.util.DomainUtils;
+import com.hedera.mirror.web3.common.Web3UnitTest;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 
-class EntityNumTest {
+class EntityNumTest extends Web3UnitTest {
     @Test
     void overridesJavaLangImpl() {
         final var v = 1_234_567;

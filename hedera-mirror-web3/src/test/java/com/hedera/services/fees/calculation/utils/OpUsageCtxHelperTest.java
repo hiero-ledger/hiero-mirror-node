@@ -12,6 +12,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 import com.google.protobuf.ByteString;
+import com.hedera.mirror.web3.common.Web3UnitTest;
 import com.hedera.mirror.web3.evm.account.MirrorEvmContractAliases;
 import com.hedera.mirror.web3.evm.store.Store;
 import com.hedera.services.store.models.Account;
@@ -42,7 +43,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class OpUsageCtxHelperTest {
+class OpUsageCtxHelperTest extends Web3UnitTest {
 
     @Mock
     private Store store;

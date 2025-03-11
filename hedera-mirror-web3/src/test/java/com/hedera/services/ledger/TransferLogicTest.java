@@ -20,6 +20,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.protobuf.ByteString;
+import com.hedera.mirror.web3.common.Web3UnitTest;
 import com.hedera.mirror.web3.evm.account.MirrorEvmContractAliases;
 import com.hedera.mirror.web3.evm.store.Store.OnMissing;
 import com.hedera.mirror.web3.evm.store.StoreImpl;
@@ -47,7 +48,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-class TransferLogicTest {
+class TransferLogicTest extends Web3UnitTest {
 
     private final long initialAllowance = 100L;
 
