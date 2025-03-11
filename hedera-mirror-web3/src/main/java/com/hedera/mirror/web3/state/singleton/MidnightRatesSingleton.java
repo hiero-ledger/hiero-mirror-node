@@ -8,16 +8,19 @@ import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import jakarta.inject.Named;
-import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 
 @Named
-@RequiredArgsConstructor
 public class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
 
-    private final V0490FileSchema fileSchema = new V0490FileSchema();
+    private final ExchangeRateSet cachedExchangeRateSet;
 
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    @SneakyThrows
+    public MidnightRatesSingleton(final MirrorNodeEvmProperties mirrorNodeEvmProperties) {
+        V0490FileSchema fileSchema = new V0490FileSchema();
+        this.cachedExchangeRateSet = ExchangeRateSet.PROTOBUF.parse(
+                fileSchema.genesisExchangeRates(mirrorNodeEvmProperties.getVersionedConfiguration()));
+    }
 
     @Override
     public String getKey() {
@@ -27,7 +30,6 @@ public class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
     @SneakyThrows
     @Override
     public ExchangeRateSet get() {
-        return ExchangeRateSet.PROTOBUF.parse(
-                fileSchema.genesisExchangeRates(mirrorNodeEvmProperties.getVersionedConfiguration()));
+        return cachedExchangeRateSet;
     }
 }
