@@ -10,6 +10,7 @@ import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.AccountID.AccountOneOfType;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.exception.InvalidEntityException;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.store.models.NftId;
@@ -249,11 +250,11 @@ public final class EntityIdUtils {
     }
 
     public static String asHexedEvmAddress(final Id id) {
-        return CommonUtils.hex(toEvmAddress(id.shard(), id.realm(), id.num()));
+        return CommonUtils.hex(toEvmAddress(entityIdFromId(id)));
     }
 
     public static String asHexedEvmAddress(long id) {
-        return CommonUtils.hex(toEvmAddress(EntityId.of(id)));
+        return CommonUtils.hex(toEvmAddress(EntityId.of(id).getId()));
     }
 
     public static boolean isAlias(final AccountID idOrAlias) {
@@ -261,10 +262,14 @@ public final class EntityIdUtils {
     }
 
     public static EntityId entityIdFromId(Id id) {
-        if (id == null) {
-            return null;
+        try {
+            if (id == null) {
+                return null;
+            }
+            return EntityId.of(id.shard(), id.realm(), id.num());
+        } catch (InvalidEntityException e) {
+            return EntityId.EMPTY;
         }
-        return EntityId.of(id.shard(), id.realm(), id.num());
     }
 
     public static EntityId entityIdFromNftId(NftId id) {

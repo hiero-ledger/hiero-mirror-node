@@ -317,10 +317,6 @@ public class DomainUtils {
         return toEvmAddress(EntityId.of(id));
     }
 
-    public static byte[] toEvmAddress(long shard, long realm, long num) {
-        return toEvmAddress((int) shard, realm, num);
-    }
-
     private static byte[] toEvmAddress(int shard, long realm, long num) {
         byte[] evmAddress = new byte[EVM_ADDRESS_LENGTH];
         ByteBuffer buffer = ByteBuffer.wrap(evmAddress);
