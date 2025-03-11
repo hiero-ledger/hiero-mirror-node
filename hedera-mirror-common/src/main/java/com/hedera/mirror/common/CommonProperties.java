@@ -41,6 +41,6 @@ public class CommonProperties {
             throw new IllegalStateException("CommonProperties has not been initialized");
         }
 
-        return INSTANCE.get();
+        return instance;
     }
 }
