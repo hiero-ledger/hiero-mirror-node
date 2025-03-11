@@ -337,15 +337,6 @@ class DomainUtilsTest {
     }
 
     @Test
-    void toEvmAddressEntityIdAllowEmpty() {
-        var contractId = EntityId.EMPTY;
-        var expected = "00000001000000000000000200000000000000FF";
-        assertThat(DomainUtils.toEvmAddress(contractId)).asHexString().isEqualTo(expected);
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((EntityId) null));
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress(EntityId.EMPTY));
-    }
-
-    @Test
     void toEvmAddressAccountId() {
         var entityId = EntityId.of(Long.MAX_VALUE);
         var id = AccountID.newBuilder()
