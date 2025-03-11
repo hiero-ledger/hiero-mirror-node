@@ -13,6 +13,7 @@ import jakarta.inject.Named;
 
 @Named
 public class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
+
     @Override
     public String getKey() {
         return MIDNIGHT_RATES_STATE_KEY;

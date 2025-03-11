@@ -9,6 +9,7 @@ import jakarta.inject.Named;
 
 @Named
 public class ThrottleUsageSingleton implements SingletonState<ThrottleUsageSnapshots> {
+
     @Override
     public String getKey() {
         return THROTTLE_USAGE_SNAPSHOTS_STATE_KEY;
