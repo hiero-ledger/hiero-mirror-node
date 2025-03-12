@@ -5,6 +5,9 @@ import _ from 'lodash';
 import AccountAlias from '../accountAlias';
 import {getAllAccountAliases, invalidBase32Strs} from './testutils';
 import {InvalidArgumentError} from '../errors/index.js';
+import {getMirrorConfig} from '../config';
+
+const {common} = getMirrorConfig();
 
 describe('AccountAlias', () => {
   describe('fromString', () => {
@@ -30,15 +33,35 @@ describe('AccountAlias', () => {
           input: '99999.99999.AABBCC22',
           expected: InvalidArgumentError,
         },
+        {
+          input: '0.0.AABBCC22',
+          expected: InvalidArgumentError,
+          realm: 1,
+        },
+        {
+          input: '0.0.AABBCC22',
+          expected: InvalidArgumentError,
+          shard: 1,
+        },
       ];
 
       testSpecs.forEach((spec) => {
         test(spec.input, () => {
+          const realmPrevious = common.realm;
+          const shardPrevious = common.shard;
+          if (spec.realm) {
+            common.realm = spec.realm;
+          }
+          if (spec.shard) {
+            common.shard = spec.shard;
+          }
           if (spec.expected instanceof AccountAlias) {
             expect(AccountAlias.fromString(spec.input)).toEqual(spec.expected);
           } else {
             expect(() => AccountAlias.fromString(spec.input)).toThrowErrorMatchingSnapshot();
           }
+          common.realm = realmPrevious;
+          common.shard = shardPrevious;
         });
       });
     });

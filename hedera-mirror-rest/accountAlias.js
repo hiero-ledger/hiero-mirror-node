@@ -3,6 +3,7 @@
 import {getMirrorConfig} from './config';
 import base32 from './base32';
 import {InvalidArgumentError} from './errors';
+import _ from 'lodash';
 
 // limit the alias to the base32 alphabet excluding padding, other checks will be done in base32.decode. We need
 // the check here because base32.decode allows lower case letters, padding, and auto corrects some typos.
@@ -25,7 +26,7 @@ class AccountAlias {
   }
 
   static validate(num, configured, name) {
-    if (num && BigInt(num) !== configured) {
+    if (!_.isNil(num) && BigInt(num) !== configured) {
       throw new InvalidArgumentError(`Unsupported ${name} ${num}`);
     }
     return configured;
