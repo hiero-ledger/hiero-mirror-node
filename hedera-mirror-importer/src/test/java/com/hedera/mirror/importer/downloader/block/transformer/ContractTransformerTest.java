@@ -240,11 +240,12 @@ class ContractTransformerTest extends AbstractTransformerTest {
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 
-    @Test
-    void ethereumNoUsedGas() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void ethereumNoUsedGas(boolean create) {
         // given
         var expectedRecordItem = recordItemBuilder
-                .ethereumTransaction(true)
+                .ethereumTransaction(create)
                 .record(r -> r.setContractCreateResult(
                         recordItemBuilder.contractFunctionResult().setGasUsed(0L)))
                 .receipt(Builder::clearContractID)
