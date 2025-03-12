@@ -117,7 +117,7 @@ public class MirrorNodeState implements State {
                         .build());
 
         ContractCallContext.run(ctx -> {
-            latest.ifPresent(ctx::setRecordFile); // Now correctly references an effectively final variable
+            latest.ifPresent(ctx::setRecordFile);
             registerServices(servicesRegistry);
             serviceMigrator.doMigrations(
                     this,
