@@ -107,10 +107,10 @@ public class MirrorNodeState implements State {
 
         Optional<RecordFile> latest = recordFileRepository.findLatest();
         final var bootstrapConfig = new BootstrapConfigProviderImpl().getConfiguration();
-        var currentSemanticVersion =
+        final var currentSemanticVersion =
                 bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion();
-        var currentVersion = new ServicesSoftwareVersion(currentSemanticVersion);
-        var previousVersion = latest.isEmpty()
+        final var currentVersion = new ServicesSoftwareVersion(currentSemanticVersion);
+        final var previousVersion = latest.isEmpty()
                 ? null
                 : new ServicesSoftwareVersion(SemanticVersion.newBuilder()
                         .minor(currentSemanticVersion.minor() - 1)
