@@ -89,12 +89,12 @@ public class PrecompileContractFeature extends AbstractFeature {
                 deployedPrecompileContract.contractId().toSolidityAddress();
     }
 
-    @Given("I successfully create and verify an fungible token for custom fees")
+    @Given("I successfully create and verify a fungible token for custom fees")
     public void createFungibleTokenForCustomFees() {
-        var response = tokenClient.getToken(TokenNameEnum.FUNGIBLE_FOR_CUSTOM_FEE);
-        fungibleTokenForCustomFee = response.tokenId();
-        if (response.response() != null) {
-            this.networkTransactionResponse = response.response();
+        var tokenResponse = tokenClient.getToken(TokenNameEnum.FUNGIBLE_FOR_CUSTOM_FEE);
+        fungibleTokenForCustomFee = tokenResponse.tokenId();
+        if (tokenResponse.response() != null) {
+            this.networkTransactionResponse = tokenResponse.response();
             verifyMirrorTransactionsResponse(mirrorClient, 200);
         }
     }

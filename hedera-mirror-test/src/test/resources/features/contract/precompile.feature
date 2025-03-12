@@ -4,7 +4,7 @@ Feature: Precompile Contract Base Coverage Feature
   Scenario Outline: Validate Precompile Contract
     Given I successfully create and verify a precompile contract from contract bytes
     Given I verify the precompile contract bytecode is deployed successfully
-    Given I successfully create and verify an fungible token for custom fees
+    Given I successfully create and verify a fungible token for custom fees
     Given I successfully create and verify a fungible token for precompile contract tests
     Given I create an ecdsa account and associate it to the tokens
     Then check if fungible token is token
