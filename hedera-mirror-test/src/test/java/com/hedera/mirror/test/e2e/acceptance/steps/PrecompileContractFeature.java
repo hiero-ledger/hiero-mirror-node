@@ -99,7 +99,6 @@ public class PrecompileContractFeature extends AbstractFeature {
         }
     }
 
-
     @Given("I successfully create and verify a fungible token for precompile contract tests")
     public void createFungibleToken() {
         ExpandedAccountId admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
@@ -132,12 +131,13 @@ public class PrecompileContractFeature extends AbstractFeature {
         CustomFixedFee customFixedFee = new CustomFixedFee();
         customFixedFee.setAmount(10);
         customFixedFee.setFeeCollectorAccountId(admin.getAccountId());
-        customFixedFee.setDenominatingTokenId(fungibleTokenForCustomFee); //TODO change to non-fungible?
+        customFixedFee.setDenominatingTokenId(fungibleTokenForCustomFee);
 
         CustomRoyaltyFee customRoyaltyFee = new CustomRoyaltyFee();
         customRoyaltyFee.setNumerator(5);
         customRoyaltyFee.setDenominator(10);
-        customRoyaltyFee.setFallbackFee(new CustomFixedFee().setHbarAmount(new Hbar(1)).setDenominatingTokenId(fungibleTokenForCustomFee));
+        customRoyaltyFee.setFallbackFee(
+                new CustomFixedFee().setHbarAmount(new Hbar(1)).setDenominatingTokenId(fungibleTokenForCustomFee));
         customRoyaltyFee.setFeeCollectorAccountId(admin.getAccountId());
 
         nonFungibleTokenId = tokenClient
@@ -203,7 +203,7 @@ public class PrecompileContractFeature extends AbstractFeature {
     public void checkIfInvalidAccountIsToken() {
         var data = encodeData(PRECOMPILE, IS_TOKEN_SELECTOR, asAddress(ZERO_ADDRESS));
 
-        if(web3Properties.isModularizedServices()) {
+        if (web3Properties.isModularizedServices()) {
             var result = callContract(data, precompileTestContractSolidityAddress);
             assertFalse(result.getResultAsBoolean());
         } else {
@@ -218,8 +218,8 @@ public class PrecompileContractFeature extends AbstractFeature {
                 PRECOMPILE,
                 IS_TOKEN_SELECTOR,
                 asAddress(accountClient.getTokenTreasuryAccount().getAccountId().toSolidityAddress()));
-        if(web3Properties.isModularizedServices()) {
-            var result =  callContract(data, precompileTestContractSolidityAddress);
+        if (web3Properties.isModularizedServices()) {
+            var result = callContract(data, precompileTestContractSolidityAddress);
             assertFalse(result.getResultAsBoolean());
         } else {
             assertThatThrownBy(() -> callContract(data, precompileTestContractSolidityAddress))
@@ -720,7 +720,8 @@ public class PrecompileContractFeature extends AbstractFeature {
         Tuple[] royaltyFees = result.get(2);
         Tuple royaltyFee = royaltyFees[0];
         assertThat((long) royaltyFee.get(2)).isEqualTo(new Hbar(1).toTinybars());
-        assertThat(royaltyFee.get(3).toString()).hasToString(asAddress(fungibleTokenForCustomFee).toString());
+        assertThat(royaltyFee.get(3).toString())
+                .hasToString(asAddress(fungibleTokenForCustomFee).toString());
         assertFalse((boolean) royaltyFee.get(4));
         assertThat(royaltyFee.get(5).toString().toLowerCase())
                 .hasToString("0x"
@@ -758,7 +759,8 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat(fixedFees).isNotEmpty();
         Tuple fixedFee = fixedFees[0];
         assertThat((long) fixedFee.get(0)).isEqualTo(10);
-        assertThat(fixedFee.get(1).toString()).hasToString(asAddress(fungibleTokenForCustomFee).toString());
+        assertThat(fixedFee.get(1).toString())
+                .hasToString(asAddress(fungibleTokenForCustomFee).toString());
         assertFalse((boolean) fixedFee.get(2));
         assertFalse((boolean) fixedFee.get(3));
         contractClient.validateAddress(fixedFee.get(4).toString().toLowerCase().replace("0x", ""));
