@@ -8,6 +8,7 @@ import static com.hedera.mirror.common.domain.transaction.TransactionType.SCHEDU
 
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -112,9 +113,9 @@ public class EntityProperties {
 
         public PersistProperties(CommonProperties commonProperties) {
             this.entityTransactionExclusion = Set.of(
-                    SystemAccount.FEE_COLLECTOR.getScopedEntityId(commonProperties),
-                    SystemAccount.STAKING_REWARD_ACCOUNT.getScopedEntityId(commonProperties),
-                    SystemAccount.NODE_REWARD_ACCOUNT.getScopedEntityId(commonProperties));
+                    SystemEntity.FEE_COLLECTOR.getScopedEntityId(commonProperties),
+                    SystemEntity.STAKING_REWARD_ACCOUNT.getScopedEntityId(commonProperties),
+                    SystemEntity.NODE_REWARD_ACCOUNT.getScopedEntityId(commonProperties));
         }
 
         public boolean isTokenAirdrops() {

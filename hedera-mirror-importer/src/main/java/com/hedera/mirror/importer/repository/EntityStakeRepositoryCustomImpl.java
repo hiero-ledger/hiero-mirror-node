@@ -118,7 +118,7 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
     public void createEntityStateStart(long stakingRewardAccount) {
         jdbcTemplate.execute(CLEANUP_TABLE_SQL);
 
-        var endPeriodTimestamp = getEndPeriodTimestamp(800L);
+        var endPeriodTimestamp = getEndPeriodTimestamp(stakingRewardAccount);
         if (endPeriodTimestamp.isEmpty()) {
             return;
         }

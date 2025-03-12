@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package com.hedera.mirror.importer.parser.record.entity;
+package com.hedera.mirror.common.domain.entity;
 
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @AllArgsConstructor
 @Getter
-public enum SystemAccount {
+public enum SystemEntity {
     FEE_COLLECTOR(98),
     STAKING_REWARD_ACCOUNT(800),
     NODE_REWARD_ACCOUNT(801);

@@ -127,7 +127,7 @@ const createPool = async () => {
 const flywayMigrate = async (container) => {
   const containerPort = container.getPort();
   logger.info(`Using flyway CLI to construct schema for jest worker ${workerId} on port ${containerPort}`);
-  const jdbcUrl = `jdbc:postgresql://${container.getHost()}:${containerPort}/${dbName}`;
+  const jdbcUrl = `jdbc:postgresql://localhost:${containerPort}/${dbName}`;
   const exePath = path.join('.', 'node_modules', 'node-flywaydb', 'bin', 'flyway');
   const flywayDataPath = path.join('.', 'build', `${workerId}`, 'flyway');
   const flywayConfigPath = path.join(os.tmpdir(), `config_worker_${workerId}.json`); // store configs in temp dir

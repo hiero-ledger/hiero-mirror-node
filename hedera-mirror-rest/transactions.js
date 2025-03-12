@@ -227,7 +227,8 @@ const getStakingRewardTimestamps = (transactions) => {
       (transaction) =>
         !_.isNil(transaction.crypto_transfer_list) &&
         transaction.crypto_transfer_list.some(
-          (cryptoTransfer) => cryptoTransfer.entity_id === StakingRewardTransfer.STAKING_REWARD_ACCOUNT
+          (cryptoTransfer) =>
+            cryptoTransfer.entity_id === EntityId.getScopedEntityId(StakingRewardTransfer.STAKING_REWARD_ACCOUNT)
         )
     )
     .map((transaction) => transaction.consensus_timestamp);

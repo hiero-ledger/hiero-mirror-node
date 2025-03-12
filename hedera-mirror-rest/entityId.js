@@ -336,10 +336,21 @@ const parse = (id, {allowEvmAddress, evmAddressType, isNullable, paramName} = {}
   return checkNullId(id, isNullable) || parseCached(`${id}`, allowEvmAddress, evmAddressType, error);
 };
 
+/**
+ * Takes a known entity num and calculates the encoded id with the system shard and realm
+ *
+ * @param entityNum
+ * @return {BigInt}
+ */
+const getScopedEntityId = (entityNum) => {
+  return of(systemShard, systemRealm, entityNum, null);
+};
+
 export default {
   isValidEntityId,
   isValidEvmAddress,
   computeContractIdPartsFromContractIdValue,
   of,
   parse,
+  getScopedEntityId,
 };

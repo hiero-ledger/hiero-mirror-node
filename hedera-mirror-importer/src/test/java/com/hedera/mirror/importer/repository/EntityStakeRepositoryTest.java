@@ -19,10 +19,10 @@ import com.hedera.mirror.common.domain.balance.AccountBalance.Id;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityStake;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.importer.ImporterIntegrationTest;
 import com.hedera.mirror.importer.TestUtils;
-import com.hedera.mirror.importer.parser.record.entity.SystemAccount;
 import com.hedera.mirror.importer.util.Utility;
 import java.time.Duration;
 import java.util.Collections;
@@ -58,7 +58,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
     @BeforeEach
     void setup() {
-        stakingRewardAccountId = SystemAccount.STAKING_REWARD_ACCOUNT
+        stakingRewardAccountId = SystemEntity.STAKING_REWARD_ACCOUNT
                 .getScopedEntityId(commonProperties)
                 .getId();
     }
