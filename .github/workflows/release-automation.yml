@@ -107,7 +107,7 @@ jobs:
       - name: Close the Milestone
         if: ${{ steps.version_parser.outputs.prerelease == '' }}
         id: milestone
-        uses: step-security/close-milestone@ca235f00d0aac66e5c6543a1d4d7f88b3072e4a0 # v2.1.1
+        uses: step-security/close-milestone@ee401503222f3787e13460b5ad87d7a9d59b0c94 # v2.1.2
         with:
           milestone_name: ${{ steps.version_parser.outputs.release }}
         env:
@@ -191,7 +191,7 @@ jobs:
         run: ./gradlew release -Pversion=${{ env.NEXT_VERSION_SNAPSHOT }}
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@dd2324fc52d5d43c699a5636bcf19fceaa70c284 # v7.0.7
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           author: ${{ steps.gpg_importer.outputs.name }} <${{ steps.gpg_importer.outputs.email }}>
           body: Bump versions for v${{ env.NEXT_VERSION_SNAPSHOT }}

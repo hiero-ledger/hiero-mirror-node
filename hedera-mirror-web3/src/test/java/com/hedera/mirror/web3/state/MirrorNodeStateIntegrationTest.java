@@ -16,9 +16,11 @@ import com.hedera.mirror.web3.state.keyvalue.NftReadableKVState;
 import com.hedera.mirror.web3.state.keyvalue.TokenReadableKVState;
 import com.hedera.mirror.web3.state.keyvalue.TokenRelationshipReadableKVState;
 import com.hedera.mirror.web3.state.singleton.BlockInfoSingleton;
-import com.hedera.mirror.web3.state.singleton.DefaultSingleton;
+import com.hedera.mirror.web3.state.singleton.CongestionLevelStartsSingleton;
 import com.hedera.mirror.web3.state.singleton.EntityIdSingleton;
+import com.hedera.mirror.web3.state.singleton.MidnightRatesSingleton;
 import com.hedera.mirror.web3.state.singleton.RunningHashesSingleton;
+import com.hedera.mirror.web3.state.singleton.ThrottleUsageSingleton;
 import com.hedera.node.app.fees.FeeService;
 import com.hedera.node.app.ids.EntityIdService;
 import com.hedera.node.app.records.BlockRecordService;
@@ -84,12 +86,12 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
 
         // CongestionThrottleService
         Map<String, Class<?>> congestionThrottleServiceDataSources = Map.of(
-                "THROTTLE_USAGE_SNAPSHOTS", DefaultSingleton.class,
-                "CONGESTION_LEVEL_STARTS", DefaultSingleton.class);
+                "THROTTLE_USAGE_SNAPSHOTS", ThrottleUsageSingleton.class,
+                "CONGESTION_LEVEL_STARTS", CongestionLevelStartsSingleton.class);
         verifyServiceDataSources(states, CongestionThrottleService.NAME, congestionThrottleServiceDataSources);
 
         // FeeService
-        Map<String, Class<?>> feeServiceDataSources = Map.of("MIDNIGHT_RATES", DefaultSingleton.class);
+        Map<String, Class<?>> feeServiceDataSources = Map.of("MIDNIGHT_RATES", MidnightRatesSingleton.class);
         verifyServiceDataSources(states, FeeService.NAME, feeServiceDataSources);
 
         // ContractService
