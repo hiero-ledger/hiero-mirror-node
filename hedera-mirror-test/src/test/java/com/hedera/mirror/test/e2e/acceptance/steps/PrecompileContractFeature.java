@@ -154,8 +154,9 @@ public class PrecompileContractFeature extends AbstractFeature {
         CustomRoyaltyFee customRoyaltyFee = new CustomRoyaltyFee();
         customRoyaltyFee.setNumerator(NUMERATOR_VALUE);
         customRoyaltyFee.setDenominator(DENOMINATOR_VALUE);
-        customRoyaltyFee.setFallbackFee(
-                new CustomFixedFee().setHbarAmount(new Hbar(HBAR_DEFAULT_AMOUNT)).setDenominatingTokenId(fungibleTokenForCustomFee));
+        customRoyaltyFee.setFallbackFee(new CustomFixedFee()
+                .setHbarAmount(new Hbar(HBAR_DEFAULT_AMOUNT))
+                .setDenominatingTokenId(fungibleTokenForCustomFee));
         customRoyaltyFee.setFeeCollectorAccountId(admin.getAccountId());
 
         nonFungibleTokenId = tokenClient
@@ -249,8 +250,7 @@ public class PrecompileContractFeature extends AbstractFeature {
 
     @And("verify fungible token isn't frozen")
     public void verifyFungibleTokenIsNotFrozen() {
-        var data =
-                encodeData(PRECOMPILE, IS_TOKEN_FROZEN_SELECTOR, fungibleTokenAddress, contractClientAddress);
+        var data = encodeData(PRECOMPILE, IS_TOKEN_FROZEN_SELECTOR, fungibleTokenAddress, contractClientAddress);
 
         var response = callContract(data, precompileTestContractSolidityAddress);
 
@@ -264,8 +264,7 @@ public class PrecompileContractFeature extends AbstractFeature {
     @And("verify non fungible token isn't frozen")
     @And("check if non fungible token is unfrozen")
     public void verifyNonFungibleTokenIsNotFrozen() {
-        var data = encodeData(
-                PRECOMPILE, IS_TOKEN_FROZEN_SELECTOR, nonFungibleTokenAddress, contractClientAddress);
+        var data = encodeData(PRECOMPILE, IS_TOKEN_FROZEN_SELECTOR, nonFungibleTokenAddress, contractClientAddress);
 
         var response = callContract(data, precompileTestContractSolidityAddress);
 
@@ -285,8 +284,7 @@ public class PrecompileContractFeature extends AbstractFeature {
             maxAttemptsExpression = "#{@restProperties.maxAttempts}")
     @And("check if non fungible token is frozen")
     public void checkIfTokenIsFrozen() {
-        var data = encodeData(
-                PRECOMPILE, IS_TOKEN_FROZEN_SELECTOR, nonFungibleTokenAddress, contractClientAddress);
+        var data = encodeData(PRECOMPILE, IS_TOKEN_FROZEN_SELECTOR, nonFungibleTokenAddress, contractClientAddress);
 
         var response = callContract(data, precompileTestContractSolidityAddress);
 
@@ -318,10 +316,7 @@ public class PrecompileContractFeature extends AbstractFeature {
     public void checkIfTokenIsFrozenForEvmAddress() {
         AccountInfo accountInfo = mirrorClient.getAccountDetailsByAccountId(ecdsaEaId.getAccountId());
         var data = encodeData(
-                PRECOMPILE,
-                IS_TOKEN_FROZEN_SELECTOR,
-                fungibleTokenAddress,
-                asAddress(accountInfo.getEvmAddress()));
+                PRECOMPILE, IS_TOKEN_FROZEN_SELECTOR, fungibleTokenAddress, asAddress(accountInfo.getEvmAddress()));
 
         var response = callContract(data, precompileTestContractSolidityAddress);
 
@@ -342,10 +337,7 @@ public class PrecompileContractFeature extends AbstractFeature {
     public void checkIfTokenIsUnfrozenForEvmAddress() {
         AccountInfo accountInfo = mirrorClient.getAccountDetailsByAccountId(ecdsaEaId.getAccountId());
         var data = encodeData(
-                PRECOMPILE,
-                IS_TOKEN_FROZEN_SELECTOR,
-                fungibleTokenAddress,
-                asAddress(accountInfo.getEvmAddress()));
+                PRECOMPILE, IS_TOKEN_FROZEN_SELECTOR, fungibleTokenAddress, asAddress(accountInfo.getEvmAddress()));
 
         var response = callContract(data, precompileTestContractSolidityAddress);
 
@@ -363,8 +355,7 @@ public class PrecompileContractFeature extends AbstractFeature {
 
     @And("check if fungible token is kyc granted")
     public void checkIfFungibleTokenIsKycGranted() {
-        var data =
-                encodeData(PRECOMPILE, IS_KYC_GRANTED_SELECTOR, fungibleTokenAddress, contractClientAddress);
+        var data = encodeData(PRECOMPILE, IS_KYC_GRANTED_SELECTOR, fungibleTokenAddress, contractClientAddress);
 
         var response = callContract(data, precompileTestContractSolidityAddress);
 
@@ -373,8 +364,7 @@ public class PrecompileContractFeature extends AbstractFeature {
 
     @And("check if non fungible token is kyc granted")
     public void checkIfNonFungibleTokenIsKycGranted() {
-        var data = encodeData(
-                PRECOMPILE, IS_KYC_GRANTED_SELECTOR, nonFungibleTokenAddress, contractClientAddress);
+        var data = encodeData(PRECOMPILE, IS_KYC_GRANTED_SELECTOR, nonFungibleTokenAddress, contractClientAddress);
 
         var response = callContract(data, precompileTestContractSolidityAddress);
 
@@ -535,8 +525,7 @@ public class PrecompileContractFeature extends AbstractFeature {
 
     @And("the contract call REST API should return the token key for a fungible token")
     public void getTokenKeyForFungibleToken() throws Exception {
-        var data =
-                encodeData(PRECOMPILE, GET_TOKEN_KEY_PUBLIC_SELECTOR, fungibleTokenAddress, DEFAULT_SERIAL_NUMBER);
+        var data = encodeData(PRECOMPILE, GET_TOKEN_KEY_PUBLIC_SELECTOR, fungibleTokenAddress, DEFAULT_SERIAL_NUMBER);
         var response = callContract(data, precompileTestContractSolidityAddress);
 
         Tuple result = decodeFunctionResult("getTokenKeyPublic", response);
@@ -547,8 +536,8 @@ public class PrecompileContractFeature extends AbstractFeature {
 
     @And("the contract call REST API should return the token key for a non fungible token")
     public void getTokenKeyForNonFungibleToken() throws Exception {
-        var data = encodeData(
-                PRECOMPILE, GET_TOKEN_KEY_PUBLIC_SELECTOR, nonFungibleTokenAddress, DEFAULT_SERIAL_NUMBER);
+        var data =
+                encodeData(PRECOMPILE, GET_TOKEN_KEY_PUBLIC_SELECTOR, nonFungibleTokenAddress, DEFAULT_SERIAL_NUMBER);
         var response = callContract(data, precompileTestContractSolidityAddress);
 
         Tuple result = decodeFunctionResult("getTokenKeyPublic", response);
