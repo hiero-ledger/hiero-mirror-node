@@ -32,7 +32,7 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
                 staked_node_id,
                 stake_period_start
               from entity
-              where id = :entityStakeId or (
+              where id = :stakingRewardAccount or (
                 deleted is not true and
                 type in ('ACCOUNT', 'CONTRACT') and
                 timestamp_range @> :endPeriodTimestamp and
@@ -48,7 +48,7 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
                   staked_node_id,
                   stake_period_start
                 from entity_history
-                where id <> :entityStakeId and (
+                where id <> :stakingRewardAccount and (
                   deleted is not true and
                   type in ('ACCOUNT', 'CONTRACT') and
                   timestamp_range @> :endPeriodTimestamp and
@@ -115,7 +115,7 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
     @Modifying
     @Override
     @Transactional
-    public void createEntityStateStart(long entityStakeId) {
+    public void createEntityStateStart(long stakingRewardAccount) {
         jdbcTemplate.execute(CLEANUP_TABLE_SQL);
 
         var endPeriodTimestamp = getEndPeriodTimestamp(800L);
@@ -136,17 +136,17 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
         var params = new MapSqlParameterSource()
                 .addValue("balanceSnapshotTimestamp", balanceSnapshotTimestamp.get())
                 .addValue("endPeriodTimestamp", endPeriodTimestamp.get())
-                .addValue("entityStakeId", entityStakeId)
+                .addValue("stakingRewardAccount", stakingRewardAccount)
                 .addValue("lowerBalanceTimestamp", lowerBalanceTimestamp);
         var namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
         namedParameterJdbcTemplate.update(CREATE_ENTITY_STATE_START_SQL, params);
         jdbcTemplate.execute(CREATE_TABLE_INDEX_DDL);
     }
 
-    private Optional<Long> getEndPeriodTimestamp(long entityStakeId) {
+    private Optional<Long> getEndPeriodTimestamp(long stakingRewardAccount) {
         try {
             return Optional.ofNullable(
-                    jdbcTemplate.queryForObject(GET_END_PERIOD_TIMESTAMP_SQL, Long.class, entityStakeId));
+                    jdbcTemplate.queryForObject(GET_END_PERIOD_TIMESTAMP_SQL, Long.class, stakingRewardAccount));
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         }

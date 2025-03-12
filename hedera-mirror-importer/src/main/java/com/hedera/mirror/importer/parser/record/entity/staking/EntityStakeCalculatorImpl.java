@@ -5,7 +5,7 @@ package com.hedera.mirror.importer.parser.record.entity.staking;
 import com.google.common.base.Stopwatch;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.importer.parser.record.entity.EntityProperties;
-import com.hedera.mirror.importer.parser.record.entity.ImmutableAccount;
+import com.hedera.mirror.importer.parser.record.entity.SystemAccount;
 import com.hedera.mirror.importer.repository.EntityStakeRepository;
 import jakarta.inject.Named;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -36,7 +36,7 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
         }
 
         try {
-            var entityStakeId = ImmutableAccount.ENTITY_STAKE
+            var entityStakeId = SystemAccount.STAKING_REWARD_ACCOUNT
                     .getScopedEntityId(commonProperties)
                     .getId();
 

@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>, EntityStakeRepositoryCustom {
 
     @Query(value = "select endStakePeriod from EntityStake where id = ?1")
-    Optional<Long> getEndStakePeriod(long entityId);
+    Optional<Long> getEndStakePeriod(long stakingRewardAccount);
 
     @Modifying
     @Query(value = "lock table entity_stake in share row exclusive mode nowait", nativeQuery = true)
@@ -37,7 +37,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
             from staking_reward_account
             """,
             nativeQuery = true)
-    boolean updated(long entityId);
+    boolean updated(long stakingRewardAccount);
 
     /**
      * Updates entity stake state based on the current entity stake state, the ending period node reward rate and the
@@ -195,5 +195,5 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
             """,
             nativeQuery = true)
     @Transactional
-    void updateEntityStake(long entityId);
+    void updateEntityStake(long stakingRewardAccount);
 }

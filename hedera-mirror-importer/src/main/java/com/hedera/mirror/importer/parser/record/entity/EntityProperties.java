@@ -112,8 +112,9 @@ public class EntityProperties {
 
         public PersistProperties(CommonProperties commonProperties) {
             this.entityTransactionExclusion = Set.of(
-                    ImmutableAccount.FEE_COLLECTOR.getScopedEntityId(commonProperties),
-                    ImmutableAccount.ENTITY_STAKE.getScopedEntityId(commonProperties));
+                    SystemAccount.FEE_COLLECTOR.getScopedEntityId(commonProperties),
+                    SystemAccount.STAKING_REWARD_ACCOUNT.getScopedEntityId(commonProperties),
+                    SystemAccount.NODE_REWARD_ACCOUNT.getScopedEntityId(commonProperties));
         }
 
         public boolean isTokenAirdrops() {

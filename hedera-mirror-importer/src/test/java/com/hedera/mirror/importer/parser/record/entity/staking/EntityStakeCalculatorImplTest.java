@@ -16,7 +16,7 @@ import static org.mockito.Mockito.when;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.importer.parser.record.entity.EntityProperties;
-import com.hedera.mirror.importer.parser.record.entity.ImmutableAccount;
+import com.hedera.mirror.importer.parser.record.entity.SystemAccount;
 import com.hedera.mirror.importer.repository.EntityStakeRepository;
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -35,7 +35,7 @@ import org.springframework.transaction.support.TransactionOperations;
 @ExtendWith(MockitoExtension.class)
 class EntityStakeCalculatorImplTest {
 
-    private static final long ENTITY_STAKE_ID = ImmutableAccount.ENTITY_STAKE.getNum();
+    private static final long ENTITY_STAKE_ID = SystemAccount.STAKING_REWARD_ACCOUNT.getNum();
 
     private EntityProperties entityProperties;
 

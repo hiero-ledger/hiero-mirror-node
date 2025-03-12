@@ -3,10 +3,8 @@
 package com.hedera.mirror.importer.migration;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.importer.ImporterProperties;
 import com.hedera.mirror.importer.ImporterProperties.HederaNetwork;
-import com.hedera.mirror.importer.parser.record.entity.ImmutableAccount;
 import jakarta.inject.Named;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +31,7 @@ public class RecalculatePendingRewardMigration extends AbstractJavaMigration {
                     ), reward_rate as (
                       select consensus_timestamp, epoch_day, node_id, reward_rate
                       from node_stake
-                      where reward_rate <> 0 and epoch_day <= (select end_stake_period from entity_stake where id = :entityStakeId)
+                      where reward_rate <> 0 and epoch_day <= (select end_stake_period from entity_stake where id = 800)
                     ), eligible_entity as (
                       select id, staked_node_id, stake_period_start, r.consensus_timestamp as first_period_end_timestamp
                       from entity
@@ -76,7 +74,6 @@ public class RecalculatePendingRewardMigration extends AbstractJavaMigration {
 
     private final NamedParameterJdbcOperations jdbcOperations;
     private final ImporterProperties importerProperties;
-    private final CommonProperties commonProperties;
 
     @Override
     public String getDescription() {
@@ -97,11 +94,7 @@ public class RecalculatePendingRewardMigration extends AbstractJavaMigration {
         }
 
         var stopwatch = Stopwatch.createStarted();
-        var entityStakeId = ImmutableAccount.ENTITY_STAKE
-                .getScopedEntityId(commonProperties)
-                .getId();
-        var params = new MapSqlParameterSource("firstRewardTimestamp", consensusTimestamp)
-                .addValue("entityStakeId", entityStakeId);
+        var params = new MapSqlParameterSource("firstRewardTimestamp", consensusTimestamp);
         int count = jdbcOperations.update(MIGRATION_SQL, params);
         log.info("Recalculated pending reward for {} {} entities in {}", count, hederaNetwork, stopwatch);
     }

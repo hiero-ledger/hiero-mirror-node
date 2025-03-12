@@ -9,9 +9,10 @@ import lombok.Getter;
 
 @AllArgsConstructor
 @Getter
-public enum ImmutableAccount {
+public enum SystemAccount {
     FEE_COLLECTOR(98),
-    ENTITY_STAKE(800);
+    STAKING_REWARD_ACCOUNT(800),
+    NODE_REWARD_ACCOUNT(801);
 
     private final long num;
 
