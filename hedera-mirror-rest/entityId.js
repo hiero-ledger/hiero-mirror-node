@@ -3,16 +3,19 @@
 import _ from 'lodash';
 import quickLru from 'quick-lru';
 
-import config from './config';
-import {EvmAddressType} from './constants';
+import {getMirrorConfig} from './config';
+import * as constants from './constants';
 import {InvalidArgumentError} from './errors';
+import {stripHexPrefix} from './utils.js';
 
 const {
-  cache: {entityId: entityIdCacheConfig},
-  shard: systemShard,
-} = config;
+  common: {realm: systemRealm, shard: systemShard},
+  rest: {
+    cache: {entityId: entityIdCacheConfig},
+  },
+} = getMirrorConfig();
 
-// format: |0|15-bit shard|16-bit realm|32-bit num|
+// format: |10-bit shard|16-bit realm|38-bit num|
 const numBits = 38n;
 const numMask = 2n ** numBits - 1n;
 const maxNum = 2n ** numBits - 1n;
@@ -77,12 +80,13 @@ class EntityId {
   isAllZero() {
     return this.shard === 0 && this.realm === 0 && this.num === 0;
   }
+
   /**
    * Converts the entity id to the 20-byte EVM address in hex with '0x' prefix
    */
   toEvmAddress() {
     if (this.evmAddress) {
-      return `0x${this.evmAddress}`;
+      return `${constants.HEX_PREFIX}${this.evmAddress}`;
     }
 
     if (this.isAllZero()) {
@@ -93,7 +97,7 @@ class EntityId {
     return this.num === null
       ? null
       : [
-          '0x',
+          constants.HEX_PREFIX,
           toHex(this.shard).padStart(8, '0'),
           toHex(this.realm).padStart(16, '0'),
           toHex(this.num).padStart(16, '0'),
@@ -117,21 +121,21 @@ const toHex = (num) => {
   return num.toString(16);
 };
 
-const isValidEvmAddress = (address, evmAddressType = EvmAddressType.ANY) => {
+const isValidEvmAddress = (address, evmAddressType = constants.EvmAddressType.ANY) => {
   if (typeof address !== 'string') {
     return false;
   }
 
-  if (evmAddressType === EvmAddressType.ANY) {
+  if (evmAddressType === constants.EvmAddressType.ANY) {
     return evmAddressRegex.test(address) || evmAddressShardRealmRegex.test(address);
   }
-  if (evmAddressType === EvmAddressType.NO_SHARD_REALM) {
+  if (evmAddressType === constants.EvmAddressType.NO_SHARD_REALM) {
     return evmAddressRegex.test(address);
   }
   return evmAddressShardRealmRegex.test(address);
 };
 
-const isValidEntityId = (entityId, allowEvmAddress = true, evmAddressType = EvmAddressType.ANY) => {
+const isValidEntityId = (entityId, allowEvmAddress = true, evmAddressType = constants.EvmAddressType.ANY) => {
   if ((typeof entityId === 'string' && entityIdRegex.test(entityId)) || encodedEntityIdRegex.test(entityId)) {
     // Accepted forms: shard.realm.num, realm.num, or encodedId
     return true;
@@ -140,14 +144,17 @@ const isValidEntityId = (entityId, allowEvmAddress = true, evmAddressType = EvmA
   return allowEvmAddress && isValidEvmAddress(entityId, evmAddressType);
 };
 
-const isCreate2EvmAddress = (evmAddress) => {
+/**
+ * Checks whether the given EVM address is not an account num alias where the first 12 bytes reflect the shard and realm
+ * @param evmAddress
+ * @returns {boolean}
+ */
+const isEvmAddressAlias = (evmAddress) => {
   if (!isValidEvmAddress(evmAddress)) {
     return false;
   }
-  const idPartsFromEvmAddress = parseFromEvmAddress(evmAddress);
-  return (
-    idPartsFromEvmAddress[0] > maxShard || idPartsFromEvmAddress[1] > maxRealm || idPartsFromEvmAddress[2] > maxNum
-  );
+  const parts = parseFromEvmAddress(evmAddress);
+  return parts[0] !== systemShard || parts[1] !== systemRealm || parts[2] > maxNum;
 };
 
 /**
@@ -190,12 +197,6 @@ const checkNullId = (id, isNullable) => {
 const isValidEvmAddressLength = (len) => len === 40 || len === 42;
 
 /**
- * Normalizes a hex evm address string by removing the "0x" prefix if exists
- * @param {string} address
- */
-const normalizeEvmAddress = (address) => (address.length === 42 ? address.substring(2) : address);
-
-/**
  * Parses shard, realm, num from encoded ID string.
  * @param {string} id
  * @param {Function} error
@@ -221,11 +222,11 @@ const parseFromEncodedId = (id, error) => {
  */
 const parseFromEvmAddress = (evmAddress) => {
   // extract shard from index 0->8, realm from 8->23, num from 24->40 and parse from hex to decimal
-  const hexDigits = _.last(evmAddress.split('.')).replace('0x', '');
+  const hexDigits = stripHexPrefix(_.last(evmAddress.split('.')));
   return [
-    BigInt('0x' + hexDigits.slice(0, 8)), // shard
-    BigInt('0x' + hexDigits.slice(8, 24)), // realm
-    BigInt('0x' + hexDigits.slice(24, 40)), // num
+    BigInt(constants.HEX_PREFIX + hexDigits.slice(0, 8)), // shard
+    BigInt(constants.HEX_PREFIX + hexDigits.slice(8, 24)), // realm
+    BigInt(constants.HEX_PREFIX + hexDigits.slice(24, 40)), // num
   ];
 };
 
@@ -243,39 +244,39 @@ const parseFromEvmAddress = (evmAddress) => {
 const parseFromString = (id, error) => {
   const parts = id.split('.');
   const numOrEvmAddress = parts[parts.length - 1];
+  const shard = parts.length === 3 ? BigInt(parts.shift()) : systemShard;
+  const realm = parts.length === 2 ? BigInt(parts.shift()) : systemRealm;
+
   if (isValidEvmAddressLength(numOrEvmAddress.length)) {
-    const evmAddress = numOrEvmAddress.replace('0x', '');
-    let [shard, realm, num] = parseFromEvmAddress(numOrEvmAddress);
-    if (shard > maxShard || realm > maxRealm || num > maxNum) {
-      // non-parsable evm address
-      shard = parts.length === 3 ? BigInt(parts[0]) : null;
-      realm = parts.length === 3 ? BigInt(parts[1]) : null;
-      return [shard, realm, null, evmAddress];
+    if (shard !== systemShard || realm !== systemRealm) {
+      throw error(`Invalid shard or realm for EVM address ${id}`);
+    }
+
+    const evmAddress = stripHexPrefix(numOrEvmAddress);
+    let [addressShard, addressRealm, num] = parseFromEvmAddress(numOrEvmAddress);
+
+    if (addressShard !== systemShard || addressRealm !== systemRealm || num > maxNum) {
+      return [shard, realm, null, evmAddress]; // Opaque EVM address
     } else {
-      if (parts.length === 3 && (parts[0] !== `${shard}` || parts[1] !== `${realm}`)) {
-        throw error();
-      }
-      return [shard, realm, num, null];
+      return [addressShard, addressRealm, num, null]; // Account num alias
     }
   }
 
-  // it's either shard.realm.num or realm.num
-  if (parts.length < 3) {
-    parts.unshift(systemShard);
-  }
-
-  return [BigInt(parts[0]), BigInt(parts[1]), BigInt(parts[2]), null];
+  return [shard, realm, BigInt(numOrEvmAddress), null];
 };
 
 const computeContractIdPartsFromContractIdValue = (contractId) => {
   const idPieces = contractId.split('.');
   idPieces.unshift(...[null, null].slice(0, 3 - idPieces.length));
   const contractIdParts = {shard: idPieces[0], realm: idPieces[1]};
-  if (isCreate2EvmAddress(idPieces[2])) {
-    contractIdParts.create2_evm_address = normalizeEvmAddress(idPieces[2]);
+  const evmAddress = stripHexPrefix(idPieces[2]);
+
+  if (isEvmAddressAlias(evmAddress)) {
+    contractIdParts.create2_evm_address = evmAddress;
   } else {
     contractIdParts.num = idPieces[2];
   }
+
   return contractIdParts;
 };
 
@@ -325,7 +326,7 @@ const parseCached = (id, allowEvmAddress, evmAddressType, error) => {
 const parse = (id, {allowEvmAddress, evmAddressType, isNullable, paramName} = {}) => {
   // defaults
   allowEvmAddress = allowEvmAddress === undefined ? true : allowEvmAddress;
-  evmAddressType = evmAddressType === undefined ? EvmAddressType.ANY : evmAddressType;
+  evmAddressType = evmAddressType === undefined ? constants.EvmAddressType.ANY : evmAddressType;
   isNullable = isNullable === undefined ? false : isNullable;
   paramName = paramName === undefined ? '' : paramName;
 

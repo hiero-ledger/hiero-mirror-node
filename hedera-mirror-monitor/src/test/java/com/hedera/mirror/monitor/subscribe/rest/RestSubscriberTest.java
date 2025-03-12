@@ -75,7 +75,7 @@ class RestSubscriberTest {
 
     @BeforeEach
     void setup() {
-        MonitorProperties monitorProperties = new MonitorProperties();
+        var monitorProperties = new MonitorProperties();
         monitorProperties.setMirrorNode(new MirrorNodeProperties());
         monitorProperties.getMirrorNode().getRest().setHost("127.0.0.1");
 
@@ -86,7 +86,7 @@ class RestSubscriberTest {
         restSubscriberProperties.getRetry().setMinBackoff(Duration.ofNanos(1L));
         restSubscriberProperties.getRetry().setMaxBackoff(Duration.ofNanos(2L));
 
-        PublishScenarioProperties publishScenarioProperties = new PublishScenarioProperties();
+        var publishScenarioProperties = new PublishScenarioProperties();
         publishScenarioProperties.setName(SCENARIO);
         publishScenarioProperties.setType(TransactionType.CONSENSUS_SUBMIT_MESSAGE);
         publishScenario = new PublishScenario(publishScenarioProperties);
@@ -94,7 +94,7 @@ class RestSubscriberTest {
         subscribeProperties = new SubscribeProperties();
         subscribeProperties.getRest().put(restSubscriberProperties.getName(), restSubscriberProperties);
 
-        WebClient.Builder builder = WebClient.builder().exchangeFunction(exchangeFunction);
+        var builder = WebClient.builder().exchangeFunction(exchangeFunction);
         var restApiClient = new RestApiClient(monitorProperties, builder);
         restSubscriber = new RestSubscriber(restApiClient, subscribeProperties);
     }
