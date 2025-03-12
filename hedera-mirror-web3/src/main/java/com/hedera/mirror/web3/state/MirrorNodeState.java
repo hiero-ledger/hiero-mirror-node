@@ -11,6 +11,7 @@ import static java.util.Objects.requireNonNull;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.hedera.hapi.node.base.Key;
+import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
@@ -44,7 +45,6 @@ import com.hedera.node.app.throttle.ThrottleAccumulator;
 import com.hedera.node.app.version.ServicesSoftwareVersion;
 import com.hedera.node.app.workflows.handle.metric.UnavailableMetrics;
 import com.hedera.node.config.data.VersionConfig;
-import com.swirlds.platform.system.BasicSoftwareVersion;
 import com.swirlds.state.State;
 import com.swirlds.state.StateChangeListener;
 import com.swirlds.state.lifecycle.StartupNetworks;
@@ -82,7 +82,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MirrorNodeState implements State {
 
-    private static final int PREVIOUS_VERSION = 49;
     private final Map<String, ReadableStates> readableStates = new ConcurrentHashMap<>();
     private final Map<String, WritableStates> writableStates = new ConcurrentHashMap<>();
 
@@ -107,19 +106,24 @@ public class MirrorNodeState implements State {
         }
 
         Optional<RecordFile> latest = recordFileRepository.findLatest();
-        var previousVersion = !latest.isPresent() ? null : new BasicSoftwareVersion(PREVIOUS_VERSION);
+        final var bootstrapConfig = new BootstrapConfigProviderImpl().getConfiguration();
+        var currentSemanticVersion =
+                bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion();
+        var currentVersion = new ServicesSoftwareVersion(currentSemanticVersion);
+        var previousVersion = latest.isEmpty()
+                ? null
+                : new ServicesSoftwareVersion(SemanticVersion.newBuilder()
+                        .minor(currentSemanticVersion.minor() - 1)
+                        .build());
 
         ContractCallContext.run(ctx -> {
             latest.ifPresent(ctx::setRecordFile); // Now correctly references an effectively final variable
             registerServices(servicesRegistry);
-
-            final var bootstrapConfig = new BootstrapConfigProviderImpl().getConfiguration();
             serviceMigrator.doMigrations(
                     this,
                     servicesRegistry,
                     previousVersion,
-                    new ServicesSoftwareVersion(
-                            bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion()),
+                    currentVersion,
                     mirrorNodeEvmProperties.getVersionedConfiguration(),
                     mirrorNodeEvmProperties.getVersionedConfiguration(),
                     networkInfo,
