@@ -18,6 +18,8 @@ import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.evm.contracts.execution.EvmProperties;
 import com.hedera.node.config.VersionedConfiguration;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -184,7 +186,9 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private boolean modularizedServices;
 
     @Getter
-    private double modularizedTrafficPercent;
+    @DecimalMin("0.0")
+    @DecimalMax("1.0")
+    private double modularizedTrafficCoefficient = 0.0;
 
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);
@@ -338,12 +342,12 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     /**
      * Used to determine whether a transaction should go through the txn execution service based on
-     * modularizedTrafficPercent property in the config/application.yml
-     * @return true if the random value between 0 and 1 is less than txnExecServiceTrafficSharePercentage * 0.01
+     * modularizedTrafficCoefficient property in the config/application.yml.
+     *
+     * @return true if the random value between 0 and 1 is less than modularizedTrafficCoefficient
      */
     public boolean directTrafficThroughTransactionExecutionService() {
-        double txnExecServiceTrafficSharePercentage = getModularizedTrafficPercent();
-        return RandomUtils.secure().randomDouble(0.0d, 1.0d) < txnExecServiceTrafficSharePercentage * 0.01;
+        return RandomUtils.secure().randomDouble(0.0d, 1.0d) < getModularizedTrafficCoefficient();
     }
 
     @Getter

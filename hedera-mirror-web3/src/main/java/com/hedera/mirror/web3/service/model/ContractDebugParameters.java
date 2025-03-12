@@ -38,6 +38,9 @@ public class ContractDebugParameters implements CallServiceParameters {
     boolean isEstimate = false;
 
     @AssertFalse
+    boolean isModularized = false;
+
+    @AssertFalse
     boolean isStatic = false;
 
     @NotNull

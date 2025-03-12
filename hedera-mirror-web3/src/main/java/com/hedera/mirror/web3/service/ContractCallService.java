@@ -117,8 +117,7 @@ public abstract class ContractCallService {
         HederaEvmTransactionProcessingResult result = null;
 
         try {
-            if (mirrorNodeEvmProperties.isModularizedServices()
-                    && mirrorNodeEvmProperties.directTrafficThroughTransactionExecutionService()) {
+            if (mirrorNodeEvmProperties.isModularizedServices() && params.isModularized()) {
                 result = transactionExecutionService.execute(params, estimatedGas, gasUsedCounter);
             } else {
                 result = mirrorEvmTxProcessor.execute(params, estimatedGas);
