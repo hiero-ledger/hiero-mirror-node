@@ -84,6 +84,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected RecordFile genesisRecordFile;
     protected Entity treasuryEntity;
+    protected double modularizedTrafficCoefficient;
 
     public static Key getKeyWithDelegatableContractId(final Contract contract) {
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
@@ -103,6 +104,11 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     @BeforeEach
     protected void setup() {
+        modularizedTrafficCoefficient = mirrorNodeEvmProperties.getModularizedTrafficCoefficient();
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            mirrorNodeEvmProperties.setModularizedTrafficCoefficient(1.0);
+        }
+
         genesisRecordFile =
                 domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         treasuryEntity = domainBuilder
@@ -132,6 +138,10 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     @AfterEach
     void cleanup() {
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            mirrorNodeEvmProperties.setModularizedTrafficCoefficient(modularizedTrafficCoefficient);
+        }
+
         testWeb3jService.reset();
     }
 
@@ -546,6 +556,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .callData(callDataBytes)
                 .consensusTimestamp(domainBuilder.timestamp())
                 .gas(TRANSACTION_GAS_LIMIT)
+                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .receiver(functionProvider.contractAddress())
                 .sender(new HederaEvmAccount(functionProvider.sender()))
                 .value(functionProvider.value())
