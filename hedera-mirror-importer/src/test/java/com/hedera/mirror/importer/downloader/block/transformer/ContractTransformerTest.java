@@ -246,8 +246,15 @@ class ContractTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem = recordItemBuilder
                 .ethereumTransaction(create)
-                .record(r -> r.setContractCreateResult(
-                        recordItemBuilder.contractFunctionResult().setGasUsed(0L)))
+                .record(r -> {
+                    if (r.hasContractCallResult()) {
+                        r.setContractCallResult(
+                                recordItemBuilder.contractFunctionResult().setGasUsed(0L));
+                    } else {
+                        r.setContractCreateResult(
+                                recordItemBuilder.contractFunctionResult().setGasUsed(0L));
+                    }
+                })
                 .receipt(Builder::clearContractID)
                 .customize(this::finalize)
                 .build();
