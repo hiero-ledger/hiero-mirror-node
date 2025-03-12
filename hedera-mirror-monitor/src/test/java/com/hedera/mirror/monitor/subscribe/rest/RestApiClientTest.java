@@ -8,10 +8,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.monitor.MirrorNodeProperties;
 import com.hedera.mirror.monitor.MonitorProperties;
-import com.hedera.mirror.monitor.validator.AccountIdValidator;
 import com.hedera.mirror.rest.model.Links;
 import com.hedera.mirror.rest.model.NetworkNode;
 import com.hedera.mirror.rest.model.NetworkNodesResponse;
@@ -48,7 +46,6 @@ class RestApiClientTest {
     @BeforeEach
     void setup() {
         monitorProperties = new MonitorProperties();
-        monitorProperties.setAccountIdValidator(new AccountIdValidator(new CommonProperties()));
         monitorProperties.setMirrorNode(new MirrorNodeProperties());
         monitorProperties.getMirrorNode().getRest().setHost("127.0.0.1");
 

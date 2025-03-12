@@ -11,11 +11,10 @@ import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import com.hedera.hashgraph.sdk.AccountDeleteTransaction;
 import com.hedera.hashgraph.sdk.TopicId;
-import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.monitor.MonitorProperties;
 import com.hedera.mirror.monitor.publish.PublishRequest;
 import com.hedera.mirror.monitor.publish.PublishScenarioProperties;
 import com.hedera.mirror.monitor.publish.transaction.TransactionType;
-import com.hedera.mirror.monitor.validator.AccountIdValidator;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Duration;
 import java.util.Collections;
@@ -50,8 +49,9 @@ class ConfigurableTransactionGeneratorTest {
         properties.setProperties(Map.of("topicId", TOPIC_ID));
         properties.setTps(100_000);
         properties.setType(TransactionType.CONSENSUS_SUBMIT_MESSAGE);
+        var monitorProperties = new MonitorProperties();
         generator = Suppliers.memoize(() -> new ConfigurableTransactionGenerator(
-                new AccountIdValidator(new CommonProperties()), p -> p, Collections::unmodifiableMap, properties));
+                p -> p, monitorProperties, Collections::unmodifiableMap, properties));
     }
 
     @Test
@@ -216,12 +216,11 @@ class ConfigurableTransactionGeneratorTest {
     @CsvSource(
             textBlock =
                     """
-            , 0.0.2, 0, 0
-            0.0.2, 0.0.2, 0, 0,
-            0.0.2, 1.5.2, 5, 1
-            0.0.100, 0.0.100, 0, 0
+            , 0.0.100, 0.0.100
+            0.0.2, 0.0.100, 0.0.100
+            0.0.100, 0.0.2, 0.0.100
             """)
-    void accountDeleteTransaction(String obtainerId, String expected, long realm, long shard) {
+    void accountDeleteTransaction(String obtainerId, String operatorId, String expected) {
         // given
         properties = new PublishScenarioProperties();
         var supplierProperties = new HashMap<>(Map.of("accountId", "0.0.500"));
@@ -231,11 +230,10 @@ class ConfigurableTransactionGeneratorTest {
             supplierProperties.put("transferAccountId", obtainerId);
         }
 
-        var commProperties = new CommonProperties();
-        commProperties.setRealm(realm);
-        commProperties.setShard(shard);
+        var monitorProperties = new MonitorProperties();
+        monitorProperties.getOperator().setAccountId(operatorId);
         var transactionSupplier = new ConfigurableTransactionGenerator(
-                new AccountIdValidator(commProperties), p -> p, Collections::unmodifiableMap, properties);
+                p -> p, monitorProperties, Collections::unmodifiableMap, properties);
 
         // when
         var request = transactionSupplier.next();
@@ -247,23 +245,6 @@ class ConfigurableTransactionGeneratorTest {
                 .extracting(PublishRequest::getTransaction)
                 .asInstanceOf(InstanceOfAssertFactories.type(AccountDeleteTransaction.class))
                 .returns(expected, t -> t.getTransferAccountId().toString());
-    }
-
-    @Test
-    void accountDeleteTransactionThrows() {
-        // given
-        properties = new PublishScenarioProperties();
-        properties.setType(TransactionType.ACCOUNT_DELETE);
-        properties.setProperties(Map.of("accountId", "0.0.500", "transferAccountId", "0.0.501"));
-
-        var commProperties = new CommonProperties();
-        commProperties.setRealm(2);
-        commProperties.setShard(1);
-        var transactionSupplier = new ConfigurableTransactionGenerator(
-                new AccountIdValidator(commProperties), p -> p, Collections::unmodifiableMap, properties);
-
-        // when, then
-        assertThatThrownBy(transactionSupplier::next).isInstanceOf(IllegalArgumentException.class);
     }
 
     private void assertRequests(List<PublishRequest> publishRequests) {

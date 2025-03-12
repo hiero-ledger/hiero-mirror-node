@@ -16,7 +16,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdScalarSerializer;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.TransactionId;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.monitor.MirrorNodeProperties;
 import com.hedera.mirror.monitor.MonitorProperties;
 import com.hedera.mirror.monitor.ScenarioProtocol;
@@ -29,7 +28,6 @@ import com.hedera.mirror.monitor.publish.transaction.TransactionType;
 import com.hedera.mirror.monitor.subscribe.Scenario;
 import com.hedera.mirror.monitor.subscribe.SubscribeProperties;
 import com.hedera.mirror.monitor.subscribe.SubscribeResponse;
-import com.hedera.mirror.monitor.validator.AccountIdValidator;
 import com.hedera.mirror.rest.model.TransactionByIdResponse;
 import com.hedera.mirror.rest.model.TransactionDetail;
 import java.io.IOException;
@@ -78,7 +76,6 @@ class RestSubscriberTest {
     @BeforeEach
     void setup() {
         var monitorProperties = new MonitorProperties();
-        monitorProperties.setAccountIdValidator(new AccountIdValidator(new CommonProperties()));
         monitorProperties.setMirrorNode(new MirrorNodeProperties());
         monitorProperties.getMirrorNode().getRest().setHost("127.0.0.1");
 

@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.monitor.validator.AccountIdValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -19,7 +18,7 @@ class MonitorPropertiesTest {
     @BeforeEach
     void setup() {
         monitorProperties = new MonitorProperties();
-        monitorProperties.setAccountIdValidator(new AccountIdValidator(new CommonProperties()));
+        monitorProperties.setCommonProperties(new CommonProperties());
     }
 
     @ParameterizedTest
@@ -33,8 +32,8 @@ class MonitorPropertiesTest {
     void init(String expected, String operatorId, long realm, long shard) {
         // given
         monitorProperties.getOperator().setAccountId(operatorId);
-        monitorProperties.getAccountIdValidator().commonProperties().setRealm(realm);
-        monitorProperties.getAccountIdValidator().commonProperties().setShard(shard);
+        monitorProperties.getCommonProperties().setRealm(realm);
+        monitorProperties.getCommonProperties().setShard(shard);
 
         // when
         monitorProperties.init();
@@ -47,8 +46,8 @@ class MonitorPropertiesTest {
     void initThrows() {
         // given
         monitorProperties.getOperator().setAccountId("0.0.5");
-        monitorProperties.getAccountIdValidator().commonProperties().setRealm(2);
-        monitorProperties.getAccountIdValidator().commonProperties().setShard(1);
+        monitorProperties.getCommonProperties().setRealm(2);
+        monitorProperties.getCommonProperties().setShard(1);
 
         // when, then
         assertThatThrownBy(monitorProperties::init).isInstanceOf(IllegalArgumentException.class);

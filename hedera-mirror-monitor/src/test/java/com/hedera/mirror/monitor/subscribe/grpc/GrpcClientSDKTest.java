@@ -10,12 +10,10 @@ import com.hedera.hashgraph.sdk.proto.TopicID;
 import com.hedera.hashgraph.sdk.proto.mirror.ConsensusServiceGrpc;
 import com.hedera.hashgraph.sdk.proto.mirror.ConsensusTopicQuery;
 import com.hedera.hashgraph.sdk.proto.mirror.ConsensusTopicResponse;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.monitor.MonitorProperties;
 import com.hedera.mirror.monitor.subscribe.SubscribeProperties;
 import com.hedera.mirror.monitor.subscribe.SubscribeResponse;
 import com.hedera.mirror.monitor.util.Utility;
-import com.hedera.mirror.monitor.validator.AccountIdValidator;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -56,7 +54,6 @@ class GrpcClientSDKTest {
         properties.setTopicId("0.0.1000");
         subscription = new GrpcSubscription(1, properties);
         var monitorProperties = new MonitorProperties();
-        monitorProperties.setAccountIdValidator(new AccountIdValidator(new CommonProperties()));
         monitorProperties.getMirrorNode().getGrpc().setHost("in-process:test");
         grpcClientSDK = new GrpcClientSDK(monitorProperties, new SubscribeProperties());
 

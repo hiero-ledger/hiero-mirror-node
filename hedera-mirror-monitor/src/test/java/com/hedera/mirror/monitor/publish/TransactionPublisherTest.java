@@ -20,12 +20,10 @@ import com.hedera.hashgraph.sdk.proto.TransactionGetRecordResponse;
 import com.hedera.hashgraph.sdk.proto.TransactionReceipt;
 import com.hedera.hashgraph.sdk.proto.TransactionRecord;
 import com.hedera.hashgraph.sdk.proto.TransactionResponse;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.monitor.MonitorProperties;
 import com.hedera.mirror.monitor.NodeProperties;
 import com.hedera.mirror.monitor.OperatorProperties;
 import com.hedera.mirror.monitor.publish.transaction.TransactionType;
-import com.hedera.mirror.monitor.validator.AccountIdValidator;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -59,7 +57,6 @@ class TransactionPublisherTest {
     private static final String SERVER = "test1";
 
     private CryptoServiceStub cryptoServiceStub;
-    private MonitorProperties monitorProperties;
     private PublishProperties publishProperties;
     private PublishScenarioProperties publishScenarioProperties;
     private Server server;
@@ -75,8 +72,7 @@ class TransactionPublisherTest {
         publishScenarioProperties.setType(TransactionType.CRYPTO_TRANSFER);
         var node = new NodeProperties("0.0.3", "in-process:" + SERVER);
         node.setNodeId(0L);
-        monitorProperties = new MonitorProperties();
-        monitorProperties.setAccountIdValidator(new AccountIdValidator(new CommonProperties()));
+        var monitorProperties = new MonitorProperties();
         monitorProperties.setNodes(Set.of(node));
         monitorProperties.getNodeValidation().setEnabled(false);
         OperatorProperties operatorProperties = monitorProperties.getOperator();
