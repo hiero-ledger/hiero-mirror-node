@@ -679,8 +679,7 @@ public class RecordItemBuilder {
         var functionResult = contractFunctionResult(contractId);
         var builder = new Builder<>(TransactionType.ETHEREUMTRANSACTION, transactionBody)
                 .record(r -> r.setContractCallResult(functionResult)
-                        .setEthereumHash(digestedHash)
-                        .getReceiptBuilder().setContractID(contractId))
+                        .setEthereumHash(digestedHash))
                 .recordItem(r -> r.hapiVersion(new Version(0, 47, 0)))
                 .sidecarRecords(r -> r.add(contractStateChanges(contractId)))
                 .sidecarRecords(r -> r.add(contractActions()));
@@ -692,7 +691,9 @@ public class RecordItemBuilder {
                     .getActionsBuilder()
                     .getContractActionsBuilder(0)
                     .setCallType(ContractActionType.CREATE);
-            builder.record(r -> r.setContractCreateResult(functionResult));
+            builder.record(r -> r
+                    .setContractCreateResult(functionResult)
+                    .getReceiptBuilder().setContractID(contractId));
         }
 
         return builder;

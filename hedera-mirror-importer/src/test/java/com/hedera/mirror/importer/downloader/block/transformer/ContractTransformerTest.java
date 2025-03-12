@@ -241,6 +241,25 @@ class ContractTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
+    void ethereumNoUsedGas() {
+        // given
+        var expectedRecordItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .record(r -> r.setContractCreateResult(recordItemBuilder.contractFunctionResult().setGasUsed(0L)))
+                .receipt(Builder::clearContractID)
+                .customize(this::finalize)
+                .build();
+        var blockItem = blockItemBuilder.ethereum(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
     void ethereumUnsuccessful() {
         // given
         var expectedRecordItem = recordItemBuilder

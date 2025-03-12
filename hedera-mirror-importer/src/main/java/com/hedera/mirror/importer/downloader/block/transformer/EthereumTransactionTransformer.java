@@ -25,17 +25,12 @@ final class EthereumTransactionTransformer extends AbstractBlockItemTransformer 
         recordBuilder.setEthereumHash(ethereumCall.getEthereumHash());
         recordItemBuilder.sidecarRecords(ethereumCall.getSidecarsList());
 
-        var receiptBuilder = recordBuilder.getReceiptBuilder();
         switch (ethereumCall.getEthResultCase()) {
-            case ETHEREUM_CALL_RESULT -> {
-                var result = ethereumCall.getEthereumCallResult();
-                recordBuilder.setContractCallResult(result);
-                setReceipt(result, receiptBuilder);
-            }
+            case ETHEREUM_CALL_RESULT -> recordBuilder.setContractCallResult(ethereumCall.getEthereumCallResult());
             case ETHEREUM_CREATE_RESULT -> {
                 var result = ethereumCall.getEthereumCreateResult();
                 recordBuilder.setContractCreateResult(result);
-                setReceipt(result, receiptBuilder);
+                setReceipt(result, recordBuilder.getReceiptBuilder());
             }
             default -> log.warn(
                     "Unhandled eth_result case {} for transaction at {}",
