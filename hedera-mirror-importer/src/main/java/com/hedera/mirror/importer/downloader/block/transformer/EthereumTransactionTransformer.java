@@ -40,7 +40,7 @@ final class EthereumTransactionTransformer extends AbstractBlockItemTransformer 
     }
 
     private void setReceipt(ContractFunctionResult result, TransactionReceipt.Builder receiptBuilder) {
-        if(result.getGasUsed() > 0) {
+        if (result.getGasUsed() > 0) {
             receiptBuilder.setContractID(result.getContractID());
         }
     }
