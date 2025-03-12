@@ -140,6 +140,26 @@ class ContractTransformerTest extends AbstractTransformerTest {
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 
+    @Test
+    void contractCreateUnsuccessfulWithContractCreateResult() {
+        // given
+        var expectedRecordItem = recordItemBuilder
+                .contractCreate()
+                .receipt(Builder::clearContractID)
+                .sidecarRecords(List::clear)
+                .status(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED)
+                .customize(this::finalize)
+                .build();
+        var blockItem = blockItemBuilder.contractCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
     @MethodSource("provideContractIds")
     @ParameterizedTest(name = "delete contract with {0} contract id")
     void contractDelete(String type, ContractID contractIdInBody, ContractID contractIdInReceipt) {
