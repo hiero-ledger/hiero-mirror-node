@@ -50,6 +50,7 @@ import com.hedera.mirror.test.e2e.acceptance.client.AccountClient;
 import com.hedera.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import com.hedera.mirror.test.e2e.acceptance.client.TokenClient;
 import com.hedera.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum;
+import com.hedera.mirror.test.e2e.acceptance.config.Web3Properties;
 import com.hedera.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import com.hedera.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import com.hedera.mirror.test.e2e.acceptance.util.ContractCallResponseWrapper;
@@ -72,9 +73,11 @@ public class PrecompileContractFeature extends AbstractFeature {
     private final TokenClient tokenClient;
     private final MirrorNodeClient mirrorClient;
     private final AccountClient accountClient;
+    private final Web3Properties web3Properties;
     private ExpandedAccountId ecdsaEaId;
     private TokenId fungibleTokenId;
     private TokenId nonFungibleTokenId;
+    private TokenId fungibleTokenForCustomFee;
 
     private DeployedContract deployedPrecompileContract;
     private String precompileTestContractSolidityAddress;
@@ -86,17 +89,30 @@ public class PrecompileContractFeature extends AbstractFeature {
                 deployedPrecompileContract.contractId().toSolidityAddress();
     }
 
+    @Given("I successfully create and verify an fungible token for custom fees")
+    public void createFungibleTokenForCustomFees() {
+        var response = tokenClient.getToken(TokenNameEnum.FUNGIBLE_FOR_CUSTOM_FEE);
+        fungibleTokenForCustomFee = response.tokenId();
+        if (response.response() != null) {
+            this.networkTransactionResponse = response.response();
+            verifyMirrorTransactionsResponse(mirrorClient, 200);
+        }
+    }
+
+
     @Given("I successfully create and verify a fungible token for precompile contract tests")
     public void createFungibleToken() {
         ExpandedAccountId admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
         CustomFixedFee customFixedFee = new CustomFixedFee();
         customFixedFee.setAmount(10);
         customFixedFee.setFeeCollectorAccountId(admin.getAccountId());
+        customFixedFee.setDenominatingTokenId(fungibleTokenForCustomFee);
 
         CustomFractionalFee customFractionalFee = new CustomFractionalFee();
         customFractionalFee.setFeeCollectorAccountId(admin.getAccountId());
         customFractionalFee.setNumerator(1);
         customFractionalFee.setDenominator(10);
+        customFractionalFee.setMax(100);
         fungibleTokenId = tokenClient
                 .getToken(
                         TokenNameEnum.FUNGIBLE_KYC_NOT_APPLICABLE_UNFROZEN,
@@ -116,11 +132,12 @@ public class PrecompileContractFeature extends AbstractFeature {
         CustomFixedFee customFixedFee = new CustomFixedFee();
         customFixedFee.setAmount(10);
         customFixedFee.setFeeCollectorAccountId(admin.getAccountId());
+        customFixedFee.setDenominatingTokenId(fungibleTokenForCustomFee); //TODO change to non-fungible?
 
         CustomRoyaltyFee customRoyaltyFee = new CustomRoyaltyFee();
         customRoyaltyFee.setNumerator(5);
         customRoyaltyFee.setDenominator(10);
-        customRoyaltyFee.setFallbackFee(new CustomFixedFee().setHbarAmount(new Hbar(1)));
+        customRoyaltyFee.setFallbackFee(new CustomFixedFee().setHbarAmount(new Hbar(1)).setDenominatingTokenId(fungibleTokenForCustomFee));
         customRoyaltyFee.setFeeCollectorAccountId(admin.getAccountId());
 
         nonFungibleTokenId = tokenClient
@@ -185,8 +202,14 @@ public class PrecompileContractFeature extends AbstractFeature {
     @Then("the contract call REST API to is token with invalid account id should return an error")
     public void checkIfInvalidAccountIsToken() {
         var data = encodeData(PRECOMPILE, IS_TOKEN_SELECTOR, asAddress(ZERO_ADDRESS));
-        assertThatThrownBy(() -> callContract(data, precompileTestContractSolidityAddress))
-                .isInstanceOf(HttpClientErrorException.BadRequest.class);
+
+        if(web3Properties.isModularizedServices()) {
+            var result = callContract(data, precompileTestContractSolidityAddress);
+            assertFalse(result.getResultAsBoolean());
+        } else {
+            assertThatThrownBy(() -> callContract(data, precompileTestContractSolidityAddress))
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
+        }
     }
 
     @And("the contract call REST API to is token with valid account id should return an error")
@@ -195,8 +218,13 @@ public class PrecompileContractFeature extends AbstractFeature {
                 PRECOMPILE,
                 IS_TOKEN_SELECTOR,
                 asAddress(accountClient.getTokenTreasuryAccount().getAccountId().toSolidityAddress()));
-        assertThatThrownBy(() -> callContract(data, precompileTestContractSolidityAddress))
-                .isInstanceOf(HttpClientErrorException.BadRequest.class);
+        if(web3Properties.isModularizedServices()) {
+            var result =  callContract(data, precompileTestContractSolidityAddress);
+            assertFalse(result.getResultAsBoolean());
+        } else {
+            assertThatThrownBy(() -> callContract(data, precompileTestContractSolidityAddress))
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
+        }
     }
 
     @And("verify fungible token isn't frozen")
@@ -209,6 +237,10 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertFalse(response.getResultAsBoolean());
     }
 
+    @Retryable(
+            retryFor = {AssertionError.class, HttpClientErrorException.class},
+            backoff = @Backoff(delayExpression = "#{@restProperties.minBackoff.toMillis()}"),
+            maxAttemptsExpression = "#{@restProperties.maxAttempts}")
     @And("verify non fungible token isn't frozen")
     @And("check if non fungible token is unfrozen")
     public void verifyNonFungibleTokenIsNotFrozen() {
@@ -347,22 +379,38 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertFalse(response.getResultAsBoolean());
     }
 
+    /**
+     * In the modularized code, the status is now true when the token has a KycNotApplicable status,
+     * whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
+     */
     @And("the contract call REST API should return the default kyc for a fungible token")
     public void getDefaultKycOfFungibleToken() {
         var data = encodeData(PRECOMPILE, GET_TOKEN_DEFAULT_KYC_SELECTOR, asAddress(fungibleTokenId));
 
         var response = callContract(data, precompileTestContractSolidityAddress);
+        boolean defaultKycStatus = false;
+        if (web3Properties.isModularizedServices()) {
+            defaultKycStatus = !defaultKycStatus;
+        }
 
-        assertFalse(response.getResultAsBoolean());
+        assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }
 
+    /**
+     * In the modularized code, the status is now true when the token has a KycNotApplicable status,
+     * whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
+     */
     @And("the contract call REST API should return the default kyc for a non fungible token")
     public void getDefaultKycOfNonFungibleToken() {
         var data = encodeData(PRECOMPILE, GET_TOKEN_DEFAULT_KYC_SELECTOR, asAddress(nonFungibleTokenId));
 
         var response = callContract(data, precompileTestContractSolidityAddress);
+        boolean defaultKycStatus = false;
+        if (web3Properties.isModularizedServices()) {
+            defaultKycStatus = !defaultKycStatus;
+        }
 
-        assertFalse(response.getResultAsBoolean());
+        assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }
 
     @And("the contract call REST API should return the information for token for a fungible token")
@@ -574,14 +622,14 @@ public class PrecompileContractFeature extends AbstractFeature {
     @And("the contract call REST API should return the getApproved by direct call for a non fungible token")
     public void getNonFungibleTokenGetApprovedByDirectCall() {
         var data = encodeData(GET_APPROVED_DIRECT_SELECTOR, new BigInteger("1"));
-        var response = callContract(data, fungibleTokenId.toSolidityAddress());
+        var response = callContract(data, nonFungibleTokenId.toSolidityAddress());
         assertFalse(response.getResultAsBoolean());
     }
 
     @And("the contract call REST API should return the isApprovedForAll by direct call for a non fungible token")
     public void getNonFungibleTokenIsApprovedForAllByDirectCallOwner() {
         var data = encodeData(IS_APPROVED_FOR_ALL_SELECTOR, asAddress(contractClient), asAddress(ecdsaEaId));
-        var response = callContract(data, fungibleTokenId.toSolidityAddress());
+        var response = callContract(data, nonFungibleTokenId.toSolidityAddress());
         assertFalse(response.getResultAsBoolean());
     }
 
@@ -600,7 +648,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat((long) fractionalFee.get(0)).isOne();
         assertThat((long) fractionalFee.get(1)).isEqualTo(10);
         assertThat((long) fractionalFee.get(2)).isZero();
-        assertThat((long) fractionalFee.get(3)).isZero();
+        assertThat((long) fractionalFee.get(3)).isEqualTo(100L);
         assertThat((boolean) fractionalFee.get(4)).isFalse();
         assertThat(royaltyFees).isEmpty();
     }
@@ -634,7 +682,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat((long) fractionalFee.get(0)).isOne();
         assertThat((long) fractionalFee.get(1)).isEqualTo(10);
         assertThat((long) fractionalFee.get(2)).isZero();
-        assertThat((long) fractionalFee.get(3)).isZero();
+        assertThat((long) fractionalFee.get(3)).isEqualTo(100L);
         assertFalse((boolean) fractionalFee.get(4));
         assertThat(fractionalFee.get(5).toString().toLowerCase())
                 .isEqualTo("0x" + contractClient.getClientAddress().toLowerCase());
@@ -672,8 +720,8 @@ public class PrecompileContractFeature extends AbstractFeature {
         Tuple[] royaltyFees = result.get(2);
         Tuple royaltyFee = royaltyFees[0];
         assertThat((long) royaltyFee.get(2)).isEqualTo(new Hbar(1).toTinybars());
-        assertThat(royaltyFee.get(3).toString()).hasToString(ZERO_ADDRESS);
-        assertTrue((boolean) royaltyFee.get(4));
+        assertThat(royaltyFee.get(3).toString()).hasToString(asAddress(fungibleTokenForCustomFee).toString());
+        assertFalse((boolean) royaltyFee.get(4));
         assertThat(royaltyFee.get(5).toString().toLowerCase())
                 .hasToString("0x"
                         + tokenClient
@@ -710,8 +758,8 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat(fixedFees).isNotEmpty();
         Tuple fixedFee = fixedFees[0];
         assertThat((long) fixedFee.get(0)).isEqualTo(10);
-        assertThat(fixedFee.get(1).toString()).hasToString(ZERO_ADDRESS);
-        assertTrue((boolean) fixedFee.get(2));
+        assertThat(fixedFee.get(1).toString()).hasToString(asAddress(fungibleTokenForCustomFee).toString());
+        assertFalse((boolean) fixedFee.get(2));
         assertFalse((boolean) fixedFee.get(3));
         contractClient.validateAddress(fixedFee.get(4).toString().toLowerCase().replace("0x", ""));
     }
