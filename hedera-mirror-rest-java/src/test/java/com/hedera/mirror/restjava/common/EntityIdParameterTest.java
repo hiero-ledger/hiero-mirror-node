@@ -21,12 +21,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class EntityIdParameterTest {
-
-    private final CommonProperties commonProperties = new CommonProperties();
+    private CommonProperties commonProperties;
 
     @BeforeEach
     void setup() {
-        EntityIdParameter.PROPERTIES.set(commonProperties);
+        new CommonProperties().init();
     }
 
     @ParameterizedTest

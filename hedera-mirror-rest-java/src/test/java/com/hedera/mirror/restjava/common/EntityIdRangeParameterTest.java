@@ -20,11 +20,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class EntityIdRangeParameterTest {
 
-    private final CommonProperties commonProperties = new CommonProperties();
+    private CommonProperties commonProperties;
 
     @BeforeEach
     void setup() {
-        EntityIdParameter.PROPERTIES.set(commonProperties);
+        commonProperties = new CommonProperties();
     }
 
     @Test
