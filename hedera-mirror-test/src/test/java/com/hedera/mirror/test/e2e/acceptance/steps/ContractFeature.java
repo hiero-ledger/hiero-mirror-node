@@ -193,7 +193,7 @@ public class ContractFeature extends BaseContractFeature {
         var executeContractResult = executeGetEvmAddressTransaction(EVM_ADDRESS_SALT);
         create2ChildContractEvmAddress =
                 executeContractResult.contractFunctionResult().getAddress(0);
-        create2ChildContractAccountId = AccountId.fromEvmAddress(create2ChildContractEvmAddress);
+        create2ChildContractAccountId = AccountId.fromString(create2ChildContractEvmAddress);
         create2ChildContractContractId = ContractId.fromEvmAddress(0, 0, create2ChildContractEvmAddress);
     }
 
