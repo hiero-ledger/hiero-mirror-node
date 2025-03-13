@@ -3,7 +3,7 @@
 import _ from 'lodash';
 
 import AccountAlias from './accountAlias';
-import {getResponseLimit, getMirrorConfig} from './config';
+import {getResponseLimit} from './config';
 import * as constants from './constants';
 import EntityId from './entityId';
 import {EntityService} from './service';

@@ -21,14 +21,12 @@ import (
 var defaultConfig string
 
 const (
-	apiConfigEnvKey          = "HEDERA_MIRROR_ROSETTA_API_CONFIG"
-	configName               = "application"
-	configTypeYaml           = "yml"
-	envKeyDelimiter          = "_"
-	keyDelimiter             = "::"
-	nodesEnvKey              = "HEDERA_MIRROR_ROSETTA_NODES"
-	stackingRewardAccountNum = 800
-	treasuryAccountNum       = 2
+	apiConfigEnvKey = "HEDERA_MIRROR_ROSETTA_API_CONFIG"
+	configName      = "application"
+	configTypeYaml  = "yml"
+	envKeyDelimiter = "_"
+	keyDelimiter    = "::"
+	nodesEnvKey     = "HEDERA_MIRROR_ROSETTA_NODES"
 )
 
 type Mirror struct {
