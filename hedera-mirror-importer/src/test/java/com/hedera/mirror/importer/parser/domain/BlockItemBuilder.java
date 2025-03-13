@@ -67,6 +67,7 @@ import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -256,16 +257,21 @@ public class BlockItemBuilder {
     }
 
     public BlockItemBuilder.Builder cryptoTransfer(RecordItem recordItem) {
-        var cryptoTransferTransactionOutput = TransactionOutput.newBuilder()
-                .setCryptoTransfer(CryptoTransferOutput.newBuilder()
-                        .addAllAssessedCustomFees(
-                                recordItem.getTransactionRecord().getAssessedCustomFeesList())
-                        .build())
-                .build();
+        var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
+        if (recordItem.getTransactionRecord().getAssessedCustomFeesCount() > 0) {
+            transactionOutputs.put(
+                    CRYPTO_TRANSFER,
+                    TransactionOutput.newBuilder()
+                            .setCryptoTransfer(CryptoTransferOutput.newBuilder()
+                                    .addAllAssessedCustomFees(
+                                            recordItem.getTransactionRecord().getAssessedCustomFeesList())
+                                    .build())
+                            .build());
+        }
         return new BlockItemBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
-                Map.of(CRYPTO_TRANSFER, cryptoTransferTransactionOutput),
+                transactionOutputs,
                 Collections.emptyList());
     }
 
@@ -330,18 +336,19 @@ public class BlockItemBuilder {
 
     public BlockItemBuilder.Builder scheduleSign(RecordItem recordItem) {
         var receipt = recordItem.getTransactionRecord().getReceipt();
-        var signScheduleOutput = SignScheduleOutput.newBuilder();
+        var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
         if (receipt.hasScheduledTransactionID()) {
-            signScheduleOutput.setScheduledTransactionId(receipt.getScheduledTransactionID());
+            transactionOutputs.put(
+                    SIGN_SCHEDULE,
+                    TransactionOutput.newBuilder()
+                            .setSignSchedule(SignScheduleOutput.newBuilder()
+                                    .setScheduledTransactionId(receipt.getScheduledTransactionID()))
+                            .build());
         }
-
-        var transactionOutput = TransactionOutput.newBuilder()
-                .setSignSchedule(signScheduleOutput.build())
-                .build();
         return new BlockItemBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
-                Map.of(SIGN_SCHEDULE, transactionOutput),
+                transactionOutputs,
                 Collections.emptyList());
     }
 
@@ -386,16 +393,21 @@ public class BlockItemBuilder {
     public BlockItemBuilder.Builder cryptoCreate(RecordItem recordItem) {
         var transactionRecord = recordItem.getTransactionRecord();
         var accountId = transactionRecord.getReceipt().getAccountID();
-        var transactionOutput = TransactionOutput.newBuilder()
-                .setAccountCreate(CreateAccountOutput.newBuilder()
-                        .setCreatedAccountId(accountId)
-                        .build())
-                .build();
+        var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
+        if (recordItem.isSuccessful()) {
+            transactionOutputs.put(
+                    ACCOUNT_CREATE,
+                    TransactionOutput.newBuilder()
+                            .setAccountCreate(CreateAccountOutput.newBuilder()
+                                    .setCreatedAccountId(accountId)
+                                    .build())
+                            .build());
+        }
 
         return new BlockItemBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
-                Map.of(ACCOUNT_CREATE, transactionOutput),
+                transactionOutputs,
                 Collections.emptyList());
     }
 
@@ -422,20 +434,24 @@ public class BlockItemBuilder {
     }
 
     public Builder consensusSubmitMessage(RecordItem recordItem) {
-        var transactionOutput = TransactionOutput.newBuilder()
-                .setSubmitMessage(SubmitMessageOutput.newBuilder()
-                        .addAllAssessedCustomFees(
-                                recordItem.getTransactionRecord().getAssessedCustomFeesList())
-                        .build())
-                .build();
         if (!recordItem.isSuccessful()) {
             return new BlockItemBuilder.Builder(
                     recordItem.getTransaction(),
                     transactionResult(recordItem),
-                    Map.of(SUBMIT_MESSAGE, transactionOutput),
+                    Collections.emptyMap(),
                     Collections.emptyList());
         }
 
+        var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
+        if (recordItem.getTransactionRecord().getAssessedCustomFeesCount() > 0) {
+            transactionOutputs.put(
+                    SUBMIT_MESSAGE,
+                    TransactionOutput.newBuilder()
+                            .setSubmitMessage(SubmitMessageOutput.newBuilder()
+                                    .addAllAssessedCustomFees(
+                                            recordItem.getTransactionRecord().getAssessedCustomFeesList()))
+                            .build());
+        }
         var topicRunningHash = recordItem.getTransactionRecord().getReceipt().getTopicRunningHash();
         var sequenceNumber = recordItem.getTransactionRecord().getReceipt().getTopicSequenceNumber();
         var topicId =
@@ -454,10 +470,7 @@ public class BlockItemBuilder {
                 .build();
         var stateChanges = StateChanges.newBuilder().addStateChanges(change).build();
         return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(),
-                transactionResult(recordItem),
-                Map.of(SUBMIT_MESSAGE, transactionOutput),
-                List.of(stateChanges));
+                recordItem.getTransaction(), transactionResult(recordItem), transactionOutputs, List.of(stateChanges));
     }
 
     public Builder tokenAirdrop(RecordItem recordItem) {

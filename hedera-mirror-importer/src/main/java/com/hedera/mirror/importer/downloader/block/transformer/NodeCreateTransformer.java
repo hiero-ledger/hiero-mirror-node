@@ -19,11 +19,8 @@ final class NodeCreateTransformer extends AbstractBlockItemTransformer {
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        blockItem
-                .getStateChangeContext()
-                .getNewNodeId()
-                .map(receiptBuilder::setNodeId)
-                .orElseThrow();
+        receiptBuilder.setNodeId(
+                blockItem.getStateChangeContext().getNewNodeId().orElseThrow());
     }
 
     @Override

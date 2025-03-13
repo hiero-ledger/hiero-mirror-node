@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;
@@ -19,7 +20,10 @@ final class UtilPrngTransformer extends AbstractBlockItemTransformer {
         }
 
         var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
-        var utilPrng = blockItem.getTransactionOutput(TransactionCase.UTIL_PRNG).getUtilPrng();
+        var utilPrng = blockItem
+                .getTransactionOutput(TransactionCase.UTIL_PRNG)
+                .map(TransactionOutput::getUtilPrng)
+                .orElseThrow();
         switch (utilPrng.getEntropyCase()) {
             case PRNG_NUMBER -> recordBuilder.setPrngNumber(utilPrng.getPrngNumber());
             case PRNG_BYTES -> recordBuilder.setPrngBytes(utilPrng.getPrngBytes());

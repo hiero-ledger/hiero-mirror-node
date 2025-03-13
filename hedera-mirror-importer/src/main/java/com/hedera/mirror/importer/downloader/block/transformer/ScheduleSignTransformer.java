@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;
@@ -16,15 +17,18 @@ final class ScheduleSignTransformer extends AbstractBlockItemTransformer {
             return;
         }
 
-        var signSchedule =
-                blockItem.getTransactionOutput(TransactionCase.SIGN_SCHEDULE).getSignSchedule();
-        if (signSchedule.hasScheduledTransactionId()) {
-            blockItemTransformation
-                    .recordItemBuilder()
-                    .transactionRecordBuilder()
-                    .getReceiptBuilder()
-                    .setScheduledTransactionID(signSchedule.getScheduledTransactionId());
-        }
+        blockItem
+                .getTransactionOutput(TransactionCase.SIGN_SCHEDULE)
+                .map(TransactionOutput::getSignSchedule)
+                .ifPresent(signSchedule -> {
+                    if (signSchedule.hasScheduledTransactionId()) {
+                        blockItemTransformation
+                                .recordItemBuilder()
+                                .transactionRecordBuilder()
+                                .getReceiptBuilder()
+                                .setScheduledTransactionID(signSchedule.getScheduledTransactionId());
+                    }
+                });
     }
 
     @Override
