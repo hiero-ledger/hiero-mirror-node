@@ -206,7 +206,7 @@ public class RecordItemBuilder {
     private final Map<GeneratedMessageV3, EntityState> state = new ConcurrentHashMap<>();
 
     @Getter
-    private final PersistProperties persistProperties = new PersistProperties(new CommonProperties());
+    private final PersistProperties persistProperties = new PersistProperties(CommonProperties.getInstance());
 
     private Instant now = Instant.now();
 

@@ -58,6 +58,7 @@ class TransactionSignatureTest {
 
     private static final long CONSENSUS_TIMESTAMP = 10L;
     private static final EntityId ENTITY_ID = EntityId.of("0.0.123");
+    private static final CommonProperties commonProperties = CommonProperties.getInstance();
 
     @Mock
     private AddressBookService addressBookService;
@@ -95,14 +96,14 @@ class TransactionSignatureTest {
     private Set<TransactionType> transactionSignatures;
 
     private static Stream<Arguments> provideDefaultTransactionSignatures() {
-        return new EntityProperties(new CommonProperties())
+        return new EntityProperties(commonProperties)
                 .getPersist().getTransactionSignatures().stream().map(Arguments::of);
     }
 
     @BeforeEach
     void setup() {
         CommonParserProperties commonParserProperties = new CommonParserProperties();
-        EntityProperties entityProperties = new EntityProperties(new CommonProperties());
+        EntityProperties entityProperties = new EntityProperties(commonProperties);
         entityRecordItemListener = new EntityRecordItemListener(
                 commonParserProperties,
                 contractResultService,

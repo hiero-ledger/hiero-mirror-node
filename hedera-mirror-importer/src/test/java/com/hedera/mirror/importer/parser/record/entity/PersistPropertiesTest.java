@@ -15,6 +15,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class PersistPropertiesTest {
+    private static final CommonProperties commonProperties = CommonProperties.getInstance();
 
     @ParameterizedTest
     @CsvSource(
@@ -27,7 +28,7 @@ class PersistPropertiesTest {
             0.0.800, false
             """)
     void shouldPersistEntityTransaction(String entityIdStr, boolean expected) {
-        var persistProperties = new EntityProperties.PersistProperties(new CommonProperties());
+        var persistProperties = new EntityProperties.PersistProperties(commonProperties);
         persistProperties.setEntityTransactions(true);
         var entityId = entityIdStr != null ? EntityId.of(entityIdStr) : null;
         assertThat(persistProperties.shouldPersistEntityTransaction(entityId)).isEqualTo(expected);
@@ -35,7 +36,7 @@ class PersistPropertiesTest {
 
     @Test
     void shouldPersistEntityTransactionWhenDisabled() {
-        var persistProperties = new EntityProperties.PersistProperties(new CommonProperties());
+        var persistProperties = new EntityProperties.PersistProperties(commonProperties);
         persistProperties.setEntityTransactions(false);
         assertThat(persistProperties.shouldPersistEntityTransaction(null)).isFalse();
         assertThat(persistProperties.shouldPersistEntityTransaction(EntityId.EMPTY))
@@ -50,7 +51,7 @@ class PersistPropertiesTest {
 
     @Test
     void shouldPersistEntityTransactionWithCustomExclusion() {
-        var persistProperties = new EntityProperties.PersistProperties(new CommonProperties());
+        var persistProperties = new EntityProperties.PersistProperties(commonProperties);
         persistProperties.setEntityTransactions(true);
         persistProperties.setEntityTransactionExclusion(Set.of(EntityId.of(10)));
         assertThat(persistProperties.shouldPersistEntityTransaction(null)).isFalse();
@@ -74,7 +75,7 @@ class PersistPropertiesTest {
             false, CONSENSUSSUBMITMESSAGE, false,
             """)
     void shouldPersistTransactionHash(boolean transactionHash, TransactionType transactionType, boolean expected) {
-        var persistProperties = new EntityProperties.PersistProperties(new CommonProperties());
+        var persistProperties = new EntityProperties.PersistProperties(commonProperties);
         persistProperties.setTransactionHash(transactionHash);
         persistProperties.setTransactionHashTypes(Set.of(transactionType));
         assertThat(persistProperties.shouldPersistTransactionHash(TransactionType.CRYPTOTRANSFER))
@@ -86,7 +87,7 @@ class PersistPropertiesTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void shouldPersistTransactionHashWhenEmptyFilter(boolean transactionHash) {
-        var persistProperties = new EntityProperties.PersistProperties(new CommonProperties());
+        var persistProperties = new EntityProperties.PersistProperties(commonProperties);
         persistProperties.setTransactionHash(transactionHash);
         persistProperties.setTransactionHashTypes(Collections.emptySet());
         assertThat(persistProperties.shouldPersistTransactionHash(TransactionType.CRYPTOTRANSFER))

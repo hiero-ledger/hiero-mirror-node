@@ -270,7 +270,7 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
     @ValueSource(booleans = {true, false})
     void skipMigration(boolean trackAllowance) {
         // given
-        var entityProps = new EntityProperties(new CommonProperties());
+        var entityProps = new EntityProperties(CommonProperties.getInstance());
         entityProps.getPersist().setTrackAllowance(trackAllowance);
         var allowanceAmountMigration = new FixCryptoAllowanceAmountMigration(
                 dbProperties, entityProps, new ImporterProperties(), ownerJdbcTemplate);

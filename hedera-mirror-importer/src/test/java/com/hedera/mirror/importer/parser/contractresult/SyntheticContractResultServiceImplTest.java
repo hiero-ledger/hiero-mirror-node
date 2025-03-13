@@ -25,7 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SyntheticContractResultServiceImplTest {
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
-    private final EntityProperties entityProperties = new EntityProperties(new CommonProperties());
+    private final EntityProperties entityProperties = new EntityProperties(CommonProperties.getInstance());
 
     @Mock
     private EntityListener entityListener;

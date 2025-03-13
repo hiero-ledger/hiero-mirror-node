@@ -16,11 +16,6 @@ public class GlobalTestSetup implements LauncherSessionListener, TestExecutionLi
             public void testPlanExecutionStarted(TestPlan testPlan) {
                 new CommonProperties().init();
             }
-
-            @Override
-            public void testPlanExecutionFinished(TestPlan testPlan) {
-                TestExecutionListener.super.testPlanExecutionFinished(testPlan);
-            }
         });
     }
 }

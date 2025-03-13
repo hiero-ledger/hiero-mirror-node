@@ -105,7 +105,7 @@ abstract class AbstractTransactionHandlerTest {
 
     protected final ContractID contractId =
             ContractID.newBuilder().setContractNum(DEFAULT_ENTITY_NUM).build();
-    protected final EntityProperties entityProperties = new EntityProperties(new CommonProperties());
+    protected final EntityProperties entityProperties = new EntityProperties(CommonProperties.getInstance());
 
     protected TransactionHandler transactionHandler;
 

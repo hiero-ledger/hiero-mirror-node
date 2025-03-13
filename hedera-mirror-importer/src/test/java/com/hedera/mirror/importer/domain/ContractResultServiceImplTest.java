@@ -50,7 +50,7 @@ class ContractResultServiceImplTest {
     private static final String RECOVERABLE_ERROR_LOG_PREFIX = "Recoverable error. ";
 
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
-    private final EntityProperties entityProperties = new EntityProperties(new CommonProperties());
+    private final EntityProperties entityProperties = new EntityProperties(CommonProperties.getInstance());
     private final DomainBuilder domainBuilder = new DomainBuilder();
 
     @Mock(strictness = LENIENT)

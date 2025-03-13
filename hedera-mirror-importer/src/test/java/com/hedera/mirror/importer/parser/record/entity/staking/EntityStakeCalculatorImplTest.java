@@ -35,25 +35,25 @@ import org.springframework.transaction.support.TransactionOperations;
 @ExtendWith(MockitoExtension.class)
 class EntityStakeCalculatorImplTest {
 
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+
     private EntityProperties entityProperties;
 
     @Mock(strictness = LENIENT)
     private EntityStakeRepository entityStakeRepository;
 
     private EntityStakeCalculatorImpl entityStakeCalculator;
-    private CommonProperties commonProperties;
 
     private long stakingRewardAccountId;
 
     @BeforeEach
     void setup() {
-        commonProperties = new CommonProperties();
-        entityProperties = new EntityProperties(commonProperties);
+        entityProperties = new EntityProperties(COMMON_PROPERTIES);
         entityStakeCalculator = new EntityStakeCalculatorImpl(
-                entityProperties, entityStakeRepository, TransactionOperations.withoutTransaction(), commonProperties);
+                entityProperties, entityStakeRepository, TransactionOperations.withoutTransaction(), COMMON_PROPERTIES);
 
         stakingRewardAccountId = SystemEntity.STAKING_REWARD_ACCOUNT
-                .getScopedEntityId(commonProperties)
+                .getScopedEntityId(COMMON_PROPERTIES)
                 .getId();
         when(entityStakeRepository.updated(anyLong())).thenReturn(false, true);
         when(entityStakeRepository.getEndStakePeriod(anyLong()))
@@ -73,8 +73,8 @@ class EntityStakeCalculatorImplTest {
             , 101, 1, 1
             """)
     void calculate(Long endStakePeriodBefore, Long endStakePeriodAfter, long shard, long realm) {
-        commonProperties.setShard(shard);
-        commonProperties.setRealm(realm);
+        COMMON_PROPERTIES.setShard(shard);
+        COMMON_PROPERTIES.setRealm(realm);
 
         stakingRewardAccountId =
                 EntityId.of(shard, realm, stakingRewardAccountId).getId();
@@ -92,6 +92,9 @@ class EntityStakeCalculatorImplTest {
         inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
         inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
         inorder.verifyNoMoreInteractions();
+
+        COMMON_PROPERTIES.setShard(0);
+        COMMON_PROPERTIES.setRealm(0);
     }
 
     @ParameterizedTest
