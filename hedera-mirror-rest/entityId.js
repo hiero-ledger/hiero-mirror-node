@@ -343,7 +343,7 @@ const parse = (id, {allowEvmAddress, evmAddressType, isNullable, paramName} = {}
  * @return {BigInt}
  */
 const getScopedEntityId = (entityNum) => {
-  return of(systemShard, systemRealm, entityNum, null);
+  return of(systemShard, systemRealm, entityNum, null).getEncodedId();
 };
 
 export default {

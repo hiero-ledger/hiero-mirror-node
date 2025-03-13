@@ -2,7 +2,7 @@
 
 import {getMirrorConfig} from '../config';
 import * as constants from '../constants';
-// import EntityId from '../entityId';
+import EntityId from '../entityId';
 import {InvalidArgumentError} from '../errors';
 
 const {

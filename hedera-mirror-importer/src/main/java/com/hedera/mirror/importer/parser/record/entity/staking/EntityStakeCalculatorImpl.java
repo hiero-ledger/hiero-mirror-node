@@ -36,27 +36,28 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
         }
 
         try {
-            var entityStakeId = SystemEntity.STAKING_REWARD_ACCOUNT
+            var stakingRewardAccountId = SystemEntity.STAKING_REWARD_ACCOUNT
                     .getScopedEntityId(commonProperties)
                     .getId();
 
             while (true) {
-                if (entityStakeRepository.updated(entityStakeId)) {
+                if (entityStakeRepository.updated(stakingRewardAccountId)) {
                     log.info("Skipping since the entity stake is up-to-date");
                     return;
                 }
 
                 var stopwatch = Stopwatch.createStarted();
-                var lastEndStakePeriod =
-                        entityStakeRepository.getEndStakePeriod(entityStakeId).orElse(0L);
+                var lastEndStakePeriod = entityStakeRepository
+                        .getEndStakePeriod(stakingRewardAccountId)
+                        .orElse(0L);
                 transactionOperations.executeWithoutResult(s -> {
                     entityStakeRepository.lockFromConcurrentUpdates();
-                    entityStakeRepository.createEntityStateStart(entityStakeId);
+                    entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
                     log.info("Created entity_state_start in {}", stopwatch);
-                    entityStakeRepository.updateEntityStake(entityStakeId);
+                    entityStakeRepository.updateEntityStake(stakingRewardAccountId);
                 });
 
-                var endStakePeriod = entityStakeRepository.getEndStakePeriod(entityStakeId);
+                var endStakePeriod = entityStakeRepository.getEndStakePeriod(stakingRewardAccountId);
                 if (endStakePeriod
                         .filter(stakePeriod -> stakePeriod > lastEndStakePeriod)
                         .isPresent()) {
