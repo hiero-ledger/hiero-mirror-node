@@ -77,7 +77,7 @@ public class PrecompileContractFeature extends AbstractFeature {
     private static final long NUMERATOR_VALUE = 10L;
     private static final long CUSTOM_FEE_DEFAULT_AMOUNT = 10L;
     private static final long DECIMALS_DEFAULT_VALUE = 10L;
-    private static final long FUNGIBLE_TOKEN_DEFAULT_TOTAL_SUPPLY = 1000000L;
+    private static final long FUNGIBLE_TOKEN_DEFAULT_TOTAL_SUPPLY = 1_000_000L;
     private static final long NON_FUNGIBLE_TOKEN_DEFAULT_TOTAL_SUPPLY = 1L;
     private static final long HBAR_DEFAULT_AMOUNT = 1L;
     private final TokenClient tokenClient;
@@ -89,11 +89,10 @@ public class PrecompileContractFeature extends AbstractFeature {
     private TokenId nonFungibleTokenId;
     private TokenId fungibleTokenForCustomFee;
     private Address fungibleTokenAddress;
-    private String fungibleTokenSolidityAddress;
+    private String fungibleTokenAddressString;
     private Address nonFungibleTokenAddress;
-    private String nonFungibleTokenSolidityAddress;
+    private String nonFungibleTokenAddressString;
     private Address contractClientAddress;
-
     private DeployedContract deployedPrecompileContract;
     private String precompileTestContractSolidityAddress;
 
@@ -136,7 +135,7 @@ public class PrecompileContractFeature extends AbstractFeature {
 
         var tokenAndResponse = tokenClient.getToken(TokenNameEnum.FUNGIBLE_KYC_NOT_APPLICABLE_UNFROZEN);
         fungibleTokenAddress = asAddress(fungibleTokenId);
-        fungibleTokenSolidityAddress = fungibleTokenId.toSolidityAddress();
+        fungibleTokenAddressString = fungibleTokenAddress.toString();
         if (tokenAndResponse.response() != null) {
             this.networkTransactionResponse = tokenAndResponse.response();
             verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -163,7 +162,7 @@ public class PrecompileContractFeature extends AbstractFeature {
                 .getToken(TokenNameEnum.NFT_KYC_NOT_APPLICABLE_UNFROZEN, List.of(customFixedFee, customRoyaltyFee))
                 .tokenId();
         nonFungibleTokenAddress = asAddress(nonFungibleTokenId);
-        nonFungibleTokenSolidityAddress = nonFungibleTokenId.toSolidityAddress();
+        nonFungibleTokenAddressString = nonFungibleTokenAddress.toString();
     }
 
     @Given("I create an ecdsa account and associate it to the tokens")
@@ -389,16 +388,14 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertFalse(response.getResultAsBoolean());
     }
 
-    /**
-     * In the modularized code, the status is now true when the token has a KycNotApplicable status,
-     * whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
-     */
     @And("the contract call REST API should return the default kyc for a fungible token")
     public void getDefaultKycOfFungibleToken() {
         var data = encodeData(PRECOMPILE, GET_TOKEN_DEFAULT_KYC_SELECTOR, fungibleTokenAddress);
 
         var response = callContract(data, precompileTestContractSolidityAddress);
         boolean defaultKycStatus = false;
+        // In the modularized code, the status is now true when the token has a KycNotApplicable status,
+        // whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
         if (web3Properties.isModularizedServices()) {
             defaultKycStatus = !defaultKycStatus;
         }
@@ -406,16 +403,14 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }
 
-    /**
-     * In the modularized code, the status is now true when the token has a KycNotApplicable status,
-     * whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
-     */
     @And("the contract call REST API should return the default kyc for a non fungible token")
     public void getDefaultKycOfNonFungibleToken() {
         var data = encodeData(PRECOMPILE, GET_TOKEN_DEFAULT_KYC_SELECTOR, nonFungibleTokenAddress);
 
         var response = callContract(data, precompileTestContractSolidityAddress);
         boolean defaultKycStatus = false;
+        // In the modularized code, the status is now true when the token has a KycNotApplicable status,
+        // whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
         if (web3Properties.isModularizedServices()) {
             defaultKycStatus = !defaultKycStatus;
         }
@@ -561,84 +556,84 @@ public class PrecompileContractFeature extends AbstractFeature {
     @And("the contract call REST API should return the name by direct call for a fungible token")
     public void getFungibleTokenNameByDirectCall() {
         var data = encodeData(NAME_SELECTOR);
-        var response = callContract(data, fungibleTokenSolidityAddress);
+        var response = callContract(data, fungibleTokenAddressString);
         assertThat(response.getResultAsAsciiString()).contains("_name");
     }
 
     @And("the contract call REST API should return the symbol by direct call for a fungible token")
     public void getFungibleTokenSymbolByDirectCall() {
         var data = encodeData(SYMBOL_SELECTOR);
-        var response = callContract(data, fungibleTokenSolidityAddress);
+        var response = callContract(data, fungibleTokenAddressString);
         assertThat(response.getResultAsAsciiString()).isNotEmpty();
     }
 
     @And("the contract call REST API should return the decimals by direct call for a  fungible token")
     public void getFungibleTokenDecimalsByDirectCall() {
         var data = encodeData(DECIMALS_SELECTOR);
-        var response = callContract(data, fungibleTokenSolidityAddress);
+        var response = callContract(data, fungibleTokenAddressString);
         assertThat(response.getResultAsNumber()).isEqualTo(DECIMALS_DEFAULT_VALUE);
     }
 
     @And("the contract call REST API should return the total supply by direct call for a  fungible token")
     public void getFungibleTokenTotalSupplyByDirectCall() {
         var data = encodeData(TOTAL_SUPPLY_SELECTOR);
-        var response = callContract(data, fungibleTokenSolidityAddress);
+        var response = callContract(data, fungibleTokenAddressString);
         assertThat(response.getResultAsNumber()).isEqualTo(FUNGIBLE_TOKEN_DEFAULT_TOTAL_SUPPLY);
     }
 
     @And("the contract call REST API should return the balanceOf by direct call for a fungible token")
     public void getFungibleTokenBalanceOfByDirectCall() {
         var data = encodeData(BALANCE_OF_SELECTOR, contractClientAddress);
-        var response = callContract(data, fungibleTokenSolidityAddress);
+        var response = callContract(data, fungibleTokenAddressString);
         assertThat(response.getResultAsNumber()).isEqualTo(1000000);
     }
 
     @And("the contract call REST API should return the allowance by direct call for a fungible token")
     public void getFungibleTokenAllowanceByDirectCall() {
         var data = encodeData(ALLOWANCE_DIRECT_SELECTOR, contractClientAddress, asAddress(ecdsaEaId));
-        var response = callContract(data, fungibleTokenSolidityAddress);
+        var response = callContract(data, fungibleTokenAddressString);
         assertThat(response.getResultAsNumber()).isZero();
     }
 
     @And("the contract call REST API should return the name by direct call for a non fungible token")
     public void getNonFungibleTokenNameByDirectCall() {
         var data = encodeData(NAME_SELECTOR);
-        var response = callContract(data, nonFungibleTokenSolidityAddress);
+        var response = callContract(data, nonFungibleTokenAddressString);
         assertThat(response.getResultAsAsciiString()).contains("_name");
     }
 
     @And("the contract call REST API should return the symbol by direct call for a non fungible token")
     public void getNonFungibleTokenSymbolByDirectCall() {
         var data = encodeData(SYMBOL_SELECTOR);
-        var response = callContract(data, nonFungibleTokenSolidityAddress);
+        var response = callContract(data, nonFungibleTokenAddressString);
         assertThat(response.getResultAsAsciiString()).isNotEmpty();
     }
 
     @And("the contract call REST API should return the total supply by direct call for a non fungible token")
     public void getNonFungibleTokenTotalSupplyByDirectCall() {
         var data = encodeData(TOTAL_SUPPLY_SELECTOR);
-        var response = callContract(data, nonFungibleTokenSolidityAddress);
+        var response = callContract(data, nonFungibleTokenAddressString);
         assertThat(response.getResultAsNumber()).isEqualTo(NON_FUNGIBLE_TOKEN_DEFAULT_TOTAL_SUPPLY);
     }
 
     @And("the contract call REST API should return the ownerOf by direct call for a non fungible token")
     public void getNonFungibleTokenOwnerOfByDirectCall() {
         var data = encodeData(OWNER_OF_SELECTOR, DEFAULT_SERIAL_NUMBER);
-        var response = callContract(data, nonFungibleTokenSolidityAddress);
+        var response = callContract(data, nonFungibleTokenAddressString);
         tokenClient.validateAddress(response.getResultAsAddress());
     }
 
     @And("the contract call REST API should return the getApproved by direct call for a non fungible token")
     public void getNonFungibleTokenGetApprovedByDirectCall() {
         var data = encodeData(GET_APPROVED_DIRECT_SELECTOR, DEFAULT_SERIAL_NUMBER);
-        var response = callContract(data, nonFungibleTokenSolidityAddress);
+        var response = callContract(data, nonFungibleTokenAddressString);
         assertFalse(response.getResultAsBoolean());
     }
 
     @And("the contract call REST API should return the isApprovedForAll by direct call for a non fungible token")
     public void getNonFungibleTokenIsApprovedForAllByDirectCallOwner() {
         var data = encodeData(IS_APPROVED_FOR_ALL_SELECTOR, contractClientAddress, asAddress(ecdsaEaId));
-        var response = callContract(data, nonFungibleTokenSolidityAddress);
+        var response = callContract(data, nonFungibleTokenAddressString);
         assertFalse(response.getResultAsBoolean());
     }
 
