@@ -42,6 +42,12 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
         streamFileProvider = new LocalStreamFileProvider(commonProperties, properties, localProperties);
     }
 
+    @Disabled("PathPrefix not supported")
+    @Override
+    void getBlockFileWithPathPrefix() {
+        // empty
+    }
+
     @Test
     void listAll() {
         var node = node("0.0.3");
@@ -165,18 +171,14 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
                 .verify(Duration.ofSeconds(10L));
     }
 
-    @SuppressWarnings("java:S2699")
     @Disabled("PathPrefix not supported")
     @Override
-    @Test
     void listWithPathPrefix() {
         // empty
     }
 
-    @SuppressWarnings("java:S2699")
     @Disabled("PathPrefix not supported")
     @Override
-    @Test
     void listThenGetWithPathPrefix() {
         // empty
     }
