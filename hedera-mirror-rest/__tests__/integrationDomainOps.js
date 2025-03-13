@@ -6,12 +6,13 @@ import {Range} from 'pg-range';
 import {proto} from '@hashgraph/proto';
 
 import base32 from '../base32';
-import config from '../config';
+import {getMirrorConfig} from '../config';
 import * as constants from '../constants';
 import EntityId from '../entityId';
 import {valueToBuffer} from './testutils';
 import {JSONStringify} from '../utils';
 
+const config = getMirrorConfig();
 const NETWORK_FEE = 1n;
 const NODE_FEE = 2n;
 const SERVICE_FEE = 4n;
@@ -68,7 +69,7 @@ const setup = async (testDataJson) => {
 };
 
 const generateTopicMessageLookups = async () => {
-  if (!config.query.topicMessageLookup) {
+  if (!config.rest.query.topicMessageLookup) {
     return;
   }
 
@@ -79,8 +80,8 @@ const generateTopicMessageLookups = async () => {
   }
 
   const {rows: topicMessages} = await ownerPool.query(`select consensus_timestamp, sequence_number, topic_id
-    from topic_message
-    order by topic_id, sequence_number`);
+                                                       from topic_message
+                                                       order by topic_id, sequence_number`);
 
   let topicMessageLookup = null;
   const topicMessageLookups = [];
@@ -600,7 +601,7 @@ const entityDefaults = {
   permanent_removal: null,
   proxy_account_id: null,
   public_key: null,
-  realm: 0,
+  realm: config.common.realm,
   receiver_sig_required: false,
   shard: 0,
   staked_account_id: null,
@@ -732,7 +733,7 @@ const addFileData = async (fileDataInput) => {
 
   await ownerPool.query(
     `insert into file_data (file_data, consensus_timestamp, entity_id, transaction_type)
-    values ($1, $2, $3, $4)`,
+     values ($1, $2, $3, $4)`,
     [fileData.file_data, fileData.consensus_timestamp, fileData.entity_id, fileData.transaction_type]
   );
 };
@@ -763,8 +764,8 @@ const addAssessedCustomFee = async (assessedCustomFee) => {
 
   await ownerPool.query(
     `insert into assessed_custom_fee
-    (amount, collector_account_id, consensus_timestamp, effective_payer_account_ids, token_id, payer_account_id)
-    values ($1, $2, $3, $4, $5, $6);`,
+     (amount, collector_account_id, consensus_timestamp, effective_payer_account_ids, token_id, payer_account_id)
+     values ($1, $2, $3, $4, $5, $6);`,
     [
       amount,
       EntityId.parse(collector_account_id).getEncodedId(),
@@ -792,10 +793,10 @@ const addCustomFee = async (customFee) => {
   const table = getTableName('custom_fee', customFee);
   await ownerPool.query(
     `insert into ${table} (entity_id,
-                             fixed_fees,
-                             fractional_fees,
-                             royalty_fees,
-                             timestamp_range)
+                           fixed_fees,
+                           fractional_fees,
+                           royalty_fees,
+                           timestamp_range)
      values ($1, $2, $3, $4, $5);`,
     [
       EntityId.parse(customFee.entity_id).getEncodedId(),
@@ -821,11 +822,12 @@ const parseCustomFeeEntityIds = (fee) => {
 };
 
 const setAccountBalance = async (balance) => {
-  balance = {timestamp: 0, id: null, balance: 0, realm_num: 0, ...balance};
-  const accountId = EntityId.of(BigInt(config.shard), BigInt(balance.realm_num), BigInt(balance.id)).getEncodedId();
+  const realm = BigInt(config.common.realm);
+  balance = {timestamp: 0, id: null, balance: 0, realm_num: realm, ...balance};
+  const accountId = EntityId.of(config.common.shard, BigInt(balance.realm_num), BigInt(balance.id)).getEncodedId();
   await ownerPool.query(
     `insert into account_balance (consensus_timestamp, account_id, balance)
-    values ($1, $2, $3);`,
+     values ($1, $2, $3);`,
     [balance.timestamp, accountId, balance.balance]
   );
 
@@ -835,8 +837,8 @@ const setAccountBalance = async (balance) => {
       accountId,
       tokenBalance.balance,
       EntityId.of(
-        BigInt(config.shard),
-        BigInt(tokenBalance.token_realm || 0),
+        config.common.shard,
+        BigInt(tokenBalance.token_realm || realm),
         BigInt(tokenBalance.token_num)
       ).getEncodedId(),
     ]);
@@ -943,17 +945,17 @@ const insertTransfers = async (
     // insert default crypto transfers to node and treasury
     await ownerPool.query(
       `insert into ${tableName} (consensus_timestamp, amount, entity_id, payer_account_id, is_approval)
-      values ($1, $2, $3, $4, $5);`,
+       values ($1, $2, $3, $4, $5);`,
       [consensusTimestamp.toString(), NODE_FEE, nodeAccount || DEFAULT_NODE_ID, payerAccountId, false]
     );
     await ownerPool.query(
       `insert into ${tableName} (consensus_timestamp, amount, entity_id, payer_account_id, is_approval)
-      values ($1, $2, $3, $4, $5);`,
+       values ($1, $2, $3, $4, $5);`,
       [consensusTimestamp.toString(), NETWORK_FEE, DEFAULT_FEE_COLLECTOR_ID, payerAccountId, false]
     );
     await ownerPool.query(
       `insert into ${tableName} (consensus_timestamp, amount, entity_id, payer_account_id, is_approval)
-      values ($1, $2, $3, $4, $5);`,
+       values ($1, $2, $3, $4, $5);`,
       [consensusTimestamp.toString(), -(NODE_FEE + NETWORK_FEE), payerAccountId, payerAccountId, false]
     );
   }
@@ -961,7 +963,7 @@ const insertTransfers = async (
   for (const transfer of transfers) {
     await ownerPool.query(
       `insert into ${tableName} (consensus_timestamp, amount, entity_id, payer_account_id, is_approval)
-      values ($1, $2, $3, $4, $5);`,
+       values ($1, $2, $3, $4, $5);`,
       [
         consensusTimestamp.toString(),
         transfer.amount,
@@ -1302,7 +1304,7 @@ const addSchedule = async (schedule) => {
                            transaction_body,
                            expiration_time,
                            wait_for_expiry)
-    values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+     values ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       schedule.consensus_timestamp,
       EntityId.parse(schedule.creator_account_id).getEncodedId(),
@@ -1485,8 +1487,8 @@ const addTokenBalance = async (tokenBalance) => {
   };
 
   await ownerPool.query(
-    `insert into token_balance (consensus_timestamp,account_id, balance, token_id)
-    values ($1, $2, $3, $4);`,
+    `insert into token_balance (consensus_timestamp, account_id, balance, token_id)
+     values ($1, $2, $3, $4);`,
     [
       tokenBalance.consensus_timestamp,
       EntityId.parse(tokenBalance.account_id).getEncodedId(),
@@ -1647,7 +1649,7 @@ const insertDomainObject = async (table, fields, obj) => {
   const positions = _.range(1, fields.length + 1).map((position) => `$${position}`);
   await ownerPool.query(
     `insert into ${table} (${fields})
-    values (${positions});`,
+     values (${positions});`,
     fields.map((f) => obj[f])
   );
 };

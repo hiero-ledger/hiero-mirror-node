@@ -9,6 +9,10 @@ global.logger = log4js.getLogger();
 expect.extend(matchers); // add matchers from jest-extended
 jest.setTimeout(4000);
 
+if (process.env.CI) {
+  jest.retryTimes(3, {logErrorsBeforeRetry: true});
+}
+
 // set test configuration file path
 process.env.CONFIG_PATH = '__tests__';
 

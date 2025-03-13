@@ -7,7 +7,7 @@ import parseDuration from 'parse-duration';
 import path from 'path';
 import {fileURLToPath} from 'url';
 
-import {NANOSECONDS_PER_MILLISECOND, cloudProviders, defaultBucketNames, networks} from './constants';
+import {cloudProviders, defaultBucketNames, NANOSECONDS_PER_MILLISECOND, networks} from './constants';
 import {InvalidConfigError} from './errors';
 import configureLogger from './logger';
 
@@ -58,8 +58,8 @@ function setConfigValue(propertyPath, value) {
   let current = config;
   const properties = propertyPath.toLowerCase().split('_');
 
-  // Ignore properties that don't start with HEDERA_MIRROR_REST
-  if (properties.length < 4 || properties[0] !== 'hedera' || properties[1] !== 'mirror' || properties[2] !== 'rest') {
+  // Ignore properties that don't start with HEDERA_MIRROR
+  if (properties.length < 3 || properties[0] !== 'hedera' || properties[1] !== 'mirror') {
     return;
   }
 
@@ -99,7 +99,11 @@ function convertType(value) {
 }
 
 function getConfig() {
-  return config.hedera && config.hedera.mirror ? config.hedera.mirror.rest : config;
+  return config.hedera?.mirror?.rest;
+}
+
+function getMirrorConfig() {
+  return config.hedera?.mirror;
 }
 
 function getResponseLimit() {
@@ -181,6 +185,16 @@ const parseNetworkConfig = () => {
   }
 };
 
+const parseCommon = () => {
+  const {common} = getMirrorConfig();
+  if (common?.shard !== undefined) {
+    common.shard = BigInt(common.shard);
+  }
+  if (common?.realm !== undefined) {
+    common.realm = BigInt(common.realm);
+  }
+};
+
 if (!loaded) {
   const configName = process.env.CONFIG_NAME || defaultConfigName;
   // always load the default configuration
@@ -193,10 +207,11 @@ if (!loaded) {
   parseNetworkConfig();
   parseQueryConfig();
   parseStateProofStreamsConfig();
+  parseCommon();
   loaded = true;
   configureLogger(getConfig().log.level);
 }
 
 export default getConfig();
 
-export {getResponseLimit};
+export {getMirrorConfig, getResponseLimit};
