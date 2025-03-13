@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {getMirrorConfig} from "../config";
+import EntityId from "../entityId";
+import SystemEntity from "../systemEntity";
+
 describe('treasuryAccount', () => {
   const {common} = getMirrorConfig();
   afterEach(() => {
