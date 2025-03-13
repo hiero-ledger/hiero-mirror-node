@@ -10,7 +10,6 @@ import static com.hedera.services.utils.IdUtils.nftXfer;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.web3.common.Web3UnitTest;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.store.models.NftId;
 import com.hedera.services.utils.EntityNum;
@@ -20,7 +19,7 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NftTransfer;
 import org.junit.jupiter.api.Test;
 
-class BalanceChangeTest extends Web3UnitTest {
+class BalanceChangeTest {
     private final Id t = new Id(1, 2, 3);
     private final long delta = -1_234L;
     private final long serialNo = 1234L;

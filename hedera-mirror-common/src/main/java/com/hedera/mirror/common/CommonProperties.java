@@ -24,7 +24,7 @@ public class CommonProperties {
 
     @PostConstruct
     public void init() {
-        INSTANCE.compareAndSet(null, this);
+        INSTANCE.set(this);
     }
 
     /**
