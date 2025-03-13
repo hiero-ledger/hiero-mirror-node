@@ -20,7 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class EntityIdParameterTest {
-    private CommonProperties commonProperties = CommonProperties.getInstance();
+    private final CommonProperties commonProperties = CommonProperties.getInstance();
 
     @ParameterizedTest
     @NullSource

@@ -6,11 +6,13 @@ import static com.hedera.services.utils.MiscUtils.perm64;
 
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.exception.InvalidEntityException;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import java.util.Objects;
 import org.hyperledger.besu.datatypes.Address;
 
 /**
@@ -22,7 +24,7 @@ public class EntityNum implements Comparable<EntityNum> {
     private final EntityId entityId;
 
     private EntityNum(final EntityId entityId) {
-        this.entityId = entityId;
+        this.entityId = Objects.requireNonNullElse(entityId, EntityId.EMPTY);
     }
 
     public static EntityNum fromEvmAddress(final Address address) {
@@ -30,7 +32,11 @@ public class EntityNum implements Comparable<EntityNum> {
     }
 
     public static EntityNum fromId(Id id) {
-        return new EntityNum(EntityId.of(id.shard(), id.realm(), id.num()));
+        try {
+            return new EntityNum(EntityId.of(id.shard(), id.realm(), id.num()));
+        } catch (InvalidEntityException e) {
+            return MISSING_NUM;
+        }
     }
 
     public static EntityNum fromEntityId(EntityId entityId) {

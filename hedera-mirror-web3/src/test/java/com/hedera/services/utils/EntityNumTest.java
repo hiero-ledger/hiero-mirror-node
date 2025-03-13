@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.util.DomainUtils;
+import com.hedera.services.store.models.Id;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
@@ -49,6 +50,7 @@ class EntityNumTest {
     @Test
     void factoriesWorkForInvalidShard() {
         assertEquals(MISSING_NUM, EntityNum.fromAccountId(IdUtils.asAccount("1.0.123")));
+        assertEquals(MISSING_NUM, EntityNum.fromId(new Id(-1, 0, 1)));
         assertEquals(
                 EntityNum.fromEntityId(EntityId.of(123)),
                 EntityNum.fromEvmAddress(Address.wrap(Bytes.wrap(DomainUtils.toEvmAddress(123)))));
