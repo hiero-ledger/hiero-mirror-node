@@ -139,6 +139,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         // Create Fungible token to be usedd as a denominating token for custom fees
         var fungibleToken = tokenClient.getToken(fungibleTokenName);
         networkTransactionResponse = fungibleToken.response();
+        verifyMirrorTransactionsResponse(mirrorClient, 200);
         ExpandedAccountId admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
         CustomFixedFee customFixedFee = new CustomFixedFee();
         customFixedFee.setAmount(10);
@@ -269,7 +270,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
                 callContract(initialBlock, data, estimateContractSolidityAddress, ADDRESS_BALANCE.getActualGas());
         assertThat(initialResponse).isEqualTo(historicalResponse);
     }
-
+@RetryAsserts
     @Then("I verify that historical data for {token} is returned via getTokenInfo")
     public void getHistoricalDataForTokenSymbol(TokenNameEnum tokenName) {
         var tokenId = tokenClient.getToken(tokenName).tokenId();
