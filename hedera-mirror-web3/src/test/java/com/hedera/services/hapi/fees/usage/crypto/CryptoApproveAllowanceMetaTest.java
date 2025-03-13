@@ -8,11 +8,9 @@ import static com.hedera.services.utils.IdUtils.asAccount;
 import static com.hedera.services.utils.IdUtils.asToken;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.*;
 import java.util.*;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,11 +31,6 @@ class CryptoApproveAllowanceMetaTest {
     private Map<EntityNum, Long> cryptoAllowancesMap = new HashMap<>();
     private Map<AllowanceId, Long> tokenAllowancesMap = new HashMap<>();
     private Set<AllowanceId> nftAllowancesMap = new HashSet<>();
-
-    @BeforeAll
-    static void init() {
-        new CommonProperties().init();
-    }
 
     @BeforeEach
     void setUp() {

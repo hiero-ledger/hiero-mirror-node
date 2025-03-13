@@ -49,14 +49,13 @@ abstract class AbstractStreamFileProviderTest {
     @TempDir
     protected Path dataPath;
 
-    protected CommonProperties commonProperties;
+    protected CommonProperties commonProperties = CommonProperties.getInstance();
     protected ImporterProperties importerProperties;
     protected CommonDownloaderProperties properties;
     protected StreamFileProvider streamFileProvider;
 
     @BeforeEach
     void setup() {
-        commonProperties = new CommonProperties();
         importerProperties = new ImporterProperties();
         importerProperties.setDataPath(dataPath);
         properties = new CommonDownloaderProperties(importerProperties);

@@ -88,7 +88,7 @@ class BlockStreamPollerTest {
     @TempDir
     private Path dataPath;
 
-    private CommonProperties commonProperties;
+    private CommonProperties commonProperties = CommonProperties.getInstance();
     private CommonDownloaderProperties commonDownloaderProperties;
     private FileCopier fileCopier;
     private ImporterProperties importerProperties;
@@ -110,7 +110,6 @@ class BlockStreamPollerTest {
             log.setLevel(Level.DEBUG);
         }
 
-        commonProperties = new CommonProperties();
         importerProperties = new ImporterProperties();
         importerProperties.setDataPath(archivePath);
         commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
