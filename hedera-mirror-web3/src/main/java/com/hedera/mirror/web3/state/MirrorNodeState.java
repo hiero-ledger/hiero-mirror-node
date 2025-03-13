@@ -11,7 +11,6 @@ import static java.util.Objects.requireNonNull;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.hedera.hapi.node.base.Key;
-import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
@@ -25,7 +24,6 @@ import com.hedera.mirror.web3.state.core.MapReadableStates;
 import com.hedera.mirror.web3.state.core.MapWritableKVState;
 import com.hedera.mirror.web3.state.core.MapWritableStates;
 import com.hedera.mirror.web3.state.singleton.SingletonState;
-import com.hedera.node.app.config.BootstrapConfigProviderImpl;
 import com.hedera.node.app.fees.FeeService;
 import com.hedera.node.app.ids.EntityIdService;
 import com.hedera.node.app.records.BlockRecordService;
@@ -106,16 +104,11 @@ public class MirrorNodeState implements State {
         }
 
         Optional<RecordFile> latest = recordFileRepository.findLatest();
-        final var bootstrapConfig = new BootstrapConfigProviderImpl().getConfiguration();
+        final var bootstrapConfig = mirrorNodeEvmProperties.getVersionedConfiguration();
         final var currentSemanticVersion =
                 bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion();
         final var currentVersion = new ServicesSoftwareVersion(currentSemanticVersion);
-        final var previousVersion = latest.isEmpty()
-                ? null
-                : new ServicesSoftwareVersion(SemanticVersion.newBuilder()
-                        .minor(currentSemanticVersion.minor() - 1)
-                        .build());
-
+        final var previousVersion = latest.isEmpty() ? null : currentVersion;
         ContractCallContext.run(ctx -> {
             latest.ifPresent(ctx::setRecordFile);
             registerServices(servicesRegistry);
