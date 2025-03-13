@@ -60,14 +60,27 @@ const createDbContainer = async () => {
     target: '/docker-entrypoint-initdb.d/init.sql',
   };
 
-  const container = await new PostgreSqlContainer(image)
-    .withCopyFilesToContainer([initSqlCopy])
-    .withDatabase(dbName)
-    .withPassword(ownerPassword)
-    .withUsername(ownerUser)
-    .start();
-  logger.info(`Started PostgreSQL container for jest worker ${workerId} with image ${image}`);
+  const maxRetries = 10;
+  let retries = maxRetries;
+  const retryMsDelay = 2000;
+  let container;
 
+  while (retries-- > 0) {
+    try {
+      container = await new PostgreSqlContainer(image)
+        .withCopyFilesToContainer([initSqlCopy])
+        .withDatabase(dbName)
+        .withPassword(ownerPassword)
+        .withUsername(ownerUser)
+        .start();
+      break;
+    } catch (e) {
+      logger.warn(`Error start PostgreSQL container worker ${workerId} during attempt #${maxRetries - retries}: ${e}`);
+      await new Promise((resolve) => setTimeout(resolve, retryMsDelay));
+    }
+  }
+
+  logger.info(`Started PostgreSQL container for jest worker ${workerId} with image ${image}`);
   await flywayMigrate(container);
   return container;
 };

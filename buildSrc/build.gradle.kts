@@ -9,7 +9,7 @@ repositories {
 
 dependencies {
     val dockerJavaVersion = "3.4.1"
-    val flywayVersion = "11.3.3"
+    val flywayVersion = "11.3.4"
     val jooqVersion = "3.20.1"
 
     // Add docker-java dependencies before gradle-docker-plugin to avoid the docker-java jars
@@ -24,7 +24,9 @@ dependencies {
     implementation("com.gorylenko.gradle-git-properties:gradle-git-properties:2.5.0")
     implementation("com.graphql-java-generator:graphql-gradle-plugin3:2.8")
     implementation("gradle.plugin.io.snyk.gradle.plugin:snyk:0.7.0")
-    implementation("gradle.plugin.org.flywaydb:gradle-plugin-publishing:$flywayVersion")
+    implementation("gradle.plugin.org.flywaydb:gradle-plugin-publishing:$flywayVersion") {
+        exclude(group = "org.antlr")
+    }
     implementation("io.freefair.gradle:lombok-plugin:8.12.2.1")
     implementation("io.spring.gradle:dependency-management-plugin:1.1.7")
     implementation("org.apache.commons:commons-compress:1.27.1")

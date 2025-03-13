@@ -32,7 +32,7 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
                 staked_node_id,
                 stake_period_start
               from entity
-              where id = 800 or (
+              where id = :stakingRewardAccount or (
                 deleted is not true and
                 type in ('ACCOUNT', 'CONTRACT') and
                 timestamp_range @> :endPeriodTimestamp and
@@ -48,7 +48,7 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
                   staked_node_id,
                   stake_period_start
                 from entity_history
-                where id <> 800 and (
+                where id <> :stakingRewardAccount and (
                   deleted is not true and
                   type in ('ACCOUNT', 'CONTRACT') and
                   timestamp_range @> :endPeriodTimestamp and
@@ -89,14 +89,14 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
             select consensus_timestamp
             from node_stake
             where epoch_day >= coalesce(
-              (select end_stake_period + 1 from entity_stake where id = 800),
+              (select end_stake_period + 1 from entity_stake where id = ?),
               (
                 select epoch_day
                 from node_stake
                 where consensus_timestamp > (
-                  select lower(timestamp_range) as timestamp from entity where id = 800
+                  select lower(timestamp_range) as timestamp from entity where id = $1
                   union all
-                  select lower(timestamp_range) as timestamp from entity_history where id = 800
+                  select lower(timestamp_range) as timestamp from entity_history where id = $1
                   order by timestamp
                   limit 1
                 )
@@ -115,10 +115,10 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
     @Modifying
     @Override
     @Transactional
-    public void createEntityStateStart() {
+    public void createEntityStateStart(long stakingRewardAccount) {
         jdbcTemplate.execute(CLEANUP_TABLE_SQL);
 
-        var endPeriodTimestamp = getEndPeriodTimestamp();
+        var endPeriodTimestamp = getEndPeriodTimestamp(stakingRewardAccount);
         if (endPeriodTimestamp.isEmpty()) {
             return;
         }
@@ -136,15 +136,17 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
         var params = new MapSqlParameterSource()
                 .addValue("balanceSnapshotTimestamp", balanceSnapshotTimestamp.get())
                 .addValue("endPeriodTimestamp", endPeriodTimestamp.get())
+                .addValue("stakingRewardAccount", stakingRewardAccount)
                 .addValue("lowerBalanceTimestamp", lowerBalanceTimestamp);
         var namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
         namedParameterJdbcTemplate.update(CREATE_ENTITY_STATE_START_SQL, params);
         jdbcTemplate.execute(CREATE_TABLE_INDEX_DDL);
     }
 
-    private Optional<Long> getEndPeriodTimestamp() {
+    private Optional<Long> getEndPeriodTimestamp(long stakingRewardAccount) {
         try {
-            return Optional.ofNullable(jdbcTemplate.queryForObject(GET_END_PERIOD_TIMESTAMP_SQL, Long.class));
+            return Optional.ofNullable(
+                    jdbcTemplate.queryForObject(GET_END_PERIOD_TIMESTAMP_SQL, Long.class, stakingRewardAccount));
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         }
