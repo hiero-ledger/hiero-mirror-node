@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {getMirrorConfig} from "./config";
+import {getMirrorConfig} from './config';
 import EntityId from './entityId';
 
 const {common} = getMirrorConfig();
