@@ -87,11 +87,12 @@ public class PrecompileContractFeature extends AbstractFeature {
     private ExpandedAccountId ecdsaEaId;
     private TokenId fungibleTokenId;
     private TokenId nonFungibleTokenId;
-    private TokenId fungibleTokenForCustomFee;
+    private TokenId fungibleTokenIdForCustomFee;
     private Address fungibleTokenAddress;
     private String fungibleTokenAddressString;
     private Address nonFungibleTokenAddress;
     private String nonFungibleTokenAddressString;
+    private Address fungibleTokenCustomFeeAddress;
     private Address contractClientAddress;
     private DeployedContract deployedPrecompileContract;
     private String precompileTestContractSolidityAddress;
@@ -107,7 +108,8 @@ public class PrecompileContractFeature extends AbstractFeature {
     @Given("I successfully create and verify a fungible token for custom fees")
     public void createFungibleTokenForCustomFees() {
         var tokenResponse = tokenClient.getToken(TokenNameEnum.FUNGIBLE_FOR_CUSTOM_FEE);
-        fungibleTokenForCustomFee = tokenResponse.tokenId();
+        fungibleTokenIdForCustomFee = tokenResponse.tokenId();
+        fungibleTokenCustomFeeAddress = asAddress(fungibleTokenIdForCustomFee);
         if (tokenResponse.response() != null) {
             this.networkTransactionResponse = tokenResponse.response();
             verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -120,7 +122,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         CustomFixedFee customFixedFee = new CustomFixedFee();
         customFixedFee.setAmount(CUSTOM_FEE_DEFAULT_AMOUNT);
         customFixedFee.setFeeCollectorAccountId(admin.getAccountId());
-        customFixedFee.setDenominatingTokenId(fungibleTokenForCustomFee);
+        customFixedFee.setDenominatingTokenId(fungibleTokenIdForCustomFee);
 
         CustomFractionalFee customFractionalFee = new CustomFractionalFee();
         customFractionalFee.setFeeCollectorAccountId(admin.getAccountId());
@@ -148,14 +150,14 @@ public class PrecompileContractFeature extends AbstractFeature {
         CustomFixedFee customFixedFee = new CustomFixedFee();
         customFixedFee.setAmount(CUSTOM_FEE_DEFAULT_AMOUNT);
         customFixedFee.setFeeCollectorAccountId(admin.getAccountId());
-        customFixedFee.setDenominatingTokenId(fungibleTokenForCustomFee);
+        customFixedFee.setDenominatingTokenId(fungibleTokenIdForCustomFee);
 
         CustomRoyaltyFee customRoyaltyFee = new CustomRoyaltyFee();
         customRoyaltyFee.setNumerator(NUMERATOR_VALUE);
         customRoyaltyFee.setDenominator(DENOMINATOR_VALUE);
         customRoyaltyFee.setFallbackFee(new CustomFixedFee()
                 .setHbarAmount(new Hbar(HBAR_DEFAULT_AMOUNT))
-                .setDenominatingTokenId(fungibleTokenForCustomFee));
+                .setDenominatingTokenId(fungibleTokenIdForCustomFee));
         customRoyaltyFee.setFeeCollectorAccountId(admin.getAccountId());
 
         nonFungibleTokenId = tokenClient
@@ -390,12 +392,11 @@ public class PrecompileContractFeature extends AbstractFeature {
 
     @And("the contract call REST API should return the default kyc for a fungible token")
     public void getDefaultKycOfFungibleToken() {
-        var data = encodeData(PRECOMPILE, GET_TOKEN_DEFAULT_KYC_SELECTOR, fungibleTokenAddress);
-
+        var data = encodeData(PRECOMPILE, GET_TOKEN_DEFAULT_KYC_SELECTOR, fungibleTokenCustomFeeAddress);
         var response = callContract(data, precompileTestContractSolidityAddress);
-        boolean defaultKycStatus = false;
-        // In the modularized code, the status is now true when the token has a KycNotApplicable status,
-        // whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
+        boolean defaultKycStatus = true;
+        // In the modularized code, the status is now false when the token has a Granted status,
+        // whereas the mono logic returns true. We need to toggle the status based on the modularized flag.
         if (web3Properties.isModularizedServices()) {
             defaultKycStatus = !defaultKycStatus;
         }
@@ -724,8 +725,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         Tuple[] royaltyFees = result.get(2);
         Tuple royaltyFee = royaltyFees[0];
         assertThat((long) royaltyFee.get(2)).isEqualTo(new Hbar(HBAR_DEFAULT_AMOUNT).toTinybars());
-        assertThat(royaltyFee.get(3).toString())
-                .hasToString(asAddress(fungibleTokenForCustomFee).toString());
+        assertThat(royaltyFee.get(3).toString()).hasToString(fungibleTokenCustomFeeAddress.toString());
         assertFalse((boolean) royaltyFee.get(4));
         assertThat(royaltyFee.get(5).toString().toLowerCase())
                 .hasToString("0x"
@@ -763,8 +763,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat(fixedFees).isNotEmpty();
         Tuple fixedFee = fixedFees[0];
         assertThat((long) fixedFee.get(0)).isEqualTo(CUSTOM_FEE_DEFAULT_AMOUNT);
-        assertThat(fixedFee.get(1).toString())
-                .hasToString(asAddress(fungibleTokenForCustomFee).toString());
+        assertThat(fixedFee.get(1).toString()).hasToString(fungibleTokenCustomFeeAddress.toString());
         assertFalse((boolean) fixedFee.get(2));
         assertFalse((boolean) fixedFee.get(3));
         contractClient.validateAddress(fixedFee.get(4).toString().toLowerCase().replace("0x", ""));
