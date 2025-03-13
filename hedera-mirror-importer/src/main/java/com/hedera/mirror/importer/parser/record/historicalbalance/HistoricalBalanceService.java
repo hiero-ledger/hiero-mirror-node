@@ -3,14 +3,13 @@
 package com.hedera.mirror.importer.parser.record.historicalbalance;
 
 import static com.hedera.mirror.common.domain.balance.AccountBalanceFile.INVALID_NODE_ID;
-import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static com.hedera.mirror.importer.parser.AbstractStreamFileParser.STREAM_PARSE_DURATION_METRIC_NAME;
 
 import com.google.common.base.Stopwatch;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.StreamType;
 import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
-import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.importer.db.TimePartitionService;
 import com.hedera.mirror.importer.domain.StreamFilename;
@@ -78,7 +77,8 @@ public class HistoricalBalanceService {
         this.recordFileRepository = recordFileRepository;
         this.timePartitionService = timePartitionService;
         this.tokenBalanceRepository = tokenBalanceRepository;
-        this.treasuryAccountId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), TREASURY_NUM)
+        this.treasuryAccountId = SystemEntity.TREASURY_ACCOUNT
+                .getScopedEntityId(commonProperties)
                 .getId();
 
         // Set repeatable read isolation level and transaction timeout

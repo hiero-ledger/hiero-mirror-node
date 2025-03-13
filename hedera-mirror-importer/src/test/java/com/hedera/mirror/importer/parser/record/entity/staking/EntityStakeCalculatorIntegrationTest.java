@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.importer.parser.record.entity.staking;
 
-import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static com.hedera.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 import static com.hedera.mirror.importer.domain.StreamFilename.FileType.DATA;
 import static com.hedera.mirror.importer.parser.domain.RecordItemBuilder.STAKING_REWARD_ACCOUNT;

@@ -19,10 +19,12 @@ import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.base.TokenSupplyType;
 import com.hedera.hapi.node.base.TokenType;
 import com.hedera.hapi.node.state.token.Token;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.CustomFee;
 import com.hedera.mirror.common.domain.token.FallbackFee;
 import com.hedera.mirror.common.domain.token.FixedFee;
@@ -64,6 +66,7 @@ class TokenReadableKVStateTest {
     private static final Long TOKEN_ENCODED_ID = EntityId.of(
                     TOKEN_ID.shardNum(), TOKEN_ID.realmNum(), TOKEN_ID.tokenNum())
             .getId();
+    private static final long TREASURY_ACCOUNT_ID = SystemEntity.TREASURY_ACCOUNT.getNum();
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final TokenID DENOMINATING_TOKEN_ID =
             TokenID.newBuilder().shardNum(11L).realmNum(12L).tokenNum(13L).build();
@@ -76,6 +79,9 @@ class TokenReadableKVStateTest {
     private final EntityId denominatingTokenId = EntityId.of(11L, 12L, 13L);
     com.hedera.mirror.common.domain.token.Token databaseToken;
     private CustomFee customFee;
+
+    @Mock
+    private CommonProperties commonProperties;
 
     @InjectMocks
     private TokenReadableKVState tokenReadableKVState;
@@ -359,7 +365,8 @@ class TokenReadableKVStateTest {
         databaseToken.setTreasuryAccountId(treasuryId);
 
         when(commonEntityAccessor.get(TOKEN_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
-        when(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(databaseToken.getTokenId(), timestamp.get()))
+        when(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
+                        databaseToken.getTokenId(), timestamp.get(), TREASURY_ACCOUNT_ID))
                 .thenReturn(historicalSupply);
 
         assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID))
@@ -367,7 +374,8 @@ class TokenReadableKVStateTest {
                         token -> assertThat(token.totalSupplySupplier().get()).isEqualTo(historicalSupply));
 
         verify(tokenRepository)
-                .findFungibleTotalSupplyByTokenIdAndTimestamp(databaseToken.getTokenId(), timestamp.get());
+                .findFungibleTotalSupplyByTokenIdAndTimestamp(
+                        databaseToken.getTokenId(), timestamp.get(), TREASURY_ACCOUNT_ID);
     }
 
     @Test

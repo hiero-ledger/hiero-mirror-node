@@ -2,15 +2,16 @@
 
 package com.hedera.mirror.importer.repository;
 
-import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.importer.ImporterIntegrationTest;
 import java.util.ArrayList;
 import java.util.List;
@@ -73,8 +74,11 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
             """)
     void balanceSnapshotWithDeletedAccounts(long shard, long realm) {
         // given
+        var commonProperties = new CommonProperties();
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
         long lastSnapshotTimestamp = domainBuilder.timestamp();
-        var treasury = EntityId.of(shard, realm, TREASURY_NUM);
+        var treasury = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
         var treasuryAccountBalance = domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.id(new AccountBalance.Id(lastSnapshotTimestamp, treasury)))
@@ -113,9 +117,12 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
             1023, 100
             """)
     void balanceSnapshotDeduplicate(long shard, long realm) {
+        var commonProperties = new CommonProperties();
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
         long lowerRangeTimestamp = 0L;
         long timestamp = 100;
-        var treasury = EntityId.of(shard, realm, TREASURY_NUM);
+        var treasury = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
         assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(
                         lowerRangeTimestamp, timestamp, treasury.getId()))
                 .isZero();
@@ -212,7 +219,10 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
             """)
     void getMaxConsensusTimestampInRange(long shard, long realm) {
         // With no account balances present the max consensus timestamp is 0
-        var treasury = EntityId.of(shard, realm, TREASURY_NUM);
+        var commonProperties = new CommonProperties();
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
+        var treasury = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
         assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(0L, 10L, treasury.getId()))
                 .isEmpty();
 

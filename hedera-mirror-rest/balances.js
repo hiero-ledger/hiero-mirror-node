@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import _ from 'lodash';
+
 import AccountAlias from './accountAlias';
-import {getResponseLimit} from './config';
+import {getResponseLimit, getMirrorConfig} from './config';
 import * as constants from './constants';
 import EntityId from './entityId';
-import {EntityService} from './service/index';
+import {EntityService} from './service';
 import {EvmAddressType} from './constants';
-import {InvalidArgumentError} from './errors/index';
+import {InvalidArgumentError} from './errors';
+import SystemEntity from './systemEntity';
 import * as utils from './utils';
-import _ from 'lodash';
 
 const {tokenBalance: tokenBalanceLimit} = getResponseLimit();
 
 const formatBalancesResult = (req, result, limit, order) => {
-  const {rows, sqlQuery} = result;
+  const {rows} = result;
   const ret = {
     timestamp: null,
     balances: [],
@@ -171,10 +173,10 @@ const getAccountBalanceTimestampRange = async (tsQuery, tsParams) => {
 
   // Add the treasury account to the query as it will always be in the balance snapshot and account_id is the first
   // column of the primary key
-  let condition = 'account_id = 2 and consensus_timestamp >= $1 and consensus_timestamp <= $2';
-  const params = [lowerBound, upperBound];
+  let condition = 'account_id = $1 and consensus_timestamp >= $2 and consensus_timestamp <= $3';
+  const params = [SystemEntity.treasuryAccount.getEncodedId(), lowerBound, upperBound];
   if (neParams.length) {
-    condition += ' and not consensus_timestamp = any ($3)';
+    condition += ' and not consensus_timestamp = any ($4)';
     params.push(neParams);
   }
 

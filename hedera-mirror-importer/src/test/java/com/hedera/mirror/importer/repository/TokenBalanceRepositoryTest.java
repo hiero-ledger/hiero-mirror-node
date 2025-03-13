@@ -2,13 +2,14 @@
 
 package com.hedera.mirror.importer.repository;
 
-import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.balance.TokenBalance.Id;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.TokenAccount;
 import com.hedera.mirror.importer.ImporterIntegrationTest;
 import java.util.List;
@@ -32,7 +33,10 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
             """)
     void balanceSnapshot(long shard, long realm) {
         // given
-        var treasury = EntityId.of(shard, realm, TREASURY_NUM);
+        var commonProperties = new CommonProperties();
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
+        var treasury = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
         var tokenAccount1 = domainBuilder.tokenAccount(shard, realm).persist();
         var tokenAccount2 = domainBuilder
                 .tokenAccount(shard, realm)
@@ -95,7 +99,10 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
     void balanceSnapshotDeduplicate(long shard, long realm) {
         long lowerRangeTimestamp = 0L;
         long timestamp = 100;
-        var treasury = EntityId.of(shard, realm, TREASURY_NUM);
+        var commonProperties = new CommonProperties();
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
+        var treasury = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
         assertThat(tokenBalanceRepository.balanceSnapshotDeduplicate(lowerRangeTimestamp, timestamp, treasury.getId()))
                 .isZero();
         assertThat(tokenBalanceRepository.findAll()).isEmpty();

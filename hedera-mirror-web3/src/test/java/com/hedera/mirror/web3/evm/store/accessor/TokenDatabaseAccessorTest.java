@@ -15,10 +15,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.web3.repository.EntityRepository;
 import com.hedera.mirror.web3.repository.NftRepository;
@@ -50,6 +52,9 @@ class TokenDatabaseAccessorTest {
     private static final Address ADDRESS_ZERO = Address.ZERO;
     com.hedera.mirror.common.domain.token.Token databaseToken;
 
+    @Mock
+    private CommonProperties commonProperties;
+
     @InjectMocks
     private TokenDatabaseAccessor tokenDatabaseAccessor;
 
@@ -72,6 +77,8 @@ class TokenDatabaseAccessorTest {
 
     @Mock
     private Entity defaultEntity;
+
+    private static final long TREASURY_ACCOUNT_ID = SystemEntity.TREASURY_ACCOUNT.getNum();
 
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private Entity entity;
@@ -272,18 +279,20 @@ class TokenDatabaseAccessorTest {
         databaseToken.setTreasuryAccountId(treasuryId);
 
         when(entityDatabaseAccessor.get(ADDRESS, timestamp)).thenReturn(Optional.ofNullable(entity));
-        when(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(databaseToken.getTokenId(), timestamp.get()))
+        when(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
+                        databaseToken.getTokenId(), timestamp.get(), TREASURY_ACCOUNT_ID))
                 .thenReturn(historicalSupply);
 
         tokenDatabaseAccessor.get(ADDRESS, timestamp);
 
-        verify(tokenRepository, never()).findFungibleTotalSupplyByTokenIdAndTimestamp(anyLong(), anyLong());
+        verify(tokenRepository, never()).findFungibleTotalSupplyByTokenIdAndTimestamp(anyLong(), anyLong(), anyLong());
 
         assertThat(tokenDatabaseAccessor.get(ADDRESS, timestamp))
                 .hasValueSatisfying(token -> assertThat(token.getTotalSupply()).isEqualTo(historicalSupply));
 
         verify(tokenRepository)
-                .findFungibleTotalSupplyByTokenIdAndTimestamp(databaseToken.getTokenId(), timestamp.get());
+                .findFungibleTotalSupplyByTokenIdAndTimestamp(
+                        databaseToken.getTokenId(), timestamp.get(), TREASURY_ACCOUNT_ID);
     }
 
     @Test

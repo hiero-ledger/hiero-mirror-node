@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
-import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
 import static com.hedera.services.utils.MiscUtils.asFcKeyUnchecked;
 
@@ -11,6 +10,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.TokenPauseStatusEnum;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.common.util.DomainUtils;
@@ -117,7 +117,8 @@ public class TokenDatabaseAccessor extends DatabaseAccessor<Object, Token> {
 
     private Long getTotalSupplyHistorical(boolean isFungible, long tokenId, long timestamp) {
         if (isFungible) {
-            long treasuryAccountId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), TREASURY_NUM)
+            long treasuryAccountId = SystemEntity.TREASURY_ACCOUNT
+                    .getScopedEntityId(commonProperties)
                     .getId();
             return tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(tokenId, timestamp, treasuryAccountId);
         } else {

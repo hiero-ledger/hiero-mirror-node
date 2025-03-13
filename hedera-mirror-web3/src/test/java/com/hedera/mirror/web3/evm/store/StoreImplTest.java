@@ -9,6 +9,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.token.AbstractNft;
@@ -120,7 +121,9 @@ class StoreImplTest {
 
     @BeforeEach
     void setup() {
+        final var commonProperties = new CommonProperties();
         final var accountDatabaseAccessor = new AccountDatabaseAccessor(
+                commonProperties,
                 entityDatabaseAccessor,
                 nftAllowanceRepository,
                 nftRepository,
@@ -129,8 +132,14 @@ class StoreImplTest {
                 tokenAccountRepository,
                 accountBalanceRepository);
         final var tokenDatabaseAccessor = new TokenDatabaseAccessor(
-                tokenRepository, entityDatabaseAccessor, entityRepository, customFeeDatabaseAccessor, nftRepository);
+                commonProperties,
+                tokenRepository,
+                entityDatabaseAccessor,
+                entityRepository,
+                customFeeDatabaseAccessor,
+                nftRepository);
         final var tokenRelationshipDatabaseAccessor = new TokenRelationshipDatabaseAccessor(
+                commonProperties,
                 tokenDatabaseAccessor,
                 accountDatabaseAccessor,
                 tokenAccountRepository,

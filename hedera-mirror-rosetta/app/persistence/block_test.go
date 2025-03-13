@@ -21,7 +21,7 @@ var (
 	defaultAccountBalances = []*domain.AccountBalance{
 		// From the first account balance snapshot
 		{
-			AccountId:          treasuryEntityId,
+			AccountId:          defaultTreasuryEntityId,
 			Balance:            5_000_000_000,
 			ConsensusTimestamp: 90,
 		},
@@ -32,7 +32,7 @@ var (
 		},
 		// From the second account balance snapshot
 		{
-			AccountId:          treasuryEntityId,
+			AccountId:          defaultTreasuryEntityId,
 			Balance:            5_000_000_000,
 			ConsensusTimestamp: 10000,
 		},
@@ -43,7 +43,7 @@ var (
 		},
 		// From the third account balance snapshot
 		{
-			AccountId:          treasuryEntityId,
+			AccountId:          defaultTreasuryEntityId,
 			Balance:            5_000_000_000,
 			ConsensusTimestamp: 20000,
 		},

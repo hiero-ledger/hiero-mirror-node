@@ -18,12 +18,14 @@ import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.state.token.AccountApprovalForAllAllowance;
 import com.hedera.hapi.node.state.token.AccountCryptoAllowance;
 import com.hedera.hapi.node.state.token.AccountFungibleTokenAllowance;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.AbstractEntity;
 import com.hedera.mirror.common.domain.entity.CryptoAllowance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.entity.NftAllowance;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.store.accessor.AccountDatabaseAccessor;
@@ -61,6 +63,7 @@ class AccountReadableKVStateTest {
     private static final long REALM = 1L;
     private static final long NUM = 1252L;
     private static final long TOKEN_NUM = 1253L;
+    private static final long TREASURY_ACCOUNT_ID = SystemEntity.TREASURY_ACCOUNT.getNum();
     private static final AccountID ACCOUNT_ID =
             new AccountID(SHARD, REALM, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, NUM));
     private static final AccountID ACCOUNT_ID_TOKEN =
@@ -106,6 +109,9 @@ class AccountReadableKVStateTest {
 
     @Mock
     private CommonEntityAccessor commonEntityAccessor;
+
+    @Mock
+    private CommonProperties commonProperties;
 
     @Mock
     private NftAllowanceRepository nftAllowanceRepository;
@@ -289,7 +295,7 @@ class AccountReadableKVStateTest {
 
     @Test
     void accountOwnedNftsMatchesValueFromRepositoryHistorical() {
-        when(contractCallContext.getTimestamp()).thenReturn(Optional.of(timestamp.get()));
+        when(contractCallContext.getTimestamp()).thenReturn(timestamp);
         when(commonEntityAccessor.get(ACCOUNT_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
         long ownedNfts = 20;
         when(nftRepository.countByAccountIdAndTimestampNotDeleted(entity.getId(), timestamp.get()))
@@ -305,24 +311,22 @@ class AccountReadableKVStateTest {
 
     @Test
     void accountBalanceMatchesValueFromRepositoryHistorical() {
-        when(contractCallContext.getTimestamp()).thenReturn(Optional.of(timestamp.get()));
+        when(contractCallContext.getTimestamp()).thenReturn(timestamp);
         when(commonEntityAccessor.get(ACCOUNT_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
         long balance = 20;
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get()))
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
+                        entity.getId(), timestamp.get(), TREASURY_ACCOUNT_ID))
                 .thenReturn(Optional.of(balance));
 
-        verify(accountBalanceRepository, never())
-                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get());
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).returns(balance, Account::tinybarBalance);
 
-        assertThat(accountReadableKVState.get(ACCOUNT_ID))
-                .satisfies(account -> assertThat(account).returns(balance, Account::tinybarBalance));
-
-        verify(accountBalanceRepository).findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get());
+        verify(accountBalanceRepository)
+                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get(), TREASURY_ACCOUNT_ID);
     }
 
     @Test
     void accountBalanceBeforeAccountCreation() {
-        when(contractCallContext.getTimestamp()).thenReturn(Optional.of(timestamp.get()));
+        when(contractCallContext.getTimestamp()).thenReturn(timestamp);
         entity.setCreatedTimestamp(timestamp.get() + 1);
         when(commonEntityAccessor.get(ACCOUNT_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
         long balance = 0;
@@ -333,38 +337,34 @@ class AccountReadableKVStateTest {
 
     @Test
     void accountBalanceIsZeroHistorical() {
-        when(contractCallContext.getTimestamp()).thenReturn(Optional.of(timestamp.get()));
+        when(contractCallContext.getTimestamp()).thenReturn(timestamp);
         entity.setCreatedTimestamp(timestamp.get() - 1);
         when(commonEntityAccessor.get(ACCOUNT_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
         long balance = 0;
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get()))
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
+                        entity.getId(), timestamp.get(), TREASURY_ACCOUNT_ID))
                 .thenReturn(Optional.of(balance));
 
-        verify(accountBalanceRepository, never())
-                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get());
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).returns(balance, Account::tinybarBalance);
 
-        assertThat(accountReadableKVState.get(ACCOUNT_ID))
-                .satisfies(account -> assertThat(account).returns(balance, Account::tinybarBalance));
-
-        verify(accountBalanceRepository).findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get());
+        verify(accountBalanceRepository)
+                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get(), TREASURY_ACCOUNT_ID);
     }
 
     @Test
     void accountBalanceWhenCreatedTimestampIsNull() {
-        when(contractCallContext.getTimestamp()).thenReturn(Optional.of(timestamp.get()));
+        when(contractCallContext.getTimestamp()).thenReturn(timestamp);
         when(commonEntityAccessor.get(ACCOUNT_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
         long balance = 20;
         entity.setCreatedTimestamp(null);
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get()))
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
+                        entity.getId(), timestamp.get(), TREASURY_ACCOUNT_ID))
                 .thenReturn(Optional.of(balance));
 
-        verify(accountBalanceRepository, never())
-                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get());
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).returns(balance, Account::tinybarBalance);
 
-        assertThat(accountReadableKVState.get(ACCOUNT_ID))
-                .satisfies(account -> assertThat(account).returns(balance, Account::tinybarBalance));
-
-        verify(accountBalanceRepository).findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get());
+        verify(accountBalanceRepository)
+                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get(), TREASURY_ACCOUNT_ID);
     }
 
     @Test
@@ -400,7 +400,7 @@ class AccountReadableKVStateTest {
 
     @Test
     void cryptoAllowancesMatchValuesFromRepositoryHistorical() {
-        when(contractCallContext.getTimestamp()).thenReturn(Optional.of(timestamp.get()));
+        when(contractCallContext.getTimestamp()).thenReturn(timestamp);
         when(commonEntityAccessor.get(ACCOUNT_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
         CryptoAllowance firstAllowance = new CryptoAllowance();
         firstAllowance.setSpender(123L);
@@ -467,7 +467,7 @@ class AccountReadableKVStateTest {
 
     @Test
     void fungibleTokenAllowancesMatchValuesFromRepositoryHistorical() {
-        when(contractCallContext.getTimestamp()).thenReturn(Optional.of(timestamp.get()));
+        when(contractCallContext.getTimestamp()).thenReturn(timestamp);
         when(commonEntityAccessor.get(ACCOUNT_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
         TokenAllowance firstAllowance = new TokenAllowance();
         firstAllowance.setOwner(entity.getId());

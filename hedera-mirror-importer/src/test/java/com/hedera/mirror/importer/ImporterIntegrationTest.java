@@ -10,6 +10,7 @@ import com.hedera.mirror.common.config.CommonIntegrationTest;
 import com.hedera.mirror.common.config.RedisTestConfiguration;
 import com.hedera.mirror.common.converter.EntityIdConverter;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.importer.config.DateRangeCalculator;
 import com.hedera.mirror.importer.config.Owner;
 import com.hedera.mirror.importer.converter.JsonbToListConverter;
@@ -60,6 +61,8 @@ import org.springframework.jdbc.core.RowMapper;
 public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
 
     private static final Map<Class<?>, String> DEFAULT_DOMAIN_CLASS_IDS = new ConcurrentHashMap<>();
+
+    protected static final long TREASURY_NUM = SystemEntity.TREASURY_ACCOUNT.getNum();
 
     @Resource
     protected Flyway flyway;

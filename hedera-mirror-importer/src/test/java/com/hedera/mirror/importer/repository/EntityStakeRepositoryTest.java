@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.importer.repository;
 
-import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static com.hedera.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static com.hedera.mirror.common.domain.entity.EntityType.TOPIC;

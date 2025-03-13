@@ -5,20 +5,32 @@ package com.hedera.mirror.web3.repository;
 import static com.hedera.mirror.common.domain.token.TokenTypeEnum.NON_FUNGIBLE_UNIQUE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.common.domain.token.TokenTransfer;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 @RequiredArgsConstructor
 class TokenRepositoryTest extends Web3IntegrationTest {
 
     private final TokenRepository tokenRepository;
+
+    private CommonProperties commonProperties;
+
+    @BeforeEach
+    void setup() {
+        commonProperties = new CommonProperties();
+    }
 
     @Test
     void findById() {
@@ -122,52 +134,67 @@ class TokenRepositoryTest extends Web3IntegrationTest {
                 .isEmpty();
     }
 
-    @Test
-    void findFungibleTotalSupplyByTokenIdAndTimestamp() {
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 0
+            1, 5
+            """)
+    void findFungibleTotalSupplyByTokenIdAndTimestamp(long shard, long realm) {
         // given
-        var tokenId = domainBuilder.entityId();
+        var tokenId = EntityId.of(shard, realm, domainBuilder.id());
         long blockTimestamp = domainBuilder.timestamp();
         long snapshotTimestamp = blockTimestamp - Duration.ofMinutes(12).toNanos();
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
+        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(snapshotTimestamp, EntityId.of(2))))
+                .customize(ab -> ab.id(new AccountBalance.Id(snapshotTimestamp, treasuryAccountId)))
                 .persist();
         var tokenBalance1 = domainBuilder
                 .tokenBalance()
-                .customize(tb -> tb.id(new TokenBalance.Id(snapshotTimestamp, domainBuilder.entityId(), tokenId)))
+                .customize(tb -> tb.id(
+                        new TokenBalance.Id(snapshotTimestamp, EntityId.of(shard, realm, domainBuilder.id()), tokenId)))
                 .persist();
         var tokenBalance2 = domainBuilder
                 .tokenBalance()
-                .customize(tb -> tb.id(new TokenBalance.Id(snapshotTimestamp - 1, domainBuilder.entityId(), tokenId)))
+                .customize(tb -> tb.id(new TokenBalance.Id(
+                        snapshotTimestamp - 1, EntityId.of(shard, realm, domainBuilder.id()), tokenId)))
                 .persist();
         // a token balance after the block timestamp
         domainBuilder
                 .tokenBalance()
-                .customize(tb -> tb.id(new TokenBalance.Id(blockTimestamp + 1, domainBuilder.entityId(), tokenId)))
+                .customize(tb -> tb.id(new TokenBalance.Id(
+                        blockTimestamp + 1, EntityId.of(shard, realm, domainBuilder.id()), tokenId)))
                 .persist();
         domainBuilder
                 .tokenTransfer()
-                .customize(tt -> tt.id(new TokenTransfer.Id(snapshotTimestamp + 1, tokenId, domainBuilder.entityId()))
+                .customize(tt -> tt.id(new TokenTransfer.Id(
+                                snapshotTimestamp + 1, tokenId, EntityId.of(shard, realm, domainBuilder.id())))
                         .amount(1L))
                 .persist();
         domainBuilder
                 .tokenTransfer()
-                .customize(tt -> tt.id(new TokenTransfer.Id(snapshotTimestamp + 1, tokenId, domainBuilder.entityId()))
+                .customize(tt -> tt.id(new TokenTransfer.Id(
+                                snapshotTimestamp + 1, tokenId, EntityId.of(shard, realm, domainBuilder.id())))
                         .amount(-1L))
                 .persist();
         var tokenMintTransfer1 = domainBuilder
                 .tokenTransfer()
-                .customize(tt -> tt.id(new TokenTransfer.Id(snapshotTimestamp + 2, tokenId, domainBuilder.entityId())))
+                .customize(tt -> tt.id(new TokenTransfer.Id(
+                        snapshotTimestamp + 2, tokenId, EntityId.of(shard, realm, domainBuilder.id()))))
                 .persist();
         var tokenBurnTransfer = domainBuilder
                 .tokenTransfer()
-                .customize(tt -> tt.id(new TokenTransfer.Id(snapshotTimestamp + 3, tokenId, domainBuilder.entityId()))
+                .customize(tt -> tt.id(new TokenTransfer.Id(
+                                snapshotTimestamp + 3, tokenId, EntityId.of(shard, realm, domainBuilder.id())))
                         .amount(-2L))
                 .persist();
         // A mint transfer at the block timestamp
         var tokenMintTransfer2 = domainBuilder
                 .tokenTransfer()
-                .customize(tt -> tt.id(new TokenTransfer.Id(blockTimestamp, tokenId, domainBuilder.entityId())))
+                .customize(tt -> tt.id(
+                        new TokenTransfer.Id(blockTimestamp, tokenId, EntityId.of(shard, realm, domainBuilder.id()))))
                 .persist();
 
         // when, then
@@ -176,14 +203,15 @@ class TokenRepositoryTest extends Web3IntegrationTest {
                 + tokenMintTransfer1.getAmount()
                 + tokenBurnTransfer.getAmount()
                 + tokenMintTransfer2.getAmount();
-        assertThat(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(tokenId.getId(), blockTimestamp))
+        assertThat(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
+                        tokenId.getId(), blockTimestamp, treasuryAccountId.getId()))
                 .isEqualTo(expectedTotalSupply);
     }
 
     @Test
     void findFungibleTotalSupplyByTokenIdAndTimestampEmpty() {
         assertThat(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
-                        domainBuilder.id(), domainBuilder.timestamp()))
+                        domainBuilder.id(), domainBuilder.timestamp(), SystemEntity.TREASURY_ACCOUNT.getNum()))
                 .isZero();
     }
 
@@ -193,9 +221,10 @@ class TokenRepositoryTest extends Web3IntegrationTest {
         var tokenId = domainBuilder.entityId();
         long blockTimestamp = domainBuilder.timestamp();
         long snapshotTimestamp = blockTimestamp - Duration.ofMinutes(12).toNanos();
+        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(snapshotTimestamp, EntityId.of(2))))
+                .customize(ab -> ab.id(new AccountBalance.Id(snapshotTimestamp, treasuryAccountId)))
                 .persist();
         domainBuilder
                 .tokenTransfer()
@@ -225,7 +254,8 @@ class TokenRepositoryTest extends Web3IntegrationTest {
         // when, then
         long expectedTotalSupply =
                 tokenMintTransfer1.getAmount() + tokenBurnTransfer.getAmount() + tokenMintTransfer2.getAmount();
-        assertThat(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(tokenId.getId(), blockTimestamp))
+        assertThat(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
+                        tokenId.getId(), blockTimestamp, treasuryAccountId.getId()))
                 .isEqualTo(expectedTotalSupply);
     }
 
@@ -235,9 +265,10 @@ class TokenRepositoryTest extends Web3IntegrationTest {
         var tokenId = domainBuilder.entityId();
         long blockTimestamp = domainBuilder.timestamp();
         long snapshotTimestamp = blockTimestamp - Duration.ofMinutes(12).toNanos();
+        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(snapshotTimestamp, EntityId.of(2))))
+                .customize(ab -> ab.id(new AccountBalance.Id(snapshotTimestamp, treasuryAccountId)))
                 .persist();
         var tokenBalance1 = domainBuilder
                 .tokenBalance()
@@ -255,7 +286,8 @@ class TokenRepositoryTest extends Web3IntegrationTest {
 
         // when, then
         long expectedTotalSupply = tokenBalance1.getBalance() + tokenBalance2.getBalance();
-        assertThat(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(tokenId.getId(), blockTimestamp))
+        assertThat(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
+                        tokenId.getId(), blockTimestamp, treasuryAccountId.getId()))
                 .isEqualTo(expectedTotalSupply);
     }
 

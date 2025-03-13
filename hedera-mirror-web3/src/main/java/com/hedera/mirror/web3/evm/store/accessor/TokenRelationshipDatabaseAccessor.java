@@ -2,10 +2,8 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
-import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
-
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.AbstractTokenAccount;
 import com.hedera.mirror.common.domain.token.TokenAccount;
 import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
@@ -110,8 +108,8 @@ public class TokenRelationshipDatabaseAccessor extends DatabaseAccessor<Object, 
         return timestamp
                 .map(t -> {
                     if (t >= accountCreatedTimestamp) {
-                        long treasuryAccountId = EntityId.of(
-                                        commonProperties.getShard(), commonProperties.getRealm(), TREASURY_NUM)
+                        long treasuryAccountId = SystemEntity.TREASURY_ACCOUNT
+                                .getScopedEntityId(commonProperties)
                                 .getId();
                         return tokenBalanceRepository.findHistoricalTokenBalanceUpToTimestamp(
                                 tokenAccount.getTokenId(), tokenAccount.getAccountId(), t, treasuryAccountId);

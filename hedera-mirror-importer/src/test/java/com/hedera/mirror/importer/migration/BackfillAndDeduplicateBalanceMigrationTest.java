@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.importer.migration;
 
-import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 

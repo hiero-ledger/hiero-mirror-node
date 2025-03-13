@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/persistence/domain"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
@@ -22,29 +21,25 @@ import (
 var defaultConfig string
 
 const (
-	apiConfigEnvKey = "HEDERA_MIRROR_ROSETTA_API_CONFIG"
-	configName      = "application"
-	configTypeYaml  = "yml"
-	envKeyDelimiter = "_"
-	keyDelimiter    = "::"
-	nodesEnvKey     = "HEDERA_MIRROR_ROSETTA_NODES"
-	treasuryNum     = 2
+	apiConfigEnvKey          = "HEDERA_MIRROR_ROSETTA_API_CONFIG"
+	configName               = "application"
+	configTypeYaml           = "yml"
+	envKeyDelimiter          = "_"
+	keyDelimiter             = "::"
+	nodesEnvKey              = "HEDERA_MIRROR_ROSETTA_NODES"
+	stackingRewardAccountNum = 800
+	treasuryAccountNum       = 2
 )
 
 type Mirror struct {
-	Common           CommonConfig
-	Rosetta          Config
-	treasuryEntityId int64
+	Common  CommonConfig
+	Rosetta Config
 }
 
 type fullConfig struct {
 	Hedera struct {
 		Mirror Mirror
 	}
-}
-
-func (m *Mirror) GetTreasuryEntityId() int64 {
-	return m.treasuryEntityId
 }
 
 // LoadConfig loads configuration from yaml files and env variables
@@ -96,14 +91,6 @@ func LoadConfig() (*Mirror, error) {
 	if len(nodeMap) != 0 {
 		mirrorConfig.Rosetta.Nodes = nodeMap
 	}
-
-	common := mirrorConfig.Common
-	entityId, err := domain.EntityIdOf(common.Shard, common.Realm, treasuryNum)
-	if err != nil {
-		log.Errorf("Error encoding treasury entity id with shard=%d, realm=%d: %v", common.Shard, common.Realm, err)
-		return nil, err
-	}
-	mirrorConfig.treasuryEntityId = entityId.EncodedId
 
 	var password = mirrorConfig.Rosetta.Db.Password
 	mirrorConfig.Rosetta.Db.Password = "" // Don't print password

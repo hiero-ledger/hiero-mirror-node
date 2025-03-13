@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.web3.state.keyvalue;
 
-import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
 import static com.hedera.mirror.web3.state.Utils.DEFAULT_AUTO_RENEW_PERIOD;
@@ -18,8 +17,8 @@ import com.hedera.hapi.node.state.token.AccountFungibleTokenAllowance;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.CryptoAllowance;
 import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.NftAllowance;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.repository.AccountBalanceRepository;
@@ -143,8 +142,8 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
                 .map(t -> {
                     Long createdTimestamp = entity.getCreatedTimestamp();
                     if (createdTimestamp == null || t >= createdTimestamp) {
-                        long treasuryAccountId = EntityId.of(
-                                        commonProperties.getShard(), commonProperties.getRealm(), TREASURY_NUM)
+                        long treasuryAccountId = SystemEntity.TREASURY_ACCOUNT
+                                .getScopedEntityId(commonProperties)
                                 .getId();
                         return accountBalanceRepository
                                 .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), t, treasuryAccountId)

@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.web3.state.keyvalue;
 
-import static com.hedera.mirror.common.domain.entity.EntityId.TREASURY_NUM;
 import static com.hedera.mirror.web3.state.Utils.DEFAULT_AUTO_RENEW_PERIOD;
 import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
@@ -22,6 +21,7 @@ import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
 import com.hedera.mirror.common.domain.token.TokenPauseStatusEnum;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
@@ -141,7 +141,8 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
 
     private Long getTotalSupplyHistorical(boolean isFungible, long tokenId, long timestamp) {
         if (isFungible) {
-            long treasuryAccountId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), TREASURY_NUM)
+            long treasuryAccountId = SystemEntity.TREASURY_ACCOUNT
+                    .getScopedEntityId(commonProperties)
                     .getId();
             return tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(tokenId, timestamp, treasuryAccountId);
         } else {

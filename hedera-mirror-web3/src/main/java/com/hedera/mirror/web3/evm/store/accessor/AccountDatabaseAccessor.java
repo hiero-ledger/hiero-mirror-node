@@ -16,6 +16,7 @@ import com.hedera.mirror.common.domain.entity.CryptoAllowance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.web3.evm.exception.WrongTypeException;
 import com.hedera.mirror.web3.evm.store.DatabaseBackedStateFrame.DatabaseAccessIncorrectKeyTypeException;
 import com.hedera.mirror.web3.repository.AccountBalanceRepository;
@@ -130,8 +131,8 @@ public class AccountDatabaseAccessor extends DatabaseAccessor<Object, Account> {
         return Suppliers.memoize(() -> timestamp
                 .map(t -> {
                     Long createdTimestamp = entity.getCreatedTimestamp();
-                    long treasuryAccountId = EntityId.of(
-                                    commonProperties.getShard(), commonProperties.getRealm(), EntityId.TREASURY_NUM)
+                    long treasuryAccountId = SystemEntity.TREASURY_ACCOUNT
+                            .getScopedEntityId(commonProperties)
                             .getId();
                     if (createdTimestamp == null || t >= createdTimestamp) {
                         return accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(

@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/persistence/domain"
 	"net/http"
 	"os"
 	"os/signal"
@@ -65,10 +66,11 @@ func newBlockchainOnlineRouter(
 	serverContext context.Context,
 	version *rTypes.Version,
 ) (http.Handler, error) {
-	accountRepo := persistence.NewAccountRepository(dbClient, mirrorConfig.GetTreasuryEntityId())
+	systemEntity := domain.NewSystemEntity(mirrorConfig.Common)
+	accountRepo := persistence.NewAccountRepository(dbClient, systemEntity.GetTreasuryAccount().EncodedId)
 	addressBookEntryRepo := persistence.NewAddressBookEntryRepository(dbClient)
-	blockRepo := persistence.NewBlockRepository(dbClient, mirrorConfig.GetTreasuryEntityId())
-	transactionRepo := persistence.NewTransactionRepository(dbClient)
+	blockRepo := persistence.NewBlockRepository(dbClient, systemEntity.GetTreasuryAccount().EncodedId)
+	transactionRepo := persistence.NewTransactionRepository(dbClient, systemEntity.GetStakingRewardAccount())
 
 	baseService := services.NewOnlineBaseService(blockRepo, transactionRepo)
 
