@@ -26,7 +26,7 @@ final class ContractCreateTransformer extends AbstractBlockItemTransformer {
 
         var recordBuilder = recordItemBuilder.transactionRecordBuilder();
         recordBuilder.setContractCreateResult(contractCreate.getContractCreateResult());
-        if (contractCreate.getContractCreateResult().hasContractID()) {
+        if (contractCreate.getContractCreateResult().hasContractID() && blockItem.isSuccessful()) {
             recordBuilder
                     .getReceiptBuilder()
                     .setContractID(contractCreate.getContractCreateResult().getContractID());
