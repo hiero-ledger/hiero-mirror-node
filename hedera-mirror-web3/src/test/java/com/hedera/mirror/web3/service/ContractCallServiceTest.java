@@ -1186,11 +1186,11 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         void testDirectTrafficThroughTransactionExecutionService() {
             MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
 
-            when(spyEvmProperties.getModularizedTrafficCoefficient()).thenReturn(1.0);
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(1.0);
             assertThat(spyEvmProperties.directTrafficThroughTransactionExecutionService())
                     .isTrue();
 
-            when(spyEvmProperties.getModularizedTrafficCoefficient()).thenReturn(0.0);
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(0.0);
             assertThat(spyEvmProperties.directTrafficThroughTransactionExecutionService())
                     .isFalse();
         }
@@ -1205,7 +1205,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                     mirrorEvmTxProcessor, null, null, null, null, null, spyEvmProperties, txnExecutionService) {};
 
             when(spyEvmProperties.isModularizedServices()).thenReturn(true);
-            when(spyEvmProperties.getModularizedTrafficCoefficient()).thenReturn(1.0);
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(1.0);
 
             CallServiceParameters params = ContractExecutionParameters.builder()
                     .isModularized(spyEvmProperties.directTrafficThroughTransactionExecutionService())
@@ -1230,7 +1230,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                     mirrorEvmTxProcessor, null, null, null, null, null, spyEvmProperties, txnExecutionService) {};
 
             when(spyEvmProperties.isModularizedServices()).thenReturn(isModularizedServices);
-            when(spyEvmProperties.getModularizedTrafficCoefficient()).thenReturn(trafficShare);
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(trafficShare);
 
             contractCallService.doProcessCall(params, 1000L, false);
 

@@ -188,7 +188,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @Getter
     @DecimalMin("0.0")
     @DecimalMax("1.0")
-    private double modularizedTrafficCoefficient = 0.0;
+    private double modularizedTrafficPercent = 0.0;
 
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);
@@ -342,12 +342,12 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     /**
      * Used to determine whether a transaction should go through the txn execution service based on
-     * modularizedTrafficCoefficient property in the config/application.yml.
+     * modularizedTrafficPercent property in the config/application.yml.
      *
-     * @return true if the random value between 0 and 1 is less than modularizedTrafficCoefficient
+     * @return true if the random value between 0 and 1 is less than modularizedTrafficPercent
      */
     public boolean directTrafficThroughTransactionExecutionService() {
-        return RandomUtils.secure().randomDouble(0.0d, 1.0d) < getModularizedTrafficCoefficient();
+        return RandomUtils.secure().randomDouble(0.0d, 1.0d) < getModularizedTrafficPercent();
     }
 
     @Getter

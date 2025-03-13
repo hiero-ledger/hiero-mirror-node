@@ -11,8 +11,6 @@ hedera:
         sslMode: DISABLE
         statementTimeout: 10000
         username: mirror_web3
-      evm:
-        modularizedTrafficCoefficient: 0.0
       opcode:
         tracer:
           enabled: false

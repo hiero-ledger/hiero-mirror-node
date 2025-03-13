@@ -345,14 +345,14 @@ class OpcodesControllerTest {
     @ParameterizedTest
     @EnumSource(TransactionProviderEnum.class)
     void unsuccessfulCall(final TransactionProviderEnum providerEnum) throws Exception {
-        double modularizedTrafficCoefficient = mirrorNodeEvmProperties.getModularizedTrafficCoefficient();
+        double modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
         try {
             final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
             if (mirrorNodeEvmProperties.isModularizedServices()) {
-                mirrorNodeEvmProperties.setModularizedTrafficCoefficient(1.0);
+                mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
             } else {
-                mirrorNodeEvmProperties.setModularizedTrafficCoefficient(0.0);
+                mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
             }
 
             reset(contractDebugService);
@@ -375,7 +375,7 @@ class OpcodesControllerTest {
 
             assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
         } finally {
-            mirrorNodeEvmProperties.setModularizedTrafficCoefficient(modularizedTrafficCoefficient);
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
         }
     }
 
@@ -383,14 +383,14 @@ class OpcodesControllerTest {
     @MethodSource("transactionsWithDifferentTracerOptions")
     void callWithDifferentCombinationsOfTracerOptions(
             final TransactionProviderEnum providerEnum, final OpcodeTracerOptions options) throws Exception {
-        double modularizedTrafficCoefficient = mirrorNodeEvmProperties.getModularizedTrafficCoefficient();
+        double modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
         try {
             final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
             if (mirrorNodeEvmProperties.isModularizedServices()) {
-                mirrorNodeEvmProperties.setModularizedTrafficCoefficient(1.0);
+                mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
             } else {
-                mirrorNodeEvmProperties.setModularizedTrafficCoefficient(0.0);
+                mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
             }
 
             mockMvc.perform(opcodesRequest(transactionIdOrHash, options))
@@ -402,7 +402,7 @@ class OpcodesControllerTest {
             assertThat(callServiceParametersCaptor.getValue())
                     .isEqualTo(expectedCallServiceParameters.get().toBuilder().build());
         } finally {
-            mirrorNodeEvmProperties.setModularizedTrafficCoefficient(modularizedTrafficCoefficient);
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
         }
     }
 
@@ -452,14 +452,14 @@ class OpcodesControllerTest {
     @MethodSource("transactionsWithDifferentSenderAddresses")
     void callWithDifferentSenderAddressShouldUseEvmAddressWhenPossible(final TransactionProviderEnum providerEnum)
             throws Exception {
-        double modularizedTrafficCoefficient = mirrorNodeEvmProperties.getModularizedTrafficCoefficient();
+        double modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
         try {
             final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
             if (mirrorNodeEvmProperties.isModularizedServices()) {
-                mirrorNodeEvmProperties.setModularizedTrafficCoefficient(1.0);
+                mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
             } else {
-                mirrorNodeEvmProperties.setModularizedTrafficCoefficient(0.0);
+                mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
             }
 
             if (transactionIdOrHash instanceof TransactionIdParameter id && id.payerAccountId() == null) {
@@ -487,7 +487,7 @@ class OpcodesControllerTest {
 
             assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
         } finally {
-            mirrorNodeEvmProperties.setModularizedTrafficCoefficient(modularizedTrafficCoefficient);
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
         }
     }
 
@@ -495,14 +495,14 @@ class OpcodesControllerTest {
     @MethodSource("transactionsWithDifferentReceiverAddresses")
     void callWithDifferentReceiverAddressShouldUseEvmAddressWhenPossible(final TransactionProviderEnum providerEnum)
             throws Exception {
-        double modularizedTrafficCoefficient = mirrorNodeEvmProperties.getModularizedTrafficCoefficient();
+        double modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
         try {
             final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
             if (mirrorNodeEvmProperties.isModularizedServices()) {
-                mirrorNodeEvmProperties.setModularizedTrafficCoefficient(1.0);
+                mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
             } else {
-                mirrorNodeEvmProperties.setModularizedTrafficCoefficient(0.0);
+                mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
             }
             expectedCallServiceParameters.set(expectedCallServiceParameters.get().toBuilder()
                     .receiver(entityAddress(providerEnum.getContractEntity().get()))
@@ -516,7 +516,7 @@ class OpcodesControllerTest {
 
             assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
         } finally {
-            mirrorNodeEvmProperties.setModularizedTrafficCoefficient(modularizedTrafficCoefficient);
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
         }
     }
 
@@ -548,14 +548,14 @@ class OpcodesControllerTest {
     @ParameterizedTest
     @EnumSource(TransactionProviderEnum.class)
     void exceedingRateLimit(final TransactionProviderEnum providerEnum) throws Exception {
-        double modularizedTrafficCoefficient = mirrorNodeEvmProperties.getModularizedTrafficCoefficient();
+        double modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
         try {
             final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
             if (mirrorNodeEvmProperties.isModularizedServices()) {
-                mirrorNodeEvmProperties.setModularizedTrafficCoefficient(1.0);
+                mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
             } else {
-                mirrorNodeEvmProperties.setModularizedTrafficCoefficient(0.0);
+                mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
             }
             expectedCallServiceParameters.set(
                     expectedCallServiceParameters.get().toBuilder().build());
@@ -575,7 +575,7 @@ class OpcodesControllerTest {
                     .andExpect(responseBody(new GenericErrorResponse(
                             TOO_MANY_REQUESTS.getReasonPhrase(), "Requests per second rate limit exceeded.")));
         } finally {
-            mirrorNodeEvmProperties.setModularizedTrafficCoefficient(modularizedTrafficCoefficient);
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
         }
     }
 

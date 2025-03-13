@@ -46,7 +46,7 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
     @Resource
     private ObjectMapper objectMapper;
 
-    private double modularizedTrafficCoefficient;
+    private double modularizedTrafficPercent;
 
     @SneakyThrows
     private ResultActions contractCall(ContractCallRequest request) {
@@ -58,16 +58,16 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
 
     @BeforeEach
     void before() {
-        modularizedTrafficCoefficient = mirrorNodeEvmProperties.getModularizedTrafficCoefficient();
+        modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficCoefficient(1.0);
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
         }
     }
 
     @AfterEach
     void after() {
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficCoefficient(modularizedTrafficCoefficient);
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
         }
     }
 

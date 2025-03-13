@@ -13,7 +13,6 @@ hedera:
           150: 0.46.0
           200: 0.50.0
         network: OTHER
-        modularizedTrafficCoefficient: 0.0
       opcode:
         tracer:
           enabled: true

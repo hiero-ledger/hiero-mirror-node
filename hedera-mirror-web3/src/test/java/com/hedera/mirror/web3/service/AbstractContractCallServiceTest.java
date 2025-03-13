@@ -84,7 +84,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected RecordFile genesisRecordFile;
     protected Entity treasuryEntity;
-    protected double modularizedTrafficCoefficient;
+    protected double modularizedTrafficPercent;
 
     public static Key getKeyWithDelegatableContractId(final Contract contract) {
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
@@ -104,9 +104,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     @BeforeEach
     protected void setup() {
-        modularizedTrafficCoefficient = mirrorNodeEvmProperties.getModularizedTrafficCoefficient();
+        modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficCoefficient(1.0);
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
         }
 
         genesisRecordFile =
@@ -139,7 +139,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     @AfterEach
     void cleanup() {
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficCoefficient(modularizedTrafficCoefficient);
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
         }
 
         testWeb3jService.reset();

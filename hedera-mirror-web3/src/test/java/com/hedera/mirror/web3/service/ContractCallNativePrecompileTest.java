@@ -15,7 +15,6 @@ import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.service.model.ContractExecutionParameters;
 import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
-import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
@@ -27,8 +26,7 @@ class ContractCallNativePrecompileTest extends Web3IntegrationTest {
 
     private final ContractExecutionService contractCallService;
 
-    @Resource
-    protected MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @BeforeEach
     void setup() {
