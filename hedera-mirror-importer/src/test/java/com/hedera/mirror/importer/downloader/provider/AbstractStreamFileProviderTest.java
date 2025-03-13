@@ -138,6 +138,12 @@ abstract class AbstractStreamFileProviderTest {
     }
 
     @Test
+    void getBlockFileWithPathPrefix() {
+        properties.setPathPrefix("prefix");
+        getBlockFile();
+    }
+
+    @Test
     void getBlockFileNotFound() {
         // given
         properties.setPathType(PathType.NODE_ID);

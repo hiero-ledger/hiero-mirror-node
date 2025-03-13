@@ -31,9 +31,12 @@ dependencyManagement {
     }
 }
 
+val mockitoAgent = configurations.create("mockitoAgent")
+
 dependencies {
     annotationProcessor(platform(project(":")))
     implementation(platform(project(":")))
+    mockitoAgent("org.mockito:mockito-core") { isTransitive = false }
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 
@@ -53,7 +56,11 @@ tasks.javadoc { options.encoding = "UTF-8" }
 
 tasks.withType<Test>().configureEach {
     finalizedBy(tasks.jacocoTestReport)
-    jvmArgs = listOf("-XX:+EnableDynamicAgentLoading") // Allow byte buddy for Mockito
+    jvmArgs =
+        listOf(
+            "-javaagent:${mockitoAgent.asPath}", // JDK 21 restricts libraries from attaching agents
+            "-XX:+EnableDynamicAgentLoading", // Allow byte buddy for Mockito
+        )
     maxHeapSize = "4096m"
     minHeapSize = "1024m"
     systemProperty("user.timezone", "UTC")
