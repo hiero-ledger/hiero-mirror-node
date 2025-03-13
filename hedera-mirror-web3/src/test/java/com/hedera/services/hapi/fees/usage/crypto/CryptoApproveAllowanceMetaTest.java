@@ -8,8 +8,11 @@ import static com.hedera.services.utils.IdUtils.asAccount;
 import static com.hedera.services.utils.IdUtils.asToken;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.*;
 import java.util.*;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -27,9 +30,14 @@ class CryptoApproveAllowanceMetaTest {
             .setTokenId(asToken("0.0.1000"))
             .addAllSerialNumbers(List.of(1L, 2L, 3L))
             .build();
-    private Map<Long, Long> cryptoAllowancesMap = new HashMap<>();
+    private Map<EntityNum, Long> cryptoAllowancesMap = new HashMap<>();
     private Map<AllowanceId, Long> tokenAllowancesMap = new HashMap<>();
     private Set<AllowanceId> nftAllowancesMap = new HashSet<>();
+
+    @BeforeAll
+    static void init() {
+        new CommonProperties().init();
+    }
 
     @BeforeEach
     void setUp() {
@@ -40,7 +48,7 @@ class CryptoApproveAllowanceMetaTest {
 
     @Test
     void allGettersAndToStringWork() {
-        final var expected = "CryptoApproveAllowanceMeta{cryptoAllowances={1234=10},"
+        final var expected = "CryptoApproveAllowanceMeta{cryptoAllowances={EntityNum{value=0.0.1234}=10},"
                 + " tokenAllowances={AllowanceId{tokenId=0.0.1000, spenderId=0.0.1234}=10},"
                 + " nftAllowances=[AllowanceId{tokenId=0.0.1000, spenderId=0.0.1234}],"
                 + " effectiveNow=1234567, msgBytesUsed=112}";
@@ -88,7 +96,7 @@ class CryptoApproveAllowanceMetaTest {
         final var expectedTokenMap = new HashMap<>();
         final var expectedNfts = new HashSet<>();
 
-        expectedCryptoMap.put(proxy.getAccountNum(), 10L);
+        expectedCryptoMap.put(EntityNum.fromAccountId(proxy), 10L);
         expectedTokenMap.put(new AllowanceId(token, proxy), 10L);
         expectedNfts.add(new AllowanceId(token, proxy));
         assertEquals(expectedCryptoMap, subject.getCryptoAllowances());

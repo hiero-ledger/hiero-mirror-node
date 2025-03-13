@@ -5,13 +5,15 @@ package com.hedera.services.store.models;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.services.utils.EntityNum;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class FcTokenAllowanceIdTest {
-    private final EntityNum tokenNum = EntityNum.fromLong(1L);
-    private final EntityNum spenderNum = EntityNum.fromLong(2L);
+
+    private final EntityNum tokenNum = EntityNum.fromEntityId(EntityId.of(1));
+    private final EntityNum spenderNum = EntityNum.fromEntityId(EntityId.of(2));
 
     private FcTokenAllowanceId subject;
 
@@ -23,8 +25,10 @@ class FcTokenAllowanceIdTest {
     @Test
     void objectContractWorks() {
         final var one = subject;
-        final var two = FcTokenAllowanceId.from(EntityNum.fromLong(3L), EntityNum.fromLong(4L));
-        final var three = FcTokenAllowanceId.from(EntityNum.fromLong(1L), EntityNum.fromLong(2L));
+        final var two =
+                FcTokenAllowanceId.from(EntityNum.fromEntityId(EntityId.of(3)), EntityNum.fromEntityId(EntityId.of(4)));
+        final var three =
+                FcTokenAllowanceId.from(EntityNum.fromEntityId(EntityId.of(1)), EntityNum.fromEntityId(EntityId.of(2)));
 
         assertNotEquals(null, one);
         assertNotEquals(new Object(), one);
@@ -42,21 +46,15 @@ class FcTokenAllowanceIdTest {
     }
 
     @Test
-    void gettersWork() {
-        assertEquals(1L, subject.getTokenNum().getId());
-        assertEquals(2L, subject.getSpenderNum().getId());
-    }
-
-    @Test
     void orderingPrioritizesTokenNumThenSpender() {
         final var base = new FcTokenAllowanceId(tokenNum, spenderNum);
         final var sameButDiff = base;
         assertEquals(0, base.compareTo(sameButDiff));
-        final var largerNum = new FcTokenAllowanceId(
-                EntityNum.fromLong(tokenNum.getId() + 1), EntityNum.fromLong(spenderNum.getId() - 1));
+        final var largerNum =
+                new FcTokenAllowanceId(EntityNum.fromEntityId(EntityId.of(3)), EntityNum.fromEntityId(EntityId.of(1)));
         assertEquals(-1, base.compareTo(largerNum));
-        final var smallerKey = new FcTokenAllowanceId(
-                EntityNum.fromLong(tokenNum.getId() - 1), EntityNum.fromLong(spenderNum.getId() - 1));
+        final var smallerKey =
+                new FcTokenAllowanceId(EntityNum.fromEntityId(EntityId.of(0)), EntityNum.fromEntityId(EntityId.of(1)));
         assertEquals(+1, base.compareTo(smallerKey));
     }
 }

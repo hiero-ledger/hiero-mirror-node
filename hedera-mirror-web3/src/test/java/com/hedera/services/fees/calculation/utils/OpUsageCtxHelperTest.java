@@ -12,6 +12,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 import com.google.protobuf.ByteString;
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.common.Web3UnitTest;
 import com.hedera.mirror.web3.evm.account.MirrorEvmContractAliases;
 import com.hedera.mirror.web3.evm.store.Store;
@@ -96,7 +97,7 @@ class OpUsageCtxHelperTest extends Web3UnitTest {
         final var ctx = subject.ctxForCryptoAllowance(accessor);
 
         assertEquals(maxAutomaticAssociations, ctx.currentMaxAutomaticAssociations());
-        assertEquals(Map.of(SPENDER_1.getAccountNum(), 10L), ctx.currentCryptoAllowances());
+        assertEquals(Map.of(EntityNum.fromAccountId(SPENDER_1), 10L), ctx.currentCryptoAllowances());
         assertEquals(1, ctx.currentTokenAllowances().size());
         assertEquals(1, ctx.currentTokenAllowances().size());
         assertEquals(1, ctx.currentNftAllowances().size());
@@ -180,7 +181,7 @@ class OpUsageCtxHelperTest extends Web3UnitTest {
 
     private final SortedSet<FcTokenAllowanceId> nftAllowance = new TreeSet<>() {
         {
-            add(FcTokenAllowanceId.from(new EntityNum(1000), EntityNum.fromAccountId(SPENDER_1)));
+            add(FcTokenAllowanceId.from(EntityNum.fromEntityId(EntityId.of(1000)), EntityNum.fromAccountId(SPENDER_1)));
         }
     };
 }

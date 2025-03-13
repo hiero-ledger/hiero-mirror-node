@@ -25,20 +25,16 @@ public class EntityNum implements Comparable<EntityNum> {
         this.entityId = entityId;
     }
 
-    public EntityNum(final int value) {
-        this.entityId = EntityId.of(value);
-    }
-
     public static EntityNum fromEvmAddress(final Address address) {
         return new EntityNum(DomainUtils.fromEvmAddress(address.toArrayUnsafe()));
     }
 
-    public static EntityNum fromInt(final int i) {
-        return new EntityNum(i);
+    public static EntityNum fromId(Id id) {
+        return new EntityNum(EntityId.of(id.shard(), id.realm(), id.num()));
     }
 
-    public static EntityNum fromLong(final long l) {
-        return new EntityNum(EntityId.of(l));
+    public static EntityNum fromEntityId(EntityId entityId) {
+        return new EntityNum(entityId);
     }
 
     /**
@@ -48,7 +44,7 @@ public class EntityNum implements Comparable<EntityNum> {
         if (!areValidNums(grpc.getShardNum(), grpc.getRealmNum())) {
             return MISSING_NUM;
         }
-        return fromLong(grpc.getAccountNum());
+        return new EntityNum(EntityId.of(grpc));
     }
 
     /**
@@ -58,7 +54,7 @@ public class EntityNum implements Comparable<EntityNum> {
         if (!areValidNums(grpc.getShardNum(), grpc.getRealmNum())) {
             return MISSING_NUM;
         }
-        return fromLong(grpc.getTokenNum());
+        return new EntityNum(EntityId.of(grpc));
     }
 
     /**
@@ -67,14 +63,6 @@ public class EntityNum implements Comparable<EntityNum> {
     static boolean areValidNums(final long shard, final long realm) {
         var commonProps = CommonProperties.getInstance();
         return shard == commonProps.getShard() && realm == commonProps.getRealm();
-    }
-
-    public static EntityNum fromId(Id id) {
-        return new EntityNum(EntityId.of(id.shard(), id.realm(), id.num()));
-    }
-
-    public long getId() {
-        return entityId.getId();
     }
 
     @Override

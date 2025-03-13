@@ -36,7 +36,7 @@ public record Id(long shard, long realm, long num) {
     }
 
     public EntityNum asEntityNum() {
-        return EntityNum.fromLong(num);
+        return EntityNum.fromId(this);
     }
 
     public AccountID asGrpcAccount() {

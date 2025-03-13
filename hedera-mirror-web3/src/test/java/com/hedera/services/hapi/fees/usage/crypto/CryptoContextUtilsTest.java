@@ -4,6 +4,8 @@ package com.hedera.services.hapi.fees.usage.crypto;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import java.util.HashMap;
@@ -13,16 +15,16 @@ import org.junit.jupiter.api.Test;
 class CryptoContextUtilsTest {
     @Test
     void getsChangedKeys() {
-        final Map<Long, Long> newMap = new HashMap<>();
-        final Map<Long, Long> existingMap = new HashMap<>();
+        final Map<EntityNum, Long> newMap = new HashMap<>();
+        final Map<EntityNum, Long> existingMap = new HashMap<>();
 
-        newMap.put(1L, 2L);
-        newMap.put(3L, 2L);
-        newMap.put(4L, 2L);
+        newMap.put(EntityNum.fromEntityId(EntityId.of(1L)), 2L);
+        newMap.put(EntityNum.fromEntityId(EntityId.of(3L)), 2L);
+        newMap.put(EntityNum.fromEntityId(EntityId.of(4L)), 2L);
 
-        existingMap.put(1L, 2L);
-        existingMap.put(4L, 2L);
-        existingMap.put(5L, 2L);
+        existingMap.put(EntityNum.fromEntityId(EntityId.of(1L)), 2L);
+        existingMap.put(EntityNum.fromEntityId(EntityId.of(4L)), 2L);
+        existingMap.put(EntityNum.fromEntityId(EntityId.of(5L)), 2L);
 
         assertEquals(1, CryptoContextUtils.getChangedCryptoKeys(newMap.keySet(), existingMap.keySet()));
     }

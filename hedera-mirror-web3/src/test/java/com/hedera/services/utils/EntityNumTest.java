@@ -17,15 +17,15 @@ class EntityNumTest extends Web3UnitTest {
     void overridesJavaLangImpl() {
         final var v = 1_234_567;
 
-        final var subject = new EntityNum(v);
+        final var subject = EntityNum.fromEntityId(EntityId.of(v));
 
         assertNotEquals(v, subject.hashCode());
     }
 
     @Test
     void equalsWorks() {
-        final var a = new EntityNum(1);
-        final var b = new EntityNum(2);
+        final var a = EntityNum.fromEntityId(EntityId.of(1));
+        final var b = EntityNum.fromEntityId(EntityId.of(2));
         final var c = a;
 
         assertNotEquals(a, b);
@@ -35,31 +35,15 @@ class EntityNumTest extends Web3UnitTest {
     }
 
     @Test
-    void factoriesWorkForValidShardRealm() {
-        final var expected = EntityNum.fromInt(123);
-
-        assertEquals(expected, EntityNum.fromLong(123L));
-    }
-
-    @Test
-    void canGetId() {
-        final long realNum = EntityId.of(Long.MAX_VALUE).getId();
-
-        final var subject = EntityNum.fromLong(realNum);
-
-        assertEquals(realNum, subject.getId());
-    }
-
-    @Test
     void orderingSortsByValue() {
         int value = 100;
 
-        final var base = new EntityNum(value);
-        final var sameButDiff = EntityNum.fromInt(value);
+        final var base = EntityNum.fromEntityId(EntityId.of(value));
+        final var sameButDiff = EntityNum.fromEntityId(EntityId.of(value));
         assertEquals(0, base.compareTo(sameButDiff));
-        final var largerNum = new EntityNum(value + 1);
+        final var largerNum = EntityNum.fromEntityId(EntityId.of(value + 1));
         assertEquals(-1, base.compareTo(largerNum));
-        final var smallerNum = new EntityNum(value - 1);
+        final var smallerNum = EntityNum.fromEntityId(EntityId.of(value - 1));
         assertEquals(+1, base.compareTo(smallerNum));
     }
 
@@ -67,6 +51,7 @@ class EntityNumTest extends Web3UnitTest {
     void factoriesWorkForInvalidShard() {
         assertEquals(MISSING_NUM, EntityNum.fromAccountId(IdUtils.asAccount("1.0.123")));
         assertEquals(
-                new EntityNum(123), EntityNum.fromEvmAddress(Address.wrap(Bytes.wrap(DomainUtils.toEvmAddress(123)))));
+                EntityNum.fromEntityId(EntityId.of(123)),
+                EntityNum.fromEvmAddress(Address.wrap(Bytes.wrap(DomainUtils.toEvmAddress(123)))));
     }
 }

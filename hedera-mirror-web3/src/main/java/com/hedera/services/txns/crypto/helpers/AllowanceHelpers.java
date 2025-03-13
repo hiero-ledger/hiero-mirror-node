@@ -14,6 +14,7 @@ import com.hedera.services.store.models.Id;
 import com.hedera.services.store.models.NftId;
 import com.hedera.services.store.models.Token;
 import com.hedera.services.store.models.UniqueToken;
+import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.AccountID;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -61,12 +62,12 @@ public class AllowanceHelpers {
         return Collections.emptyMap();
     }
 
-    public static Map<Long, Long> getCryptoAllowancesList(final Account account) {
+    public static Map<EntityNum, Long> getCryptoAllowancesList(final Account account) {
         if (!account.getCryptoAllowances().isEmpty()) {
-            Map<Long, Long> cryptoAllowances = new HashMap<>();
+            Map<EntityNum, Long> cryptoAllowances = new HashMap<>();
 
             for (var a : account.getCryptoAllowances().entrySet()) {
-                cryptoAllowances.put(a.getKey().getId(), a.getValue());
+                cryptoAllowances.put(a.getKey(), a.getValue());
             }
             return cryptoAllowances;
         }
