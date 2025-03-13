@@ -113,7 +113,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
                 .kycKey(Utils.parseKey(token.getKycKey()))
                 .maxSupply(token.getMaxSupply())
                 .memo(entity.getMemo())
-                .metadata(Bytes.wrap(token.getMetadata()))
+                .metadata(token.getMetadata() == null ? Bytes.EMPTY : Bytes.wrap(token.getMetadata()))
                 .metadataKey(Utils.parseKey(token.getMetadataKey()))
                 .name(token.getName())
                 .paused(token.getPauseStatus().equals(TokenPauseStatusEnum.PAUSED))

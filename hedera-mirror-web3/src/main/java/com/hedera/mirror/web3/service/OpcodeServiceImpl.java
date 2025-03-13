@@ -22,6 +22,7 @@ import com.hedera.mirror.web3.common.TransactionIdOrHashParameter;
 import com.hedera.mirror.web3.common.TransactionIdParameter;
 import com.hedera.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import com.hedera.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.store.accessor.EntityDatabaseAccessor;
 import com.hedera.mirror.web3.exception.EntityNotFoundException;
 import com.hedera.mirror.web3.repository.ContractResultRepository;
@@ -54,6 +55,7 @@ public class OpcodeServiceImpl implements OpcodeService {
     private final TransactionRepository transactionRepository;
     private final ContractResultRepository contractResultRepository;
     private final EntityDatabaseAccessor entityDatabaseAccessor;
+    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Override
     public OpcodesResponse processOpcodeCall(
@@ -160,6 +162,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                 .callData(getCallData(ethTransaction, contractResult))
                 .consensusTimestamp(consensusTimestamp)
                 .gas(getGasLimit(ethTransaction, contractResult))
+                .isModularized(mirrorNodeEvmProperties.directTrafficThroughTransactionExecutionService())
                 .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType))
                 .sender(new HederaEvmAccount(getSenderAddress(contractResult)))
                 .value(getValue(ethTransaction, contractResult).longValue())
