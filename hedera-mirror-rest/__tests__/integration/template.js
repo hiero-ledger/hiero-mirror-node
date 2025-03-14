@@ -23,7 +23,7 @@ import path from 'path';
 import request from 'supertest';
 import integrationDomainOps from '../integrationDomainOps';
 import IntegrationS3Ops from '../integrationS3Ops';
-import {getMirrorConfig} from '../../config';
+import config from '../../config';
 import {cloudProviders} from '../../constants';
 import server from '../../server';
 import {getModuleDirname} from '../testutils';
@@ -129,7 +129,6 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
   let s3Ops;
 
   const configS3ForStateProof = (endpoint) => {
-    const config = getMirrorConfig().rest;
     config.stateproof = _.merge(config.stateproof, {
       addressBookHistory: false,
       enabled: true,
@@ -178,23 +177,18 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
 
   const needsS3 = (specs) => Object.keys(specs).some((dir) => dir.includes('stateproof'));
 
-  const overrideConfig = (commonConfigOverride, configOverride) => {
-    if (!commonConfigOverride && !configOverride) {
+  const overrideConfig = (override) => {
+    if (!override) {
       return;
     }
 
-    const override = {
-      common: commonConfigOverride ?? {},
-      rest: configOverride ?? {},
-    };
-
-    _.merge(getMirrorConfig(), override);
+    _.merge(config, override);
     configOverridden = true;
   };
 
   const restoreConfig = () => {
     if (configOverridden) {
-      _.merge(getMirrorConfig(), configClone);
+      _.merge(config, configClone);
       configOverridden = false;
     }
   };
@@ -226,7 +220,7 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
   };
 
   const specSetupSteps = async (spec) => {
-    overrideConfig(spec.commonConfig, spec.config);
+    overrideConfig(spec.config);
     await integrationDomainOps.setup(spec);
     if (spec.sql) {
       await loadSqlScripts(spec.sql.pathprefix, spec.sql.scripts);
@@ -310,7 +304,7 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
       await uploadFilesToS3(s3Ops.getEndpointUrl());
     }
 
-    configClone = _.cloneDeep(getMirrorConfig());
+    configClone = _.cloneDeep(config);
   }, defaultBeforeAllTimeoutMillis);
 
   afterAll(async () => {

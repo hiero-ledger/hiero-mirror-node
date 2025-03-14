@@ -9,9 +9,14 @@ const {
 
 class SystemEntity {
   #stakingRewardAccount = EntityId.of(systemShard, systemRealm, 800);
+  #treasuryAccount = EntityId.of(systemShard, systemRealm, 2);
 
   get stakingRewardAccount() {
     return this.#stakingRewardAccount;
+  }
+
+  get treasuryAccount() {
+    return this.#treasuryAccount;
   }
 }
 
