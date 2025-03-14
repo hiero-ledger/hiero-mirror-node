@@ -90,7 +90,6 @@ describe('SystemEntity', () => {
   });
 
   test('treasuryAccount', () => {
-    const expected = EntityId.of(1, 2, 2);
     expect(SystemEntity.treasuryAccount.toString()).toEqual('1.2.2');
   });
 });
