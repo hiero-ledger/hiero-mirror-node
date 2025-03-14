@@ -102,7 +102,7 @@ public abstract class ContractCallService {
         }
 
         // initializes the stack frame with the current state or historical state (if the call is historical)
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
+        if (!mirrorNodeEvmProperties.isModularizedServices() || !params.isModularized()) {
             ctx.initializeStackFrames(store.getStackedStateFrames());
         }
 
