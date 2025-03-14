@@ -10,7 +10,6 @@ import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.exception.InvalidEntityException;
 import org.bouncycastle.util.encoders.Hex;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -21,13 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class EntityIdParameterTest {
-
-    private final CommonProperties commonProperties = new CommonProperties();
-
-    @BeforeEach
-    void setup() {
-        EntityIdParameter.PROPERTIES.set(commonProperties);
-    }
+    private final CommonProperties commonProperties = CommonProperties.getInstance();
 
     @ParameterizedTest
     @NullSource
@@ -70,6 +63,8 @@ class EntityIdParameterTest {
         assertThat(EntityIdParameter.valueOf(value))
                 .returns(commonProperties.getRealm(), EntityIdParameter::realm)
                 .returns(commonProperties.getShard(), EntityIdParameter::shard);
+        commonProperties.setRealm(0);
+        commonProperties.setShard(0);
     }
 
     @ParameterizedTest

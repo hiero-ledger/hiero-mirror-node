@@ -23,6 +23,8 @@ import jakarta.annotation.Resource;
 import java.math.BigInteger;
 import lombok.SneakyThrows;
 import org.hyperledger.besu.datatypes.Address;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
@@ -44,12 +46,29 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
     @Resource
     private ObjectMapper objectMapper;
 
+    private double modularizedTrafficPercent;
+
     @SneakyThrows
     private ResultActions contractCall(ContractCallRequest request) {
         return mockMvc.perform(post(CALL_URI)
                 .accept(MediaType.APPLICATION_JSON)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(convert(request)));
+    }
+
+    @BeforeEach
+    void before() {
+        modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
+        }
+    }
+
+    @AfterEach
+    void after() {
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
+        }
     }
 
     @Test

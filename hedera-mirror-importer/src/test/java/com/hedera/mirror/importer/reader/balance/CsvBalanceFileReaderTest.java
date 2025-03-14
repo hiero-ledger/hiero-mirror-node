@@ -38,7 +38,6 @@ import org.springframework.util.StringUtils;
 
 abstract class CsvBalanceFileReaderTest {
 
-    protected final CommonProperties commonProperties;
     protected final BalanceParserProperties balanceParserProperties;
     protected final File balanceFile;
     protected final CsvBalanceFileReader balanceFileReader;
@@ -46,6 +45,7 @@ abstract class CsvBalanceFileReaderTest {
     protected final long expectedCount;
     protected File testFile;
     protected long consensusTimestamp;
+    protected CommonProperties commonProperties = CommonProperties.getInstance();
 
     @TempDir
     Path tempDir;
@@ -55,7 +55,6 @@ abstract class CsvBalanceFileReaderTest {
             Class<? extends AccountBalanceLineParser> accountBalanceLineParserClass,
             String balanceFilePath,
             long expectedCount) {
-        commonProperties = new CommonProperties();
         balanceParserProperties = new BalanceParserProperties();
         balanceFile = TestUtils.getResource(balanceFilePath);
         parser = (AccountBalanceLineParser) ReflectUtils.newInstance(

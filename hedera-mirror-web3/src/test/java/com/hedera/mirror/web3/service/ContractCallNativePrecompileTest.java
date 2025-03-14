@@ -11,6 +11,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.web3.Web3IntegrationTest;
+import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.service.model.ContractExecutionParameters;
 import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
@@ -24,6 +25,8 @@ import org.junit.jupiter.api.Test;
 class ContractCallNativePrecompileTest extends Web3IntegrationTest {
 
     private final ContractExecutionService contractCallService;
+
+    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @BeforeEach
     void setup() {
@@ -234,6 +237,7 @@ class ContractCallNativePrecompileTest extends Web3IntegrationTest {
                 .callData(callData)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .isStatic(false)
+                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isEstimate(false)
                 .callType(ETH_CALL)
                 .value(0L)

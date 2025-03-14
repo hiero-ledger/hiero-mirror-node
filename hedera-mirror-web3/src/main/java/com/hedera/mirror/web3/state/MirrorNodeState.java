@@ -13,8 +13,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
+import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import com.hedera.mirror.web3.repository.RecordFileRepository;
 import com.hedera.mirror.web3.state.core.ListReadableQueueState;
 import com.hedera.mirror.web3.state.core.ListWritableQueueState;
 import com.hedera.mirror.web3.state.core.MapReadableKVState;
@@ -22,7 +24,6 @@ import com.hedera.mirror.web3.state.core.MapReadableStates;
 import com.hedera.mirror.web3.state.core.MapWritableKVState;
 import com.hedera.mirror.web3.state.core.MapWritableStates;
 import com.hedera.mirror.web3.state.singleton.SingletonState;
-import com.hedera.node.app.config.BootstrapConfigProviderImpl;
 import com.hedera.node.app.fees.FeeService;
 import com.hedera.node.app.ids.EntityIdService;
 import com.hedera.node.app.records.BlockRecordService;
@@ -67,6 +68,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -91,8 +93,8 @@ public class MirrorNodeState implements State {
     private final ServiceMigrator serviceMigrator;
     private final NetworkInfo networkInfo;
     private final StartupNetworks startupNetworks;
-
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final RecordFileRepository recordFileRepository;
 
     @PostConstruct
     private void init() {
@@ -101,15 +103,20 @@ public class MirrorNodeState implements State {
             return;
         }
 
+        Optional<RecordFile> latest = recordFileRepository.findLatest();
+        final var bootstrapConfig = mirrorNodeEvmProperties.getVersionedConfiguration();
+        final var currentSemanticVersion =
+                bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion();
+        final var currentVersion = new ServicesSoftwareVersion(currentSemanticVersion);
+        final var previousVersion = latest.isEmpty() ? null : currentVersion;
         ContractCallContext.run(ctx -> {
+            latest.ifPresent(ctx::setRecordFile);
             registerServices(servicesRegistry);
-            final var bootstrapConfig = new BootstrapConfigProviderImpl().getConfiguration();
             serviceMigrator.doMigrations(
                     this,
                     servicesRegistry,
-                    null,
-                    new ServicesSoftwareVersion(
-                            bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion()),
+                    previousVersion,
+                    currentVersion,
                     mirrorNodeEvmProperties.getVersionedConfiguration(),
                     mirrorNodeEvmProperties.getVersionedConfiguration(),
                     networkInfo,

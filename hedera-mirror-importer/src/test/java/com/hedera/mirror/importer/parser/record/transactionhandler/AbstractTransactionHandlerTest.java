@@ -18,6 +18,7 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Message;
 import com.google.protobuf.StringValue;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.AbstractEntity;
 import com.hedera.mirror.common.domain.entity.Entity;
@@ -104,7 +105,7 @@ abstract class AbstractTransactionHandlerTest {
 
     protected final ContractID contractId =
             ContractID.newBuilder().setContractNum(DEFAULT_ENTITY_NUM).build();
-    protected final EntityProperties entityProperties = new EntityProperties();
+    protected final EntityProperties entityProperties = new EntityProperties(CommonProperties.getInstance());
 
     protected TransactionHandler transactionHandler;
 

@@ -3,6 +3,7 @@
 package com.hedera.mirror.restjava.common;
 
 import com.google.common.io.BaseEncoding;
+import com.hedera.mirror.common.CommonProperties;
 import java.util.regex.Pattern;
 
 @SuppressWarnings("java:S6218")
@@ -19,7 +20,7 @@ public record EntityIdAliasParameter(long shard, long realm, byte[] alias) imple
             return null;
         }
 
-        var properties = PROPERTIES.get();
+        var properties = CommonProperties.getInstance();
         long shard = properties.getShard();
         long realm = properties.getRealm();
         String realmString;

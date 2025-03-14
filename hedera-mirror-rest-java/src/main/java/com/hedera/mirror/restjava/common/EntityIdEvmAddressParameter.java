@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.restjava.common;
 
+import com.hedera.mirror.common.CommonProperties;
 import java.util.regex.Pattern;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.DecoderException;
@@ -21,7 +22,7 @@ public record EntityIdEvmAddressParameter(long shard, long realm, byte[] evmAddr
             return null;
         }
 
-        var properties = PROPERTIES.get();
+        var properties = CommonProperties.getInstance();
         long shard = properties.getShard();
         long realm = properties.getRealm();
         String realmString;

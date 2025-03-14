@@ -96,6 +96,7 @@ jobs:
         run: ./gradlew :${{matrix.project}}:build --scan ${{ secrets.GRADLE_ARGS }}
 
       - name: Upload coverage report
+        continue-on-error: true
         env:
           CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
         if: ${{ matrix.schema == 'v1' && matrix.project != 'rest:monitoring' && matrix.project != 'test' && always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
@@ -114,6 +115,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Finalize coverage report
+        continue-on-error: true
         env:
           CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
         run: bash <(curl -Ls https://coverage.codacy.com/get.sh) final

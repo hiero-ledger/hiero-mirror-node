@@ -5,8 +5,6 @@ package com.hedera.mirror.restjava.common;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.hedera.mirror.common.CommonProperties;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,13 +16,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class NumberRangeParameterTest {
-
-    private final CommonProperties commonProperties = new CommonProperties();
-
-    @BeforeEach
-    void setup() {
-        EntityIdParameter.PROPERTIES.set(commonProperties);
-    }
 
     @Test
     void testNoOperatorPresent() {

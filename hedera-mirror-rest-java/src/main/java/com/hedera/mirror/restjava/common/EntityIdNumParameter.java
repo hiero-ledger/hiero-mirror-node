@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.restjava.common;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import java.util.regex.Pattern;
 
@@ -17,7 +18,7 @@ public record EntityIdNumParameter(EntityId id) implements EntityIdParameter {
             return null;
         }
 
-        var properties = PROPERTIES.get();
+        var properties = CommonProperties.getInstance();
         long shard = properties.getShard();
         long realm = properties.getRealm();
         var secondGroup = matcher.group(2);

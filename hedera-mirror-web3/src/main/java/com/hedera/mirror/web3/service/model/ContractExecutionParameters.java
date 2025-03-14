@@ -18,6 +18,7 @@ public class ContractExecutionParameters implements CallServiceParameters {
     private final CallType callType;
     private final long gas;
     private final boolean isEstimate;
+    private final boolean isModularized;
     private final boolean isStatic;
     private final Address receiver;
     private final HederaEvmAccount sender;

@@ -19,15 +19,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class EntityIdSingletonTest {
 
     private EntityIdSingleton entityIdSingleton;
-
-    private CommonProperties commonProperties;
+    private CommonProperties commonProperties = CommonProperties.getInstance();
 
     @Mock
     private EntityRepository entityRepository;
 
     @BeforeEach
     void setup() {
-        commonProperties = new CommonProperties();
         entityIdSingleton = new EntityIdSingleton(entityRepository, new MirrorNodeEvmProperties(), commonProperties);
     }
 
@@ -57,6 +55,8 @@ class EntityIdSingletonTest {
         commonProperties.setRealm(1);
         when(entityRepository.findMaxId(1, 1)).thenReturn(maxId);
         assertThat(entityIdSingleton.get().number()).isEqualTo(maxId + 1);
+        commonProperties.setShard(0);
+        commonProperties.setRealm(0);
     }
 
     @Test

@@ -96,12 +96,15 @@ class ContractController {
         final var callType = request.isEstimate() ? ETH_ESTIMATE_GAS : ETH_CALL;
         final var block = request.getBlock();
 
+        boolean isModularized = evmProperties.directTrafficThroughTransactionExecutionService();
+
         return ContractExecutionParameters.builder()
                 .block(block)
                 .callData(data)
                 .callType(callType)
                 .gas(request.getGas())
                 .isEstimate(request.isEstimate())
+                .isModularized(isModularized)
                 .isStatic(isStaticCall)
                 .receiver(receiver)
                 .sender(sender)

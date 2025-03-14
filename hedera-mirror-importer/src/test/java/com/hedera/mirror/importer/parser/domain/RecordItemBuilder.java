@@ -20,6 +20,7 @@ import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.StringValue;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
@@ -205,7 +206,7 @@ public class RecordItemBuilder {
     private final Map<GeneratedMessageV3, EntityState> state = new ConcurrentHashMap<>();
 
     @Getter
-    private final PersistProperties persistProperties = new PersistProperties();
+    private final PersistProperties persistProperties = new PersistProperties(CommonProperties.getInstance());
 
     private Instant now = Instant.now();
 
@@ -678,7 +679,10 @@ public class RecordItemBuilder {
         var digestedHash = bytes(32);
         var functionResult = contractFunctionResult(contractId);
         var builder = new Builder<>(TransactionType.ETHEREUMTRANSACTION, transactionBody)
-                .record(r -> r.setContractCallResult(functionResult).setEthereumHash(digestedHash))
+                .record(r -> r.setContractCallResult(functionResult)
+                        .setEthereumHash(digestedHash)
+                        .getReceiptBuilder()
+                        .setContractID(contractId))
                 .recordItem(r -> r.hapiVersion(new Version(0, 47, 0)))
                 .sidecarRecords(r -> r.add(contractStateChanges(contractId)))
                 .sidecarRecords(r -> r.add(contractActions()));

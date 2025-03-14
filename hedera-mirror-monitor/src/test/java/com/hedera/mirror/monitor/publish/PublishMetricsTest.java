@@ -106,12 +106,14 @@ class PublishMetricsTest {
     @Test
     void onErrorStatusRuntimeException(CapturedOutput logOutput) {
         Status status = Status.RESOURCE_EXHAUSTED;
-        onError(logOutput, status.asRuntimeException(), status.getCode().toString());
+        var publishException = new PublishException(request(), status.asRuntimeException());
+        onError(logOutput, publishException, status.getCode().toString());
     }
 
     @Test
     void onErrorTimeoutException(CapturedOutput logOutput) {
-        onError(logOutput, new TimeoutException(), TimeoutException.class.getSimpleName());
+        var publishException = new PublishException(request(), new TimeoutException());
+        onError(logOutput, publishException, TimeoutException.class.getSimpleName());
     }
 
     @Test
@@ -121,7 +123,8 @@ class PublishMetricsTest {
         Constructor<PrecheckStatusException> constructor = getDeclaredConstructor(PrecheckStatusException.class);
         constructor.setAccessible(true);
         PrecheckStatusException precheckStatusException = constructor.newInstance(status, transactionId);
-        onError(logOutput, precheckStatusException, status.toString());
+        var publishException = new PublishException(request(), precheckStatusException);
+        onError(logOutput, publishException, status.toString());
     }
 
     @Test
@@ -131,7 +134,8 @@ class PublishMetricsTest {
         Constructor<ReceiptStatusException> constructor = getDeclaredConstructor(ReceiptStatusException.class);
         constructor.setAccessible(true);
         ReceiptStatusException receiptStatusException = constructor.newInstance(transactionId, transactionReceipt);
-        onError(logOutput, receiptStatusException, ResponseCodeEnum.SUCCESS.toString());
+        var publishException = new PublishException(request(), receiptStatusException);
+        onError(logOutput, publishException, ResponseCodeEnum.SUCCESS.toString());
     }
 
     @Test
@@ -151,8 +155,15 @@ class PublishMetricsTest {
         assertThat(output).asString().contains("No publishers");
     }
 
-    void onError(CapturedOutput logOutput, Throwable throwable, String status) {
-        PublishException publishException = new PublishException(request(), throwable);
+    @Test
+    void onErrorWithNullNode(CapturedOutput output) {
+        var request = request().toBuilder().node(null).build();
+        node = null;
+        var exception = new PublishException(request, new IllegalArgumentException());
+        onError(output, exception, IllegalArgumentException.class.getSimpleName());
+    }
+
+    void onError(CapturedOutput logOutput, PublishException publishException, String status) {
         publishScenario.onError(publishException);
         publishMetrics.onError(publishException);
 
@@ -201,15 +212,21 @@ class PublishMetricsTest {
     }
 
     private <T extends Meter> ObjectAssert<T> assertMetric(Iterable<T> meters) {
-        return assertThat(meters)
+        var iterableAssert = assertThat(meters)
                 .hasSize(1)
                 .first()
-                .returns(String.valueOf(node.getNodeId()), t -> t.getId().getTag(Tags.TAG_NODE))
-                .returns(node.getHost(), t -> t.getId().getTag(Tags.TAG_HOST))
-                .returns(String.valueOf(node.getPort()), t -> t.getId().getTag(Tags.TAG_PORT))
                 .returns(SCENARIO_NAME, t -> t.getId().getTag(Tags.TAG_SCENARIO))
                 .returns(TransactionType.CONSENSUS_SUBMIT_MESSAGE.toString(), t -> t.getId()
                         .getTag(Tags.TAG_TYPE));
+
+        if (node != null) {
+            iterableAssert
+                    .returns(String.valueOf(node.getNodeId()), t -> t.getId().getTag(Tags.TAG_NODE))
+                    .returns(node.getHost(), t -> t.getId().getTag(Tags.TAG_HOST))
+                    .returns(String.valueOf(node.getPort()), t -> t.getId().getTag(Tags.TAG_PORT));
+        }
+
+        return iterableAssert;
     }
 
     private PublishRequest request() {

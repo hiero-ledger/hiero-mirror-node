@@ -137,7 +137,7 @@ public class TransferLogic {
     @SuppressWarnings("unchecked")
     private void adjustFungibleTokenAllowance(final BalanceChange change, final AccountID ownerID, final Store store) {
         final var allowanceId = FcTokenAllowanceId.from(
-                EntityNum.fromLong(change.getToken().num()), EntityNum.fromAccountId(change.getPayerID()));
+                EntityNum.fromId(change.getToken()), EntityNum.fromAccountId(change.getPayerID()));
         Account account = store.getAccount(asTypedEvmAddress(ownerID), OnMissing.THROW);
         final var fungibleAllowances =
                 new TreeMap<>((Map<FcTokenAllowanceId, Long>) account.getFungibleTokenAllowances());

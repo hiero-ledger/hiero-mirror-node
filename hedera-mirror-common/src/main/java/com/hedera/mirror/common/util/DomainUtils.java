@@ -12,10 +12,12 @@ import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.exception.InvalidEntityException;
 import com.hedera.mirror.common.exception.ProtobufException;
 import com.hedera.services.stream.proto.HashObject;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.TokenID;
 import jakarta.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -287,12 +289,32 @@ public class DomainUtils {
         return toEvmAddress((int) contractId.getShardNum(), contractId.getRealmNum(), contractId.getContractNum());
     }
 
+    public static byte[] toEvmAddress(AccountID accountId) {
+        if (accountId == null) {
+            throw new InvalidEntityException("Invalid accountId");
+        }
+
+        return toEvmAddress((int) accountId.getShardNum(), accountId.getRealmNum(), accountId.getAccountNum());
+    }
+
+    public static byte[] toEvmAddress(TokenID tokenId) {
+        if (tokenId == null) {
+            throw new InvalidEntityException("Invalid tokenID");
+        }
+
+        return toEvmAddress((int) tokenId.getShardNum(), tokenId.getRealmNum(), tokenId.getTokenNum());
+    }
+
     public static byte[] toEvmAddress(EntityId contractId) {
         if (EntityId.isEmpty(contractId)) {
             throw new InvalidEntityException("Empty contractId");
         }
 
         return toEvmAddress((int) contractId.getShard(), contractId.getRealm(), contractId.getNum());
+    }
+
+    public static byte[] toEvmAddress(long id) {
+        return toEvmAddress(EntityId.of(id));
     }
 
     private static byte[] toEvmAddress(int shard, long realm, long num) {

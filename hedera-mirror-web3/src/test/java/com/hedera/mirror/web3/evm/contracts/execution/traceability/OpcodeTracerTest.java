@@ -33,12 +33,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableSortedMap;
-import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
 import com.hedera.mirror.common.domain.contract.ContractAction;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.config.PrecompilesHolder;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
@@ -47,7 +47,6 @@ import com.hedera.mirror.web3.state.keyvalue.ContractStorageReadableKVState;
 import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractActionType;
-import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.swirlds.state.State;
 import com.swirlds.state.spi.WritableKVState;
@@ -1013,10 +1012,11 @@ class OpcodeTracerTest {
      * UnnecessaryStubbingException in certain tests.
      */
     private SlotKey createMockSlotKey(Address contractAddress) {
-        SlotKey slotKey = mock(SlotKey.class);
+        var slotKey = mock(SlotKey.class);
 
-        ContractID testContractId = com.hedera.hapi.node.base.ContractID.newBuilder()
-                .contractNum(EntityIdUtils.numFromEvmAddress(contractAddress.toArray()))
+        var entityId = DomainUtils.fromEvmAddress(contractAddress.toArray());
+        var testContractId = com.hedera.hapi.node.base.ContractID.newBuilder()
+                .contractNum(entityId.getNum())
                 .build();
 
         lenient().when(slotKey.contractID()).thenReturn(testContractId);
