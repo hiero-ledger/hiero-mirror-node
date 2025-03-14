@@ -70,6 +70,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     @BeforeEach
     void setUpArgumentCaptors() {
         if (!mirrorNodeEvmProperties.isModularizedServices()) {
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
             doAnswer(invocation -> {
                         final var transactionProcessingResult =
                                 (HederaEvmTransactionProcessingResult) invocation.callRealMethod();
@@ -80,6 +81,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                     .when(processor)
                     .execute(paramsCaptor.capture(), gasCaptor.capture());
         } else {
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
             doAnswer(invocation -> {
                         final var transactionProcessingResult =
                                 (HederaEvmTransactionProcessingResult) invocation.callRealMethod();

@@ -73,7 +73,12 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler
     private ResponseEntity<?> mirrorEvmTransactionError(final MirrorEvmTransactionException e, WebRequest request) {
-        log.warn("Mirror EVM transaction error: {}, detail: {}, data: {}", e.getMessage(), e.getDetail(), e.getData());
+        log.warn(
+                "Mirror EVM transaction error: {}, detail: {}, data: {}, isCallModularized: {}",
+                e.getMessage(),
+                e.getDetail(),
+                e.getData(),
+                e.getIsCallModularized());
         request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, e, SCOPE_REQUEST);
         return new ResponseEntity<>(new GenericErrorResponse(e.getMessage(), e.getDetail(), e.getData()), BAD_REQUEST);
     }

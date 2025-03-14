@@ -126,7 +126,7 @@ public class TransactionExecutionService {
         if (result == null) {
             // No result - the call did not reach the EVM and probably failed at pre-checks. No metric to update in this
             // case.
-            throw new MirrorEvmTransactionException(status.protoName(), StringUtils.EMPTY, StringUtils.EMPTY);
+            throw new MirrorEvmTransactionException(status.protoName(), StringUtils.EMPTY, StringUtils.EMPTY, true);
         } else {
             var errorMessage = getErrorMessage(result).orElse(Bytes.EMPTY);
             var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessage);
@@ -137,7 +137,8 @@ public class TransactionExecutionService {
                         detail,
                         errorMessage.toHexString(),
                         HederaEvmTransactionProcessingResult.failed(
-                                result.gasUsed(), 0L, 0L, Optional.of(errorMessage), Optional.empty()));
+                                result.gasUsed(), 0L, 0L, Optional.of(errorMessage), Optional.empty()),
+                        true);
             } else {
                 // If we are in an opcode trace scenario, we need to return a failed result in order to get the
                 // opcode list from the ContractCallContext. If we throw an exception instead of returning a result,
