@@ -25,6 +25,7 @@ import {
 } from './model';
 
 import {AssessedCustomFeeViewModel, CustomFeeLimitsViewModel, NftTransferViewModel} from './viewmodel';
+import SystemEntity from './service/systemEntity';
 
 const SUCCESS_PROTO_IDS = TransactionResult.getSuccessProtoIds();
 
@@ -227,7 +228,7 @@ const getStakingRewardTimestamps = (transactions) => {
       (transaction) =>
         !_.isNil(transaction.crypto_transfer_list) &&
         transaction.crypto_transfer_list.some(
-          (cryptoTransfer) => cryptoTransfer.entity_id === StakingRewardTransfer.STAKING_REWARD_ACCOUNT
+          (cryptoTransfer) => cryptoTransfer.entity_id === SystemEntity.stakingRewardAccount.getEncodedId()
         )
     )
     .map((transaction) => transaction.consensus_timestamp);

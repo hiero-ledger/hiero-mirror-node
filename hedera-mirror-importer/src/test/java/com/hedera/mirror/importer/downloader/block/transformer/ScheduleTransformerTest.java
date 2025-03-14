@@ -80,13 +80,18 @@ class ScheduleTransformerTest extends AbstractTransformerTest {
     @ValueSource(booleans = {true, false})
     void scheduleSign(boolean triggerExecution) {
         // given
-        var builder = recordItemBuilder.scheduleSign();
-        if (triggerExecution) {
-            builder.receipt(r -> r.setScheduledTransactionID(
-                    TransactionID.newBuilder().setAccountID(recordItemBuilder.accountId())));
-        }
-
-        var expectedRecordItem = builder.customize(this::finalize).build();
+        var expectedRecordItem = recordItemBuilder
+                .scheduleSign()
+                .receipt(r -> {
+                    if (triggerExecution) {
+                        r.setScheduledTransactionID(
+                                TransactionID.newBuilder().setAccountID(recordItemBuilder.accountId()));
+                    } else {
+                        r.clearScheduledTransactionID();
+                    }
+                })
+                .customize(this::finalize)
+                .build();
         var blockItem = blockItemBuilder.scheduleSign(expectedRecordItem).build();
         var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
 

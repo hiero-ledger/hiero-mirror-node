@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.exception.InvalidEntityException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,12 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class EntityIdRangeParameterTest {
 
-    private final CommonProperties commonProperties = new CommonProperties();
-
-    @BeforeEach
-    void setup() {
-        EntityIdParameter.PROPERTIES.set(commonProperties);
-    }
+    private CommonProperties commonProperties = CommonProperties.getInstance();
 
     @Test
     void testConversion() {
@@ -52,6 +46,8 @@ class EntityIdRangeParameterTest {
         commonProperties.setShard(1);
         var id = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1);
         assertThat(EntityIdRangeParameter.valueOf("1")).isEqualTo(new EntityIdRangeParameter(EQ, id));
+        commonProperties.setRealm(0L);
+        commonProperties.setShard(0);
     }
 
     @ParameterizedTest

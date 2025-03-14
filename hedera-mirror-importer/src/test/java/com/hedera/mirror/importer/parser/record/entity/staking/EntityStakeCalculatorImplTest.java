@@ -4,6 +4,7 @@ package com.hedera.mirror.importer.parser.record.entity.staking;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -12,6 +13,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.importer.parser.record.entity.EntityProperties;
 import com.hedera.mirror.importer.repository.EntityStakeRepository;
 import java.util.Optional;
@@ -31,6 +35,8 @@ import org.springframework.transaction.support.TransactionOperations;
 @ExtendWith(MockitoExtension.class)
 class EntityStakeCalculatorImplTest {
 
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+
     private EntityProperties entityProperties;
 
     @Mock(strictness = LENIENT)
@@ -38,54 +44,74 @@ class EntityStakeCalculatorImplTest {
 
     private EntityStakeCalculatorImpl entityStakeCalculator;
 
+    private long stakingRewardAccountId;
+
     @BeforeEach
     void setup() {
-        entityProperties = new EntityProperties();
+        entityProperties = new EntityProperties(COMMON_PROPERTIES);
         entityStakeCalculator = new EntityStakeCalculatorImpl(
-                entityProperties, entityStakeRepository, TransactionOperations.withoutTransaction());
-        when(entityStakeRepository.updated()).thenReturn(false, true);
-        when(entityStakeRepository.getEndStakePeriod())
+                entityProperties, entityStakeRepository, TransactionOperations.withoutTransaction(), COMMON_PROPERTIES);
+
+        stakingRewardAccountId = SystemEntity.STAKING_REWARD_ACCOUNT
+                .getScopedEntityId(COMMON_PROPERTIES)
+                .getId();
+        when(entityStakeRepository.updated(anyLong())).thenReturn(false, true);
+        when(entityStakeRepository.getEndStakePeriod(anyLong()))
                 .thenReturn(Optional.of(100L))
                 .thenReturn(Optional.of(101L));
     }
 
     @ParameterizedTest
-    @CsvSource(textBlock = """
-            100, 101
-            100, 102
-            , 101
+    @CsvSource(
+            textBlock =
+                    """
+            100, 101, 0, 0
+            100, 102, 0, 0
+            , 101, 0, 0
+            100, 101, 1, 1
+            100, 102, 1, 1
+            , 101, 1, 1
             """)
-    void calculate(Long endStakePeriodBefore, Long endStakePeriodAfter) {
-        when(entityStakeRepository.getEndStakePeriod())
+    void calculate(Long endStakePeriodBefore, Long endStakePeriodAfter, long shard, long realm) {
+        COMMON_PROPERTIES.setShard(shard);
+        COMMON_PROPERTIES.setRealm(realm);
+
+        stakingRewardAccountId =
+                EntityId.of(shard, realm, stakingRewardAccountId).getId();
+
+        when(entityStakeRepository.getEndStakePeriod(stakingRewardAccountId))
                 .thenReturn(Optional.ofNullable(endStakePeriodBefore))
                 .thenReturn(Optional.of(endStakePeriodAfter));
         var inorder = inOrder(entityStakeRepository);
         entityStakeCalculator.calculate();
-        inorder.verify(entityStakeRepository).updated();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
+        inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart();
-        inorder.verify(entityStakeRepository).updateEntityStake();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
-        inorder.verify(entityStakeRepository).updated();
+        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).updateEntityStake(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
         inorder.verifyNoMoreInteractions();
+
+        COMMON_PROPERTIES.setShard(0);
+        COMMON_PROPERTIES.setRealm(0);
     }
 
     @ParameterizedTest
     @CsvSource({"99", "100", ","})
     @Timeout(5)
     void calculateWhenEndStakePeriodAfterIsIncorrect(Long endStakePeriodAfter) {
-        when(entityStakeRepository.getEndStakePeriod())
+        when(entityStakeRepository.getEndStakePeriod(stakingRewardAccountId))
                 .thenReturn(Optional.of(100L))
                 .thenReturn(Optional.ofNullable(endStakePeriodAfter));
         var inorder = inOrder(entityStakeRepository);
         entityStakeCalculator.calculate();
-        inorder.verify(entityStakeRepository).updated();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
+        inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart();
-        inorder.verify(entityStakeRepository).updateEntityStake();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
+        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).updateEntityStake(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
         inorder.verifyNoMoreInteractions();
     }
 
@@ -98,39 +124,39 @@ class EntityStakeCalculatorImplTest {
 
     @Test
     void calculateWhenUpdated() {
-        when(entityStakeRepository.updated()).thenReturn(true);
+        when(entityStakeRepository.updated(stakingRewardAccountId)).thenReturn(true);
         entityStakeCalculator.calculate();
-        verify(entityStakeRepository).updated();
-        verify(entityStakeRepository, never()).getEndStakePeriod();
+        verify(entityStakeRepository).updated(stakingRewardAccountId);
+        verify(entityStakeRepository, never()).getEndStakePeriod(stakingRewardAccountId);
         verify(entityStakeRepository, never()).lockFromConcurrentUpdates();
-        verify(entityStakeRepository, never()).createEntityStateStart();
-        verify(entityStakeRepository, never()).updateEntityStake();
+        verify(entityStakeRepository, never()).createEntityStateStart(stakingRewardAccountId);
+        verify(entityStakeRepository, never()).updateEntityStake(stakingRewardAccountId);
     }
 
     @Test
     void calculateWhenExceptionThrown() {
-        when(entityStakeRepository.updated()).thenThrow(new RuntimeException());
+        when(entityStakeRepository.updated(stakingRewardAccountId)).thenThrow(new RuntimeException());
         assertThrows(RuntimeException.class, () -> entityStakeCalculator.calculate());
-        verify(entityStakeRepository).updated();
+        verify(entityStakeRepository).updated(stakingRewardAccountId);
         verify(entityStakeRepository, never()).lockFromConcurrentUpdates();
-        verify(entityStakeRepository, never()).createEntityStateStart();
-        verify(entityStakeRepository, never()).updateEntityStake();
-        verify(entityStakeRepository, never()).getEndStakePeriod();
+        verify(entityStakeRepository, never()).createEntityStateStart(stakingRewardAccountId);
+        verify(entityStakeRepository, never()).updateEntityStake(stakingRewardAccountId);
+        verify(entityStakeRepository, never()).getEndStakePeriod(stakingRewardAccountId);
 
         // calculate again
         reset(entityStakeRepository);
         var inorder = inOrder(entityStakeRepository);
-        when(entityStakeRepository.updated()).thenReturn(false, true);
-        when(entityStakeRepository.getEndStakePeriod())
+        when(entityStakeRepository.updated(stakingRewardAccountId)).thenReturn(false, true);
+        when(entityStakeRepository.getEndStakePeriod(stakingRewardAccountId))
                 .thenReturn(Optional.of(100L))
                 .thenReturn(Optional.of(101L));
         entityStakeCalculator.calculate();
-        inorder.verify(entityStakeRepository).updated();
+        inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart();
-        inorder.verify(entityStakeRepository).updateEntityStake();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
-        inorder.verify(entityStakeRepository).updated();
+        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).updateEntityStake(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
         inorder.verifyNoMoreInteractions();
     }
 
@@ -139,7 +165,7 @@ class EntityStakeCalculatorImplTest {
         // given
         var pool = Executors.newFixedThreadPool(2);
         var semaphore = new Semaphore(0);
-        when(entityStakeRepository.updated())
+        when(entityStakeRepository.updated(stakingRewardAccountId))
                 // block until the other task has completed
                 .thenAnswer(invocation -> {
                     semaphore.acquire();
@@ -164,13 +190,13 @@ class EntityStakeCalculatorImplTest {
                 .atMost(Durations.TWO_SECONDS)
                 .until(() -> task1.isDone() && task2.isDone());
         var inorder = inOrder(entityStakeRepository);
-        inorder.verify(entityStakeRepository).updated();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
+        inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart();
-        inorder.verify(entityStakeRepository).updateEntityStake();
-        inorder.verify(entityStakeRepository).getEndStakePeriod();
-        inorder.verify(entityStakeRepository).updated();
+        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).updateEntityStake(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
         inorder.verifyNoMoreInteractions();
         pool.shutdown();
     }

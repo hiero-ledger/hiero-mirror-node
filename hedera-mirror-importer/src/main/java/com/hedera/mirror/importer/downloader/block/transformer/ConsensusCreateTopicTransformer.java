@@ -19,11 +19,8 @@ final class ConsensusCreateTopicTransformer extends AbstractBlockItemTransformer
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        blockItem
-                .getStateChangeContext()
-                .getNewTopicId()
-                .map(receiptBuilder::setTopicID)
-                .orElseThrow();
+        receiptBuilder.setTopicID(
+                blockItem.getStateChangeContext().getNewTopicId().orElseThrow());
     }
 
     @Override

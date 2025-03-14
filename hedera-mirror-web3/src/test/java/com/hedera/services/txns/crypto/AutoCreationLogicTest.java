@@ -2,9 +2,9 @@
 
 package com.hedera.services.txns.crypto;
 
+import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
 import static com.hedera.services.jproto.JKey.mapKey;
 import static com.hedera.services.store.models.Id.fromGrpcToken;
-import static com.hedera.services.utils.EntityIdUtils.asEvmAddress;
 import static com.hedera.services.utils.IdUtils.asAccount;
 import static com.hedera.services.utils.IdUtils.asToken;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.NOT_SUPPORTED;
@@ -183,7 +183,7 @@ class AutoCreationLogicTest {
         verify(aliasManager)
                 .link(
                         Address.wrap(Bytes.wrap(evmAddressAlias.toByteArray())),
-                        Address.wrap(Bytes.wrap(asEvmAddress(CREATED))));
+                        Address.wrap(Bytes.wrap(toEvmAddress(CREATED))));
         verify(syntheticTxnFactory)
                 .createHollowAccount(eq(evmAddressAlias), eq(0L), maxAutoAssociationsCaptor.capture());
         assertThat(maxAutoAssociationsCaptor.getValue()).isEqualTo(expectedMaxAutoAssociations);
@@ -223,7 +223,7 @@ class AutoCreationLogicTest {
 
         assertEquals(INITIAL_TRANSFER, input.getAggregatedUnits());
         verify(aliasManager)
-                .maybeLinkEvmAddress(JKey.mapKey(aPrimitiveKey), Address.wrap(Bytes.wrap(asEvmAddress(CREATED))));
+                .maybeLinkEvmAddress(JKey.mapKey(aPrimitiveKey), Address.wrap(Bytes.wrap(toEvmAddress(CREATED))));
         assertEquals(Pair.of(OK, TOTAL_FEE), result);
         verify(syntheticTxnFactory)
                 .createAccount(eq(edKeyAlias), eq(aPrimitiveKey), eq(0L), maxAutoAssociationsCaptor.capture());

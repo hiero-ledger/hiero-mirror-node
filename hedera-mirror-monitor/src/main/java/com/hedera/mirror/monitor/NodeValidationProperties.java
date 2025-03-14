@@ -34,6 +34,12 @@ public class NodeValidationProperties {
     private Duration maxBackoff = Duration.ofSeconds(2);
 
     @Min(1)
+    private int maxEndpointsPerNode = 1;
+
+    @Min(1)
+    private int maxNodes = 30;
+
+    @Min(1)
     private int maxThreads = 25;
 
     @DurationMin(millis = 250)
@@ -59,9 +65,9 @@ public class NodeValidationProperties {
     @RequiredArgsConstructor
     public enum TlsMode {
         BOTH(n -> true),
-        PLAINTEXT(n -> n.getPort() != TLS_PORT),
-        TLS(n -> n.getPort() == TLS_PORT);
+        PLAINTEXT(port -> port != TLS_PORT),
+        TLS(port -> port == TLS_PORT);
 
-        private final Predicate<NodeProperties> predicate;
+        private final Predicate<Integer> predicate;
     }
 }

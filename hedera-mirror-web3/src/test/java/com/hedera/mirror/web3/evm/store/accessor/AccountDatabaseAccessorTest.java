@@ -275,7 +275,7 @@ class AccountDatabaseAccessorTest {
     @Test
     void cryptoAllowancesMatchValuesFromRepository() {
         when(entityDatabaseAccessor.get(ADDRESS, Optional.empty())).thenReturn(Optional.ofNullable(entity));
-        CryptoAllowance firstAllowance = new CryptoAllowance();
+        var firstAllowance = new CryptoAllowance();
         firstAllowance.setSpender(123L);
         firstAllowance.setOwner(entity.getId());
         firstAllowance.setAmount(50L);
@@ -289,8 +289,9 @@ class AccountDatabaseAccessorTest {
                 .thenReturn(Arrays.asList(firstAllowance, secondAllowance));
 
         SortedMap<EntityNum, Long> allowancesMap = new TreeMap<>();
-        allowancesMap.put(EntityNum.fromLong(firstAllowance.getSpender()), firstAllowance.getAmount());
-        allowancesMap.put(EntityNum.fromLong(secondAllowance.getSpender()), secondAllowance.getAmount());
+
+        allowancesMap.put(entityNumFromId(firstAllowance.getSpender()), firstAllowance.getAmount());
+        allowancesMap.put(entityNumFromId(secondAllowance.getSpender()), secondAllowance.getAmount());
 
         verify(cryptoAllowanceRepository, never()).findByOwner(entity.getId());
 
@@ -317,8 +318,8 @@ class AccountDatabaseAccessorTest {
                 .thenReturn(Arrays.asList(firstAllowance, secondAllowance));
 
         SortedMap<EntityNum, Long> allowancesMap = new TreeMap<>();
-        allowancesMap.put(EntityNum.fromLong(firstAllowance.getSpender()), firstAllowance.getAmount());
-        allowancesMap.put(EntityNum.fromLong(secondAllowance.getSpender()), secondAllowance.getAmount());
+        allowancesMap.put(entityNumFromId(firstAllowance.getSpender()), firstAllowance.getAmount());
+        allowancesMap.put(entityNumFromId(secondAllowance.getSpender()), secondAllowance.getAmount());
 
         verify(cryptoAllowanceRepository, never()).findByOwnerAndTimestamp(entity.getId(), timestamp.get());
 
@@ -349,13 +350,11 @@ class AccountDatabaseAccessorTest {
         SortedMap<FcTokenAllowanceId, Long> allowancesMap = new TreeMap<>();
         allowancesMap.put(
                 new FcTokenAllowanceId(
-                        EntityNum.fromLong(firstAllowance.getTokenId()),
-                        EntityNum.fromLong(firstAllowance.getSpender())),
+                        entityNumFromId(firstAllowance.getTokenId()), entityNumFromId(firstAllowance.getSpender())),
                 firstAllowance.getAmount());
         allowancesMap.put(
                 new FcTokenAllowanceId(
-                        EntityNum.fromLong(secondAllowance.getTokenId()),
-                        EntityNum.fromLong(secondAllowance.getSpender())),
+                        entityNumFromId(secondAllowance.getTokenId()), entityNumFromId(secondAllowance.getSpender())),
                 secondAllowance.getAmount());
 
         verify(tokenAllowanceRepository, never()).findByOwner(entity.getId());
@@ -387,13 +386,11 @@ class AccountDatabaseAccessorTest {
         SortedMap<FcTokenAllowanceId, Long> allowancesMap = new TreeMap<>();
         allowancesMap.put(
                 new FcTokenAllowanceId(
-                        EntityNum.fromLong(firstAllowance.getTokenId()),
-                        EntityNum.fromLong(firstAllowance.getSpender())),
+                        entityNumFromId(firstAllowance.getTokenId()), entityNumFromId(firstAllowance.getSpender())),
                 firstAllowance.getAmount());
         allowancesMap.put(
                 new FcTokenAllowanceId(
-                        EntityNum.fromLong(secondAllowance.getTokenId()),
-                        EntityNum.fromLong(secondAllowance.getSpender())),
+                        entityNumFromId(secondAllowance.getTokenId()), entityNumFromId(secondAllowance.getSpender())),
                 secondAllowance.getAmount());
 
         verify(tokenAllowanceRepository, never()).findByOwnerAndTimestamp(entity.getId(), timestamp.get());
@@ -422,9 +419,9 @@ class AccountDatabaseAccessorTest {
 
         SortedSet<FcTokenAllowanceId> allowancesSet = new TreeSet<>();
         allowancesSet.add(new FcTokenAllowanceId(
-                EntityNum.fromLong(firstAllowance.getTokenId()), EntityNum.fromLong(firstAllowance.getSpender())));
+                entityNumFromId(firstAllowance.getTokenId()), entityNumFromId(firstAllowance.getSpender())));
         allowancesSet.add(new FcTokenAllowanceId(
-                EntityNum.fromLong(secondAllowance.getTokenId()), EntityNum.fromLong(secondAllowance.getSpender())));
+                entityNumFromId(secondAllowance.getTokenId()), entityNumFromId(secondAllowance.getSpender())));
 
         verify(nftAllowanceRepository, never()).findByOwnerAndApprovedForAllIsTrue(entity.getId());
 
@@ -448,5 +445,9 @@ class AccountDatabaseAccessorTest {
 
         verify(tokenAccountRepository, times(1))
                 .countByAccountIdAndAssociatedGroupedByBalanceIsPositive(entity.getId());
+    }
+
+    private EntityNum entityNumFromId(long id) {
+        return EntityNum.fromEntityId(EntityId.of(id));
     }
 }

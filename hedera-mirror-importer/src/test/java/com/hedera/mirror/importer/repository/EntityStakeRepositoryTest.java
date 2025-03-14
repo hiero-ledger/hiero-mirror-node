@@ -11,12 +11,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.collect.Range;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.addressbook.NodeStake;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.AccountBalance.Id;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityStake;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.importer.ImporterIntegrationTest;
 import com.hedera.mirror.importer.TestUtils;
@@ -30,6 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -48,6 +51,16 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
     private final EntityRepository entityRepository;
     private final EntityStakeRepository entityStakeRepository;
     private final TransactionOperations transactionOperations;
+    private final CommonProperties commonProperties;
+
+    private long stakingRewardAccountId;
+
+    @BeforeEach
+    void setup() {
+        stakingRewardAccountId = SystemEntity.STAKING_REWARD_ACCOUNT
+                .getScopedEntityId(commonProperties)
+                .getId();
+    }
 
     @Test
     void createEntityStateStart() {
@@ -198,7 +211,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(List.of(
@@ -218,7 +231,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(List.of(expectedAccount2, expectedAccount3, expectedStackingRewardAccount));
@@ -246,7 +259,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(Collections.emptyList());
@@ -266,7 +279,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(Collections.emptyList());
@@ -294,7 +307,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(Collections.emptyList());
@@ -441,7 +454,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(List.of(expectedAlice, expectedStakingRewardAccount, expectedTreasury));
@@ -450,14 +463,16 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
     @Test
     void getEndStakePeriod() {
-        assertThat(entityStakeRepository.getEndStakePeriod()).isEmpty();
+        assertThat(entityStakeRepository.getEndStakePeriod(stakingRewardAccountId))
+                .isEmpty();
 
         long endStakePeriod = domainBuilder.number();
         domainBuilder
                 .entityStake()
                 .customize(es -> es.endStakePeriod(endStakePeriod).id(STAKING_REWARD_ACCOUNT))
                 .persist();
-        assertThat(entityStakeRepository.getEndStakePeriod()).contains(endStakePeriod);
+        assertThat(entityStakeRepository.getEndStakePeriod(stakingRewardAccountId))
+                .contains(endStakePeriod);
     }
 
     @SneakyThrows
@@ -532,7 +547,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         }
 
         // when
-        boolean actual = entityStakeRepository.updated();
+        boolean actual = entityStakeRepository.updated(stakingRewardAccountId);
 
         // then
         assertThat(actual).isEqualTo(expected);
@@ -624,8 +639,8 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab ->
-                        ab.balance(800L).id(new AccountBalance.Id(previousBalanceTimestamp, entity8.toEntityId())))
+                .customize(ab -> ab.balance(stakingRewardAccountId)
+                        .id(new AccountBalance.Id(previousBalanceTimestamp, entity8.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
@@ -659,8 +674,8 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart();
-            entityStakeRepository.updateEntityStake();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
         // then
@@ -722,8 +737,8 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart();
-            entityStakeRepository.updateEntityStake();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
         // then
@@ -821,8 +836,8 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart();
-            entityStakeRepository.updateEntityStake();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
         // then
@@ -924,8 +939,8 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart();
-            entityStakeRepository.updateEntityStake();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
         // then

@@ -6,13 +6,16 @@ import static com.hedera.mirror.common.domain.transaction.TransactionType.CONSEN
 import static com.hedera.mirror.common.domain.transaction.TransactionType.SCHEDULECREATE;
 import static com.hedera.mirror.common.domain.transaction.TransactionType.SCHEDULESIGN;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.EnumSet;
 import java.util.Set;
 import lombok.Data;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -23,7 +26,12 @@ public class EntityProperties {
 
     @NotNull
     @Valid
-    private PersistProperties persist = new PersistProperties();
+    private PersistProperties persist;
+
+    @Autowired
+    public EntityProperties(CommonProperties commonProperties) {
+        this.persist = new PersistProperties(commonProperties);
+    }
 
     @Data
     @Validated
@@ -47,7 +55,7 @@ public class EntityProperties {
          * A set of entity ids to exclude from entity_transaction table
          */
         @NotNull
-        private Set<EntityId> entityTransactionExclusion = Set.of(EntityId.of(98), EntityId.of(800));
+        private Set<EntityId> entityTransactionExclusion;
 
         private boolean entityTransactions = false;
 
@@ -102,6 +110,13 @@ public class EntityProperties {
 
         @NotNull
         private Set<TransactionType> transactionSignatures = EnumSet.of(SCHEDULECREATE, SCHEDULESIGN);
+
+        public PersistProperties(CommonProperties commonProperties) {
+            this.entityTransactionExclusion = Set.of(
+                    SystemEntity.FEE_COLLECTOR_ACCOUNT.getScopedEntityId(commonProperties),
+                    SystemEntity.STAKING_REWARD_ACCOUNT.getScopedEntityId(commonProperties),
+                    SystemEntity.NODE_REWARD_ACCOUNT.getScopedEntityId(commonProperties));
+        }
 
         public boolean isTokenAirdrops() {
             return tokenAirdrops && tokens;

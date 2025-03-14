@@ -184,7 +184,7 @@ public class AccountDatabaseAccessor extends DatabaseAccessor<Object, Account> {
     }
 
     private EntityNum entityNumFromId(EntityId entityId) {
-        return EntityNum.fromLong(entityId.getNum());
+        return EntityNum.fromEntityId(entityId);
     }
 
     private Supplier<TokenAccountBalances> getNumberOfAllAndPositiveBalanceTokenAssociations(
