@@ -2,10 +2,7 @@
 
 package com.hedera.mirror.common.config;
 
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.Resource;
 import java.util.Collection;
@@ -24,9 +21,6 @@ import org.springframework.test.context.jdbc.Sql;
 @Sql(executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD, scripts = "classpath:cleanup.sql")
 @SpringBootTest
 public abstract class CommonIntegrationTest {
-
-    public static final EntityId DEFAULT_TREASURY_ACCOUNT =
-            SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(new CommonProperties());
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 

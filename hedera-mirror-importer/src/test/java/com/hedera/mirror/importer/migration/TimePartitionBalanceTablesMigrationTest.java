@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.importer.migration;
 
+import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;

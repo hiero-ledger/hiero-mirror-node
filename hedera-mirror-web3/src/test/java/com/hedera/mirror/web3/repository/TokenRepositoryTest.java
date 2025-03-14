@@ -15,7 +15,6 @@ import com.hedera.mirror.common.domain.token.TokenTransfer;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -23,14 +22,9 @@ import org.junit.jupiter.params.provider.CsvSource;
 @RequiredArgsConstructor
 class TokenRepositoryTest extends Web3IntegrationTest {
 
+    private final CommonProperties commonProperties = CommonProperties.getInstance();
+
     private final TokenRepository tokenRepository;
-
-    private CommonProperties commonProperties;
-
-    @BeforeEach
-    void setup() {
-        commonProperties = new CommonProperties();
-    }
 
     @Test
     void findById() {

@@ -112,7 +112,7 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
     private static final long ONE_MONTH_IN_NS = Duration.ofDays(31).toNanos();
 
     private final AccountBalanceRepository accountBalanceRepository;
-    private final CommonProperties commonDownloaderProperties;
+    private final CommonProperties commonProperties;
     private final JdbcTemplate jdbcTemplate;
 
     @Modifying
@@ -130,7 +130,7 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
         long upperTimestamp = endPeriodTimestamp.get() + 1;
         long lowerTimestamp = upperTimestamp - ONE_MONTH_IN_NS;
         long treasuryAccountId = SystemEntity.TREASURY_ACCOUNT
-                .getScopedEntityId(commonDownloaderProperties)
+                .getScopedEntityId(commonProperties)
                 .getId();
         var balanceSnapshotTimestamp = accountBalanceRepository.getMaxConsensusTimestampInRange(
                 lowerTimestamp, upperTimestamp, treasuryAccountId);
