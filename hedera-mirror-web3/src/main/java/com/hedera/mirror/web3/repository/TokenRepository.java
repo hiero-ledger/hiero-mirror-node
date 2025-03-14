@@ -81,7 +81,7 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
                     with snapshot_timestamp as (
                       select consensus_timestamp
                       from account_balance
-                      where account_id = 2 and
+                      where account_id = ?3 and
                         consensus_timestamp <= ?2 and
                         consensus_timestamp > ?2 - 2678400000000000
                       order by consensus_timestamp desc
@@ -105,5 +105,5 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
                     select coalesce((select sum(balance) from snapshot), 0) + coalesce((select sum(amount) from change), 0)
                     """,
             nativeQuery = true)
-    long findFungibleTotalSupplyByTokenIdAndTimestamp(long tokenId, long blockTimestamp);
+    long findFungibleTotalSupplyByTokenIdAndTimestamp(long tokenId, long blockTimestamp, long treasuryAccountId);
 }

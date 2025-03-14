@@ -411,8 +411,7 @@ public class DomainBuilder {
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
-    public DomainWrapper<Entity, Entity.EntityBuilder<?, ?>> entity(long id, long createdTimestamp) {
-        var entityId = EntityId.of(id);
+    public DomainWrapper<Entity, Entity.EntityBuilder<?, ?>> entity(EntityId entityId, long createdTimestamp) {
         var builder = Entity.builder()
                 .alias(key())
                 .autoRenewAccountId(id())
@@ -425,7 +424,7 @@ public class DomainBuilder {
                 .ethereumNonce(1L)
                 .evmAddress(evmAddress())
                 .expirationTimestamp(createdTimestamp + 30_000_000L)
-                .id(id)
+                .id(entityId.getId())
                 .key(key())
                 .maxAutomaticTokenAssociations(1)
                 .memo(text(16))
@@ -442,6 +441,14 @@ public class DomainBuilder {
                 .type(ACCOUNT);
 
         return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<Entity, Entity.EntityBuilder<?, ?>> entity(long id, long createdTimestamp) {
+        return entity(EntityId.of(id), createdTimestamp);
+    }
+
+    public DomainWrapper<Entity, Entity.EntityBuilder<?, ?>> entity(EntityId entityId) {
+        return entity(entityId, timestamp());
     }
 
     public DomainWrapper<Entity, Entity.EntityBuilder<?, ?>> entity() {
@@ -856,10 +863,10 @@ public class DomainBuilder {
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
-    public DomainWrapper<TokenAccount, TokenAccount.TokenAccountBuilder<?, ?>> tokenAccount() {
+    public DomainWrapper<TokenAccount, TokenAccount.TokenAccountBuilder<?, ?>> tokenAccount(long shard, long realm) {
         long timestamp = timestamp();
         var builder = TokenAccount.builder()
-                .accountId(id())
+                .accountId(EntityId.of(shard, realm, id()).getId())
                 .automaticAssociation(false)
                 .associated(true)
                 .balance(number())
@@ -868,8 +875,12 @@ public class DomainBuilder {
                 .freezeStatus(null)
                 .kycStatus(null)
                 .timestampRange(Range.atLeast(timestamp))
-                .tokenId(id());
+                .tokenId(EntityId.of(shard, realm, id()).getId());
         return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<TokenAccount, TokenAccount.TokenAccountBuilder<?, ?>> tokenAccount() {
+        return tokenAccount(0, 0);
     }
 
     public DomainWrapper<TokenAccountHistory, TokenAccountHistory.TokenAccountHistoryBuilder<?, ?>>

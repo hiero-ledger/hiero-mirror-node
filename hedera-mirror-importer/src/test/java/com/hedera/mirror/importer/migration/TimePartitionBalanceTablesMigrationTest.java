@@ -2,13 +2,12 @@
 
 package com.hedera.mirror.importer.migration;
 
-import static com.hedera.mirror.importer.parser.domain.RecordItemBuilder.TREASURY;
+import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.importer.DisableRepeatableSqlMigration;
 import com.hedera.mirror.importer.EnabledIfV1;
 import com.hedera.mirror.importer.ImporterIntegrationTest;
@@ -103,7 +102,7 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
     @Test
     void migrate() {
         // given
-        var treasury = EntityId.of(TREASURY);
+        var treasury = DEFAULT_TREASURY_ACCOUNT;
         var account2 = domainBuilder.entityId();
         var account3 = domainBuilder.entityId();
         var account4 = domainBuilder.entityId();

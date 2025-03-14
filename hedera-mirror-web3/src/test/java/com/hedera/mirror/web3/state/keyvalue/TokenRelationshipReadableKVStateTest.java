@@ -13,6 +13,7 @@ import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.common.EntityIDPair;
 import com.hedera.hapi.node.state.token.TokenRelation;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.token.TokenAccount;
 import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
@@ -42,6 +43,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @SuppressWarnings("deprecation")
 class TokenRelationshipReadableKVStateTest {
 
+    private static final AccountID ACCOUNT_ID =
+            AccountID.newBuilder().shardNum(1L).realmNum(2L).accountNum(3L).build();
+    private static final TokenID TOKEN_ID =
+            TokenID.newBuilder().shardNum(4L).realmNum(5L).tokenNum(6L).build();
+    private static final Optional<Long> timestamp = Optional.of(1234L);
+    private static final long ACCOUNT_BALANCE = 3L;
+    private static MockedStatic<ContractCallContext> contextMockedStatic;
+
+    @Mock
+    private CommonProperties commonProperties;
+
     @InjectMocks
     private TokenRelationshipReadableKVState tokenRelationshipReadableKVState;
 
@@ -59,17 +71,6 @@ class TokenRelationshipReadableKVStateTest {
 
     @Spy
     private ContractCallContext contractCallContext;
-
-    private static final AccountID ACCOUNT_ID =
-            AccountID.newBuilder().shardNum(1L).realmNum(2L).accountNum(3L).build();
-    private static final TokenID TOKEN_ID =
-            TokenID.newBuilder().shardNum(4L).realmNum(5L).tokenNum(6L).build();
-
-    private static final Optional<Long> timestamp = Optional.of(1234L);
-
-    private static final long ACCOUNT_BALANCE = 3L;
-
-    private static MockedStatic<ContractCallContext> contextMockedStatic;
 
     private DomainBuilder domainBuilder;
 
@@ -187,7 +188,7 @@ class TokenRelationshipReadableKVStateTest {
         when(tokenRepository.findTypeByTokenId(anyLong())).thenReturn(Optional.of(TokenTypeEnum.FUNGIBLE_COMMON));
         when(tokenAccountRepository.findByIdAndTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(tokenAccount));
-        when(tokenBalanceRepository.findHistoricalTokenBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
+        when(tokenBalanceRepository.findHistoricalTokenBalanceUpToTimestamp(anyLong(), anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(ACCOUNT_BALANCE));
         assertThat(tokenRelationshipReadableKVState.get(entityIDPair)).isEqualTo(expected);
     }

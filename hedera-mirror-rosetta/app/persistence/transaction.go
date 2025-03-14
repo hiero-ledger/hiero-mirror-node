@@ -29,7 +29,7 @@ const (
 	andTransactionHashFilter  = " and transaction_hash = @hash"
 	orderByConsensusTimestamp = " order by consensus_timestamp"
 	// selectTransactionsInTimestampRange selects the transactions with its crypto transfers in json.
-	selectTransactionsInTimestampRange = "with" + genesisTimestampCte + `select
+	selectTransactionsInTimestampRange = `select
                                             t.consensus_timestamp,
                                             t.entity_id,
                                             t.itemized_transfer,
@@ -58,8 +58,6 @@ const (
 	selectTransactionsByHashInTimestampRange  = selectTransactionsInTimestampRange + andTransactionHashFilter
 	selectTransactionsInTimestampRangeOrdered = selectTransactionsInTimestampRange + orderByConsensusTimestamp
 )
-
-var stakingRewardAccountId = domain.MustDecodeEntityId(800)
 
 // transaction maps to the transaction query which returns the required transaction fields, CryptoTransfers json string,
 // and itemizedTransfers json string.
@@ -100,14 +98,15 @@ func (t hbarTransfer) getAmount() types.Amount {
 
 // transactionRepository struct that has connection to the Database
 type transactionRepository struct {
-	once     sync.Once
-	dbClient interfaces.DbClient
-	types    map[int]string
+	once                  sync.Once
+	dbClient              interfaces.DbClient
+	stakingRewardEntityId domain.EntityId
+	types                 map[int]string
 }
 
 // NewTransactionRepository creates an instance of a TransactionRepository struct
-func NewTransactionRepository(dbClient interfaces.DbClient) interfaces.TransactionRepository {
-	return &transactionRepository{dbClient: dbClient}
+func NewTransactionRepository(dbClient interfaces.DbClient, stakingRewardEntityId domain.EntityId) interfaces.TransactionRepository {
+	return &transactionRepository{dbClient: dbClient, stakingRewardEntityId: stakingRewardEntityId}
 }
 
 func (tr *transactionRepository) FindBetween(ctx context.Context, start, end int64) (
@@ -236,6 +235,7 @@ func (tr *transactionRepository) constructTransaction(sameHashTransactions []*tr
 		feeHbarTransfers, itemizedTransfers, stakingRewardTransfers = categorizeHbarTransfers(
 			cryptoTransfers,
 			transaction.ItemizedTransfer,
+			tr.stakingRewardEntityId,
 			stakingRewardPayouts,
 		)
 
@@ -300,7 +300,7 @@ func (tr *transactionRepository) appendTransferOperations(
 	return operations
 }
 
-func categorizeHbarTransfers(hbarTransfers []hbarTransfer, itemizedTransfer domain.ItemizedTransferSlice, stakingRewardPayouts []hbarTransfer) (
+func categorizeHbarTransfers(hbarTransfers []hbarTransfer, itemizedTransfer domain.ItemizedTransferSlice, stackingRewardEntityId domain.EntityId, stakingRewardPayouts []hbarTransfer) (
 	feeHbarTransfers, adjustedItemizedTransfers, stakingRewardTransfers []hbarTransfer,
 ) {
 	entityIds := make(map[int64]struct{})
@@ -314,7 +314,7 @@ func categorizeHbarTransfers(hbarTransfers []hbarTransfer, itemizedTransfer doma
 		// skip itemized transfer whose entity id is not in the transaction record's transfer list. One exception is
 		// we always add itemized transfers to the staking reward account if there are staking reward payouts
 		_, exists := entityIds[entityId]
-		if exists || (entityId == stakingRewardAccountId.EncodedId && len(stakingRewardPayouts) != 0) {
+		if exists || (entityId == stackingRewardEntityId.EncodedId && len(stakingRewardPayouts) != 0) {
 			adjustedItemizedTransfers = append(adjustedItemizedTransfers, hbarTransfer{
 				AccountId: transfer.EntityId,
 				Amount:    transfer.Amount,
@@ -332,7 +332,7 @@ func categorizeHbarTransfers(hbarTransfers []hbarTransfer, itemizedTransfer doma
 
 	if rewardPayoutTotal != 0 {
 		stakingRewardTransfers = append(stakingRewardTransfers, hbarTransfer{
-			AccountId: stakingRewardAccountId,
+			AccountId: stackingRewardEntityId,
 			Amount:    rewardPayoutTotal,
 		})
 	}

@@ -55,7 +55,7 @@ public interface TokenBalanceRepository extends CrudRepository<TokenBalance, Tok
                     with balance_timestamp as (
                     select consensus_timestamp
                     from account_balance
-                    where account_id = 2 and
+                    where account_id = ?4 and
                         consensus_timestamp > ?3 - 2678400000000000 and consensus_timestamp <= ?3
                     order by consensus_timestamp desc
                     limit 1
@@ -81,5 +81,6 @@ public interface TokenBalanceRepository extends CrudRepository<TokenBalance, Tok
                     select coalesce((select balance from base), 0) + coalesce((select amount from change), 0)
                     """,
             nativeQuery = true)
-    Optional<Long> findHistoricalTokenBalanceUpToTimestamp(long tokenId, long accountId, long blockTimestamp);
+    Optional<Long> findHistoricalTokenBalanceUpToTimestamp(
+            long tokenId, long accountId, long blockTimestamp, long treasuryAccountId);
 }

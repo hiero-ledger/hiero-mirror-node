@@ -11,9 +11,10 @@ import lombok.Getter;
 public enum SystemEntity {
     ADDRESS_BOOK_101(101L),
     ADDRESS_BOOK_102(102L),
-    FEE_COLLECTOR(98L),
+    FEE_COLLECTOR_ACCOUNT(98L),
+    NODE_REWARD_ACCOUNT(801L),
     STAKING_REWARD_ACCOUNT(800L),
-    NODE_REWARD_ACCOUNT(801L);
+    TREASURY_ACCOUNT(2L);
 
     private final long num;
 

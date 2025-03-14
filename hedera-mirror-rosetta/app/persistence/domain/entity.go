@@ -5,11 +5,7 @@ package domain
 import "github.com/jackc/pgtype"
 
 const (
-	EntityTypeAccount  = "ACCOUNT"
-	EntityTypeFile     = "FILE"
-	EntityTypeSchedule = "SCHEDULE"
-	EntityTypeToken    = "TOKEN"
-	EntityTypeTopic    = "TOPIC"
+	EntityTypeAccount = "ACCOUNT"
 
 	entityTableName        = "entity"
 	entityHistoryTableName = "entity_history"

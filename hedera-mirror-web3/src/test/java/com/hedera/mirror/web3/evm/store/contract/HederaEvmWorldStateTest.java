@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.ContextExtension;
 import com.hedera.mirror.web3.evm.account.MirrorEvmContractAliases;
 import com.hedera.mirror.web3.evm.store.StackedStateFrames;
@@ -102,11 +103,18 @@ class HederaEvmWorldStateTest {
 
     @BeforeEach
     void setUp() {
+        var commProperties = new CommonProperties();
         final var accountDatabaseAccessor =
-                new AccountDatabaseAccessor(entityDatabaseAccessor, null, null, null, null, null, null);
+                new AccountDatabaseAccessor(commProperties, entityDatabaseAccessor, null, null, null, null, null, null);
         final var tokenDatabaseAccessor = new TokenDatabaseAccessor(
-                tokenRepository, entityDatabaseAccessor, entityRepository, customFeeDatabaseAccessor, nftRepository);
+                commProperties,
+                tokenRepository,
+                entityDatabaseAccessor,
+                entityRepository,
+                customFeeDatabaseAccessor,
+                nftRepository);
         final var tokenRelationshipDatabaseAccessor = new TokenRelationshipDatabaseAccessor(
+                commProperties,
                 tokenDatabaseAccessor,
                 accountDatabaseAccessor,
                 tokenAccountRepository,

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
 import com.hedera.mirror.importer.db.TimePartitionService;
 import com.hedera.mirror.importer.downloader.balance.BalanceDownloaderProperties;
@@ -31,70 +32,72 @@ class HistoricalBalanceServiceTest {
 
     @Test
     void concurrentOnRecordFileParsed() {
-        // given
-        var accountBalanceFileRepository = mock(AccountBalanceFileRepository.class);
-        var accountBalanceRepository = mock(AccountBalanceRepository.class);
-        var balanceDownloaderProperties = mock(BalanceDownloaderProperties.class);
-        var platformTransactionManager = mock(PlatformTransactionManager.class);
-        var recordFileRepository = mock(RecordFileRepository.class);
-        var timePartitionService = mock(TimePartitionService.class);
-        var tokenBalanceRepository = mock(TokenBalanceRepository.class);
-        var pool = Executors.newFixedThreadPool(2);
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            // given
+            var accountBalanceFileRepository = mock(AccountBalanceFileRepository.class);
+            var accountBalanceRepository = mock(AccountBalanceRepository.class);
+            var balanceDownloaderProperties = mock(BalanceDownloaderProperties.class);
+            var platformTransactionManager = mock(PlatformTransactionManager.class);
+            var recordFileRepository = mock(RecordFileRepository.class);
+            var timePartitionService = mock(TimePartitionService.class);
+            var tokenBalanceRepository = mock(TokenBalanceRepository.class);
 
-        long lastBalanceTimestamp = 100;
-        when(accountBalanceFileRepository.findLatest())
-                .thenReturn(Optional.of(AccountBalanceFile.builder()
-                        .consensusTimestamp(lastBalanceTimestamp)
-                        .build()));
-        var semaphore = new Semaphore(0);
-        when(recordFileRepository.findLatest()).thenAnswer(invocation -> {
-            semaphore.acquire();
-            return Optional.empty();
-        });
-        var historicalBalanceProperties = new HistoricalBalanceProperties(balanceDownloaderProperties);
-        var service = new HistoricalBalanceService(
-                accountBalanceFileRepository,
-                accountBalanceRepository,
-                new SimpleMeterRegistry(),
-                platformTransactionManager,
-                historicalBalanceProperties,
-                recordFileRepository,
-                timePartitionService,
-                tokenBalanceRepository);
+            long lastBalanceTimestamp = 100;
+            when(accountBalanceFileRepository.findLatest())
+                    .thenReturn(Optional.of(AccountBalanceFile.builder()
+                            .consensusTimestamp(lastBalanceTimestamp)
+                            .build()));
+            var semaphore = new Semaphore(0);
+            when(recordFileRepository.findLatest()).thenAnswer(invocation -> {
+                semaphore.acquire();
+                return Optional.empty();
+            });
+            var historicalBalanceProperties = new HistoricalBalanceProperties(balanceDownloaderProperties);
+            var service = new HistoricalBalanceService(
+                    accountBalanceFileRepository,
+                    accountBalanceRepository,
+                    new CommonProperties(),
+                    new SimpleMeterRegistry(),
+                    platformTransactionManager,
+                    historicalBalanceProperties,
+                    recordFileRepository,
+                    timePartitionService,
+                    tokenBalanceRepository);
 
-        // when
-        var event = new RecordFileParsedEvent(
-                this,
-                lastBalanceTimestamp
-                        + historicalBalanceProperties.getMinFrequency().toNanos());
-        Runnable runnable = () -> service.onRecordFileParsed(event);
-        var task1 = pool.submit(runnable);
-        var task2 = pool.submit(runnable);
+            // when
+            var event = new RecordFileParsedEvent(
+                    this,
+                    lastBalanceTimestamp
+                            + historicalBalanceProperties.getMinFrequency().toNanos());
+            Runnable runnable = () -> service.onRecordFileParsed(event);
+            var task1 = pool.submit(runnable);
+            var task2 = pool.submit(runnable);
 
-        // then
-        // verify that only one task is done
-        await().pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
-                .atMost(Durations.TWO_SECONDS)
-                .until(() -> task1.isDone() ^ task2.isDone());
-        // unblock the remaining task
-        semaphore.release();
+            // then
+            // verify that only one task is done
+            await().pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
+                    .atMost(Durations.TWO_SECONDS)
+                    .until(() -> task1.isDone() ^ task2.isDone());
+            // unblock the remaining task
+            semaphore.release();
 
-        // then
-        await().pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
-                .atMost(Durations.TWO_SECONDS)
-                .until(() -> task1.isDone() && task2.isDone());
-        // only one findLatest call
-        verify(recordFileRepository).findLatest();
+            // then
+            await().pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
+                    .atMost(Durations.TWO_SECONDS)
+                    .until(() -> task1.isDone() && task2.isDone());
+            // only one findLatest call
+            verify(recordFileRepository).findLatest();
 
-        // when
-        // run it again
-        var task3 = pool.submit(runnable);
-        semaphore.release();
+            // when
+            // run it again
+            var task3 = pool.submit(runnable);
+            semaphore.release();
 
-        // then
-        await().pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
-                .atMost(Durations.TWO_SECONDS)
-                .until(task3::isDone);
-        verify(recordFileRepository, times(2)).findLatest();
+            // then
+            await().pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
+                    .atMost(Durations.TWO_SECONDS)
+                    .until(task3::isDone);
+            verify(recordFileRepository, times(2)).findLatest();
+        }
     }
 }

@@ -2,11 +2,13 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
+import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
 import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
@@ -31,6 +33,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class TokenRelationshipDatabaseAccessorTest {
+
+    @Mock
+    private CommonProperties commonProperties;
+
     @InjectMocks
     TokenRelationshipDatabaseAccessor tokenRelationshipDatabaseAccessor;
 
@@ -197,7 +203,10 @@ class TokenRelationshipDatabaseAccessorTest {
                         tokenAccount.getAccountId(), tokenAccount.getTokenId(), timestamp.get()))
                 .thenReturn(Optional.of(tokenAccount));
         when(tokenBalanceRepository.findHistoricalTokenBalanceUpToTimestamp(
-                        tokenAccount.getTokenId(), tokenAccount.getAccountId(), timestamp.get()))
+                        tokenAccount.getTokenId(),
+                        tokenAccount.getAccountId(),
+                        timestamp.get(),
+                        DEFAULT_TREASURY_ACCOUNT.getId()))
                 .thenReturn(Optional.of(balance));
         when(token.getType()).thenReturn(TokenType.FUNGIBLE_COMMON);
 

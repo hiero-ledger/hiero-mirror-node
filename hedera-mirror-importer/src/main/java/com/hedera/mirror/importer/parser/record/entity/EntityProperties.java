@@ -113,7 +113,7 @@ public class EntityProperties {
 
         public PersistProperties(CommonProperties commonProperties) {
             this.entityTransactionExclusion = Set.of(
-                    SystemEntity.FEE_COLLECTOR.getScopedEntityId(commonProperties),
+                    SystemEntity.FEE_COLLECTOR_ACCOUNT.getScopedEntityId(commonProperties),
                     SystemEntity.STAKING_REWARD_ACCOUNT.getScopedEntityId(commonProperties),
                     SystemEntity.NODE_REWARD_ACCOUNT.getScopedEntityId(commonProperties));
         }

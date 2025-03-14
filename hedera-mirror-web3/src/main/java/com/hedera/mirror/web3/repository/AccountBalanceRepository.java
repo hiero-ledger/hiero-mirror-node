@@ -65,7 +65,7 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
                     with balance_timestamp as (
                         select consensus_timestamp
                         from account_balance
-                        where account_id = 2 and
+                        where account_id = ?3 and
                             consensus_timestamp > ?2 - 2678400000000000 and
                             consensus_timestamp <= ?2
                         order by consensus_timestamp desc
@@ -89,5 +89,6 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
                     select coalesce((select balance from balance_snapshot), 0) + coalesce((select amount from change), 0)
                     """,
             nativeQuery = true)
-    Optional<Long> findHistoricalAccountBalanceUpToTimestamp(long accountId, long blockTimestamp);
+    Optional<Long> findHistoricalAccountBalanceUpToTimestamp(
+            long accountId, long blockTimestamp, long treasuryAccountId);
 }

@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
@@ -125,11 +126,13 @@ class TokenAccessorImplTest {
 
     @BeforeEach
     void setUp() {
+        final var commonProperties = new CommonProperties();
         final var entityAccessor = new EntityDatabaseAccessor(entityRepository);
         final var customFeeAccessor = new CustomFeeDatabaseAccessor(customFeeRepository, entityAccessor);
         final var tokenDatabaseAccessor = new TokenDatabaseAccessor(
-                tokenRepository, entityAccessor, entityRepository, customFeeAccessor, nftRepository);
+                commonProperties, tokenRepository, entityAccessor, entityRepository, customFeeAccessor, nftRepository);
         final var accountDatabaseAccessor = new AccountDatabaseAccessor(
+                commonProperties,
                 entityAccessor,
                 nftAllowanceRepository,
                 nftRepository,
@@ -143,6 +146,7 @@ class TokenAccessorImplTest {
                 accountDatabaseAccessor,
                 tokenDatabaseAccessor,
                 new TokenRelationshipDatabaseAccessor(
+                        commonProperties,
                         tokenDatabaseAccessor,
                         accountDatabaseAccessor,
                         tokenAccountRepository,

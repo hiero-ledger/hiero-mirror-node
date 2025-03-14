@@ -2,15 +2,17 @@
 
 package com.hedera.mirror.importer.repository;
 
-import static com.hedera.mirror.importer.parser.domain.RecordItemBuilder.TREASURY;
+import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.importer.ImporterIntegrationTest;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +20,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 @RequiredArgsConstructor
 class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
@@ -28,7 +32,8 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
     @Test
     void balanceSnapshot() {
         long timestamp = 100;
-        assertThat(accountBalanceRepository.balanceSnapshot(timestamp)).isZero();
+        assertThat(accountBalanceRepository.balanceSnapshot(timestamp, DEFAULT_TREASURY_ACCOUNT.getId()))
+                .isZero();
         assertThat(accountBalanceRepository.findAll()).isEmpty();
 
         var account = domainBuilder.entity().persist();
@@ -58,27 +63,38 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
                         .id(new AccountBalance.Id(timestamp, e.toEntityId()))
                         .build())
                 .toList();
-        assertThat(accountBalanceRepository.balanceSnapshot(timestamp)).isEqualTo(expected.size());
+        assertThat(accountBalanceRepository.balanceSnapshot(timestamp, DEFAULT_TREASURY_ACCOUNT.getId()))
+                .isEqualTo(expected.size());
         assertThat(accountBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
     }
 
-    @Test
-    void balanceSnapshotWithDeletedAccounts() {
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 0
+            1023, 100
+            """)
+    void balanceSnapshotWithDeletedAccounts(long shard, long realm) {
         // given
+        var commonProperties = new CommonProperties();
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
         long lastSnapshotTimestamp = domainBuilder.timestamp();
+        var treasury = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
         var treasuryAccountBalance = domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(lastSnapshotTimestamp, EntityId.of(TREASURY))))
+                .customize(ab -> ab.id(new AccountBalance.Id(lastSnapshotTimestamp, treasury)))
                 .persist();
         // deleted before last snapshot, will not appear in full snapshot
         domainBuilder
-                .entity()
+                .entity(EntityId.of(shard, realm, domainBuilder.id()))
                 .customize(e -> e.balance(0L)
                         .balanceTimestamp(lastSnapshotTimestamp - 1)
                         .deleted(true)
                         .timestampRange(Range.atLeast(lastSnapshotTimestamp - 1)))
                 .persist();
-        var account = domainBuilder.entity().persist();
+        var account = domainBuilder
+                .entity(EntityId.of(shard, realm, domainBuilder.id()))
+                .persist();
         var deletedAccount = domainBuilder
                 .entity()
                 .customize(e -> e.balance(0L).deleted(true))
@@ -90,45 +106,56 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
                 buildAccountBalance(deletedAccount, newSnapshotTimestamp));
 
         // when
-        accountBalanceRepository.balanceSnapshot(newSnapshotTimestamp);
+        accountBalanceRepository.balanceSnapshot(newSnapshotTimestamp, treasury.getId());
 
         // then
         assertThat(accountBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
     }
 
-    @Test
-    void balanceSnapshotDeduplicate() {
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 0
+            1023, 100
+            """)
+    void balanceSnapshotDeduplicate(long shard, long realm) {
+        var commonProperties = new CommonProperties();
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
         long lowerRangeTimestamp = 0L;
         long timestamp = 100;
-        assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(lowerRangeTimestamp, timestamp))
+        var treasury = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(
+                        lowerRangeTimestamp, timestamp, treasury.getId()))
                 .isZero();
         assertThat(accountBalanceRepository.findAll()).isEmpty();
 
         // 0.0.2 is always included in the balance snapshot regardless of balance timestamp
         var treasuryAccount = domainBuilder
-                .entity()
-                .customize(e -> e.id(2L).num(2L).balanceTimestamp(1L))
+                .entity(treasury)
+                .customize(e -> e.balanceTimestamp(1L))
                 .persist();
-        var account =
-                domainBuilder.entity().customize(e -> e.balanceTimestamp(1L)).persist();
+        var account = domainBuilder
+                .entity(EntityId.of(shard, realm, domainBuilder.id()))
+                .customize(e -> e.balanceTimestamp(1L))
+                .persist();
         var contract = domainBuilder
-                .entity()
+                .entity(EntityId.of(shard, realm, domainBuilder.id()))
                 .customize(e -> e.balanceTimestamp(1L).deleted(null).type(EntityType.CONTRACT))
                 .persist();
         domainBuilder
-                .entity()
+                .entity(EntityId.of(shard, realm, domainBuilder.id()))
                 .customize(e -> e.balance(null).balanceTimestamp(null))
                 .persist();
         var fileWithBalance = domainBuilder
-                .entity()
+                .entity(EntityId.of(shard, realm, domainBuilder.id()))
                 .customize(e -> e.balanceTimestamp(1L).type(EntityType.FILE))
                 .persist();
         var unknownWithBalance = domainBuilder
-                .entity()
+                .entity(EntityId.of(shard, realm, domainBuilder.id()))
                 .customize(e -> e.balanceTimestamp(1L).type(EntityType.UNKNOWN))
                 .persist();
         domainBuilder
-                .entity()
+                .entity(EntityId.of(shard, realm, domainBuilder.id()))
                 .customize(e -> e.balance(null).balanceTimestamp(null).type(EntityType.TOPIC))
                 .persist();
 
@@ -137,13 +164,14 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
                 .collect(Collectors.toList());
 
         // Update Balance Snapshot includes all balances
-        assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(lowerRangeTimestamp, timestamp))
+        assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(
+                        lowerRangeTimestamp, timestamp, treasury.getId()))
                 .isEqualTo(expected.size());
         assertThat(accountBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
 
         expected.add(buildAccountBalance(treasuryAccount, timestamp + 1));
         // Update will always insert an entry for the treasuryAccount
-        assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(timestamp, timestamp + 1))
+        assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(timestamp, timestamp + 1, treasury.getId()))
                 .isOne();
         assertThat(accountBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
 
@@ -155,7 +183,7 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
         expected.add(buildAccountBalance(treasuryAccount, timestamp2));
 
         // Insert the new entry for account and also insert an entry for the treasuryAccount
-        assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(timestamp, timestamp2))
+        assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(timestamp, timestamp2, treasury.getId()))
                 .isEqualTo(2);
         assertThat(accountBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
 
@@ -170,7 +198,7 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
         entityRepository.save(treasuryAccount);
         expected.add(buildAccountBalance(treasuryAccount, timestamp3));
         // Updates only account2 and treasuryAccount
-        assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(timestamp2, timestamp3))
+        assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(timestamp2, timestamp3, treasury.getId()))
                 .isEqualTo(2);
         assertThat(accountBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
 
@@ -180,50 +208,54 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
         entityRepository.save(account);
         expected.add(buildAccountBalance(treasuryAccount, timestamp4));
         // Update with timestamp equal to the max consensus timestamp, only the treasury account will be updated
-        assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(timestamp4, timestamp4))
+        assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(timestamp4, timestamp4, treasury.getId()))
                 .isOne();
         assertThat(accountBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
     }
 
-    @Test
-    void getMaxConsensusTimestampInRange() {
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 0
+            1023, 100
+            """)
+    void getMaxConsensusTimestampInRange(long shard, long realm) {
         // With no account balances present the max consensus timestamp is 0
-        assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(0L, 10L))
+        var commonProperties = new CommonProperties();
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
+        var treasury = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(0L, 10L, treasury.getId()))
                 .isEmpty();
 
         domainBuilder
                 .accountBalance()
-                .customize(a -> a.id(new AccountBalance.Id(5L, EntityId.of(1))))
+                .customize(a -> a.id(new AccountBalance.Id(5L, EntityId.of(shard, realm, 1))))
                 .persist();
         // With no treasury account present the max consensus timestamp is empty
-        assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(0L, 10L))
+        assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(0L, 10L, treasury.getId()))
                 .isEmpty();
 
-        var treasuryId = EntityId.of(2);
         domainBuilder
                 .accountBalance()
-                .customize(a -> a.id(new AccountBalance.Id(3L, treasuryId)))
+                .customize(a -> a.id(new AccountBalance.Id(3L, treasury)))
                 .persist();
-        assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(0L, 10L))
-                .get()
-                .isEqualTo(3L);
+        assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(0L, 10L, treasury.getId()))
+                .contains(3L);
 
         // Only the max timestamp is returned
         domainBuilder
                 .accountBalance()
-                .customize(a -> a.id(new AccountBalance.Id(5L, treasuryId)))
+                .customize(a -> a.id(new AccountBalance.Id(5L, treasury)))
                 .persist();
-        assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(0L, 10L))
-                .get()
-                .isEqualTo(5L);
+        assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(0L, 10L, treasury.getId()))
+                .contains(5L);
 
         // Only the timestamp within the range is returned, also verifies lower is inclusive and upper is exclusive
-        assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(3L, 5L))
-                .get()
-                .isEqualTo(3L);
+        assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(3L, 5L, treasury.getId()))
+                .contains(3L);
 
         // Outside the lower range
-        assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(10L, 20L))
+        assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(10L, 20L, treasury.getId()))
                 .isEmpty();
     }
 
