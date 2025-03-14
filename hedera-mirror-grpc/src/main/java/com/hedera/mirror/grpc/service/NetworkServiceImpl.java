@@ -2,22 +2,26 @@
 
 package com.hedera.mirror.grpc.service;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.grpc.domain.AddressBookFilter;
 import com.hedera.mirror.grpc.exception.EntityNotFoundException;
 import com.hedera.mirror.grpc.repository.AddressBookEntryRepository;
 import com.hedera.mirror.grpc.repository.AddressBookRepository;
 import com.hedera.mirror.grpc.repository.NodeStakeRepository;
 import jakarta.inject.Named;
-import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import lombok.AccessLevel;
 import lombok.CustomLog;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -36,21 +40,26 @@ public class NetworkServiceImpl implements NetworkService {
 
     static final String INVALID_FILE_ID = "Not a valid address book file";
     private static final long NODE_STAKE_EMPTY_TABLE_TIMESTAMP = 0L;
-    private static final Collection<EntityId> VALID_FILE_IDS =
-            Set.of(EntityId.of(0L, 0L, 101L), EntityId.of(0L, 0L, 102L));
 
     private final AddressBookProperties addressBookProperties;
     private final AddressBookRepository addressBookRepository;
     private final AddressBookEntryRepository addressBookEntryRepository;
+    private final CommonProperties commonProperties;
     private final NodeStakeRepository nodeStakeRepository;
 
     @Qualifier("readOnly")
     private final TransactionOperations transactionOperations;
 
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
+    private final Set<EntityId> validFileIds =
+            Set.of(SystemEntity.ADDRESS_BOOK_101, SystemEntity.ADDRESS_BOOK_102).stream()
+                    .map(s -> s.getScopedEntityId(commonProperties))
+                    .collect(Collectors.toUnmodifiableSet());
+
     @Override
     public Flux<AddressBookEntry> getNodes(AddressBookFilter filter) {
         var fileId = filter.getFileId();
-        if (!VALID_FILE_IDS.contains(fileId)) {
+        if (!getValidFileIds().contains(fileId)) {
             throw new IllegalArgumentException(INVALID_FILE_ID);
         }
 

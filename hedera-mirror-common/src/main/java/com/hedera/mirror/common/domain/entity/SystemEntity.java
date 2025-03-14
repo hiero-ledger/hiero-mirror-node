@@ -9,10 +9,12 @@ import lombok.Getter;
 @AllArgsConstructor
 @Getter
 public enum SystemEntity {
-    FEE_COLLECTOR_ACCOUNT(98),
-    NODE_REWARD_ACCOUNT(801),
-    STAKING_REWARD_ACCOUNT(800),
-    TREASURY_ACCOUNT(2);
+    ADDRESS_BOOK_101(101L),
+    ADDRESS_BOOK_102(102L),
+    FEE_COLLECTOR_ACCOUNT(98L),
+    NODE_REWARD_ACCOUNT(801L),
+    STAKING_REWARD_ACCOUNT(800L),
+    TREASURY_ACCOUNT(2L);
 
     private final long num;
 
