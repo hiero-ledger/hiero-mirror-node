@@ -44,7 +44,15 @@ class CloudStorageConfiguration {
 
     @Bean
     List<StreamFileProvider> streamFileProviders() {
-        log.info("Configured to download from bucket {}", commonDownloaderProperties.getBucketName());
+        if (StringUtils.isBlank(commonDownloaderProperties.getPathPrefix())) {
+            log.info("Configured to download from bucket {}", commonDownloaderProperties.getBucketName());
+        } else {
+            log.info(
+                    "Configured to download from bucket {} with path prefix {}",
+                    commonDownloaderProperties.getBucketName(),
+                    commonDownloaderProperties.getPathPrefix());
+        }
+
         var providers = new ArrayList<StreamFileProvider>();
 
         for (var source : commonDownloaderProperties.getSources()) {

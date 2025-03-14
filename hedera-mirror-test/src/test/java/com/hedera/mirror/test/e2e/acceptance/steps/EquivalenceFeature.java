@@ -82,7 +82,7 @@ public class EquivalenceFeature extends AbstractFeature {
     @Then("I execute selfdestruct and set beneficiary to {string} address")
     public void selfDestructAndSetBeneficiary(String beneficiary) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        var accountId = new AccountId(extractAccountNumber(beneficiary));
+        var accountId = AccountId.fromString(beneficiary);
 
         var data = encodeData(EQUIVALENCE_DESTRUCT, DESTROY_CONTRACT, asAddress(accountId));
         var functionResult = callContract(
@@ -109,7 +109,7 @@ public class EquivalenceFeature extends AbstractFeature {
     @Then("I execute balance opcode to system account {string} address would return 0")
     public void balanceOfAddress(String address) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        final var accountId = new AccountId(extractAccountNumber(address));
+        final var accountId = AccountId.fromString(address);
         var data = encodeData(EQUIVALENCE_CALL, GET_BALANCE, asAddress(accountId));
         var functionResult =
                 callContract(nodeType, StringUtils.EMPTY, EQUIVALENCE_CALL, GET_BALANCE, data, BIG_INTEGER_TUPLE);
@@ -128,7 +128,7 @@ public class EquivalenceFeature extends AbstractFeature {
     @Then("I verify extcodesize opcode against a system account {string} address returns 0")
     public void extCodeSizeAgainstSystemAccount(String address) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        final var accountId = new AccountId(extractAccountNumber(address));
+        final var accountId = AccountId.fromString(address);
         var data = encodeData(EQUIVALENCE_CALL, GET_CODE_SIZE, asAddress(accountId));
         var functionResult =
                 callContract(nodeType, StringUtils.EMPTY, EQUIVALENCE_CALL, GET_CODE_SIZE, data, BIG_INTEGER_TUPLE);
@@ -138,7 +138,7 @@ public class EquivalenceFeature extends AbstractFeature {
     @Then("I verify extcodecopy opcode against a system account {string} address returns empty bytes")
     public void extCodeCopyAgainstSystemAccount(String address) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        final var accountId = new AccountId(extractAccountNumber(address));
+        final var accountId = AccountId.fromString(address);
         var data = encodeData(EQUIVALENCE_CALL, COPY_CODE, asAddress(accountId));
         var functionResult = callContract(nodeType, StringUtils.EMPTY, EQUIVALENCE_CALL, COPY_CODE, data, BYTES_TUPLE);
         assertThat(functionResult.getResultAsText()).isEmpty();
@@ -147,7 +147,7 @@ public class EquivalenceFeature extends AbstractFeature {
     @Then("I verify extcodehash opcode against a system account {string} address returns empty bytes")
     public void extCodeHashAgainstSystemAccount(String address) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        final var accountId = new AccountId(extractAccountNumber(address));
+        final var accountId = AccountId.fromString(address);
         var data = encodeData(EQUIVALENCE_CALL, GET_CODE_HASH, asAddress(accountId));
         var functionResult =
                 callContract(nodeType, StringUtils.EMPTY, EQUIVALENCE_CALL, GET_CODE_HASH, data, BYTES_TUPLE);

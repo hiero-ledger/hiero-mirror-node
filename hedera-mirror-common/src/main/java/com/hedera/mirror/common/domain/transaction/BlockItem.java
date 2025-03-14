@@ -12,6 +12,7 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Transaction;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -62,13 +63,8 @@ public class BlockItem implements StreamItem {
         successful = parseSuccess();
     }
 
-    public TransactionOutput getTransactionOutput(TransactionCase transactionCase) {
-        if (!hasTransactionOutput(transactionCase)) {
-            throw new IllegalStateException(
-                    "No %s transaction output for transaction at %d".formatted(transactionCase, consensusTimestamp));
-        }
-
-        return transactionOutputs.get(transactionCase);
+    public Optional<TransactionOutput> getTransactionOutput(TransactionCase transactionCase) {
+        return Optional.ofNullable(transactionOutputs.get(transactionCase));
     }
 
     private StateChangeContext createStateChangeContext() {
@@ -79,10 +75,6 @@ public class BlockItem implements StreamItem {
         return !CollectionUtils.isEmpty(stateChanges)
                 ? new StateChangeContext(stateChanges)
                 : StateChangeContext.EMPTY_CONTEXT;
-    }
-
-    public boolean hasTransactionOutput(TransactionCase transactionCase) {
-        return transactionOutputs.containsKey(transactionCase);
     }
 
     private BlockItem parseParent() {

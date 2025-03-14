@@ -14,9 +14,7 @@ abstract class AbstractTokenTransformer extends AbstractBlockItemTransformer {
             TokenID tokenId,
             long change) {
         var receiptBuilder = recordItemBuilder.transactionRecordBuilder().getReceiptBuilder();
-        stateChangeContext
-                .trackTokenTotalSupply(tokenId, change)
-                .map(receiptBuilder::setNewTotalSupply)
-                .orElseThrow();
+        receiptBuilder.setNewTotalSupply(
+                stateChangeContext.trackTokenTotalSupply(tokenId, change).orElseThrow());
     }
 }

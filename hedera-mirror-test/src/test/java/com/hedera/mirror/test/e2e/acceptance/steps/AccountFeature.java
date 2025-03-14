@@ -133,26 +133,6 @@ public class AccountFeature extends AbstractFeature {
         assertNotNull(networkTransactionResponse.getReceipt());
     }
 
-    @When("I send {long} tℏ to account {int}")
-    public void sendTinyHbars(long amount, int accountNum) {
-        senderAccountId = new ExpandedAccountId(new AccountId(accountNum));
-        startingBalance = accountClient.getBalance(senderAccountId);
-        networkTransactionResponse =
-                accountClient.sendCryptoTransfer(senderAccountId.getAccountId(), Hbar.fromTinybars(amount), null);
-        assertNotNull(networkTransactionResponse.getTransactionId());
-        assertNotNull(networkTransactionResponse.getReceipt());
-    }
-
-    @When("I send {int} ℏ to account {int}")
-    public void sendHbars(int amount, int accountNum) {
-        senderAccountId = new ExpandedAccountId(new AccountId(accountNum));
-        startingBalance = accountClient.getBalance(senderAccountId);
-        networkTransactionResponse =
-                accountClient.sendCryptoTransfer(senderAccountId.getAccountId(), Hbar.from(amount), null);
-        assertNotNull(networkTransactionResponse.getTransactionId());
-        assertNotNull(networkTransactionResponse.getReceipt());
-    }
-
     @Given("I approve {string} to transfer up to {long} tℏ")
     public void approveCryptoAllowance(String spender, long amount) {
         setCryptoAllowance(spender, amount);

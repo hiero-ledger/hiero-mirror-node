@@ -4,6 +4,7 @@ package com.hedera.mirror.importer.downloader.block.transformer;
 
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.IDENTICAL_SCHEDULE_ALREADY_CREATED;
 
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;
@@ -23,8 +24,10 @@ final class ScheduleCreateTransformer extends AbstractBlockItemTransformer {
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        var createSchedule =
-                blockItem.getTransactionOutput(TransactionCase.CREATE_SCHEDULE).getCreateSchedule();
+        var createSchedule = blockItem
+                .getTransactionOutput(TransactionCase.CREATE_SCHEDULE)
+                .map(TransactionOutput::getCreateSchedule)
+                .orElseThrow();
         receiptBuilder.setScheduleID(createSchedule.getScheduleId());
         if (createSchedule.hasScheduledTransactionId()) {
             receiptBuilder.setScheduledTransactionID(createSchedule.getScheduledTransactionId());

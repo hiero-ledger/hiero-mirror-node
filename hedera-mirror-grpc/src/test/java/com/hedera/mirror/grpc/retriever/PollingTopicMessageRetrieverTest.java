@@ -2,6 +2,8 @@
 
 package com.hedera.mirror.grpc.retriever;
 
+import static com.hedera.mirror.grpc.domain.ReactiveDomainBuilder.TOPIC_ID;
+
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.topic.TopicMessage;
 import com.hedera.mirror.common.util.DomainUtils;
@@ -22,7 +24,6 @@ import reactor.test.StepVerifier;
 @RequiredArgsConstructor
 class PollingTopicMessageRetrieverTest extends GrpcIntegrationTest {
 
-    private static final EntityId TOPIC_ID = EntityId.of(100L);
     private static final Duration WAIT = Duration.ofSeconds(10L);
 
     private final ReactiveDomainBuilder domainBuilder;
