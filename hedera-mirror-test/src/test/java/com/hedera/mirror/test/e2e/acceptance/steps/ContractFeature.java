@@ -17,6 +17,7 @@ import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.Hbar;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.rest.model.ContractResponse;
 import com.hedera.mirror.rest.model.ContractResult;
 import com.hedera.mirror.rest.model.TransactionDetail;
@@ -52,6 +53,7 @@ public class ContractFeature extends BaseContractFeature {
     private final AccountClient accountClient;
     private final MirrorNodeClient mirrorClient;
     private final Web3Properties web3Properties;
+    private final CommonProperties commonProperties;
 
     private String create2ChildContractEvmAddress;
     private String create2ChildContractEntityId;
@@ -193,8 +195,10 @@ public class ContractFeature extends BaseContractFeature {
         var executeContractResult = executeGetEvmAddressTransaction(EVM_ADDRESS_SALT);
         create2ChildContractEvmAddress =
                 executeContractResult.contractFunctionResult().getAddress(0);
-        create2ChildContractAccountId = AccountId.fromEvmAddress(create2ChildContractEvmAddress);
-        create2ChildContractContractId = ContractId.fromEvmAddress(0, 0, create2ChildContractEvmAddress);
+        create2ChildContractAccountId = AccountId.fromEvmAddress(
+                create2ChildContractEvmAddress, commonProperties.getShard(), commonProperties.getRealm());
+        create2ChildContractContractId = ContractId.fromEvmAddress(
+                commonProperties.getShard(), commonProperties.getRealm(), create2ChildContractEvmAddress);
     }
 
     @And("I create a hollow account using CryptoTransfer of {int} to the evm address")

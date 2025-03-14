@@ -81,7 +81,9 @@ class ContractStorageReadableKVStateTest {
         final var blockTimestamp = 1234567L;
         when(contractCallContext.getTimestamp()).thenReturn(Optional.of(blockTimestamp));
         when(contractStateRepository.findStorageByBlockTimestamp(
-                        ENTITY_ID.getId(), BYTES.toByteArray(), blockTimestamp))
+                        ENTITY_ID.getId(),
+                        Bytes32.wrap(BYTES.toByteArray()).trimLeadingZeros().toArrayUnsafe(),
+                        blockTimestamp))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
         assertThat(contractStorageReadableKVState.get(SLOT_KEY))
                 .satisfies(slotValue -> assertThat(slotValue).returns(BYTES, SlotValue::value));

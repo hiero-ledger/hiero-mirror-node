@@ -19,11 +19,8 @@ final class FileCreateTransformer extends AbstractBlockItemTransformer {
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        blockItem
-                .getStateChangeContext()
-                .getNewFileId()
-                .map(receiptBuilder::setFileID)
-                .orElseThrow();
+        receiptBuilder.setFileID(
+                blockItem.getStateChangeContext().getNewFileId().orElseThrow());
     }
 
     @Override
