@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {getMirrorConfig} from '../config';
 import * as constants from '../constants';
 import EntityId from '../entityId';
 import {InvalidArgumentError} from '../errors';
+
+const {
+  common: {realm, shard},
+} = getMirrorConfig();
 
 describe('EntityId isValidEntityId tests', () => {
   test('Verify invalid for null', () => {
@@ -29,8 +34,9 @@ describe('EntityId isValidEntityId tests', () => {
   test('Verify invalid for realm too big', () => {
     expect(EntityId.isValidEntityId('100000.000000001')).toBe(false);
   });
-  test('Verify invalid for negative num', () => {
-    expect(EntityId.isValidEntityId('-1')).toBe(false);
+  test('Verify invalid for encoded id too long', () => {
+    expect(EntityId.isValidEntityId('92233720368547758070')).toBe(false);
+    expect(EntityId.isValidEntityId('-92233720368547758080')).toBe(false);
   });
   test('Verify invalid for float number', () => {
     expect(EntityId.isValidEntityId(123.321)).toBe(false);
@@ -91,69 +97,77 @@ describe('EntityId parse from entityId string', () => {
       expected: EntityId.of(0, 0, 0, null),
     },
     {
-      entityIdStr: '0.0.4294967295',
-      expected: EntityId.of(0, 0, 4294967295),
+      entityIdStr: '0.0.274877906943',
+      expected: EntityId.of(0, 0, 274877906943),
     },
     {
-      entityIdStr: '32767.65535.4294967295',
-      expected: EntityId.of(32767, 65535, 4294967295),
+      entityIdStr: '1023.65535.274877906943',
+      expected: EntityId.of(1023, 65535, 274877906943),
     },
     {
       entityIdStr: '0',
-      expected: EntityId.of(0, 0, 0),
+      expected: EntityId.of(shard, realm, 0),
     },
     {
       entityIdStr: '10',
-      expected: EntityId.of(0, 0, 10),
+      expected: EntityId.of(shard, realm, 10),
     },
     {
-      entityIdStr: '4294967295',
-      expected: EntityId.of(0, 0, 4294967295),
+      entityIdStr: '274877906943',
+      expected: EntityId.of(shard, realm, 274877906943),
     },
     {
-      entityIdStr: '24294967295',
-      expected: EntityId.of(0, 5, 2820130815),
+      entityIdStr: '1377209665535',
+      expected: EntityId.of(shard, 5, 2820130815),
     },
     {
-      entityIdStr: '0.1',
-      expected: EntityId.of(0, 0, 1),
+      entityIdStr: '5.1',
+      expected: EntityId.of(shard, 5, 1),
     },
     {
       entityIdStr: '0x0000000000000000000000000000000000000001',
       options: {paramName: constants.filterKeys.FROM},
-      expected: EntityId.of(0, 0, 1),
+      expected: EntityId.of(shard, realm, 1),
     },
     {
       entityIdStr: '0000000000000000000000000000000000000001',
       options: {paramName: constants.filterKeys.CONTRACT_ID},
-      expected: EntityId.of(0, 0, 1),
+      expected: EntityId.of(shard, realm, 1),
     },
     {
       entityIdStr: '0x0000000100000000000000020000000000000003',
       options: {paramName: constants.filterKeys.FROM},
-      expected: EntityId.of(1, 2, 3),
+      expected: EntityId.of(shard, realm, null, '0000000100000000000000020000000000000003'),
     },
     {
-      entityIdStr: '0x00007fff000000000000ffff00000000ffffffff',
+      entityIdStr: '0x000003ff000000000000ffff0000003fffffffff',
       options: {paramName: constants.filterKeys.FROM},
-      expected: EntityId.of(32767, 65535, 4294967295),
+      expected: EntityId.of(shard, realm, null, '000003ff000000000000ffff0000003fffffffff'),
     },
     {
       entityIdStr: '0.0.000000000000000000000000000000000186Fb1b',
       expected: EntityId.of(0, 0, 25623323),
     },
     {
+      entityIdStr: '1.2.000000000000000000000000000000000186Fb1b',
+      expectErr: true,
+    },
+    {
       entityIdStr: '0.000000000000000000000000000000000186Fb1b',
-      expected: EntityId.of(0, 0, 25623323),
+      expected: EntityId.of(shard, realm, 25623323),
+    },
+    {
+      entityIdStr: '1.000000000000000000000000000000000186Fb1b',
+      expectErr: true,
     },
     {
       entityIdStr: '000000000000000000000000000000000186Fb1b',
-      expected: EntityId.of(0, 0, 25623323),
+      expected: EntityId.of(shard, realm, 25623323),
     },
     {
       entityIdStr: '0x000000000000000000000000000000000186Fb1b',
       options: {paramName: constants.filterKeys.FROM},
-      expected: EntityId.of(0, 0, 25623323),
+      expected: EntityId.of(shard, realm, 25623323),
     },
     {
       entityIdStr: null,
@@ -166,27 +180,39 @@ describe('EntityId parse from entityId string', () => {
     },
     {
       entityIdStr: '0000000100000000000000020000000000000007',
-      expected: EntityId.of(1, 2, 7),
+      expected: EntityId.of(shard, realm, '0000000100000000000000020000000000000007'),
     },
     {
       entityIdStr: '0x0000000100000000000000020000000000000007',
-      expected: EntityId.of(1, 2, 7),
+      expected: EntityId.of(shard, realm, '0000000100000000000000020000000000000007'),
     },
     {
       entityIdStr: '1.2.0000000100000000000000020000000000000007',
-      expected: EntityId.of(1, 2, 7),
+      expectErr: true,
     },
     {
       entityIdStr: '71eaa748d5252be68c1185588beca495459fdba4',
-      expected: EntityId.of(null, null, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+      expected: EntityId.of(shard, realm, null, '71eaa748d5252be68c1185588beca495459fdba4'),
     },
     {
       entityIdStr: '0x71eaa748d5252be68c1185588beca495459fdba4',
-      expected: EntityId.of(null, null, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+      expected: EntityId.of(shard, realm, null, '71eaa748d5252be68c1185588beca495459fdba4'),
     },
     {
       entityIdStr: '1.2.71eaa748d5252be68c1185588beca495459fdba4',
-      expected: EntityId.of(1, 2, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+      expectErr: true,
+    },
+    {
+      entityIdStr: '-1',
+      expected: EntityId.of(1023, 65535, 274877906943),
+    },
+    {
+      entityIdStr: '9223372036854775807', // max encoded id
+      expected: EntityId.of(511, 65535, 274877906943),
+    },
+    {
+      entityIdStr: '-9223372036854775808', // min encoded id
+      expected: EntityId.of(512, 0, 0),
     },
     {
       entityIdStr: null,
@@ -216,10 +242,6 @@ describe('EntityId parse from entityId string', () => {
     },
     {
       entityIdStr: '-1.-1.-1',
-      expectErr: true,
-    },
-    {
-      entityIdStr: '-1',
       expectErr: true,
     },
     {
@@ -298,39 +320,35 @@ describe('EntityId parse from encoded entityId', () => {
   const specs = [
     {
       encodedId: 0,
-      expected: EntityId.of(0, 0, 0),
+      expected: EntityId.of(shard, realm, 0),
     },
     {
-      encodedId: 4294967295,
-      expected: EntityId.of(0, 0, 4294967295),
+      encodedId: 274877906943,
+      expected: EntityId.of(shard, realm, 274877906943),
     },
     {
-      encodedId: 2814792716779530,
+      encodedId: 180146733873889290n,
       expected: EntityId.of(10, 10, 10),
     },
     {
       encodedId: BigInt(0),
-      expected: EntityId.of(0, 0, 0),
+      expected: EntityId.of(shard, realm, 0),
     },
     {
-      encodedId: BigInt(4294967295),
-      expected: EntityId.of(0, 0, 4294967295),
+      encodedId: BigInt(274877906943),
+      expected: EntityId.of(shard, realm, 274877906943),
     },
     {
-      encodedId: '4294967295',
-      expected: EntityId.of(0, 0, 4294967295),
-    },
-    {
-      encodedId: BigInt(2814792716779530),
-      expected: EntityId.of(10, 10, 10),
+      encodedId: '274877906943',
+      expected: EntityId.of(shard, realm, 274877906943),
     },
     {
       encodedId: 9223372036854775807n,
-      expected: EntityId.of(32767, 65535, 4294967295),
+      expected: EntityId.of(511, 65535, 274877906943),
     },
     {
-      encodedId: 9223090561878065152n,
-      expected: EntityId.of(32767, 0, 0),
+      encodedId: -9223372036854775808n,
+      expected: EntityId.of(512, 0, 0),
     },
     {
       encodedId: 'a',
@@ -345,7 +363,11 @@ describe('EntityId parse from encoded entityId', () => {
       expectErr: true,
     },
     {
-      encodedId: 9223372036854775808n, // 32768.0.0
+      encodedId: 9223372036854775808n, // max + 1
+      expectErr: true,
+    },
+    {
+      encodedId: -9223372036854775809n, // min - 1
       expectErr: true,
     },
     {
@@ -444,28 +466,32 @@ describe('EntityId encoding', () => {
     expect(EntityId.parse('0.0.10').getEncodedId()).toBe(10);
   });
 
-  test('0.0.4294967295', () => {
-    expect(EntityId.parse('0.0.4294967295').getEncodedId()).toBe(4294967295);
+  test('0.0.274877906943', () => {
+    expect(EntityId.parse('0.0.274877906943').getEncodedId()).toBe(274877906943);
   });
 
   test('10.10.10', () => {
-    expect(EntityId.parse('10.10.10').getEncodedId()).toBe(2814792716779530);
+    expect(EntityId.parse('10.10.10').getEncodedId()).toBe(180146733873889290n);
   });
 
-  test('31.65535.4294967295', () => {
-    expect(EntityId.parse('31.65535.4294967295').getEncodedId()).toBe(Number.MAX_SAFE_INTEGER);
+  test('0.32767.274877906943', () => {
+    expect(EntityId.parse('0.32767.274877906943').getEncodedId()).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  test('0.32768.274877906943', () => {
+    expect(EntityId.parse('0.32768.274877906943').getEncodedId()).toBe(9007474132647935n);
   });
 
   test('32.0.0', () => {
-    expect(EntityId.parse('32.0.0').getEncodedId()).toBe(2n ** 53n);
+    expect(EntityId.parse('32.0.0').getEncodedId()).toBe(2n ** 59n);
   });
 
-  test('32767.65535.4294967295', () => {
-    expect(EntityId.parse('32767.65535.4294967295').getEncodedId()).toBe(9223372036854775807n);
+  test('511.65535.274877906943', () => {
+    expect(EntityId.parse('511.65535.274877906943').getEncodedId()).toBe(9223372036854775807n);
   });
 
-  test('32767.0.0', () => {
-    expect(EntityId.parse('32767.0.0').getEncodedId()).toBe(9223090561878065152n);
+  test('512.0.0', () => {
+    expect(EntityId.parse('512.0.0').getEncodedId()).toBe(-9223372036854775808n);
   });
 
   test('nullable', () => {

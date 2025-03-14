@@ -2,32 +2,33 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.BlockItem;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
 
 @Named
 final class ScheduleSignTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void updateTransactionRecord(
-            BlockItem blockItem, TransactionBody transactionBody, TransactionRecord.Builder transactionRecordBuilder) {
-        if (!blockItem.successful()) {
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
-        for (var transactionOutput : blockItem.transactionOutput()) {
-            if (transactionOutput.hasSignSchedule()
-                    && transactionOutput.getSignSchedule().hasScheduledTransactionId()) {
-                transactionRecordBuilder
-                        .getReceiptBuilder()
-                        .setScheduledTransactionID(
-                                transactionOutput.getSignSchedule().getScheduledTransactionId());
-                return;
-            }
-        }
+        blockItem
+                .getTransactionOutput(TransactionCase.SIGN_SCHEDULE)
+                .map(TransactionOutput::getSignSchedule)
+                .ifPresent(signSchedule -> {
+                    if (signSchedule.hasScheduledTransactionId()) {
+                        blockItemTransformation
+                                .recordItemBuilder()
+                                .transactionRecordBuilder()
+                                .getReceiptBuilder()
+                                .setScheduledTransactionID(signSchedule.getScheduledTransactionId());
+                    }
+                });
     }
 
     @Override

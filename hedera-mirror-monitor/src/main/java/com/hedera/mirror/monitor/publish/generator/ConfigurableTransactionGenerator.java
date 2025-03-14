@@ -2,25 +2,26 @@
 
 package com.hedera.mirror.monitor.publish.generator;
 
+import static com.hedera.mirror.monitor.OperatorProperties.DEFAULT_OPERATOR_ACCOUNT_ID;
+
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Suppliers;
+import com.hedera.mirror.monitor.MonitorProperties;
 import com.hedera.mirror.monitor.expression.ExpressionConverter;
 import com.hedera.mirror.monitor.properties.ScenarioPropertiesAggregator;
 import com.hedera.mirror.monitor.publish.PublishRequest;
 import com.hedera.mirror.monitor.publish.PublishScenario;
 import com.hedera.mirror.monitor.publish.PublishScenarioProperties;
 import com.hedera.mirror.monitor.publish.transaction.TransactionSupplier;
-import jakarta.validation.ConstraintViolation;
+import com.hedera.mirror.monitor.publish.transaction.account.AccountDeleteTransactionSupplier;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
-import jakarta.validation.Validator;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import lombok.CustomLog;
@@ -35,6 +36,7 @@ public class ConfigurableTransactionGenerator implements TransactionGenerator {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final ExpressionConverter expressionConverter;
+    private final MonitorProperties monitorProperties;
     private final ScenarioPropertiesAggregator scenarioPropertiesAggregator;
 
     @Getter
@@ -48,9 +50,11 @@ public class ConfigurableTransactionGenerator implements TransactionGenerator {
 
     public ConfigurableTransactionGenerator(
             ExpressionConverter expressionConverter,
+            MonitorProperties monitorProperties,
             ScenarioPropertiesAggregator scenarioPropertiesAggregator,
             PublishScenarioProperties properties) {
         this.expressionConverter = expressionConverter;
+        this.monitorProperties = monitorProperties;
         this.scenarioPropertiesAggregator = scenarioPropertiesAggregator;
         this.properties = properties;
         transactionSupplier = Suppliers.memoize(this::convert);
@@ -114,15 +118,22 @@ public class ConfigurableTransactionGenerator implements TransactionGenerator {
     }
 
     private void validateSupplier(TransactionSupplier<?> supplier) {
-        Validator validator = Validation.byDefaultProvider()
+        try (var validatorFactory = Validation.byDefaultProvider()
                 .configure()
                 .messageInterpolator(new ParameterMessageInterpolator())
-                .buildValidatorFactory()
-                .getValidator();
-        Set<ConstraintViolation<TransactionSupplier<?>>> validations = validator.validate(supplier);
+                .buildValidatorFactory()) {
+            var validator = validatorFactory.getValidator();
+            var validations = validator.validate(supplier);
 
-        if (!validations.isEmpty()) {
-            throw new ConstraintViolationException(validations);
+            if (!validations.isEmpty()) {
+                throw new ConstraintViolationException(validations);
+            }
+
+            if (supplier instanceof AccountDeleteTransactionSupplier accountDeleteTransactionSupplier
+                    && DEFAULT_OPERATOR_ACCOUNT_ID.equals(accountDeleteTransactionSupplier.getTransferAccountId())) {
+                accountDeleteTransactionSupplier.setTransferAccountId(
+                        monitorProperties.getOperator().getAccountId());
+            }
         }
     }
 

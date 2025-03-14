@@ -64,7 +64,6 @@ class EntityBuilder extends AbstractEntityBuilder<AbstractEntity, AbstractEntity
         var builder = builderContext.isHistory() ? EntityHistory.builder() : Entity.builder();
         return builder.declineReward(Boolean.FALSE)
                 .deleted(Boolean.FALSE)
-                .num(0L)
                 .memo("entity memo")
                 .num(0L)
                 .realm(0L)

@@ -19,7 +19,6 @@ import com.hedera.mirror.importer.repository.NodeStakeRepository;
 import com.hedera.mirror.importer.util.Utility;
 import com.hederahashgraph.api.proto.java.NodeUpdateTransactionBody;
 import lombok.RequiredArgsConstructor;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
@@ -35,11 +34,6 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
                 .nodeId(recordItem.getTransactionRecord().getReceipt().getNodeId())
                 .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                 .build();
-    }
-
-    @AfterEach
-    void teardown() {
-        entityProperties.getPersist().setNodes(false);
     }
 
     @SuppressWarnings("deprecation")
@@ -102,7 +96,6 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void nodeCreate() {
-        entityProperties.getPersist().setNodes(true);
         var recordItem = recordItemBuilder.nodeCreate().build();
         var expectedNode = getExpectedNode(recordItem);
         expectedNode.setAdminKey(
@@ -122,7 +115,6 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void nodeUpdate() {
-        entityProperties.getPersist().setNodes(true);
         var recordItem = recordItemBuilder.nodeUpdate().build();
         var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
         var timestamp = recordItem.getConsensusTimestamp() - 1;
@@ -157,8 +149,6 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void nodeUpdateWithoutAdminKeyUpdate() {
-        entityProperties.getPersist().setNodes(true);
-
         var recordItem = recordItemBuilder
                 .nodeUpdate()
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearAdminKey)
@@ -196,7 +186,6 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void nodeDelete() {
-        entityProperties.getPersist().setNodes(true);
         var node = domainBuilder.node().persist();
         var recordItem = recordItemBuilder
                 .nodeDelete()

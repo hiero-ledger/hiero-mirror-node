@@ -8,6 +8,7 @@ import NetworkNodeService from './networkNodeService';
 import NftService from './nftService';
 import RecordFileService from './recordFileService';
 import StakingRewardTransferService from './stakingRewardTransferService';
+import SystemEntity from './systemEntity';
 import TokenAllowanceService from './tokenAllowanceService';
 import TokenService from './tokenService';
 import TransactionService from './transactionService';
@@ -21,6 +22,7 @@ export {
   NftService,
   RecordFileService,
   StakingRewardTransferService,
+  SystemEntity,
   TokenAllowanceService,
   TokenService,
   TransactionService,

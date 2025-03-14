@@ -2,10 +2,9 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.BlockItem;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
 import lombok.CustomLog;
 
@@ -14,23 +13,24 @@ import lombok.CustomLog;
 final class UtilPrngTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void updateTransactionRecord(
-            BlockItem blockItem, TransactionBody transactionBody, TransactionRecord.Builder transactionRecordBuilder) {
-
-        if (!blockItem.successful()) {
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
-        for (var transactionOutput : blockItem.transactionOutput()) {
-            if (transactionOutput.hasUtilPrng()) {
-                var utilPrng = transactionOutput.getUtilPrng();
-                switch (utilPrng.getEntropyCase()) {
-                    case PRNG_NUMBER -> transactionRecordBuilder.setPrngNumber(utilPrng.getPrngNumber());
-                    case PRNG_BYTES -> transactionRecordBuilder.setPrngBytes(utilPrng.getPrngBytes());
-                    default -> UtilPrngTransformer.log.warn("Unhandled entropy case: {}", utilPrng.getEntropyCase());
-                }
-                return;
-            }
+        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
+        var utilPrng = blockItem
+                .getTransactionOutput(TransactionCase.UTIL_PRNG)
+                .map(TransactionOutput::getUtilPrng)
+                .orElseThrow();
+        switch (utilPrng.getEntropyCase()) {
+            case PRNG_NUMBER -> recordBuilder.setPrngNumber(utilPrng.getPrngNumber());
+            case PRNG_BYTES -> recordBuilder.setPrngBytes(utilPrng.getPrngBytes());
+            default -> log.warn(
+                    "Unhandled entropy case {} for transaction at {}",
+                    utilPrng.getEntropyCase(),
+                    blockItem.getConsensusTimestamp());
         }
     }
 

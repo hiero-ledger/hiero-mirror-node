@@ -12,16 +12,10 @@ import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
-import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.web3j.generated.ERCTestContract;
 import com.hedera.mirror.web3.web3j.generated.RedirectTestContract;
-import jakarta.annotation.PostConstruct;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
@@ -394,8 +388,30 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
     }
 
     @Test
+    void ethCallNameStaticNullMetadata() throws Exception {
+        final var token = fungibleTokenCustomizable(e -> e.metadata(null));
+        final var tokenAddress = toAddress(token.getTokenId()).toHexString();
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var result = contract.call_name(tokenAddress).send();
+        final var functionCall = contract.send_name(tokenAddress);
+        assertThat(result).isEqualTo(token.getName());
+        verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @Test
     void ethCallNameNonStatic() throws Exception {
         final var token = fungibleTokenPersist();
+        final var tokenAddress = toAddress(token.getTokenId()).toHexString();
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var result = contract.call_nameNonStatic(tokenAddress).send();
+        final var functionCall = contract.send_nameNonStatic(tokenAddress);
+        assertThat(result).isEqualTo(token.getName());
+        verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @Test
+    void ethCallNameNonStaticNullMetadata() throws Exception {
+        final var token = fungibleTokenCustomizable(e -> e.metadata(null));
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         final var result = contract.call_nameNonStatic(tokenAddress).send();
@@ -585,7 +601,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
 
     @Test
     void ethCallGetDecimalsRedirect() {
-        final var token = fungibleTokenPersist();
+        final var token = fungibleTokenCustomizable(t -> t.decimals(DEFAULT_DECIMALS));
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
         final var contract = testWeb3jService.deploy(RedirectTestContract::deploy);
         final var functionCall = contract.send_decimalsRedirect(tokenAddress);
@@ -698,33 +714,23 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
     void decimalsNegativeModularizedServices() throws InvocationTargetException, IllegalAccessException {
         // Given
         final var modularizedServicesFlag = mirrorNodeEvmProperties.isModularizedServices();
-        mirrorNodeEvmProperties.setModularizedServices(true);
-
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
-        final Map<String, String> propertiesMap = new HashMap<>();
-        propertiesMap.put("contracts.maxRefundPercentOfGasLimit", "100");
-        propertiesMap.put("contracts.maxGasPerSec", "15000000");
-        mirrorNodeEvmProperties.setProperties(propertiesMap);
 
-        Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
-                .filter(method -> method.isAnnotationPresent(PostConstruct.class))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("@PostConstruct method not found"));
+        try {
+            activateModularizedFlagAndInitializeState();
 
-        postConstructMethod.setAccessible(true); // Make the method accessible
-        postConstructMethod.invoke(state);
-
-        final var token = nftPersist();
-        final var tokenAddress = toAddress(token.getTokenId()).toHexString();
-        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
-        // When
-        final var functionCall = contract.send_decimals(tokenAddress);
-        // Then
-        assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
-
-        // Restore changed property values.
-        mirrorNodeEvmProperties.setModularizedServices(modularizedServicesFlag);
-        mirrorNodeEvmProperties.setProperties(backupProperties);
+            final var token = nftPersist();
+            final var tokenAddress = toAddress(token.getTokenId()).toHexString();
+            final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+            // When
+            final var functionCall = contract.send_decimals(tokenAddress);
+            // Then
+            assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
+        } finally {
+            // Restore changed property values.
+            mirrorNodeEvmProperties.setModularizedServices(modularizedServicesFlag);
+            mirrorNodeEvmProperties.setProperties(backupProperties);
+        }
     }
 
     @Test

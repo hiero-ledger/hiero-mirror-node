@@ -3,6 +3,7 @@
 package com.hedera.mirror.monitor.publish.generator;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.hedera.mirror.monitor.MonitorProperties;
 import com.hedera.mirror.monitor.expression.ExpressionConverter;
 import com.hedera.mirror.monitor.properties.ScenarioPropertiesAggregator;
 import com.hedera.mirror.monitor.publish.PublishProperties;
@@ -42,13 +43,14 @@ public class CompositeTransactionGenerator implements TransactionGenerator {
 
     public CompositeTransactionGenerator(
             ExpressionConverter expressionConverter,
+            MonitorProperties monitorProperties,
             ScenarioPropertiesAggregator scenarioPropertiesAggregator,
             PublishProperties properties) {
         this.properties = properties;
         this.transactionGenerators = properties.getScenarios().values().stream()
                 .filter(PublishScenarioProperties::isEnabled)
                 .map(scenarioProperties -> new ConfigurableTransactionGenerator(
-                        expressionConverter, scenarioPropertiesAggregator, scenarioProperties))
+                        expressionConverter, monitorProperties, scenarioPropertiesAggregator, scenarioProperties))
                 .collect(Collectors.toList());
         rebuild();
     }

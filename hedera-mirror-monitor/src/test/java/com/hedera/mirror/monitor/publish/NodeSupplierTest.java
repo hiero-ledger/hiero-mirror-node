@@ -186,6 +186,7 @@ class NodeSupplierTest {
     void refreshAddressBookBoth() {
         monitorProperties.setNodes(Set.of());
         monitorProperties.getNodeValidation().setTls(TlsMode.BOTH);
+        monitorProperties.getNodeValidation().setMaxEndpointsPerNode(Integer.MAX_VALUE);
         when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
         assertThat(nodeSupplier.refresh().collectList().block())
                 .hasSize(2)
@@ -194,6 +195,36 @@ class NodeSupplierTest {
                         .returns(networkNode.getServiceEndpoints().get(0).getIpAddressV4(), NodeProperties::getHost))
                 .extracting(NodeProperties::getPort)
                 .containsExactlyInAnyOrder(50211, 50212);
+    }
+
+    @Test
+    void maxEndpointsPerNode() {
+        monitorProperties.setNodes(Set.of());
+        monitorProperties.getNodeValidation().setTls(TlsMode.BOTH);
+        monitorProperties.getNodeValidation().setMaxEndpointsPerNode(1);
+        when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
+        assertThat(nodeSupplier.refresh().collectList().block())
+                .hasSize(1)
+                .allSatisfy(n -> assertThat(n).returns(networkNode.getNodeAccountId(), NodeProperties::getAccountId))
+                .extracting(NodeProperties::getPort)
+                .containsAnyOf(50211, 50212);
+    }
+
+    @Test
+    void maxNodes() {
+        monitorProperties.setNodes(Set.of());
+        monitorProperties.getNodeValidation().setTls(TlsMode.PLAINTEXT);
+        monitorProperties.getNodeValidation().setMaxEndpointsPerNode(1);
+        var networkNode2 = new NetworkNode();
+        networkNode2.setNodeAccountId("0.0.4");
+        networkNode2.addServiceEndpointsItem(
+                new ServiceEndpoint().ipAddressV4("localhost").port(50211));
+
+        when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode, networkNode2));
+        assertThat(nodeSupplier.refresh().collectList().block())
+                .hasSize(2)
+                .extracting(NodeProperties::getAccountId)
+                .containsExactlyInAnyOrder(node.getAccountId(), networkNode2.getNodeAccountId());
     }
 
     @Test

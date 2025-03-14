@@ -42,7 +42,6 @@ class GrpcClientSDKTest {
 
     private ConsensusServiceStub consensusServiceStub;
     private GrpcClientSDK grpcClientSDK;
-    private MonitorProperties monitorProperties;
     private GrpcSubscriberProperties properties;
     private Server server;
     private GrpcSubscription subscription;
@@ -54,7 +53,7 @@ class GrpcClientSDKTest {
         properties.setName(testInfo.getDisplayName());
         properties.setTopicId("0.0.1000");
         subscription = new GrpcSubscription(1, properties);
-        monitorProperties = new MonitorProperties();
+        var monitorProperties = new MonitorProperties();
         monitorProperties.getMirrorNode().getGrpc().setHost("in-process:test");
         grpcClientSDK = new GrpcClientSDK(monitorProperties, new SubscribeProperties());
 

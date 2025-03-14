@@ -120,13 +120,13 @@ exports[`utils validateAndParseFilters account.id tests Verify buildAndValidateF
 ]
 `;
 
-exports[`utils validateAndParseFilters account.id tests Verify buildAndValidateFilters for invalid {"account.id":"-1"} 1`] = `
+exports[`utils validateAndParseFilters account.id tests Verify buildAndValidateFilters for invalid {"account.id":"-1.-1.-1"} 1`] = `
 [
   "Invalid parameter: account.id",
 ]
 `;
 
-exports[`utils validateAndParseFilters account.id tests Verify buildAndValidateFilters for invalid {"account.id":"-1.-1.-1"} 1`] = `
+exports[`utils validateAndParseFilters account.id tests Verify buildAndValidateFilters for invalid {"account.id":"-92233720368547758080"} 1`] = `
 [
   "Invalid parameter: account.id",
 ]

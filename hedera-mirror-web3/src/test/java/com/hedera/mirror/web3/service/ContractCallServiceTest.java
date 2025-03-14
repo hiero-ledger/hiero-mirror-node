@@ -26,22 +26,28 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TRANSA
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
+import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.store.Store;
 import com.hedera.mirror.web3.exception.BlockNumberOutOfRangeException;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
+import com.hedera.mirror.web3.service.model.CallServiceParameters;
 import com.hedera.mirror.web3.service.model.CallServiceParameters.CallType;
 import com.hedera.mirror.web3.service.model.ContractExecutionParameters;
 import com.hedera.mirror.web3.service.utils.BinaryGasEstimator;
-import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.throttle.ThrottleProperties;
 import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.mirror.web3.web3j.generated.ERCTestContract;
@@ -51,13 +57,9 @@ import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import io.github.bucket4j.Bucket;
-import jakarta.annotation.PostConstruct;
-import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
@@ -188,19 +190,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
 
         try {
-            mirrorNodeEvmProperties.setModularizedServices(true);
-            Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
-                    .filter(method -> method.isAnnotationPresent(PostConstruct.class))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("@PostConstruct method not found"));
-
-            postConstructMethod.setAccessible(true); // Make the method accessible
-            postConstructMethod.invoke(state);
-
-            final Map<String, String> propertiesMap = new HashMap<>();
-            propertiesMap.put("contracts.maxRefundPercentOfGasLimit", "100");
-            propertiesMap.put("contracts.maxGasPerSec", "15000000");
-            mirrorNodeEvmProperties.setProperties(propertiesMap);
+            activateModularizedFlagAndInitializeState();
 
             final var contract = testWeb3jService.deploy(EthCall::deploy);
             meterRegistry.clear(); // Clear it as the contract deploy increases the gas limit metric
@@ -342,11 +332,21 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var contractCallData = Bytes.fromHexString(contract.getContractBinary());
 
         final var serviceParametersEthCall = getContractExecutionParameters(
-                contractCallData, toAddress(payer.toEntityId()), receiverAddress, 0L, ETH_CALL);
+                contractCallData,
+                toAddress(payer.toEntityId()),
+                receiverAddress,
+                0L,
+                ETH_CALL,
+                mirrorNodeEvmProperties.isModularizedServices());
 
         final var actualGasUsed = gasUsedAfterExecution(serviceParametersEthCall);
         final var serviceParametersEstimateGas = getContractExecutionParameters(
-                contractCallData, toAddress(payer.toEntityId()), receiverAddress, 0L, ETH_ESTIMATE_GAS);
+                contractCallData,
+                toAddress(payer.toEntityId()),
+                receiverAddress,
+                0L,
+                ETH_ESTIMATE_GAS,
+                mirrorNodeEvmProperties.isModularizedServices());
 
         // When
         final var result = contractExecutionService.processCall(serviceParametersEstimateGas);
@@ -499,19 +499,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
 
         try {
-            mirrorNodeEvmProperties.setModularizedServices(true);
-            Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
-                    .filter(method -> method.isAnnotationPresent(PostConstruct.class))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("@PostConstruct method not found"));
-
-            postConstructMethod.setAccessible(true); // Make the method accessible
-            postConstructMethod.invoke(state);
-
-            final Map<String, String> propertiesMap = new HashMap<>();
-            propertiesMap.put("contracts.maxRefundPercentOfGasLimit", "100");
-            propertiesMap.put("contracts.maxGasPerSec", "15000000");
-            mirrorNodeEvmProperties.setProperties(propertiesMap);
+            activateModularizedFlagAndInitializeState();
             final var contract = testWeb3jService.deploy(EthCall::deploy);
             meterRegistry.clear();
 
@@ -1059,6 +1047,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .isEstimate(callType == ETH_ESTIMATE_GAS)
+                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .receiver(receiverAddress)
                 .sender(new HederaEvmAccount(Address.ZERO))
@@ -1077,6 +1066,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 .callType(callType)
                 .gas(gasLimit)
                 .isEstimate(false)
+                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .receiver(Address.fromHexString(contract.getContractAddress()))
                 .sender(new HederaEvmAccount(Address.ZERO))
@@ -1106,6 +1096,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .isEstimate(false)
+                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .receiver(receiverAddress)
                 .sender(new HederaEvmAccount(senderAddress))
@@ -1160,6 +1151,62 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
             // Then
             assertThat(result).isEqualTo(HEX_PREFIX);
             assertGasLimit(serviceParameters);
+        }
+
+        @Test
+        void testDirectTrafficThroughTransactionExecutionService() {
+            MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
+
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(1.0);
+            assertThat(spyEvmProperties.directTrafficThroughTransactionExecutionService())
+                    .isTrue();
+
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(0.0);
+            assertThat(spyEvmProperties.directTrafficThroughTransactionExecutionService())
+                    .isFalse();
+        }
+
+        @Test
+        void shouldCallTransactionExecutionService() throws MirrorEvmTransactionException {
+            MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
+            TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
+            MirrorEvmTxProcessor mirrorEvmTxProcessor = mock(MirrorEvmTxProcessor.class);
+
+            ContractCallService contractCallService = new ContractCallService(
+                    mirrorEvmTxProcessor, null, null, null, null, null, spyEvmProperties, txnExecutionService) {};
+
+            when(spyEvmProperties.isModularizedServices()).thenReturn(true);
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(1.0);
+
+            CallServiceParameters params = ContractExecutionParameters.builder()
+                    .isModularized(spyEvmProperties.directTrafficThroughTransactionExecutionService())
+                    .build();
+
+            contractCallService.doProcessCall(params, 1000L, false);
+
+            verify(txnExecutionService, times(1)).execute(any(), anyLong(), any());
+            verify(mirrorEvmTxProcessor, never()).execute(any(), anyLong());
+        }
+
+        @ParameterizedTest
+        @CsvSource({"true, 0.0", "false, 1.0", "false, 0.0"})
+        void shouldNotCallTransactionExecutionService(boolean isModularizedServices, double trafficShare)
+                throws MirrorEvmTransactionException {
+            MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
+            TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
+            MirrorEvmTxProcessor mirrorEvmTxProcessor = mock(MirrorEvmTxProcessor.class);
+            CallServiceParameters params = mock(CallServiceParameters.class);
+
+            ContractCallService contractCallService = new ContractCallService(
+                    mirrorEvmTxProcessor, null, null, null, null, null, spyEvmProperties, txnExecutionService) {};
+
+            when(spyEvmProperties.isModularizedServices()).thenReturn(isModularizedServices);
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(trafficShare);
+
+            contractCallService.doProcessCall(params, 1000L, false);
+
+            verify(txnExecutionService, never()).execute(any(), anyLong(), any());
+            verify(mirrorEvmTxProcessor, times(1)).execute(any(), anyLong());
         }
     }
 }

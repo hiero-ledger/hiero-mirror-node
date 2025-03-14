@@ -12,6 +12,7 @@ import static com.hedera.services.hapi.utils.fees.FeeBuilder.NFT_ALLOWANCE_SIZE;
 import static com.hedera.services.hapi.utils.fees.FeeBuilder.TOKEN_ALLOWANCE_SIZE;
 
 import com.google.common.base.MoreObjects;
+import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.CryptoApproveAllowanceTransactionBody;
 import java.util.Map;
 import java.util.Set;
@@ -21,7 +22,7 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 public class CryptoApproveAllowanceMeta {
     private final long effectiveNow;
     private final long msgBytesUsed;
-    private final Map<Long, Long> cryptoAllowances;
+    private final Map<EntityNum, Long> cryptoAllowances;
     private final Map<AllowanceId, Long> tokenAllowances;
     private final Set<AllowanceId> nftAllowances;
 
@@ -61,7 +62,7 @@ public class CryptoApproveAllowanceMeta {
         return msgBytesUsed;
     }
 
-    public Map<Long, Long> getCryptoAllowances() {
+    public Map<EntityNum, Long> getCryptoAllowances() {
         return cryptoAllowances;
     }
 
@@ -76,11 +77,11 @@ public class CryptoApproveAllowanceMeta {
     public static class Builder {
         private long effectiveNow;
         private long msgBytesUsed;
-        private Map<Long, Long> cryptoAllowances;
+        private Map<EntityNum, Long> cryptoAllowances;
         private Map<AllowanceId, Long> tokenAllowances;
         private Set<AllowanceId> nftAllowances;
 
-        public Builder cryptoAllowances(final Map<Long, Long> cryptoAllowances) {
+        public Builder cryptoAllowances(final Map<EntityNum, Long> cryptoAllowances) {
             this.cryptoAllowances = cryptoAllowances;
             return this;
         }

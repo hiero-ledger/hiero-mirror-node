@@ -10,8 +10,10 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class OperatorProperties {
 
+    public static final String DEFAULT_OPERATOR_ACCOUNT_ID = "0.0.2";
+
     @NotBlank
-    private String accountId = "0.0.2";
+    private String accountId = DEFAULT_OPERATOR_ACCOUNT_ID;
 
     @NotBlank
     private String privateKey =

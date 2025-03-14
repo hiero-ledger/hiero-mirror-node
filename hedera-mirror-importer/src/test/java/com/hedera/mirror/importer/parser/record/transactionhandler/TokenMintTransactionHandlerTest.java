@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.token.AbstractNft;
+import com.hedera.mirror.common.domain.token.AbstractToken;
 import com.hedera.mirror.common.domain.token.Nft;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -59,7 +60,7 @@ class TokenMintTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
         assertThat(token.getValue())
                 .returns(recordItem.getTransactionRecord().getReceipt().getNewTotalSupply(), Token::getTotalSupply)
-                .returns(transaction.getEntityId().getId(), t -> t.getTokenId());
+                .returns(transaction.getEntityId().getId(), AbstractToken::getTokenId);
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }
@@ -84,7 +85,7 @@ class TokenMintTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
         assertThat(token.getValue())
                 .returns(recordItem.getTransactionRecord().getReceipt().getNewTotalSupply(), Token::getTotalSupply)
-                .returns(transaction.getEntityId().getId(), t -> t.getTokenId());
+                .returns(transaction.getEntityId().getId(), AbstractToken::getTokenId);
 
         var nfts = assertThat(nft.getAllValues()).hasSize(expectedNfts);
         for (int i = 0; i < expectedNfts; i++) {
@@ -107,7 +108,7 @@ class TokenMintTransactionHandlerTest extends AbstractTransactionHandlerTest {
         // Given
         var recordItem = recordItemBuilder
                 .tokenMint(NON_FUNGIBLE_UNIQUE)
-                .receipt(r -> r.addSerialNumbers(3L))
+                .receipt(r -> r.addSerialNumbers(4L))
                 .build();
         var transaction = domainBuilder.transaction().get();
         var nft = ArgumentCaptor.forClass(Nft.class);
@@ -124,7 +125,7 @@ class TokenMintTransactionHandlerTest extends AbstractTransactionHandlerTest {
         assertThat(nft.getAllValues())
                 .hasSize(expectedNfts)
                 .extracting(Nft::getSerialNumber)
-                .containsExactly(1L, 2L);
+                .containsExactly(2L, 3L);
 
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));

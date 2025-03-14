@@ -57,7 +57,6 @@ class TransactionPublisherTest {
     private static final String SERVER = "test1";
 
     private CryptoServiceStub cryptoServiceStub;
-    private MonitorProperties monitorProperties;
     private PublishProperties publishProperties;
     private PublishScenarioProperties publishScenarioProperties;
     private Server server;
@@ -73,7 +72,7 @@ class TransactionPublisherTest {
         publishScenarioProperties.setType(TransactionType.CRYPTO_TRANSFER);
         var node = new NodeProperties("0.0.3", "in-process:" + SERVER);
         node.setNodeId(0L);
-        monitorProperties = new MonitorProperties();
+        var monitorProperties = new MonitorProperties();
         monitorProperties.setNodes(Set.of(node));
         monitorProperties.getNodeValidation().setEnabled(false);
         OperatorProperties operatorProperties = monitorProperties.getOperator();

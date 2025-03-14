@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verify;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Message;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionSignature;
@@ -57,6 +58,7 @@ class TransactionSignatureTest {
 
     private static final long CONSENSUS_TIMESTAMP = 10L;
     private static final EntityId ENTITY_ID = EntityId.of("0.0.123");
+    private static final CommonProperties commonProperties = CommonProperties.getInstance();
 
     @Mock
     private AddressBookService addressBookService;
@@ -94,14 +96,14 @@ class TransactionSignatureTest {
     private Set<TransactionType> transactionSignatures;
 
     private static Stream<Arguments> provideDefaultTransactionSignatures() {
-        return new EntityProperties()
+        return new EntityProperties(commonProperties)
                 .getPersist().getTransactionSignatures().stream().map(Arguments::of);
     }
 
     @BeforeEach
     void setup() {
         CommonParserProperties commonParserProperties = new CommonParserProperties();
-        EntityProperties entityProperties = new EntityProperties();
+        EntityProperties entityProperties = new EntityProperties(commonProperties);
         entityRecordItemListener = new EntityRecordItemListener(
                 commonParserProperties,
                 contractResultService,

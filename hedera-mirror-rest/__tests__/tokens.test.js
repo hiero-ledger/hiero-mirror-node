@@ -1027,7 +1027,7 @@ describe('utils validateAndParseFilters account.id tests', () => {
     'L',
     '@.#.$',
     // erroneous data
-    '-1',
+    '-92233720368547758080',
     '0.1.2.3',
     '-1.-1.-1',
   ]);

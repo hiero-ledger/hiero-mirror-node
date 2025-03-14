@@ -1,0 +1,47 @@
+{
+  "description": "Schedule with implicit expiration (31m after creation)",
+  "setup": {
+    "features": {
+      "fakeTime": 1234569690
+    },
+    "accounts": [{ "num": 1024 }],
+    "entities": [
+      {
+        "num": 2002,
+        "type": "SCHEDULE",
+        "memo": "Implicitly expired schedule",
+        "key": [1, 1, 1]
+      }
+    ],
+    "schedules": [
+      {
+        "consensus_timestamp": "1234567830000000000",
+        "creator_account_id": "0.0.1024",
+        "payer_account_id": "0.0.1024",
+        "schedule_id": "0.0.2002"
+      }
+    ]
+  },
+  "url": "/api/v1/schedules/0.0.2002",
+  "responseStatus": 200,
+  "responseHeaders": {
+    "cache-control": "public, max-age=3600"
+  },
+  "responseJson": {
+    "admin_key": {
+      "_type": "ProtobufEncoded",
+      "key": "010101"
+    },
+    "consensus_timestamp": "1234567830.000000000",
+    "creator_account_id": "0.0.1024",
+    "deleted": false,
+    "expiration_time": null,
+    "executed_timestamp": null,
+    "memo": "Implicitly expired schedule",
+    "payer_account_id": "0.0.1024",
+    "schedule_id": "0.0.2002",
+    "signatures": [],
+    "transaction_body": "AQECAgMD",
+    "wait_for_expiry": false
+  }
+}

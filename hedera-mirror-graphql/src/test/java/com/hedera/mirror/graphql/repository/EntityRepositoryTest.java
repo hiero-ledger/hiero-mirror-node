@@ -15,8 +15,8 @@ class EntityRepositoryTest extends GraphqlIntegrationTest {
 
     @Test
     void find() {
-        var entity = domainBuilder.entity().persist();
-        assertThat(entityRepository.findById(entity.getId())).get().isEqualTo(entity);
+        var entity = domainBuilder.entity(-2, domainBuilder.timestamp()).persist();
+        assertThat(entityRepository.findById(entity.getId())).contains(entity);
     }
 
     @Test

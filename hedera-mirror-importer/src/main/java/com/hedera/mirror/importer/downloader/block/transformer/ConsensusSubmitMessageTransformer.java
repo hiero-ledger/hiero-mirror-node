@@ -4,50 +4,41 @@ package com.hedera.mirror.importer.downloader.block.transformer;
 
 import static com.hedera.mirror.importer.util.Utility.DEFAULT_RUNNING_HASH_VERSION;
 
-import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
-import com.hedera.mirror.common.domain.transaction.BlockItem;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
+import com.hedera.mirror.common.util.DomainUtils;
 import jakarta.inject.Named;
 
 @Named
 final class ConsensusSubmitMessageTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void updateTransactionRecord(
-            BlockItem blockItem, TransactionBody transactionBody, TransactionRecord.Builder transactionRecordBuilder) {
-
-        if (!blockItem.successful()) {
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {
+        var blockItem = blockItemTransformation.blockItem();
+        if (!blockItem.isSuccessful()) {
             return;
         }
 
-        for (var transactionOutput : blockItem.transactionOutput()) {
-            if (transactionOutput.hasSubmitMessage()) {
-                var submitMessageOutput = transactionOutput.getSubmitMessage();
-                var assessedCustomFees = submitMessageOutput.getAssessedCustomFeesList();
-                transactionRecordBuilder.addAllAssessedCustomFees(assessedCustomFees);
-                break;
-            }
-        }
+        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
+        blockItem
+                .getTransactionOutput(TransactionCase.SUBMIT_MESSAGE)
+                .map(TransactionOutput::getSubmitMessage)
+                .ifPresent(submitMessage ->
+                        recordBuilder.addAllAssessedCustomFees(submitMessage.getAssessedCustomFeesList()));
 
-        for (var stateChange : blockItem.stateChanges()) {
-            for (var change : stateChange.getStateChangesList()) {
-                if (change.getStateId() == StateIdentifier.STATE_ID_TOPICS.getNumber() && change.hasMapUpdate()) {
-                    var value = change.getMapUpdate().getValue();
-                    if (value.hasTopicValue()) {
-                        var topicValue = value.getTopicValue();
-                        transactionRecordBuilder
-                                .getReceiptBuilder()
-                                .setTopicRunningHash(topicValue.getRunningHash())
-                                .setTopicSequenceNumber(topicValue.getSequenceNumber())
-                                .setTopicRunningHashVersion(DEFAULT_RUNNING_HASH_VERSION);
-
-                        return;
-                    }
-                }
-            }
-        }
+        var topicMessage = blockItem
+                .getStateChangeContext()
+                .getTopicMessage(blockItemTransformation
+                        .transactionBody()
+                        .getConsensusSubmitMessage()
+                        .getTopicID())
+                .orElseThrow();
+        recordBuilder
+                .getReceiptBuilder()
+                .setTopicRunningHash(DomainUtils.fromBytes(topicMessage.getRunningHash()))
+                .setTopicRunningHashVersion(DEFAULT_RUNNING_HASH_VERSION)
+                .setTopicSequenceNumber(topicMessage.getSequenceNumber());
     }
 
     @Override

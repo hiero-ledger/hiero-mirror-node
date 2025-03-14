@@ -5,6 +5,7 @@ package com.hedera.services.store.models;
 import static com.hedera.services.utils.EntityIdUtils.asHexedEvmAddress;
 import static com.hedera.services.utils.MiscUtils.perm64;
 
+import com.hedera.mirror.common.exception.InvalidEntityException;
 import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -35,7 +36,7 @@ public record Id(long shard, long realm, long num) {
     }
 
     public EntityNum asEntityNum() {
-        return EntityNum.fromLong(num);
+        return EntityNum.fromId(this);
     }
 
     public AccountID asGrpcAccount() {
@@ -78,6 +79,10 @@ public record Id(long shard, long realm, long num) {
      * @return {@link Address} evm representation
      */
     public Address asEvmAddress() {
-        return Address.fromHexString(asHexedEvmAddress(this));
+        try {
+            return Address.fromHexString(asHexedEvmAddress(this));
+        } catch (InvalidEntityException e) {
+            return Address.ZERO;
+        }
     }
 }

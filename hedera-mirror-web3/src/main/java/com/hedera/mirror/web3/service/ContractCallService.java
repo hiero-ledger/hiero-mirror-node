@@ -117,10 +117,10 @@ public abstract class ContractCallService {
         HederaEvmTransactionProcessingResult result = null;
 
         try {
-            if (!mirrorNodeEvmProperties.isModularizedServices()) {
-                result = mirrorEvmTxProcessor.execute(params, estimatedGas);
-            } else {
+            if (mirrorNodeEvmProperties.isModularizedServices() && params.isModularized()) {
                 result = transactionExecutionService.execute(params, estimatedGas, gasUsedCounter);
+            } else {
+                result = mirrorEvmTxProcessor.execute(params, estimatedGas);
             }
         } catch (IllegalStateException | IllegalArgumentException e) {
             throw new MirrorEvmTransactionException(e.getMessage(), EMPTY, EMPTY);

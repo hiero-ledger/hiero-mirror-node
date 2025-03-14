@@ -110,6 +110,12 @@ class EntityRepositoryTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void findById() {
+        var entity = domainBuilder.entity(-2, domainBuilder.timestamp()).persist();
+        assertThat(entityRepository.findById(entity.getId())).contains(entity);
+    }
+
+    @Test
     void updateContractType() {
         Entity entity = domainBuilder.entity().persist();
         Entity entity2 = domainBuilder.entity().persist();

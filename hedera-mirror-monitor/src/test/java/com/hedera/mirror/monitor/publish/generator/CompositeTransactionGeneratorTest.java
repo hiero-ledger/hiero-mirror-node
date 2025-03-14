@@ -10,6 +10,7 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
+import com.hedera.mirror.monitor.MonitorProperties;
 import com.hedera.mirror.monitor.ScenarioStatus;
 import com.hedera.mirror.monitor.publish.PublishProperties;
 import com.hedera.mirror.monitor.publish.PublishRequest;
@@ -57,6 +58,7 @@ class CompositeTransactionGeneratorTest {
         properties.getScenarios().put(publishScenarioProperties2.getName(), publishScenarioProperties2);
         supplier = Suppliers.memoize(() -> new CompositeTransactionGenerator(
                 p -> p,
+                new MonitorProperties(),
                 p -> p.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
                 properties));
 
@@ -247,6 +249,7 @@ class CompositeTransactionGeneratorTest {
         // warmup so in tests the timing will be accurate
         TransactionGenerator generator = Suppliers.synchronizedSupplier(() -> new CompositeTransactionGenerator(
                         p -> p,
+                        new MonitorProperties(),
                         p -> p.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
                         properties))
                 .get();

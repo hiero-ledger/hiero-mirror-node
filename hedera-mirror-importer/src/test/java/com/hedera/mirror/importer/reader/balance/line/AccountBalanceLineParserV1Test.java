@@ -18,11 +18,10 @@ class AccountBalanceLineParserV1Test {
 
     private static final long TIMESTAMP = 1596340377922333444L;
     private AccountBalanceLineParserV1 parser;
-    private CommonProperties commonProperties;
+    private CommonProperties commonProperties = CommonProperties.getInstance();
 
     @BeforeEach
     void setup() {
-        commonProperties = new CommonProperties();
         parser = new AccountBalanceLineParserV1(commonProperties);
     }
 

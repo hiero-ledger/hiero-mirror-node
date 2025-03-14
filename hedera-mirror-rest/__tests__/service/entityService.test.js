@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import EntityId from '../../entityId';
 import {EntityService} from '../../service';
 import AccountAlias from '../../accountAlias';
 import integrationDomainOps from '../integrationDomainOps';
@@ -7,29 +8,29 @@ import {setupIntegrationTest} from '../integrationUtils';
 
 setupIntegrationTest();
 
-const defaultEntityAlias = new AccountAlias('1', '2', 'KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ');
+const defaultEntityAlias = new AccountAlias('0', '0', 'KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ');
 const defaultInputEntity = [
   {
     alias: defaultEntityAlias.base32Alias,
     evm_address: 'ac384c53f03855fa1b3616052f8ba32c6c2a2fec',
-    id: 281483566645248,
-    num: 0,
-    shard: 1,
-    realm: 2,
+    id: 95622n,
+    num: 95622,
+    shard: 0,
+    realm: 0,
   },
 ];
 const defaultInputContract = [
   {
     evm_address: 'cef2a2c6c23ab8f2506163b1af55830f35c483ca',
-    id: 4295062919,
+    id: 95623n,
     num: 95623,
     shard: 0,
-    realm: 1,
+    realm: 0,
   },
 ];
 
-const defaultExpectedEntity = {id: 281483566645248};
-const defaultExpectedContractId = {id: 4295062919};
+const defaultExpectedEntity = {id: 95622};
+const defaultExpectedContractId = {id: 95623};
 
 describe('EntityService.getAccountFromAlias tests', () => {
   test('EntityService.getAccountFromAlias - No match', async () => {
@@ -48,15 +49,15 @@ describe('EntityService.getAccountFromAlias tests', () => {
         alias: defaultEntityAlias.base32Alias,
         id: 3,
         num: 3,
-        shard: 1,
-        realm: 2,
+        shard: 0,
+        realm: 0,
       },
       {
         alias: defaultEntityAlias.base32Alias,
         id: 4,
         num: 4,
-        shard: 1,
-        realm: 2,
+        shard: 0,
+        realm: 0,
       },
     ];
     await integrationDomainOps.loadEntities(inputEntities);
@@ -82,7 +83,8 @@ describe('EntityService.getAccountIdFromAlias tests', () => {
 });
 
 describe('EntityService.getEntityIdFromEvmAddress tests', () => {
-  const defaultEvmAddress = defaultInputEntity[0].evm_address;
+  const entity = defaultInputEntity[0];
+  const defaultEvmAddress = EntityId.parse(`${entity.shard}.${entity.realm}.${entity.evm_address}`);
 
   test('EntityService.getEntityIdFromEvmAddress - Matching evm address', async () => {
     await integrationDomainOps.loadEntities(defaultInputEntity);
@@ -105,7 +107,7 @@ describe('EntityService.getEntityIdFromEvmAddress tests', () => {
       defaultInputEntity[0],
       {
         ...defaultInputEntity[0],
-        id: defaultInputEntity[0].id + 1,
+        id: defaultInputEntity[0].id + 1n,
         num: defaultInputEntity[0].num + 1,
       },
     ];
@@ -114,6 +116,22 @@ describe('EntityService.getEntityIdFromEvmAddress tests', () => {
     await expect(() =>
       EntityService.getEntityIdFromEvmAddress(defaultEvmAddress)
     ).rejects.toThrowErrorMatchingSnapshot();
+  });
+
+  test('EntityService.getEntityIdFromEvmAddress - Non-zero realm', async () => {
+    const entity = {
+      evm_address: '81eaa748d5252be68c1185588beca495459fdba4',
+      id: 18014948265296876n,
+      num: 1004,
+      shard: 1,
+      realm: 2,
+    };
+    await integrationDomainOps.loadEntities([entity]);
+
+    const expectError = async (str) =>
+      await expect(EntityService.getEntityIdFromEvmAddress(EntityId.parse(str))).rejects.toThrowErrorMatchingSnapshot();
+    await expectError(`${entity.evm_address}`);
+    await expectError(`0x${entity.evm_address}`);
   });
 });
 
@@ -140,22 +158,64 @@ describe('EntityService.getEncodedId tests', () => {
   });
 
   test('EntityService.getEncodedId - Matching alias', async () => {
-    await integrationDomainOps.loadEntities(defaultInputEntity);
+    const entity = {
+      alias: 'AAAQEAYEAUDAOCAJCAIREEYUCULBOGAZ',
+      id: 1001,
+      num: 1001,
+      shard: 0,
+      realm: 0,
+    };
+    await integrationDomainOps.loadEntities([entity]);
 
-    await expect(EntityService.getEncodedId(defaultInputEntity[0].alias)).resolves.toBe(defaultExpectedEntity.id);
+    await expect(EntityService.getEncodedId(entity.alias)).resolves.toBe(entity.id);
+    await expect(EntityService.getEncodedId(`${entity.realm}.${entity.alias}`)).resolves.toBe(entity.id);
+    await expect(EntityService.getEncodedId(`${entity.shard}.${entity.realm}.${entity.alias}`)).resolves.toBe(
+      entity.id
+    );
   });
 
   test('EntityService.getEncodedId - Matching evm address', async () => {
-    await integrationDomainOps.loadEntities(defaultInputEntity);
-    await integrationDomainOps.loadContracts(defaultInputContract);
+    const entity = {
+      evm_address: '71eaa748d5252be68c1185588beca495459fdba4',
+      id: 1002,
+      num: 1002,
+      shard: 0,
+      realm: 0,
+    };
+    await integrationDomainOps.loadEntities([entity]);
 
-    const accountEvmAddress = defaultInputEntity[0].evm_address;
-    await expect(EntityService.getEncodedId(accountEvmAddress)).resolves.toBe(defaultExpectedEntity.id);
-    await expect(EntityService.getEncodedId(`0x${accountEvmAddress}`)).resolves.toBe(defaultExpectedEntity.id);
+    await expect(EntityService.getEncodedId(entity.evm_address)).resolves.toBe(entity.id);
+    await expect(EntityService.getEncodedId(`0x${entity.evm_address}`)).resolves.toBe(entity.id);
+    await expect(EntityService.getEncodedId(`${entity.realm}.${entity.evm_address}`)).resolves.toBe(entity.id);
+    await expect(EntityService.getEncodedId(`${entity.shard}.${entity.realm}.${entity.evm_address}`)).resolves.toBe(
+      entity.id
+    );
+  });
 
-    const contractEvmAddress = defaultInputContract[0].evm_address;
-    await expect(EntityService.getEncodedId(contractEvmAddress)).resolves.toBe(defaultExpectedContractId.id);
-    await expect(EntityService.getEncodedId(`0x${contractEvmAddress}`)).resolves.toBe(defaultExpectedContractId.id);
+  test('EntityService.getEncodedId - Non-zero realm', async () => {
+    const entity = {
+      alias: 'AEBAGBAFAYDQQCIQCEJBGFAVCYLRQGJA',
+      evm_address: '81eaa748d5252be68c1185588beca495459fdba4',
+      id: 18014948265296875n,
+      num: 1003,
+      shard: 1,
+      realm: 2,
+    };
+    await integrationDomainOps.loadEntities([entity]);
+
+    await expect(EntityService.getEncodedId(entity.alias)).rejects.toThrowErrorMatchingSnapshot();
+    await expect(EntityService.getEncodedId(`${entity.realm}.${entity.alias}`)).rejects.toThrowErrorMatchingSnapshot();
+    await expect(
+      EntityService.getEncodedId(`${entity.shard}.${entity.realm}.${entity.alias}`)
+    ).rejects.toThrowErrorMatchingSnapshot();
+    await expect(EntityService.getEncodedId(entity.evm_address)).rejects.toThrowErrorMatchingSnapshot();
+    await expect(EntityService.getEncodedId(`0x${entity.evm_address}`)).rejects.toThrowErrorMatchingSnapshot();
+    await expect(
+      EntityService.getEncodedId(`${entity.realm}.${entity.evm_address}`)
+    ).rejects.toThrowErrorMatchingSnapshot();
+    await expect(
+      EntityService.getEncodedId(`${entity.shard}.${entity.realm}.${entity.evm_address}`)
+    ).rejects.toThrowErrorMatchingSnapshot();
   });
 
   test('EntityService.getEncodedId - Invalid alias', async () => {

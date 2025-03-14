@@ -9,7 +9,8 @@ Feature: Historical Feature
     Given I successfully create estimate precompile contract
     Then the mirror node REST API should return status 200 for the contracts creation
     Then I verify the estimate precompile contract bytecode is deployed
-    Given I create fungible and non-fungible token
+    Given I create Fungible "FUNGIBLEHISTORICAL" token with custom fees
+    Given I create NFT "NFTHISTORICAL" token with custom fees
 
     Then I successfully update the contract storage and get the initial value via historical data
     Then I successfully update the balance of an account and get the initial balance via historical data

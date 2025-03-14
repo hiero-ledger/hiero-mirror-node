@@ -18,7 +18,9 @@ import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.domain.entity.NftAllowance;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
+import com.hedera.mirror.common.domain.token.FixedFee;
 import com.hedera.mirror.common.domain.token.Nft;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.common.domain.token.TokenAccount;
@@ -33,6 +35,7 @@ import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.service.model.CallServiceParameters.CallType;
 import com.hedera.mirror.web3.service.model.ContractDebugParameters;
 import com.hedera.mirror.web3.service.model.ContractExecutionParameters;
+import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.utils.ContractFunctionProviderRecord;
 import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.mirror.web3.web3j.TestWeb3jService;
@@ -42,9 +45,15 @@ import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import com.swirlds.state.State;
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.tuple.Pair;
@@ -67,8 +76,13 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final List<BigInteger> DEFAULT_SERIAL_NUMBERS_LIST = List.of(DEFAULT_SERIAL_NUMBER);
     protected static final BigInteger INVALID_SERIAL_NUMBER = BigInteger.valueOf(Long.MAX_VALUE);
     protected static final int DEFAULT_DECIMALS = 12;
-
+    protected static final long DEFAULT_TOKEN_SUPPLY = 1000L;
     protected static final long DEFAULT_AMOUNT_GRANTED = 10L;
+    protected static final BigInteger DEFAULT_FEE_AMOUNT = BigInteger.valueOf(100L);
+    protected static final BigInteger DEFAULT_DENOMINATOR_VALUE = BigInteger.valueOf(10L);
+    protected static final BigInteger DEFAULT_NUMERATOR_VALUE = BigInteger.valueOf(20L);
+    protected static final BigInteger DEFAULT_FEE_MIN_VALUE = BigInteger.valueOf(1L);
+    protected static final BigInteger DEFAULT_FEE_MAX_VALUE = BigInteger.valueOf(1000L);
 
     @Resource
     protected TestWeb3jService testWeb3jService;
@@ -84,6 +98,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected RecordFile genesisRecordFile;
     protected Entity treasuryEntity;
+    protected double modularizedTrafficPercent;
 
     public static Key getKeyWithDelegatableContractId(final Contract contract) {
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
@@ -103,6 +118,11 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     @BeforeEach
     protected void setup() {
+        modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
+        }
+
         genesisRecordFile =
                 domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         treasuryEntity = domainBuilder
@@ -132,6 +152,10 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     @AfterEach
     void cleanup() {
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
+        }
+
         testWeb3jService.reset();
     }
 
@@ -183,8 +207,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Contract contract,
             final Address payerAddress,
             final long value) {
-        final var actualGasUsed =
-                gasUsedAfterExecution(getContractExecutionParameters(functionCall, contract, payerAddress, value));
+        final var actualGasUsed = gasUsedAfterExecution(getContractExecutionParameters(
+                functionCall, contract, payerAddress, value, mirrorNodeEvmProperties.isModularizedServices()));
 
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();
@@ -200,12 +224,14 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected ContractExecutionParameters getContractExecutionParameters(
             final RemoteFunctionCall<?> functionCall, final Contract contract) {
-        return getContractExecutionParameters(functionCall, contract, Address.ZERO, 0L);
+        return getContractExecutionParameters(
+                functionCall, contract, Address.ZERO, 0L, mirrorNodeEvmProperties.isModularizedServices());
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
             final Bytes data, final Address receiver, final Address payerAddress, final long value) {
-        return getContractExecutionParameters(data, receiver, payerAddress, value, ETH_CALL);
+        return getContractExecutionParameters(
+                data, receiver, payerAddress, value, ETH_CALL, mirrorNodeEvmProperties.isModularizedServices());
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
@@ -213,13 +239,15 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Address receiverAddress,
             final Address senderAddress,
             final long value,
-            final CallType callType) {
+            final CallType callType,
+            final boolean isModularized) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
                 .callData(data)
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .isEstimate(callType == ETH_ESTIMATE_GAS)
+                .isModularized(isModularized)
                 .isStatic(false)
                 .receiver(receiverAddress)
                 .sender(new HederaEvmAccount(senderAddress))
@@ -231,7 +259,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final RemoteFunctionCall<?> functionCall,
             final Contract contract,
             final Address payerAddress,
-            final long value) {
+            final long value,
+            final boolean isModularized) {
         return getContractExecutionParameters(
                 Bytes.fromHexString(functionCall.encodeFunctionCall()),
                 Address.fromHexString(contract.getContractAddress()),
@@ -248,7 +277,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     *
+     * Method used to persist  Token with no specific customization
      * @return Token object that is persisted in db
      */
     protected Token fungibleTokenPersist() {
@@ -256,6 +285,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
+     * Method used to persist Token with treasury account as specific customization
      *
      * @param treasuryEntityId - the treasuryEntityId that has to be set in the token
      * @return Token object that is persisted in db
@@ -264,10 +294,29 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return fungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
     }
 
+    protected FixedFee fixedFeePersist(Token token, Entity collectorAccount, Long amount) {
+        final var fixedFee = FixedFee.builder()
+                .amount(amount)
+                .collectorAccountId(collectorAccount.toEntityId())
+                .denominatingTokenId(EntityId.of(token.getTokenId()))
+                .build();
+
+        domainBuilder
+                .customFee()
+                .customize(f -> f.entityId(token.getTokenId())
+                        .fixedFees(List.of(fixedFee))
+                        .fractionalFees(List.of())
+                        .royaltyFees(List.of()))
+                .persist();
+        return fixedFee;
+    }
+
     /**
-     * Method used to customize different fields of a token and persist it in db
+     * Method used to persist Token with token entity id and additional customization
+     * provided in the customizer
+     *
      * @param customizer - the consumer used to customize the token
-     * @return Token object which is persisted in the db
+     * @return Token object which is persisted in the database
      */
     protected Token fungibleTokenCustomizable(final Consumer<Token.TokenBuilder<?, ?>> customizer) {
         final var tokenEntity =
@@ -286,6 +335,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * Creates fungible token in the token db table.
      * The token table stores the properties specific for tokens and each record refers to
      * another one in the entity table, which has the properties common for all entities.
+     *
      * @param tokenEntity     The entity from the entity db table related to the created token table record
      * @param treasuryAccount The account holding the initial token supply
      */
@@ -323,6 +373,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     /**
      * Persists a non-fungible token with a specific treasury account.
+     *
      * @param treasuryEntityId The treasury account ID.
      * @return Token object persisted in the database.
      */
@@ -330,6 +381,13 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return nonFungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
     }
 
+    /**
+     * Method used to persist non-fungible token with token id and customization
+     * provided in the customizer object
+     *
+     * @param customizer the consumer used to customize the Token
+     * @return Token object that is persisted in the database
+     */
     protected Token nonFungibleTokenCustomizable(Consumer<Token.TokenBuilder<?, ?>> customizer) {
         final var nft = tokenEntityPersist();
 
@@ -344,6 +402,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     /**
      * Creates and persists an NFT entity.
+     *
      * @param customizer Consumer to customize NFT attributes.
      */
     protected Nft nftPersistCustomizable(final Consumer<Nft.NftBuilder<?, ?>> customizer) {
@@ -356,6 +415,15 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .persist();
     }
 
+    /**
+     * Method used to persist non-fungible Token with treasury account and
+     * Nft with account id, token id and spender as specific customization
+     *
+     * @param treasury the treasury account with which the non-fungible token is persisted
+     * @param accountId the account id with which the Nft is persisted
+     * @param spender the spender with which the Nft is persisted
+     * @return Token object that is persisted in the database
+     */
     protected Token nftPersist(final EntityId treasury, final EntityId accountId, final EntityId spender) {
         final var token = nonFungibleTokenPersistWithTreasury(treasury);
         nftPersistCustomizable(
@@ -363,16 +431,41 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return token;
     }
 
+    /**
+     * Method used to persist TokenAllowance object with specific customization
+     * provided in the customizer object
+     *
+     * @param customizer the consumer used to customize the TokenAllowance
+     * @return TokenAllowance object that is persisted in the database
+     */
     protected TokenAllowance tokenAllowancePersistCustomizable(
             final Consumer<TokenAllowance.TokenAllowanceBuilder<?, ?>> customizer) {
         return domainBuilder.tokenAllowance().customize(customizer).persist();
     }
 
+    /**
+     * Method used to persist TokenAllowance object with token id,
+     * spender id, DEFAULT_AMOUNT_GRANTED and owner id as specific customizations
+     *
+     * @param spenderId the spender id with which the TokenAllowance is persisted
+     * @param ownerId the owner id with which the TokenAllowance is persisted
+     * @param tokenId the token id with which the TokenAllowance is persisted
+     */
     protected void tokenAllowancePersist(final long spenderId, final long ownerId, final long tokenId) {
         tokenAllowancePersistCustomizable(ta -> ta.tokenId(tokenId)
                 .spender(spenderId)
                 .amount(DEFAULT_AMOUNT_GRANTED)
                 .owner(ownerId));
+    }
+
+    /**
+     * Method used to persist NftAllowance with specific customization
+     * provided in the customizer object
+     *
+     * @param customizer the consumer used to customize the NftAllowance
+     */
+    protected void nftAllowancePersistCustomizable(final Consumer<NftAllowance.NftAllowanceBuilder<?, ?>> customizer) {
+        domainBuilder.nftAllowance().customize(customizer).persist();
     }
 
     /**
@@ -384,14 +477,11 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param spenderId the account allowed to transfer the NFT on owner's behalf
      */
     protected void nftAllowancePersist(final long tokenId, final long spenderId, final EntityId owner) {
-        domainBuilder
-                .nftAllowance()
-                .customize(a -> a.tokenId(tokenId)
-                        .spender(spenderId)
-                        .owner(owner.getId())
-                        .payerAccountId(owner)
-                        .approvedForAll(true))
-                .persist();
+        nftAllowancePersistCustomizable(a -> a.tokenId(tokenId)
+                .spender(spenderId)
+                .owner(owner.getId())
+                .payerAccountId(owner)
+                .approvedForAll(true));
     }
 
     /**
@@ -403,14 +493,22 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
     }
 
+    /**
+     * Method used to create an Entity of type account
+     * with DEFAULT_ACCOUNT_BALANCE
+     *
+     * @return Entity that is persisted in the database
+     */
     protected Entity accountEntityWithEvmAddressPersist() {
         return accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT).balance(DEFAULT_ACCOUNT_BALANCE));
     }
 
     /**
+     * Method used to persist an Entity with customization
+     * provided in the customizer
      *
      * @param customizer - the consumer with which to customize the entity
-     * @return
+     * @return Entity that is persisted in the database
      */
     protected Entity accountEntityPersistCustomizable(final Consumer<Entity.EntityBuilder<?, ?>> customizer) {
         return domainBuilder.entity().customize(customizer).persist();
@@ -431,6 +529,14 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .persist();
     }
 
+    /**
+     * Method used to persist a TokenAccount with token id and account id
+     * as specific customizations
+     *
+     * @param tokenId the token id with which to persist the TokenAccount
+     * @param accountId the account id with which to persist the TokenAccount
+     * @return TokenAccount that is persisted in the database
+     */
     protected TokenAccount tokenAccountPersist(final long tokenId, final long accountId) {
         return tokenAccount(ta -> ta.tokenId(tokenId).accountId(accountId));
     }
@@ -459,6 +565,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     /** This method adds a record to the account_balance table.
      * When an account balance is updated during a consensus event, an account_balance record with the consensus_timestamp,
      * account_id and balance is created.The balance_timestamp for the account entry is updated as well in the entity table.
+     *
      * @param account The account that the account_balance record is going to be created for
      * @param timestamp The timestamp indicating the account balance update
      */
@@ -541,6 +648,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .callData(callDataBytes)
                 .consensusTimestamp(domainBuilder.timestamp())
                 .gas(TRANSACTION_GAS_LIMIT)
+                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .receiver(functionProvider.contractAddress())
                 .sender(new HederaEvmAccount(functionProvider.sender()))
                 .value(functionProvider.value())
@@ -573,6 +681,28 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected String getAddressFromEvmAddress(final byte[] evmAddress) {
         return Address.wrap(Bytes.wrap(evmAddress)).toHexString();
+    }
+
+    protected void activateModularizedFlagAndInitializeState()
+            throws InvocationTargetException, IllegalAccessException {
+        mirrorNodeEvmProperties.setModularizedServices(true);
+
+        Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
+                .filter(method -> method.isAnnotationPresent(PostConstruct.class))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("@PostConstruct method not found"));
+
+        postConstructMethod.setAccessible(true);
+        postConstructMethod.invoke(state);
+
+        final Map<String, String> propertiesMap = new ConcurrentHashMap<>();
+        propertiesMap.put("contracts.maxRefundPercentOfGasLimit", "100");
+        propertiesMap.put("contracts.maxGasPerSec", "15000000");
+        mirrorNodeEvmProperties.setProperties(propertiesMap);
+    }
+
+    protected void deactivateModularizedFlag() {
+        mirrorNodeEvmProperties.setModularizedServices(false);
     }
 
     public enum KeyType {

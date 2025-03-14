@@ -35,7 +35,7 @@ import org.mockito.Mock;
 
 class AccountBalancesDownloaderTest extends AbstractDownloaderTest<AccountBalanceFile> {
 
-    private final CommonProperties commonProperties = new CommonProperties();
+    private final CommonProperties commonProperties = CommonProperties.getInstance();
     private final DomainBuilder domainBuilder = new DomainBuilder();
 
     @Mock

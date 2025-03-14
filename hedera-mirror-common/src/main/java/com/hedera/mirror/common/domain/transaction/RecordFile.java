@@ -75,7 +75,7 @@ public class RecordFile implements StreamFile<RecordItem> {
     @JsonIgnore
     @ToString.Exclude
     @Transient
-    private Collection<RecordItem> items = List.of();
+    private List<RecordItem> items = List.of();
 
     private Long loadEnd;
 
