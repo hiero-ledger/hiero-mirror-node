@@ -142,7 +142,6 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var fungibleToken = tokenClient.getToken(fungibleTokenName);
         networkTransactionResponse = fungibleToken.response();
         verifyMirrorTransactionsResponse(mirrorClient, 200);
-        ExpandedAccountId admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
         CustomFixedFee customFixedFee = new CustomFixedFee();
         customFixedFee.setAmount(CUSTOM_FIXED_FEE_AMOUNT);
         customFixedFee.setFeeCollectorAccountId(admin.getAccountId());
@@ -169,7 +168,6 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var fungibleToken = tokenClient.getToken(TokenNameEnum.FUNGIBLEHISTORICAL);
         networkTransactionResponse = fungibleToken.response();
         verifyMirrorTransactionsResponse(mirrorClient, 200);
-        ExpandedAccountId admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
         CustomFixedFee customFixedFee = new CustomFixedFee();
         customFixedFee.setAmount(CUSTOM_FIXED_FEE_AMOUNT);
         customFixedFee.setFeeCollectorAccountId(admin.getAccountId());
