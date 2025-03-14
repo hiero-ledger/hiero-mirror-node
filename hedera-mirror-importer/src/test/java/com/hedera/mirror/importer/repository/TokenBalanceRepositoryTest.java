@@ -60,7 +60,7 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
         long lastSnapshotTimestamp = domainBuilder.timestamp();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(lastSnapshotTimestamp, EntityId.of(TREASURY_NUM))))
+                .customize(ab -> ab.id(new AccountBalance.Id(lastSnapshotTimestamp, DEFAULT_TREASURY_ACCOUNT)))
                 .persist();
         // dissociated before last snapshot, will not appear in full snapshot
         domainBuilder
@@ -78,14 +78,14 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
         // newSnapshotTimestamp
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(newSnapshotTimestamp, EntityId.of(TREASURY_NUM))))
+                .customize(ab -> ab.id(new AccountBalance.Id(newSnapshotTimestamp, DEFAULT_TREASURY_ACCOUNT)))
                 .persist();
         var expected = List.of(
                 buildTokenBalance(tokenAccount1, newSnapshotTimestamp),
                 buildTokenBalance(tokenAccount2, newSnapshotTimestamp));
 
         // when
-        tokenBalanceRepository.balanceSnapshot(newSnapshotTimestamp, TREASURY_NUM);
+        tokenBalanceRepository.balanceSnapshot(newSnapshotTimestamp, DEFAULT_TREASURY_ACCOUNT.getId());
 
         // then
         assertThat(tokenBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);

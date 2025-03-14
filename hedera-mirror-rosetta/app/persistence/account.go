@@ -90,11 +90,11 @@ type accountBalance struct {
 // accountRepository struct that has connection to the Database
 type accountRepository struct {
 	dbClient         interfaces.DbClient
-	treasuryEntityId int64
+	treasuryEntityId domain.EntityId
 }
 
 // NewAccountRepository creates an instance of a accountRepository struct
-func NewAccountRepository(dbClient interfaces.DbClient, treasuryEntityId int64) interfaces.AccountRepository {
+func NewAccountRepository(dbClient interfaces.DbClient, treasuryEntityId domain.EntityId) interfaces.AccountRepository {
 	return &accountRepository{dbClient, treasuryEntityId}
 }
 
@@ -277,7 +277,7 @@ func (ar *accountRepository) getLatestBalanceSnapshot(ctx context.Context, accou
 		sql.Named("account_id", accountId),
 		sql.Named("lower_bound", partitionLowerBound),
 		sql.Named("timestamp", timestamp),
-		sql.Named("treasury_entity_id", ar.treasuryEntityId),
+		sql.Named("treasury_entity_id", ar.treasuryEntityId.EncodedId),
 	).First(ab).Error; err != nil {
 		log.Errorf(
 			databaseErrorFormat,

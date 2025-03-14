@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
+import static com.hedera.mirror.common.config.CommonIntegrationTest.DEFAULT_TREASURY_ACCOUNT;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -18,7 +19,6 @@ import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.entity.NftAllowance;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.web3.repository.AccountBalanceRepository;
 import com.hedera.mirror.web3.repository.CryptoAllowanceRepository;
@@ -61,7 +61,6 @@ class AccountDatabaseAccessorTest {
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final int POSITIVE_BALANCES = 7;
     private static final int NEGATIVE_BALANCES = 8;
-    private static final long TREASURY_ACCOUNT_ID = SystemEntity.TREASURY_ACCOUNT.getNum();
     private static final List<TokenAccountAssociationsCount> associationsCount = Arrays.asList(
             new TokenAccountAssociationsCount() {
                 @Override
@@ -221,14 +220,15 @@ class AccountDatabaseAccessorTest {
         when(entityDatabaseAccessor.get(ADDRESS, timestamp)).thenReturn(Optional.of(entity));
         long balance = 20;
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), TREASURY_ACCOUNT_ID))
+                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
                 .thenReturn(Optional.of(balance));
 
         assertThat(accountAccessor.get(ADDRESS, timestamp))
                 .hasValueSatisfying(account -> assertThat(account).returns(balance, Account::getBalance));
 
         verify(accountBalanceRepository)
-                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get(), TREASURY_ACCOUNT_ID);
+                .findHistoricalAccountBalanceUpToTimestamp(
+                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
     }
 
     @Test
@@ -247,14 +247,15 @@ class AccountDatabaseAccessorTest {
         when(entityDatabaseAccessor.get(ADDRESS, timestamp)).thenReturn(Optional.of(entity));
         long balance = 0;
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), TREASURY_ACCOUNT_ID))
+                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
                 .thenReturn(Optional.of(balance));
 
         assertThat(accountAccessor.get(ADDRESS, timestamp))
                 .hasValueSatisfying(account -> assertThat(account).returns(balance, Account::getBalance));
 
         verify(accountBalanceRepository)
-                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get(), TREASURY_ACCOUNT_ID);
+                .findHistoricalAccountBalanceUpToTimestamp(
+                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
     }
 
     @Test
@@ -263,13 +264,14 @@ class AccountDatabaseAccessorTest {
         long balance = 20;
         entity.setCreatedTimestamp(null);
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), TREASURY_ACCOUNT_ID))
+                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
                 .thenReturn(Optional.of(balance));
 
         assertThat(accountAccessor.get(ADDRESS, timestamp))
                 .hasValueSatisfying(account -> assertThat(account).returns(balance, Account::getBalance));
         verify(accountBalanceRepository)
-                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get(), TREASURY_ACCOUNT_ID);
+                .findHistoricalAccountBalanceUpToTimestamp(
+                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
     }
 
     @Test

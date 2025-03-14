@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
+import static com.hedera.mirror.common.config.CommonIntegrationTest.DEFAULT_TREASURY_ACCOUNT;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -9,7 +10,6 @@ import static org.mockito.Mockito.when;
 
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
 import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
 import com.hedera.mirror.web3.evm.store.accessor.model.TokenRelationshipKey;
@@ -56,8 +56,6 @@ class TokenRelationshipDatabaseAccessorTest {
     private NftRepository nftRepository;
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
-
-    private static final long TREASURY_ACCOUNT_ID = SystemEntity.TREASURY_ACCOUNT.getNum();
 
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private Account account;
@@ -205,7 +203,10 @@ class TokenRelationshipDatabaseAccessorTest {
                         tokenAccount.getAccountId(), tokenAccount.getTokenId(), timestamp.get()))
                 .thenReturn(Optional.of(tokenAccount));
         when(tokenBalanceRepository.findHistoricalTokenBalanceUpToTimestamp(
-                        tokenAccount.getTokenId(), tokenAccount.getAccountId(), timestamp.get(), TREASURY_ACCOUNT_ID))
+                        tokenAccount.getTokenId(),
+                        tokenAccount.getAccountId(),
+                        timestamp.get(),
+                        DEFAULT_TREASURY_ACCOUNT.getId()))
                 .thenReturn(Optional.of(balance));
         when(token.getType()).thenReturn(TokenType.FUNGIBLE_COMMON);
 

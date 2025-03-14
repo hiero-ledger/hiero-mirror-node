@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.state.keyvalue;
 
+import static com.hedera.mirror.common.config.CommonIntegrationTest.DEFAULT_TREASURY_ACCOUNT;
 import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,7 +25,6 @@ import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.CustomFee;
 import com.hedera.mirror.common.domain.token.FallbackFee;
 import com.hedera.mirror.common.domain.token.FixedFee;
@@ -66,7 +66,6 @@ class TokenReadableKVStateTest {
     private static final Long TOKEN_ENCODED_ID = EntityId.of(
                     TOKEN_ID.shardNum(), TOKEN_ID.realmNum(), TOKEN_ID.tokenNum())
             .getId();
-    private static final long TREASURY_ACCOUNT_ID = SystemEntity.TREASURY_ACCOUNT.getNum();
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final TokenID DENOMINATING_TOKEN_ID =
             TokenID.newBuilder().shardNum(11L).realmNum(12L).tokenNum(13L).build();
@@ -366,7 +365,7 @@ class TokenReadableKVStateTest {
 
         when(commonEntityAccessor.get(TOKEN_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
         when(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
-                        databaseToken.getTokenId(), timestamp.get(), TREASURY_ACCOUNT_ID))
+                        databaseToken.getTokenId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
                 .thenReturn(historicalSupply);
 
         assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID))
@@ -375,7 +374,7 @@ class TokenReadableKVStateTest {
 
         verify(tokenRepository)
                 .findFungibleTotalSupplyByTokenIdAndTimestamp(
-                        databaseToken.getTokenId(), timestamp.get(), TREASURY_ACCOUNT_ID);
+                        databaseToken.getTokenId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
     }
 
     @Test

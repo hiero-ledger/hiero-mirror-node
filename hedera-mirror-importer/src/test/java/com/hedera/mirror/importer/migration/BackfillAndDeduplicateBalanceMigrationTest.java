@@ -93,11 +93,11 @@ class BackfillAndDeduplicateBalanceMigrationTest
     void migrate() {
         // given
         // based on partitionTimeInterval of '10 years' in test application config
-        var treasury = EntityId.of(TREASURY_NUM);
-        var account2 = EntityId.of(domainBuilder.id() + TREASURY_NUM);
-        var account3 = EntityId.of(domainBuilder.id() + TREASURY_NUM);
-        var account4 = EntityId.of(domainBuilder.id() + TREASURY_NUM);
-        var token = EntityId.of(domainBuilder.id() + TREASURY_NUM);
+        var treasury = DEFAULT_TREASURY_ACCOUNT;
+        var account2 = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
+        var account3 = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
+        var account4 = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
+        var token = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
 
         // The balance snapshot already in db, processed by V1.89.2
         long sentinelTimestamp = LocalDate.now(UTC).toEpochSecond(LocalTime.of(22, 0), UTC) * 1_000_000_000L;
@@ -407,9 +407,9 @@ class BackfillAndDeduplicateBalanceMigrationTest
         // given
         // there is no balance info before the portion already handled by V1.89.2, for simplicity, no data is populated
         // for account_balance_old and token_balance_old
-        var treasury = EntityId.of(TREASURY_NUM);
-        var account = EntityId.of(domainBuilder.id() + TREASURY_NUM);
-        var token = EntityId.of(domainBuilder.id() + TREASURY_NUM);
+        var treasury = DEFAULT_TREASURY_ACCOUNT;
+        var account = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
+        var token = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
         long timestamp = domainBuilder.timestamp();
         setSentinelTimestamp(timestamp);
         domainBuilder
@@ -445,9 +445,9 @@ class BackfillAndDeduplicateBalanceMigrationTest
         // given min frequency is set to 6 minutes
         migration.migrationProperties.getParams().put("minFrequency", "6m");
 
-        var treasury = EntityId.of(TREASURY_NUM);
-        var account = EntityId.of(domainBuilder.id() + TREASURY_NUM);
-        var token = EntityId.of(domainBuilder.id() + TREASURY_NUM);
+        var treasury = DEFAULT_TREASURY_ACCOUNT;
+        var account = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
+        var token = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
         long sentinelTimestamp = domainBuilder.timestamp();
         setSentinelTimestamp(sentinelTimestamp);
 

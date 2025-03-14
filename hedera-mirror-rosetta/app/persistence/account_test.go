@@ -83,7 +83,7 @@ type accountRepositorySuite struct {
 	account6Alias    []byte
 	realm            int64
 	shard            int64
-	treasuryEntityId int64
+	treasuryEntityId domain.EntityId
 }
 
 func (s *accountRepositorySuite) getEntityId(num int64) domain.EntityId {
@@ -93,7 +93,7 @@ func (s *accountRepositorySuite) getEntityId(num int64) domain.EntityId {
 func (suite *accountRepositorySuite) SetupSuite() {
 	suite.accountId = types.NewAccountIdFromEntityId(suite.getEntityId(accountNum1))
 	suite.accountIdString = suite.accountId.String()
-	suite.treasuryEntityId = suite.getEntityId(2).EncodedId
+	suite.treasuryEntityId = suite.getEntityId(2)
 }
 
 func (suite *accountRepositorySuite) SetupTest() {
@@ -106,11 +106,11 @@ func (suite *accountRepositorySuite) SetupTest() {
 
 	// account balance files, always add an account_balance row for treasury
 	tdomain.NewAccountBalanceSnapshotBuilder(dbClient, firstSnapshotTimestamp).
-		AddAccountBalance(suite.treasuryEntityId, 2_000_000_000).
+		AddAccountBalance(suite.treasuryEntityId.EncodedId, 2_000_000_000).
 		AddAccountBalance(accountId1, initialAccountBalance).
 		Persist()
 	tdomain.NewAccountBalanceSnapshotBuilder(dbClient, thirdSnapshotTimestamp).
-		AddAccountBalance(suite.treasuryEntityId, 2_000_000_000).
+		AddAccountBalance(suite.treasuryEntityId.EncodedId, 2_000_000_000).
 		Persist()
 
 	// crypto transfers happened at <= first snapshot timestamp
@@ -263,7 +263,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAfterSecondSnapsh
 	truncateTables(domain.CryptoTransfer{})
 	balance := initialAccountBalance + sum(cryptoTransferAmounts)
 	tdomain.NewAccountBalanceSnapshotBuilder(dbClient, secondSnapshotTimestamp).
-		AddAccountBalance(suite.treasuryEntityId, 2_000_000_000).
+		AddAccountBalance(suite.treasuryEntityId.EncodedId, 2_000_000_000).
 		AddAccountBalance(suite.getEntityId(accountNum1).EncodedId, balance).
 		Persist()
 	hbarAmount := &types.HbarAmount{Value: balance}
@@ -288,13 +288,13 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAfterThirdSnapsho
 	truncateTables(domain.CryptoTransfer{})
 	balance := initialAccountBalance + sum(cryptoTransferAmounts)
 	tdomain.NewAccountBalanceSnapshotBuilder(dbClient, secondSnapshotTimestamp).
-		AddAccountBalance(suite.treasuryEntityId, 2_000_000_000).
+		AddAccountBalance(suite.treasuryEntityId.EncodedId, 2_000_000_000).
 		AddAccountBalance(suite.getEntityId(accountNum1).EncodedId, balance).
 		Persist()
 	// No balance info for accountNum1 in the third snapshot due to dedup, i.e., accountNum1's balances at
 	// thirdSnapshotTimestamp is the same as the balance at secondSnapshotTimestamp
 	tdomain.NewAccountBalanceSnapshotBuilder(dbClient, thirdSnapshotTimestamp).
-		AddAccountBalance(suite.treasuryEntityId, 2_000_000_000).
+		AddAccountBalance(suite.treasuryEntityId.EncodedId, 2_000_000_000).
 		Persist()
 	// Add a crypto transfer after the third snapshot timestamp
 	tdomain.NewCryptoTransferBuilder(dbClient).

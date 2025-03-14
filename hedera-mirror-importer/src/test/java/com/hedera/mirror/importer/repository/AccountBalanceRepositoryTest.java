@@ -31,7 +31,7 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
     @Test
     void balanceSnapshot() {
         long timestamp = 100;
-        assertThat(accountBalanceRepository.balanceSnapshot(timestamp, TREASURY_NUM))
+        assertThat(accountBalanceRepository.balanceSnapshot(timestamp, DEFAULT_TREASURY_ACCOUNT.getId()))
                 .isZero();
         assertThat(accountBalanceRepository.findAll()).isEmpty();
 
@@ -62,7 +62,7 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
                         .id(new AccountBalance.Id(timestamp, e.toEntityId()))
                         .build())
                 .toList();
-        assertThat(accountBalanceRepository.balanceSnapshot(timestamp, TREASURY_NUM))
+        assertThat(accountBalanceRepository.balanceSnapshot(timestamp, DEFAULT_TREASURY_ACCOUNT.getId()))
                 .isEqualTo(expected.size());
         assertThat(accountBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
     }

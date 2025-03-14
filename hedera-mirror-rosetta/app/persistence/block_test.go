@@ -135,11 +135,11 @@ type blockRepositorySuite struct {
 	accountBalances  []*domain.AccountBalance
 	realm            int64
 	shard            int64
-	treasuryEntityId int64
+	treasuryEntityId domain.EntityId
 }
 
 func (suite *blockRepositorySuite) SetupSuite() {
-	suite.treasuryEntityId = MustEncodeEntityId(suite.shard, suite.realm, 2).EncodedId
+	suite.treasuryEntityId = MustEncodeEntityId(suite.shard, suite.realm, 2)
 	if suite.shard == 0 && suite.realm == 0 {
 		suite.accountBalances = defaultAccountBalances
 	} else {

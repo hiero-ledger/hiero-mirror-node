@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/persistence/domain"
 	"sync"
 
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
@@ -119,11 +120,11 @@ type blockRepository struct {
 	dbClient         interfaces.DbClient
 	genesisBlock     recordBlock
 	once             sync.Once
-	treasuryEntityId int64
+	treasuryEntityId domain.EntityId
 }
 
 // NewBlockRepository creates an instance of a blockRepository struct
-func NewBlockRepository(dbClient interfaces.DbClient, treasuryEntityId int64) interfaces.BlockRepository {
+func NewBlockRepository(dbClient interfaces.DbClient, treasuryEntityId domain.EntityId) interfaces.BlockRepository {
 	return &blockRepository{
 		dbClient:         dbClient,
 		genesisBlock:     recordBlock{ConsensusStart: genesisConsensusStartUnset},
@@ -248,7 +249,7 @@ func (br *blockRepository) initGenesisRecordFile(ctx context.Context) *rTypes.Er
 	defer cancel()
 
 	var rb recordBlock
-	if err := db.Raw(selectGenesis, sql.Named("treasury_entity_id", br.treasuryEntityId)).
+	if err := db.Raw(selectGenesis, sql.Named("treasury_entity_id", br.treasuryEntityId.EncodedId)).
 		First(&rb).Error; err != nil {
 		return handleDatabaseError(err, hErrors.ErrNodeIsStarting)
 	}

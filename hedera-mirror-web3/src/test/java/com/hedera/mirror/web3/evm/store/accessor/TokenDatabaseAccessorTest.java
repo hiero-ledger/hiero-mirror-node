@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
+import static com.hedera.mirror.common.config.CommonIntegrationTest.DEFAULT_TREASURY_ACCOUNT;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
 import static com.hedera.services.utils.MiscUtils.asFcKeyUnchecked;
 import static java.util.Collections.emptyList;
@@ -20,7 +21,6 @@ import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.web3.repository.EntityRepository;
 import com.hedera.mirror.web3.repository.NftRepository;
@@ -77,8 +77,6 @@ class TokenDatabaseAccessorTest {
 
     @Mock
     private Entity defaultEntity;
-
-    private static final long TREASURY_ACCOUNT_ID = SystemEntity.TREASURY_ACCOUNT.getNum();
 
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private Entity entity;
@@ -280,7 +278,7 @@ class TokenDatabaseAccessorTest {
 
         when(entityDatabaseAccessor.get(ADDRESS, timestamp)).thenReturn(Optional.ofNullable(entity));
         when(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
-                        databaseToken.getTokenId(), timestamp.get(), TREASURY_ACCOUNT_ID))
+                        databaseToken.getTokenId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
                 .thenReturn(historicalSupply);
 
         tokenDatabaseAccessor.get(ADDRESS, timestamp);
@@ -292,7 +290,7 @@ class TokenDatabaseAccessorTest {
 
         verify(tokenRepository)
                 .findFungibleTotalSupplyByTokenIdAndTimestamp(
-                        databaseToken.getTokenId(), timestamp.get(), TREASURY_ACCOUNT_ID);
+                        databaseToken.getTokenId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
     }
 
     @Test

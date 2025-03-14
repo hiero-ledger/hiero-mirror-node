@@ -67,9 +67,9 @@ func newBlockchainOnlineRouter(
 	version *rTypes.Version,
 ) (http.Handler, error) {
 	systemEntity := domain.NewSystemEntity(mirrorConfig.Common)
-	accountRepo := persistence.NewAccountRepository(dbClient, systemEntity.GetTreasuryAccount().EncodedId)
+	accountRepo := persistence.NewAccountRepository(dbClient, systemEntity.GetTreasuryAccount())
 	addressBookEntryRepo := persistence.NewAddressBookEntryRepository(dbClient)
-	blockRepo := persistence.NewBlockRepository(dbClient, systemEntity.GetTreasuryAccount().EncodedId)
+	blockRepo := persistence.NewBlockRepository(dbClient, systemEntity.GetTreasuryAccount())
 	transactionRepo := persistence.NewTransactionRepository(dbClient, systemEntity.GetStakingRewardAccount())
 
 	baseService := services.NewOnlineBaseService(blockRepo, transactionRepo)
