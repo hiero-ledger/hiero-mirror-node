@@ -32,10 +32,12 @@ import org.apache.tuweni.bytes.Bytes;
 public abstract class ContractCallService {
     static final String GAS_LIMIT_METRIC = "hedera.mirror.web3.call.gas.limit";
     static final String GAS_USED_METRIC = "hedera.mirror.web3.call.gas.used";
+    static final String MODULARIZED_CALL = "hedera.mirror.web3.call.modularized";
     protected final Store store;
     protected final MirrorNodeEvmProperties mirrorNodeEvmProperties;
     private final MeterProvider<Counter> gasLimitCounter;
     private final MeterProvider<Counter> gasUsedCounter;
+    private final MeterProvider<Counter> modularizedCall;
     private final MirrorEvmTxProcessor mirrorEvmTxProcessor;
     private final RecordFileService recordFileService;
     private final ThrottleProperties throttleProperties;
@@ -58,6 +60,9 @@ public abstract class ContractCallService {
                 .withRegistry(meterRegistry);
         this.gasUsedCounter = Counter.builder(GAS_USED_METRIC)
                 .description("The amount of gas consumed by the EVM")
+                .withRegistry(meterRegistry);
+        this.modularizedCall = Counter.builder(MODULARIZED_CALL)
+                .description("Indicates if the call is modularized or not")
                 .withRegistry(meterRegistry);
         this.store = store;
         this.mirrorEvmTxProcessor = mirrorEvmTxProcessor;
@@ -102,12 +107,12 @@ public abstract class ContractCallService {
         }
 
         // initializes the stack frame with the current state or historical state (if the call is historical)
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
+        if (!mirrorNodeEvmProperties.isModularizedServices() || !params.isModularized()) {
             ctx.initializeStackFrames(store.getStackedStateFrames());
         }
 
         var result = doProcessCall(params, params.getGas(), true);
-        validateResult(result, params.getCallType());
+        validateResult(result, params);
         return result;
     }
 
@@ -152,6 +157,23 @@ public abstract class ContractCallService {
         }
     }
 
+    protected void validateResult(
+            final HederaEvmTransactionProcessingResult txnResult, final CallServiceParameters params) {
+        if (!txnResult.isSuccessful()) {
+            updateGasUsedMetric(ERROR, txnResult.getGasUsed(), 1);
+            var revertReason = txnResult.getRevertReason().orElse(Bytes.EMPTY);
+            var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReason);
+            throw new MirrorEvmTransactionException(
+                    getStatusOrDefault(txnResult).name(),
+                    detail,
+                    revertReason.toHexString(),
+                    txnResult,
+                    mirrorNodeEvmProperties.isModularizedServices() && params.isModularized());
+        } else {
+            updateGasUsedMetric(params.getCallType(), txnResult.getGasUsed(), 1);
+        }
+    }
+
     protected void validateResult(final HederaEvmTransactionProcessingResult txnResult, final CallType type) {
         if (!txnResult.isSuccessful()) {
             updateGasUsedMetric(ERROR, txnResult.getGasUsed(), 1);
@@ -172,5 +194,11 @@ public abstract class ContractCallService {
 
     protected void updateGasLimitMetric(final CallType callType, final long gasLimit) {
         gasLimitCounter.withTags("type", callType.toString()).increment(gasLimit);
+    }
+
+    protected void updateModularizedCounter(final boolean isModularized) {
+        modularizedCall
+                .withTags(CallType.IS_MODULARIZED.toString(), String.valueOf(isModularized))
+                .increment();
     }
 }

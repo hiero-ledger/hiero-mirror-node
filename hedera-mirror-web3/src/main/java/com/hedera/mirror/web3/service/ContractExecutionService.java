@@ -55,6 +55,7 @@ public class ContractExecutionService extends ContractCallService {
 
             try {
                 updateGasLimitMetric(params.getCallType(), params.getGas());
+                updateModularizedCounter(params.isModularized());
 
                 Bytes result;
                 if (params.isEstimate()) {

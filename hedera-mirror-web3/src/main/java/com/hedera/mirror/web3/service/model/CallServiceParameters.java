@@ -35,6 +35,7 @@ public interface CallServiceParameters {
         ETH_CALL,
         ETH_DEBUG_TRACE_TRANSACTION,
         ETH_ESTIMATE_GAS,
-        ERROR
+        ERROR,
+        IS_MODULARIZED,
     }
 }

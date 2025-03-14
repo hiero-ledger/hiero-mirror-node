@@ -23,15 +23,21 @@ public class MirrorEvmTransactionException extends EvmException {
 
     private final String detail;
     private final String data;
+    private Boolean isCallModularized;
     private final transient HederaEvmTransactionProcessingResult result;
 
     public MirrorEvmTransactionException(
             final ResponseCodeEnum responseCode, final String detail, final String hexData) {
-        this(responseCode.name(), detail, hexData, null);
+        this(responseCode.name(), detail, hexData, null, null);
     }
 
     public MirrorEvmTransactionException(final String message, final String detail, final String hexData) {
-        this(message, detail, hexData, null);
+        this(message, detail, hexData, null, null);
+    }
+
+    public MirrorEvmTransactionException(
+            final String message, final String detail, final String hexData, Boolean isCallModularized) {
+        this(message, detail, hexData, null, isCallModularized);
     }
 
     public MirrorEvmTransactionException(
@@ -42,6 +48,19 @@ public class MirrorEvmTransactionException extends EvmException {
         super(message);
         this.detail = detail;
         this.data = hexData;
+        this.result = result;
+    }
+
+    public MirrorEvmTransactionException(
+            final String message,
+            final String detail,
+            final String hexData,
+            HederaEvmTransactionProcessingResult result,
+            final Boolean isCallModularized) {
+        super(message);
+        this.detail = detail;
+        this.data = hexData;
+        this.isCallModularized = isCallModularized;
         this.result = result;
     }
 
