@@ -196,7 +196,7 @@ public class SDKClient implements Cleanable {
                 var accountId = new AccountCreateTransaction()
                         .setAlias(alias)
                         .setInitialBalance(balance)
-                        .setKey(publicKey)
+                        .setKeyWithoutAlias(publicKey)
                         .execute(client)
                         .getReceipt(client)
                         .accountId;

@@ -33,7 +33,7 @@ public class AccountCreateTransactionSupplier implements TransactionSupplier<Acc
         return new AccountCreateTransaction()
                 .setAccountMemo(Utility.getMemo("Mirror node created test account"))
                 .setInitialBalance(Hbar.fromTinybars(initialBalance))
-                .setKey(publicKey != null ? PublicKey.fromString(publicKey) : generateKeys())
+                .setKeyWithoutAlias(publicKey != null ? PublicKey.fromString(publicKey) : generateKeys())
                 .setMaxTransactionFee(Hbar.fromTinybars(maxTransactionFee))
                 .setReceiverSignatureRequired(receiverSignatureRequired);
     }

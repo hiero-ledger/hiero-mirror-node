@@ -72,6 +72,8 @@ import org.awaitility.core.ConditionTimeoutException;
 @CustomLog
 @RequiredArgsConstructor
 public class HistoricalFeature extends AbstractEstimateFeature {
+    private static final long CUSTOM_FIXED_FEE_AMOUNT = 10L;
+
     private final AccountClient accountClient;
     private final TokenClient tokenClient;
     private DeployedContract deployedEstimateContract;
@@ -134,36 +136,55 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         assertThat(response.getRuntimeBytecode()).isNotBlank();
     }
 
-    @Given("I create fungible and non-fungible token")
-    public void createFungibleToken() {
+    @Given("I create Fungible {token} token with custom fees")
+    public void createFungibleToken(TokenNameEnum fungibleTokenName) {
+        // Get Fungible token to be used as a denominating token for custom fees
+        var fungibleToken = tokenClient.getToken(fungibleTokenName);
+        networkTransactionResponse = fungibleToken.response();
+        verifyMirrorTransactionsResponse(mirrorClient, 200);
         CustomFixedFee customFixedFee = new CustomFixedFee();
-        customFixedFee.setAmount(10);
+        customFixedFee.setAmount(CUSTOM_FIXED_FEE_AMOUNT);
         customFixedFee.setFeeCollectorAccountId(admin.getAccountId());
+        customFixedFee.setDenominatingTokenId(fungibleToken.tokenId());
 
         CustomFractionalFee customFractionalFee = new CustomFractionalFee();
         customFractionalFee.setFeeCollectorAccountId(admin.getAccountId());
         customFractionalFee.setNumerator(1);
         customFractionalFee.setDenominator(10);
+        customFractionalFee.setMax(100);
+
+        List<CustomFee> fungibleFees = List.of(customFixedFee, customFractionalFee);
+
+        // Crate Fungible token with custom fees
+        verifyMirrorTransactionsResponse(mirrorClient, 200);
+        var fungibleTokenWithCustomFeesResponse = tokenClient.getToken(fungibleTokenName, fungibleFees);
+        networkTransactionResponse = fungibleTokenWithCustomFeesResponse.response();
+        verifyMirrorTransactionsResponse(mirrorClient, 200);
+    }
+
+    @Given("I create NFT {token} token with custom fees")
+    public void createNFT(TokenNameEnum nftTokenName) {
+        // Get Fungible token to be used as a denominating token for custom fees
+        var fungibleToken = tokenClient.getToken(TokenNameEnum.FUNGIBLEHISTORICAL);
+        networkTransactionResponse = fungibleToken.response();
+        verifyMirrorTransactionsResponse(mirrorClient, 200);
+        CustomFixedFee customFixedFee = new CustomFixedFee();
+        customFixedFee.setAmount(CUSTOM_FIXED_FEE_AMOUNT);
+        customFixedFee.setFeeCollectorAccountId(admin.getAccountId());
+        customFixedFee.setDenominatingTokenId(fungibleToken.tokenId());
 
         CustomRoyaltyFee customRoyaltyFee = new CustomRoyaltyFee();
         customRoyaltyFee.setNumerator(5);
         customRoyaltyFee.setDenominator(10);
-        customRoyaltyFee.setFallbackFee(new CustomFixedFee().setHbarAmount(new Hbar(1)));
+        customRoyaltyFee.setFallbackFee(
+                new CustomFixedFee().setHbarAmount(new Hbar(1)).setDenominatingTokenId(fungibleToken.tokenId()));
         customRoyaltyFee.setFeeCollectorAccountId(admin.getAccountId());
 
-        List<CustomFee> fungibleFees = List.of(customFixedFee, customFractionalFee);
         List<CustomFee> nonFungibleFees = List.of(customFixedFee, customRoyaltyFee);
 
-        tokenClient.getToken(TokenNameEnum.NFTHISTORICAL, nonFungibleFees);
-        var tokenResponse = tokenClient.getToken(TokenNameEnum.FUNGIBLEHISTORICAL, fungibleFees);
-        networkTransactionResponse = tokenResponse.response();
-        verifyMirrorTransactionsResponse(mirrorClient, 200);
-    }
-
-    @Given("I create non-fungible token")
-    public void createNonFungibleToken() {
-        var tokenResponse = tokenClient.getToken(TokenNameEnum.NFTHISTORICAL);
-        networkTransactionResponse = tokenResponse.response();
+        // Crate Non-Fungible token with custom fees
+        var nftWithCustomFeesResponse = tokenClient.getToken(nftTokenName, nonFungibleFees);
+        networkTransactionResponse = nftWithCustomFeesResponse.response();
         verifyMirrorTransactionsResponse(mirrorClient, 200);
     }
 
