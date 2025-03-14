@@ -121,6 +121,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
+        } else {
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
         }
 
         genesisRecordFile =
