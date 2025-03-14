@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.grpc.domain;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
@@ -31,6 +32,11 @@ import reactor.core.publisher.Mono;
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class ReactiveDomainBuilder {
 
+    public static final EntityId TOPIC_ID = EntityId.of(
+            CommonProperties.getInstance().getShard(),
+            CommonProperties.getInstance().getRealm(),
+            100L);
+
     private final long now = DomainUtils.now();
     private final EntityRepository entityRepository;
     private final TopicMessageRepository topicMessageRepository;
@@ -50,7 +56,11 @@ public class ReactiveDomainBuilder {
     public Mono<Entity> entity(Consumer<Entity.EntityBuilder<?, ?>> customizer) {
         Entity entity = domainBuilder
                 .entity()
-                .customize(e -> e.id(100L).type(EntityType.TOPIC))
+                .customize(e -> e.id(TOPIC_ID.getId())
+                        .num(TOPIC_ID.getNum())
+                        .realm(TOPIC_ID.getRealm())
+                        .shard(TOPIC_ID.getShard())
+                        .type(EntityType.TOPIC))
                 .customize(customizer)
                 .get();
         return insert(entity).thenReturn(entity);
@@ -72,7 +82,7 @@ public class ReactiveDomainBuilder {
                 .topicMessage()
                 .customize(e -> e.consensusTimestamp(now + sequenceNumber)
                         .sequenceNumber(++sequenceNumber)
-                        .topicId(EntityId.of(100L)))
+                        .topicId(TOPIC_ID))
                 .customize(customizer)
                 .get();
         return insert(topicMessage)

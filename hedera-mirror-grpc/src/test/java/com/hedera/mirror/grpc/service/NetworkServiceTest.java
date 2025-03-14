@@ -6,44 +6,40 @@ import static com.hedera.mirror.grpc.service.NetworkServiceImpl.INVALID_FILE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.grpc.GrpcIntegrationTest;
 import com.hedera.mirror.grpc.domain.AddressBookFilter;
 import com.hedera.mirror.grpc.exception.EntityNotFoundException;
 import com.hedera.mirror.grpc.repository.AddressBookEntryRepository;
 import com.hedera.mirror.grpc.repository.NodeStakeRepository;
-import jakarta.annotation.Resource;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Duration;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import reactor.test.StepVerifier;
 
+@RequiredArgsConstructor
 class NetworkServiceTest extends GrpcIntegrationTest {
 
     private static final long CONSENSUS_TIMESTAMP = 1L;
     private static final long NODE_STAKE_CONSENSUS_TIMESTAMP = 10L; // A daily thing
 
-    @Resource
-    private AddressBookEntryRepository addressBookEntryRepository;
-
-    @Resource
-    private NodeStakeRepository nodeStakeRepository;
-
-    @Resource
-    private AddressBookProperties addressBookProperties;
-
-    @Autowired
-    private DomainBuilder domainBuilder;
-
-    @Resource
-    private NetworkService networkService;
+    private final AddressBookEntryRepository addressBookEntryRepository;
+    private final AddressBookProperties addressBookProperties;
+    private final CommonProperties commonProperties;
+    private final DomainBuilder domainBuilder;
+    private final NetworkService networkService;
+    private final NodeStakeRepository nodeStakeRepository;
 
     private int pageSize;
 
@@ -59,8 +55,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
 
     @Test
     void invalidFilter() {
-        AddressBookFilter filter =
-                AddressBookFilter.builder().fileId(null).limit(-1).build();
+        var filter = AddressBookFilter.builder().fileId(null).limit(-1).build();
 
         assertThatThrownBy(() -> networkService.getNodes(filter))
                 .isInstanceOf(ConstraintViolationException.class)
@@ -70,18 +65,19 @@ class NetworkServiceTest extends GrpcIntegrationTest {
 
     @Test
     void addressBookNotFound() {
-        AddressBookFilter filter =
-                AddressBookFilter.builder().fileId(EntityId.of(102L)).build();
+        var filter = AddressBookFilter.builder()
+                .fileId(SystemEntity.ADDRESS_BOOK_102.getScopedEntityId(commonProperties))
+                .build();
 
         assertThatThrownBy(() -> networkService.getNodes(filter))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("0.0.102 does not exist");
     }
 
-    @Test
-    void invalidAddressBookFile() {
-        AddressBookFilter filter =
-                AddressBookFilter.builder().fileId(EntityId.of(999L)).build();
+    @ParameterizedTest
+    @ValueSource(strings = {"0.0.1001", "2.0.101", "0.2.101", "1.0.102", "0.1.102"})
+    void invalidFileId(String fileId) {
+        var filter = AddressBookFilter.builder().fileId(EntityId.of(fileId)).build();
 
         assertThatThrownBy(() -> networkService.getNodes(filter))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -91,8 +87,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     @Test
     void noNodes() {
         AddressBook addressBook = addressBook();
-        AddressBookFilter filter =
-                AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
 
         StepVerifier.withVirtualTime(() -> networkService.getNodes(filter))
                 .thenAwait(Duration.ofSeconds(10L))
@@ -106,8 +101,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         addressBookProperties.setPageSize(2);
         AddressBook addressBook = addressBook();
         AddressBookEntry addressBookEntry = addressBookEntry();
-        AddressBookFilter filter =
-                AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
 
         assertThat(getNodes(filter)).containsExactly(addressBookEntry);
     }
@@ -118,8 +112,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         AddressBook addressBook = addressBook();
         AddressBookEntry addressBookEntry1 = addressBookEntry();
         AddressBookEntry addressBookEntry2 = addressBookEntry();
-        AddressBookFilter filter =
-                AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
 
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2);
     }
@@ -131,8 +124,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         AddressBookEntry addressBookEntry1 = addressBookEntry();
         AddressBookEntry addressBookEntry2 = addressBookEntry();
         AddressBookEntry addressBookEntry3 = addressBookEntry();
-        AddressBookFilter filter =
-                AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
 
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
     }
@@ -157,8 +149,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         AddressBookEntry addressBookEntry1 = addressBookEntry();
         AddressBookEntry addressBookEntry2 = addressBookEntry();
         AddressBookEntry addressBookEntry3 = addressBookEntry();
-        AddressBookFilter filter =
-                AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
 
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
 
