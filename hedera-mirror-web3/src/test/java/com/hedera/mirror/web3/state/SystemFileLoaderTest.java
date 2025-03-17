@@ -13,6 +13,7 @@ import com.hedera.hapi.node.state.file.File;
 import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -20,8 +21,8 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 
 class SystemFileLoaderTest {
-
-    private final SystemFileLoader systemFileLoader = new SystemFileLoader(new MirrorNodeEvmProperties());
+    private final CommonProperties commonProperties = new CommonProperties();
+    private final SystemFileLoader systemFileLoader = new SystemFileLoader(new MirrorNodeEvmProperties(), commonProperties);
 
     @Test
     void loadNonSystemFile() {
@@ -99,7 +100,7 @@ class SystemFileLoaderTest {
     }
 
     private FileID fileId(long fileNum) {
-        return FileID.newBuilder().fileNum(fileNum).build();
+        return FileID.newBuilder().shardNum(commonProperties.getShard()).realmNum(commonProperties.getRealm()).fileNum(fileNum).build();
     }
 
     private void assertFile(File file, FileID fileId) {

@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.repository.EntityRepository;
@@ -28,6 +29,8 @@ class EntityDatabaseAccessorTest {
     private static final Address ALIAS_ADDRESS = Address.fromHexString(ALIAS_HEX);
 
     private static final Optional<Long> timestamp = Optional.of(1234L);
+    private static final long SHARD_NUM = 0L;
+    private static final long REALM_NUM = 0L;
     private static final Entity mockEntity = mock(Entity.class);
 
     @InjectMocks
@@ -35,6 +38,9 @@ class EntityDatabaseAccessorTest {
 
     @Mock
     private EntityRepository entityRepository;
+
+    @Mock
+    private CommonProperties commonProperties;
 
     @Test
     void getEntityByAddress() {
@@ -65,7 +71,7 @@ class EntityDatabaseAccessorTest {
 
     @Test
     void getEntityByAliasHistorical() {
-        when(entityRepository.findActiveByEvmAddressAndTimestamp(ALIAS_ADDRESS.toArrayUnsafe(), timestamp.get()))
+        when(entityRepository.findActiveByEvmAddressAndTimestamp(ALIAS_ADDRESS.toArrayUnsafe(), timestamp.get(), SHARD_NUM, REALM_NUM))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(entityDatabaseAccessor.get(ALIAS_ADDRESS, timestamp))

@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.ContextExtension;
 import com.hedera.mirror.web3.evm.account.MirrorEvmContractAliases;
 import com.hedera.mirror.web3.evm.store.StackedStateFrames;
@@ -85,7 +86,7 @@ class HederaEvmStackedWorldStateUpdaterTest {
 
     @BeforeEach
     void setUp() {
-        final var entityDatabaseAccessor = new EntityDatabaseAccessor(entityRepository);
+        final var entityDatabaseAccessor = new EntityDatabaseAccessor(entityRepository, new CommonProperties());
         final List<DatabaseAccessor<Object, ?>> accessors = List.of(
                 entityDatabaseAccessor,
                 new AccountDatabaseAccessor(entityDatabaseAccessor, null, null, null, null, null, null));

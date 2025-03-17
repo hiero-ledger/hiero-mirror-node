@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties.HederaNetwork;
@@ -30,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class RatesAndFeesLoaderTest {
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     private static final ExchangeRateSet exchangeRatesSet = ExchangeRateSet.newBuilder()
             .setCurrentRate(ExchangeRate.newBuilder()
                     .setCentEquiv(1)
@@ -66,10 +68,10 @@ class RatesAndFeesLoaderTest {
             .consensusTimestamp(300L)
             .fileData("corrupt".getBytes())
             .build();
-    private static final String CORRUPT_RATES_MESSAGE = "Rates 0.0.112 are corrupt!";
     private static final long EXCHANGE_RATES_ID = 112L;
-    private static final String CORRUPT_SCHEDULES_MESSAGE = "Fee schedule 0.0.111 is corrupt!";
+    private static final String CORRUPT_RATES_MESSAGE = String.format("Rates %s.%s.%d are corrupt!", COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), EXCHANGE_RATES_ID);
     private static final long FEE_SCHEDULES_ID = 111L;
+    private static final String CORRUPT_SCHEDULES_MESSAGE = String.format("Fee schedule %s.%s.%d is corrupt!", COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), FEE_SCHEDULES_ID);
     private static final long EXCHANGE_RATE_ID = 112L;
 
     @Mock

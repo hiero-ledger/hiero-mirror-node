@@ -7,6 +7,7 @@ import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmA
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases.isMirror;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.evm.store.DatabaseBackedStateFrame.DatabaseAccessIncorrectKeyTypeException;
@@ -22,6 +23,7 @@ import org.hyperledger.besu.datatypes.Address;
 @RequiredArgsConstructor
 public class EntityDatabaseAccessor extends DatabaseAccessor<Object, Entity> {
     private final EntityRepository entityRepository;
+    private final CommonProperties commonProperties;
 
     @Override
     public @Nonnull Optional<Entity> get(@Nonnull Object key, final Optional<Long> timestamp) {
@@ -46,7 +48,7 @@ public class EntityDatabaseAccessor extends DatabaseAccessor<Object, Entity> {
 
     private Optional<Entity> getEntityByEvmAddressAndTimestamp(byte[] addressBytes, final Optional<Long> timestamp) {
         return timestamp
-                .map(t -> entityRepository.findActiveByEvmAddressAndTimestamp(addressBytes, t))
+                .map(t -> entityRepository.findActiveByEvmAddressAndTimestamp(addressBytes, t, commonProperties.getShard(), commonProperties.getRealm()))
                 .orElseGet(() -> entityRepository.findByEvmAddressAndDeletedIsFalse(addressBytes));
     }
 

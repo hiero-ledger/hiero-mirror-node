@@ -4,6 +4,7 @@ package com.hedera.mirror.web3.state;
 
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hedera.node.config.data.EntitiesConfig;
@@ -25,6 +26,7 @@ public class SystemFileLoader {
 
     private final MirrorNodeEvmProperties properties;
     private final V0490FileSchema fileSchema = new V0490FileSchema();
+    private final CommonProperties commonProperties;
 
     @Getter(lazy = true)
     private final Map<FileID, File> systemFiles = loadAll();
@@ -49,7 +51,7 @@ public class SystemFileLoader {
     }
 
     private File load(int fileNum, Bytes contents) {
-        var fileId = FileID.newBuilder().fileNum(fileNum).build();
+        var fileId = FileID.newBuilder().shardNum(commonProperties.getShard()).realmNum(commonProperties.getRealm()).fileNum(fileNum).build();
         return File.newBuilder()
                 .contents(contents)
                 .deleted(false)

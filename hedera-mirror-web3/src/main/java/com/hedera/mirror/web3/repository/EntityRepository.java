@@ -35,10 +35,10 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     """
             select *
             from entity
-            where (evm_address = ?1 or alias = ?1) and deleted is not true
+            where (evm_address = ?1 or alias = ?1) and deleted is not true and shard = ?2 and realm = ?3
             """,
             nativeQuery = true)
-    Optional<Entity> findByEvmAddressOrAlias(byte[] alias);
+    Optional<Entity> findByEvmAddressOrAlias(byte[] alias, long shard, long realm);
 
     /**
      * Retrieves the most recent state of an entity by its evm address up to a given block timestamp.
@@ -54,7 +54,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             with entity_cte as (
                 select id
                 from entity
-                where evm_address = ?1 and created_timestamp <= ?2
+                where evm_address = ?1 and created_timestamp <= ?2 and shard = ?3 and realm = ?4
                 order by created_timestamp desc
                 limit 1
             )
@@ -77,7 +77,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             limit 1
             """,
             nativeQuery = true)
-    Optional<Entity> findActiveByEvmAddressAndTimestamp(byte[] evmAddress, long blockTimestamp);
+    Optional<Entity> findActiveByEvmAddressAndTimestamp(byte[] evmAddress, long blockTimestamp, long shard, long realm);
 
     /**
      * Retrieves the most recent state of an entity by its alias up to a given block timestamp.
