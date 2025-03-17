@@ -5,19 +5,21 @@ package com.hedera.mirror.importer.repository;
 import static com.hedera.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static com.hedera.mirror.common.domain.entity.EntityType.TOPIC;
+import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static com.hedera.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 import static com.hedera.mirror.importer.parser.domain.RecordItemBuilder.STAKING_REWARD_ACCOUNT;
-import static com.hedera.mirror.importer.parser.domain.RecordItemBuilder.TREASURY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.collect.Range;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.addressbook.NodeStake;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.AccountBalance.Id;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityStake;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.importer.ImporterIntegrationTest;
 import com.hedera.mirror.importer.TestUtils;
@@ -31,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -49,6 +52,16 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
     private final EntityRepository entityRepository;
     private final EntityStakeRepository entityStakeRepository;
     private final TransactionOperations transactionOperations;
+    private final CommonProperties commonProperties;
+
+    private long stakingRewardAccountId;
+
+    @BeforeEach
+    void setup() {
+        stakingRewardAccountId = SystemEntity.STAKING_REWARD_ACCOUNT
+                .getScopedEntityId(commonProperties)
+                .getId();
+    }
 
     @Test
     void createEntityStateStart() {
@@ -70,7 +83,9 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         var stakingRewardAccount = domainBuilder
                 .entity(STAKING_REWARD_ACCOUNT, nodeStakeTimestamp - 10)
                 .persist();
-        var treasury = domainBuilder.entity(TREASURY, nodeStakeTimestamp - 20).persist();
+        var treasury = domainBuilder
+                .entity(DEFAULT_TREASURY_ACCOUNT, nodeStakeTimestamp - 20)
+                .persist();
         var account1 = domainBuilder
                 .entity()
                 .customize(e -> e.stakedNodeId(1L).timestampRange(Range.atLeast(nodeStakeTimestamp - 1)))
@@ -198,7 +213,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(List.of(
@@ -218,7 +233,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(List.of(expectedAccount2, expectedAccount3, expectedStackingRewardAccount));
@@ -237,7 +252,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         long balanceTimestamp = timestamp - 1000L;
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(balanceTimestamp, EntityId.of(TREASURY))))
+                .customize(ab -> ab.id(new AccountBalance.Id(balanceTimestamp, DEFAULT_TREASURY_ACCOUNT)))
                 .persist();
         domainBuilder
                 .accountBalance()
@@ -246,7 +261,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(Collections.emptyList());
@@ -266,7 +281,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(Collections.emptyList());
@@ -281,7 +296,9 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .entity()
                 .customize(e -> e.timestampRange(Range.atLeast(balanceTimestamp - 1000L)))
                 .persist();
-        var treasury = domainBuilder.entity(TREASURY, balanceTimestamp - 9000).persist();
+        var treasury = domainBuilder
+                .entity(DEFAULT_TREASURY_ACCOUNT, balanceTimestamp - 9000)
+                .persist();
         domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.balance(100L).id(new AccountBalance.Id(balanceTimestamp, account.toEntityId())))
@@ -293,7 +310,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(Collections.emptyList());
@@ -314,7 +331,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .entity(STAKING_REWARD_ACCOUNT, previousNodeStakeTimestamp - 8000)
                 .persist();
         var treasury = domainBuilder
-                .entity(TREASURY, previousNodeStakeTimestamp - 9000)
+                .entity(DEFAULT_TREASURY_ACCOUNT, previousNodeStakeTimestamp - 9000)
                 .customize(e -> e.stakedNodeId(1L))
                 .persist();
         var aliceHistory1 = domainBuilder
@@ -432,7 +449,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         var expectedTreasury = domainBuilder
                 .entity()
                 .customize(e -> e.balance(5000L)
-                        .id(TREASURY)
+                        .id(DEFAULT_TREASURY_ACCOUNT.getId())
                         .stakedAccountId(0L)
                         .stakedNodeId(1L)
                         .stakePeriodStart(-1L))
@@ -440,7 +457,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(List.of(expectedAlice, expectedStakingRewardAccount, expectedTreasury));
@@ -449,14 +466,16 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
     @Test
     void getEndStakePeriod() {
-        assertThat(entityStakeRepository.getEndStakePeriod()).isEmpty();
+        assertThat(entityStakeRepository.getEndStakePeriod(stakingRewardAccountId))
+                .isEmpty();
 
         long endStakePeriod = domainBuilder.number();
         domainBuilder
                 .entityStake()
                 .customize(es -> es.endStakePeriod(endStakePeriod).id(STAKING_REWARD_ACCOUNT))
                 .persist();
-        assertThat(entityStakeRepository.getEndStakePeriod()).contains(endStakePeriod);
+        assertThat(entityStakeRepository.getEndStakePeriod(stakingRewardAccountId))
+                .contains(endStakePeriod);
     }
 
     @SneakyThrows
@@ -531,7 +550,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         }
 
         // when
-        boolean actual = entityStakeRepository.updated();
+        boolean actual = entityStakeRepository.updated(stakingRewardAccountId);
 
         // then
         assertThat(actual).isEqualTo(expected);
@@ -623,8 +642,8 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab ->
-                        ab.balance(800L).id(new AccountBalance.Id(previousBalanceTimestamp, entity8.toEntityId())))
+                .customize(ab -> ab.balance(stakingRewardAccountId)
+                        .id(new AccountBalance.Id(previousBalanceTimestamp, entity8.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
@@ -658,8 +677,8 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart();
-            entityStakeRepository.updateEntityStake();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
         // then
@@ -721,8 +740,8 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart();
-            entityStakeRepository.updateEntityStake();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
         // then
@@ -801,7 +820,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(nodeStakeTimestamp - 1000, EntityId.of(TREASURY))))
+                .customize(ab -> ab.id(new AccountBalance.Id(nodeStakeTimestamp - 1000, DEFAULT_TREASURY_ACCOUNT)))
                 .persist();
         // The following two are old NodeStake, which shouldn't be used in pending reward calculation
         domainBuilder
@@ -820,8 +839,8 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart();
-            entityStakeRepository.updateEntityStake();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
         // then
@@ -923,8 +942,8 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart();
-            entityStakeRepository.updateEntityStake();
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
         // then

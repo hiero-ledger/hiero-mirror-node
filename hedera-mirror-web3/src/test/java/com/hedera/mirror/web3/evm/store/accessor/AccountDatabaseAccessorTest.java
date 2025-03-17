@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
+import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -11,6 +12,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.AbstractEntity;
 import com.hedera.mirror.common.domain.entity.CryptoAllowance;
 import com.hedera.mirror.common.domain.entity.Entity;
@@ -82,10 +84,14 @@ class AccountDatabaseAccessorTest {
                     return false;
                 }
             });
+
     private Entity entity;
 
     @InjectMocks
     private AccountDatabaseAccessor accountAccessor;
+
+    @Mock
+    private CommonProperties commonProperties;
 
     @Mock
     private EntityDatabaseAccessor entityDatabaseAccessor;
@@ -211,18 +217,18 @@ class AccountDatabaseAccessorTest {
 
     @Test
     void accountBalanceMatchesValueFromRepositoryHistorical() {
-        when(entityDatabaseAccessor.get(ADDRESS, timestamp)).thenReturn(Optional.ofNullable(entity));
+        when(entityDatabaseAccessor.get(ADDRESS, timestamp)).thenReturn(Optional.of(entity));
         long balance = 20;
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get()))
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
+                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
                 .thenReturn(Optional.of(balance));
-
-        verify(accountBalanceRepository, never())
-                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get());
 
         assertThat(accountAccessor.get(ADDRESS, timestamp))
                 .hasValueSatisfying(account -> assertThat(account).returns(balance, Account::getBalance));
 
-        verify(accountBalanceRepository).findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get());
+        verify(accountBalanceRepository)
+                .findHistoricalAccountBalanceUpToTimestamp(
+                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
     }
 
     @Test
@@ -238,18 +244,18 @@ class AccountDatabaseAccessorTest {
     @Test
     void accountBalanceIsZeroHistorical() {
         entity.setCreatedTimestamp(timestamp.get() - 1);
-        when(entityDatabaseAccessor.get(ADDRESS, timestamp)).thenReturn(Optional.ofNullable(entity));
+        when(entityDatabaseAccessor.get(ADDRESS, timestamp)).thenReturn(Optional.of(entity));
         long balance = 0;
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get()))
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
+                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
                 .thenReturn(Optional.of(balance));
-
-        verify(accountBalanceRepository, never())
-                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get());
 
         assertThat(accountAccessor.get(ADDRESS, timestamp))
                 .hasValueSatisfying(account -> assertThat(account).returns(balance, Account::getBalance));
 
-        verify(accountBalanceRepository).findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get());
+        verify(accountBalanceRepository)
+                .findHistoricalAccountBalanceUpToTimestamp(
+                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
     }
 
     @Test
@@ -257,22 +263,21 @@ class AccountDatabaseAccessorTest {
         when(entityDatabaseAccessor.get(ADDRESS, timestamp)).thenReturn(Optional.ofNullable(entity));
         long balance = 20;
         entity.setCreatedTimestamp(null);
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get()))
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
+                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
                 .thenReturn(Optional.of(balance));
-
-        verify(accountBalanceRepository, never())
-                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get());
 
         assertThat(accountAccessor.get(ADDRESS, timestamp))
                 .hasValueSatisfying(account -> assertThat(account).returns(balance, Account::getBalance));
-
-        verify(accountBalanceRepository).findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get());
+        verify(accountBalanceRepository)
+                .findHistoricalAccountBalanceUpToTimestamp(
+                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
     }
 
     @Test
     void cryptoAllowancesMatchValuesFromRepository() {
         when(entityDatabaseAccessor.get(ADDRESS, Optional.empty())).thenReturn(Optional.ofNullable(entity));
-        CryptoAllowance firstAllowance = new CryptoAllowance();
+        var firstAllowance = new CryptoAllowance();
         firstAllowance.setSpender(123L);
         firstAllowance.setOwner(entity.getId());
         firstAllowance.setAmount(50L);
@@ -286,8 +291,9 @@ class AccountDatabaseAccessorTest {
                 .thenReturn(Arrays.asList(firstAllowance, secondAllowance));
 
         SortedMap<EntityNum, Long> allowancesMap = new TreeMap<>();
-        allowancesMap.put(EntityNum.fromLong(firstAllowance.getSpender()), firstAllowance.getAmount());
-        allowancesMap.put(EntityNum.fromLong(secondAllowance.getSpender()), secondAllowance.getAmount());
+
+        allowancesMap.put(entityNumFromId(firstAllowance.getSpender()), firstAllowance.getAmount());
+        allowancesMap.put(entityNumFromId(secondAllowance.getSpender()), secondAllowance.getAmount());
 
         verify(cryptoAllowanceRepository, never()).findByOwner(entity.getId());
 
@@ -314,8 +320,8 @@ class AccountDatabaseAccessorTest {
                 .thenReturn(Arrays.asList(firstAllowance, secondAllowance));
 
         SortedMap<EntityNum, Long> allowancesMap = new TreeMap<>();
-        allowancesMap.put(EntityNum.fromLong(firstAllowance.getSpender()), firstAllowance.getAmount());
-        allowancesMap.put(EntityNum.fromLong(secondAllowance.getSpender()), secondAllowance.getAmount());
+        allowancesMap.put(entityNumFromId(firstAllowance.getSpender()), firstAllowance.getAmount());
+        allowancesMap.put(entityNumFromId(secondAllowance.getSpender()), secondAllowance.getAmount());
 
         verify(cryptoAllowanceRepository, never()).findByOwnerAndTimestamp(entity.getId(), timestamp.get());
 
@@ -346,13 +352,11 @@ class AccountDatabaseAccessorTest {
         SortedMap<FcTokenAllowanceId, Long> allowancesMap = new TreeMap<>();
         allowancesMap.put(
                 new FcTokenAllowanceId(
-                        EntityNum.fromLong(firstAllowance.getTokenId()),
-                        EntityNum.fromLong(firstAllowance.getSpender())),
+                        entityNumFromId(firstAllowance.getTokenId()), entityNumFromId(firstAllowance.getSpender())),
                 firstAllowance.getAmount());
         allowancesMap.put(
                 new FcTokenAllowanceId(
-                        EntityNum.fromLong(secondAllowance.getTokenId()),
-                        EntityNum.fromLong(secondAllowance.getSpender())),
+                        entityNumFromId(secondAllowance.getTokenId()), entityNumFromId(secondAllowance.getSpender())),
                 secondAllowance.getAmount());
 
         verify(tokenAllowanceRepository, never()).findByOwner(entity.getId());
@@ -384,13 +388,11 @@ class AccountDatabaseAccessorTest {
         SortedMap<FcTokenAllowanceId, Long> allowancesMap = new TreeMap<>();
         allowancesMap.put(
                 new FcTokenAllowanceId(
-                        EntityNum.fromLong(firstAllowance.getTokenId()),
-                        EntityNum.fromLong(firstAllowance.getSpender())),
+                        entityNumFromId(firstAllowance.getTokenId()), entityNumFromId(firstAllowance.getSpender())),
                 firstAllowance.getAmount());
         allowancesMap.put(
                 new FcTokenAllowanceId(
-                        EntityNum.fromLong(secondAllowance.getTokenId()),
-                        EntityNum.fromLong(secondAllowance.getSpender())),
+                        entityNumFromId(secondAllowance.getTokenId()), entityNumFromId(secondAllowance.getSpender())),
                 secondAllowance.getAmount());
 
         verify(tokenAllowanceRepository, never()).findByOwnerAndTimestamp(entity.getId(), timestamp.get());
@@ -419,9 +421,9 @@ class AccountDatabaseAccessorTest {
 
         SortedSet<FcTokenAllowanceId> allowancesSet = new TreeSet<>();
         allowancesSet.add(new FcTokenAllowanceId(
-                EntityNum.fromLong(firstAllowance.getTokenId()), EntityNum.fromLong(firstAllowance.getSpender())));
+                entityNumFromId(firstAllowance.getTokenId()), entityNumFromId(firstAllowance.getSpender())));
         allowancesSet.add(new FcTokenAllowanceId(
-                EntityNum.fromLong(secondAllowance.getTokenId()), EntityNum.fromLong(secondAllowance.getSpender())));
+                entityNumFromId(secondAllowance.getTokenId()), entityNumFromId(secondAllowance.getSpender())));
 
         verify(nftAllowanceRepository, never()).findByOwnerAndApprovedForAllIsTrue(entity.getId());
 
@@ -445,5 +447,9 @@ class AccountDatabaseAccessorTest {
 
         verify(tokenAccountRepository, times(1))
                 .countByAccountIdAndAssociatedGroupedByBalanceIsPositive(entity.getId());
+    }
+
+    private EntityNum entityNumFromId(long id) {
+        return EntityNum.fromEntityId(EntityId.of(id));
     }
 }

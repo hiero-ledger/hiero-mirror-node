@@ -14,9 +14,11 @@ import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.state.token.AccountApprovalForAllAllowance;
 import com.hedera.hapi.node.state.token.AccountCryptoAllowance;
 import com.hedera.hapi.node.state.token.AccountFungibleTokenAllowance;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.CryptoAllowance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.NftAllowance;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.repository.AccountBalanceRepository;
@@ -47,8 +49,10 @@ import java.util.function.Supplier;
 public class AccountReadableKVState extends AbstractReadableKVState<AccountID, Account> {
 
     public static final String KEY = "ACCOUNTS";
-    private final AccountBalanceRepository accountBalanceRepository;
+
     private final CommonEntityAccessor commonEntityAccessor;
+    private final CommonProperties commonProperties;
+    private final AccountBalanceRepository accountBalanceRepository;
     private final CryptoAllowanceRepository cryptoAllowanceRepository;
     private final NftAllowanceRepository nftAllowanceRepository;
     private final NftRepository nftRepository;
@@ -57,6 +61,7 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
 
     public AccountReadableKVState(
             CommonEntityAccessor commonEntityAccessor,
+            CommonProperties commonProperties,
             NftAllowanceRepository nftAllowanceRepository,
             NftRepository nftRepository,
             TokenAllowanceRepository tokenAllowanceRepository,
@@ -64,8 +69,9 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
             TokenAccountRepository tokenAccountRepository,
             AccountBalanceRepository accountBalanceRepository) {
         super(KEY);
-        this.accountBalanceRepository = accountBalanceRepository;
         this.commonEntityAccessor = commonEntityAccessor;
+        this.commonProperties = commonProperties;
+        this.accountBalanceRepository = accountBalanceRepository;
         this.cryptoAllowanceRepository = cryptoAllowanceRepository;
         this.nftAllowanceRepository = nftAllowanceRepository;
         this.nftRepository = nftRepository;
@@ -136,8 +142,11 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
                 .map(t -> {
                     Long createdTimestamp = entity.getCreatedTimestamp();
                     if (createdTimestamp == null || t >= createdTimestamp) {
+                        long treasuryAccountId = SystemEntity.TREASURY_ACCOUNT
+                                .getScopedEntityId(commonProperties)
+                                .getId();
                         return accountBalanceRepository
-                                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), t)
+                                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), t, treasuryAccountId)
                                 .orElse(0L);
                     } else {
                         return 0L;

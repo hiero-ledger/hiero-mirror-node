@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hedera.mirror.common.util.DomainUtils;
@@ -26,8 +27,10 @@ final class CryptoCreateTransformer extends AbstractBlockItemTransformer {
             recordBuilder.setEvmAddress(alias);
         }
 
-        var accountCreate =
-                blockItem.getTransactionOutput(TransactionCase.ACCOUNT_CREATE).getAccountCreate();
+        var accountCreate = blockItem
+                .getTransactionOutput(TransactionCase.ACCOUNT_CREATE)
+                .map(TransactionOutput::getAccountCreate)
+                .orElseThrow();
         var receiptBuilder = recordBuilder.getReceiptBuilder();
         receiptBuilder.setAccountID(accountCreate.getCreatedAccountId());
     }

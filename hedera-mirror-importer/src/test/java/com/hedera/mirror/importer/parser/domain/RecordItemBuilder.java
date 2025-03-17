@@ -20,6 +20,7 @@ import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.StringValue;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
@@ -166,6 +167,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -185,7 +187,6 @@ public class RecordItemBuilder {
     public static final byte[] LONDON_RAW_TX = Hex.decode(
             "02f87082012a022f2f83018000947e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181880de0b6b3a764000083123456c001a0df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479a01aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66");
     public static final long STAKING_REWARD_ACCOUNT = 800L;
-    public static final long TREASURY = 2L;
 
     private static final AccountID FEE_COLLECTOR =
             AccountID.newBuilder().setAccountNum(98).build();
@@ -205,8 +206,9 @@ public class RecordItemBuilder {
     private final Map<GeneratedMessageV3, EntityState> state = new ConcurrentHashMap<>();
 
     @Getter
-    private final PersistProperties persistProperties = new PersistProperties();
+    private final PersistProperties persistProperties = new PersistProperties(CommonProperties.getInstance());
 
+    @Setter
     private Instant now = Instant.now();
 
     {
@@ -680,7 +682,8 @@ public class RecordItemBuilder {
         var builder = new Builder<>(TransactionType.ETHEREUMTRANSACTION, transactionBody)
                 .record(r -> r.setContractCallResult(functionResult)
                         .setEthereumHash(digestedHash)
-                        .getReceiptBuilder().setContractID(contractId))
+                        .getReceiptBuilder()
+                        .setContractID(contractId))
                 .recordItem(r -> r.hapiVersion(new Version(0, 47, 0)))
                 .sidecarRecords(r -> r.add(contractStateChanges(contractId)))
                 .sidecarRecords(r -> r.add(contractActions()));
@@ -820,10 +823,6 @@ public class RecordItemBuilder {
         id.set(0L);
         now = Instant.now();
         state.clear();
-    }
-
-    public void setNow(Instant now) {
-        this.now = now;
     }
 
     public Builder<ScheduleCreateTransactionBody.Builder> scheduleCreate() {

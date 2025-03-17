@@ -388,8 +388,30 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
     }
 
     @Test
+    void ethCallNameStaticNullMetadata() throws Exception {
+        final var token = fungibleTokenCustomizable(e -> e.metadata(null));
+        final var tokenAddress = toAddress(token.getTokenId()).toHexString();
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var result = contract.call_name(tokenAddress).send();
+        final var functionCall = contract.send_name(tokenAddress);
+        assertThat(result).isEqualTo(token.getName());
+        verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @Test
     void ethCallNameNonStatic() throws Exception {
         final var token = fungibleTokenPersist();
+        final var tokenAddress = toAddress(token.getTokenId()).toHexString();
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var result = contract.call_nameNonStatic(tokenAddress).send();
+        final var functionCall = contract.send_nameNonStatic(tokenAddress);
+        assertThat(result).isEqualTo(token.getName());
+        verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @Test
+    void ethCallNameNonStaticNullMetadata() throws Exception {
+        final var token = fungibleTokenCustomizable(e -> e.metadata(null));
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         final var result = contract.call_nameNonStatic(tokenAddress).send();

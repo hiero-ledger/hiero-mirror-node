@@ -4,6 +4,7 @@ package com.hedera.mirror.importer.downloader.block.transformer;
 
 import static com.hedera.mirror.importer.util.Utility.DEFAULT_RUNNING_HASH_VERSION;
 
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hedera.mirror.common.util.DomainUtils;
@@ -20,24 +21,24 @@ final class ConsensusSubmitMessageTransformer extends AbstractBlockItemTransform
         }
 
         var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
-        if (blockItem.hasTransactionOutput(TransactionCase.SUBMIT_MESSAGE)) {
-            var submitMessageOutput =
-                    blockItem.getTransactionOutput(TransactionCase.SUBMIT_MESSAGE).getSubmitMessage();
-            recordBuilder.addAllAssessedCustomFees(submitMessageOutput.getAssessedCustomFeesList());
-        }
-
         blockItem
+                .getTransactionOutput(TransactionCase.SUBMIT_MESSAGE)
+                .map(TransactionOutput::getSubmitMessage)
+                .ifPresent(submitMessage ->
+                        recordBuilder.addAllAssessedCustomFees(submitMessage.getAssessedCustomFeesList()));
+
+        var topicMessage = blockItem
                 .getStateChangeContext()
                 .getTopicMessage(blockItemTransformation
                         .transactionBody()
                         .getConsensusSubmitMessage()
                         .getTopicID())
-                .map(topicMessage -> recordBuilder
-                        .getReceiptBuilder()
-                        .setTopicRunningHash(DomainUtils.fromBytes(topicMessage.getRunningHash()))
-                        .setTopicRunningHashVersion(DEFAULT_RUNNING_HASH_VERSION)
-                        .setTopicSequenceNumber(topicMessage.getSequenceNumber()))
                 .orElseThrow();
+        recordBuilder
+                .getReceiptBuilder()
+                .setTopicRunningHash(DomainUtils.fromBytes(topicMessage.getRunningHash()))
+                .setTopicRunningHashVersion(DEFAULT_RUNNING_HASH_VERSION)
+                .setTopicSequenceNumber(topicMessage.getSequenceNumber());
     }
 
     @Override

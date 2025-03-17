@@ -6,6 +6,7 @@ import static com.hedera.services.hapi.utils.fees.FeeBuilder.BASIC_ENTITY_ID_SIZ
 import static com.hedera.services.hapi.utils.fees.FeeBuilder.INT_SIZE;
 import static com.hedera.services.hapi.utils.fees.FeeBuilder.getAccountKeyStorageSize;
 
+import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.Key;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -21,7 +22,7 @@ public class ExtantCryptoContext {
     private final String currentMemo;
     private final boolean currentlyHasProxy;
     private final int currentMaxAutomaticAssociations;
-    private final Map<Long, Long> currentCryptoAllowances;
+    private final Map<EntityNum, Long> currentCryptoAllowances;
     private final Map<AllowanceId, Long> currentTokenAllowances;
     private final Set<AllowanceId> currentApproveForAllNftAllowances;
 
@@ -68,7 +69,7 @@ public class ExtantCryptoContext {
         return currentMaxAutomaticAssociations;
     }
 
-    public Map<Long, Long> currentCryptoAllowances() {
+    public Map<EntityNum, Long> currentCryptoAllowances() {
         return currentCryptoAllowances;
     }
 
@@ -113,7 +114,7 @@ public class ExtantCryptoContext {
         private boolean currentlyHasProxy;
         private long currentExpiry;
         private int currentMaxAutomaticAssociations;
-        private Map<Long, Long> currentCryptoAllowances;
+        private Map<EntityNum, Long> currentCryptoAllowances;
         private Map<AllowanceId, Long> currentTokenAllowances;
         private Set<AllowanceId> currentApproveForAllNftAllowances;
 
@@ -162,7 +163,7 @@ public class ExtantCryptoContext {
             return this;
         }
 
-        public Builder setCurrentCryptoAllowances(final Map<Long, Long> currentCryptoAllowances) {
+        public Builder setCurrentCryptoAllowances(final Map<EntityNum, Long> currentCryptoAllowances) {
             this.currentCryptoAllowances = currentCryptoAllowances;
             mask |= CRYPTO_ALLOWANCES_MASK;
             return this;

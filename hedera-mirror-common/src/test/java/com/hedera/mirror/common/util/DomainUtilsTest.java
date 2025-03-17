@@ -4,10 +4,10 @@ package com.hedera.mirror.common.util;
 
 import static com.hedera.mirror.common.util.CommonUtils.nextBytes;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.ByteString;
@@ -16,11 +16,13 @@ import com.google.protobuf.UnsafeByteOperations;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.exception.InvalidEntityException;
 import com.hedera.services.stream.proto.HashObject;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.ThresholdKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.TokenID;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -50,6 +52,8 @@ class DomainUtilsTest {
             + "817a8f202e659588c5608a12fc2707795b3b621434305b7d4f6d6271ebe62a7afd98c2f662f4ed5f8c4bd0ee603b896e53e2ca2d"
             + "ed7495515c1e88a40f58fd6f94f8d9f14613470ba873d395293ea5542ddea56550f44d5760f57394693a889a43ab6f73b3a55448"
             + "8ecadacc328cb02594a2a5e9e46602010e2430203010001";
+    private static final String EMPTY_EVM_ADDRESS = "0000000000000000000000000000000000000000";
+    private static final String MAX_LONG_EVM_ADDRESS = "000001FF000000000000FFFF0000003FFFFFFFFF";
 
     private static Stream<Arguments> paddingByteProvider() {
         return Stream.of(
@@ -113,13 +117,13 @@ class DomainUtilsTest {
 
     @Test
     void getPublicKeyWhenDefaultInstance() {
-        byte[] keyBytes = Key.getDefaultInstance().toByteArray();
+        var keyBytes = Key.getDefaultInstance().toByteArray();
         assertThat(DomainUtils.getPublicKey(keyBytes)).isEmpty();
     }
 
     @Test
     void getPublicKeyWhenEmpty() {
-        byte[] keyBytes = Key.newBuilder().setEd25519(ByteString.EMPTY).build().toByteArray();
+        var keyBytes = Key.newBuilder().setEd25519(ByteString.EMPTY).build().toByteArray();
         assertThat(DomainUtils.getPublicKey(keyBytes)).isEmpty();
     }
 
@@ -180,8 +184,8 @@ class DomainUtilsTest {
     @ParameterizedTest(name = "with seconds {0} and nanos {1}")
     @CsvSource({"1569936354, 901", "0, 901", "1569936354, 0", "0,0"})
     void convertInstantToNanos(long seconds, int nanos) {
-        Long timeNanos = DomainUtils.convertToNanos(seconds, nanos);
-        Instant fromTimeStamp = Instant.ofEpochSecond(0, timeNanos);
+        var timeNanos = DomainUtils.convertToNanos(seconds, nanos);
+        var fromTimeStamp = Instant.ofEpochSecond(0, timeNanos);
 
         assertAll(
                 () -> assertEquals(seconds, fromTimeStamp.getEpochSecond()),
@@ -247,12 +251,12 @@ class DomainUtilsTest {
     @ParameterizedTest(name = "with seconds {0} and nanos {1}")
     @CsvSource({"1569936354, 901", "0, 901", "1569936354, 0", "0,0"})
     void timeStampInNanosTimeStamp(long seconds, int nanos) {
-        Timestamp timestamp =
+        var timestamp =
                 Timestamp.newBuilder().setSeconds(seconds).setNanos(nanos).build();
 
-        Long timeStampInNanos = DomainUtils.timeStampInNanos(timestamp);
+        var timeStampInNanos = DomainUtils.timeStampInNanos(timestamp);
         assertThat(timeStampInNanos).isNotNull();
-        Instant fromTimeStamp = Instant.ofEpochSecond(0, timeStampInNanos);
+        var fromTimeStamp = Instant.ofEpochSecond(0, timeStampInNanos);
 
         assertAll(
                 () -> assertEquals(timestamp.getSeconds(), fromTimeStamp.getEpochSecond()),
@@ -262,7 +266,7 @@ class DomainUtilsTest {
     @Test
     @DisplayName("converting illegal timestamp to nanos")
     void timeStampInNanosInvalid() {
-        Timestamp timestamp =
+        var timestamp =
                 Timestamp.newBuilder().setSeconds(1568376750538L).setNanos(0).build();
         assertThrows(ArithmeticException.class, () -> {
             DomainUtils.timeStampInNanos(timestamp);
@@ -291,7 +295,7 @@ class DomainUtilsTest {
 
     @Test
     void fromBytes() {
-        byte[] bytes = nextBytes(16);
+        var bytes = nextBytes(16);
 
         assertThat(DomainUtils.fromBytes(null)).isNull();
         assertThat(DomainUtils.fromBytes(new byte[0])).isEqualTo(ByteString.EMPTY);
@@ -300,10 +304,10 @@ class DomainUtilsTest {
 
     @Test
     void fromEvmAddress() {
-        long shard = 1;
-        long realm = 2;
-        long num = 255;
-        byte[] evmAddress = new byte[20];
+        var shard = 1;
+        var realm = 2;
+        var num = 255;
+        var evmAddress = new byte[20];
         evmAddress[3] = (byte) shard;
         evmAddress[11] = (byte) realm;
         evmAddress[19] = (byte) num;
@@ -325,29 +329,66 @@ class DomainUtilsTest {
 
     @Test
     void toEvmAddressEntityId() {
-        EntityId contractId = EntityId.of(1, 2, 255);
-        String expected = "00000001000000000000000200000000000000FF";
-        assertThat(DomainUtils.toEvmAddress(contractId)).asHexString().isEqualTo(expected);
+        var entityId = EntityId.of(1, 2, 255);
+        var expected = "00000001000000000000000200000000000000FF";
+        assertThat(DomainUtils.toEvmAddress(entityId)).asHexString().isEqualTo(expected);
         assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((EntityId) null));
         assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress(EntityId.EMPTY));
     }
 
     @Test
+    void toEvmAddressAccountId() {
+        var entityId = EntityId.of(Long.MAX_VALUE);
+        var id = AccountID.newBuilder()
+                .setShardNum(entityId.getShard())
+                .setRealmNum(entityId.getRealm())
+                .setAccountNum(entityId.getNum())
+                .build();
+
+        assertThat(DomainUtils.toEvmAddress(id)).asHexString().isEqualTo(MAX_LONG_EVM_ADDRESS);
+        assertThat(DomainUtils.toEvmAddress(AccountID.getDefaultInstance()))
+                .asHexString()
+                .isEqualTo(EMPTY_EVM_ADDRESS);
+        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((AccountID) null));
+    }
+
+    @Test
+    void toEvmAddressId() {
+        assertThat(DomainUtils.toEvmAddress(Long.MAX_VALUE)).asHexString().isEqualTo(MAX_LONG_EVM_ADDRESS);
+    }
+
+    @Test
     void toEvmAddressContractID() throws Exception {
-        String expected = "00000001000000000000000200000000000000FF";
-        ContractID contractId = ContractID.newBuilder()
+        var expected = "00000001000000000000000200000000000000FF";
+        var contractId = ContractID.newBuilder()
                 .setShardNum(1)
                 .setRealmNum(2)
                 .setContractNum(255)
                 .build();
-        ContractID contractIdEvm = ContractID.newBuilder()
+        var contractIdEvm = ContractID.newBuilder()
                 .setEvmAddress(DomainUtils.fromBytes(Hex.decodeHex(expected)))
                 .build();
-        ContractID contractIdDefault = ContractID.getDefaultInstance();
+        var contractIdDefault = ContractID.getDefaultInstance();
         assertThat(DomainUtils.toEvmAddress(contractId)).asHexString().isEqualTo(expected);
         assertThat(DomainUtils.toEvmAddress(contractIdEvm)).asHexString().isEqualTo(expected);
         assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((ContractID) null));
         assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress(contractIdDefault));
+    }
+
+    @Test
+    void toEvmAddressTokenId() {
+        var entityId = EntityId.of(Long.MAX_VALUE);
+        var id = TokenID.newBuilder()
+                .setShardNum(entityId.getShard())
+                .setRealmNum(entityId.getRealm())
+                .setTokenNum(entityId.getNum())
+                .build();
+
+        assertThat(DomainUtils.toEvmAddress(id)).asHexString().isEqualTo(MAX_LONG_EVM_ADDRESS);
+        assertThat(DomainUtils.toEvmAddress(TokenID.getDefaultInstance()))
+                .asHexString()
+                .isEqualTo(EMPTY_EVM_ADDRESS);
+        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((TokenID) null));
     }
 
     @Test

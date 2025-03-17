@@ -14,20 +14,24 @@ import {Entity} from '../model';
  */
 class EntityService extends BaseService {
   static entityFromAliasQuery = `select ${Entity.ID}
-                                 from ${Entity.tableName}`;
+                                 from ${Entity.tableName}
+                                 where coalesce(${Entity.DELETED}, false) <> true
+                                   and ${Entity.SHARD} = $1
+                                   and ${Entity.REALM} = $2
+                                   and ${Entity.ALIAS} = $3`;
 
   static entityFromEvmAddressQuery = `select ${Entity.ID}
                                       from ${Entity.tableName}
                                       where ${Entity.DELETED} <> true
-                                        and ${Entity.EVM_ADDRESS} = $1`;
+                                        and ${Entity.SHARD} = $1
+                                        and ${Entity.REALM} = $2
+                                        and ${Entity.EVM_ADDRESS} = $3`;
 
   // use a small column in existence check to reduce return payload size
   static entityExistenceQuery = `select ${Entity.TYPE}
                                  from ${Entity.tableName}
                                  where ${Entity.ID} = $1`;
 
-  static aliasColumns = [Entity.SHARD, Entity.REALM, Entity.ALIAS];
-  static aliasConditions = [`coalesce(${Entity.DELETED}, false) <> true`];
   static missingAccountAlias = 'No account with a matching alias found';
   static multipleAliasMatch = `Multiple alive entities matching alias`;
   static multipleEvmAddressMatch = `Multiple alive entities matching evm address`;
@@ -39,19 +43,8 @@ class EntityService extends BaseService {
    * @return {Promise<Entity>} raw entity object
    */
   async getAccountFromAlias(accountAlias) {
-    const params = [];
-    const conditions = [].concat(EntityService.aliasConditions);
-
-    EntityService.aliasColumns
-      .filter((column) => accountAlias[column] !== null)
-      .forEach((column) => {
-        const length = params.push(accountAlias[column]);
-        conditions.push(`${column} = $${length}`);
-      });
-
-    const aliasQuery = `${EntityService.entityFromAliasQuery} where ${conditions.join(' and ')}`;
-
-    const rows = await super.getRows(aliasQuery, params);
+    const params = [accountAlias.shard, accountAlias.realm, accountAlias.alias];
+    const rows = await super.getRows(EntityService.entityFromAliasQuery, params);
 
     if (_.isEmpty(rows)) {
       return null;
@@ -65,8 +58,8 @@ class EntityService extends BaseService {
 
   /**
    * Checks if provided accountId maps to a valid entity
-   * @param {String} accountId
-   * @returns {Promise} valid flag
+   * @param {BigInt|Number} accountId
+   * @returns {Promise<Boolean>} valid flag
    */
   async isValidAccount(accountId) {
     const entity = await super.getSingleRow(EntityService.entityExistenceQuery, [accountId]);
@@ -94,12 +87,13 @@ class EntityService extends BaseService {
   /**
    * Gets the encoded entity id from the evm address.
    *
-   * @param {String} evmAddress
+   * @param {EntityId} entityId
    * @param {Boolean} requireResult
    * @return {Promise<BigInt|Number>}
    */
-  async getEntityIdFromEvmAddress(evmAddress, requireResult = true) {
-    const rows = await this.getRows(EntityService.entityFromEvmAddressQuery, Buffer.from(evmAddress, 'hex'));
+  async getEntityIdFromEvmAddress(entityId, requireResult = true) {
+    const params = [entityId.shard, entityId.realm, Buffer.from(entityId.evmAddress, 'hex')];
+    const rows = await this.getRows(EntityService.entityFromEvmAddressQuery, params);
     if (rows.length === 0) {
       if (requireResult) {
         throw new NotFoundError();
@@ -107,7 +101,7 @@ class EntityService extends BaseService {
 
       return null;
     } else if (rows.length > 1) {
-      logger.error(`Incorrect db state: ${rows.length} alive entities matching evm address ${evmAddress}`);
+      logger.error(`Incorrect db state: ${rows.length} alive entities matching evm address ${entityId}`);
       throw new Error(EntityService.multipleEvmAddressMatch);
     }
 
@@ -124,7 +118,7 @@ class EntityService extends BaseService {
    * @param {String} entityIdString
    * @param {Boolean} requireResult
    * @param {String} paramName the parameter name
-   * @returns {Promise} entityId
+   * @returns {Promise<BigInt|Number>} entityId
    */
   async getEncodedId(entityIdString, requireResult = true, paramName = filterKeys.ID_OR_ALIAS_OR_EVM_ADDRESS) {
     try {
@@ -132,7 +126,7 @@ class EntityService extends BaseService {
         const entityId = EntityId.parse(entityIdString, {paramName});
         return entityId.evmAddress === null
           ? entityId.getEncodedId()
-          : await this.getEntityIdFromEvmAddress(entityId.evmAddress, requireResult);
+          : await this.getEntityIdFromEvmAddress(entityId, requireResult);
       } else if (AccountAlias.isValid(entityIdString)) {
         return await this.getAccountIdFromAlias(AccountAlias.fromString(entityIdString), requireResult);
       }

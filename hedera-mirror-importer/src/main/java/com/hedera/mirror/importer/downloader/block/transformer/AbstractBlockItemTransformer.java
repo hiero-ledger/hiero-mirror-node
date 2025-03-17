@@ -5,6 +5,7 @@ package com.hedera.mirror.importer.downloader.block.transformer;
 import static com.hedera.mirror.common.util.DomainUtils.createSha384Digest;
 
 import com.google.protobuf.ByteString;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.BlockItem;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
@@ -68,16 +69,16 @@ abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
      * @param recordItemBuilder
      */
     private void processContractCallOutput(BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder) {
-        if (!blockItem.hasTransactionOutput(TransactionCase.CONTRACT_CALL)) {
-            return;
-        }
+        blockItem
+                .getTransactionOutput(TransactionCase.CONTRACT_CALL)
+                .map(TransactionOutput::getContractCall)
+                .ifPresent(contractCall -> {
+                    recordItemBuilder.sidecarRecords(contractCall.getSidecarsList());
 
-        var contractCall =
-                blockItem.getTransactionOutput(TransactionCase.CONTRACT_CALL).getContractCall();
-        recordItemBuilder.sidecarRecords(contractCall.getSidecarsList());
-        if (contractCall.hasContractCallResult()) {
-            var recordBuilder = recordItemBuilder.transactionRecordBuilder();
-            recordBuilder.setContractCallResult(contractCall.getContractCallResult());
-        }
+                    if (contractCall.hasContractCallResult()) {
+                        var recordBuilder = recordItemBuilder.transactionRecordBuilder();
+                        recordBuilder.setContractCallResult(contractCall.getContractCallResult());
+                    }
+                });
     }
 }

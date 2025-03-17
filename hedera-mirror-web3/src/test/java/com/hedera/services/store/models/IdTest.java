@@ -7,7 +7,7 @@ import static com.hedera.services.utils.IdUtils.asToken;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-import com.hedera.services.utils.EntityIdUtils;
+import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.ContractID;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,7 +56,7 @@ class IdTest {
                 .setRealmNum(2)
                 .setContractNum(3)
                 .build();
-        final var address = Address.wrap(Bytes.wrap(EntityIdUtils.asEvmAddress(contractId)));
+        final var address = Address.wrap(Bytes.wrap(DomainUtils.toEvmAddress(contractId)));
 
         assertEquals(grpcAccount, id.asGrpcAccount());
         assertEquals(grpcToken, id.asGrpcToken());

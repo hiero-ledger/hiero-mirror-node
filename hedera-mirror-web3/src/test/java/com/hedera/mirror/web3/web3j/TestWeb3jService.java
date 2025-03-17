@@ -13,6 +13,7 @@ import static org.web3j.crypto.TransactionUtils.generateTransactionHashHexEncode
 import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.service.ContractExecutionService;
 import com.hedera.mirror.web3.service.model.CallServiceParameters;
 import com.hedera.mirror.web3.service.model.ContractExecutionParameters;
@@ -79,12 +80,17 @@ public class TestWeb3jService implements Web3jService {
     private BlockType blockType = BlockType.LATEST;
     private Range<Long> historicalRange;
     private boolean useContractCallDeploy;
+    private MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
-    public TestWeb3jService(ContractExecutionService contractExecutionService, DomainBuilder domainBuilder) {
+    public TestWeb3jService(
+            ContractExecutionService contractExecutionService,
+            DomainBuilder domainBuilder,
+            MirrorNodeEvmProperties mirrorNodeEvmProperties) {
         this.contractExecutionService = contractExecutionService;
         this.contractGasProvider = new DefaultGasProvider();
         this.credentials = Credentials.create(ECKeyPair.create(Numeric.hexStringToByteArray(MOCK_KEY)));
         this.domainBuilder = domainBuilder;
+        this.mirrorNodeEvmProperties = mirrorNodeEvmProperties;
         this.web3j = Web3j.build(this);
     }
 
@@ -276,6 +282,7 @@ public class TestWeb3jService implements Web3jService {
                 .gas(gasLimit)
                 .isStatic(false)
                 .callType(callType)
+                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isEstimate(ETH_ESTIMATE_GAS == callType)
                 .block(block)
                 .build();
@@ -289,6 +296,7 @@ public class TestWeb3jService implements Web3jService {
                 .receiver(Address.fromHexString(transaction.getTo()))
                 .callData(Bytes.fromHexString(transaction.getData()))
                 .gas(TRANSACTION_GAS_LIMIT)
+                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .callType(callType)
                 .isEstimate(ETH_ESTIMATE_GAS == callType)
@@ -306,6 +314,7 @@ public class TestWeb3jService implements Web3jService {
                 .callData(callData)
                 .receiver(Address.ZERO)
                 .gas(TRANSACTION_GAS_LIMIT)
+                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .callType(callType)
                 .isEstimate(ETH_ESTIMATE_GAS == callType)
@@ -413,8 +422,10 @@ public class TestWeb3jService implements Web3jService {
 
         @Bean
         TestWeb3jService testWeb3jService(
-                ContractExecutionService contractExecutionService, DomainBuilder domainBuilder) {
-            return new TestWeb3jService(contractExecutionService, domainBuilder);
+                ContractExecutionService contractExecutionService,
+                DomainBuilder domainBuilder,
+                MirrorNodeEvmProperties mirrorNodeEvmProperties) {
+            return new TestWeb3jService(contractExecutionService, domainBuilder, mirrorNodeEvmProperties);
         }
     }
 }

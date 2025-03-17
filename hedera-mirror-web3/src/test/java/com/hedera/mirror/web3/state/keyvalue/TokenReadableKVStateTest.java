@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.state.keyvalue;
 
+import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,6 +20,7 @@ import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.base.TokenSupplyType;
 import com.hedera.hapi.node.base.TokenType;
 import com.hedera.hapi.node.state.token.Token;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
@@ -76,6 +78,9 @@ class TokenReadableKVStateTest {
     private final EntityId denominatingTokenId = EntityId.of(11L, 12L, 13L);
     com.hedera.mirror.common.domain.token.Token databaseToken;
     private CustomFee customFee;
+
+    @Mock
+    private CommonProperties commonProperties;
 
     @InjectMocks
     private TokenReadableKVState tokenReadableKVState;
@@ -359,7 +364,8 @@ class TokenReadableKVStateTest {
         databaseToken.setTreasuryAccountId(treasuryId);
 
         when(commonEntityAccessor.get(TOKEN_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
-        when(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(databaseToken.getTokenId(), timestamp.get()))
+        when(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
+                        databaseToken.getTokenId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
                 .thenReturn(historicalSupply);
 
         assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID))
@@ -367,7 +373,8 @@ class TokenReadableKVStateTest {
                         token -> assertThat(token.totalSupplySupplier().get()).isEqualTo(historicalSupply));
 
         verify(tokenRepository)
-                .findFungibleTotalSupplyByTokenIdAndTimestamp(databaseToken.getTokenId(), timestamp.get());
+                .findFungibleTotalSupplyByTokenIdAndTimestamp(
+                        databaseToken.getTokenId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
     }
 
     @Test

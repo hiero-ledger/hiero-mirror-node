@@ -906,6 +906,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                 .callType(CallServiceParameters.CallType.ETH_CALL)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .isEstimate(false)
+                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .receiver(Address.fromHexString(contract.getContractAddress()))
                 .sender(new HederaEvmAccount(testWeb3jService.getSender()))

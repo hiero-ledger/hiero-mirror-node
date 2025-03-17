@@ -102,12 +102,12 @@ public abstract class ContractCallService {
         }
 
         // initializes the stack frame with the current state or historical state (if the call is historical)
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
+        if (!mirrorNodeEvmProperties.isModularizedServices() || !params.isModularized()) {
             ctx.initializeStackFrames(store.getStackedStateFrames());
         }
 
         var result = doProcessCall(params, params.getGas(), true);
-        validateResult(result, params.getCallType());
+        validateResult(result, params.getCallType(), params.isModularized());
         return result;
     }
 
@@ -117,10 +117,10 @@ public abstract class ContractCallService {
         HederaEvmTransactionProcessingResult result = null;
 
         try {
-            if (!mirrorNodeEvmProperties.isModularizedServices()) {
-                result = mirrorEvmTxProcessor.execute(params, estimatedGas);
-            } else {
+            if (mirrorNodeEvmProperties.isModularizedServices() && params.isModularized()) {
                 result = transactionExecutionService.execute(params, estimatedGas, gasUsedCounter);
+            } else {
+                result = mirrorEvmTxProcessor.execute(params, estimatedGas);
             }
         } catch (IllegalStateException | IllegalArgumentException e) {
             throw new MirrorEvmTransactionException(e.getMessage(), EMPTY, EMPTY);
@@ -152,13 +152,14 @@ public abstract class ContractCallService {
         }
     }
 
-    protected void validateResult(final HederaEvmTransactionProcessingResult txnResult, final CallType type) {
+    protected void validateResult(
+            final HederaEvmTransactionProcessingResult txnResult, final CallType type, final boolean modularized) {
         if (!txnResult.isSuccessful()) {
             updateGasUsedMetric(ERROR, txnResult.getGasUsed(), 1);
             var revertReason = txnResult.getRevertReason().orElse(Bytes.EMPTY);
             var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReason);
             throw new MirrorEvmTransactionException(
-                    getStatusOrDefault(txnResult).name(), detail, revertReason.toHexString(), txnResult);
+                    getStatusOrDefault(txnResult).name(), detail, revertReason.toHexString(), txnResult, modularized);
         } else {
             updateGasUsedMetric(type, txnResult.getGasUsed(), 1);
         }
@@ -170,7 +171,9 @@ public abstract class ContractCallService {
                 .increment(gasUsed);
     }
 
-    protected void updateGasLimitMetric(final CallType callType, final long gasLimit) {
-        gasLimitCounter.withTags("type", callType.toString()).increment(gasLimit);
+    protected void updateGasLimitMetric(final CallType callType, final long gasLimit, final boolean modularized) {
+        gasLimitCounter
+                .withTags("type", callType.toString(), "modularized", String.valueOf(modularized))
+                .increment(gasLimit);
     }
 }

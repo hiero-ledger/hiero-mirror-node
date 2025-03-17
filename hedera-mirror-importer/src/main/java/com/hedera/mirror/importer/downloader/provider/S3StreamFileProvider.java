@@ -118,7 +118,7 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
 
         String filePath = TEMPLATE_BLOCK_STREAM_FILE_PATH.formatted(shard, nodeId, filename);
         return StringUtils.isNotBlank(downloaderProperties.getPathPrefix())
-                ? downloaderProperties.getPathType() + SEPARATOR + filePath
+                ? downloaderProperties.getPathPrefix() + SEPARATOR + filePath
                 : filePath;
     }
 

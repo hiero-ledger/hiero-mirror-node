@@ -27,12 +27,12 @@ public interface AccountBalanceRepository
           (deleted is not true or balance_timestamp > (
               select coalesce(max(consensus_timestamp), 0)
               from account_balance
-              where account_id = 2 and consensus_timestamp > :consensusTimestamp - 2592000000000000
+              where account_id = :treasuryAccountId and consensus_timestamp > :consensusTimestamp - 2592000000000000
             ))
         order by id
         """)
     @Transactional
-    int balanceSnapshot(long consensusTimestamp);
+    int balanceSnapshot(long consensusTimestamp, long treasuryAccountId);
 
     @Override
     @Modifying
@@ -44,13 +44,13 @@ public interface AccountBalanceRepository
         select id, balance, :consensusTimestamp
         from entity
         where
-          id = 2 or
+          id = :treasuryAccountId or
           (balance is not null and
-           balance_timestamp > :maxConsensusTimestamp)
+           balance_timestamp > :minConsensusTimestamp)
         order by id
         """)
     @Transactional
-    int balanceSnapshotDeduplicate(long maxConsensusTimestamp, long consensusTimestamp);
+    int balanceSnapshotDeduplicate(long minConsensusTimestamp, long consensusTimestamp, long treasuryAccountId);
 
     @Query(
             nativeQuery = true,
@@ -58,9 +58,11 @@ public interface AccountBalanceRepository
                     """
           select max(consensus_timestamp) as consensus_timestamp
           from account_balance
-          where account_id = 2 and consensus_timestamp >= :lowerRangeTimestamp and consensus_timestamp < :upperRangeTimestamp
+          where account_id = :treasuryAccountId and consensus_timestamp >= :lowerRangeTimestamp
+                  and consensus_timestamp < :upperRangeTimestamp
         """)
-    Optional<Long> getMaxConsensusTimestampInRange(long lowerRangeTimestamp, long upperRangeTimestamp);
+    Optional<Long> getMaxConsensusTimestampInRange(
+            long lowerRangeTimestamp, long upperRangeTimestamp, long treasuryAccountId);
 
     @Override
     @EntityGraph("AccountBalance.tokenBalances")

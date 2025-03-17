@@ -4,7 +4,6 @@ package com.hedera.mirror.common.domain.transaction;
 
 import static com.hedera.mirror.common.domain.transaction.StateChangeContext.EMPTY_CONTEXT;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
@@ -86,7 +85,6 @@ class BlockItemTest {
                 .returns(12346000000000L, BlockItem::getConsensusTimestamp)
                 .returns(12345000000000L, BlockItem::getParentConsensusTimestamp)
                 .returns(true, BlockItem::isSuccessful);
-        ;
     }
 
     @Test
@@ -283,30 +281,6 @@ class BlockItemTest {
     }
 
     @Test
-    void hasTransactionOutput() {
-        // given
-        var callContractOutput = TransactionOutput.newBuilder()
-                .setContractCall(CallContractOutput.getDefaultInstance())
-                .build();
-        var blockItem = BlockItem.builder()
-                .transaction(Transaction.newBuilder().build())
-                .transactionResult(TransactionResult.newBuilder()
-                        .setStatus(ResponseCodeEnum.SUCCESS)
-                        .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(12345L))
-                        .build())
-                .transactionOutputs(Map.of(TransactionCase.CONTRACT_CALL, callContractOutput))
-                .stateChanges(List.of())
-                .previous(null)
-                .build();
-
-        // when, then
-        assertThat(blockItem.hasTransactionOutput(TransactionCase.CONTRACT_CALL))
-                .isTrue();
-        assertThat(blockItem.hasTransactionOutput(TransactionCase.CONTRACT_CREATE))
-                .isFalse();
-    }
-
-    @Test
     void getStateChangeContext() {
         // given
         var parentConsensusTimestamp = Timestamp.newBuilder().setSeconds(12345L).build();
@@ -377,8 +351,8 @@ class BlockItemTest {
 
         // when, then
         assertThat(blockItem.getTransactionOutput(TransactionCase.CONTRACT_CALL))
-                .isSameAs(callContractOutput);
-        assertThatThrownBy(() -> blockItem.getTransactionOutput(TransactionCase.CONTRACT_CREATE))
-                .isInstanceOf(IllegalStateException.class);
+                .contains(callContractOutput);
+        assertThat(blockItem.getTransactionOutput(TransactionCase.CONTRACT_CREATE))
+                .isEmpty();
     }
 }

@@ -2,6 +2,9 @@
 
 hedera:
   mirror:
+    common:
+      realm: 0
+      shard: 0
     rest:
       cache:
         entityId:
@@ -147,7 +150,6 @@ hedera:
           tokenBalance:
             multipleAccounts: 50
             singleAccount: 1000
-      shard: 0
       stateproof:
         addressBookHistory: false
         enabled: false

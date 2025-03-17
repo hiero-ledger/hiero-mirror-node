@@ -19,6 +19,7 @@ import com.hedera.mirror.rest.model.NetworkNode;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeoutException;
@@ -54,6 +55,7 @@ public class NodeSupplier {
         var scheduler = Schedulers.newParallel("validator", parallelism + 1);
         Flux.interval(Duration.ZERO, validationProperties.getFrequency(), scheduler)
                 .flatMap(i -> refresh()
+                        .take(monitorProperties.getNodeValidation().getMaxNodes())
                         .parallel(parallelism)
                         .runOn(scheduler)
                         .map(this::validateNode)
@@ -96,7 +98,7 @@ public class NodeSupplier {
                 .doOnSubscribe(s -> log.info("Refreshing node list"))
                 .switchIfEmpty(Flux.defer(this::getAddressBook))
                 .switchIfEmpty(Flux.fromIterable(monitorProperties.getNetwork().getNodes()))
-                .filter(predicate)
+                .filter(n -> predicate.test(n.getPort()))
                 .retryWhen(retrySpec)
                 .switchIfEmpty(Flux.error(new IllegalArgumentException("Nodes must not be empty")))
                 .doOnNext(n -> {
@@ -115,24 +117,30 @@ public class NodeSupplier {
 
         return Flux.defer(restApiClient::getNodes)
                 .filter(n -> !CollectionUtils.isEmpty(n.getServiceEndpoints()))
-                .flatMap(this::toNodeProperties)
+                .flatMapIterable(this::toNodeProperties)
                 .doOnNext(n -> count.incrementAndGet())
                 .doOnComplete(() -> log.info("Retrieved {} nodes from address book", count));
     }
 
-    private Flux<NodeProperties> toNodeProperties(NetworkNode networkNode) {
-        return Flux.fromStream(networkNode.getServiceEndpoints().stream().map(serviceEndpoint -> {
-            var host = StringUtils.isNotBlank(serviceEndpoint.getDomainName())
-                    ? serviceEndpoint.getDomainName()
-                    : serviceEndpoint.getIpAddressV4();
-            var nodeProperties = new NodeProperties();
-            nodeProperties.setAccountId(networkNode.getNodeAccountId());
-            nodeProperties.setCertHash(StringUtils.remove(networkNode.getNodeCertHash(), "0x"));
-            nodeProperties.setHost(host);
-            nodeProperties.setNodeId(networkNode.getNodeId());
-            nodeProperties.setPort(serviceEndpoint.getPort());
-            return nodeProperties;
-        }));
+    private List<NodeProperties> toNodeProperties(NetworkNode networkNode) {
+        var nodeValidation = monitorProperties.getNodeValidation();
+        var tlsPredicate = nodeValidation.getTls().getPredicate();
+        return networkNode.getServiceEndpoints().stream()
+                .filter(s -> tlsPredicate.test(s.getPort()))
+                .limit(nodeValidation.getMaxEndpointsPerNode())
+                .map(serviceEndpoint -> {
+                    var host = StringUtils.isNotBlank(serviceEndpoint.getDomainName())
+                            ? serviceEndpoint.getDomainName()
+                            : serviceEndpoint.getIpAddressV4();
+                    var nodeProperties = new NodeProperties();
+                    nodeProperties.setAccountId(networkNode.getNodeAccountId());
+                    nodeProperties.setCertHash(StringUtils.remove(networkNode.getNodeCertHash(), "0x"));
+                    nodeProperties.setHost(host);
+                    nodeProperties.setNodeId(networkNode.getNodeId());
+                    nodeProperties.setPort(serviceEndpoint.getPort());
+                    return nodeProperties;
+                })
+                .toList();
     }
 
     @SneakyThrows

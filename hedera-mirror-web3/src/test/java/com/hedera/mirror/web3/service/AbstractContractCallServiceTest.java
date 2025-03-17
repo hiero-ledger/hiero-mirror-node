@@ -98,6 +98,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected RecordFile genesisRecordFile;
     protected Entity treasuryEntity;
+    protected double modularizedTrafficPercent;
 
     public static Key getKeyWithDelegatableContractId(final Contract contract) {
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
@@ -117,6 +118,13 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     @BeforeEach
     protected void setup() {
+        modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
+        } else {
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
+        }
+
         genesisRecordFile =
                 domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         treasuryEntity = domainBuilder
@@ -146,6 +154,10 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     @AfterEach
     void cleanup() {
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
+        }
+
         testWeb3jService.reset();
     }
 
@@ -197,8 +209,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Contract contract,
             final Address payerAddress,
             final long value) {
-        final var actualGasUsed =
-                gasUsedAfterExecution(getContractExecutionParameters(functionCall, contract, payerAddress, value));
+        final var actualGasUsed = gasUsedAfterExecution(getContractExecutionParameters(
+                functionCall, contract, payerAddress, value, mirrorNodeEvmProperties.isModularizedServices()));
 
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();
@@ -214,12 +226,14 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected ContractExecutionParameters getContractExecutionParameters(
             final RemoteFunctionCall<?> functionCall, final Contract contract) {
-        return getContractExecutionParameters(functionCall, contract, Address.ZERO, 0L);
+        return getContractExecutionParameters(
+                functionCall, contract, Address.ZERO, 0L, mirrorNodeEvmProperties.isModularizedServices());
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
             final Bytes data, final Address receiver, final Address payerAddress, final long value) {
-        return getContractExecutionParameters(data, receiver, payerAddress, value, ETH_CALL);
+        return getContractExecutionParameters(
+                data, receiver, payerAddress, value, ETH_CALL, mirrorNodeEvmProperties.isModularizedServices());
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
@@ -227,13 +241,15 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Address receiverAddress,
             final Address senderAddress,
             final long value,
-            final CallType callType) {
+            final CallType callType,
+            final boolean isModularized) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
                 .callData(data)
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .isEstimate(callType == ETH_ESTIMATE_GAS)
+                .isModularized(isModularized)
                 .isStatic(false)
                 .receiver(receiverAddress)
                 .sender(new HederaEvmAccount(senderAddress))
@@ -245,7 +261,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final RemoteFunctionCall<?> functionCall,
             final Contract contract,
             final Address payerAddress,
-            final long value) {
+            final long value,
+            final boolean isModularized) {
         return getContractExecutionParameters(
                 Bytes.fromHexString(functionCall.encodeFunctionCall()),
                 Address.fromHexString(contract.getContractAddress()),
@@ -633,6 +650,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .callData(callDataBytes)
                 .consensusTimestamp(domainBuilder.timestamp())
                 .gas(TRANSACTION_GAS_LIMIT)
+                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .receiver(functionProvider.contractAddress())
                 .sender(new HederaEvmAccount(functionProvider.sender()))
                 .value(functionProvider.value())

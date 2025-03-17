@@ -4,10 +4,14 @@ package com.hedera.mirror.monitor.publish;
 
 import com.hedera.mirror.monitor.NodeProperties;
 import com.hedera.mirror.monitor.converter.DurationToStringSerializer;
+import io.micrometer.core.instrument.ImmutableTag;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.TimeGauge;
 import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -26,7 +30,6 @@ public class PublishMetrics {
     static final String METRIC_HANDLE = "hedera.mirror.monitor.publish.handle";
     static final String METRIC_SUBMIT = "hedera.mirror.monitor.publish.submit";
     static final String SUCCESS = "SUCCESS";
-    static final String UNKNOWN = "unknown";
 
     private final Map<Tags, TimeGauge> durationGauges = new ConcurrentHashMap<>();
     private final Map<Tags, Timer> handleTimers = new ConcurrentHashMap<>();
@@ -62,7 +65,7 @@ public class PublishMetrics {
                 handleTimer.record(elapsed, TimeUnit.MILLISECONDS);
             }
         } catch (Exception ex) {
-            log.error("Unexpected error when recording metric", ex);
+            log.error("Unexpected error when recording metric for {}", request, ex);
         }
     }
 
@@ -71,35 +74,23 @@ public class PublishMetrics {
         return TimeGauge.builder(METRIC_DURATION, tags.getScenario(), unit, s -> s.getElapsed()
                         .toNanos())
                 .description("The amount of time this scenario has been publishing transactions")
-                .tag(Tags.TAG_HOST, String.valueOf(tags.getNode().getHost()))
-                .tag(Tags.TAG_NODE, String.valueOf(tags.getNode().getNodeId()))
-                .tag(Tags.TAG_PORT, String.valueOf(tags.getNode().getPort()))
-                .tag(Tags.TAG_SCENARIO, tags.getScenario().getName())
-                .tag(Tags.TAG_TYPE, tags.getType())
+                .tags(tags.common())
                 .register(meterRegistry);
     }
 
     private Timer newHandleMetric(Tags tags) {
         return Timer.builder(METRIC_HANDLE)
                 .description("The time it takes from submit to being handled by the main nodes")
-                .tag(Tags.TAG_HOST, String.valueOf(tags.getNode().getHost()))
-                .tag(Tags.TAG_NODE, String.valueOf(tags.getNode().getNodeId()))
-                .tag(Tags.TAG_PORT, String.valueOf(tags.getNode().getPort()))
-                .tag(Tags.TAG_SCENARIO, tags.getScenario().getName())
+                .tags(tags.common())
                 .tag(Tags.TAG_STATUS, tags.getStatus())
-                .tag(Tags.TAG_TYPE, tags.getType())
                 .register(meterRegistry);
     }
 
     private Timer newSubmitMetric(Tags tags) {
         return Timer.builder(METRIC_SUBMIT)
                 .description("The time it takes to submit a transaction")
-                .tag(Tags.TAG_HOST, String.valueOf(tags.getNode().getHost()))
-                .tag(Tags.TAG_NODE, String.valueOf(tags.getNode().getNodeId()))
-                .tag(Tags.TAG_PORT, String.valueOf(tags.getNode().getPort()))
-                .tag(Tags.TAG_SCENARIO, tags.getScenario().getName())
+                .tags(tags.common())
                 .tag(Tags.TAG_STATUS, tags.getStatus())
-                .tag(Tags.TAG_TYPE, tags.getType())
                 .register(meterRegistry);
     }
 
@@ -146,6 +137,20 @@ public class PublishMetrics {
 
         private String getType() {
             return scenario.getProperties().getType().toString();
+        }
+
+        private List<Tag> common() {
+            var tags = new ArrayList<Tag>(5);
+            tags.add(new ImmutableTag(Tags.TAG_SCENARIO, scenario.getName()));
+            tags.add(new ImmutableTag(Tags.TAG_TYPE, getType()));
+
+            if (node != null) {
+                tags.add(new ImmutableTag(Tags.TAG_HOST, String.valueOf(node.getHost())));
+                tags.add(new ImmutableTag(Tags.TAG_NODE, String.valueOf(node.getNodeId())));
+                tags.add(new ImmutableTag(Tags.TAG_PORT, String.valueOf(node.getPort())));
+            }
+
+            return tags;
         }
     }
 }

@@ -16,7 +16,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
-import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.Block;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase;
@@ -33,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Objects;
 import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
@@ -63,15 +63,24 @@ public class ProtoBlockFileReader implements BlockFileReader {
 
             readBlockHeader(context);
             readRounds(context);
-            readTrailingStateChanges(context);
+            readStandaloneStateChanges(context);
             readBlockProof(context);
 
             var blockFile = blockFileBuilder.build();
             var bytes = streamFileData.getBytes();
+            var items = blockFile.getItems();
             blockFile.setBytes(bytes);
-            blockFile.setCount((long) blockFile.getItems().size());
+            blockFile.setCount((long) items.size());
             blockFile.setHash(context.getBlockRootHashDigest().digest());
             blockFile.setSize(bytes.length);
+
+            if (!items.isEmpty()) {
+                blockFile.setConsensusStart(items.getFirst().getConsensusTimestamp());
+                blockFile.setConsensusEnd(items.getLast().getConsensusTimestamp());
+            } else {
+                blockFile.setConsensusStart(context.getLastMetaTimestamp());
+                blockFile.setConsensusEnd(context.getLastMetaTimestamp());
+            }
 
             return blockFile;
         } catch (InvalidStreamFileException e) {
@@ -79,10 +88,6 @@ public class ProtoBlockFileReader implements BlockFileReader {
         } catch (Exception e) {
             throw new InvalidStreamFileException("Failed to read " + filename, e);
         }
-    }
-
-    private Long getTransactionConsensusTimestamp(TransactionResult transactionResult) {
-        return DomainUtils.timestampInNanosMax(transactionResult.getConsensusTimestamp());
     }
 
     private void readBlockHeader(ReaderContext context) {
@@ -102,12 +107,13 @@ public class ProtoBlockFileReader implements BlockFileReader {
                     blockHeader.getHashAlgorithm(), context.getFilename()));
         }
 
-        Long consensusStart = blockHeader.hasFirstTransactionConsensusTime()
-                ? DomainUtils.timestampInNanosMax(blockHeader.getFirstTransactionConsensusTime())
-                : null;
+        // BlockHeader.first_transaction_consensus_time is null when there's no transactions in the block file even
+        // though HIP defines how to derive it for empty round
+        if (blockHeader.hasFirstTransactionConsensusTime()) {
+            context.setLastMetaTimestamp(
+                    DomainUtils.timestampInNanosMax(blockHeader.getFirstTransactionConsensusTime()));
+        }
         blockFileBuilder.blockHeader(blockHeader);
-        blockFileBuilder.consensusStart(consensusStart);
-        blockFileBuilder.consensusEnd(consensusStart);
         blockFileBuilder.index(blockHeader.getNumber());
     }
 
@@ -154,13 +160,20 @@ public class ProtoBlockFileReader implements BlockFileReader {
                 }
 
                 var stateChangesList = new ArrayList<StateChanges>();
+                var transactionResult = transactionResultProtoBlockItem.getTransactionResult();
                 while ((protoBlockItem = context.readBlockItemFor(STATE_CHANGES)) != null) {
                     var stateChanges = protoBlockItem.getStateChanges();
+                    if (!Objects.equals(
+                            transactionResult.getConsensusTimestamp(), stateChanges.getConsensusTimestamp())) {
+                        context.setLastMetaTimestamp(
+                                DomainUtils.timestampInNanosMax(stateChanges.getConsensusTimestamp()));
+                        break;
+                    }
+
                     stateChangesList.add(stateChanges);
                 }
 
                 if (transaction != null) {
-                    var transactionResult = transactionResultProtoBlockItem.getTransactionResult();
                     var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
                             .transaction(transaction)
                             .transactionResult(transactionResult)
@@ -168,9 +181,7 @@ public class ProtoBlockFileReader implements BlockFileReader {
                             .stateChanges(Collections.unmodifiableList(stateChangesList))
                             .previous(context.getLastBlockItem())
                             .build();
-                    context.getBlockFile()
-                            .item(blockItem)
-                            .onNewTransaction(getTransactionConsensusTimestamp(transactionResult));
+                    context.getBlockFile().item(blockItem);
                     context.setLastBlockItem(blockItem);
                 }
             } catch (InvalidProtocolBufferException e) {
@@ -184,20 +195,24 @@ public class ProtoBlockFileReader implements BlockFileReader {
         BlockItem blockItem;
         while ((blockItem = context.readBlockItemFor(ROUND_HEADER)) != null) {
             context.getBlockFile().onNewRound(blockItem.getRoundHeader().getRoundNumber());
+            readStandaloneStateChanges(context);
             readEvents(context);
         }
     }
 
     /**
-     * Read trailing state changes. There is no marker to distinguish between transactional and non-transactional
-     * statechanges. This function reads those trailing non-transactional statechanges without immediately preceding
-     * transactional statechanges.
+     * Read standalone state changes. There are two types of such state changes: one that only appears in a network's
+     * genesis block, between the first round header and the first event header; one that always appears before the
+     * block proof
      *
      * @param context - The reader context
      */
-    private void readTrailingStateChanges(ReaderContext context) {
-        while (context.readBlockItemFor(STATE_CHANGES) != null) {
-            // read all trailing statechanges
+    private void readStandaloneStateChanges(ReaderContext context) {
+        BlockItem blockItem;
+        while ((blockItem = context.readBlockItemFor(STATE_CHANGES)) != null) {
+            // read all standalone statechanges
+            context.setLastMetaTimestamp(
+                    DomainUtils.timestampInNanosMax(blockItem.getStateChanges().getConsensusTimestamp()));
         }
     }
 
@@ -214,6 +229,10 @@ public class ProtoBlockFileReader implements BlockFileReader {
         @NonFinal
         @Setter
         private com.hedera.mirror.common.domain.transaction.BlockItem lastBlockItem;
+
+        @NonFinal
+        @Setter
+        private Long lastMetaTimestamp; // The last consensus timestamp from metadata
 
         ReaderContext(@NotNull List<BlockItem> blockItems, @NotNull String filename) {
             this.blockFile = BlockFile.builder();
