@@ -42,6 +42,7 @@ import com.hedera.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import com.hedera.mirror.test.e2e.acceptance.config.RestJavaProperties;
 import com.hedera.mirror.test.e2e.acceptance.config.Web3Properties;
 import com.hedera.mirror.test.e2e.acceptance.props.Order;
+import com.hedera.mirror.test.e2e.acceptance.request.ContractCallModularizedRequest;
 import com.hedera.mirror.test.e2e.acceptance.util.TestUtil;
 import jakarta.inject.Named;
 import java.util.ArrayList;
@@ -68,6 +69,7 @@ public class MirrorNodeClient {
     private final RestClient restJavaClient;
     private final RetryTemplate retryTemplate;
     private final RestClient web3Client;
+    private final Web3Properties web3Properties;
 
     public MirrorNodeClient(
             AcceptanceTestProperties acceptanceTestProperties,
@@ -92,6 +94,7 @@ public class MirrorNodeClient {
                 })
                 .exponentialBackoff(properties.getMinBackoff(), 2.0, properties.getMaxBackoff())
                 .build();
+        this.web3Properties = web3Properties;
 
         var virtualThreadFactory = Thread.ofVirtual().name("awaitility", 1).factory();
         var executorService = Executors.newThreadPerTaskExecutor(virtualThreadFactory);
@@ -262,6 +265,9 @@ public class MirrorNodeClient {
     }
 
     public ContractCallResponse contractsCall(ContractCallRequest request) {
+        if (web3Properties.isModularizedServices()) {
+            request = new ContractCallModularizedRequest(request);
+        }
         return callPostRestEndpoint("/contracts/call", ContractCallResponse.class, request);
     }
 

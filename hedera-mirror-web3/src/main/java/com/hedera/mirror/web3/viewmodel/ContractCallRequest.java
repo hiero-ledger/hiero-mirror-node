@@ -43,6 +43,8 @@ public class ContractCallRequest {
     @PositiveOrZero
     private long value;
 
+    private Boolean isModularized;
+
     @AssertTrue(message = "must not be empty")
     private boolean hasFrom() {
         return value <= 0 || from != null;
