@@ -10,17 +10,16 @@ import com.hedera.mirror.rest.model.ContractCallRequest;
  * using the modularized path when {@code isModularized} is set to {@code true},
  * regardless of the configured traffic percentage split.
  * <p>
+ *
  * This class is used for testing and transitional purposes and should be removed
  * once modularized execution is fully integrated into the system.
  */
 public class ContractCallModularizedRequest extends ContractCallRequest {
 
     @JsonProperty("isModularized")
-    Boolean isModularized;
+    private final Boolean isModularized;
 
     public ContractCallModularizedRequest(ContractCallRequest contractCallRequest) {
-        super();
-
         // Copy values from the provided ContractCallRequest
         this.setBlock(contractCallRequest.getBlock());
         this.setData(contractCallRequest.getData());
