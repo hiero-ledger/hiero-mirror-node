@@ -22,7 +22,7 @@ dependencies {
     implementation("com.github.node-gradle:gradle-node-plugin:7.1.0")
     implementation("com.google.protobuf:protobuf-gradle-plugin:0.9.4")
     implementation("com.gorylenko.gradle-git-properties:gradle-git-properties:2.5.0")
-    implementation("com.graphql-java-generator:graphql-gradle-plugin3:2.8")
+    implementation("com.graphql-java-generator:graphql-gradle-plugin3:2.9")
     implementation("gradle.plugin.io.snyk.gradle.plugin:snyk:0.7.0")
     implementation("gradle.plugin.org.flywaydb:gradle-plugin-publishing:$flywayVersion") {
         exclude(group = "org.antlr")
