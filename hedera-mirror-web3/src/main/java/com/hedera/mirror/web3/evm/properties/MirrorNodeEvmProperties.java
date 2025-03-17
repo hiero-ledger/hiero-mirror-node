@@ -347,7 +347,8 @@ public class MirrorNodeEvmProperties implements EvmProperties {
      * @return true if the random value between 0 and 1 is less than modularizedTrafficPercent
      */
     public boolean directTrafficThroughTransactionExecutionService() {
-        return RandomUtils.secure().randomDouble(0.0d, 1.0d) < getModularizedTrafficPercent();
+        return isModularizedServices()
+                && RandomUtils.secure().randomDouble(0.0d, 1.0d) < getModularizedTrafficPercent();
     }
 
     @Getter
