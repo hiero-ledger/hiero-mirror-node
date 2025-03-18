@@ -356,8 +356,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         var shard = commonProperties.getShard();
         var realm = commonProperties.getRealm();
 
-        if(fundingEntityId != null && (fundingEntityId.getShard() != shard ||
-                fundingEntityId.getRealm() != realm) ) {
+        if (fundingEntityId != null && (fundingEntityId.getShard() != shard || fundingEntityId.getRealm() != realm)) {
             var correctEntityId = EntityId.of(shard, realm, fundingEntityId.getNum());
             var correctFundingAccountAddress = EvmTokenUtils.toAddress(correctEntityId);
             this.setFundingAccount(correctFundingAccountAddress.toHexString());

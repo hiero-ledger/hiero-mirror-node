@@ -6,165 +6,162 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityHistory;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import lombok.RequiredArgsConstructor;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
 class EntityRepositoryTest extends Web3IntegrationTest {
 
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private static final long SHARD = COMMON_PROPERTIES.getShard();
+    private static final long REALM = COMMON_PROPERTIES.getRealm();
+
     private final EntityRepository entityRepository;
-    private final CommonProperties commonProperties;
-
-    private long shard;
-    private long realm;
-
-
-    @BeforeEach
-    void setup() {
-        shard = commonProperties.getShard();
-        realm = commonProperties.getRealm();
-    }
 
     @Test
     void findByIdAndDeletedIsFalseSuccessfulCall() {
-        var entity = domainBuilder.entity(-2, domainBuilder.timestamp()).persist();
+        final var entity = domainBuilder.entity(-2, domainBuilder.timestamp()).persist();
         assertThat(entityRepository.findByIdAndDeletedIsFalse(-2L)).contains(entity);
     }
 
     @Test
     void findByIdAndDeletedIsFalseFailCall() {
-        Entity entity = domainBuilder.entity().persist();
+        final var entity = domainBuilder.entity().persist();
         long id = entity.getId();
         assertThat(entityRepository.findByIdAndDeletedIsFalse(++id)).isEmpty();
     }
 
     @Test
     void findByIdAndDeletedTrueCall() {
-        Entity entity = domainBuilder.entity().customize(e -> e.deleted(true)).persist();
+        final var entity =
+                domainBuilder.entity().customize(e -> e.deleted(true)).persist();
         assertThat(entityRepository.findByIdAndDeletedIsFalse(entity.getId())).isEmpty();
     }
 
     @Test
     void findByEvmAddressAndDeletedIsFalseSuccessfulCall() {
-        var entity1 = domainBuilder.entity().persist();
-        var entity2 = domainBuilder.entity().persist();
-        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(entity1.getEvmAddress(), shard, realm))
+        final var entity1 = domainBuilder.entity().persist();
+        final var entity2 = domainBuilder.entity().persist();
+        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
+                        entity1.getEvmAddress(), SHARD, REALM))
                 .contains(entity1);
 
         // Validate entity1 is cached and entity2 can't be found since it's not cached
         entityRepository.deleteAll();
-        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(entity1.getEvmAddress(), shard, realm))
+        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
+                        entity1.getEvmAddress(), SHARD, REALM))
                 .contains(entity1);
-        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(entity2.getEvmAddress(), shard, realm))
+        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
+                        entity2.getEvmAddress(), SHARD, REALM))
                 .isEmpty();
     }
 
     @Test
     void findByEvmAddressAndDeletedIsFalseFailCall() {
         domainBuilder.entity().persist();
-        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(new byte[32], shard, realm))
+        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(new byte[32], SHARD, REALM))
                 .isEmpty();
     }
 
     @Test
     void findByEvmAddressAndDeletedTrueCall() {
-        Entity entity = domainBuilder.entity().customize(e -> e.deleted(true)).persist();
-        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(entity.getEvmAddress(), shard, realm))
+        final var entity =
+                domainBuilder.entity().customize(e -> e.deleted(true)).persist();
+        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
+                        entity.getEvmAddress(), SHARD, REALM))
                 .isEmpty();
     }
 
     @Test
     void findByEvmAddressAndTimestampRangeLessThanBlockTimestampAndDeletedIsFalseCall() {
-        Entity entity = domainBuilder.entity().persist();
+        final var entity = domainBuilder.entity().persist();
 
         assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower() + 1, shard, realm))
+                        entity.getEvmAddress(), entity.getTimestampLower() + 1, SHARD, REALM))
                 .get()
                 .isEqualTo(entity);
     }
 
     @Test
     void findByEvmAddressAndTimestampRangeEqualToBlockTimestampAndDeletedIsFalseCall() {
-        Entity entity = domainBuilder.entity().persist();
+        final var entity = domainBuilder.entity().persist();
 
         assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower(), shard, realm))
+                        entity.getEvmAddress(), entity.getTimestampLower(), SHARD, REALM))
                 .get()
                 .isEqualTo(entity);
     }
 
     @Test
     void findByEvmAddressAndTimestampRangeGreaterThanBlockTimestampAndDeletedIsFalseCall() {
-        Entity entity = domainBuilder.entity().persist();
+        final var entity = domainBuilder.entity().persist();
 
         assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower() - 1, shard, realm))
+                        entity.getEvmAddress(), entity.getTimestampLower() - 1, SHARD, REALM))
                 .isEmpty();
     }
 
     @Test
     void findByEvmAddressAndTimestampRangeLessThanBlockTimestampAndDeletedTrueCall() {
-        Entity entity = domainBuilder.entity().customize(e -> e.deleted(true)).persist();
+        final var entity =
+                domainBuilder.entity().customize(e -> e.deleted(true)).persist();
 
         assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower() + 1, shard, realm))
+                        entity.getEvmAddress(), entity.getTimestampLower() + 1, SHARD, REALM))
                 .isEmpty();
     }
 
     @Test
     void findHistoricalEntityByEvmAddressAndTimestampRangeAndDeletedTrueCall() {
-        EntityHistory entityHistory =
+        final var entityHistory =
                 domainBuilder.entityHistory().customize(e -> e.deleted(true)).persist();
 
         assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entityHistory.getEvmAddress(), entityHistory.getTimestampLower() - 1, shard, realm))
+                        entityHistory.getEvmAddress(), entityHistory.getTimestampLower() - 1, SHARD, REALM))
                 .isEmpty();
     }
 
     @Test
     void findHistoricalEntityByEvmAddressAndTimestampRangeGreaterThanBlockTimestampAndDeletedIsFalse() {
-        EntityHistory entityHistory = domainBuilder.entityHistory().persist();
-        Entity entity = domainBuilder
+        final var entityHistory = domainBuilder.entityHistory().persist();
+        final var entity = domainBuilder
                 .entity()
                 .customize(e -> e.id(entityHistory.getId()))
                 .persist();
 
         assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entityHistory.getTimestampLower() - 1, shard, realm))
+                        entity.getEvmAddress(), entityHistory.getTimestampLower() - 1, SHARD, REALM))
                 .isEmpty();
     }
 
     @Test
     void findEntityByEvmAddressAndTimestampRangeEqualToBlockTimestampAndDeletedIsFalse() {
-        EntityHistory entityHistory = domainBuilder.entityHistory().persist();
+        final var entityHistory = domainBuilder.entityHistory().persist();
 
         // Both entity and entity history will be queried in union but entity record is the latest valid
-        Entity entity = domainBuilder
+        final var entity = domainBuilder
                 .entity()
                 .customize(e -> e.id(entityHistory.getId()))
                 .persist();
 
         assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower(), shard, realm))
+                        entity.getEvmAddress(), entity.getTimestampLower(), SHARD, REALM))
                 .get()
                 .isEqualTo(entity);
     }
 
     @Test
     void findHistoricalEntityByEvmAddressAndTimestampRangeEqualToBlockTimestampAndDeletedIsFalse() {
-        Entity entity = domainBuilder.entity().persist();
+        final var entity = domainBuilder.entity().persist();
         // Both entity and entity history will be queried in union but entity history record is the latest valid
-        EntityHistory entityHistory = domainBuilder
+        final var entityHistory = domainBuilder
                 .entityHistory()
                 .customize(e -> e.id(entity.getId()))
                 .persist();
 
         assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entityHistory.getTimestampLower(), shard, realm))
+                        entity.getEvmAddress(), entityHistory.getTimestampLower(), SHARD, REALM))
                 .get()
                 .usingRecursiveComparison()
                 .isEqualTo(entityHistory);
@@ -172,7 +169,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByIdAndTimestampRangeLessThanBlockTimestampAndDeletedIsFalseCall() {
-        Entity entity = domainBuilder.entity().persist();
+        final var entity = domainBuilder.entity().persist();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(entity.getId(), entity.getTimestampLower() + 1))
                 .get()
@@ -181,7 +178,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByIdAndTimestampRangeEqualToBlockTimestampAndDeletedIsFalseCall() {
-        Entity entity = domainBuilder.entity().persist();
+        final var entity = domainBuilder.entity().persist();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(entity.getId(), entity.getTimestampLower()))
                 .get()
@@ -190,7 +187,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByIdAndTimestampRangeGreaterThanBlockTimestampAndDeletedIsFalseCall() {
-        Entity entity = domainBuilder.entity().persist();
+        final var entity = domainBuilder.entity().persist();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(entity.getId(), entity.getTimestampLower() - 1))
                 .isEmpty();
@@ -198,7 +195,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByIdAndTimestampRangeAndDeletedTrueCall() {
-        Entity entity = domainBuilder.entity().customize(e -> e.deleted(true)).persist();
+        final var entity =
+                domainBuilder.entity().customize(e -> e.deleted(true)).persist();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(entity.getId(), entity.getTimestampLower()))
                 .isEmpty();
@@ -206,7 +204,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findHistoricalEntityByIdAndTimestampRangeLessThanBlockTimestampAndDeletedIsFalseCall() {
-        EntityHistory entityHistory = domainBuilder.entityHistory().persist();
+        final var entityHistory = domainBuilder.entityHistory().persist();
 
         // persist older entity in entity history
         domainBuilder
@@ -225,7 +223,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findHistoricalEntityByIdAndTimestampRangeEqualToBlockTimestampAndDeletedIsFalseCall() {
-        EntityHistory entityHistory = domainBuilder.entityHistory().persist();
+        final var entityHistory = domainBuilder.entityHistory().persist();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(
                         entityHistory.getId(), entityHistory.getTimestampLower()))
@@ -236,7 +234,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findHistoricalEntityByIdAndTimestampRangeGreaterThanBlockTimestampAndDeletedIsFalseCall() {
-        EntityHistory entityHistory = domainBuilder.entityHistory().persist();
+        final var entityHistory = domainBuilder.entityHistory().persist();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(
                         entityHistory.getId(), entityHistory.getTimestampLower() - 1))
@@ -245,7 +243,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findHistoricalEntityByIdAndTimestampRangeAndDeletedTrueCall() {
-        EntityHistory entityHistory =
+        final var entityHistory =
                 domainBuilder.entityHistory().customize(e -> e.deleted(true)).persist();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(
@@ -256,23 +254,36 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     @Test
     void findByEvmAddressOrAliasSuccessWithAlias() {
         final var alias = domainBuilder.key();
-        final var entity = domainBuilder.entity().customize(e -> e.alias(alias).shard(shard).realm(realm)).persist();
-        assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(alias, shard, realm)).get().isEqualTo(entity);
+        final var entity = domainBuilder
+                .entity()
+                .customize(e -> e.alias(alias).shard(SHARD).realm(REALM))
+                .persist();
+        assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(alias, SHARD, REALM))
+                .get()
+                .isEqualTo(entity);
     }
 
     @Test
     void findByEvmAddressOrAliasSuccessWithEvmAddress() {
         final var evmAddress = domainBuilder.evmAddress();
-        final var entity =
-                domainBuilder.entity().customize(e -> e.evmAddress(evmAddress).shard(shard).realm(realm)).persist();
-        assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(evmAddress, shard, realm)).get().isEqualTo(entity);
+        final var entity = domainBuilder
+                .entity()
+                .customize(e -> e.evmAddress(evmAddress).shard(SHARD).realm(REALM))
+                .persist();
+        assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(evmAddress, SHARD, REALM))
+                .get()
+                .isEqualTo(entity);
     }
 
     @Test
     void findByEvmAddressOrAliasReturnsEmptyWhenDeletedIsTrueWithAlias() {
         final var alias = domainBuilder.key();
-        domainBuilder.entity().customize(e -> e.alias(alias).deleted(true).shard(shard).realm(realm)).persist();
-        assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(alias, shard, realm)).isEmpty();
+        domainBuilder
+                .entity()
+                .customize(e -> e.alias(alias).deleted(true).shard(SHARD).realm(REALM))
+                .persist();
+        assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(alias, SHARD, REALM))
+                .isEmpty();
     }
 
     @Test
@@ -280,9 +291,11 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final var evmAddress = domainBuilder.evmAddress();
         domainBuilder
                 .entity()
-                .customize(e -> e.evmAddress(evmAddress).deleted(true).shard(shard).realm(realm))
+                .customize(
+                        e -> e.evmAddress(evmAddress).deleted(true).shard(SHARD).realm(REALM))
                 .persist();
-        assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(evmAddress, shard, realm)).isEmpty();
+        assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(evmAddress, SHARD, REALM))
+                .isEmpty();
     }
 
     @Test
@@ -290,7 +303,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final var entity = domainBuilder.entity().persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entity.getTimestampLower() + 1, shard, realm))
+                        entity.getAlias(), entity.getTimestampLower() + 1, SHARD, REALM))
                 .get()
                 .isEqualTo(entity);
     }
@@ -300,7 +313,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final var entity = domainBuilder.entity().persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower() + 1, shard, realm))
+                        entity.getEvmAddress(), entity.getTimestampLower() + 1, SHARD, REALM))
                 .get()
                 .isEqualTo(entity);
     }
@@ -310,7 +323,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final var entity = domainBuilder.entity().persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entity.getTimestampLower(), shard, realm))
+                        entity.getAlias(), entity.getTimestampLower(), SHARD, REALM))
                 .get()
                 .isEqualTo(entity);
     }
@@ -320,7 +333,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final var entity = domainBuilder.entity().persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower(), shard, realm))
+                        entity.getEvmAddress(), entity.getTimestampLower(), SHARD, REALM))
                 .get()
                 .isEqualTo(entity);
     }
@@ -330,7 +343,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final var entity = domainBuilder.entity().persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entity.getTimestampLower() - 1, shard, realm))
+                        entity.getAlias(), entity.getTimestampLower() - 1, SHARD, REALM))
                 .isEmpty();
     }
 
@@ -339,7 +352,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final var entity = domainBuilder.entity().persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower() - 1, shard, realm))
+                        entity.getEvmAddress(), entity.getTimestampLower() - 1, SHARD, REALM))
                 .isEmpty();
     }
 
@@ -349,7 +362,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 domainBuilder.entity().customize(e -> e.deleted(true)).persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entity.getTimestampLower() + 1, shard, realm))
+                        entity.getAlias(), entity.getTimestampLower() + 1, SHARD, REALM))
                 .isEmpty();
     }
 
@@ -359,7 +372,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 domainBuilder.entity().customize(e -> e.deleted(true)).persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower() + 1, shard, realm))
+                        entity.getEvmAddress(), entity.getTimestampLower() + 1, SHARD, REALM))
                 .isEmpty();
     }
 
@@ -369,7 +382,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 domainBuilder.entityHistory().customize(e -> e.deleted(true)).persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entityHistory.getAlias(), entityHistory.getTimestampLower() - 1, shard, realm))
+                        entityHistory.getAlias(), entityHistory.getTimestampLower() - 1, SHARD, REALM))
                 .isEmpty();
     }
 
@@ -379,7 +392,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 domainBuilder.entityHistory().customize(e -> e.deleted(true)).persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entityHistory.getEvmAddress(), entityHistory.getTimestampLower() - 1, shard, realm))
+                        entityHistory.getEvmAddress(), entityHistory.getTimestampLower() - 1, SHARD, REALM))
                 .isEmpty();
     }
 
@@ -392,7 +405,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entityHistory.getTimestampLower() - 1, shard, realm))
+                        entity.getAlias(), entityHistory.getTimestampLower() - 1, SHARD, REALM))
                 .isEmpty();
     }
 
@@ -406,7 +419,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entityHistory.getTimestampLower() - 1, shard, realm))
+                        entity.getEvmAddress(), entityHistory.getTimestampLower() - 1, SHARD, REALM))
                 .isEmpty();
     }
 
@@ -421,7 +434,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entity.getTimestampLower(), shard, realm))
+                        entity.getAlias(), entity.getTimestampLower(), SHARD, REALM))
                 .get()
                 .isEqualTo(entity);
     }
@@ -437,7 +450,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower(), shard, realm))
+                        entity.getEvmAddress(), entity.getTimestampLower(), SHARD, REALM))
                 .get()
                 .isEqualTo(entity);
     }
@@ -452,7 +465,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entityHistory.getTimestampLower(), shard, realm))
+                        entity.getAlias(), entityHistory.getTimestampLower(), SHARD, REALM))
                 .get()
                 .usingRecursiveComparison()
                 .isEqualTo(entityHistory);
@@ -469,7 +482,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .persist();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entityHistory.getTimestampLower(), shard, realm))
+                        entity.getEvmAddress(), entityHistory.getTimestampLower(), SHARD, REALM))
                 .get()
                 .usingRecursiveComparison()
                 .isEqualTo(entityHistory);
@@ -477,13 +490,13 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findMaxIdEmptyDb() {
-        assertThat(entityRepository.findMaxId(0, 0)).isNull();
+        assertThat(entityRepository.findMaxId(SHARD, REALM)).isNull();
     }
 
     @Test
     void findMaxId() {
         final long lastId = 1111;
         domainBuilder.entity().customize(e -> e.id(lastId)).persist();
-        assertThat(entityRepository.findMaxId(0, 0)).isEqualTo(lastId);
+        assertThat(entityRepository.findMaxId(SHARD, REALM)).isEqualTo(lastId);
     }
 }

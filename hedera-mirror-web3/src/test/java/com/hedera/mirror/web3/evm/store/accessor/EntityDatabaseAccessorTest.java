@@ -29,8 +29,8 @@ class EntityDatabaseAccessorTest {
     private static final Address ALIAS_ADDRESS = Address.fromHexString(ALIAS_HEX);
 
     private static final Optional<Long> timestamp = Optional.of(1234L);
-    private static final long SHARD_NUM = 0L;
-    private static final long REALM_NUM = 0L;
+    private static final long SHARD = 0L;
+    private static final long REALM = 0L;
     private static final Entity mockEntity = mock(Entity.class);
 
     @InjectMocks
@@ -62,7 +62,8 @@ class EntityDatabaseAccessorTest {
 
     @Test
     void getEntityByAlias() {
-        when(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(ALIAS_ADDRESS.toArrayUnsafe(), SHARD_NUM, REALM_NUM))
+        when(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
+                        ALIAS_ADDRESS.toArrayUnsafe(), SHARD, REALM))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(entityDatabaseAccessor.get(ALIAS_ADDRESS, Optional.empty()))
@@ -71,7 +72,8 @@ class EntityDatabaseAccessorTest {
 
     @Test
     void getEntityByAliasHistorical() {
-        when(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(ALIAS_ADDRESS.toArrayUnsafe(), timestamp.get(), SHARD_NUM, REALM_NUM))
+        when(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
+                        ALIAS_ADDRESS.toArrayUnsafe(), timestamp.get(), SHARD, REALM))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(entityDatabaseAccessor.get(ALIAS_ADDRESS, timestamp))

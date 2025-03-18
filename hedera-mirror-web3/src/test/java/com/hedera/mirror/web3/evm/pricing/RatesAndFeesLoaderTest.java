@@ -69,9 +69,13 @@ class RatesAndFeesLoaderTest {
             .fileData("corrupt".getBytes())
             .build();
     private static final long EXCHANGE_RATES_ID = 112L;
-    private static final String CORRUPT_RATES_MESSAGE = String.format("Rates %s.%s.%d are corrupt!", COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), EXCHANGE_RATES_ID);
+    private static final String CORRUPT_RATES_MESSAGE = String.format(
+            "Rates %s.%s.%d are corrupt!",
+            COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), EXCHANGE_RATES_ID);
     private static final long FEE_SCHEDULES_ID = 111L;
-    private static final String CORRUPT_SCHEDULES_MESSAGE = String.format("Fee schedule %s.%s.%d is corrupt!", COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), FEE_SCHEDULES_ID);
+    private static final String CORRUPT_SCHEDULES_MESSAGE = String.format(
+            "Fee schedule %s.%s.%d is corrupt!",
+            COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), FEE_SCHEDULES_ID);
     private static final long EXCHANGE_RATE_ID = 112L;
 
     @Mock

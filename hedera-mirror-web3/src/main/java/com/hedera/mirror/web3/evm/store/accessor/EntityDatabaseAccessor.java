@@ -46,10 +46,13 @@ public class EntityDatabaseAccessor extends DatabaseAccessor<Object, Entity> {
                 .orElseGet(() -> entityRepository.findByIdAndDeletedIsFalse(entityId));
     }
 
-    private Optional<Entity> getEntityByEvmAddressTimestampShardAndRealm(byte[] addressBytes, final Optional<Long> timestamp) {
+    private Optional<Entity> getEntityByEvmAddressTimestampShardAndRealm(
+            byte[] addressBytes, final Optional<Long> timestamp) {
         return timestamp
-                .map(t -> entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(addressBytes, t, commonProperties.getShard(), commonProperties.getRealm()))
-                .orElseGet(() -> entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(addressBytes, commonProperties.getShard(), commonProperties.getRealm()));
+                .map(t -> entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
+                        addressBytes, t, commonProperties.getShard(), commonProperties.getRealm()))
+                .orElseGet(() -> entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
+                        addressBytes, commonProperties.getShard(), commonProperties.getRealm()));
     }
 
     public Address evmAddressFromId(EntityId entityId, final Optional<Long> timestamp) {

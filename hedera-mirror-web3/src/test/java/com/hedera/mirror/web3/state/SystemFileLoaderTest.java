@@ -21,8 +21,9 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 
 class SystemFileLoaderTest {
-    private final CommonProperties commonProperties = CommonProperties.getInstance();
-    private final SystemFileLoader systemFileLoader = new SystemFileLoader(new MirrorNodeEvmProperties(), commonProperties);
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private final SystemFileLoader systemFileLoader =
+            new SystemFileLoader(new MirrorNodeEvmProperties(), COMMON_PROPERTIES);
 
     @Test
     void loadNonSystemFile() {
@@ -100,7 +101,11 @@ class SystemFileLoaderTest {
     }
 
     private FileID fileId(long fileNum) {
-        return FileID.newBuilder().shardNum(commonProperties.getShard()).realmNum(commonProperties.getRealm()).fileNum(fileNum).build();
+        return FileID.newBuilder()
+                .shardNum(COMMON_PROPERTIES.getShard())
+                .realmNum(COMMON_PROPERTIES.getRealm())
+                .fileNum(fileNum)
+                .build();
     }
 
     private void assertFile(File file, FileID fileId) {

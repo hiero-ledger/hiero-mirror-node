@@ -51,7 +51,11 @@ public class SystemFileLoader {
     }
 
     private File load(int fileNum, Bytes contents) {
-        var fileId = FileID.newBuilder().shardNum(commonProperties.getShard()).realmNum(commonProperties.getRealm()).fileNum(fileNum).build();
+        var fileId = FileID.newBuilder()
+                .shardNum(commonProperties.getShard())
+                .realmNum(commonProperties.getRealm())
+                .fileNum(fileNum)
+                .build();
         return File.newBuilder()
                 .contents(contents)
                 .deleted(false)

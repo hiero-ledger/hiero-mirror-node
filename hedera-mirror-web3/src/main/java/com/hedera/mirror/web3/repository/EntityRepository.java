@@ -79,7 +79,8 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             limit 1
             """,
             nativeQuery = true)
-    Optional<Entity> findActiveByEvmAddressAndTimestampAndShardAndRealm(byte[] evmAddress, long blockTimestamp, long shard, long realm);
+    Optional<Entity> findActiveByEvmAddressAndTimestampAndShardAndRealm(
+            byte[] evmAddress, long blockTimestamp, long shard, long realm);
 
     /**
      * Retrieves the most recent state of an entity by its alias up to a given block timestamp.
@@ -120,7 +121,8 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             limit 1
             """,
             nativeQuery = true)
-    Optional<Entity> findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(byte[] alias, long blockTimestamp, long shard, long realm);
+    Optional<Entity> findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
+            byte[] alias, long blockTimestamp, long shard, long realm);
 
     /**
      * Retrieves the most recent state of an entity by its ID up to a given block timestamp.
