@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -47,7 +48,9 @@ class ContractController {
     private final ThrottleProperties throttleProperties;
 
     @PostMapping(value = "/call")
-    ContractCallResponse call(@RequestBody @Valid ContractCallRequest request) {
+    ContractCallResponse call(
+            @RequestBody @Valid ContractCallRequest request,
+            @RequestHeader(value = "Is-Modularized", required = false) String isModularizedHeader) {
 
         if (!rateLimitBucket.tryConsume(1)) {
             throw new RateLimitException("Requests per second rate limit exceeded.");
@@ -59,7 +62,7 @@ class ContractController {
             validateContractData(request);
             validateContractMaxGasLimit(request);
 
-            final var params = constructServiceParameters(request);
+            final var params = constructServiceParameters(request, isModularizedHeader);
             final var result = contractExecutionService.processCall(params);
             return new ContractCallResponse(result);
         } catch (QueryTimeoutException e) {
@@ -72,7 +75,8 @@ class ContractController {
         }
     }
 
-    private ContractExecutionParameters constructServiceParameters(ContractCallRequest request) {
+    private ContractExecutionParameters constructServiceParameters(
+            ContractCallRequest request, final String isModularizedHeader) {
         final var fromAddress = request.getFrom() != null ? Address.fromHexString(request.getFrom()) : Address.ZERO;
         final var sender = new HederaEvmAccount(fromAddress);
 
@@ -98,11 +102,11 @@ class ContractController {
 
         boolean isModularized = evmProperties.directTrafficThroughTransactionExecutionService();
 
-        Boolean isModularizedRequest = request.getIsModularized();
+        boolean isModularizedRequest = Boolean.parseBoolean(isModularizedHeader);
         // Temporary workaround to ensure modularized services are fully available when enabled.
         // This prevents flakiness in acceptance tests, as directTrafficThroughTransactionExecutionService()
         // can distribute traffic between the old and new logic.
-        if (isModularizedRequest != null && isModularizedRequest && evmProperties.isModularizedServices()) {
+        if (isModularizedRequest && evmProperties.isModularizedServices()) {
             isModularized = true;
         }
 

@@ -47,6 +47,8 @@ import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
+import java.util.Collections;
+import java.util.Map;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
@@ -120,6 +122,19 @@ class ContractControllerTest {
                 .accept(MediaType.APPLICATION_JSON)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(convert(request)));
+    }
+
+    @SneakyThrows
+    private ResultActions contractCall(ContractCallRequest request, final Map<String, String> headers) {
+        final var requestBuilder = post(CALL_URI)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(convert(request));
+
+        // Add headers dynamically
+        headers.forEach(requestBuilder::header);
+
+        return mockMvc.perform(requestBuilder);
     }
 
     @ParameterizedTest
@@ -554,7 +569,6 @@ class ContractControllerTest {
     @Test
     void testModularizedRequestFalse() throws Exception {
         final var request = request();
-        request.setIsModularized(Boolean.FALSE);
 
         contractCall(request).andExpect(status().isOk());
         final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
@@ -570,9 +584,9 @@ class ContractControllerTest {
             return;
         }
         final var request = request();
-        request.setIsModularized(Boolean.TRUE);
 
-        contractCall(request).andExpect(status().isOk());
+        contractCall(request, Collections.singletonMap("Is-Modularized", "true"))
+                .andExpect(status().isOk());
         final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
         verify(service).processCall(paramsCaptor.capture());
         final var capturedParams = paramsCaptor.getValue();

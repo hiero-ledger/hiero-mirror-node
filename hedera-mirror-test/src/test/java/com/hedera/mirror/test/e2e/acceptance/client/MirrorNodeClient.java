@@ -42,11 +42,12 @@ import com.hedera.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import com.hedera.mirror.test.e2e.acceptance.config.RestJavaProperties;
 import com.hedera.mirror.test.e2e.acceptance.config.Web3Properties;
 import com.hedera.mirror.test.e2e.acceptance.props.Order;
-import com.hedera.mirror.test.e2e.acceptance.request.ContractCallModularizedRequest;
 import com.hedera.mirror.test.e2e.acceptance.util.TestUtil;
 import jakarta.inject.Named;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -265,10 +266,11 @@ public class MirrorNodeClient {
     }
 
     public ContractCallResponse contractsCall(ContractCallRequest request) {
+        Map<String, String> headers = Collections.emptyMap();
         if (web3Properties.isModularizedServices()) {
-            request = new ContractCallModularizedRequest(request);
+            headers = Collections.singletonMap("Is-Modularized", "true");
         }
-        return callPostRestEndpoint("/contracts/call", ContractCallResponse.class, request);
+        return callPostRestEndpoint("/contracts/call", ContractCallResponse.class, request, headers);
     }
 
     public BlocksResponse getBlocks(Order order, long limit) {
@@ -405,9 +407,12 @@ public class MirrorNodeClient {
         return restClient.get().uri(normalizeUri(uri), uriVariables).retrieve().body(classType);
     }
 
-    private <T, R> T callPostRestEndpoint(String uri, Class<T> classType, R request) {
-        return retryTemplate.execute(
-                x -> web3Client.post().uri(uri).body(request).retrieve().body(classType));
+    private <T, R> T callPostRestEndpoint(String uri, Class<T> classType, R request, Map<String, String> headers) {
+        return retryTemplate.execute(x -> {
+            final var requestSpec = web3Client.post().uri(uri);
+            headers.forEach(requestSpec::header);
+            return requestSpec.body(request).retrieve().body(classType);
+        });
     }
 
     private String normalizeUri(String uri) {
