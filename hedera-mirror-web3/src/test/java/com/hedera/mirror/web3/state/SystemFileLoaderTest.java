@@ -21,7 +21,7 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 
 class SystemFileLoaderTest {
-    private final CommonProperties commonProperties = new CommonProperties();
+    private final CommonProperties commonProperties = CommonProperties.getInstance();
     private final SystemFileLoader systemFileLoader = new SystemFileLoader(new MirrorNodeEvmProperties(), commonProperties);
 
     @Test

@@ -62,7 +62,7 @@ class EntityDatabaseAccessorTest {
 
     @Test
     void getEntityByAlias() {
-        when(entityRepository.findByEvmAddressAndDeletedIsFalse(ALIAS_ADDRESS.toArrayUnsafe()))
+        when(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(ALIAS_ADDRESS.toArrayUnsafe(), SHARD_NUM, REALM_NUM))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(entityDatabaseAccessor.get(ALIAS_ADDRESS, Optional.empty()))
@@ -71,7 +71,7 @@ class EntityDatabaseAccessorTest {
 
     @Test
     void getEntityByAliasHistorical() {
-        when(entityRepository.findActiveByEvmAddressAndTimestamp(ALIAS_ADDRESS.toArrayUnsafe(), timestamp.get(), SHARD_NUM, REALM_NUM))
+        when(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(ALIAS_ADDRESS.toArrayUnsafe(), timestamp.get(), SHARD_NUM, REALM_NUM))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(entityDatabaseAccessor.get(ALIAS_ADDRESS, timestamp))

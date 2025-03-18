@@ -13,8 +13,12 @@ import static com.swirlds.state.lifecycle.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
 
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.SemanticVersion;
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.web3.common.ContractCallContext;
+import com.hedera.mirror.web3.evm.utils.EvmTokenUtils;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.evm.contracts.execution.EvmProperties;
 import com.hedera.node.config.VersionedConfiguration;
@@ -58,6 +62,8 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
+
+    private final CommonProperties commonProperties = CommonProperties.getInstance();
 
     @Getter
     private boolean allowTreasuryToOwnNfts = true;
@@ -189,6 +195,10 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @DecimalMin("0.0")
     @DecimalMax("1.0")
     private double modularizedTrafficPercent = 0.0;
+
+    public MirrorNodeEvmProperties() {
+        validateFundingAccount(commonProperties);
+    }
 
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);
@@ -338,6 +348,20 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
         props.putAll(properties); // Allow user defined properties to override the defaults
         return Collections.unmodifiableMap(props);
+    }
+
+    private void validateFundingAccount(CommonProperties commonProperties) {
+        var fundingEntityId = DomainUtils.fromEvmAddress(fundingAccountAddress().toArray());
+
+        var shard = commonProperties.getShard();
+        var realm = commonProperties.getRealm();
+
+        if(fundingEntityId != null && (fundingEntityId.getShard() != shard ||
+                fundingEntityId.getRealm() != realm) ) {
+            var correctEntityId = EntityId.of(shard, realm, fundingEntityId.getNum());
+            var correctFundingAccountAddress = EvmTokenUtils.toAddress(correctEntityId);
+            this.setFundingAccount(correctFundingAccountAddress.toHexString());
+        }
     }
 
     /**

@@ -23,7 +23,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             cacheManager = CACHE_MANAGER_ENTITY,
             key = "T(java.util.Arrays).hashCode(#alias)",
             unless = "#result == null")
-    Optional<Entity> findByEvmAddressAndDeletedIsFalse(byte[] alias);
+    Optional<Entity> findByEvmAddressAndDeletedIsFalseAndShardAndRealm(byte[] alias, long shard, long realm);
 
     @Cacheable(
             cacheNames = CACHE_NAME_ALIAS,
@@ -38,13 +38,15 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             where (evm_address = ?1 or alias = ?1) and deleted is not true and shard = ?2 and realm = ?3
             """,
             nativeQuery = true)
-    Optional<Entity> findByEvmAddressOrAlias(byte[] alias, long shard, long realm);
+    Optional<Entity> findByEvmAddressOrAliasAndShardAndRealm(byte[] alias, long shard, long realm);
 
     /**
      * Retrieves the most recent state of an entity by its evm address up to a given block timestamp.
      *
      * @param evmAddress      the evm address of the entity to be retrieved.
      * @param blockTimestamp  the block timestamp used to filter the results.
+     * @param shard           the shard identifier that represents a partition of the network.
+     * @param realm           the realm identifier that represents a logical grouping within the network.
      * @return an Optional containing the entity's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
@@ -77,13 +79,15 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             limit 1
             """,
             nativeQuery = true)
-    Optional<Entity> findActiveByEvmAddressAndTimestamp(byte[] evmAddress, long blockTimestamp, long shard, long realm);
+    Optional<Entity> findActiveByEvmAddressAndTimestampAndShardAndRealm(byte[] evmAddress, long blockTimestamp, long shard, long realm);
 
     /**
      * Retrieves the most recent state of an entity by its alias up to a given block timestamp.
      *
      * @param alias           the alias of the entity to be retrieved.
      * @param blockTimestamp  the block timestamp used to filter the results.
+     * @param shard           the shard identifier that represents a partition of the network.
+     * @param realm           the realm identifier that represents a logical grouping within the network.
      * @return an Optional containing the entity's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
@@ -93,7 +97,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             with entity_cte as (
                 select id
                 from entity
-                where (evm_address = ?1 or alias = ?1) and created_timestamp <= ?2
+                where (evm_address = ?1 or alias = ?1) and created_timestamp <= ?2 and shard = ?3 and realm = ?4
                 order by created_timestamp desc
                 limit 1
             )
@@ -116,7 +120,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             limit 1
             """,
             nativeQuery = true)
-    Optional<Entity> findActiveByEvmAddressOrAliasAndTimestamp(byte[] alias, long blockTimestamp);
+    Optional<Entity> findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(byte[] alias, long blockTimestamp, long shard, long realm);
 
     /**
      * Retrieves the most recent state of an entity by its ID up to a given block timestamp.

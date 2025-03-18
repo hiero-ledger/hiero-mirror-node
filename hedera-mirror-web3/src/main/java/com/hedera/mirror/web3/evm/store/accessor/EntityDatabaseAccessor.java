@@ -32,7 +32,7 @@ public class EntityDatabaseAccessor extends DatabaseAccessor<Object, Entity> {
             if (isMirror(addressBytes)) {
                 return getEntityByMirrorAddressAndTimestamp(address, timestamp);
             } else {
-                return getEntityByEvmAddressAndTimestamp(addressBytes, timestamp);
+                return getEntityByEvmAddressTimestampShardAndRealm(addressBytes, timestamp);
             }
         }
         throw new DatabaseAccessIncorrectKeyTypeException("Accessor for class %s failed to fetch by key of type %s"
@@ -46,10 +46,10 @@ public class EntityDatabaseAccessor extends DatabaseAccessor<Object, Entity> {
                 .orElseGet(() -> entityRepository.findByIdAndDeletedIsFalse(entityId));
     }
 
-    private Optional<Entity> getEntityByEvmAddressAndTimestamp(byte[] addressBytes, final Optional<Long> timestamp) {
+    private Optional<Entity> getEntityByEvmAddressTimestampShardAndRealm(byte[] addressBytes, final Optional<Long> timestamp) {
         return timestamp
-                .map(t -> entityRepository.findActiveByEvmAddressAndTimestamp(addressBytes, t, commonProperties.getShard(), commonProperties.getRealm()))
-                .orElseGet(() -> entityRepository.findByEvmAddressAndDeletedIsFalse(addressBytes));
+                .map(t -> entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(addressBytes, t, commonProperties.getShard(), commonProperties.getRealm()))
+                .orElseGet(() -> entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(addressBytes, commonProperties.getShard(), commonProperties.getRealm()));
     }
 
     public Address evmAddressFromId(EntityId entityId, final Optional<Long> timestamp) {
