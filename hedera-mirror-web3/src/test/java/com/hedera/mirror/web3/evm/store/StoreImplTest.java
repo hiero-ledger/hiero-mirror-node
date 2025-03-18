@@ -121,7 +121,9 @@ class StoreImplTest {
 
     @BeforeEach
     void setup() {
+        final var commonProperties = new CommonProperties();
         final var accountDatabaseAccessor = new AccountDatabaseAccessor(
+                commonProperties,
                 entityDatabaseAccessor,
                 nftAllowanceRepository,
                 nftRepository,
@@ -130,8 +132,14 @@ class StoreImplTest {
                 tokenAccountRepository,
                 accountBalanceRepository);
         final var tokenDatabaseAccessor = new TokenDatabaseAccessor(
-                tokenRepository, entityDatabaseAccessor, entityRepository, customFeeDatabaseAccessor, nftRepository);
+                commonProperties,
+                tokenRepository,
+                entityDatabaseAccessor,
+                entityRepository,
+                customFeeDatabaseAccessor,
+                nftRepository);
         final var tokenRelationshipDatabaseAccessor = new TokenRelationshipDatabaseAccessor(
+                commonProperties,
                 tokenDatabaseAccessor,
                 accountDatabaseAccessor,
                 tokenAccountRepository,

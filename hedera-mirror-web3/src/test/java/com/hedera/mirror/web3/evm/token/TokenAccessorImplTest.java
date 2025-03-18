@@ -126,11 +126,13 @@ class TokenAccessorImplTest {
 
     @BeforeEach
     void setUp() {
-        final var entityAccessor = new EntityDatabaseAccessor(entityRepository, new CommonProperties());
+        final var commonProperties = new CommonProperties();
+        final var entityAccessor = new EntityDatabaseAccessor(entityRepository, commonProperties);
         final var customFeeAccessor = new CustomFeeDatabaseAccessor(customFeeRepository, entityAccessor);
         final var tokenDatabaseAccessor = new TokenDatabaseAccessor(
-                tokenRepository, entityAccessor, entityRepository, customFeeAccessor, nftRepository);
+                commonProperties, tokenRepository, entityAccessor, entityRepository, customFeeAccessor, nftRepository);
         final var accountDatabaseAccessor = new AccountDatabaseAccessor(
+                commonProperties,
                 entityAccessor,
                 nftAllowanceRepository,
                 nftRepository,
@@ -144,6 +146,7 @@ class TokenAccessorImplTest {
                 accountDatabaseAccessor,
                 tokenDatabaseAccessor,
                 new TokenRelationshipDatabaseAccessor(
+                        commonProperties,
                         tokenDatabaseAccessor,
                         accountDatabaseAccessor,
                         tokenAccountRepository,

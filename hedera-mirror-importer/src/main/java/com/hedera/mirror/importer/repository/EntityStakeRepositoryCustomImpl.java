@@ -2,6 +2,8 @@
 
 package com.hedera.mirror.importer.repository;
 
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.Optional;
@@ -110,6 +112,7 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
     private static final long ONE_MONTH_IN_NS = Duration.ofDays(31).toNanos();
 
     private final AccountBalanceRepository accountBalanceRepository;
+    private final CommonProperties commonProperties;
     private final JdbcTemplate jdbcTemplate;
 
     @Modifying
@@ -126,8 +129,11 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
         // Add 1 for upper because the upper in getMaxConsensusTimestampInRange is exclusive
         long upperTimestamp = endPeriodTimestamp.get() + 1;
         long lowerTimestamp = upperTimestamp - ONE_MONTH_IN_NS;
-        var balanceSnapshotTimestamp =
-                accountBalanceRepository.getMaxConsensusTimestampInRange(lowerTimestamp, upperTimestamp);
+        long treasuryAccountId = SystemEntity.TREASURY_ACCOUNT
+                .getScopedEntityId(commonProperties)
+                .getId();
+        var balanceSnapshotTimestamp = accountBalanceRepository.getMaxConsensusTimestampInRange(
+                lowerTimestamp, upperTimestamp, treasuryAccountId);
         if (balanceSnapshotTimestamp.isEmpty()) {
             return;
         }

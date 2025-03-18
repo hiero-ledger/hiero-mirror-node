@@ -2,12 +2,18 @@
 
 package com.hedera.mirror.common.util;
 
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import java.security.SecureRandom;
 import java.time.Instant;
 import lombok.experimental.UtilityClass;
 
 @UtilityClass
 public class CommonUtils {
+
+    public static final EntityId DEFAULT_TREASURY_ACCOUNT =
+            SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(new CommonProperties());
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
