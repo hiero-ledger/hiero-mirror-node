@@ -3,7 +3,6 @@
 package config
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -289,14 +288,14 @@ func TestNodeMapDecodeHookFunc(t *testing.T) {
 }
 
 func createYamlConfigFile(content string, t *testing.T) (string, string) {
-	tempDir, err := ioutil.TempDir("", "rosetta")
+	tempDir, err := os.MkdirTemp("", "rosetta")
 	if err != nil {
 		assert.Fail(t, "Unable to create temp dir", err)
 	}
 
 	customConfig := filepath.Join(tempDir, testConfigFilename)
 
-	if err = ioutil.WriteFile(customConfig, []byte(content), 0644); err != nil {
+	if err = os.WriteFile(customConfig, []byte(content), 0644); err != nil {
 		assert.Fail(t, "Unable to create custom config", err)
 	}
 

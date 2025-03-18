@@ -61,15 +61,16 @@ public class ContractDebugService extends ContractCallService {
             ctx.setContractActions(contractActionRepository.findFailedSystemActionsByConsensusTimestamp(
                     params.getConsensusTimestamp()));
             final var ethCallTxnResult = callContract(params, ctx);
-            validateResult(ethCallTxnResult, params.getCallType());
+            validateResult(ethCallTxnResult, params.getCallType(), params.isModularized());
             return new OpcodesProcessingResult(ethCallTxnResult, ctx.getOpcodes());
         });
     }
 
     @Override
-    protected void validateResult(final HederaEvmTransactionProcessingResult txnResult, final CallType type) {
+    protected void validateResult(
+            final HederaEvmTransactionProcessingResult txnResult, final CallType type, boolean modularized) {
         try {
-            super.validateResult(txnResult, type);
+            super.validateResult(txnResult, type, modularized);
         } catch (MirrorEvmTransactionException e) {
             log.warn(
                     "Transaction failed with status: {}, detail: {}, revertReason: {}",

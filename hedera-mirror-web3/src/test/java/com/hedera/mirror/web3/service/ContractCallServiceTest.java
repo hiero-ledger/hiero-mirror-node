@@ -1157,10 +1157,22 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         void testDirectTrafficThroughTransactionExecutionService() {
             MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
 
+            when(spyEvmProperties.isModularizedServices()).thenReturn(true);
             when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(1.0);
             assertThat(spyEvmProperties.directTrafficThroughTransactionExecutionService())
                     .isTrue();
 
+            when(spyEvmProperties.isModularizedServices()).thenReturn(true);
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(0.0);
+            assertThat(spyEvmProperties.directTrafficThroughTransactionExecutionService())
+                    .isFalse();
+
+            when(spyEvmProperties.isModularizedServices()).thenReturn(false);
+            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(1.0);
+            assertThat(spyEvmProperties.directTrafficThroughTransactionExecutionService())
+                    .isFalse();
+
+            when(spyEvmProperties.isModularizedServices()).thenReturn(false);
             when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(0.0);
             assertThat(spyEvmProperties.directTrafficThroughTransactionExecutionService())
                     .isFalse();

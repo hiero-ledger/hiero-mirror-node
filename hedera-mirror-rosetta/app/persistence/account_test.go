@@ -19,12 +19,12 @@ import (
 )
 
 const (
-	account1 = int64(9000) + iota
-	account2
-	account3
-	account4
-	account5
-	account6
+	accountNum1 = int64(9000) + iota
+	accountNum2
+	accountNum3
+	accountNum4
+	accountNum5
+	accountNum6
 )
 
 const (
@@ -62,86 +62,104 @@ func TestAccountRepositorySuite(t *testing.T) {
 	suite.Run(t, new(accountRepositorySuite))
 }
 
+// run the suite
+func TestAccountRepositoryNonDefaultShardRealmSuite(t *testing.T) {
+	testSuite := accountRepositorySuite{
+		realm: 2,
+		shard: 1023,
+	}
+	suite.Run(t, &testSuite)
+}
+
 type accountRepositorySuite struct {
 	integrationTest
 	suite.Suite
-	accountId       types.AccountId
-	accountIdString string
-	accountAlias    []byte
-	account3Alias   []byte
-	account4Alias   []byte
-	account5Alias   []byte
-	account6Alias   []byte
+	accountId        types.AccountId
+	accountIdString  string
+	accountAlias     []byte
+	account3Alias    []byte
+	account4Alias    []byte
+	account5Alias    []byte
+	account6Alias    []byte
+	realm            int64
+	shard            int64
+	treasuryEntityId domain.EntityId
+}
+
+func (s *accountRepositorySuite) getEntityId(num int64) domain.EntityId {
+	return MustEncodeEntityId(s.shard, s.realm, num)
 }
 
 func (suite *accountRepositorySuite) SetupSuite() {
-	suite.accountId = types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(account1))
+	suite.accountId = types.NewAccountIdFromEntityId(suite.getEntityId(accountNum1))
 	suite.accountIdString = suite.accountId.String()
+	suite.treasuryEntityId = suite.getEntityId(2)
 }
 
 func (suite *accountRepositorySuite) SetupTest() {
 	suite.integrationTest.SetupTest()
 
-	tdomain.NewEntityBuilder(dbClient, account1, account1CreatedTimestamp, domain.EntityTypeAccount).
+	accountId1 := suite.getEntityId(accountNum1).EncodedId
+	tdomain.NewEntityBuilder(dbClient, accountId1, account1CreatedTimestamp, domain.EntityTypeAccount).
 		Alias(suite.accountAlias).
 		Persist()
 
 	// account balance files, always add an account_balance row for treasury
 	tdomain.NewAccountBalanceSnapshotBuilder(dbClient, firstSnapshotTimestamp).
-		AddAccountBalance(treasuryAccountId.GetId(), 2_000_000_000).
-		AddAccountBalance(account1, initialAccountBalance).
+		AddAccountBalance(suite.treasuryEntityId.EncodedId, 2_000_000_000).
+		AddAccountBalance(accountId1, initialAccountBalance).
 		Persist()
 	tdomain.NewAccountBalanceSnapshotBuilder(dbClient, thirdSnapshotTimestamp).
-		AddAccountBalance(treasuryAccountId.GetId(), 2_000_000_000).
+		AddAccountBalance(suite.treasuryEntityId.EncodedId, 2_000_000_000).
 		Persist()
 
 	// crypto transfers happened at <= first snapshot timestamp
 	tdomain.NewCryptoTransferBuilder(dbClient).
 		Amount(110).
-		EntityId(account1).
+		EntityId(accountId1).
 		Timestamp(firstSnapshotTimestamp - 1).
 		Persist()
 	tdomain.NewCryptoTransferBuilder(dbClient).
 		Amount(170).
-		EntityId(account1).
+		EntityId(accountId1).
 		Timestamp(firstSnapshotTimestamp).
 		Persist()
 
 	// crypto transfers happened at > first snapshot timestamp
 	tdomain.NewCryptoTransferBuilder(dbClient).
 		Amount(cryptoTransferAmounts[0]).
-		EntityId(account1).
+		EntityId(accountId1).
 		Errata(domain.ErrataTypeInsert).
 		Timestamp(firstSnapshotTimestamp + 1).
 		Persist()
 	tdomain.NewCryptoTransferBuilder(dbClient).
 		Amount(12345).
-		EntityId(account1).
+		EntityId(accountId1).
 		Errata(domain.ErrataTypeDelete).
 		Timestamp(firstSnapshotTimestamp + 2).
 		Persist()
 	tdomain.NewCryptoTransferBuilder(dbClient).
 		Amount(cryptoTransferAmounts[1]).
-		EntityId(account1).
+		EntityId(accountId1).
 		Timestamp(firstSnapshotTimestamp + 5).
 		Persist()
 	tdomain.NewCryptoTransferBuilder(dbClient).
 		Amount(-(initialAccountBalance + sum(cryptoTransferAmounts))).
-		EntityId(account1).
+		EntityId(accountId1).
 		Timestamp(accountDeleteTimestamp).
 		Persist()
 
 	// accounts for GetAccountAlias tests
-	tdomain.NewEntityBuilder(dbClient, account3, account3CreatedTimestamp, domain.EntityTypeAccount).
+	tdomain.NewEntityBuilder(dbClient, suite.getEntityId(accountNum3).EncodedId, account3CreatedTimestamp, domain.EntityTypeAccount).
 		Alias(suite.account3Alias).
 		Persist()
-	tdomain.NewEntityBuilder(dbClient, account4, account4CreatedTimestamp, domain.EntityTypeAccount).
+	tdomain.NewEntityBuilder(dbClient, suite.getEntityId(accountNum4).EncodedId, account4CreatedTimestamp, domain.EntityTypeAccount).
 		Alias(suite.account4Alias).
 		Persist()
-	tdomain.NewEntityBuilder(dbClient, account5, account5CreatedTimestamp, domain.EntityTypeAccount).
+	tdomain.NewEntityBuilder(dbClient, suite.getEntityId(accountNum5).EncodedId, account5CreatedTimestamp, domain.EntityTypeAccount).
 		Alias(suite.account5Alias).
 		Persist()
-	tdomain.NewEntityBuilder(dbClient, account6, account6CreatedTimestamp, domain.EntityTypeAccount).
+	tdomain.NewEntityBuilder(dbClient, suite.getEntityId(accountNum6).EncodedId, account6CreatedTimestamp, domain.EntityTypeAccount).
 		Alias(suite.account6Alias).
 		Persist()
 }
@@ -151,11 +169,11 @@ func (suite *accountRepositorySuite) TestGetAccountAlias() {
 		encodedId int64
 		expected  string
 	}{
-		{encodedId: account3, expected: fmt.Sprintf("0.0.%d", account3)},
-		{encodedId: account4, expected: fmt.Sprintf("0.0.%d", account4)},
+		{encodedId: accountNum3, expected: fmt.Sprintf("0.0.%d", accountNum3)},
+		{encodedId: accountNum4, expected: fmt.Sprintf("0.0.%d", accountNum4)},
 	}
 
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	for _, tt := range tests {
 		name := fmt.Sprintf("%d", tt.encodedId)
@@ -170,8 +188,8 @@ func (suite *accountRepositorySuite) TestGetAccountAlias() {
 
 func (suite *accountRepositorySuite) TestGetAccountAliasDbConnectionError() {
 	// given
-	accountId := types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(account3))
-	repo := NewAccountRepository(invalidDbClient)
+	accountId := types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(accountNum3))
+	repo := NewAccountRepository(invalidDbClient, suite.treasuryEntityId)
 
 	// when
 	actual, err := repo.GetAccountAlias(defaultContext, accountId)
@@ -184,7 +202,7 @@ func (suite *accountRepositorySuite) TestGetAccountAliasDbConnectionError() {
 func (suite *accountRepositorySuite) TestGetAccountId() {
 	// given
 	aliasAccountId, _ := types.NewAccountIdFromAlias(account4Alias, 0, 0)
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
 	actual, err := repo.GetAccountId(defaultContext, aliasAccountId)
@@ -196,8 +214,8 @@ func (suite *accountRepositorySuite) TestGetAccountId() {
 
 func (suite *accountRepositorySuite) TestGetAccountIdNumericAccount() {
 	// given
-	accountId := types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(account1))
-	repo := NewAccountRepository(dbClient)
+	accountId := types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(accountNum1))
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
 	actual, err := repo.GetAccountId(defaultContext, accountId)
@@ -210,7 +228,7 @@ func (suite *accountRepositorySuite) TestGetAccountIdNumericAccount() {
 func (suite *accountRepositorySuite) TestGetAccountIdDbConnectionError() {
 	// given
 	aliasAccountId, _ := types.NewAccountIdFromAlias(account4Alias, 0, 0)
-	repo := NewAccountRepository(invalidDbClient)
+	repo := NewAccountRepository(invalidDbClient, suite.treasuryEntityId)
 
 	// when
 	actual, err := repo.GetAccountId(defaultContext, aliasAccountId)
@@ -223,15 +241,14 @@ func (suite *accountRepositorySuite) TestGetAccountIdDbConnectionError() {
 func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlock() {
 	// given
 	// transfers before or at the snapshot timestamp should not affect balance calculation
-	accountId := suite.accountId
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	hbarAmount := &types.HbarAmount{Value: initialAccountBalance + sum(cryptoTransferAmounts)}
 	expectedAmounts := types.AmountSlice{hbarAmount}
 
 	// when
 	// query
-	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(defaultContext, accountId, consensusTimestamp)
+	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(defaultContext, suite.accountId, consensusTimestamp)
 
 	// then
 	assert.Nil(suite.T(), err)
@@ -243,21 +260,20 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAfterSecondSnapsh
 	// given
 	// remove any transfers in db. with the balance info in the second snapshot, this test verifies the account balance
 	// is directly read from the snapshot
-	accountId := suite.accountId
 	truncateTables(domain.CryptoTransfer{})
 	balance := initialAccountBalance + sum(cryptoTransferAmounts)
 	tdomain.NewAccountBalanceSnapshotBuilder(dbClient, secondSnapshotTimestamp).
-		AddAccountBalance(treasuryAccountId.GetId(), 2_000_000_000).
-		AddAccountBalance(account1, balance).
+		AddAccountBalance(suite.treasuryEntityId.EncodedId, 2_000_000_000).
+		AddAccountBalance(suite.getEntityId(accountNum1).EncodedId, balance).
 		Persist()
 	hbarAmount := &types.HbarAmount{Value: balance}
 	expectedAmount := types.AmountSlice{hbarAmount}
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
 	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
-		accountId,
+		suite.accountId,
 		secondSnapshotTimestamp+6,
 	)
 
@@ -269,33 +285,32 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAfterSecondSnapsh
 
 func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAfterThirdSnapshot() {
 	// given
-	accountId := suite.accountId
 	truncateTables(domain.CryptoTransfer{})
 	balance := initialAccountBalance + sum(cryptoTransferAmounts)
 	tdomain.NewAccountBalanceSnapshotBuilder(dbClient, secondSnapshotTimestamp).
-		AddAccountBalance(treasuryAccountId.GetId(), 2_000_000_000).
-		AddAccountBalance(account1, balance).
+		AddAccountBalance(suite.treasuryEntityId.EncodedId, 2_000_000_000).
+		AddAccountBalance(suite.getEntityId(accountNum1).EncodedId, balance).
 		Persist()
-	// No balance info for account1 in the third snapshot due to dedup, i.e., account1's balances at
+	// No balance info for accountNum1 in the third snapshot due to dedup, i.e., accountNum1's balances at
 	// thirdSnapshotTimestamp is the same as the balance at secondSnapshotTimestamp
 	tdomain.NewAccountBalanceSnapshotBuilder(dbClient, thirdSnapshotTimestamp).
-		AddAccountBalance(treasuryAccountId.GetId(), 2_000_000_000).
+		AddAccountBalance(suite.treasuryEntityId.EncodedId, 2_000_000_000).
 		Persist()
 	// Add a crypto transfer after the third snapshot timestamp
 	tdomain.NewCryptoTransferBuilder(dbClient).
 		Amount(10).
-		EntityId(account1).
+		EntityId(suite.getEntityId(accountNum1).EncodedId).
 		Timestamp(thirdSnapshotTimestamp + 1).
 		Persist()
 
 	hbarAmount := &types.HbarAmount{Value: balance}
 	expectedAmount := types.AmountSlice{hbarAmount}
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
 	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
-		accountId,
+		suite.accountId,
 		thirdSnapshotTimestamp,
 	)
 
@@ -307,7 +322,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAfterThirdSnapsho
 	// when
 	actualAmounts, accountIdString, err = repo.RetrieveBalanceAtBlock(
 		defaultContext,
-		accountId,
+		suite.accountId,
 		thirdSnapshotTimestamp+1,
 	)
 
@@ -320,15 +335,14 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAfterThirdSnapsho
 
 func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockForDeletedAccount() {
 	// given
-	accountId := suite.accountId
-	tdomain.NewEntityBuilder(dbClient, account1, 1, domain.EntityTypeAccount).
+	tdomain.NewEntityBuilder(dbClient, suite.getEntityId(accountNum1).EncodedId, 1, domain.EntityTypeAccount).
 		Deleted(true).
 		ModifiedTimestamp(accountDeleteTimestamp).
 		Persist()
 	expectedAmounts := types.AmountSlice{
 		&types.HbarAmount{},
 	}
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
 	// account is deleted before the third account balance file, so there is no balance info in the file. querying the
@@ -336,7 +350,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockForDeletedAccount
 	// the account is deleted
 	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
-		accountId,
+		suite.accountId,
 		thirdSnapshotTimestamp+10,
 	)
 
@@ -348,20 +362,19 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockForDeletedAccount
 
 func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAtAccountDeletionTime() {
 	// given
-	accountId := suite.accountId
-	tdomain.NewEntityBuilder(dbClient, account1, 1, domain.EntityTypeAccount).
+	tdomain.NewEntityBuilder(dbClient, suite.getEntityId(accountNum1).EncodedId, 1, domain.EntityTypeAccount).
 		Deleted(true).
 		ModifiedTimestamp(accountDeleteTimestamp).
 		Persist()
 	expectedAmounts := types.AmountSlice{
 		&types.HbarAmount{},
 	}
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
 	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
-		accountId,
+		suite.accountId,
 		accountDeleteTimestamp,
 	)
 
@@ -373,16 +386,15 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAtAccountDeletion
 
 func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockNoAccountEntity() {
 	// given
-	accountId := suite.accountId
 	truncateTables(domain.Entity{})
 	hbarAmount := &types.HbarAmount{Value: initialAccountBalance + sum(cryptoTransferAmounts)}
 	expectedAmounts := types.AmountSlice{hbarAmount}
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
 	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
-		accountId,
+		suite.accountId,
 		consensusTimestamp,
 	)
 
@@ -394,18 +406,17 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockNoAccountEntity()
 
 func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockNoInitialBalance() {
 	// given
-	accountId := suite.accountId
-	dbClient.GetDb().Where("account_id <> ?", treasuryAccountId.GetId()).Delete(&domain.AccountBalance{})
+	dbClient.GetDb().Where("account_id <> ?", suite.treasuryEntityId).Delete(&domain.AccountBalance{})
 
 	hbarAmount := &types.HbarAmount{Value: sum(cryptoTransferAmounts)}
 	expectedAmounts := types.AmountSlice{hbarAmount}
 
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
 	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
-		accountId,
+		suite.accountId,
 		consensusTimestamp,
 	)
 
@@ -418,13 +429,12 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockNoInitialBalance(
 func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockNoAccountBalance() {
 	// given
 	truncateTables(domain.AccountBalance{})
-	accountId := suite.accountId
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
 	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
-		accountId,
+		suite.accountId,
 		consensusTimestamp,
 	)
 
@@ -436,13 +446,12 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockNoAccountBalance(
 
 func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockDbConnectionError() {
 	// given
-	accountId := suite.accountId
-	repo := NewAccountRepository(invalidDbClient)
+	repo := NewAccountRepository(invalidDbClient, suite.treasuryEntityId)
 
 	// when
 	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
-		accountId,
+		suite.accountId,
 		consensusTimestamp,
 	)
 
@@ -497,15 +506,16 @@ func (suite *accountRepositoryWithAliasSuite) SetupSuite() {
 func (suite *accountRepositoryWithAliasSuite) SetupTest() {
 	suite.accountRepositorySuite.SetupTest()
 
-	// add account2 with the same alias but was deleted before account1
+	// add accountNum2 with the same alias but was deleted before accountNum1
 	// the entity row with deleted = true in entity table
-	tdomain.NewEntityBuilder(dbClient, account2, account2CreatedTimestamp, domain.EntityTypeAccount).
+	accountId2 := MustEncodeEntityId(suite.shard, suite.realm, accountNum2).EncodedId
+	tdomain.NewEntityBuilder(dbClient, accountId2, account2CreatedTimestamp, domain.EntityTypeAccount).
 		Alias(suite.accountAlias).
 		Deleted(true).
 		ModifiedTimestamp(account2DeletedTimestamp).
 		Persist()
 	// the historical entry
-	tdomain.NewEntityBuilder(dbClient, account2, account2CreatedTimestamp, domain.EntityTypeAccount).
+	tdomain.NewEntityBuilder(dbClient, accountId2, account2CreatedTimestamp, domain.EntityTypeAccount).
 		Alias(suite.accountAlias).
 		TimestampRange(account2CreatedTimestamp, account2DeletedTimestamp).
 		Historical(true).
@@ -517,11 +527,11 @@ func (suite *accountRepositoryWithAliasSuite) TestGetAccountAlias() {
 		encodedId     int64
 		expectedAlias []byte
 	}{
-		{encodedId: account3, expectedAlias: account3Alias},
-		{encodedId: account4, expectedAlias: account4Alias},
+		{encodedId: accountNum3, expectedAlias: account3Alias},
+		{encodedId: accountNum4, expectedAlias: account4Alias},
 	}
 
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	for _, tt := range tests {
 		name := fmt.Sprintf("%d", tt.encodedId)
@@ -539,11 +549,11 @@ func (suite *accountRepositoryWithAliasSuite) TestGetAccountAliasWithInvalidAlia
 		encodedId int64
 		expected  string
 	}{
-		{encodedId: account5, expected: fmt.Sprintf("0.0.%d", account5)},
-		{encodedId: account6, expected: fmt.Sprintf("0.0.%d", account6)},
+		{encodedId: accountNum5, expected: fmt.Sprintf("0.0.%d", accountNum5)},
+		{encodedId: accountNum6, expected: fmt.Sprintf("0.0.%d", accountNum6)},
 	}
 
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	for _, tt := range tests {
 		name := fmt.Sprintf("%d", tt.encodedId)
@@ -560,8 +570,8 @@ func (suite *accountRepositoryWithAliasSuite) TestGetAccountId() {
 	// given
 	aliasAccountId, err := types.NewAccountIdFromAlias(account4Alias, 0, 0)
 	assert.NoError(suite.T(), err)
-	repo := NewAccountRepository(dbClient)
-	expected := types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(account4))
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
+	expected := types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(accountNum4))
 
 	// when
 	actual, rErr := repo.GetAccountId(defaultContext, aliasAccountId)
@@ -573,12 +583,12 @@ func (suite *accountRepositoryWithAliasSuite) TestGetAccountId() {
 
 func (suite *accountRepositoryWithAliasSuite) TestGetAccountIdDeleted() {
 	// given
-	tdomain.NewEntityBuilder(dbClient, account4, 1, domain.EntityTypeAccount).
+	tdomain.NewEntityBuilder(dbClient, accountNum4, 1, domain.EntityTypeAccount).
 		Deleted(true).
 		ModifiedTimestamp(accountDeleteTimestamp).
 		Persist()
 	aliasAccountId, _ := types.NewAccountIdFromAlias(account4Alias, 0, 0)
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
 	actual, rErr := repo.GetAccountId(defaultContext, aliasAccountId)
@@ -591,7 +601,7 @@ func (suite *accountRepositoryWithAliasSuite) TestGetAccountIdDeleted() {
 func (suite *accountRepositoryWithAliasSuite) TestRetrieveBalanceAtBlockNoAccountEntity() {
 	// whey querying by alias and the account is not found, expect 0 hbar balance returned
 	truncateTables(domain.Entity{})
-	repo := NewAccountRepository(dbClient)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
 	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
