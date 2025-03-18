@@ -76,7 +76,6 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     void mintMultipleNftTokensGetTotalSupply() throws Exception {
         // Given
         final var treasury = accountEntityPersist();
-        final var treasuryAddress = toAddress(treasury.getId());
 
         final var tokenEntity = persistTokenWithAutoRenewAndTreasuryAccounts(
                         TokenTypeEnum.NON_FUNGIBLE_UNIQUE, treasury)
@@ -106,7 +105,6 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     void mintNftAndBurnNft() {
         // Given
         final var treasury = accountEntityPersist();
-        final var treasuryAddress = toAddress(treasury.getId());
 
         final var tokenEntity = persistTokenWithAutoRenewAndTreasuryAccounts(
                         TokenTypeEnum.NON_FUNGIBLE_UNIQUE, treasury)
