@@ -4,6 +4,7 @@ package com.hedera.mirror.web3.service;
 
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -65,6 +66,58 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
                 BigInteger.valueOf(amount),
                 metadata == null ? List.of() : List.of(metadata.getBytes()),
                 treasuryAddress.toHexString());
+
+        // Then
+        verifyEthCallAndEstimateGas(functionCall, contract);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
+    @Test
+    void mintMultipleNftTokensGetTotalSupply() throws Exception {
+        // Given
+        final var treasury = accountEntityPersist();
+        final var treasuryAddress = toAddress(treasury.getId());
+
+        final var tokenEntity = persistTokenWithAutoRenewAndTreasuryAccounts(
+                        TokenTypeEnum.NON_FUNGIBLE_UNIQUE, treasury)
+                .getLeft();
+        final var tokenAddress = toAddress(tokenEntity.getId());
+
+        final var contract = testWeb3jService.deploy(DynamicEthCalls::deploy);
+
+        // When
+        final var functionCall = contract.call_mintMultipleNftTokensGetTotalSupplyExternal(
+                tokenAddress.toHexString(), List.of(domainBuilder.bytes(12)), List.of(domainBuilder.bytes(12)));
+
+        final var functionCallWithSend = contract.send_mintMultipleNftTokensGetTotalSupplyExternal(
+                tokenAddress.toHexString(), List.of(domainBuilder.bytes(12)), List.of(domainBuilder.bytes(12)));
+
+        // Then
+        final var result = functionCall.send();
+
+        assertThat(result.component1().getLast()).isEqualTo(BigInteger.ONE); // first serial number
+        assertThat(result.component2().getLast()).isEqualTo(BigInteger.TWO); // second serial number
+
+        verifyEthCallAndEstimateGas(functionCallWithSend, contract);
+        verifyOpcodeTracerCall(functionCallWithSend.encodeFunctionCall(), contract);
+    }
+
+    @Test
+    void mintNftAndBurnNft() {
+        // Given
+        final var treasury = accountEntityPersist();
+        final var treasuryAddress = toAddress(treasury.getId());
+
+        final var tokenEntity = persistTokenWithAutoRenewAndTreasuryAccounts(
+                        TokenTypeEnum.NON_FUNGIBLE_UNIQUE, treasury)
+                .getLeft();
+        final var tokenAddress = toAddress(tokenEntity.getId());
+
+        final var contract = testWeb3jService.deploy(DynamicEthCalls::deploy);
+
+        // When
+        final var functionCall =
+                contract.send_mintNftAndBurnNft(tokenAddress.toHexString(), List.of(domainBuilder.bytes(12)));
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);

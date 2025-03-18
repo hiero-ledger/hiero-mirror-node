@@ -46,6 +46,57 @@ contract DynamicEthCalls is HederaTokenService {
         }
     }
 
+    function mintMultipleNftTokensGetTotalSupplyExternal(address token, bytes[] memory metadata1, bytes[] memory metadata2) external
+    returns (int64[] memory serialNumbers1, int64[] memory serialNumbers2)
+    {
+        (int responseCode, IHederaTokenService.TokenInfo memory retrievedTokenInfo) = HederaTokenService.getTokenInfo(token);
+        if (responseCode != HederaResponseCodes.SUCCESS) revert("Failed to retrieve token info");
+        int totalSupplyBeforeMint = retrievedTokenInfo.totalSupply;
+
+        int newTotalSupply;
+        (responseCode, newTotalSupply, serialNumbers1) = HederaTokenService.mintToken(token, 0, metadata1);
+        if (responseCode != HederaResponseCodes.SUCCESS) {
+            revert("First nft failed to be minted!");
+        }
+
+        (responseCode, retrievedTokenInfo) = HederaTokenService.getTokenInfo(token);
+        if (responseCode != HederaResponseCodes.SUCCESS) revert ("Failed to retrieve token info after mint1");
+
+        int totalSupplyAfterMint = retrievedTokenInfo.totalSupply;
+        if (totalSupplyBeforeMint + 1 != totalSupplyAfterMint) revert("Total supply mismatch after mint1");
+
+        (responseCode, newTotalSupply, serialNumbers2) = HederaTokenService.mintToken(token, 0, metadata2);
+        if (responseCode != HederaResponseCodes.SUCCESS) {
+            revert("Second nft failed to be minted!");
+        }
+
+        (responseCode, retrievedTokenInfo) = HederaTokenService.getTokenInfo(token);
+        if (responseCode != HederaResponseCodes.SUCCESS) revert ("Failed to retrieve token info after mint2");
+
+        totalSupplyAfterMint = retrievedTokenInfo.totalSupply;
+        if (totalSupplyBeforeMint + 2 != totalSupplyAfterMint) revert("Total supply mismatch after mint2");
+    }
+
+    function mintNftAndBurnNft(address token, bytes[] memory metadata) external {
+        (int responseCode, IHederaTokenService.TokenInfo memory retrievedTokenInfo) = HederaTokenService.getTokenInfo(token);
+        if (responseCode != HederaResponseCodes.SUCCESS) revert("Failed to retrieve token info");
+        int totalSupplyBeforeMint = retrievedTokenInfo.totalSupply;
+
+        int newTotalSupply;
+        int64[] memory serialNumbers;
+        (responseCode, newTotalSupply, serialNumbers) = HederaTokenService.mintToken(token, 0, metadata);
+        if (responseCode != HederaResponseCodes.SUCCESS) revert("Failed to mint token");
+
+        (responseCode, retrievedTokenInfo) = HederaTokenService.getTokenInfo(token);
+        if (responseCode != HederaResponseCodes.SUCCESS) revert ("Failed to retrieve token info after mint");
+
+        int totalSupplyAfterMint = retrievedTokenInfo.totalSupply;
+        if((totalSupplyBeforeMint + int256(metadata.length) != totalSupplyAfterMint) || (newTotalSupply != totalSupplyAfterMint)) revert("Total supply mismatch after mint nft");
+
+        (responseCode, newTotalSupply) = HederaTokenService.burnToken(token, 0, serialNumbers);
+        if (responseCode != HederaResponseCodes.SUCCESS) revert("Failed to burn nft");
+    }
+
     // Burn fungible/non-fungible token + get token info total supply + get balance of the treasury
     function burnTokenGetTotalSupplyAndBalanceOfTreasury(address token, int64 amount, int64[] memory serialNumbers, address treasury) external {
         uint256 balanceBeforeBurn = 0;
