@@ -19,10 +19,11 @@ import lombok.RequiredArgsConstructor;
 @Named
 @RequiredArgsConstructor
 public class CommonEntityAccessor {
-    private final EntityRepository entityRepository;
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     private static final long SHARD = COMMON_PROPERTIES.getShard();
     private static final long REALM = COMMON_PROPERTIES.getRealm();
+
+    private final EntityRepository entityRepository;
 
     public @Nonnull Optional<Entity> get(@Nonnull final AccountID accountID, final Optional<Long> timestamp) {
         if (accountID.hasAccountNum()) {

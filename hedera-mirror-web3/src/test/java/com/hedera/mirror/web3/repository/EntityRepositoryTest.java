@@ -278,10 +278,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     @Test
     void findByEvmAddressOrAliasReturnsEmptyWhenDeletedIsTrueWithAlias() {
         final var alias = domainBuilder.key();
-        domainBuilder
-                .entity()
-                .customize(e -> e.alias(alias).deleted(true).shard(SHARD).realm(REALM))
-                .persist();
+        domainBuilder.entity().customize(e -> e.alias(alias).deleted(true)).persist();
         assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(alias, SHARD, REALM))
                 .isEmpty();
     }
@@ -291,8 +288,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final var evmAddress = domainBuilder.evmAddress();
         domainBuilder
                 .entity()
-                .customize(
-                        e -> e.evmAddress(evmAddress).deleted(true).shard(SHARD).realm(REALM))
+                .customize(e -> e.evmAddress(evmAddress).deleted(true))
                 .persist();
         assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(evmAddress, SHARD, REALM))
                 .isEmpty();

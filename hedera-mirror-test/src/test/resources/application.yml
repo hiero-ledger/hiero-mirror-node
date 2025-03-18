@@ -4,22 +4,12 @@ hedera:
   mirror:
     test:
       acceptance:
-        # grpc endpoint
-        mirrorNodeAddress: localhost:5600
-        network: TESTNET
-        nodes:
-          - accountId: 0.0.3
-            host: 127.0.0.1
         operatorId: 0.0.2
-        operatorKey: 302e020100300506032b65700422042091132178e72057a1d7528025956fe39b0b847f200ab59b2fdd367017f3087137
+        # grpc endpoint
+        mirrorNodeAddress: testnet.mirrornode.hedera.com:443
+        network: testnet
         rest:
-          baseUrl: http://localhost:5551/api/v1
-        rest-java:
-          baseUrl: http://localhost:8084/api/v1
-        web3:
-          baseUrl: http://localhost:8545/api/v1
-          modularizedServices: true
-
+          baseUrl: https://testnet.mirrornode.hedera.com
 logging:
   level:
     root: warn
