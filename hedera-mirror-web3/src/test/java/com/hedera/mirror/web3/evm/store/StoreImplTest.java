@@ -146,7 +146,7 @@ class StoreImplTest {
                 tokenBalanceRepository,
                 nftRepository);
         final var uniqueTokenDatabaseAccessor = new UniqueTokenDatabaseAccessor(nftRepository);
-        final var entityDbAccessor = new EntityDatabaseAccessor(entityRepository, new CommonProperties());
+        final var entityDbAccessor = new EntityDatabaseAccessor(entityRepository, commonProperties);
         final List<DatabaseAccessor<Object, ?>> accessors = List.of(
                 accountDatabaseAccessor,
                 tokenDatabaseAccessor,

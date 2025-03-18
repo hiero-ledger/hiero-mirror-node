@@ -256,7 +256,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final var alias = domainBuilder.key();
         final var entity = domainBuilder
                 .entity()
-                .customize(e -> e.alias(alias).shard(SHARD).realm(REALM))
+                .customize(e -> e.alias(alias))
                 .persist();
         assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(alias, SHARD, REALM))
                 .get()
@@ -268,7 +268,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final var evmAddress = domainBuilder.evmAddress();
         final var entity = domainBuilder
                 .entity()
-                .customize(e -> e.evmAddress(evmAddress).shard(SHARD).realm(REALM))
+                .customize(e -> e.evmAddress(evmAddress))
                 .persist();
         assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(evmAddress, SHARD, REALM))
                 .get()
