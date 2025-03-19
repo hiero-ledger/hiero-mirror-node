@@ -17,7 +17,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("grpcVersion", "1.70.0")
-    set("jooq.version", "3.20.1") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.20.2") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "18.20.7")
     set("protobufVersion", "3.25.5")
