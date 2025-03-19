@@ -73,6 +73,7 @@ import org.awaitility.core.ConditionTimeoutException;
 @RequiredArgsConstructor
 public class HistoricalFeature extends AbstractEstimateFeature {
     private static final long CUSTOM_FIXED_FEE_AMOUNT = 10L;
+    private static final String RESPONSE_PREFIX = "0x";
 
     private final AccountClient accountClient;
     private final TokenClient tokenClient;
@@ -326,7 +327,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
                 initialBlockNumber, data, precompileContractSolidityAddress, GET_TOKEN_INFO.getActualGas());
         var trimmedHistoricalResponse = trimTotalSupplyForGetTokenInfo(response.toString());
 
-        assertThat(trimmedHistoricalResponse).isEqualTo(trimmedHistoricalResponse);
+        assertThat(trimmedResponse).isEqualTo(trimmedHistoricalResponse);
     }
 
     @Then("I verify that historical data for {token} is returned via getTokenInfo when doing mint")
@@ -971,7 +972,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     // updated and the environment is clear
     private String trimTotalSupplyForGetTokenInfo(String response) {
         var responseWithoutOx = "";
-        if (response.startsWith("0x")) {
+        if (response.startsWith(RESPONSE_PREFIX)) {
             responseWithoutOx = response.substring(2);
         }
         // TotalSupply value is located between 128 and 192 indexes
@@ -987,7 +988,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     // updated and the environment is clear
     private String trimTotalSupplyForFungibleTokenInfo(String response) {
         var responseWithoutOx = "";
-        if (response.startsWith("0x")) {
+        if (response.startsWith(RESPONSE_PREFIX)) {
             responseWithoutOx = response.substring(2);
         }
         // TotalSupply value is located between 128 and 192 indexes
