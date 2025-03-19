@@ -33,6 +33,10 @@ public class SystemFileLoader {
         return getSystemFiles().get(key);
     }
 
+    public boolean contains(@Nonnull FileID key) {
+        return getSystemFiles().containsKey(key);
+    }
+
     private Map<FileID, File> loadAll() {
         var configuration = properties.getVersionedConfiguration();
 

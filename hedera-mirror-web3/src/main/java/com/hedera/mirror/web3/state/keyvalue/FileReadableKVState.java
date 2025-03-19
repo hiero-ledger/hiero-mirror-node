@@ -55,7 +55,7 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
         final var fileEntityId = toEntityId(key);
         final var fileId = fileEntityId.getId();
 
-        if (mirrorNodeEvmProperties.isForceSystemFileLoad()) {
+        if (mirrorNodeEvmProperties.isForceSystemFileLoad() && systemFileLoader.contains(key)) {
             return systemFileLoader.load(key);
         }
 
