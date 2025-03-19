@@ -11,6 +11,7 @@ import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.web3.common.ContractCallContext;
+import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.repository.EntityRepository;
 import com.hedera.mirror.web3.repository.FileDataRepository;
 import com.hedera.mirror.web3.state.SystemFileLoader;
@@ -34,15 +35,18 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
     private final FileDataRepository fileDataRepository;
     private final EntityRepository entityRepository;
     private final SystemFileLoader systemFileLoader;
+    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     public FileReadableKVState(
             final FileDataRepository fileDataRepository,
             final EntityRepository entityRepository,
-            SystemFileLoader systemFileLoader) {
+            SystemFileLoader systemFileLoader,
+            MirrorNodeEvmProperties mirrorNodeEvmProperties) {
         super(KEY);
         this.fileDataRepository = fileDataRepository;
         this.entityRepository = entityRepository;
         this.systemFileLoader = systemFileLoader;
+        this.mirrorNodeEvmProperties = mirrorNodeEvmProperties;
     }
 
     @Override
@@ -50,6 +54,10 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var fileEntityId = toEntityId(key);
         final var fileId = fileEntityId.getId();
+
+        if (mirrorNodeEvmProperties.isForceSystemFileLoad()) {
+            return systemFileLoader.load(key);
+        }
 
         return timestamp
                 .map(t -> fileDataRepository.getFileAtTimestamp(fileId, t))
