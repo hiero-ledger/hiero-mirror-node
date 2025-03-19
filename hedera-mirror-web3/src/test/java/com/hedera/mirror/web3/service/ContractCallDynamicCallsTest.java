@@ -94,8 +94,11 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         // Then
         final var result = functionCall.send();
 
-        assertThat(result.component1().getLast()).isEqualTo(BigInteger.ONE); // first serial number
-        assertThat(result.component2().getLast()).isEqualTo(BigInteger.TWO); // second serial number
+        BigInteger firstSerialNumber = result.component1().getLast();
+        assertThat(firstSerialNumber).isEqualTo(BigInteger.ONE);
+
+        BigInteger secondSerialNumber = result.component2().getLast();
+        assertThat(secondSerialNumber).isEqualTo(BigInteger.TWO);
 
         verifyEthCallAndEstimateGas(functionCallWithSend, contract);
         verifyOpcodeTracerCall(functionCallWithSend.encodeFunctionCall(), contract);
