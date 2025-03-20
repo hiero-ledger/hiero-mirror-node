@@ -14,10 +14,10 @@ import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.exception.InvalidFileException;
 import com.hedera.mirror.web3.repository.EntityRepository;
 import com.hedera.mirror.web3.repository.FileDataRepository;
-import com.hedera.mirror.web3.state.CustomThrottleParser;
 import com.hedera.mirror.web3.state.SystemFileLoader;
 import com.hedera.mirror.web3.utils.Suppliers;
-import com.hedera.pbj.runtime.ParseException;
+import com.hedera.node.app.spi.workflows.HandleException;
+import com.hedera.node.app.throttle.ThrottleParser;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
@@ -42,23 +42,21 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
     private final FileDataRepository fileDataRepository;
     private final EntityRepository entityRepository;
     private final SystemFileLoader systemFileLoader;
-    private final CustomThrottleParser throttleParser;
     private final AtomicReference<File> cachedThrottles = new AtomicReference<>();
     private final RetryTemplate retryTemplate = RetryTemplate.builder()
             .maxAttempts(10)
             .retryOn(InvalidFileException.class)
             .build();
+    private final ThrottleParser throttleParser = new ThrottleParser();
 
     public FileReadableKVState(
             final FileDataRepository fileDataRepository,
             final EntityRepository entityRepository,
-            SystemFileLoader systemFileLoader,
-            CustomThrottleParser throttleParser) {
+            SystemFileLoader systemFileLoader) {
         super(KEY);
         this.fileDataRepository = fileDataRepository;
         this.entityRepository = entityRepository;
         this.systemFileLoader = systemFileLoader;
-        this.throttleParser = throttleParser;
     }
 
     @Override
@@ -100,7 +98,7 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
                 // If parsing succeeds, store this fileData and stop retrying
                 successfulFileData.set(fileData);
                 return Optional.of(fileData);
-            } catch (ParseException e) {
+            } catch (HandleException e) {
                 log.warn(
                         "Failed to parse file data for fileId {} at {}, retry attempt {}. Exception: ",
                         fileId,
