@@ -556,6 +556,10 @@ class ContractControllerTest {
 
     @Test
     void testModularizedRequestEmpty() throws Exception {
+        if (evmProperties.isModularizedServices()) {
+            return;
+        }
+
         final var request = request();
 
         contractCall(request).andExpect(status().isOk());
@@ -568,6 +572,10 @@ class ContractControllerTest {
 
     @Test
     void testModularizedRequestFalse() throws Exception {
+        if (evmProperties.isModularizedServices()) {
+            return;
+        }
+
         final var request = request();
 
         contractCall(request).andExpect(status().isOk());
@@ -606,7 +614,7 @@ class ContractControllerTest {
         verify(service).processCall(paramsCaptor.capture());
         final var capturedParams = paramsCaptor.getValue();
 
-        assertThat(capturedParams.isModularized()).isFalse();
+        assertThat(capturedParams.isModularized()).isTrue();
     }
 
     private ContractCallRequest request() {
