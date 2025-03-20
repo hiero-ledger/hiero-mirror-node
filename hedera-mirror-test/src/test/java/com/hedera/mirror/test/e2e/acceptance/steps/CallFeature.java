@@ -64,6 +64,9 @@ import java.util.List;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
+import org.springframework.web.client.HttpClientErrorException;
 
 @CustomLog
 @RequiredArgsConstructor
@@ -492,6 +495,10 @@ public class CallFeature extends AbstractFeature {
                 .isEqualTo(intValue(results.get(3)));
     }
 
+    @Retryable(
+            retryFor = {HttpClientErrorException.class},
+            backoff = @Backoff(delayExpression = "#{@acceptanceTestProperties.backOffPeriod.toMillis()}"),
+            maxAttemptsExpression = "#{@acceptanceTestProperties.maxRetries}")
     @Then("I burn NFT and get the total supply and balance")
     public void ethCallBurnNftTokenGetTotalSupplyAndBalanceOfTreasury() {
         var data = encodeData(

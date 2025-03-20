@@ -107,7 +107,7 @@ public abstract class ContractCallService {
         }
 
         var result = doProcessCall(params, params.getGas(), true);
-        validateResult(result, params.getCallType());
+        validateResult(result, params.getCallType(), params.isModularized());
         return result;
     }
 
@@ -152,13 +152,14 @@ public abstract class ContractCallService {
         }
     }
 
-    protected void validateResult(final HederaEvmTransactionProcessingResult txnResult, final CallType type) {
+    protected void validateResult(
+            final HederaEvmTransactionProcessingResult txnResult, final CallType type, final boolean modularized) {
         if (!txnResult.isSuccessful()) {
             updateGasUsedMetric(ERROR, txnResult.getGasUsed(), 1);
             var revertReason = txnResult.getRevertReason().orElse(Bytes.EMPTY);
             var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReason);
             throw new MirrorEvmTransactionException(
-                    getStatusOrDefault(txnResult).name(), detail, revertReason.toHexString(), txnResult);
+                    getStatusOrDefault(txnResult).name(), detail, revertReason.toHexString(), txnResult, modularized);
         } else {
             updateGasUsedMetric(type, txnResult.getGasUsed(), 1);
         }
@@ -170,7 +171,9 @@ public abstract class ContractCallService {
                 .increment(gasUsed);
     }
 
-    protected void updateGasLimitMetric(final CallType callType, final long gasLimit) {
-        gasLimitCounter.withTags("type", callType.toString()).increment(gasLimit);
+    protected void updateGasLimitMetric(final CallType callType, final long gasLimit, final boolean modularized) {
+        gasLimitCounter
+                .withTags("type", callType.toString(), "modularized", String.valueOf(modularized))
+                .increment(gasLimit);
     }
 }

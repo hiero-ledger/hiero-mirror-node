@@ -6,8 +6,10 @@ import static com.hedera.mirror.common.domain.balance.AccountBalanceFile.INVALID
 import static com.hedera.mirror.importer.parser.AbstractStreamFileParser.STREAM_PARSE_DURATION_METRIC_NAME;
 
 import com.google.common.base.Stopwatch;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.StreamType;
 import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.importer.db.TimePartitionService;
 import com.hedera.mirror.importer.domain.StreamFilename;
@@ -52,6 +54,7 @@ public class HistoricalBalanceService {
     private final TimePartitionService timePartitionService;
     private final TokenBalanceRepository tokenBalanceRepository;
     private final TransactionTemplate transactionTemplate;
+    private final long treasuryAccountId;
 
     // metrics
     private final Timer generateDurationMetricFailure;
@@ -61,6 +64,7 @@ public class HistoricalBalanceService {
     public HistoricalBalanceService(
             AccountBalanceFileRepository accountBalanceFileRepository,
             AccountBalanceRepository accountBalanceRepository,
+            CommonProperties commonProperties,
             MeterRegistry meterRegistry,
             PlatformTransactionManager platformTransactionManager,
             HistoricalBalanceProperties properties,
@@ -73,6 +77,9 @@ public class HistoricalBalanceService {
         this.recordFileRepository = recordFileRepository;
         this.timePartitionService = timePartitionService;
         this.tokenBalanceRepository = tokenBalanceRepository;
+        this.treasuryAccountId = SystemEntity.TREASURY_ACCOUNT
+                .getScopedEntityId(commonProperties)
+                .getId();
 
         // Set repeatable read isolation level and transaction timeout
         this.transactionTemplate = new TransactionTemplate(platformTransactionManager);
@@ -123,15 +130,17 @@ public class HistoricalBalanceService {
                 int tokenBalancesCount;
                 if (full) {
                     // get a full snapshot
-                    accountBalancesCount = accountBalanceRepository.balanceSnapshot(timestamp);
-                    tokenBalancesCount =
-                            properties.isTokenBalances() ? tokenBalanceRepository.balanceSnapshot(timestamp) : 0;
+                    accountBalancesCount = accountBalanceRepository.balanceSnapshot(timestamp, treasuryAccountId);
+                    tokenBalancesCount = properties.isTokenBalances()
+                            ? tokenBalanceRepository.balanceSnapshot(timestamp, treasuryAccountId)
+                            : 0;
                 } else {
                     // get a snapshot that has no duplicates
-                    accountBalancesCount =
-                            accountBalanceRepository.balanceSnapshotDeduplicate(maxConsensusTimestamp.get(), timestamp);
+                    accountBalancesCount = accountBalanceRepository.balanceSnapshotDeduplicate(
+                            maxConsensusTimestamp.get(), timestamp, treasuryAccountId);
                     tokenBalancesCount = properties.isTokenBalances()
-                            ? tokenBalanceRepository.balanceSnapshotDeduplicate(maxConsensusTimestamp.get(), timestamp)
+                            ? tokenBalanceRepository.balanceSnapshotDeduplicate(
+                                    maxConsensusTimestamp.get(), timestamp, treasuryAccountId)
                             : 0;
                 }
 
@@ -179,9 +188,9 @@ public class HistoricalBalanceService {
                     String.format("No account_balance partition found for timestamp %s", timestamp));
         }
 
-        var partitionRange = partitions.get(0).getTimestampRange();
+        var partitionRange = partitions.getFirst().getTimestampRange();
         return accountBalanceRepository.getMaxConsensusTimestampInRange(
-                partitionRange.lowerEndpoint(), partitionRange.upperEndpoint());
+                partitionRange.lowerEndpoint(), partitionRange.upperEndpoint(), treasuryAccountId);
     }
 
     private boolean shouldGenerate(long consensusEnd) {

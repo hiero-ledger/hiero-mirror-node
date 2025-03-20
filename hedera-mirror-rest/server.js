@@ -20,7 +20,7 @@ import stateproof from './stateproof';
 import tokens from './tokens';
 import topicmessage from './topicmessage';
 import transactions from './transactions';
-import {getPoolClass, isTestEnv} from './utils';
+import {isTestEnv} from './utils';
 
 import {
   handleError,

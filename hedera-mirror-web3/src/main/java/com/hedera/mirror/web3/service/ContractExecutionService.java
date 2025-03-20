@@ -54,7 +54,7 @@ public class ContractExecutionService extends ContractCallService {
             var stringResult = "";
 
             try {
-                updateGasLimitMetric(params.getCallType(), params.getGas());
+                updateGasLimitMetric(params.getCallType(), params.getGas(), params.isModularized());
 
                 Bytes result;
                 if (params.isEstimate()) {
@@ -86,7 +86,7 @@ public class ContractExecutionService extends ContractCallService {
      */
     private Bytes estimateGas(final ContractExecutionParameters params, final ContractCallContext context) {
         final var processingResult = callContract(params, context);
-        validateResult(processingResult, CallType.ETH_ESTIMATE_GAS);
+        validateResult(processingResult, CallType.ETH_ESTIMATE_GAS, params.isModularized());
 
         final var gasUsedByInitialCall = processingResult.getGasUsed();
 

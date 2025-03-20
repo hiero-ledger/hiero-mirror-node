@@ -23,14 +23,14 @@ public interface TokenBalanceRepository
         where associated is true or balance_timestamp > (
             select coalesce(max(consensus_timestamp), 0)
             from account_balance
-            where account_id = 2 and
+            where account_id = :treasuryAccountId and
               consensus_timestamp > :consensusTimestamp - 2592000000000000 and
               consensus_timestamp < :consensusTimestamp
         )
         order by account_id, token_id
         """)
     @Transactional
-    int balanceSnapshot(long consensusTimestamp);
+    int balanceSnapshot(long consensusTimestamp, long treasuryAccountId);
 
     @Override
     @Modifying
@@ -41,9 +41,9 @@ public interface TokenBalanceRepository
         insert into token_balance (account_id, balance, consensus_timestamp, token_id)
         select account_id, balance, :consensusTimestamp, token_id
         from token_account
-        where balance_timestamp > :maxConsensusTimestamp
+        where balance_timestamp > :minConsensusTimestamp
         order by account_id, token_id
         """)
     @Transactional
-    int balanceSnapshotDeduplicate(long maxConsensusTimestamp, long consensusTimestamp);
+    int balanceSnapshotDeduplicate(long minConsensusTimestamp, long consensusTimestamp, long treasuryAccountId);
 }
