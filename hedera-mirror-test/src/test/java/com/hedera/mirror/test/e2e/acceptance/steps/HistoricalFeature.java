@@ -991,7 +991,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         if (response.startsWith(RESPONSE_PREFIX)) {
             responseWithoutOx = response.substring(2);
         }
-        // TotalSupply value is located between 128 and 192 indexes
+        // TotalSupply value is located between 258 and 322 indexes
         int startIndex = 258;
         int endIndex = startIndex + 64;
 
