@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties.HederaNetwork;
@@ -68,15 +69,14 @@ class RatesAndFeesLoaderTest {
             .consensusTimestamp(300L)
             .fileData("corrupt".getBytes())
             .build();
-    private static final long EXCHANGE_RATES_ID = 112L;
+    private static final long EXCHANGE_RATES_ID = SystemEntity.EXCHANGE_RATE.getNum();
     private static final String CORRUPT_RATES_MESSAGE = String.format(
             "Rates %s.%s.%d are corrupt!",
             COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), EXCHANGE_RATES_ID);
-    private static final long FEE_SCHEDULES_ID = 111L;
+    private static final long FEE_SCHEDULES_ID = SystemEntity.FEE_SCHEDULE.getNum();
     private static final String CORRUPT_SCHEDULES_MESSAGE = String.format(
             "Fee schedule %s.%s.%d is corrupt!",
             COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), FEE_SCHEDULES_ID);
-    private static final long EXCHANGE_RATE_ID = 112L;
 
     @Mock
     private FileDataRepository fileDataRepository;
@@ -134,9 +134,9 @@ class RatesAndFeesLoaderTest {
     @Test
     void getFileForExchangeRatesFallback() {
         long currentNanos = 350L;
-        when(fileDataRepository.getFileAtTimestamp(EXCHANGE_RATE_ID, currentNanos))
+        when(fileDataRepository.getFileAtTimestamp(EXCHANGE_RATES_ID, currentNanos))
                 .thenReturn(Optional.of(fileDataCorrupt));
-        when(fileDataRepository.getFileAtTimestamp(EXCHANGE_RATE_ID, 299L))
+        when(fileDataRepository.getFileAtTimestamp(EXCHANGE_RATES_ID, 299L))
                 .thenReturn(Optional.of(exchangeRatesFileData));
 
         var actual = subject.loadExchangeRates(currentNanos);

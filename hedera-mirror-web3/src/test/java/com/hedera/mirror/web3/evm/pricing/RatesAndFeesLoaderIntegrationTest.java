@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
@@ -84,9 +85,9 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
 
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     private static final EntityId FEE_SCHEDULE_ENTITY_ID =
-            EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 111L);
+            SystemEntity.FEE_SCHEDULE.getScopedEntityId(COMMON_PROPERTIES);
     private static final EntityId EXCHANGE_RATE_ENTITY_ID =
-            EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 112L);
+            SystemEntity.EXCHANGE_RATE.getScopedEntityId(COMMON_PROPERTIES);
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})

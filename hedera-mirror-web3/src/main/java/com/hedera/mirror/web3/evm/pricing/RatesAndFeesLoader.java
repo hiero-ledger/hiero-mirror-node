@@ -18,6 +18,7 @@ import static com.hederahashgraph.api.proto.java.HederaFunctionality.TokenMint;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.exception.InvalidFileException;
 import com.hedera.mirror.web3.repository.FileDataRepository;
@@ -49,9 +50,9 @@ public class RatesAndFeesLoader {
 
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     public static final EntityId EXCHANGE_RATE_ENTITY_ID =
-            EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 112L);
+            SystemEntity.EXCHANGE_RATE.getScopedEntityId(COMMON_PROPERTIES);
     public static final EntityId FEE_SCHEDULE_ENTITY_ID =
-            EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 111L);
+            SystemEntity.FEE_SCHEDULE.getScopedEntityId(COMMON_PROPERTIES);
     static final CurrentAndNextFeeSchedule DEFAULT_FEE_SCHEDULE = CurrentAndNextFeeSchedule.newBuilder()
             .setCurrentFeeSchedule(FeeSchedule.newBuilder()
                     .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(4102444800L))
