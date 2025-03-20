@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.AccountID.AccountOneOfType;
 import com.hedera.hapi.node.base.TokenID;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.repository.EntityRepository;
@@ -26,15 +27,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class CommonEntityAccessorTest {
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private static final long SHARD = COMMON_PROPERTIES.getShard();
+    private static final long REALM = COMMON_PROPERTIES.getRealm();
     private static final String EVM_ADDRESS_HEX = "0x67d8d32e9bf1a9968a5ff53b87d777aa8ebbee69";
     private static final Address EVM_ADDRESS = Address.fromHexString(EVM_ADDRESS_HEX);
     private static final AccountID ACCOUNT_ALIAS_WITH_EVM_ADDRESS =
-            new AccountID(0L, 0L, new OneOf<>(AccountOneOfType.ALIAS, Bytes.wrap(EVM_ADDRESS.toArray())));
+            new AccountID(SHARD, REALM, new OneOf<>(AccountOneOfType.ALIAS, Bytes.wrap(EVM_ADDRESS.toArray())));
     private static final String ALIAS_HEX = "3a2102b3c641418e89452cd5202adfd4758f459acb8e364f741fd16cd2db79835d39d2";
     private static final AccountID ACCOUNT_ALIAS_WITH_KEY =
-            new AccountID(0L, 0L, new OneOf<>(AccountOneOfType.ALIAS, Bytes.wrap(ALIAS_HEX.getBytes())));
+            new AccountID(SHARD, REALM, new OneOf<>(AccountOneOfType.ALIAS, Bytes.wrap(ALIAS_HEX.getBytes())));
     private static final Long NUM = 1252L;
-    private static final AccountID ACCOUNT_ID = new AccountID(0L, 0L, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, NUM));
+    private static final AccountID ACCOUNT_ID =
+            new AccountID(SHARD, REALM, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, NUM));
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final Entity mockEntity = mock(Entity.class);
 
@@ -46,7 +51,7 @@ class CommonEntityAccessorTest {
 
     @Test
     void getEntityByAddress() {
-        final var id = new Id(0L, 0L, NUM);
+        final var id = new Id(SHARD, REALM, NUM);
         when(entityRepository.findByIdAndDeletedIsFalse(entityIdFromId(id).getId()))
                 .thenReturn(Optional.of(mockEntity));
 
@@ -56,7 +61,7 @@ class CommonEntityAccessorTest {
 
     @Test
     void getEntityByAddressHistorical() {
-        final var id = new Id(0L, 0L, NUM);
+        final var id = new Id(SHARD, REALM, NUM);
         when(entityRepository.findActiveByIdAndTimestamp(entityIdFromId(id).getId(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
@@ -66,7 +71,7 @@ class CommonEntityAccessorTest {
 
     @Test
     void getEntityByTokenID() {
-        final var tokenID = new TokenID(0L, 0L, NUM);
+        final var tokenID = new TokenID(SHARD, REALM, NUM);
         final var entityId = EntityId.of(tokenID.shardNum(), tokenID.realmNum(), tokenID.tokenNum());
 
         when(entityRepository.findByIdAndDeletedIsFalse(entityId.getId())).thenReturn(Optional.of(mockEntity));
@@ -77,7 +82,7 @@ class CommonEntityAccessorTest {
 
     @Test
     void getEntityByTokenIDHistorical() {
-        final var tokenID = new TokenID(0L, 0L, NUM);
+        final var tokenID = new TokenID(SHARD, REALM, NUM);
         final var entityId = EntityId.of(tokenID.shardNum(), tokenID.realmNum(), tokenID.tokenNum());
 
         when(entityRepository.findActiveByIdAndTimestamp(entityId.getId(), timestamp.get()))

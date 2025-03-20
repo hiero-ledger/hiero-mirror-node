@@ -26,7 +26,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     private final EntityRepository entityRepository;
 
-    @AfterAll()
+    @AfterAll
     static void cleanup() {
         COMMON_PROPERTIES.setShard(SHARD_ORIGINAL_VALUE);
         COMMON_PROPERTIES.setRealm(REALM_ORIGINAL_VALUE);
