@@ -123,7 +123,8 @@ public abstract class ContractCallService {
                 result = mirrorEvmTxProcessor.execute(params, estimatedGas);
             }
         } catch (IllegalStateException | IllegalArgumentException e) {
-            throw new MirrorEvmTransactionException(e.getMessage(), EMPTY, EMPTY);
+            log.error("Error processing contract call: ", e);
+            throw new MirrorEvmTransactionException(e.getMessage(), EMPTY, EMPTY, params.isModularized());
         } catch (MirrorEvmTransactionException e) {
             // This result is needed in case of exception to be still able to call restoreGasToBucket method
             result = e.getResult();
