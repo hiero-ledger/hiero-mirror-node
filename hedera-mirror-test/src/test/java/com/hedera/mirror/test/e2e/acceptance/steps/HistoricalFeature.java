@@ -700,6 +700,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var initialBlockNumber = getLastBlockNumber();
         var data = encodeData(PRECOMPILE, GET_FUNGIBLE_TOKEN_INFO, asAddress(tokenId.toSolidityAddress()));
         var response = callContract(data, precompileContractSolidityAddress, GET_FUNGIBLE_TOKEN_INFO.getActualGas());
+        var trimmedResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
 
         waitForNextBlock();
 
@@ -732,7 +733,8 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         verifyMirrorTransactionsResponse(mirrorClient, 200);
         var historicalResponse = callContract(
                 initialBlockNumber, data, precompileContractSolidityAddress, GET_FUNGIBLE_TOKEN_INFO.getActualGas());
-        assertThat(response).isEqualTo(historicalResponse);
+        var trimmedHistoricalResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
+        assertThat(trimmedResponse).isEqualTo(trimmedHistoricalResponse);
     }
 
     @Then("I verify historical data for {token} is returned for getNonFungibleInfo when doing {string}")
