@@ -15,6 +15,7 @@ import com.hedera.mirror.common.domain.token.TokenTransfer;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -24,7 +25,11 @@ class TokenRepositoryTest extends Web3IntegrationTest {
 
     private final CommonProperties commonProperties = CommonProperties.getInstance();
 
+    private final long shardOriginalValue = commonProperties.getShard();
+    private final long realmOriginalValue = commonProperties.getRealm();
+
     private final TokenRepository tokenRepository;
+
 
     @Test
     void findById() {
@@ -200,6 +205,9 @@ class TokenRepositoryTest extends Web3IntegrationTest {
         assertThat(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
                         tokenId.getId(), blockTimestamp, treasuryAccountId.getId()))
                 .isEqualTo(expectedTotalSupply);
+
+        commonProperties.setShard(shardOriginalValue);
+        commonProperties.setRealm(realmOriginalValue);
     }
 
     @Test

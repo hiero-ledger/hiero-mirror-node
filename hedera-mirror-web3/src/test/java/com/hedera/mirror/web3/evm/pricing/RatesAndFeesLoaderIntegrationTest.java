@@ -9,6 +9,7 @@ import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCal
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
@@ -81,8 +82,9 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
                             .addFees(FeeData.newBuilder().build())))
             .build();
 
-    private static final EntityId FEE_SCHEDULE_ENTITY_ID = EntityId.of(0L, 0L, 111L);
-    private static final EntityId EXCHANGE_RATE_ENTITY_ID = EntityId.of(0L, 0L, 112L);
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private static final EntityId FEE_SCHEDULE_ENTITY_ID = EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 111L);
+    private static final EntityId EXCHANGE_RATE_ENTITY_ID = EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 112L);
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
