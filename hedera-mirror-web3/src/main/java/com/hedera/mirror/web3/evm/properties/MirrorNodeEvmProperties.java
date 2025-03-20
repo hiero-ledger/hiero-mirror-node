@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.web3.evm.properties;
 
-import static com.hedera.mirror.common.util.DomainUtils.fromEvmAddress;
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION;
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_30;
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_34;
@@ -18,6 +17,7 @@ import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.evm.contracts.execution.EvmProperties;
@@ -26,7 +26,6 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.time.Duration;
@@ -95,8 +94,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @DurationMin(seconds = 1)
     private Duration expirationCacheTime = Duration.ofMinutes(10L);
 
-    @NotBlank
-    private String fundingAccount = "0x0000000000000000000000000000000000000062";
+    private EntityId fundingAccount;
 
     @Getter
     private long htsDefaultGasCost = 10000;
@@ -197,7 +195,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private double modularizedTrafficPercent = 0.0;
 
     public MirrorNodeEvmProperties() {
-        validateFundingAccount();
+        fundingAccount = SystemEntity.FEE_COLLECTOR_ACCOUNT.getScopedEntityId(COMMON_PROPERTIES);
     }
 
     public boolean shouldAutoRenewAccounts() {
@@ -273,7 +271,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     @Override
     public Address fundingAccountAddress() {
-        return Address.fromHexString(fundingAccount);
+        return toAddress(fundingAccount);
     }
 
     @Override
@@ -348,19 +346,6 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
         props.putAll(properties); // Allow user defined properties to override the defaults
         return Collections.unmodifiableMap(props);
-    }
-
-    private void validateFundingAccount() {
-        final var fundingEntityId = fromEvmAddress(fundingAccountAddress().toArray());
-
-        final var shard = COMMON_PROPERTIES.getShard();
-        final var realm = COMMON_PROPERTIES.getRealm();
-
-        if (fundingEntityId != null && (fundingEntityId.getShard() != shard || fundingEntityId.getRealm() != realm)) {
-            final var correctEntityId = EntityId.of(shard, realm, fundingEntityId.getNum());
-            final var correctFundingAccountAddress = toAddress(correctEntityId);
-            this.setFundingAccount(correctFundingAccountAddress.toHexString());
-        }
     }
 
     /**

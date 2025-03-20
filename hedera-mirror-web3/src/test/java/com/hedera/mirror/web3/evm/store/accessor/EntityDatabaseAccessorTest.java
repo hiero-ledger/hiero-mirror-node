@@ -17,6 +17,8 @@ import java.util.Optional;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -29,8 +31,6 @@ class EntityDatabaseAccessorTest {
     private static final Address ALIAS_ADDRESS = Address.fromHexString(ALIAS_HEX);
 
     private static final Optional<Long> timestamp = Optional.of(1234L);
-    private static final long SHARD = 0L;
-    private static final long REALM = 0L;
     private static final Entity mockEntity = mock(Entity.class);
 
     @InjectMocks
@@ -60,21 +60,33 @@ class EntityDatabaseAccessorTest {
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @Test
-    void getEntityByAlias() {
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 0
+            1, 2
+            """)
+    void getEntityByAlias(long shard, long realm) {
         when(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
-                        ALIAS_ADDRESS.toArrayUnsafe(), SHARD, REALM))
+                        ALIAS_ADDRESS.toArrayUnsafe(), shard, realm))
                 .thenReturn(Optional.of(mockEntity));
+        when(commonProperties.getShard()).thenReturn(shard);
+        when(commonProperties.getRealm()).thenReturn(realm);
 
         assertThat(entityDatabaseAccessor.get(ALIAS_ADDRESS, Optional.empty()))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @Test
-    void getEntityByAliasHistorical() {
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 0
+            1, 2
+            """)
+    void getEntityByAliasHistorical(long shard, long realm) {
         when(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        ALIAS_ADDRESS.toArrayUnsafe(), timestamp.get(), SHARD, REALM))
+                        ALIAS_ADDRESS.toArrayUnsafe(), timestamp.get(), shard, realm))
                 .thenReturn(Optional.of(mockEntity));
+        when(commonProperties.getShard()).thenReturn(shard);
+        when(commonProperties.getRealm()).thenReturn(realm);
 
         assertThat(entityDatabaseAccessor.get(ALIAS_ADDRESS, timestamp))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));

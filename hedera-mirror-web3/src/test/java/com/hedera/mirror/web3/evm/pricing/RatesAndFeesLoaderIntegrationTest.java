@@ -83,8 +83,10 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
             .build();
 
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
-    private static final EntityId FEE_SCHEDULE_ENTITY_ID = EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 111L);
-    private static final EntityId EXCHANGE_RATE_ENTITY_ID = EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 112L);
+    private static final EntityId FEE_SCHEDULE_ENTITY_ID =
+            EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 111L);
+    private static final EntityId EXCHANGE_RATE_ENTITY_ID =
+            EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 112L);
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
