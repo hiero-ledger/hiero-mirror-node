@@ -15,7 +15,6 @@ import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.web3.common.ContractCallContext;
-import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.repository.EntityRepository;
 import com.hedera.mirror.web3.repository.FileDataRepository;
 import com.hedera.mirror.web3.state.SystemFileLoader;
@@ -56,9 +55,6 @@ class FileReadableKVStateTest {
 
     @Mock
     private EntityRepository entityRepository;
-
-    @Mock
-    private MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Mock
     private Bytes initBytecode;
@@ -109,7 +105,6 @@ class FileReadableKVStateTest {
                 .thenReturn(Optional.of(fileDataTest));
         when(entityRepository.findActiveByIdAndTimestamp(toEntityId(FILE_ID).getId(), TIMESTAMP.get()))
                 .thenReturn(Optional.ofNullable(entity));
-        when(mirrorNodeEvmProperties.isForceSystemFileLoad()).thenReturn(false);
 
         File file = fileReadableKVState.get(FILE_ID);
 
@@ -125,7 +120,6 @@ class FileReadableKVStateTest {
         long fileIdLong = toEntityId(FILE_ID).getId();
         when(systemFileLoader.load(FILE_ID)).thenReturn(null);
         when(fileDataRepository.getFileAtTimestamp(fileIdLong, TIMESTAMP.get())).thenReturn(Optional.empty());
-        when(mirrorNodeEvmProperties.isForceSystemFileLoad()).thenReturn(false);
 
         File file = fileReadableKVState.get(FILE_ID);
 
@@ -139,7 +133,6 @@ class FileReadableKVStateTest {
                 .thenReturn(Optional.of(fileData));
         when(entityRepository.findActiveByIdAndTimestamp(toEntityId(FILE_ID).getId(), TIMESTAMP.get()))
                 .thenReturn(Optional.ofNullable(entity));
-        when(mirrorNodeEvmProperties.isForceSystemFileLoad()).thenReturn(false);
 
         File result = fileReadableKVState.readFromDataSource(FILE_ID);
 
@@ -155,7 +148,6 @@ class FileReadableKVStateTest {
         when(fileDataRepository.getFileAtTimestamp(anyLong(), anyLong())).thenReturn(Optional.of(fileData));
         when(entityRepository.findByIdAndDeletedIsFalse(toEntityId(FILE_ID).getId()))
                 .thenReturn(Optional.of(entity));
-        when(mirrorNodeEvmProperties.isForceSystemFileLoad()).thenReturn(false);
 
         File result = fileReadableKVState.readFromDataSource(FILE_ID);
 
@@ -171,7 +163,6 @@ class FileReadableKVStateTest {
         when(fileDataRepository.getFileAtTimestamp(FILE_ID_LONG, TIMESTAMP.get()))
                 .thenReturn(Optional.empty());
         when(systemFileLoader.load(FILE_ID)).thenReturn(null);
-        when(mirrorNodeEvmProperties.isForceSystemFileLoad()).thenReturn(false);
 
         File result = fileReadableKVState.readFromDataSource(FILE_ID);
 
@@ -184,7 +175,6 @@ class FileReadableKVStateTest {
         when(fileDataRepository.getFileAtTimestamp(FILE_ID_LONG, TIMESTAMP.get()))
                 .thenReturn(Optional.empty());
         when(systemFileLoader.load(FILE_ID)).thenReturn(FILE);
-        when(mirrorNodeEvmProperties.isForceSystemFileLoad()).thenReturn(false);
 
         File result = fileReadableKVState.readFromDataSource(FILE_ID);
 
