@@ -22,6 +22,7 @@ extra.apply {
     set("nodeJsVersion", "18.20.7")
     set("protobufVersion", "3.25.5")
     set("reactorGrpcVersion", "1.2.4")
+    set("spring-security.version", "6.4.4") // Temporary until next Spring Boot
     set("vertxVersion", "4.5.13")
     set("tuweniVersion", "2.3.1")
 }
@@ -85,7 +86,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.9")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
-        api("org.springframework.cloud:spring-cloud-dependencies:2024.0.0")
+        api("org.springframework.cloud:spring-cloud-dependencies:2024.0.1")
         api("org.testcontainers:junit-jupiter:1.20.6")
         api("org.mockito:mockito-inline:5.2.0")
         api("software.amazon.awssdk:bom:2.30.31")

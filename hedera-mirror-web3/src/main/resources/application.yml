@@ -54,6 +54,7 @@ server:
   tomcat:
     connection-timeout: 3s
     max-http-form-post-size: 1MB
+    max-swallow-size: 1MB
 spring:
   application:
     name: hedera-mirror-web3
