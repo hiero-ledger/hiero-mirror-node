@@ -90,7 +90,7 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
                 return Optional.empty();
             }
 
-            FileData fileData = fileDataOptional.get();
+            final var fileData = fileDataOptional.get();
             try {
                 // Try parsing the file data
                 throttleParser.parse(Bytes.wrap(fileData.getFileData()));
