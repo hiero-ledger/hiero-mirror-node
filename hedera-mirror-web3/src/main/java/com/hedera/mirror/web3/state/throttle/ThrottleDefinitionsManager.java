@@ -30,45 +30,53 @@ public class ThrottleDefinitionsManager {
 
     private final FileDataRepository fileDataRepository;
     private final SystemFileLoader systemFileLoader;
+    
+    @Named("customThrottleParser")
+    private final ThrottleParser throttleParser;
+    
     private final RetryTemplate retryTemplate = RetryTemplate.builder()
             .maxAttempts(10)
             .retryOn(InvalidFileException.class)
             .build();
-    private final ThrottleParser throttleParser = new ThrottleParser();
 
     @Cacheable(cacheNames = CACHE_NAME_THROTTLE, key = "'now'", unless = "#result == null")
     public File loadThrottles(final long fileId, final FileID key, final long currentTimestamp) {
         AtomicLong nanoSeconds = new AtomicLong(currentTimestamp);
         AtomicReference<FileData> successfulFileData = new AtomicReference<>(null);
 
-        retryTemplate.execute(context -> {
-            Optional<FileData> fileDataOptional = fileDataRepository.getFileAtTimestamp(fileId, nanoSeconds.get());
+        try {
+            retryTemplate.execute(context -> {
+                Optional<FileData> fileDataOptional = fileDataRepository.getFileAtTimestamp(fileId, nanoSeconds.get());
 
-            if (fileDataOptional.isEmpty()) {
-                // Stop retrying if no file exists at the timestamp
-                return Optional.empty();
-            }
+                if (fileDataOptional.isEmpty()) {
+                    // Stop retrying if no file exists at the timestamp
+                    return Optional.empty();
+                }
 
-            final var fileData = fileDataOptional.get();
-            try {
-                throttleParser.parse(Bytes.wrap(fileData.getFileData()));
+                final var fileData = fileDataOptional.get();
+                try {
+                    throttleParser.parse(Bytes.wrap(fileData.getFileData()));
 
-                // If parsing succeeds, store this fileData and stop retrying
-                successfulFileData.set(fileData);
-                return Optional.of(fileData);
-            } catch (HandleException e) {
-                log.warn(
-                        "Failed to parse file data for fileId {} at {}, retry attempt {}. Exception: ",
-                        fileId,
-                        nanoSeconds.get(),
-                        context.getRetryCount() + 1,
-                        e);
+                    // If parsing succeeds, store this fileData and stop retrying
+                    successfulFileData.set(fileData);
+                    return Optional.of(fileData);
+                } catch (HandleException e) {
+                    log.warn(
+                            "Failed to parse file data for fileId {} at {}, retry attempt {}. Exception: ",
+                            fileId,
+                            nanoSeconds.get(),
+                            context.getRetryCount() + 1,
+                            e);
 
-                // Update timestamp to retry with an earlier version
-                nanoSeconds.set(fileData.getConsensusTimestamp() - 1);
-                throw new InvalidFileException(e);
-            }
-        });
+                    // Update timestamp to retry with an earlier version
+                    nanoSeconds.set(fileData.getConsensusTimestamp() - 1);
+                    throw new InvalidFileException(e);
+                }
+            });
+        } catch (InvalidFileException e) {
+            log.warn("All retry attempts failed for fileId {}: {}", fileId, e.getMessage());
+            return systemFileLoader.load(key);
+        }
 
         // If we found a valid FileData, return it
         if (successfulFileData.get() != null) {
@@ -78,7 +86,7 @@ public class ThrottleDefinitionsManager {
                     .build();
         }
 
-        // If all retries failed, return and cache the system file loader's result
+        // If no valid data found, use system file loader
         return systemFileLoader.load(key);
     }
 } 
