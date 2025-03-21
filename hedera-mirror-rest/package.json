@@ -69,6 +69,7 @@
   },
   "baseUrlPath": "/api/v1",
   "overrides": {
+    "@babel/runtime": "7.26.10",
     "cross-spawn": "^7.0.6",
     "micromatch": "^4.0.8",
     "swagger-stats": {

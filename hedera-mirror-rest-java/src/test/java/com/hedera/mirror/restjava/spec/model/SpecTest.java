@@ -10,6 +10,7 @@ import java.util.stream.Stream;
 import org.springframework.util.StringUtils;
 
 public record SpecTest(
+        String description,
         Map<String, String> responseHeaders,
         @JsonDeserialize(using = JsonAsStringDeserializer.class) String responseJson,
         int responseStatus,

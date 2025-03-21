@@ -12,9 +12,9 @@ import org.springframework.util.CollectionUtils;
  *
  * @param description
  * @param extendedDescription
- * @param matrix ignored for now
- * @param setup features and other config are not yet supported, just database entity definitions
- * @param tests at least one normalized test
+ * @param matrix              ignored for now
+ * @param setup               features and other config are not yet supported, just database entity definitions
+ * @param tests               at least one normalized test
  */
 public record RestSpecNormalized(
         String description,
@@ -33,6 +33,7 @@ public record RestSpecNormalized(
         List<SpecTestNormalized> normalizedTests;
         if (CollectionUtils.isEmpty(restSpec.tests())) {
             var specTest = new SpecTest(
+                    restSpec.description(),
                     restSpec.responseHeaders(),
                     restSpec.responseJson(),
                     restSpec.responseStatus(),
