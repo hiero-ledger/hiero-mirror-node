@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.common.PrecompileContext;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.store.Store;
@@ -160,6 +161,9 @@ class BurnPrecompileTest {
 
     @Mock
     private TokenModificationResult tokenModificationResult;
+
+    @Mock
+    private CommonProperties commonProperties;
 
     @InjectMocks
     private MirrorNodeEvmProperties evmProperties;

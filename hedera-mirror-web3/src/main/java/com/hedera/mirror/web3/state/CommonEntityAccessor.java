@@ -6,6 +6,7 @@ import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.TokenID;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.repository.EntityRepository;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CommonEntityAccessor {
     private final EntityRepository entityRepository;
+    private final CommonProperties commonProperties;
 
     public @Nonnull Optional<Entity> get(@Nonnull final AccountID accountID, final Optional<Long> timestamp) {
         if (accountID.hasAccountNum()) {
@@ -30,8 +32,10 @@ public class CommonEntityAccessor {
 
     public @Nonnull Optional<Entity> get(@Nonnull final Bytes alias, final Optional<Long> timestamp) {
         return timestamp
-                .map(t -> entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(alias.toByteArray(), t))
-                .orElseGet(() -> entityRepository.findByEvmAddressOrAlias(alias.toByteArray()));
+                .map(t -> entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
+                        alias.toByteArray(), t, commonProperties.getShard(), commonProperties.getRealm()))
+                .orElseGet(() -> entityRepository.findByEvmAddressOrAliasAndShardAndRealm(
+                        alias.toByteArray(), commonProperties.getShard(), commonProperties.getRealm()));
     }
 
     public @Nonnull Optional<Entity> get(@Nonnull final TokenID tokenID, final Optional<Long> timestamp) {
@@ -44,10 +48,12 @@ public class CommonEntityAccessor {
                 .orElseGet(() -> entityRepository.findByIdAndDeletedIsFalse(entityId.getId()));
     }
 
-    public Optional<Entity> getEntityByEvmAddressAndTimestamp(
+    public Optional<Entity> getEntityByEvmAddressTimestampShardAndRealm(
             final byte[] addressBytes, final Optional<Long> timestamp) {
         return timestamp
-                .map(t -> entityRepository.findActiveByEvmAddressAndTimestamp(addressBytes, t))
-                .orElseGet(() -> entityRepository.findByEvmAddressAndDeletedIsFalse(addressBytes));
+                .map(t -> entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
+                        addressBytes, t, commonProperties.getShard(), commonProperties.getRealm()))
+                .orElseGet(() -> entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
+                        addressBytes, commonProperties.getShard(), commonProperties.getRealm()));
     }
 }

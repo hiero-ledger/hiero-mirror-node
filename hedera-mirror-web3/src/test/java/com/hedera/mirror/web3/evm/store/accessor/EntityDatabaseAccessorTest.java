@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.repository.EntityRepository;
@@ -16,6 +17,8 @@ import java.util.Optional;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -29,6 +32,7 @@ class EntityDatabaseAccessorTest {
 
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final Entity mockEntity = mock(Entity.class);
+    private static final long NUM = 1252;
 
     @InjectMocks
     private EntityDatabaseAccessor entityDatabaseAccessor;
@@ -36,17 +40,31 @@ class EntityDatabaseAccessorTest {
     @Mock
     private EntityRepository entityRepository;
 
+    @Mock
+    private CommonProperties commonProperties;
+
+    //    @ParameterizedTest
+    //    @CsvSource(textBlock = """
+    //            0, 0
+    //            1, 2
+    //            """)
     @Test
     void getEntityByAddress() {
+        //        var address = toAddress(EntityId.of(shard, realm, NUM));
         when(entityRepository.findByIdAndDeletedIsFalse(entityIdNumFromEvmAddress(ADDRESS)))
                 .thenReturn(Optional.of(mockEntity));
-
         assertThat(entityDatabaseAccessor.get(ADDRESS, Optional.empty()))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
+    //    @ParameterizedTest
+    //    @CsvSource(textBlock = """
+    //            0, 0
+    //            1, 2
+    //            """)
     @Test
     void getEntityByAddressHistorical() {
+        //        var address = toAddress(EntityId.of(shard, realm, NUM));
         when(entityRepository.findActiveByIdAndTimestamp(entityIdNumFromEvmAddress(ADDRESS), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
@@ -54,19 +72,33 @@ class EntityDatabaseAccessorTest {
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @Test
-    void getEntityByAlias() {
-        when(entityRepository.findByEvmAddressAndDeletedIsFalse(ALIAS_ADDRESS.toArrayUnsafe()))
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 0
+            1, 2
+            """)
+    void getEntityByAlias(long shard, long realm) {
+        when(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
+                        ALIAS_ADDRESS.toArrayUnsafe(), shard, realm))
                 .thenReturn(Optional.of(mockEntity));
+        when(commonProperties.getShard()).thenReturn(shard);
+        when(commonProperties.getRealm()).thenReturn(realm);
 
         assertThat(entityDatabaseAccessor.get(ALIAS_ADDRESS, Optional.empty()))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @Test
-    void getEntityByAliasHistorical() {
-        when(entityRepository.findActiveByEvmAddressAndTimestamp(ALIAS_ADDRESS.toArrayUnsafe(), timestamp.get()))
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 0
+            1, 2
+            """)
+    void getEntityByAliasHistorical(long shard, long realm) {
+        when(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
+                        ALIAS_ADDRESS.toArrayUnsafe(), timestamp.get(), shard, realm))
                 .thenReturn(Optional.of(mockEntity));
+        when(commonProperties.getShard()).thenReturn(shard);
+        when(commonProperties.getRealm()).thenReturn(realm);
 
         assertThat(entityDatabaseAccessor.get(ALIAS_ADDRESS, timestamp))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));

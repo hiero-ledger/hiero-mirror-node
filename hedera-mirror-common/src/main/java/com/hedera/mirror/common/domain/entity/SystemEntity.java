@@ -14,7 +14,9 @@ public enum SystemEntity {
     FEE_COLLECTOR_ACCOUNT(98L),
     NODE_REWARD_ACCOUNT(801L),
     STAKING_REWARD_ACCOUNT(800L),
-    TREASURY_ACCOUNT(2L);
+    TREASURY_ACCOUNT(2L),
+    EXCHANGE_RATE(112L),
+    FEE_SCHEDULE(111L);
 
     private final long num;
 

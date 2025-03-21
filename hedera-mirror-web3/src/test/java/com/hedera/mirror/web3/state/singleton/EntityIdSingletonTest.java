@@ -26,7 +26,8 @@ class EntityIdSingletonTest {
 
     @BeforeEach
     void setup() {
-        entityIdSingleton = new EntityIdSingleton(entityRepository, new MirrorNodeEvmProperties(), commonProperties);
+        entityIdSingleton = new EntityIdSingleton(
+                entityRepository, new MirrorNodeEvmProperties(commonProperties), commonProperties);
     }
 
     @Test

@@ -5,7 +5,9 @@ package com.hedera.mirror.web3.repository;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCall;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
@@ -76,8 +78,11 @@ class FileDataRepositoryTest extends Web3IntegrationTest {
                             .addFees(FeeData.newBuilder().build())))
             .build()
             .toByteArray();
-    private static final EntityId FEE_SCHEDULE_ENTITY_ID = EntityId.of(0L, 0L, 111L);
-    private static final EntityId EXCHANGE_RATE_ENTITY_ID = EntityId.of(0L, 0L, 112L);
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private static final EntityId FEE_SCHEDULE_ENTITY_ID =
+            SystemEntity.FEE_SCHEDULE.getScopedEntityId(COMMON_PROPERTIES);
+    private static final EntityId EXCHANGE_RATE_ENTITY_ID =
+            SystemEntity.EXCHANGE_RATE.getScopedEntityId(COMMON_PROPERTIES);
 
     private final FileDataRepository fileDataRepository;
 

@@ -127,7 +127,7 @@ class TokenAccessorImplTest {
     @BeforeEach
     void setUp() {
         final var commonProperties = new CommonProperties();
-        final var entityAccessor = new EntityDatabaseAccessor(entityRepository);
+        final var entityAccessor = new EntityDatabaseAccessor(entityRepository, commonProperties);
         final var customFeeAccessor = new CustomFeeDatabaseAccessor(customFeeRepository, entityAccessor);
         final var tokenDatabaseAccessor = new TokenDatabaseAccessor(
                 commonProperties, tokenRepository, entityAccessor, entityRepository, customFeeAccessor, nftRepository);
