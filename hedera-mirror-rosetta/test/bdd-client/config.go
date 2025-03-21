@@ -72,7 +72,8 @@ func loadConfig() (*config, error) {
 	log.Infof("Loaded external configuration file %s", v.ConfigFileUsed())
 
 	config := &config{}
-	if err := v.UnmarshalKey(configPrefix, config, addDecodeHooks); err != nil {
+	var decodeHook = interface{}(addDecodeHooks).(viper.DecoderConfigOption)
+	if err := v.UnmarshalKey(configPrefix, config, decodeHook); err != nil {
 		log.Errorf("Failed to unmarshal config %v", err)
 		return nil, err
 	}
