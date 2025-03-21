@@ -105,6 +105,7 @@ jobs:
       - name: Execute Gradle using transaction executor
         env:
           HEDERA_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
+          HEDERA_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1.0"
         if: ${{ matrix.project == 'web3' && matrix.schema == 'v1'}}
         run: ./gradlew :${{ matrix.project }}:build
 
