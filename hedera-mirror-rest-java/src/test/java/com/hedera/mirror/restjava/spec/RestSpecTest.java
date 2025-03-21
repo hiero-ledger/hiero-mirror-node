@@ -87,11 +87,10 @@ class RestSpecTest extends RestJavaIntegrationTest {
             @Value("classpath:cleanup.sql") Resource cleanupSqlResource,
             DataSource dataSource,
             @Qualifier(REST_API) GenericContainer<?> jsRestApi,
-            ObjectMapper objectMapper,
             SpecDomainBuilder specDomainBuilder) {
         this.databaseCleaner = new ResourceDatabasePopulator(cleanupSqlResource);
         this.dataSource = dataSource;
-        this.objectMapper = objectMapper;
+        this.objectMapper = new ObjectMapper();
         this.specDomainBuilder = specDomainBuilder;
 
         var baseJsRestApiUrl =
