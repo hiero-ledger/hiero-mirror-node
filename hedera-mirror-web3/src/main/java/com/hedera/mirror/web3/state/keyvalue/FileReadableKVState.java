@@ -6,14 +6,17 @@ import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.AbstractEntity;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.repository.EntityRepository;
 import com.hedera.mirror.web3.repository.FileDataRepository;
 import com.hedera.mirror.web3.state.SystemFileLoader;
+import com.hedera.mirror.web3.state.throttle.ThrottleDefinitionsManager;
 import com.hedera.mirror.web3.utils.Suppliers;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.annotation.Nonnull;
@@ -34,15 +37,21 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
     private final FileDataRepository fileDataRepository;
     private final EntityRepository entityRepository;
     private final SystemFileLoader systemFileLoader;
+    private final ThrottleDefinitionsManager throttleDefinitionsManager;
+    private final CommonProperties commonProperties;
 
     public FileReadableKVState(
             final FileDataRepository fileDataRepository,
             final EntityRepository entityRepository,
-            SystemFileLoader systemFileLoader) {
+            SystemFileLoader systemFileLoader,
+            ThrottleDefinitionsManager throttleDefinitionsManager,
+            CommonProperties commonProperties) {
         super(KEY);
         this.fileDataRepository = fileDataRepository;
         this.entityRepository = entityRepository;
         this.systemFileLoader = systemFileLoader;
+        this.throttleDefinitionsManager = throttleDefinitionsManager;
+        this.commonProperties = commonProperties;
     }
 
     @Override
@@ -50,6 +59,12 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var fileEntityId = toEntityId(key);
         final var fileId = fileEntityId.getId();
+
+        if (SystemEntity.THROTTLE_DEFINITIONS
+                .getScopedEntityId(commonProperties)
+                .equals(fileEntityId)) {
+            return throttleDefinitionsManager.loadThrottles(fileId, key, getCurrentTimestamp());
+        }
 
         return timestamp
                 .map(t -> fileDataRepository.getFileAtTimestamp(fileId, t))
