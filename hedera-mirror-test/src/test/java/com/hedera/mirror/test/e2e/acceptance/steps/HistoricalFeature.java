@@ -973,15 +973,20 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     // calculated correctly. That way we avoid flakiness of this test that might occur if the db tables are not
     // updated and the environment is clear
     private String trimTotalSupplyForGetTokenInfo(String response) {
-        var responseWithoutOx = "";
+        var responseWithoutPrefix = "";
         if (response.startsWith(RESPONSE_PREFIX)) {
-            responseWithoutOx = response.substring(2);
+            responseWithoutPrefix = response.substring(2);
         }
         // TotalSupply value is located between 128 and 192 indexes
         int startIndex = 128;
         int endIndex = startIndex + 64;
 
-        return responseWithoutOx.substring(0, startIndex) + responseWithoutOx.substring(endIndex);
+        // Check if the response without prefix is with correct size
+        if (responseWithoutPrefix.length() != 7168) {
+            throw new IllegalArgumentException("Invalid response size.");
+        }
+
+        return responseWithoutPrefix.substring(0, startIndex) + responseWithoutPrefix.substring(endIndex);
     }
 
     // The query for totalSupply historical depends on the db tables - token_balance, token_transfers and
@@ -989,15 +994,20 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     // calculated correctly. That way we avoid flakiness of this test that might occur if the db tables are not
     // updated and the environment is clear
     private String trimTotalSupplyForFungibleTokenInfo(String response) {
-        var responseWithoutOx = "";
+        var responseWithoutPrefix = "";
         if (response.startsWith(RESPONSE_PREFIX)) {
-            responseWithoutOx = response.substring(2);
+            responseWithoutPrefix = response.substring(2);
         }
         // TotalSupply value is located between 258 and 322 indexes
         int startIndex = 258;
         int endIndex = startIndex + 64;
 
-        return responseWithoutOx.substring(0, startIndex) + responseWithoutOx.substring(endIndex);
+        // Check if the response without prefix is with correct size
+        if (responseWithoutPrefix.length() != 7296) {
+            throw new IllegalArgumentException("Invalid response size.");
+        }
+
+        return responseWithoutPrefix.substring(0, startIndex) + responseWithoutPrefix.substring(endIndex);
     }
 
     @Getter
