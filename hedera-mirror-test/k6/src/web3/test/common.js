@@ -57,6 +57,8 @@ function ContractCallTestScenarioBuilder() {
         const payload = {
           to: that._to,
           estimate: that._estimate || false, // Set default to false
+          value: that._value,
+          from: that._from,
         };
 
         if (that._selector && that._args) {
@@ -160,6 +162,11 @@ function ContractCallTestScenarioBuilder() {
 
   this.shouldRevert = function (shouldRevert) {
     this._shouldRevert = shouldRevert;
+    return this;
+  };
+
+  this.estimate = function (estimate) {
+    this._estimate = estimate;
     return this;
   };
 
