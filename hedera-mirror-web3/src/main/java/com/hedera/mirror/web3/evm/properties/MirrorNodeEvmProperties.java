@@ -47,6 +47,7 @@ import org.apache.tuweni.bytes.Bytes32;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.EvmSpecVersion;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.convert.DataSizeUnit;
 import org.springframework.util.CollectionUtils;
@@ -62,7 +63,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
 
-    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private final CommonProperties commonProperties;
 
     @Getter
     private boolean allowTreasuryToOwnNfts = true;
@@ -194,8 +195,10 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @DecimalMax("1.0")
     private double modularizedTrafficPercent = 0.0;
 
-    public MirrorNodeEvmProperties() {
-        fundingAccount = SystemEntity.FEE_COLLECTOR_ACCOUNT.getScopedEntityId(COMMON_PROPERTIES);
+    @Autowired
+    public MirrorNodeEvmProperties(CommonProperties commonProperties) {
+        this.commonProperties = commonProperties;
+        fundingAccount = SystemEntity.FEE_COLLECTOR_ACCOUNT.getScopedEntityId(this.commonProperties);
     }
 
     public boolean shouldAutoRenewAccounts() {

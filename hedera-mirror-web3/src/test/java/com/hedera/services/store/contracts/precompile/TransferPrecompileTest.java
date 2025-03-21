@@ -54,6 +54,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import com.esaulpaugh.headlong.util.Integers;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.common.PrecompileContext;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.store.Store;
@@ -202,6 +203,9 @@ class TransferPrecompileTest {
 
     @InjectMocks
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
+
+    @Mock
+    private CommonProperties commonProperties;
 
     @Mock
     private MessageFrame lastFrame;

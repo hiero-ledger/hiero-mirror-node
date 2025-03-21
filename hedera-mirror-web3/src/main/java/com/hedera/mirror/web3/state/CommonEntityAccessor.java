@@ -19,11 +19,8 @@ import lombok.RequiredArgsConstructor;
 @Named
 @RequiredArgsConstructor
 public class CommonEntityAccessor {
-    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
-    private static final long SHARD = COMMON_PROPERTIES.getShard();
-    private static final long REALM = COMMON_PROPERTIES.getRealm();
-
     private final EntityRepository entityRepository;
+    private final CommonProperties commonProperties;
 
     public @Nonnull Optional<Entity> get(@Nonnull final AccountID accountID, final Optional<Long> timestamp) {
         if (accountID.hasAccountNum()) {
@@ -36,9 +33,9 @@ public class CommonEntityAccessor {
     public @Nonnull Optional<Entity> get(@Nonnull final Bytes alias, final Optional<Long> timestamp) {
         return timestamp
                 .map(t -> entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        alias.toByteArray(), t, SHARD, REALM))
-                .orElseGet(() ->
-                        entityRepository.findByEvmAddressOrAliasAndShardAndRealm(alias.toByteArray(), SHARD, REALM));
+                        alias.toByteArray(), t, commonProperties.getShard(), commonProperties.getRealm()))
+                .orElseGet(() -> entityRepository.findByEvmAddressOrAliasAndShardAndRealm(
+                        alias.toByteArray(), commonProperties.getShard(), commonProperties.getRealm()));
     }
 
     public @Nonnull Optional<Entity> get(@Nonnull final TokenID tokenID, final Optional<Long> timestamp) {
@@ -55,8 +52,8 @@ public class CommonEntityAccessor {
             final byte[] addressBytes, final Optional<Long> timestamp) {
         return timestamp
                 .map(t -> entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        addressBytes, t, SHARD, REALM))
-                .orElseGet(() ->
-                        entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(addressBytes, SHARD, REALM));
+                        addressBytes, t, commonProperties.getShard(), commonProperties.getRealm()))
+                .orElseGet(() -> entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
+                        addressBytes, commonProperties.getShard(), commonProperties.getRealm()));
     }
 }

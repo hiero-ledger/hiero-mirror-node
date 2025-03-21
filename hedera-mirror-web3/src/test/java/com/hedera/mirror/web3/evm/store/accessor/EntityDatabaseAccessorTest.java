@@ -32,6 +32,7 @@ class EntityDatabaseAccessorTest {
 
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final Entity mockEntity = mock(Entity.class);
+    private static final long NUM = 1252;
 
     @InjectMocks
     private EntityDatabaseAccessor entityDatabaseAccessor;
@@ -42,17 +43,28 @@ class EntityDatabaseAccessorTest {
     @Mock
     private CommonProperties commonProperties;
 
+    //    @ParameterizedTest
+    //    @CsvSource(textBlock = """
+    //            0, 0
+    //            1, 2
+    //            """)
     @Test
     void getEntityByAddress() {
+        //        var address = toAddress(EntityId.of(shard, realm, NUM));
         when(entityRepository.findByIdAndDeletedIsFalse(entityIdNumFromEvmAddress(ADDRESS)))
                 .thenReturn(Optional.of(mockEntity));
-
         assertThat(entityDatabaseAccessor.get(ADDRESS, Optional.empty()))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
+    //    @ParameterizedTest
+    //    @CsvSource(textBlock = """
+    //            0, 0
+    //            1, 2
+    //            """)
     @Test
     void getEntityByAddressHistorical() {
+        //        var address = toAddress(EntityId.of(shard, realm, NUM));
         when(entityRepository.findActiveByIdAndTimestamp(entityIdNumFromEvmAddress(ADDRESS), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 

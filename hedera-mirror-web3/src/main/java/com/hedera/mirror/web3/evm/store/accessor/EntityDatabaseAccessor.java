@@ -5,13 +5,13 @@ package com.hedera.mirror.web3.evm.store.accessor;
 import static com.hedera.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
-import static com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases.isMirror;
 
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.evm.store.DatabaseBackedStateFrame.DatabaseAccessIncorrectKeyTypeException;
 import com.hedera.mirror.web3.repository.EntityRepository;
+import com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Optional;
@@ -29,7 +29,7 @@ public class EntityDatabaseAccessor extends DatabaseAccessor<Object, Entity> {
     public @Nonnull Optional<Entity> get(@Nonnull Object key, final Optional<Long> timestamp) {
         if (key instanceof Address address) {
             final var addressBytes = address.toArrayUnsafe();
-            if (isMirror(addressBytes)) {
+            if (HederaEvmContractAliases.isMirror(addressBytes)) {
                 return getEntityByMirrorAddressAndTimestamp(address, timestamp);
             } else {
                 return getEntityByEvmAddressTimestampShardAndRealm(addressBytes, timestamp);

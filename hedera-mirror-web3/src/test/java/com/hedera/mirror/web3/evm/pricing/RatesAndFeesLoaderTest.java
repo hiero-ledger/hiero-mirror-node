@@ -84,16 +84,21 @@ class RatesAndFeesLoaderTest {
     @Mock
     private MirrorNodeEvmProperties evmProperties;
 
+    @Mock
+    private CommonProperties commonProperties;
+
     @InjectMocks
     private RatesAndFeesLoader subject;
 
     @BeforeEach
     void setup() {
         when(evmProperties.getNetwork()).thenReturn(HederaNetwork.TESTNET);
+        commonProperties = new CommonProperties();
     }
 
     @Test
     void loadExchangeRates() {
+
         when(fileDataRepository.getFileAtTimestamp(eq(EXCHANGE_RATES_ID), anyLong()))
                 .thenReturn(Optional.of(exchangeRatesFileData));
 

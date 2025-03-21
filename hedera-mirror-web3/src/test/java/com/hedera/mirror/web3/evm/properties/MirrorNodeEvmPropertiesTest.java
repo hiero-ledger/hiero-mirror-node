@@ -46,7 +46,7 @@ class MirrorNodeEvmPropertiesTest {
             SystemEntity.FEE_COLLECTOR_ACCOUNT.getScopedEntityId(COMMON_PROPERTIES);
     private static final Bytes32 CHAIN_ID = Bytes32.fromHexString("0x0128");
 
-    private final MirrorNodeEvmProperties properties = new MirrorNodeEvmProperties();
+    private final MirrorNodeEvmProperties properties = new MirrorNodeEvmProperties(COMMON_PROPERTIES);
     private MockedStatic<ContractCallContext> staticMock;
 
     @Mock

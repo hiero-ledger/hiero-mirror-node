@@ -17,7 +17,6 @@ import static com.hederahashgraph.api.proto.java.HederaFunctionality.TokenMint;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.exception.InvalidFileException;
@@ -48,11 +47,6 @@ import org.springframework.retry.support.RetryTemplate;
 @CustomLog
 public class RatesAndFeesLoader {
 
-    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
-    public static final EntityId EXCHANGE_RATE_ENTITY_ID =
-            SystemEntity.EXCHANGE_RATE.getScopedEntityId(COMMON_PROPERTIES);
-    public static final EntityId FEE_SCHEDULE_ENTITY_ID =
-            SystemEntity.FEE_SCHEDULE.getScopedEntityId(COMMON_PROPERTIES);
     static final CurrentAndNextFeeSchedule DEFAULT_FEE_SCHEDULE = CurrentAndNextFeeSchedule.newBuilder()
             .setCurrentFeeSchedule(FeeSchedule.newBuilder()
                     .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(4102444800L))
@@ -263,6 +257,7 @@ public class RatesAndFeesLoader {
 
     private final FileDataRepository fileDataRepository;
     private final MirrorNodeEvmProperties evmProperties;
+    private final CommonProperties commonProperties;
 
     /**
      * Loads the exchange rates for a given time. Currently, works only with current timestamp.
@@ -272,15 +267,16 @@ public class RatesAndFeesLoader {
      */
     @Cacheable(cacheNames = CACHE_NAME_EXCHANGE_RATE, key = "'now'", unless = "#result == null")
     public ExchangeRateSet loadExchangeRates(final long nanoSeconds) {
+        final var exchangeRateEntityId = SystemEntity.EXCHANGE_RATE.getScopedEntityId(commonProperties);
         try {
             return getFileData(
-                    EXCHANGE_RATE_ENTITY_ID.getId(),
+                    exchangeRateEntityId.getId(),
                     new AtomicLong(nanoSeconds),
                     ExchangeRateSet::parseFrom,
                     evmProperties.getNetwork() == OTHER ? DEFAULT_EXCHANGE_RATE_SET : EMPTY_EXCHANGE_RATE_SET);
         } catch (InvalidFileException e) {
-            log.warn("Corrupt rate file at {}, may require remediation!", EXCHANGE_RATE_ENTITY_ID);
-            throw new IllegalStateException(String.format("Rates %s are corrupt!", EXCHANGE_RATE_ENTITY_ID));
+            log.warn("Corrupt rate file at {}, may require remediation!", exchangeRateEntityId);
+            throw new IllegalStateException(String.format("Rates %s are corrupt!", exchangeRateEntityId));
         }
     }
 
@@ -292,15 +288,16 @@ public class RatesAndFeesLoader {
      */
     @Cacheable(cacheNames = CACHE_NAME_FEE_SCHEDULE, key = "'now'", unless = "#result == null")
     public CurrentAndNextFeeSchedule loadFeeSchedules(final long nanoSeconds) {
+        var feeScheduleEntityId = SystemEntity.FEE_SCHEDULE.getScopedEntityId(commonProperties);
         try {
             return getFileData(
-                    FEE_SCHEDULE_ENTITY_ID.getId(),
+                    feeScheduleEntityId.getId(),
                     new AtomicLong(nanoSeconds),
                     CurrentAndNextFeeSchedule::parseFrom,
                     evmProperties.getNetwork() == OTHER ? DEFAULT_FEE_SCHEDULE : EMPTY_FEE_SCHEDULE);
         } catch (InvalidFileException e) {
-            log.warn("Corrupt fee schedules file at {}, may require remediation!", FEE_SCHEDULE_ENTITY_ID);
-            throw new IllegalStateException(String.format("Fee schedule %s is corrupt!", FEE_SCHEDULE_ENTITY_ID));
+            log.warn("Corrupt fee schedules file at {}, may require remediation!", feeScheduleEntityId);
+            throw new IllegalStateException(String.format("Fee schedule %s is corrupt!", feeScheduleEntityId));
         }
     }
 
