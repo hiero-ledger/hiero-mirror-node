@@ -7,10 +7,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class ThrottleConfig {
+class ThrottleConfig {
 
     @Bean
-    public ThrottleParser customThrottleParser() {
+    ThrottleParser customThrottleParser() {
         return new ThrottleParser();
     }
 }

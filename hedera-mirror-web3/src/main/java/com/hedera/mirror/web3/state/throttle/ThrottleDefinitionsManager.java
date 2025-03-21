@@ -20,12 +20,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.retry.support.RetryTemplate;
 
 @Named
-@CacheConfig(cacheManager = CACHE_MANAGER_SYSTEM_FILE)
 @CustomLog
 @RequiredArgsConstructor
 public class ThrottleDefinitionsManager {
@@ -41,7 +39,11 @@ public class ThrottleDefinitionsManager {
             .retryOn(InvalidFileException.class)
             .build();
 
-    @Cacheable(cacheNames = CACHE_NAME_THROTTLE, key = "'now'", unless = "#result == null")
+    @Cacheable(
+            cacheManager = CACHE_MANAGER_SYSTEM_FILE,
+            cacheNames = CACHE_NAME_THROTTLE,
+            key = "'now'",
+            unless = "#result == null")
     public File loadThrottles(final long fileId, final FileID key, final long currentTimestamp) {
         AtomicLong nanoSeconds = new AtomicLong(currentTimestamp);
         AtomicReference<FileData> successfulFileData = new AtomicReference<>(null);
