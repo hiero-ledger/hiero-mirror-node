@@ -15,6 +15,7 @@ import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.rest.model.ContractResult;
 import com.hedera.mirror.rest.model.TransactionByIdResponse;
 import com.hedera.mirror.rest.model.TransactionDetail;
@@ -31,18 +32,21 @@ import java.math.BigInteger;
 import java.util.Comparator;
 import java.util.Objects;
 import lombok.CustomLog;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.web3j.crypto.transaction.type.TransactionType;
 
 @CustomLog
+@RequiredArgsConstructor
 public class EthereumFeature extends AbstractEstimateFeature {
 
-    @Autowired
-    protected EthereumClient ethereumClient;
+    //    @Autowired //TODO: remove
+    protected final EthereumClient ethereumClient;
 
-    @Autowired
-    protected AccountClient accountClient;
+    //    @Autowired
+    protected final AccountClient accountClient;
+
+    private final CommonProperties commonProperties;
 
     protected AccountId ethereumSignerAccount;
     protected PrivateKey ethereumSignerPrivateKey;
@@ -53,7 +57,9 @@ public class EthereumFeature extends AbstractEstimateFeature {
     @Given("I successfully created a signer account with an EVM address alias")
     public void createAccountWithEvmAddressAlias() {
         ethereumSignerPrivateKey = PrivateKey.generateECDSA();
-        ethereumSignerAccount = ethereumSignerPrivateKey.getPublicKey().toAccountId(0, 0);
+        ethereumSignerAccount = ethereumSignerPrivateKey
+                .getPublicKey()
+                .toAccountId(commonProperties.getShard(), commonProperties.getRealm());
 
         networkTransactionResponse = accountClient.sendCryptoTransfer(ethereumSignerAccount, Hbar.from(5L), null);
 

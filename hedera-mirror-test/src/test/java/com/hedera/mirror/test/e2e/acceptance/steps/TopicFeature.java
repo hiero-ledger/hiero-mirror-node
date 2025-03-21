@@ -16,6 +16,7 @@ import com.hedera.hashgraph.sdk.ReceiptStatusException;
 import com.hedera.hashgraph.sdk.TopicId;
 import com.hedera.hashgraph.sdk.TopicMessageQuery;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.rest.model.Key.TypeEnum;
 import com.hedera.mirror.rest.model.Topic;
 import com.hedera.mirror.test.e2e.acceptance.client.MirrorNodeClient;
@@ -49,6 +50,7 @@ public class TopicFeature {
     private final MirrorNodeClient mirrorClient;
     private final SDKClient sdkClient;
     private final TopicClient topicClient;
+    private final CommonProperties commonProperties;
 
     private int messageSubscribeCount;
     private long latency;
@@ -151,7 +153,8 @@ public class TopicFeature {
         consensusTopicId = null;
 
         if (!topicId.isEmpty()) {
-            consensusTopicId = new TopicId(0, 0, Long.parseLong(topicId));
+            consensusTopicId =
+                    new TopicId(commonProperties.getShard(), commonProperties.getRealm(), Long.parseLong(topicId));
             topicMessageQuery.setTopicId(consensusTopicId);
         }
         messageSubscribeCount = 0;
