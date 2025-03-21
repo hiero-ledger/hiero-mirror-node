@@ -33,6 +33,12 @@ config: {}
 # Environment variables to add to the container. The value can either be a string or an EnvVarSource. Evaluated as a template.
 env:
   SPRING_CONFIG_ADDITIONAL_LOCATION: "file:/usr/etc/hedera/"
+  HEDERA_MIRROR_WEB3_DB_HOST: "IP"
+  HEDERA_MIRROR_WEB3_DB_PORT: "5432"
+  HEDERA_MIRROR_WEB3_DB_USERNAME: "USER"
+  HEDERA_MIRROR_WEB3_DB_PASSWORD: "PASS"
+  HEDERA_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
+  HEDERA_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1.0"
   # FOO:
   #   valueFrom:
   #     secretKeyRef:
@@ -114,9 +120,9 @@ image:
   tag: ""  # Defaults to the chart's app version
 
 ingress:
-  annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: '{{ include "hedera-mirror-web3.namespace" . }}-{{ include "hedera-mirror-web3.fullname" . }}@kubernetescrd'
-    traefik.ingress.kubernetes.io/router.pathmatcher: 'PathRegexp'
+  # annotations:
+  #   traefik.ingress.kubernetes.io/router.middlewares: '{{ include "hedera-mirror-web3.namespace" . }}-{{ include "hedera-mirror-web3.fullname" . }}@kubernetescrd'
+  #   traefik.ingress.kubernetes.io/router.pathmatcher: 'PathRegexp'
   enabled: true
   hosts:
     - host: ""
@@ -321,7 +327,7 @@ serviceAccount:
   name:
 
 serviceMonitor:
-  enabled: false
+  enabled: true
   interval: 30s
 
 terminationGracePeriodSeconds: 60

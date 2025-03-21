@@ -34,6 +34,7 @@ loki:
         retention_enabled: true
       limits_config:
         retention_period: 1440h
+        volume_enabled: true
       ruler:
         alertmanager_url: http://{{ .Release.Name }}-prometheus-alertmanager:9093
         enable_alertmanager_v2: true
@@ -183,7 +184,7 @@ loki:
         cpu: 200m
         memory: 512Mi
       requests:
-        cpu: 100m
+        cpu: 500m
         memory: 128Mi
   test:
     enabled: false
@@ -296,7 +297,7 @@ prometheus:
         url: http://{{ .Release.Name }}-loki:3100
         jsonData:
           maxLines: 500
-    adminPassword: ""  # Randomly generated if left blank
+    adminPassword: "PUT_PASS_HERE"  # Randomly generated if left blank
     defaultDashboardsEnabled: true
     plugins:
       - camptocamp-prometheus-alertmanager-datasource
@@ -307,6 +308,15 @@ prometheus:
       requests:
         cpu: 150m
         memory: 75Mi
+    grafana.ini:
+      server:
+        domain: PUT_DOMAIN/IP_HERE
+        root_url: "%(protocol)s://%(domain)s/grafana"
+        serve_from_sub_path: true
+    # Additional important settings
+    env:
+      GF_SERVER_ROOT_URL: "http://DOMAIN_OR_IP_HERE/grafana"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
   kube-state-metrics:
     resources:
       limits:
@@ -427,7 +437,7 @@ promtail:
         - cri: {}
         - multiline:
             firstline: '^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}:\d{2}\.\d+(Z|[+-]\d{4}) '
-  enabled: true
+  enabled: false
   priorityClassName: critical
   resources:
     limits:
@@ -437,7 +447,7 @@ promtail:
       cpu: 50m
       memory: 50Mi
   serviceMonitor:
-    enabled: true
+    enabled: false
   tolerations:
     - effect: NoSchedule
       operator: Exists
@@ -520,7 +530,7 @@ traefik:
                 app.kubernetes.io/name: traefik
   deployment:
     kind: DaemonSet
-  enabled: true
+  enabled: false
   globalArguments:  # Expose X-Forwarded-For header for tracing
     - --entryPoints.web.forwardedHeaders.insecure
     - --entryPoints.websecure.forwardedHeaders.insecure

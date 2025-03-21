@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: mirror-web3
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - http:  # Note: No host specified means it matches any host
+        paths:
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: hiero-mirror-monitoring-grafana
+                port:
+                  number: 80

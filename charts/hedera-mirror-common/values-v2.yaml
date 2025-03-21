@@ -3,6 +3,6 @@
 minio:
   enabled: false
 stackgres:
-  enabled: true
+  enabled: false
 zfs:
-  enabled: true
+  enabled: false
