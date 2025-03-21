@@ -29,6 +29,7 @@ import com.hedera.mirror.web3.exception.EntityNotFoundException;
 import com.hedera.mirror.web3.exception.InvalidParametersException;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.service.ContractExecutionService;
+import com.hedera.mirror.web3.service.model.ContractExecutionParameters;
 import com.hedera.mirror.web3.throttle.ThrottleProperties;
 import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.mirror.web3.viewmodel.ContractCallRequest;
@@ -46,6 +47,8 @@ import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
+import java.util.Collections;
+import java.util.Map;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
@@ -56,6 +59,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EmptySource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -118,6 +122,19 @@ class ContractControllerTest {
                 .accept(MediaType.APPLICATION_JSON)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(convert(request)));
+    }
+
+    @SneakyThrows
+    private ResultActions contractCall(ContractCallRequest request, final Map<String, String> headers) {
+        final var requestBuilder = post(CALL_URI)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(convert(request));
+
+        // Add headers dynamically
+        headers.forEach(requestBuilder::header);
+
+        return mockMvc.perform(requestBuilder);
     }
 
     @ParameterizedTest
@@ -535,6 +552,69 @@ class ContractControllerTest {
 
         var expected = "request: " + request;
         assertThat(capturedOutput.getOut()).contains(expected);
+    }
+
+    @Test
+    void testModularizedRequestEmpty() throws Exception {
+        if (evmProperties.isModularizedServices()) {
+            return;
+        }
+
+        final var request = request();
+
+        contractCall(request).andExpect(status().isOk());
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
+        verify(service).processCall(paramsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        assertThat(capturedParams.isModularized()).isFalse();
+    }
+
+    @Test
+    void testModularizedRequestFalse() throws Exception {
+        if (evmProperties.isModularizedServices()) {
+            return;
+        }
+
+        final var request = request();
+
+        contractCall(request).andExpect(status().isOk());
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
+        verify(service).processCall(paramsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        assertThat(capturedParams.isModularized()).isFalse();
+    }
+
+    @Test
+    void testModularizedRequestTrue() throws Exception {
+        if (!evmProperties.isModularizedServices()) {
+            return;
+        }
+        final var request = request();
+
+        contractCall(request, Collections.singletonMap("Is-Modularized", "true"))
+                .andExpect(status().isOk());
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
+        verify(service).processCall(paramsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        assertThat(capturedParams.isModularized()).isTrue();
+    }
+
+    @Test
+    void testModularizedRequestFalseWithModularizedFlagTrue() throws Exception {
+        if (!evmProperties.isModularizedServices()) {
+            return;
+        }
+        final var request = request();
+
+        contractCall(request).andExpect(status().isOk());
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
+        verify(service).processCall(paramsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        assertThat(capturedParams.isModularized()).isTrue();
     }
 
     private ContractCallRequest request() {

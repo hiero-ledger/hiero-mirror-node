@@ -703,6 +703,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
     @Test
     void updateCustomFeesForTokenWithFixedFee() throws Exception {
+        final var backupModularizedValue = mirrorNodeEvmProperties.isModularizedServices();
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
 
         try {
@@ -764,7 +765,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                     .isEqualTo(newFee.amount);
             verifyEthCallAndEstimateGas(updateCustomFeeFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
         } finally {
-            deactivateModularizedFlag();
+            mirrorNodeEvmProperties.setModularizedServices(backupModularizedValue);
             mirrorNodeEvmProperties.setProperties(backupProperties);
         }
     }

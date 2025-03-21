@@ -703,10 +703,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         mirrorNodeEvmProperties.setProperties(propertiesMap);
     }
 
-    protected void deactivateModularizedFlag() {
-        mirrorNodeEvmProperties.setModularizedServices(false);
-    }
-
     public enum KeyType {
         ADMIN_KEY(1),
         KYC_KEY(2),
