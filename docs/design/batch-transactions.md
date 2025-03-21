@@ -91,6 +91,113 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 }
 ```
 
+Update
+
+```java
+public class BlockItem {
+  private final TransactionBody transactionBody;
+  private final SignatureMap signatureMap;
+}
+```
+
+Update
+
+```java
+public class RecordItem {
+  private void parseTransaction() {
+    if (transactionBody == null || signatureMap == null) {
+      // do current logic
+    }
+  }
+}
+```
+
+Update
+
+```java
+public class BlockFileTransformer {
+    private List<RecordItem> getRecordItems() {
+      // Update built record items to
+      RecordItem.builder()
+              .hapiVersion(hapiVersion)
+              .signatureMap(blockItem.getSignatureMap())
+              .transaction(blockItem.getTransaction())
+              .transactionBody(blockItem.getTransactionBody())
+              .transactionIndex(index);
+    }
+}
+```
+
+Update
+
+```java
+public class ProtoBlockFileReader implements BlockFileReader {
+    private void readEventTransactions(ReaderContext context) {
+      // .. current logic
+      if (transaction != null) {
+        var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
+        var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
+        var signatureMap = signedTransaction.getSigMap();
+        var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
+                .transaction(transaction)
+                .transactionBody(transactionBody)
+                .signatureMap(signatureMap)
+                .transactionResult(transactionResult)
+                .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
+                .stateChanges(Collections.unmodifiableList(stateChangesList))
+                .previous(context.getLastBlockItem())
+                .build();
+        context.getBlockFile().item(blockItem);
+        context.setLastBlockItem(blockItem);
+        readBatchTransactions(stateChangesList, context, transactionBody);
+      }
+    }
+
+    private void readBatchTransactions(ArrayList<StateChanges> stateChangesList,
+                                       ReaderContext context,
+                                       TransactionBody transactionBody) {
+      if (transactionBody.hasAtomicBatchBody()) {
+          var signedTransactions = transactionBody.getAtomicBatchBody().getTransactionsList();
+          for (var signedTransactions : signedTransactions) {
+
+            // read preceding transactions
+            readEventTransactions(context);
+
+            var innerTransactionProto = Transaction.newBuilder()
+                    .setSignedTransactionBytes(signedTransaction.toByteString());
+            var transactionResult = context.readBlockItemFor(TRANSACTION_RESULT);
+            if (transactionResult = null) {
+                throw new InvalidStreamFileException(
+                        "Expecting inner transaction result");
+            }
+
+            var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
+            while ((protoBlockItem = context.readBlockItemFor(TRANSACTION_OUTPUT)) != null) {
+              var transactionOutput = protoBlockItem.getTransactionOutput();
+              transactionOutputs.put(transactionOutput.getTransactionCase(), transactionOutput);
+            }
+
+            var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
+                    .transaction(innerTransactionProto)
+                    .transactionBody(TransactionBody.parseFrom(signedTransaction.getBodyBytes()))
+                    .signatureMap(signatureMap)
+                    .transactionResult(transactionResult)
+                    .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
+                    .stateChanges(Collections.unmodifiableList(stateChangesList))
+                    .previous(context.getLastBlockItem())
+                    .build();
+
+            context.getBlockFile().item(blockItem);
+            context.setLastBlockItem(blockItem);
+
+            // read child transactions
+            readEventTransactions(context);
+          }
+      }
+    }
+}
+```
+
 - Record streams can use `UnknownDataTransactionHandler.java` for batch transactions
 - Block streams can use `DefaultTransformer.java` for batch transactions
 
