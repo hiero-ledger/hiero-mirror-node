@@ -14,6 +14,7 @@ import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.repository.EntityRepository;
 import com.hedera.mirror.web3.repository.FileDataRepository;
 import com.hedera.mirror.web3.state.SystemFileLoader;
+import com.hedera.mirror.web3.state.throttle.ThrottleDefinitionsManager;
 import com.hedera.mirror.web3.utils.Suppliers;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.annotation.Nonnull;
@@ -34,15 +35,18 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
     private final FileDataRepository fileDataRepository;
     private final EntityRepository entityRepository;
     private final SystemFileLoader systemFileLoader;
+    private final ThrottleDefinitionsManager throttleDefinitionsManager;
 
     public FileReadableKVState(
             final FileDataRepository fileDataRepository,
             final EntityRepository entityRepository,
-            SystemFileLoader systemFileLoader) {
+            SystemFileLoader systemFileLoader,
+            ThrottleDefinitionsManager throttleDefinitionsManager) {
         super(KEY);
         this.fileDataRepository = fileDataRepository;
         this.entityRepository = entityRepository;
         this.systemFileLoader = systemFileLoader;
+        this.throttleDefinitionsManager = throttleDefinitionsManager;
     }
 
     @Override
@@ -50,6 +54,10 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var fileEntityId = toEntityId(key);
         final var fileId = fileEntityId.getId();
+
+        if (fileId == 123) {
+            return throttleDefinitionsManager.loadThrottles(fileId, key, getCurrentTimestamp());
+        }
 
         return timestamp
                 .map(t -> fileDataRepository.getFileAtTimestamp(fileId, t))
