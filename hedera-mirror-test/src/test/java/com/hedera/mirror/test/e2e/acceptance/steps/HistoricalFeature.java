@@ -292,12 +292,11 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     @Then("I verify that historical data for {token} is returned via getTokenInfo")
     public void getHistoricalDataForTokenSymbol(TokenNameEnum tokenName) {
         var tokenId = tokenClient.getToken(tokenName).tokenId();
+
         var data = encodeData(PRECOMPILE, GET_TOKEN_INFO, asAddress(tokenId));
-        var response = callContract(data, precompileContractSolidityAddress, GET_TOKEN_INFO.getActualGas());
-
-        final var trimmedResponse = trimTotalSupplyForGetTokenInfo(response.toString());
-
         var initialBlockNumber = getLastBlockNumber();
+        var response = callContract(data, precompileContractSolidityAddress, GET_TOKEN_INFO.getActualGas());
+        final var trimmedResponse = trimTotalSupplyForGetTokenInfo(response.toString());
 
         waitForNextBlock();
 
