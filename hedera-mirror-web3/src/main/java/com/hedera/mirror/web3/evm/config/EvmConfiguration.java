@@ -91,6 +91,7 @@ public class EvmConfiguration {
     public static final String CACHE_NAME_ALIAS = "alias";
     public static final String CACHE_NAME_EXCHANGE_RATE = "exchangeRate";
     public static final String CACHE_NAME_FEE_SCHEDULE = "feeSchedule";
+    public static final String CACHE_NAME_THROTTLE = "throttle";
     public static final String CACHE_NAME_NFT = "nft";
     public static final String CACHE_NAME_NFT_ALLOWANCE = "nftAllowance";
     public static final String CACHE_NAME_RECORD_FILE_LATEST = "latest";
@@ -168,7 +169,7 @@ public class EvmConfiguration {
     @Bean(CACHE_MANAGER_SYSTEM_FILE)
     CacheManager cacheManagerSystemFile() {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_EXCHANGE_RATE, CACHE_NAME_FEE_SCHEDULE));
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_EXCHANGE_RATE, CACHE_NAME_FEE_SCHEDULE, CACHE_NAME_THROTTLE));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getFee());
         return caffeineCacheManager;
     }
