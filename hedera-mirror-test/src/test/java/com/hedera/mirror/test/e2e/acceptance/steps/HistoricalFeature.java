@@ -295,7 +295,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var data = encodeData(PRECOMPILE, GET_TOKEN_INFO, asAddress(tokenId));
         var response = callContract(data, precompileContractSolidityAddress, GET_TOKEN_INFO.getActualGas());
 
-        var trimmedResponse = trimTotalSupplyForGetTokenInfo(response.toString());
+        final var trimmedResponse = trimTotalSupplyForGetTokenInfo(response.toString());
 
         var initialBlockNumber = getLastBlockNumber();
 
@@ -306,7 +306,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
 
         var historicalResponse = callContract(
                 initialBlockNumber, data, precompileContractSolidityAddress, GET_TOKEN_INFO.getActualGas());
-        var historicalTrimmedResponse = trimTotalSupplyForGetTokenInfo(historicalResponse.toString());
+        final var historicalTrimmedResponse = trimTotalSupplyForGetTokenInfo(historicalResponse.toString());
         assertThat(trimmedResponse).isEqualTo(historicalTrimmedResponse);
     }
 
@@ -317,7 +317,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var data = encodeData(PRECOMPILE, GET_TOKEN_INFO, asAddress(tokenId));
         var initialBlockNumber = getLastBlockNumber();
         var response = callContract(data, precompileContractSolidityAddress, GET_TOKEN_INFO.getActualGas());
-        var trimmedResponse = trimTotalSupplyForGetTokenInfo(response.toString());
+        final var trimmedResponse = trimTotalSupplyForGetTokenInfo(response.toString());
 
         waitForNextBlock();
 
@@ -325,7 +325,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         verifyMirrorTransactionsResponse(mirrorClient, 200);
         var historicalResponse = callContract(
                 initialBlockNumber, data, precompileContractSolidityAddress, GET_TOKEN_INFO.getActualGas());
-        var trimmedHistoricalResponse = trimTotalSupplyForGetTokenInfo(response.toString());
+        final var trimmedHistoricalResponse = trimTotalSupplyForGetTokenInfo(response.toString());
 
         assertThat(trimmedResponse).isEqualTo(trimmedHistoricalResponse);
     }
@@ -337,14 +337,14 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var data = encodeData(PRECOMPILE, GET_TOKEN_INFO, asAddress(tokenId));
         var initialBlockNumber = getLastBlockNumber();
         var response = callContract(data, precompileContractSolidityAddress, GET_TOKEN_INFO.getActualGas());
-        var trimmedResponse = trimTotalSupplyForGetTokenInfo(response.toString());
+        final var trimmedResponse = trimTotalSupplyForGetTokenInfo(response.toString());
         waitForNextBlock();
 
         networkTransactionResponse = tokenClient.mint(tokenId, 5L);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
         var historicalResponse = callContract(
                 initialBlockNumber, data, precompileContractSolidityAddress, GET_TOKEN_INFO.getActualGas());
-        var trimmedHistoricalResponse = trimTotalSupplyForGetTokenInfo(historicalResponse.toString());
+        final var trimmedHistoricalResponse = trimTotalSupplyForGetTokenInfo(historicalResponse.toString());
         assertThat(trimmedResponse).isEqualTo(trimmedHistoricalResponse);
     }
 
@@ -671,7 +671,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var initialBlockNumber = getLastBlockNumber();
         var data = encodeData(PRECOMPILE, GET_FUNGIBLE_TOKEN_INFO, asAddress(tokenId.toSolidityAddress()));
         var response = callContract(data, precompileContractSolidityAddress, GET_FUNGIBLE_TOKEN_INFO.getActualGas());
-        var trimmedResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
+        final var trimmedResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
         waitForNextBlock();
 
         switch (action) {
@@ -688,7 +688,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         verifyMirrorTransactionsResponse(mirrorClient, 200);
         var historicalResponse = callContract(
                 initialBlockNumber, data, precompileContractSolidityAddress, GET_FUNGIBLE_TOKEN_INFO.getActualGas());
-        var trimmedHistoricalResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
+        final var trimmedHistoricalResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
         assertThat(trimmedResponse).isEqualTo(trimmedHistoricalResponse);
     }
 
@@ -700,7 +700,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var initialBlockNumber = getLastBlockNumber();
         var data = encodeData(PRECOMPILE, GET_FUNGIBLE_TOKEN_INFO, asAddress(tokenId.toSolidityAddress()));
         var response = callContract(data, precompileContractSolidityAddress, GET_FUNGIBLE_TOKEN_INFO.getActualGas());
-        var trimmedResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
+        final var trimmedResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
 
         waitForNextBlock();
 
@@ -733,7 +733,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         verifyMirrorTransactionsResponse(mirrorClient, 200);
         var historicalResponse = callContract(
                 initialBlockNumber, data, precompileContractSolidityAddress, GET_FUNGIBLE_TOKEN_INFO.getActualGas());
-        var trimmedHistoricalResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
+        final var trimmedHistoricalResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
         assertThat(trimmedResponse).isEqualTo(trimmedHistoricalResponse);
     }
 
