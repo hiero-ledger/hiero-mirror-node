@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package com.hedera.mirror.web3.state.throttle;
 
 import com.hedera.node.app.throttle.ThrottleParser;

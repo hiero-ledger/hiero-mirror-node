@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package com.hedera.mirror.web3.state.throttle;
 
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_FILE;
@@ -30,10 +32,10 @@ public class ThrottleDefinitionsManager {
 
     private final FileDataRepository fileDataRepository;
     private final SystemFileLoader systemFileLoader;
-    
+
     @Named("customThrottleParser")
     private final ThrottleParser throttleParser;
-    
+
     private final RetryTemplate retryTemplate = RetryTemplate.builder()
             .maxAttempts(10)
             .retryOn(InvalidFileException.class)
@@ -89,4 +91,4 @@ public class ThrottleDefinitionsManager {
         // If no valid data found, use system file loader
         return systemFileLoader.load(key);
     }
-} 
+}

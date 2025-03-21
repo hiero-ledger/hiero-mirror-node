@@ -30,9 +30,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ThrottleDefinitionsManagerTest {
 
     private static final long THROTTLE_FILE_ID = 123L;
-    private static final FileID THROTTLE_FILE_ID_PROTO = FileID.newBuilder().fileNum(THROTTLE_FILE_ID).build();
+    private static final FileID THROTTLE_FILE_ID_PROTO =
+            FileID.newBuilder().fileNum(THROTTLE_FILE_ID).build();
     private static final File systemFile = File.newBuilder()
-            .contents(Bytes.wrap(new byte[]{4, 5, 6}))
+            .contents(Bytes.wrap(new byte[] {4, 5, 6}))
             .fileId(THROTTLE_FILE_ID_PROTO)
             .build();
     private static final Bytes MOCK_ENCODED_THROTTLE_DEFS = Bytes.wrap("NOPE");
@@ -44,6 +45,7 @@ class ThrottleDefinitionsManagerTest {
             .consensusTimestamp(300L)
             .fileData("corrupt".getBytes())
             .build();
+
     @Mock
     private FileDataRepository fileDataRepository;
 
@@ -60,8 +62,8 @@ class ThrottleDefinitionsManagerTest {
     void loadThrottlesSuccessfully() {
         when(fileDataRepository.getFileAtTimestamp(eq(THROTTLE_FILE_ID), anyLong()))
                 .thenReturn(Optional.of(validThrottleFileData));
-        when(throttleParser.parse(any(Bytes.class))).thenReturn(new ValidatedThrottles(ThrottleDefinitions.DEFAULT,
-                ResponseCodeEnum.SUCCESS));
+        when(throttleParser.parse(any(Bytes.class)))
+                .thenReturn(new ValidatedThrottles(ThrottleDefinitions.DEFAULT, ResponseCodeEnum.SUCCESS));
 
         final var actual = throttleDefinitionsManager.loadThrottles(THROTTLE_FILE_ID, THROTTLE_FILE_ID_PROTO, 250L);
 
@@ -75,7 +77,8 @@ class ThrottleDefinitionsManagerTest {
         when(systemFileLoader.load(THROTTLE_FILE_ID_PROTO)).thenReturn(systemFile);
         when(fileDataRepository.getFileAtTimestamp(eq(THROTTLE_FILE_ID), anyLong()))
                 .thenReturn(Optional.of(corruptThrottleFileData));
-        when(throttleParser.parse(any(Bytes.class))).thenThrow(new HandleException(ResponseCodeEnum.UNPARSEABLE_THROTTLE_DEFINITIONS));
+        when(throttleParser.parse(any(Bytes.class)))
+                .thenThrow(new HandleException(ResponseCodeEnum.UNPARSEABLE_THROTTLE_DEFINITIONS));
 
         final var actual = throttleDefinitionsManager.loadThrottles(THROTTLE_FILE_ID, THROTTLE_FILE_ID_PROTO, 350L);
         assertThat(actual).isEqualTo(systemFile);
@@ -85,7 +88,8 @@ class ThrottleDefinitionsManagerTest {
     void loadThrottlesWithCorruptDataResolveToSystemFileThatReturnsNull() {
         when(fileDataRepository.getFileAtTimestamp(eq(THROTTLE_FILE_ID), anyLong()))
                 .thenReturn(Optional.of(corruptThrottleFileData));
-        when(throttleParser.parse(any(Bytes.class))).thenThrow(new HandleException(ResponseCodeEnum.UNPARSEABLE_THROTTLE_DEFINITIONS));
+        when(throttleParser.parse(any(Bytes.class)))
+                .thenThrow(new HandleException(ResponseCodeEnum.UNPARSEABLE_THROTTLE_DEFINITIONS));
 
         final var actual = throttleDefinitionsManager.loadThrottles(THROTTLE_FILE_ID, THROTTLE_FILE_ID_PROTO, 350L);
         assertThat(actual).isEqualTo(null);
@@ -99,10 +103,13 @@ class ThrottleDefinitionsManagerTest {
         when(fileDataRepository.getFileAtTimestamp(THROTTLE_FILE_ID, 299L))
                 .thenReturn(Optional.of(validThrottleFileData));
         when(throttleParser.parse(any(Bytes.class)))
-                .thenThrow(new HandleException(ResponseCodeEnum.UNPARSEABLE_THROTTLE_DEFINITIONS)) // First call throws exception
-                .thenReturn(new ValidatedThrottles(ThrottleDefinitions.DEFAULT, ResponseCodeEnum.SUCCESS)); // Second call returns success
+                .thenThrow(new HandleException(
+                        ResponseCodeEnum.UNPARSEABLE_THROTTLE_DEFINITIONS)) // First call throws exception
+                .thenReturn(new ValidatedThrottles(
+                        ThrottleDefinitions.DEFAULT, ResponseCodeEnum.SUCCESS)); // Second call returns success
 
-        final var actual = throttleDefinitionsManager.loadThrottles(THROTTLE_FILE_ID, THROTTLE_FILE_ID_PROTO, currentNanos);
+        final var actual =
+                throttleDefinitionsManager.loadThrottles(THROTTLE_FILE_ID, THROTTLE_FILE_ID_PROTO, currentNanos);
 
         assertThat(actual).isNotNull();
         assertThat(actual.contents()).isEqualTo(MOCK_ENCODED_THROTTLE_DEFS);
@@ -125,10 +132,11 @@ class ThrottleDefinitionsManagerTest {
         when(systemFileLoader.load(THROTTLE_FILE_ID_PROTO)).thenReturn(systemFile);
         when(fileDataRepository.getFileAtTimestamp(eq(THROTTLE_FILE_ID), anyLong()))
                 .thenReturn(Optional.of(corruptThrottleFileData));
-        when(throttleParser.parse(any(Bytes.class))).thenThrow(new HandleException(ResponseCodeEnum.UNPARSEABLE_THROTTLE_DEFINITIONS));
+        when(throttleParser.parse(any(Bytes.class)))
+                .thenThrow(new HandleException(ResponseCodeEnum.UNPARSEABLE_THROTTLE_DEFINITIONS));
 
         final var actual = throttleDefinitionsManager.loadThrottles(THROTTLE_FILE_ID, THROTTLE_FILE_ID_PROTO, 350L);
 
         assertThat(actual).isEqualTo(systemFile);
     }
-} 
+}

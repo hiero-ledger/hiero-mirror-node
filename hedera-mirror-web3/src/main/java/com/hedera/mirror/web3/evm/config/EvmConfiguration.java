@@ -169,7 +169,8 @@ public class EvmConfiguration {
     @Bean(CACHE_MANAGER_SYSTEM_FILE)
     CacheManager cacheManagerSystemFile() {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_EXCHANGE_RATE, CACHE_NAME_FEE_SCHEDULE, CACHE_NAME_THROTTLE));
+        caffeineCacheManager.setCacheNames(
+                Set.of(CACHE_NAME_EXCHANGE_RATE, CACHE_NAME_FEE_SCHEDULE, CACHE_NAME_THROTTLE));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getFee());
         return caffeineCacheManager;
     }
