@@ -83,6 +83,7 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_RECORD_FILE_INDEX = "recordFileIndex";
     public static final String CACHE_MANAGER_RECORD_FILE_TIMESTAMP = "recordFileTimestamp";
     public static final String CACHE_MANAGER_SYSTEM_FILE = "systemFile";
+    public static final String CACHE_MANAGER_SYSTEM_FILE_MODULARIZED = "systemFileModularized";
     public static final String CACHE_MANAGER_TOKEN = "token";
     public static final String CACHE_MANAGER_TOKEN_TYPE = "tokenType";
     public static final String CACHE_NAME = "default";
@@ -169,8 +170,15 @@ public class EvmConfiguration {
     @Bean(CACHE_MANAGER_SYSTEM_FILE)
     CacheManager cacheManagerSystemFile() {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheNames(
-                Set.of(CACHE_NAME_EXCHANGE_RATE, CACHE_NAME_FEE_SCHEDULE, CACHE_NAME_THROTTLE));
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_EXCHANGE_RATE, CACHE_NAME_FEE_SCHEDULE));
+        caffeineCacheManager.setCacheSpecification(cacheProperties.getFee());
+        return caffeineCacheManager;
+    }
+
+    @Bean(CACHE_MANAGER_SYSTEM_FILE_MODULARIZED)
+    CacheManager cacheManagerSystemFileModularized() {
+        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_THROTTLE));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getFee());
         return caffeineCacheManager;
     }

@@ -2,11 +2,19 @@
 
 package com.hedera.mirror.web3.state;
 
+import static com.hedera.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_FILE_MODULARIZED;
+import static com.hedera.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_THROTTLE;
+
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
+import com.hedera.hapi.node.transaction.ThrottleDefinitions;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import com.hedera.mirror.web3.exception.InvalidFileException;
+import com.hedera.mirror.web3.repository.FileDataRepository;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hedera.node.config.data.EntitiesConfig;
+import com.hedera.pbj.runtime.Codec;
+import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -14,23 +22,81 @@ import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.retry.support.RetryTemplate;
 
 @Named
+@CustomLog
 @RequiredArgsConstructor
 public class SystemFileLoader {
 
     private final MirrorNodeEvmProperties properties;
+    private final FileDataRepository fileDataRepository;
     private final V0490FileSchema fileSchema = new V0490FileSchema();
+    private final RetryTemplate retryTemplate = RetryTemplate.builder()
+            .maxAttempts(10)
+            .retryOn(InvalidFileException.class)
+            .build();
 
     @Getter(lazy = true)
     private final Map<FileID, File> systemFiles = loadAll();
 
     public @Nullable File load(@Nonnull FileID key) {
         return getSystemFiles().get(key);
+    }
+
+    @Cacheable(
+            cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
+            cacheNames = CACHE_NAME_THROTTLE,
+            key = "'now'",
+            unless = "#result == null")
+    public File loadThrottles(final long fileId, final FileID key, final long currentTimestamp) {
+        return loadWithRetry(fileId, key, currentTimestamp, ThrottleDefinitions.PROTOBUF);
+    }
+
+    /**
+     * Load file data with retry logic and parsing. This method will attempt to load and parse file data,
+     * retrying with earlier versions if parsing fails.
+     *
+     * @param fileId The ID of the file to load
+     * @param key The FileID object representing the file
+     * @param currentTimestamp The current timestamp to start loading from
+     * @param codec The codec to use for parsing
+     * @return The parsed file data, or the default value if no valid data is found
+     */
+    public <T> File loadWithRetry(final long fileId, final FileID key, final long currentTimestamp, Codec<T> codec) {
+        AtomicLong nanoSeconds = new AtomicLong(currentTimestamp);
+
+        try {
+            return retryTemplate.execute(context -> fileDataRepository
+                    .getFileAtTimestamp(fileId, nanoSeconds.get())
+                    .map(fileData -> {
+                        try {
+                            var bytes = Bytes.wrap(fileData.getFileData());
+                            codec.parse(bytes.toReadableSequentialData());
+                            return File.newBuilder().contents(bytes).fileId(key).build();
+                        } catch (ParseException e) {
+                            log.warn(
+                                    "Failed to parse file data for fileId {} at {}, retry attempt {}. Exception: ",
+                                    fileId,
+                                    nanoSeconds.get(),
+                                    context.getRetryCount() + 1,
+                                    e);
+                            nanoSeconds.set(fileData.getConsensusTimestamp() - 1);
+                            throw new InvalidFileException(e);
+                        }
+                    })
+                    .orElseGet(() -> load(key)));
+        } catch (InvalidFileException e) {
+            log.warn("All retry attempts failed for fileId {}: {}", fileId, e.getMessage());
+            return load(key);
+        }
     }
 
     private Map<FileID, File> loadAll() {

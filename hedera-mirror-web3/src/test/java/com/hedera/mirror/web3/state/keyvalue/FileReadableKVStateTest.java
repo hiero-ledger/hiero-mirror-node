@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.file.FileData;
@@ -64,6 +65,9 @@ class FileReadableKVStateTest {
 
     @Mock
     private SystemFileLoader systemFileLoader;
+
+    @Mock
+    private CommonProperties commonProperties;
 
     @BeforeAll
     static void initStaticMocks() {
