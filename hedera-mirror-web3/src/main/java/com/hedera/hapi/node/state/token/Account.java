@@ -523,6 +523,11 @@ public record Account(
         return numberPendingAirdrops == thatObj.numberPendingAirdrops;
     }
 
+    @Override
+    public String toString() {
+        return alias.toString();
+    }
+
     /**
      * Convenience method to check if the accountId has a value
      *
