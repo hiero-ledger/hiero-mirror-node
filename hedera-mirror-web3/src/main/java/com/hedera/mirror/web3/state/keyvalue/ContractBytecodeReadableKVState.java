@@ -52,7 +52,7 @@ public class ContractBytecodeReadableKVState extends AbstractReadableKVState<Con
                 return DomainUtils.fromEvmAddress(evmAddress);
             } else {
                 return commonEntityAccessor
-                        .getEntityByEvmAddressTimestampShardAndRealm(evmAddress, Optional.empty())
+                        .getEntityByEvmAddressAndTimestamp(evmAddress, Optional.empty())
                         .map(Entity::toEntityId)
                         .orElse(EntityId.EMPTY);
             }

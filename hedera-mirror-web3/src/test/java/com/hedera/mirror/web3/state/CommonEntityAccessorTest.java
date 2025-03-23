@@ -101,8 +101,8 @@ class CommonEntityAccessorTest {
         var account = createAccountAliasWithEVMAddress(shard, realm);
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(
-                        account.alias().toByteArray(), account.shardNum(), account.realmNum()))
+        when(entityRepository.findByShardAndRealmAndEvmAddressOrAliasAndDeletedIsFalse(
+                        account.shardNum(), account.realmNum(), account.alias().toByteArray()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account, Optional.empty()))
@@ -115,8 +115,8 @@ class CommonEntityAccessorTest {
         var account = createAccountAliasWithEVMAddress(shard, realm);
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        account.alias().toByteArray(), timestamp.get(), account.shardNum(), account.realmNum()))
+        when(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        account.shardNum(), account.realmNum(), account.alias().toByteArray(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account, timestamp))
@@ -129,8 +129,8 @@ class CommonEntityAccessorTest {
         var account = createAccountAliasWithKey(shard, realm);
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(
-                        account.alias().toByteArray(), account.shardNum(), account.realmNum()))
+        when(entityRepository.findByShardAndRealmAndEvmAddressOrAliasAndDeletedIsFalse(
+                        account.shardNum(), account.realmNum(), account.alias().toByteArray()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account, Optional.empty()))
@@ -143,8 +143,8 @@ class CommonEntityAccessorTest {
         var account = createAccountAliasWithKey(shard, realm);
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        account.alias().toByteArray(), timestamp.get(), account.shardNum(), account.realmNum()))
+        when(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        account.shardNum(), account.realmNum(), account.alias().toByteArray(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account, timestamp))
@@ -157,8 +157,8 @@ class CommonEntityAccessorTest {
         var account = createAccountAliasWithEVMAddress(shard, realm);
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(
-                        account.alias().toByteArray(), account.shardNum(), account.realmNum()))
+        when(entityRepository.findByShardAndRealmAndEvmAddressOrAliasAndDeletedIsFalse(
+                        account.shardNum(), account.realmNum(), account.alias().toByteArray()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account.alias(), Optional.empty()))
@@ -171,8 +171,8 @@ class CommonEntityAccessorTest {
         var account = createAccountAliasWithEVMAddress(shard, realm);
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        account.alias().toByteArray(), timestamp.get(), account.shardNum(), account.realmNum()))
+        when(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        account.shardNum(), account.realmNum(), account.alias().toByteArray(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account.alias(), timestamp))
@@ -185,8 +185,8 @@ class CommonEntityAccessorTest {
         var account = createAccountAliasWithKey(shard, realm);
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(
-                        account.alias().toByteArray(), account.shardNum(), account.realmNum()))
+        when(entityRepository.findByShardAndRealmAndEvmAddressOrAliasAndDeletedIsFalse(
+                        account.shardNum(), account.realmNum(), account.alias().toByteArray()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account.alias(), Optional.empty()))
@@ -199,8 +199,8 @@ class CommonEntityAccessorTest {
         var account = createAccountAliasWithKey(shard, realm);
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        account.alias().toByteArray(), timestamp.get(), account.shardNum(), account.realmNum()))
+        when(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        account.shardNum(), account.realmNum(), account.alias().toByteArray(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account.alias(), timestamp))
@@ -213,11 +213,11 @@ class CommonEntityAccessorTest {
         var account = createAccountAliasWithEVMAddress(shard, realm);
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
-                        account.alias().toByteArray(), account.shardNum(), account.realmNum()))
+        when(entityRepository.findByShardAndRealmAndEvmAddressAndDeletedIsFalse(
+                        account.shardNum(), account.realmNum(), account.alias().toByteArray()))
                 .thenReturn(Optional.of(mockEntity));
 
-        assertThat(commonEntityAccessor.getEntityByEvmAddressTimestampShardAndRealm(
+        assertThat(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(
                         account.alias().toByteArray(), Optional.empty()))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
@@ -228,11 +228,11 @@ class CommonEntityAccessorTest {
         var account = createAccountAliasWithEVMAddress(shard, realm);
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        account.alias().toByteArray(), timestamp.get(), account.shardNum(), account.realmNum()))
+        when(entityRepository.findActiveByShardAndRealmAndEvmAddressAndTimestamp(
+                        account.shardNum(), account.realmNum(), account.alias().toByteArray(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
-        assertThat(commonEntityAccessor.getEntityByEvmAddressTimestampShardAndRealm(
+        assertThat(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(
                         account.alias().toByteArray(), timestamp))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }

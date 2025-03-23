@@ -5,13 +5,13 @@ package com.hedera.mirror.web3.evm.store.accessor;
 import static com.hedera.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases.isMirror;
 
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.evm.store.DatabaseBackedStateFrame.DatabaseAccessIncorrectKeyTypeException;
 import com.hedera.mirror.web3.repository.EntityRepository;
-import com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Optional;
@@ -29,10 +29,10 @@ public class EntityDatabaseAccessor extends DatabaseAccessor<Object, Entity> {
     public @Nonnull Optional<Entity> get(@Nonnull Object key, final Optional<Long> timestamp) {
         if (key instanceof Address address) {
             final var addressBytes = address.toArrayUnsafe();
-            if (HederaEvmContractAliases.isMirror(addressBytes)) {
+            if (isMirror(addressBytes)) {
                 return getEntityByMirrorAddressAndTimestamp(address, timestamp);
             } else {
-                return getEntityByEvmAddressTimestampShardAndRealm(addressBytes, timestamp);
+                return getEntityByEvmAddressTimestamp(addressBytes, timestamp);
             }
         }
         throw new DatabaseAccessIncorrectKeyTypeException("Accessor for class %s failed to fetch by key of type %s"
@@ -46,13 +46,12 @@ public class EntityDatabaseAccessor extends DatabaseAccessor<Object, Entity> {
                 .orElseGet(() -> entityRepository.findByIdAndDeletedIsFalse(entityId));
     }
 
-    private Optional<Entity> getEntityByEvmAddressTimestampShardAndRealm(
-            byte[] addressBytes, final Optional<Long> timestamp) {
+    private Optional<Entity> getEntityByEvmAddressTimestamp(byte[] addressBytes, final Optional<Long> timestamp) {
         return timestamp
-                .map(t -> entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        addressBytes, t, commonProperties.getShard(), commonProperties.getRealm()))
-                .orElseGet(() -> entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
-                        addressBytes, commonProperties.getShard(), commonProperties.getRealm()));
+                .map(t -> entityRepository.findActiveByShardAndRealmAndEvmAddressAndTimestamp(
+                        commonProperties.getShard(), commonProperties.getRealm(), addressBytes, t))
+                .orElseGet(() -> entityRepository.findByShardAndRealmAndEvmAddressAndDeletedIsFalse(
+                        commonProperties.getShard(), commonProperties.getRealm(), addressBytes));
     }
 
     public Address evmAddressFromId(EntityId entityId, final Optional<Long> timestamp) {

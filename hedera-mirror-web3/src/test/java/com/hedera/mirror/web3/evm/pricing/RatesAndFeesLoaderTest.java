@@ -32,7 +32,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class RatesAndFeesLoaderTest {
-    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     private static final ExchangeRateSet exchangeRatesSet = ExchangeRateSet.newBuilder()
             .setCurrentRate(ExchangeRate.newBuilder()
                     .setCentEquiv(1)
@@ -70,13 +69,7 @@ class RatesAndFeesLoaderTest {
             .fileData("corrupt".getBytes())
             .build();
     private static final long EXCHANGE_RATES_ID = SystemEntity.EXCHANGE_RATE.getNum();
-    private static final String CORRUPT_RATES_MESSAGE = String.format(
-            "Rates %s.%s.%d are corrupt!",
-            COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), EXCHANGE_RATES_ID);
     private static final long FEE_SCHEDULES_ID = SystemEntity.FEE_SCHEDULE.getNum();
-    private static final String CORRUPT_SCHEDULES_MESSAGE = String.format(
-            "Fee schedule %s.%s.%d is corrupt!",
-            COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), FEE_SCHEDULES_ID);
 
     @Mock
     private FileDataRepository fileDataRepository;
@@ -93,7 +86,6 @@ class RatesAndFeesLoaderTest {
     @BeforeEach
     void setup() {
         when(evmProperties.getNetwork()).thenReturn(HederaNetwork.TESTNET);
-        commonProperties = new CommonProperties();
     }
 
     @Test
@@ -128,12 +120,15 @@ class RatesAndFeesLoaderTest {
 
     @Test
     void loadWrongDataExchangeRates() {
+        var expectedMessage = String.format("Rates %s.%s.%d are corrupt!", 0L, 0L, EXCHANGE_RATES_ID);
+        when(commonProperties.getShard()).thenReturn(0L);
+        when(commonProperties.getRealm()).thenReturn(0L);
         when(fileDataRepository.getFileAtTimestamp(eq(EXCHANGE_RATES_ID), anyLong()))
                 .thenReturn(Optional.of(fileDataCorrupt));
 
         final var exception = assertThrows(IllegalStateException.class, () -> subject.loadExchangeRates(350L));
 
-        assertThat(exception.getMessage()).isEqualTo(CORRUPT_RATES_MESSAGE);
+        assertThat(exception.getMessage()).isEqualTo(expectedMessage);
     }
 
     @Test
@@ -179,12 +174,15 @@ class RatesAndFeesLoaderTest {
 
     @Test
     void loadWrongDataFeeSchedules() {
+        var expectedMessage = String.format("Fee schedule %s.%s.%d is corrupt!", 0L, 0L, FEE_SCHEDULES_ID);
+        when(commonProperties.getShard()).thenReturn(0L);
+        when(commonProperties.getRealm()).thenReturn(0L);
         when(fileDataRepository.getFileAtTimestamp(eq(FEE_SCHEDULES_ID), anyLong()))
                 .thenReturn(Optional.of(fileDataCorrupt));
 
         final var exception = assertThrows(IllegalStateException.class, () -> subject.loadFeeSchedules(350L));
 
-        assertThat(exception.getMessage()).isEqualTo(CORRUPT_SCHEDULES_MESSAGE);
+        assertThat(exception.getMessage()).isEqualTo(expectedMessage);
     }
 
     @Test

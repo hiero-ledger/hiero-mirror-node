@@ -15,7 +15,6 @@ import static com.swirlds.state.lifecycle.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.web3.common.ContractCallContext;
@@ -63,8 +62,6 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
 
-    private final CommonProperties commonProperties;
-
     @Getter
     private boolean allowTreasuryToOwnNfts = true;
 
@@ -95,7 +92,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @DurationMin(seconds = 1)
     private Duration expirationCacheTime = Duration.ofMinutes(10L);
 
-    private EntityId fundingAccount;
+    private String fundingAccount;
 
     @Getter
     private long htsDefaultGasCost = 10000;
@@ -197,8 +194,8 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     @Autowired
     public MirrorNodeEvmProperties(CommonProperties commonProperties) {
-        this.commonProperties = commonProperties;
-        fundingAccount = SystemEntity.FEE_COLLECTOR_ACCOUNT.getScopedEntityId(this.commonProperties);
+        fundingAccount = toAddress(SystemEntity.FEE_COLLECTOR_ACCOUNT.getScopedEntityId(commonProperties))
+                .toHexString();
     }
 
     public boolean shouldAutoRenewAccounts() {
@@ -274,7 +271,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     @Override
     public Address fundingAccountAddress() {
-        return toAddress(fundingAccount);
+        return Address.fromHexString(fundingAccount);
     }
 
     @Override

@@ -58,17 +58,17 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         setCommonProperties(shard, realm);
         final var entity1 = entityPersistWithShardAndRealm(shard, realm);
         final var entity2 = entityPersistWithShardAndRealm(shard, realm);
-        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
-                        entity1.getEvmAddress(), shard, realm))
+        assertThat(entityRepository.findByShardAndRealmAndEvmAddressAndDeletedIsFalse(
+                        shard, realm, entity1.getEvmAddress()))
                 .contains(entity1);
 
         // Validate entity1 is cached and entity2 can't be found since it's not cached
         entityRepository.deleteAll();
-        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
-                        entity1.getEvmAddress(), shard, realm))
+        assertThat(entityRepository.findByShardAndRealmAndEvmAddressAndDeletedIsFalse(
+                        shard, realm, entity1.getEvmAddress()))
                 .contains(entity1);
-        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
-                        entity2.getEvmAddress(), shard, realm))
+        assertThat(entityRepository.findByShardAndRealmAndEvmAddressAndDeletedIsFalse(
+                        shard, realm, entity2.getEvmAddress()))
                 .isEmpty();
     }
 
@@ -78,7 +78,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         setCommonProperties(shard, realm);
         entityPersistWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(new byte[32], shard, realm))
+        assertThat(entityRepository.findByShardAndRealmAndEvmAddressAndDeletedIsFalse(shard, realm, new byte[32]))
                 .isEmpty();
     }
 
@@ -88,8 +88,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         setCommonProperties(shard, realm);
 
         final var entity = entityPersistDeletedWithShardAndRealm(shard, realm);
-        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalseAndShardAndRealm(
-                        entity.getEvmAddress(), shard, realm))
+        assertThat(entityRepository.findByShardAndRealmAndEvmAddressAndDeletedIsFalse(
+                        shard, realm, entity.getEvmAddress()))
                 .isEmpty();
     }
 
@@ -100,8 +100,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
         final var entity = entityPersistWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower() + 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entity.getTimestampLower() + 1))
                 .get()
                 .isEqualTo(entity);
     }
@@ -113,8 +113,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
         final var entity = entityPersistWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower(), shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entity.getTimestampLower()))
                 .get()
                 .isEqualTo(entity);
     }
@@ -126,8 +126,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
         final var entity = entityPersistWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower() - 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entity.getTimestampLower() - 1))
                 .isEmpty();
     }
 
@@ -138,8 +138,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
         final var entity = entityPersistDeletedWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower() + 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entity.getTimestampLower() + 1))
                 .isEmpty();
     }
 
@@ -150,8 +150,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
         final var entityHistory = entityHistoryPersistDeletedWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entityHistory.getEvmAddress(), entityHistory.getTimestampLower() - 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressAndTimestamp(
+                        shard, realm, entityHistory.getEvmAddress(), entityHistory.getTimestampLower() - 1))
                 .isEmpty();
     }
 
@@ -164,9 +164,10 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final var entityHistory = entityHistoryPersistWithShardAndRealm(shard, realm);
         final var entity = entityPersistWithHistoryIdShardAndRealm(entityHistory.getId(), shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entityHistory.getTimestampLower() - 1, shard, realm))
-                .isEmpty();
+        assertThat(entityRepository
+                .findActiveByShardAndRealmAndEvmAddressAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entityHistory.getTimestampLower() - 1)
+                .isEmpty());
     }
 
     @ParameterizedTest
@@ -179,8 +180,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         // Both entity and entity history will be queried in union but entity record is the latest valid
         final var entity = entityPersistWithHistoryIdShardAndRealm(entityHistory.getId(), shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower(), shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entity.getTimestampLower()))
                 .get()
                 .isEqualTo(entity);
     }
@@ -195,8 +196,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         // Both entity and entity history will be queried in union but entity history record is the latest valid
         final var entityHistory = entityHistoryPersistWithEntityIdShardAndRealm(entity.getId(), shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entityHistory.getTimestampLower(), shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entityHistory.getTimestampLower()))
                 .get()
                 .usingRecursiveComparison()
                 .isEqualTo(entityHistory);
@@ -295,7 +296,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .entity()
                 .customize(e -> e.alias(alias).shard(shard).realm(realm))
                 .persist();
-        assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(alias, shard, realm))
+        assertThat(entityRepository.findByShardAndRealmAndEvmAddressOrAliasAndDeletedIsFalse(shard, realm, alias))
                 .get()
                 .isEqualTo(entity);
     }
@@ -309,7 +310,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .entity()
                 .customize(e -> e.evmAddress(evmAddress).shard(shard).realm(realm))
                 .persist();
-        assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(evmAddress, shard, realm))
+        assertThat(entityRepository.findByShardAndRealmAndEvmAddressOrAliasAndDeletedIsFalse(shard, realm, evmAddress))
                 .get()
                 .isEqualTo(entity);
     }
@@ -323,7 +324,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .entity()
                 .customize(e -> e.alias(alias).deleted(true).shard(shard).realm(realm))
                 .persist();
-        assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(alias, shard, realm))
+        assertThat(entityRepository.findByShardAndRealmAndEvmAddressOrAliasAndDeletedIsFalse(shard, realm, alias))
                 .isEmpty();
     }
 
@@ -337,7 +338,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .customize(
                         e -> e.evmAddress(evmAddress).deleted(true).shard(shard).realm(realm))
                 .persist();
-        assertThat(entityRepository.findByEvmAddressOrAliasAndShardAndRealm(evmAddress, shard, realm))
+        assertThat(entityRepository.findByShardAndRealmAndEvmAddressOrAliasAndDeletedIsFalse(shard, realm, evmAddress))
                 .isEmpty();
     }
 
@@ -348,8 +349,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         setCommonProperties(shard, realm);
         final var entity = entityPersistWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entity.getTimestampLower() + 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getAlias(), entity.getTimestampLower() + 1))
                 .get()
                 .isEqualTo(entity);
     }
@@ -361,8 +362,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         setCommonProperties(shard, realm);
         final var entity = entityPersistWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower() + 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entity.getTimestampLower() + 1))
                 .get()
                 .isEqualTo(entity);
     }
@@ -374,8 +375,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         setCommonProperties(shard, realm);
         final var entity = entityPersistWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entity.getTimestampLower(), shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getAlias(), entity.getTimestampLower()))
                 .get()
                 .isEqualTo(entity);
     }
@@ -387,8 +388,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         setCommonProperties(shard, realm);
         final var entity = entityPersistWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower(), shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entity.getTimestampLower()))
                 .get()
                 .isEqualTo(entity);
     }
@@ -400,8 +401,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         setCommonProperties(shard, realm);
         final var entity = entityPersistWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entity.getTimestampLower() - 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getAlias(), entity.getTimestampLower() - 1))
                 .isEmpty();
     }
 
@@ -412,8 +413,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         setCommonProperties(shard, realm);
         final var entity = entityPersistWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower() - 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entity.getTimestampLower() - 1))
                 .isEmpty();
     }
 
@@ -424,8 +425,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         setCommonProperties(shard, realm);
         final var entity = entityPersistDeletedWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entity.getTimestampLower() + 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getAlias(), entity.getTimestampLower() + 1))
                 .isEmpty();
     }
 
@@ -436,8 +437,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         setCommonProperties(shard, realm);
         final var entity = entityPersistDeletedWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower() + 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entity.getTimestampLower() + 1))
                 .isEmpty();
     }
 
@@ -447,8 +448,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         setCommonProperties(shard, realm);
         final var entityHistory = entityHistoryPersistDeletedWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entityHistory.getAlias(), entityHistory.getTimestampLower() - 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entityHistory.getAlias(), entityHistory.getTimestampLower() - 1))
                 .isEmpty();
     }
 
@@ -459,8 +460,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         setCommonProperties(shard, realm);
         final var entityHistory = entityHistoryPersistDeletedWithShardAndRealm(shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entityHistory.getEvmAddress(), entityHistory.getTimestampLower() - 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entityHistory.getEvmAddress(), entityHistory.getTimestampLower() - 1))
                 .isEmpty();
     }
 
@@ -472,8 +473,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final var entityHistory = entityHistoryPersistWithShardAndRealm(shard, realm);
         final var entity = entityPersistWithHistoryIdShardAndRealm(entityHistory.getId(), shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entityHistory.getTimestampLower() - 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getAlias(), entityHistory.getTimestampLower() - 1))
                 .isEmpty();
     }
 
@@ -486,8 +487,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final var entityHistory = entityHistoryPersistWithShardAndRealm(shard, realm);
         final var entity = entityPersistWithHistoryIdShardAndRealm(entityHistory.getId(), shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entityHistory.getTimestampLower() - 1, shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entityHistory.getTimestampLower() - 1))
                 .isEmpty();
     }
 
@@ -501,8 +502,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         // Both entity and entity history will be queried in union but entity record is the latest valid
         final var entity = entityPersistWithHistoryIdShardAndRealm(entityHistory.getId(), shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entity.getTimestampLower(), shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getAlias(), entity.getTimestampLower()))
                 .get()
                 .isEqualTo(entity);
     }
@@ -517,8 +518,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         // Both entity and entity history will be queried in union but entity record is the latest valid
         final var entity = entityPersistWithHistoryIdShardAndRealm(entityHistory.getId(), shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entity.getTimestampLower(), shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entity.getTimestampLower()))
                 .get()
                 .isEqualTo(entity);
     }
@@ -532,8 +533,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         // Both entity and entity history will be queried in union but entity history record is the latest valid
         final var entityHistory = entityHistoryPersistWithEntityIdShardAndRealm(entity.getId(), shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getAlias(), entityHistory.getTimestampLower(), shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getAlias(), entityHistory.getTimestampLower()))
                 .get()
                 .usingRecursiveComparison()
                 .isEqualTo(entityHistory);
@@ -548,8 +549,8 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         // Both entity and entity history will be queried in union but entity history record is the latest valid
         final var entityHistory = entityHistoryPersistWithEntityIdShardAndRealm(entity.getId(), shard, realm);
 
-        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestampAndShardAndRealm(
-                        entity.getEvmAddress(), entityHistory.getTimestampLower(), shard, realm))
+        assertThat(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+                        shard, realm, entity.getEvmAddress(), entityHistory.getTimestampLower()))
                 .get()
                 .usingRecursiveComparison()
                 .isEqualTo(entityHistory);
