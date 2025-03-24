@@ -59,7 +59,8 @@ class SystemFileLoaderTest {
     @BeforeEach
     void setup() {
         commonProperties = new CommonProperties();
-        systemFileLoader = new SystemFileLoader(new MirrorNodeEvmProperties(commonProperties), fileDataRepository, commonProperties);
+        systemFileLoader = new SystemFileLoader(
+                new MirrorNodeEvmProperties(commonProperties), fileDataRepository, commonProperties);
     }
 
     @ParameterizedTest
