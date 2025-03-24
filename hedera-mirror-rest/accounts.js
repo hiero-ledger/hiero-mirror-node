@@ -35,9 +35,10 @@ const getEntityStakeQuery = (filter, isHistorical = false) => {
 /**
  * Processes one row of the results of the SQL query and format into API return format
  * @param {Object} row One row of the SQL query result
+ * @param includeTokenBalances include token balance info or not
  * @return {Object} Processed account record
  */
-const processRow = (row) => {
+const processRow = (row, includeTokenBalances = true) => {
   const alias = base32.encode(row.alias);
   const balance =
     row.balance === undefined
@@ -45,7 +46,7 @@ const processRow = (row) => {
       : {
           balance: row.balance,
           timestamp: utils.nsToSecNs(row.balance_timestamp),
-          tokens: utils.parseTokenBalances(row.token_balances),
+          ...(includeTokenBalances ? {tokens: utils.parseTokenBalances(row.token_balances)} : {}),
         };
   const entityId = EntityId.parse(row.id);
   let evmAddress = row.evm_address && utils.toHexString(row.evm_address, true);
@@ -122,6 +123,7 @@ const entityFields = [
  * @param tokenBalanceQuery
  * @param accountBalanceQuery
  * @param isHistorical whether to query historical data
+ * @param includeTokenBalances include token balance info or not
  * @return {{query: string, params: *[]}}
  */
 const getEntityBalanceQuery = (
@@ -131,7 +133,8 @@ const getEntityBalanceQuery = (
   pubKeyQuery,
   tokenBalanceQuery,
   accountBalanceQuery,
-  isHistorical = false
+  isHistorical = false,
+  includeTokenBalances = true
 ) => {
   const {query: limitQuery, params: limitParams, order} = limitAndOrderQuery;
 
@@ -218,7 +221,11 @@ const getEntityBalanceQuery = (
     utils.mergeParams(params, limitParams);
   }
 
-  const selectFields = [entityFields, selectTokenBalance, balanceField, balanceTimestampField];
+  const selectFields = [entityFields];
+  if (includeTokenBalances) {
+    selectFields.push(selectTokenBalance);
+  }
+  selectFields.push(balanceField, balanceTimestampField);
   queries.push(`select ${selectFields.join(',\n')}
     from ${entityTable} as e
     left join
@@ -243,6 +250,7 @@ const emptyTransactionsPromise = Promise.resolve({transactions: [], links: {next
  * @param pubKeyQuery optional entity public key query
  * @param includeBalance include balance info or not
  * @param isHistorical whether to query historical data
+ * @param includeTokenBalance include token balance info or not
  * @return {{query: string, params: []}}
  */
 const getAccountQuery = (
@@ -253,7 +261,8 @@ const getAccountQuery = (
   limitAndOrderQuery = {query: '', params: [], order: constants.orderFilterValues.ASC},
   pubKeyQuery = {query: '', params: []},
   includeBalance = true,
-  isHistorical = false
+  isHistorical = false,
+  includeTokenBalance = true
 ) => {
   // Keep track of Postgres positional param index when converting MySQL style value placeholder ? to Postgres style
   // $1, $2, .... The query fragments are ordered in the same order as their params
@@ -293,7 +302,8 @@ const getAccountQuery = (
     pubKeyQuery,
     tokenBalanceQuery,
     accountBalanceQuery,
-    isHistorical
+    isHistorical,
+    includeTokenBalance
   );
 };
 
@@ -336,6 +346,8 @@ const getAccounts = async (req, res) => {
   const includeBalance = getBalanceParamValue(req.query);
   const limitAndOrderQuery = utils.parseLimitAndOrderParams(req, constants.orderFilterValues.ASC);
   const pubKeyQuery = toQueryObject(utils.parsePublicKeyQueryParam(req.query, 'public_key'));
+  const includeTokenBalances = utils.parseTokenBalancesParamValue(req.query);
+
   const tokenBalanceQuery = {query: 'account_id = e.id', params: [], limit: tokenBalanceResponseLimit.multipleAccounts};
 
   if (entityAccountQuery && entityAccountQuery.query) {
@@ -351,7 +363,8 @@ const getAccounts = async (req, res) => {
     limitAndOrderQuery,
     pubKeyQuery,
     includeBalance,
-    false
+    false,
+    includeTokenBalances
   );
 
   // Execute query
@@ -360,7 +373,7 @@ const getAccounts = async (req, res) => {
   const preQueryHint = pubKeyQuery.query !== '' && constants.zeroRandomPageCostQueryHint;
   const result = await pool.queryQuietly(query, params, preQueryHint);
   const ret = {
-    accounts: result.rows.map((row) => processRow(row)),
+    accounts: result.rows.map((row) => processRow(row, includeTokenBalances)),
     links: {
       next: null,
     },
@@ -397,8 +410,12 @@ const getOneAccount = async (req, res) => {
 
   const timestampFilters = [];
   let includeTransactions = true;
+  let includeTokenBalances = true;
   for (const filter of filters) {
     switch (filter.key) {
+      case constants.filterKeys.TOKEN_BALANCES:
+        includeTokenBalances = filter.value;
+        break;
       case filterKeys.TIMESTAMP:
         timestampFilters.push(filter);
         break;
@@ -478,7 +495,8 @@ const getOneAccount = async (req, res) => {
     undefined,
     undefined,
     undefined,
-    timestampFilters.length > 0
+    timestampFilters.length > 0,
+    includeTokenBalances
   );
 
   const entityPromise = pool.queryQuietly(entityQuery, entityParams);
@@ -500,7 +518,7 @@ const getOneAccount = async (req, res) => {
   }
 
   const ret = {
-    ...processRow(entityResults.rows[0]),
+    ...processRow(entityResults.rows[0], includeTokenBalances),
     ...transactionResults,
   };
 
@@ -515,6 +533,7 @@ const acceptedAccountsParameters = new Set([
   constants.filterKeys.BALANCE,
   constants.filterKeys.LIMIT,
   constants.filterKeys.ORDER,
+  constants.filterKeys.TOKEN_BALANCES,
 ]);
 
 const acceptedSingleAccountParameters = new Set([
@@ -523,6 +542,7 @@ const acceptedSingleAccountParameters = new Set([
   constants.filterKeys.TIMESTAMP,
   constants.filterKeys.TRANSACTION_TYPE,
   constants.filterKeys.TRANSACTIONS,
+  constants.filterKeys.TOKEN_BALANCES,
 ]);
 
 const accounts = {

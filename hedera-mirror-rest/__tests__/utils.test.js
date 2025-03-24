@@ -899,6 +899,34 @@ describe('Utils parseTokenBalances', () => {
   });
 });
 
+describe('parseTokenBalancesParamValue', () => {
+  const key = constants.filterKeys.TOKEN_BALANCES;
+
+  // Default behavior: tokenBalances=true when parameter is absent
+  test('default (no parameter)', () => {
+    expect(utils.parseTokenBalancesParamValue({})).toBe(true);
+  });
+
+  // Explicit true values
+  test('single value "true"', () => {
+    expect(utils.parseTokenBalancesParamValue({[key]: 'true'})).toBe(true);
+  });
+
+  // Explicit false values
+  test('single value "false"', () => {
+    expect(utils.parseTokenBalancesParamValue({[key]: 'false'})).toBe(false);
+  });
+
+  // Arrays: last value determines the result
+  test('array ["false", "true"] → true', () => {
+    expect(utils.parseTokenBalancesParamValue({[key]: ['false', 'true']})).toBe(true);
+  });
+
+  test('array ["true", "false"] → false', () => {
+    expect(utils.parseTokenBalancesParamValue({[key]: ['true', 'false']})).toBe(false);
+  });
+});
+
 describe('Utils parseBalanceQueryParam tests', () => {
   const testSpecs = [
     {

@@ -1365,6 +1365,12 @@ const parseTokenBalances = (tokenBalances) => {
     });
 };
 
+function parseTokenBalancesParamValue(query) {
+  const values = query[constants.filterKeys.TOKEN_BALANCES] || 'true';
+  const lastValue = typeof values === 'string' ? values : values[values.length - 1];
+  return parseBooleanValue(lastValue);
+}
+
 const isTestEnv = () => process.env.NODE_ENV === 'test';
 
 /**
@@ -1769,6 +1775,7 @@ export {
   parseTimestampParam,
   parseTimestampQueryParam,
   parseTokenBalances,
+  parseTokenBalancesParamValue,
   randomString,
   resultSuccess,
   toHexString,

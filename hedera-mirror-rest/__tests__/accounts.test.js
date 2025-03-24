@@ -115,6 +115,31 @@ describe('processRow', () => {
     expect(subject.processRow(inputNullBalance)).toEqual(expectedNullBalance);
   });
 
+  describe('tokenBalances=false', () => {
+    test('with balance - tokens omitted', () => {
+      const expectedWithoutTokens = {
+        ...expectedAccount,
+        balance: {
+          balance: expectedAccount.balance.balance,
+          timestamp: expectedAccount.balance.timestamp,
+        },
+      };
+      expect(subject.processRow(inputAccount, false)).toEqual(expectedWithoutTokens);
+    });
+
+    test('null balance - tokens omitted', () => {
+      const inputNullBalance = {...inputAccount, balance: null, balance_timestamp: null, token_balances: null};
+      const expected = {
+        ...expectedAccount,
+        balance: {
+          balance: null,
+          timestamp: null,
+        },
+      };
+      expect(subject.processRow(inputNullBalance, false)).toEqual(expected);
+    });
+  });
+
   test('null auto_renew_period', () => {
     expect(subject.processRow({...inputAccount, auto_renew_period: null})).toEqual({
       ...expectedAccount,

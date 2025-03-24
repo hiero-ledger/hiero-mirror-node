@@ -40,6 +40,7 @@ const filterKeys = {
   NODE_ID: 'node.id',
   NONCE: 'nonce',
   ORDER: 'order',
+  TOKEN_BALANCES: 'tokenBalances',
   Q: 'q',
   RESULT: 'result',
   SCHEDULED: 'scheduled',
