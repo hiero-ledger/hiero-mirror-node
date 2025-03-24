@@ -40,6 +40,7 @@ paths:
         - $ref: "#/components/parameters/timestampQueryParam"
         - $ref: "#/components/parameters/transactionTypeQueryParam"
         - $ref: "#/components/parameters/transactionsQueryParam"
+        - $ref: "#/components/parameters/tokenBalancesQueryParam"
       responses:
         200:
           description: OK
@@ -4848,6 +4849,16 @@ components:
         items:
           type: string
           pattern: ^((eq|gt|gte|lt|lte):)?\d{1,10}(.\d{1,9})?$
+    tokenBalancesQueryParam:
+      name: tokenBalances
+      in: query
+      description: |
+        Whether to include token balances in the response. 
+        Defaults to `true`. Set to `false` to exclude token balances.
+      schema:
+        type: boolean
+        default: true
+      example: false
     tokenInfoTimestampQueryParam:
       description: The Unix timestamp in seconds.nanoseconds format. See [unixtimestamp.com](https://www.unixtimestamp.com/) for a simple way to convert a date to the 'seconds' part of the Unix time.
       name: timestamp
