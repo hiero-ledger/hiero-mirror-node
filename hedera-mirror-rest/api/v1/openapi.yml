@@ -4853,7 +4853,7 @@ components:
       name: tokenBalances
       in: query
       description: |
-        Whether to include token balances in the response. 
+        Whether to include token balances in the response.
         Defaults to `true`. Set to `false` to exclude token balances.
       schema:
         type: boolean
