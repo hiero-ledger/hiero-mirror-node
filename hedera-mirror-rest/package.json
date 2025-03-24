@@ -59,7 +59,7 @@
     "nodemon": "^3.1.9",
     "pg-format": "^1.0.4",
     "rewire": "^7.0.0",
-    "sinon": "^18.0.1",
+    "sinon": "^19.0.4",
     "supertest": "^7.1.0",
     "@testcontainers/redis": "^10.21.0"
   },
