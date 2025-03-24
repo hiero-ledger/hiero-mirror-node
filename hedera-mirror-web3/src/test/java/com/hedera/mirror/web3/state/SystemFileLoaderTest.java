@@ -2,11 +2,10 @@
 
 package com.hedera.mirror.web3.state;
 
+import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -21,13 +20,11 @@ import com.hedera.hapi.node.state.file.File;
 import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.repository.FileDataRepository;
-import com.hedera.pbj.runtime.Codec;
-import com.hedera.pbj.runtime.ParseException;
-import com.hedera.pbj.runtime.io.ReadableSequentialData;
-import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
@@ -41,43 +38,20 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SystemFileLoaderTest {
 
-    private static final long TEST_FILE_ID = 100L;
-    private static final FileID TEST_FILE_ID_PROTO =
-            FileID.newBuilder().fileNum(TEST_FILE_ID).build();
-    private static final File TEST_SYSTEM_FILE = File.newBuilder()
-            .fileId(TEST_FILE_ID_PROTO)
-            .contents(Bytes.wrap(new byte[] {4, 5, 6}))
-            .build();
-    private static final long TEST_FILE_ID_THROTTLES = 123L;
-    private static final FileID TEST_FILE_ID_THROTTLES_PROTO =
-            FileID.newBuilder().fileNum(TEST_FILE_ID_THROTTLES).build();
-    private static final byte[] VALID_DATA = "valid data".getBytes();
     private static final byte[] CORRUPT_DATA = "corrupt".getBytes();
-    private static final FileData validFileData =
-            FileData.builder().consensusTimestamp(200L).fileData(VALID_DATA).build();
     private static final FileData corruptFileData =
             FileData.builder().consensusTimestamp(300L).fileData(CORRUPT_DATA).build();
-    private static final com.hederahashgraph.api.proto.java.ThrottleDefinitions throttleDefinitions =
-            com.hederahashgraph.api.proto.java.ThrottleDefinitions.newBuilder()
-                    .addThrottleBuckets(com.hederahashgraph.api.proto.java.ThrottleBucket.newBuilder()
-                            .build())
-                    .build();
-
-    private static final FileData throttleDefinitionsFileData = FileData.builder()
-            .consensusTimestamp(200L)
-            .fileData(throttleDefinitions.toByteArray())
-            .build();
 
     @Mock
     private FileDataRepository fileDataRepository;
 
     private SystemFileLoader systemFileLoader;
-    private Codec<ThrottleDefinitions> mockCodec;
+    private CommonProperties commonProperties;
 
     @BeforeEach
     void setup() {
         systemFileLoader = spy(new SystemFileLoader(new MirrorNodeEvmProperties(), fileDataRepository));
-        mockCodec = mock(Codec.class);
+        commonProperties = new CommonProperties();
     }
 
     @Test
@@ -147,7 +121,7 @@ class SystemFileLoaderTest {
 
     @Test
     void loadThrottleDefinitions() throws Exception {
-        var fileId = fileId(123);
+        var fileId = fileId(SystemEntity.THROTTLE_DEFINITIONS.getNum());
         var file = systemFileLoader.load(fileId);
         assertFile(file, fileId);
         var throttleDefinitions = ThrottleDefinitions.PROTOBUF.parse(file.contents());
@@ -156,91 +130,99 @@ class SystemFileLoaderTest {
     }
 
     @Test
-    void loadWithRetry() throws Exception {
+    void loadThrottlesWithRetryAndCorruptData() {
+        var fileId = fileId(SystemEntity.THROTTLE_DEFINITIONS.getNum());
+        var entityId = toEntityId(fileId).getId();
+        var expected = systemFileLoader.load(fileId);
+        assertFile(expected, fileId);
         long currentNanos = 350L;
-        when(fileDataRepository.getFileAtTimestamp(TEST_FILE_ID, currentNanos))
-                .thenReturn(Optional.of(corruptFileData));
-        when(fileDataRepository.getFileAtTimestamp(TEST_FILE_ID, 299L)).thenReturn(Optional.of(validFileData));
-        when(mockCodec.parse(any(ReadableSequentialData.class)))
-                .thenThrow(new ParseException("Invalid data"))
-                .thenReturn(ThrottleDefinitions.newBuilder().build());
+        when(fileDataRepository.getFileAtTimestamp(entityId, currentNanos))
+                .thenReturn(Optional.of(corruptFileData))
+                .thenReturn(Optional.of(FileData.builder()
+                        .fileData(expected.contents().toByteArray())
+                        .build()));
 
-        final var actual = systemFileLoader.loadWithRetry(TEST_FILE_ID, TEST_FILE_ID_PROTO, currentNanos, mockCodec);
-
-        assertThat(actual).isNotNull();
-        assertThat(actual.contents()).isEqualTo(Bytes.wrap(VALID_DATA));
-        assertThat(actual.fileId()).isEqualTo(TEST_FILE_ID_PROTO);
-        verify(fileDataRepository, times(2)).getFileAtTimestamp(eq(TEST_FILE_ID), anyLong());
-    }
-
-    @Test
-    void loadWithRetryCorruptDataResolveToSystemFile() throws Exception {
-        when(fileDataRepository.getFileAtTimestamp(eq(TEST_FILE_ID), anyLong()))
-                .thenReturn(Optional.of(corruptFileData));
-        when(systemFileLoader.load(TEST_FILE_ID_PROTO)).thenReturn(TEST_SYSTEM_FILE);
-        when(mockCodec.parse(any(ReadableSequentialData.class))).thenThrow(new ParseException("Invalid data"));
-
-        final var actual = systemFileLoader.loadWithRetry(TEST_FILE_ID, TEST_FILE_ID_PROTO, 350L, mockCodec);
-
-        assertThat(actual).isEqualTo(TEST_SYSTEM_FILE);
-        verify(fileDataRepository, times(10)).getFileAtTimestamp(eq(TEST_FILE_ID), anyLong());
-    }
-
-    @Test
-    void loadWithRetrySuccessfully() throws Exception {
-        when(fileDataRepository.getFileAtTimestamp(eq(TEST_FILE_ID_THROTTLES), anyLong()))
-                .thenReturn(Optional.of(validFileData));
-        when(mockCodec.parse(any(ReadableSequentialData.class)))
-                .thenReturn(ThrottleDefinitions.newBuilder().build());
-
-        final var actual =
-                systemFileLoader.loadWithRetry(TEST_FILE_ID_THROTTLES, TEST_FILE_ID_THROTTLES_PROTO, 250L, mockCodec);
+        final var actual = systemFileLoader.loadThrottles(fileId, currentNanos);
 
         assertThat(actual).isNotNull();
-        assertThat(actual.contents()).isEqualTo(Bytes.wrap(VALID_DATA));
-        assertThat(actual.fileId()).isEqualTo(TEST_FILE_ID_THROTTLES_PROTO);
-        verify(fileDataRepository, times(1)).getFileAtTimestamp(eq(TEST_FILE_ID_THROTTLES), anyLong());
+        assertThat(actual.contents()).isEqualTo(expected.contents());
+        assertThat(actual.fileId()).isEqualTo(fileId);
+        verify(fileDataRepository, times(2)).getFileAtTimestamp(eq(entityId), anyLong());
     }
 
     @Test
-    void loadWithRetryNoData() {
-        when(fileDataRepository.getFileAtTimestamp(eq(TEST_FILE_ID), anyLong())).thenReturn(Optional.empty());
-        when(systemFileLoader.load(TEST_FILE_ID_PROTO)).thenReturn(TEST_SYSTEM_FILE);
+    void loadThrottlesWithRetryCorruptDataResolveToSystemFile() {
+        var fileId = fileId(SystemEntity.THROTTLE_DEFINITIONS.getNum());
+        var entityId = toEntityId(fileId).getId();
+        var expected = systemFileLoader.load(fileId);
+        assertFile(expected, fileId);
+        when(fileDataRepository.getFileAtTimestamp(eq(entityId), anyLong())).thenReturn(Optional.of(corruptFileData));
 
-        final var actual = systemFileLoader.loadWithRetry(TEST_FILE_ID, TEST_FILE_ID_PROTO, 100L, mockCodec);
-
-        assertThat(actual).isEqualTo(TEST_SYSTEM_FILE);
-        verify(fileDataRepository, times(1)).getFileAtTimestamp(eq(TEST_FILE_ID), anyLong());
-    }
-
-    @Test
-    void loadWithRetryAllRetriesFailing() throws Exception {
-        when(fileDataRepository.getFileAtTimestamp(eq(TEST_FILE_ID), anyLong()))
-                .thenReturn(Optional.of(corruptFileData));
-        when(systemFileLoader.load(TEST_FILE_ID_PROTO)).thenReturn(TEST_SYSTEM_FILE);
-        when(mockCodec.parse(any(ReadableSequentialData.class))).thenThrow(new ParseException("Invalid data"));
-
-        final var actual = systemFileLoader.loadWithRetry(TEST_FILE_ID, TEST_FILE_ID_PROTO, 350L, mockCodec);
-
-        assertThat(actual).isEqualTo(TEST_SYSTEM_FILE);
-        verify(fileDataRepository, times(10)).getFileAtTimestamp(eq(TEST_FILE_ID), anyLong());
-    }
-
-    @Test
-    void loadThrottlesWithRetry() {
-        when(fileDataRepository.getFileAtTimestamp(eq(TEST_FILE_ID_THROTTLES), anyLong()))
-                .thenReturn(Optional.of(throttleDefinitionsFileData));
-
-        final var actual = systemFileLoader.loadThrottles(TEST_FILE_ID_THROTTLES, TEST_FILE_ID_THROTTLES_PROTO, 250L);
+        final var actual = systemFileLoader.loadThrottles(fileId, 350L);
 
         assertThat(actual).isNotNull();
-        assertThat(actual.contents()).isEqualTo(Bytes.wrap(throttleDefinitionsFileData.getFileData()));
-        assertThat(actual.fileId()).isEqualTo(TEST_FILE_ID_THROTTLES_PROTO);
-        verify(fileDataRepository, times(1)).getFileAtTimestamp(eq(TEST_FILE_ID_THROTTLES), anyLong());
+        assertThat(actual.contents()).isEqualTo(expected.contents());
+        assertThat(actual.fileId()).isEqualTo(fileId);
+        verify(fileDataRepository, times(10)).getFileAtTimestamp(eq(entityId), anyLong());
+    }
+
+    @Test
+    void loadThrottlesWithRetrySuccessfully() {
+        var fileId = fileId(SystemEntity.THROTTLE_DEFINITIONS.getNum());
+        var entityId = toEntityId(fileId).getId();
+        var expected = systemFileLoader.load(fileId);
+        assertFile(expected, fileId);
+        when(fileDataRepository.getFileAtTimestamp(eq(entityId), anyLong()))
+                .thenReturn(Optional.of(FileData.builder()
+                        .fileData(expected.contents().toByteArray())
+                        .build()));
+
+        final var actual = systemFileLoader.loadThrottles(fileId, 250L);
+
+        assertThat(actual).isNotNull();
+        assertThat(actual.contents()).isEqualTo(expected.contents());
+        assertThat(actual.fileId()).isEqualTo(fileId);
+        verify(fileDataRepository, times(1)).getFileAtTimestamp(eq(entityId), anyLong());
+    }
+
+    @Test
+    void loadThrottlesWithRetryNoData() {
+        var fileId = fileId(SystemEntity.THROTTLE_DEFINITIONS.getNum());
+        var entityId = toEntityId(fileId).getId();
+        var expected = systemFileLoader.load(fileId);
+        assertFile(expected, fileId);
+        when(fileDataRepository.getFileAtTimestamp(eq(entityId), anyLong())).thenReturn(Optional.empty());
+
+        final var actual = systemFileLoader.loadThrottles(fileId, 100L);
+
+        assertThat(actual).isNotNull();
+        assertThat(actual.contents()).isEqualTo(expected.contents());
+        assertThat(actual.fileId()).isEqualTo(fileId);
+        verify(fileDataRepository, times(1)).getFileAtTimestamp(eq(entityId), anyLong());
+    }
+
+    @Test
+    void loadThrottlesWithRetryAllRetriesFailing() {
+        var fileId = fileId(SystemEntity.THROTTLE_DEFINITIONS.getNum());
+        var entityId = toEntityId(fileId).getId();
+        var expected = systemFileLoader.load(fileId);
+        assertFile(expected, fileId);
+        when(fileDataRepository.getFileAtTimestamp(eq(entityId), anyLong())).thenReturn(Optional.of(corruptFileData));
+
+        final var actual = systemFileLoader.loadThrottles(fileId, 350L);
+
+        assertThat(actual).isNotNull();
+        assertThat(actual.contents()).isEqualTo(expected.contents());
+        assertThat(actual.fileId()).isEqualTo(fileId);
+        verify(fileDataRepository, times(10)).getFileAtTimestamp(eq(entityId), anyLong());
     }
 
     private FileID fileId(long fileNum) {
-        return FileID.newBuilder().fileNum(fileNum).build();
+        return FileID.newBuilder()
+                .shardNum(commonProperties.getShard())
+                .realmNum(commonProperties.getRealm())
+                .fileNum(fileNum)
+                .build();
     }
 
     private void assertFile(File file, FileID fileId) {

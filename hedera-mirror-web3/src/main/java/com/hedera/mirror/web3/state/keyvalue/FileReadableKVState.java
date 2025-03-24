@@ -60,7 +60,7 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
         if (SystemEntity.THROTTLE_DEFINITIONS
                 .getScopedEntityId(commonProperties)
                 .equals(fileEntityId)) {
-            return systemFileLoader.loadThrottles(fileId, key, currentTimestamp);
+            return systemFileLoader.loadThrottles(key, currentTimestamp);
         }
 
         return timestamp
