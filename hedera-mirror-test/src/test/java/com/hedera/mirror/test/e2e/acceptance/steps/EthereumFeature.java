@@ -40,10 +40,8 @@ import org.web3j.crypto.transaction.type.TransactionType;
 @RequiredArgsConstructor
 public class EthereumFeature extends AbstractEstimateFeature {
 
-    //    @Autowired //TODO: remove
     protected final EthereumClient ethereumClient;
 
-    //    @Autowired
     protected final AccountClient accountClient;
 
     private final CommonProperties commonProperties;
