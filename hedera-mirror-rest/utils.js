@@ -13,7 +13,7 @@ import util from 'util';
 
 import * as constants from './constants';
 import EntityId from './entityId';
-import config from './config';
+import config, {getMirrorConfig} from './config';
 import ed25519 from './ed25519';
 import {DbError, InvalidArgumentError, InvalidClauseError} from './errors';
 import {Entity, FeeSchedule, TransactionResult, TransactionType} from './model';
@@ -38,6 +38,10 @@ const ltLte = [opsMap.lt, opsMap.lte];
 const gtLtPattern = /[gl]t[e]?:/;
 
 const emptySet = new Set();
+
+const {
+  common: {realm: systemRealm, shard: systemShard},
+} = getMirrorConfig();
 
 /**
  * Returns null if the value is equal to the default, otherwise value.
@@ -197,7 +201,14 @@ const isValidSlot = (slot) => slotPattern.test(slot);
 
 const isValidValueIgnoreCase = (value, validValues) => validValues.includes(value.toLowerCase());
 
-const addressBookFileIdPattern = ['101', '0.101', '0.0.101', '102', '0.102', '0.0.102'];
+const addressBookFileIdPattern = [
+  '101',
+  `${systemRealm}.101`,
+  `${systemShard}.${systemRealm}.101`,
+  '102',
+  `${systemRealm}.102`,
+  `${systemShard}.${systemRealm}.102`,
+];
 const isValidAddressBookFileIdPattern = (fileId) => {
   return addressBookFileIdPattern.includes(fileId);
 };
@@ -1277,10 +1288,14 @@ const formatComparator = (comparator) => {
           comparator.value = parseInt(comparator.value, 16);
         }
         break;
-      case constants.filterKeys.FILE_ID:
+      case constants.filterKeys.FILE_ID: {
         // Accepted forms: shard.realm.num or encoded ID string
-        comparator.value = EntityId.parse(comparator.value).getEncodedId();
+        const toParse = comparator.value.includes('.')
+          ? comparator.value
+          : `${systemShard}.${systemRealm}.${comparator.value}`;
+        comparator.value = EntityId.parse(toParse).getEncodedId();
         break;
+      }
       case constants.filterKeys.ENTITY_PUBLICKEY:
         comparator.value = parsePublicKey(comparator.value);
         break;

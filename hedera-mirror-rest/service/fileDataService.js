@@ -5,14 +5,12 @@ import _ from 'lodash';
 import BaseService from './baseService';
 import {ExchangeRate, FeeSchedule, FileData} from '../model';
 import * as utils from '../utils';
+import {SystemEntity} from '.';
 
 /**
  * File data retrieval business logic
  */
 class FileDataService extends BaseService {
-  static exchangeRateFileId = 112;
-  static feeScheduleFileId = 111;
-
   // placeholders to support where filtering for inner and outer calls
   static filterInnerPlaceholder = '<filterInnerPlaceHolder>';
   static filterOuterPlaceholder = '<filterOuterPlaceHolder>';
@@ -91,11 +89,11 @@ class FileDataService extends BaseService {
   };
 
   getExchangeRate = async (filterQueries) => {
-    return this.fallbackRetry(FileDataService.exchangeRateFileId, filterQueries, ExchangeRate);
+    return this.fallbackRetry(SystemEntity.exchangeRateFileId.getEncodedId(), filterQueries, ExchangeRate);
   };
 
   getFeeSchedule = async (filterQueries) => {
-    return this.fallbackRetry(FileDataService.feeScheduleFileId, filterQueries, FeeSchedule);
+    return this.fallbackRetry(SystemEntity.feeScheduleFileId.getEncodedId(), filterQueries, FeeSchedule);
   };
 
   fallbackRetry = async (fileEntityId, filterQueries, resultConstructor) => {

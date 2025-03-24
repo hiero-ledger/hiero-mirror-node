@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import BaseService from './baseService';
-import config from '../config';
 import {
   AddressBook,
   AddressBookEntry,
@@ -12,7 +11,7 @@ import {
   NodeStake,
 } from '../model';
 import {OrderSpec} from '../sql';
-import entityId from '../entityId';
+import SystemEntity from './systemEntity';
 
 /**
  * Network node business model
@@ -94,10 +93,10 @@ class NetworkNodeService extends BaseService {
             (select max(${NetworkStake.CONSENSUS_TIMESTAMP}) from ${NetworkStake.tableName})`;
 
   static unreleasedSupplyAccounts = (column) =>
-    config.network.unreleasedSupplyAccounts
+    SystemEntity.unreleasedSupplyAccounts
       .map((range) => {
-        const from = entityId.parse(range.from).getEncodedId();
-        const to = entityId.parse(range.to).getEncodedId();
+        const from = range.from.getEncodedId();
+        const to = range.to.getEncodedId();
 
         if (from === to) {
           return `${column} = ${from}`;

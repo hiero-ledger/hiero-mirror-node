@@ -2,7 +2,7 @@
 
 import _ from 'lodash';
 import base32 from './base32';
-import {getResponseLimit} from './config';
+import {getMirrorConfig, getResponseLimit} from './config';
 import * as constants from './constants';
 import {filterKeys} from './constants';
 import EntityId from './entityId';
@@ -13,6 +13,10 @@ import transactions from './transactions';
 import {NotFoundError} from './errors';
 import {Entity} from './model';
 import balances from './balances';
+
+const {
+  common: {realm: systemRealm, shard: systemShard},
+} = getMirrorConfig();
 
 const {tokenBalance: tokenBalanceResponseLimit} = getResponseLimit();
 
@@ -366,7 +370,7 @@ const getAccounts = async (req, res) => {
     },
   };
 
-  let anchorAcc = '0.0.0';
+  let anchorAcc = `${systemShard}.${systemRealm}.0`;
   if (ret.accounts.length > 0) {
     anchorAcc = ret.accounts[ret.accounts.length - 1].account;
   }
