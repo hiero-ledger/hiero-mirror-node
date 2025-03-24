@@ -339,6 +339,8 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("contracts.maxRefundPercentOfGasLimit", String.valueOf(maxGasRefundPercentage()));
         props.put("contracts.sidecars", "");
         props.put("contracts.throttle.throttleByGas", "false");
+        props.put("hedera.shard", String.valueOf(CommonProperties.getInstance().getShard()));
+        props.put("hedera.realm", String.valueOf(CommonProperties.getInstance().getRealm()));
         // The configured data in the request is currently 128 KB. In services, we have a property for the
         // max signed transaction size. We put 1 KB more here to have a buffer because the transaction has other
         // fields (apart from the data) that will increase the transaction size.

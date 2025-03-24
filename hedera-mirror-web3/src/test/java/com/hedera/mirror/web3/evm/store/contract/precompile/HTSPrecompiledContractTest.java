@@ -115,7 +115,7 @@ class HTSPrecompiledContractTest {
     private OptionValidator validator;
 
     @Mock
-    CommonProperties commonProperties;
+    private CommonProperties commonProperties;
 
     private Deque<MessageFrame> messageFrameStack;
     private Store store;

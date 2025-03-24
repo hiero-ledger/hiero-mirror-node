@@ -41,16 +41,16 @@ public class SystemFileLoader {
 
         var files = List.of(
                 load(
-                        SystemEntity.FILE_101,
+                        SystemEntity.ADDRESS_BOOK_101,
                         Bytes.EMPTY), // Requires a node store but these aren't used by contracts so omit
-                load(SystemEntity.FILE_102, Bytes.EMPTY),
-                load(SystemEntity.FILE_111, fileSchema.genesisFeeSchedules(configuration)),
-                load(SystemEntity.FILE_112, fileSchema.genesisExchangeRates(configuration)),
-                load(SystemEntity.FILE_121, fileSchema.genesisNetworkProperties(configuration)),
+                load(SystemEntity.ADDRESS_BOOK_102, Bytes.EMPTY),
+                load(SystemEntity.FEE_SCHEDULE, fileSchema.genesisFeeSchedules(configuration)),
+                load(SystemEntity.EXCHANGE_RATE, fileSchema.genesisExchangeRates(configuration)),
+                load(SystemEntity.NETWORK_PROPERTY, fileSchema.genesisNetworkProperties(configuration)),
                 load(
-                        SystemEntity.FILE_122,
+                        SystemEntity.HAPI_PERMISSION,
                         Bytes.EMPTY), // genesisHapiPermissions() fails to load files from the classpath
-                load(SystemEntity.FILE_123, fileSchema.genesisThrottleDefinitions(configuration)));
+                load(SystemEntity.THROTTLE_DEFINITION, fileSchema.genesisThrottleDefinitions(configuration)));
 
         return files.stream().collect(Collectors.toMap(File::fileId, Function.identity()));
     }
