@@ -18,13 +18,11 @@ import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.stream.Stream;
-
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-
 
 class SystemFileLoaderTest {
     private CommonProperties commonProperties;

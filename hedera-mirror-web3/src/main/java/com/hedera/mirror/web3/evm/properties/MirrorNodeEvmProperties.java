@@ -34,6 +34,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
@@ -61,6 +62,8 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
+
+    private final CommonProperties commonProperties;
 
     @Getter
     private boolean allowTreasuryToOwnNfts = true;
@@ -194,7 +197,8 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     @Autowired
     public MirrorNodeEvmProperties(CommonProperties commonProperties) {
-        fundingAccount = toAddress(SystemEntity.FEE_COLLECTOR_ACCOUNT.getScopedEntityId(commonProperties))
+        this.commonProperties = commonProperties;
+        fundingAccount = toAddress(SystemEntity.FEE_COLLECTOR_ACCOUNT.getScopedEntityId(this.commonProperties))
                 .toHexString();
     }
 
@@ -339,8 +343,18 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("contracts.maxRefundPercentOfGasLimit", String.valueOf(maxGasRefundPercentage()));
         props.put("contracts.sidecars", "");
         props.put("contracts.throttle.throttleByGas", "false");
-        props.put("hedera.shard", String.valueOf(CommonProperties.getInstance().getShard()));
-        props.put("hedera.realm", String.valueOf(CommonProperties.getInstance().getRealm()));
+        props.put(
+                "hedera.shard",
+                Optional.ofNullable(commonProperties)
+                        .map(CommonProperties::getShard)
+                        .map(String::valueOf)
+                        .orElse("0"));
+        props.put(
+                "hedera.realm",
+                Optional.ofNullable(commonProperties)
+                        .map(CommonProperties::getRealm)
+                        .map(String::valueOf)
+                        .orElse("0"));
         // The configured data in the request is currently 128 KB. In services, we have a property for the
         // max signed transaction size. We put 1 KB more here to have a buffer because the transaction has other
         // fields (apart from the data) that will increase the transaction size.
