@@ -7,6 +7,7 @@ import static com.hedera.services.store.contracts.precompile.ExchangeRatePrecomp
 import static com.hedera.services.store.contracts.precompile.PrngSystemPrecompiledContract.PRNG_PRECOMPILE_ADDRESS;
 import static org.mockito.Mockito.mockStatic;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.account.MirrorEvmContractAliases;
 import com.hedera.mirror.web3.evm.pricing.RatesAndFeesLoader;
@@ -98,7 +99,7 @@ public abstract class MirrorEvmMessageCallProcessorBaseTest {
     final ExchangeRatePrecompiledContract exchangeRatePrecompiledContract = new ExchangeRatePrecompiledContract(
             gasCalculatorHederaV22,
             new BasicHbarCentExchange(ratesAndFeesLoader),
-            new MirrorNodeEvmProperties(),
+            new MirrorNodeEvmProperties(new CommonProperties()),
             Instant.now());
     final PrngSystemPrecompiledContract prngSystemPrecompiledContract = new PrngSystemPrecompiledContract(
             gasCalculatorHederaV22,

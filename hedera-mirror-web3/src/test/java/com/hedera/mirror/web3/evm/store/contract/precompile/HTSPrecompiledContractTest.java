@@ -16,6 +16,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import com.esaulpaugh.headlong.util.Integers;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.ContextExtension;
 import com.hedera.mirror.web3.common.PrecompileContext;
 import com.hedera.mirror.web3.evm.exception.PrecompileNotSupportedException;
@@ -112,6 +113,9 @@ class HTSPrecompiledContractTest {
 
     @Mock
     private OptionValidator validator;
+
+    @Mock
+    private CommonProperties commonProperties;
 
     private Deque<MessageFrame> messageFrameStack;
     private Store store;

@@ -8,12 +8,15 @@ import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_3
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_38;
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_46;
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_50;
+import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.swirlds.common.utility.CommonUtils.unhex;
 import static com.swirlds.state.lifecycle.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
 
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.SemanticVersion;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.evm.contracts.execution.EvmProperties;
@@ -22,7 +25,6 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.time.Duration;
@@ -32,6 +34,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
@@ -44,6 +47,7 @@ import org.apache.tuweni.bytes.Bytes32;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.EvmSpecVersion;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.convert.DataSizeUnit;
 import org.springframework.util.CollectionUtils;
@@ -58,6 +62,8 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
+
+    private final CommonProperties commonProperties;
 
     @Getter
     private boolean allowTreasuryToOwnNfts = true;
@@ -89,8 +95,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @DurationMin(seconds = 1)
     private Duration expirationCacheTime = Duration.ofMinutes(10L);
 
-    @NotBlank
-    private String fundingAccount = "0x0000000000000000000000000000000000000062";
+    private String fundingAccount;
 
     @Getter
     private long htsDefaultGasCost = 10000;
@@ -189,6 +194,13 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @DecimalMin("0.0")
     @DecimalMax("1.0")
     private double modularizedTrafficPercent = 0.0;
+
+    @Autowired
+    public MirrorNodeEvmProperties(CommonProperties commonProperties) {
+        this.commonProperties = commonProperties;
+        fundingAccount = toAddress(SystemEntity.FEE_COLLECTOR_ACCOUNT.getScopedEntityId(this.commonProperties))
+                .toHexString();
+    }
 
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);
@@ -331,6 +343,18 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("contracts.maxRefundPercentOfGasLimit", String.valueOf(maxGasRefundPercentage()));
         props.put("contracts.sidecars", "");
         props.put("contracts.throttle.throttleByGas", "false");
+        props.put(
+                "hedera.shard",
+                Optional.ofNullable(commonProperties)
+                        .map(CommonProperties::getShard)
+                        .map(String::valueOf)
+                        .orElse("0"));
+        props.put(
+                "hedera.realm",
+                Optional.ofNullable(commonProperties)
+                        .map(CommonProperties::getRealm)
+                        .map(String::valueOf)
+                        .orElse("0"));
         // The configured data in the request is currently 128 KB. In services, we have a property for the
         // max signed transaction size. We put 1 KB more here to have a buffer because the transaction has other
         // fields (apart from the data) that will increase the transaction size.

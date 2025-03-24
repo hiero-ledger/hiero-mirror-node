@@ -15,6 +15,7 @@ import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionReceipt;
 import com.hedera.hapi.node.transaction.TransactionRecord;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.contracts.execution.traceability.MirrorOperationTracer;
 import com.hedera.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
@@ -86,7 +87,7 @@ class TransactionExecutionServiceTest {
     void setUp() {
         transactionExecutionService = new TransactionExecutionService(
                 mirrorNodeState,
-                new MirrorNodeEvmProperties(),
+                new MirrorNodeEvmProperties(new CommonProperties()),
                 opcodeTracer,
                 mirrorOperationTracer,
                 transactionExecutorFactory);

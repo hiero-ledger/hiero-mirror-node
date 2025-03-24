@@ -6,7 +6,6 @@ import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -28,10 +27,14 @@ import com.hedera.mirror.web3.repository.FileDataRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -48,20 +51,29 @@ class SystemFileLoaderTest {
     private SystemFileLoader systemFileLoader;
     private CommonProperties commonProperties;
 
-    @BeforeEach
-    void setup() {
-        systemFileLoader = spy(new SystemFileLoader(new MirrorNodeEvmProperties(), fileDataRepository));
-        commonProperties = new CommonProperties();
+    // Method that provides the test data
+    public static Stream<Arguments> shardAndRealmData() {
+        return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 2L));
     }
 
-    @Test
-    void loadNonSystemFile() {
+    @BeforeEach
+    void setup() {
+        commonProperties = new CommonProperties();
+        systemFileLoader = new SystemFileLoader(new MirrorNodeEvmProperties(commonProperties), fileDataRepository, commonProperties);
+    }
+
+    @ParameterizedTest
+    @MethodSource("shardAndRealmData")
+    void loadNonSystemFile(long shard, long realm) {
+        setCommonProperties(shard, realm);
         var file = systemFileLoader.load(fileId(1000));
         assertThat(file).isNull();
     }
 
-    @Test
-    void loadAddressBook() throws Exception {
+    @ParameterizedTest
+    @MethodSource("shardAndRealmData")
+    void loadAddressBook(long shard, long realm) throws Exception {
+        setCommonProperties(shard, realm);
         var fileId = fileId(101);
         var file = systemFileLoader.load(fileId);
         assertFile(file, fileId);
@@ -69,8 +81,10 @@ class SystemFileLoaderTest {
         assertThat(nodeAddressBook).isNotNull().isEqualTo(NodeAddressBook.DEFAULT);
     }
 
-    @Test
-    void loadNodeDetails() throws Exception {
+    @ParameterizedTest
+    @MethodSource("shardAndRealmData")
+    void loadNodeDetails(long shard, long realm) throws Exception {
+        setCommonProperties(shard, realm);
         var fileId = fileId(102);
         var file = systemFileLoader.load(fileId);
         assertFile(file, fileId);
@@ -78,8 +92,10 @@ class SystemFileLoaderTest {
         assertThat(nodeAddressBook).isNotNull().isEqualTo(NodeAddressBook.DEFAULT);
     }
 
-    @Test
-    void loadFeeSchedule() throws Exception {
+    @ParameterizedTest
+    @MethodSource("shardAndRealmData")
+    void loadFeeSchedule(long shard, long realm) throws Exception {
+        setCommonProperties(shard, realm);
         var fileId = fileId(111);
         var file = systemFileLoader.load(fileId);
         assertFile(file, fileId);
@@ -91,8 +107,10 @@ class SystemFileLoaderTest {
                 .hasSizeGreaterThanOrEqualTo(72);
     }
 
-    @Test
-    void loadExchangeRate() throws Exception {
+    @ParameterizedTest
+    @MethodSource("shardAndRealmData")
+    void loadExchangeRate(long shard, long realm) throws Exception {
+        setCommonProperties(shard, realm);
         var fileId = fileId(112);
         var file = systemFileLoader.load(fileId);
         assertFile(file, fileId);
@@ -101,8 +119,10 @@ class SystemFileLoaderTest {
         assertThat(exchangeRateSet.currentRate()).isNotNull().isNotEqualTo(ExchangeRate.DEFAULT);
     }
 
-    @Test
-    void loadNetworkProperties() throws Exception {
+    @ParameterizedTest
+    @MethodSource("shardAndRealmData")
+    void loadNetworkProperties(long shard, long realm) throws Exception {
+        setCommonProperties(shard, realm);
         var fileId = fileId(121);
         var file = systemFileLoader.load(fileId);
         assertFile(file, fileId);
@@ -110,8 +130,10 @@ class SystemFileLoaderTest {
         assertThat(networkProperties).isNotNull().isEqualTo(ServicesConfigurationList.DEFAULT);
     }
 
-    @Test
-    void loadHapiPermissions() throws Exception {
+    @ParameterizedTest
+    @MethodSource("shardAndRealmData")
+    void loadHapiPermissions(long shard, long realm) throws Exception {
+        setCommonProperties(shard, realm);
         var fileId = fileId(122);
         var file = systemFileLoader.load(fileId);
         assertFile(file, fileId);
@@ -119,9 +141,11 @@ class SystemFileLoaderTest {
         assertThat(networkProperties).isNotNull().isEqualTo(ServicesConfigurationList.DEFAULT);
     }
 
-    @Test
-    void loadThrottleDefinitions() throws Exception {
-        var fileId = fileId(SystemEntity.THROTTLE_DEFINITIONS.getNum());
+    @ParameterizedTest
+    @MethodSource("shardAndRealmData")
+    void loadThrottleDefinitions(long shard, long realm) throws Exception {
+        setCommonProperties(shard, realm);
+        var fileId = fileId(123);
         var file = systemFileLoader.load(fileId);
         assertFile(file, fileId);
         var throttleDefinitions = ThrottleDefinitions.PROTOBUF.parse(file.contents());
@@ -131,7 +155,7 @@ class SystemFileLoaderTest {
 
     @Test
     void loadThrottlesWithRetryAndCorruptData() {
-        var fileId = fileId(SystemEntity.THROTTLE_DEFINITIONS.getNum());
+        var fileId = fileId(SystemEntity.THROTTLE_DEFINITION.getNum());
         var entityId = toEntityId(fileId).getId();
         var expected = systemFileLoader.load(fileId);
         assertFile(expected, fileId);
@@ -152,7 +176,7 @@ class SystemFileLoaderTest {
 
     @Test
     void loadThrottlesWithRetryCorruptDataResolveToSystemFile() {
-        var fileId = fileId(SystemEntity.THROTTLE_DEFINITIONS.getNum());
+        var fileId = fileId(SystemEntity.THROTTLE_DEFINITION.getNum());
         var entityId = toEntityId(fileId).getId();
         var expected = systemFileLoader.load(fileId);
         assertFile(expected, fileId);
@@ -168,7 +192,7 @@ class SystemFileLoaderTest {
 
     @Test
     void loadThrottlesWithRetrySuccessfully() {
-        var fileId = fileId(SystemEntity.THROTTLE_DEFINITIONS.getNum());
+        var fileId = fileId(SystemEntity.THROTTLE_DEFINITION.getNum());
         var entityId = toEntityId(fileId).getId();
         var expected = systemFileLoader.load(fileId);
         assertFile(expected, fileId);
@@ -187,7 +211,7 @@ class SystemFileLoaderTest {
 
     @Test
     void loadThrottlesWithRetryNoData() {
-        var fileId = fileId(SystemEntity.THROTTLE_DEFINITIONS.getNum());
+        var fileId = fileId(SystemEntity.THROTTLE_DEFINITION.getNum());
         var entityId = toEntityId(fileId).getId();
         var expected = systemFileLoader.load(fileId);
         assertFile(expected, fileId);
@@ -203,7 +227,7 @@ class SystemFileLoaderTest {
 
     @Test
     void loadThrottlesWithRetryAllRetriesFailing() {
-        var fileId = fileId(SystemEntity.THROTTLE_DEFINITIONS.getNum());
+        var fileId = fileId(SystemEntity.THROTTLE_DEFINITION.getNum());
         var entityId = toEntityId(fileId).getId();
         var expected = systemFileLoader.load(fileId);
         assertFile(expected, fileId);
@@ -233,5 +257,10 @@ class SystemFileLoaderTest {
                 .matches(f -> f.contents() != null)
                 .matches(f -> Instant.ofEpochSecond(f.expirationSecondSupplier().get())
                         .isAfter(Instant.now().plus(92, ChronoUnit.DAYS)));
+    }
+
+    private void setCommonProperties(long shard, long realm) {
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
     }
 }

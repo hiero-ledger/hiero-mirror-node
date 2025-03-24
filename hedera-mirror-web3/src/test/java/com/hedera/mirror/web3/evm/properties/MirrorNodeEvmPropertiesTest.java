@@ -13,6 +13,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mockStatic;
 
 import com.hedera.hapi.node.base.SemanticVersion;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties.HederaNetwork;
@@ -41,7 +42,7 @@ class MirrorNodeEvmPropertiesTest {
     private static final Address FUNDING_ADDRESS = Address.fromHexString("0x0000000000000000000000000000000000000062");
     private static final Bytes32 CHAIN_ID = Bytes32.fromHexString("0x0128");
 
-    private final MirrorNodeEvmProperties properties = new MirrorNodeEvmProperties();
+    private final MirrorNodeEvmProperties properties = new MirrorNodeEvmProperties(new CommonProperties());
     private MockedStatic<ContractCallContext> staticMock;
 
     @Mock

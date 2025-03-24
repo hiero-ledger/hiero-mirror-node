@@ -17,26 +17,36 @@ class EntityIdSingletonIntegrationTest extends Web3IntegrationTest {
 
     @Test
     void shouldReturnNextIdWithIncrementAndRealmAndShard() {
-        // Create an entity with shard and realm set to (1,1)
-        final var entityWithShardAndRealm =
-                domainBuilder.entity().customize(e -> e.shard(1L).realm(1L)).persist();
+        final var currentShard = commonProperties.getShard();
+        final var currentRealm = commonProperties.getRealm();
+        // Create an entity with shard and realm set to value one above the current values
+        final var entityWithShardAndRealm = domainBuilder
+                .entity()
+                .customize(e -> e.shard(currentShard + 1).realm(currentRealm + 1))
+                .persist();
 
         // Get ID before setting the correct shard and realm
         final var entityNumberBeforeConfig = entityIdSingleton.get();
 
         // Set correct shard and realm
-        commonProperties.setRealm(1L);
-        commonProperties.setShard(1L);
+        commonProperties.setRealm(currentRealm + 1);
+        commonProperties.setShard(currentShard + 1);
         final var entityNumberAfterConfig = entityIdSingleton.get();
 
-        // Reset to default shard and realm (0,0)
-        commonProperties.setRealm(0L);
-        commonProperties.setShard(0L);
+        // Reset to previous shard and realm
+        commonProperties.setRealm(currentRealm);
+        commonProperties.setShard(currentShard);
 
-        final var entity2 = domainBuilder.entity().persist();
+        final var entity2 = domainBuilder
+                .entity()
+                .customize(e -> e.shard(currentShard).realm(currentRealm))
+                .persist();
         final var entityNumber2 = entityIdSingleton.get();
 
-        final var entity3 = domainBuilder.entity().persist();
+        final var entity3 = domainBuilder
+                .entity()
+                .customize(e -> e.shard(currentShard).realm(currentRealm))
+                .persist();
         final var entityNumber3 = entityIdSingleton.get();
 
         assertThat(entityNumberBeforeConfig.number()).isNotEqualTo(entityWithShardAndRealm.getNum() + 1);
