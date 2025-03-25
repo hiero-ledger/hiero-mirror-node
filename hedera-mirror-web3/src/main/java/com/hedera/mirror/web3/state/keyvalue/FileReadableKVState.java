@@ -6,10 +6,8 @@ import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.AbstractEntity;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.web3.common.ContractCallContext;
@@ -36,18 +34,15 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
     private final FileDataRepository fileDataRepository;
     private final EntityRepository entityRepository;
     private final SystemFileLoader systemFileLoader;
-    private final CommonProperties commonProperties;
 
     public FileReadableKVState(
             final FileDataRepository fileDataRepository,
             final EntityRepository entityRepository,
-            SystemFileLoader systemFileLoader,
-            CommonProperties commonProperties) {
+            SystemFileLoader systemFileLoader) {
         super(KEY);
         this.fileDataRepository = fileDataRepository;
         this.entityRepository = entityRepository;
         this.systemFileLoader = systemFileLoader;
-        this.commonProperties = commonProperties;
     }
 
     @Override
@@ -57,8 +52,8 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
         final var fileId = fileEntityId.getId();
         final var currentTimestamp = getCurrentTimestamp();
 
-        if (SystemEntity.THROTTLE_DEFINITION.getScopedEntityId(commonProperties).equals(fileEntityId)) {
-            return systemFileLoader.loadThrottles(key, currentTimestamp);
+        if (systemFileLoader.isSystemFile(key)) {
+            return systemFileLoader.load(key, currentTimestamp);
         }
 
         return timestamp

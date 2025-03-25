@@ -3,11 +3,13 @@
 package com.hedera.mirror.web3.state;
 
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_FILE_MODULARIZED;
-import static com.hedera.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_THROTTLE;
+import static com.hedera.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_MODULARIZED;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
+import com.hedera.hapi.node.base.CurrentAndNextFeeSchedule;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
+import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.SystemEntity;
@@ -49,31 +51,36 @@ public class SystemFileLoader {
             .build();
 
     @Getter(lazy = true)
-    private final Map<FileID, File> systemFiles = loadAll();
+    private final Map<FileID, SystemFile> systemFiles = loadAll();
 
     public @Nullable File load(@Nonnull FileID key) {
-        return getSystemFiles().get(key);
+        var systemFile = getSystemFiles().get(key);
+        return systemFile != null ? systemFile.genesisFile() : null;
     }
 
     @Cacheable(
             cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
-            cacheNames = CACHE_NAME_THROTTLE,
-            key = "'now'",
+            cacheNames = CACHE_NAME_MODULARIZED,
+            key = "#key",
             unless = "#result == null")
-    public File loadThrottles(final FileID key, final long currentTimestamp) {
-        return loadWithRetry(key, currentTimestamp, ThrottleDefinitions.PROTOBUF);
+    public @Nullable File load(@Nonnull FileID key, long consensusTimestamp) {
+        if (key.shardNum() != commonProperties.getShard() || key.realmNum() != commonProperties.getRealm()) {
+            return null;
+        }
+
+        var systemFile = getSystemFiles().get(key);
+        if (systemFile == null) {
+            return null;
+        }
+
+        return loadWithRetry(key, consensusTimestamp, systemFile);
     }
 
-    /**
-     * Load file data with retry logic and parsing. This method will attempt to load and parse file data,
-     * retrying with earlier versions if parsing fails.
-     *
-     * @param key The FileID object representing the file
-     * @param currentTimestamp The current timestamp to start loading from
-     * @param codec The codec to use for parsing
-     * @return The parsed file data, or the default value if no valid data is found
-     */
-    private <T> File loadWithRetry(final FileID key, final long currentTimestamp, Codec<T> codec) {
+    public boolean isSystemFile(final FileID key) {
+        return getSystemFiles().containsKey(key);
+    }
+
+    private File loadWithRetry(final FileID key, final long currentTimestamp, SystemFile systemFile) {
         AtomicLong nanoSeconds = new AtomicLong(currentTimestamp);
         final var fileId = toEntityId(key).getId();
 
@@ -83,7 +90,9 @@ public class SystemFileLoader {
                         .map(fileData -> {
                             try {
                                 var bytes = Bytes.wrap(fileData.getFileData());
-                                codec.parse(bytes.toReadableSequentialData());
+                                if (systemFile.codec != null) {
+                                    systemFile.codec().parse(bytes.toReadableSequentialData());
+                                }
                                 return File.newBuilder()
                                         .contents(bytes)
                                         .fileId(key)
@@ -99,27 +108,31 @@ public class SystemFileLoader {
                                 throw new InvalidFileException(e);
                             }
                         })
-                        .orElse(load(key)),
-                context -> load(key));
+                        .orElse(systemFile.genesisFile()),
+                context -> systemFile.genesisFile());
     }
 
-    private Map<FileID, File> loadAll() {
+    private Map<FileID, SystemFile> loadAll() {
         var configuration = properties.getVersionedConfiguration();
 
         var files = List.of(
-                load(
-                        SystemEntity.ADDRESS_BOOK_101,
-                        Bytes.EMPTY), // Requires a node store but these aren't used by contracts so omit
-                load(SystemEntity.ADDRESS_BOOK_102, Bytes.EMPTY),
-                load(SystemEntity.FEE_SCHEDULE, fileSchema.genesisFeeSchedules(configuration)),
-                load(SystemEntity.EXCHANGE_RATE, fileSchema.genesisExchangeRates(configuration)),
-                load(SystemEntity.NETWORK_PROPERTY, fileSchema.genesisNetworkProperties(configuration)),
-                load(
-                        SystemEntity.HAPI_PERMISSION,
-                        Bytes.EMPTY), // genesisHapiPermissions() fails to load files from the classpath
-                load(SystemEntity.THROTTLE_DEFINITION, fileSchema.genesisThrottleDefinitions(configuration)));
+                new SystemFile(load(SystemEntity.ADDRESS_BOOK_101, Bytes.EMPTY), null),
+                new SystemFile(load(SystemEntity.ADDRESS_BOOK_102, Bytes.EMPTY), null),
+                new SystemFile(
+                        load(SystemEntity.FEE_SCHEDULE, fileSchema.genesisFeeSchedules(configuration)),
+                        CurrentAndNextFeeSchedule.PROTOBUF),
+                new SystemFile(
+                        load(SystemEntity.EXCHANGE_RATE, fileSchema.genesisExchangeRates(configuration)),
+                        ExchangeRateSet.PROTOBUF),
+                new SystemFile(
+                        load(SystemEntity.NETWORK_PROPERTY, fileSchema.genesisNetworkProperties(configuration)), null),
+                new SystemFile(load(SystemEntity.HAPI_PERMISSION, Bytes.EMPTY), null),
+                new SystemFile(
+                        load(SystemEntity.THROTTLE_DEFINITION, fileSchema.genesisThrottleDefinitions(configuration)),
+                        ThrottleDefinitions.PROTOBUF));
 
-        return files.stream().collect(Collectors.toMap(File::fileId, Function.identity()));
+        return files.stream()
+                .collect(Collectors.toMap(systemFile -> systemFile.genesisFile().fileId(), Function.identity()));
     }
 
     private File load(SystemEntity systemFile, Bytes contents) {
@@ -141,4 +154,6 @@ public class SystemFileLoader {
         long maxLifetime = configuration.getConfigData(EntitiesConfig.class).maxLifetime();
         return Instant.now().getEpochSecond() + maxLifetime;
     }
+
+    private record SystemFile(File genesisFile, Codec<?> codec) {}
 }

@@ -167,7 +167,7 @@ class SystemFileLoaderTest {
                         .fileData(expected.contents().toByteArray())
                         .build()));
 
-        final var actual = systemFileLoader.loadThrottles(fileId, currentNanos);
+        final var actual = systemFileLoader.load(fileId, currentNanos);
 
         assertThat(actual).isNotNull();
         assertThat(actual.contents()).isEqualTo(expected.contents());
@@ -183,7 +183,7 @@ class SystemFileLoaderTest {
         assertFile(expected, fileId);
         when(fileDataRepository.getFileAtTimestamp(eq(entityId), anyLong())).thenReturn(Optional.of(corruptFileData));
 
-        final var actual = systemFileLoader.loadThrottles(fileId, 350L);
+        final var actual = systemFileLoader.load(fileId, 350L);
 
         assertThat(actual).isNotNull();
         assertThat(actual.contents()).isEqualTo(expected.contents());
@@ -202,12 +202,45 @@ class SystemFileLoaderTest {
                         .fileData(expected.contents().toByteArray())
                         .build()));
 
-        final var actual = systemFileLoader.loadThrottles(fileId, 250L);
+        final var actual = systemFileLoader.load(fileId, 250L);
 
         assertThat(actual).isNotNull();
         assertThat(actual.contents()).isEqualTo(expected.contents());
         assertThat(actual.fileId()).isEqualTo(fileId);
         verify(fileDataRepository, times(1)).getFileAtTimestamp(eq(entityId), anyLong());
+    }
+
+    @Test
+    void loadFeesWithRetrySuccessfully() {
+        var fileId = fileId(SystemEntity.FEE_SCHEDULE.getNum());
+        var entityId = toEntityId(fileId).getId();
+        var expected = systemFileLoader.load(fileId);
+        assertFile(expected, fileId);
+        when(fileDataRepository.getFileAtTimestamp(eq(entityId), anyLong()))
+                .thenReturn(Optional.of(FileData.builder()
+                        .fileData(expected.contents().toByteArray())
+                        .build()));
+
+        final var actual = systemFileLoader.load(fileId, 250L);
+
+        assertThat(actual).isNotNull();
+        assertThat(actual.contents()).isEqualTo(expected.contents());
+        assertThat(actual.fileId()).isEqualTo(fileId);
+        verify(fileDataRepository, times(1)).getFileAtTimestamp(eq(entityId), anyLong());
+    }
+
+    @Test
+    void loadWithIncorrectShardAndRealm() {
+        var fileId = FileID.newBuilder().shardNum(1).realmNum(1).fileNum(101).build();
+        final var actual = systemFileLoader.load(fileId, 250L);
+        assertThat(actual).isNull();
+    }
+
+    @Test
+    void loadWithNonSystemFileID() {
+        var fileId = fileId(1);
+        final var actual = systemFileLoader.load(fileId, 250L);
+        assertThat(actual).isNull();
     }
 
     @Test
@@ -218,7 +251,7 @@ class SystemFileLoaderTest {
         assertFile(expected, fileId);
         when(fileDataRepository.getFileAtTimestamp(eq(entityId), anyLong())).thenReturn(Optional.empty());
 
-        final var actual = systemFileLoader.loadThrottles(fileId, 100L);
+        final var actual = systemFileLoader.load(fileId, 100L);
 
         assertThat(actual).isNotNull();
         assertThat(actual.contents()).isEqualTo(expected.contents());
@@ -234,7 +267,7 @@ class SystemFileLoaderTest {
         assertFile(expected, fileId);
         when(fileDataRepository.getFileAtTimestamp(eq(entityId), anyLong())).thenReturn(Optional.of(corruptFileData));
 
-        final var actual = systemFileLoader.loadThrottles(fileId, 350L);
+        final var actual = systemFileLoader.load(fileId, 350L);
 
         assertThat(actual).isNotNull();
         assertThat(actual.contents()).isEqualTo(expected.contents());
