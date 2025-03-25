@@ -265,19 +265,21 @@ const parseFromString = (id, error) => {
   return [shard, realm, BigInt(numOrEvmAddress), null];
 };
 
-const computeContractIdPartsFromContractIdValue = (contractId) => {
-  const idPieces = contractId.split('.');
-  idPieces.unshift(...[null, null].slice(0, 3 - idPieces.length));
-  const contractIdParts = {shard: idPieces[0], realm: idPieces[1]};
-  const evmAddress = stripHexPrefix(idPieces[2]);
+const parseIdParameterToEntityId = (id, {allowEvmAddress, evmAddressType, isNullable, paramName} = {}) => {
+  const idPieces = ('' + id).split('.');
+  idPieces.unshift(...[systemShard, systemRealm].slice(0, 3 - idPieces.length));
+  idPieces[2] = stripHexPrefix(idPieces[2]);
+  return parse(idPieces.join('.'), {allowEvmAddress, evmAddressType, isNullable, paramName});
+};
 
+const computeContractIdPartsFromContractIdValue = (contractId) => {
+  const contractEntityId = parseIdParameterToEntityId(contractId, {allowEvmAddress: true});
+  const evmAddress = contractEntityId.evmAddress;
   if (isEvmAddressAlias(evmAddress)) {
-    contractIdParts.create2_evm_address = evmAddress;
-  } else {
-    contractIdParts.num = idPieces[2];
+    contractEntityId.create2_evm_address = evmAddress;
   }
 
-  return contractIdParts;
+  return contractEntityId;
 };
 
 const cache = new quickLru({
@@ -293,6 +295,7 @@ const cache = new quickLru({
  * @param {Function} error
  * @return {EntityId}
  */
+// Some calls from num here
 const parseCached = (id, allowEvmAddress, evmAddressType, error) => {
   const key = `${id}_${allowEvmAddress}_${evmAddressType}`;
   const value = cache.get(key);
@@ -303,7 +306,6 @@ const parseCached = (id, allowEvmAddress, evmAddressType, error) => {
   if (!isValidEntityId(id, allowEvmAddress, evmAddressType)) {
     throw error();
   }
-
   const [shard, realm, num, evmAddress] =
     id.includes('.') || isValidEvmAddressLength(id.length) ? parseFromString(id, error) : parseFromEncodedId(id, error);
   if (evmAddress === null && (num > maxNum || realm > maxRealm || shard > maxShard)) {
@@ -342,4 +344,5 @@ export default {
   computeContractIdPartsFromContractIdValue,
   of,
   parse,
+  parseIdParameterToEntityId,
 };

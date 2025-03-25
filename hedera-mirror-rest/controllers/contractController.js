@@ -187,9 +187,7 @@ const getContractByIdOrAddressContractEntityQuery = ({timestampConditions, times
     params.push(...evmAddressParams);
     conditions.push(...evmAddressConditions);
   } else {
-    // Passing the entire contract id instead of just the num part from shard.realm.num
-    // The contract ID string can be shard.realm.num, realm.num when shard=0 in application.yml or the encoded entity ID string.
-    const encodedId = EntityId.parse(contractIdParam).getEncodedId();
+    const encodedId = contractIdParamParts.getEncodedId();
     params.push(encodedId);
     conditions.push(`${Entity.getFullName(Entity.ID)} = $${params.length}`);
   }

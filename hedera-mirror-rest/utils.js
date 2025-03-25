@@ -597,7 +597,7 @@ const validateClauseAndValues = (clause, values) => {
 const parseAccountIdQueryParam = (parsedQueryParams, columnName) => {
   return parseParams(
     parsedQueryParams[constants.filterKeys.ACCOUNT_ID],
-    (value) => EntityId.parse(value).getEncodedId(),
+    (value) => EntityId.parseIdParameterToEntityId(value).getEncodedId(),
     (op, value) => {
       return Array.isArray(value)
         ? [`${columnName} IN (?`.concat(', ?'.repeat(value.length - 1)).concat(')'), value]
@@ -1290,10 +1290,7 @@ const formatComparator = (comparator) => {
         break;
       case constants.filterKeys.FILE_ID: {
         // Accepted forms: shard.realm.num or encoded ID string
-        const toParse = comparator.value.includes('.')
-          ? comparator.value
-          : `${systemShard}.${systemRealm}.${comparator.value}`;
-        comparator.value = EntityId.parse(toParse).getEncodedId();
+        comparator.value = EntityId.parseIdParameterToEntityId(comparator.value).getEncodedId();
         break;
       }
       case constants.filterKeys.ENTITY_PUBLICKEY:

@@ -323,7 +323,7 @@ const parseAccountIdQueryParam = (query, columnName) => {
     query[constants.filterKeys.ACCOUNT_ID],
     (value) => {
       if (EntityId.isValidEntityId(value, false)) {
-        return EntityId.parse(value).getEncodedId();
+        return EntityId.parseIdParameterToEntityId(value).getEncodedId();
       }
       if (EntityId.isValidEvmAddress(value, EvmAddressType.NO_SHARD_REALM) && ++evmAliasAddressCount === 1) {
         return EntityService.getEncodedId(value, false);
