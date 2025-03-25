@@ -7,6 +7,7 @@ import static com.hedera.mirror.web3.config.ThrottleConfiguration.RATE_LIMIT_BUC
 import com.hedera.mirror.rest.model.OpcodesResponse;
 import com.hedera.mirror.web3.common.TransactionIdOrHashParameter;
 import com.hedera.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.exception.RateLimitException;
 import com.hedera.mirror.web3.service.OpcodeService;
 import io.github.bucket4j.Bucket;
@@ -31,6 +32,8 @@ class OpcodesController {
 
     @Qualifier(RATE_LIMIT_BUCKET)
     private final Bucket rateLimitBucket;
+
+    private final MirrorNodeEvmProperties evmProperties;
 
     /**
      * <p>
@@ -60,6 +63,7 @@ class OpcodesController {
         }
 
         final var options = new OpcodeTracerOptions(stack, memory, storage);
-        return opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        boolean isModularized = evmProperties.directTrafficThroughTransactionExecutionService();
+        return opcodeService.processOpcodeCall(transactionIdOrHash, options, isModularized);
     }
 }

@@ -95,14 +95,14 @@ public abstract class ContractCallService {
             throws MirrorEvmTransactionException {
         ctx.setCallServiceParameters(params);
 
-        if (mirrorNodeEvmProperties.isModularizedServices() || params.getBlock() != BlockType.LATEST) {
+        if (params.isModularized() || params.getBlock() != BlockType.LATEST) {
             ctx.setRecordFile(recordFileService
                     .findByBlockType(params.getBlock())
                     .orElseThrow(BlockNumberNotFoundException::new));
         }
 
         // initializes the stack frame with the current state or historical state (if the call is historical)
-        if (!mirrorNodeEvmProperties.isModularizedServices() || !params.isModularized()) {
+        if (!params.isModularized()) {
             ctx.initializeStackFrames(store.getStackedStateFrames());
         }
 
@@ -117,7 +117,7 @@ public abstract class ContractCallService {
         HederaEvmTransactionProcessingResult result = null;
 
         try {
-            if (mirrorNodeEvmProperties.isModularizedServices() && params.isModularized()) {
+            if (params.isModularized()) {
                 result = transactionExecutionService.execute(params, estimatedGas, gasUsedCounter);
             } else {
                 result = mirrorEvmTxProcessor.execute(params, estimatedGas);

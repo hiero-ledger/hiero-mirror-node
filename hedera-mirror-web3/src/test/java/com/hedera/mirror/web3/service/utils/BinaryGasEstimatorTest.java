@@ -45,7 +45,11 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
     void binarySearch(final long low, final long high, final int iterationLimit) {
         // First call with no failing contract calls for gasUsed reference
         final var regularCall = binaryGasEstimator.search(
-                (a, b) -> iterations.addAndGet(b), gas -> createTxnResult(low, true), low, high);
+                (a, b) -> iterations.addAndGet(b),
+                unused -> createTxnResult(low, true),
+                low,
+                high,
+                properties.isModularizedServices());
 
         assertThat(regularCall).as("result must not go out of bounds").isBetween(low, high);
 
@@ -69,7 +73,11 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
     void binarySearchWithFailingCalls(final long low, final long high, final int regularCallGasUsage) {
         // Call where every second contract call fails
         final var callResult = binaryGasEstimator.search(
-                (a, b) -> iterations.addAndGet(b), gas -> createTxnResult(low, failEverySecondCall()), low, high);
+                (a, b) -> iterations.addAndGet(b),
+                unused -> createTxnResult(low, failEverySecondCall()),
+                low,
+                high,
+                properties.isModularizedServices());
 
         assertThat(callResult).as("result must not go out of bounds").isBetween(low, high);
         assertThat(iterations.get())
@@ -91,7 +99,12 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
          */
         final var low = 0;
         final var high = Long.MAX_VALUE;
-        binaryGasEstimator.search((a, b) -> iterations.addAndGet(b), gas -> createTxnResult(0, false), low, high);
+        binaryGasEstimator.search(
+                (a, b) -> iterations.addAndGet(b),
+                unused -> createTxnResult(0, false),
+                low,
+                high,
+                properties.isModularizedServices());
 
         assertThat(iterations.get())
                 .as("iteration limit")
