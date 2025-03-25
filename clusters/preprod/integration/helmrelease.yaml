@@ -73,11 +73,11 @@ spec:
                 network: OTHER
                 web3:
                   modularizedServices: true
+      enabled: true
     web3:
       env:
         HEDERA_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1.0"
         HEDERA_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
-      enabled: true
       git:
         branch: main
 
