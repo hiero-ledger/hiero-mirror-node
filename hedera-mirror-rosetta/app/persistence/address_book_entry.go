@@ -15,10 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	fileId101                  int64 = 101
-	fileId102                  int64 = 102
-	latestNodeServiceEndpoints       = `select
+const latestNodeServiceEndpoints = `select
                                     abe.node_id,
                                     abe.node_account_id,
                                     string_agg(ip_address_v4 || ':' || port::text, ','
@@ -30,7 +27,6 @@ const (
                                   left join address_book_service_endpoint abse
                                     on abse.consensus_timestamp = current.max and abse.node_id = abe.node_id
                                   group by abe.node_id, abe.node_account_id`
-)
 
 type nodeServiceEndpoint struct {
 	NodeId        int64
@@ -52,7 +48,9 @@ func (n nodeServiceEndpoint) toAddressBookEntry() types.AddressBookEntry {
 
 // addressBookEntryRepository struct that has connection to the Database
 type addressBookEntryRepository struct {
-	dbClient interfaces.DbClient
+	addressBook101 domain.EntityId
+	addressBook102 domain.EntityId
+	dbClient       interfaces.DbClient
 }
 
 func (aber *addressBookEntryRepository) Entries(ctx context.Context) (*types.AddressBookEntries, *rTypes.Error) {
@@ -61,7 +59,7 @@ func (aber *addressBookEntryRepository) Entries(ctx context.Context) (*types.Add
 
 	nodes := make([]nodeServiceEndpoint, 0)
 	// address book file 101 has service endpoints for nodes, resort to file 102 if 101 doesn't exist
-	for _, fileId := range []int64{fileId101, fileId102} {
+	for _, fileId := range []int64{aber.addressBook101.EncodedId, aber.addressBook102.EncodedId} {
 		if err := db.Raw(
 			latestNodeServiceEndpoints,
 			sql.Named("file_id", fileId),
@@ -84,6 +82,6 @@ func (aber *addressBookEntryRepository) Entries(ctx context.Context) (*types.Add
 }
 
 // NewAddressBookEntryRepository creates an instance of a addressBookEntryRepository struct.
-func NewAddressBookEntryRepository(dbClient interfaces.DbClient) interfaces.AddressBookEntryRepository {
-	return &addressBookEntryRepository{dbClient}
+func NewAddressBookEntryRepository(addressBook101, addressBook102 domain.EntityId, dbClient interfaces.DbClient) interfaces.AddressBookEntryRepository {
+	return &addressBookEntryRepository{addressBook101, addressBook102, dbClient}
 }

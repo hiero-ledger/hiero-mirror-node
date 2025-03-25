@@ -5,6 +5,7 @@ package persistence
 import (
 	"testing"
 
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/config"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/domain/types"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/errors"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/persistence/domain"
@@ -13,25 +14,58 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-var (
-	accountId3   = MustEncodeEntityId(1023, 0, 3)
-	accountId4   = MustEncodeEntityId(1023, 0, 4)
-	accountId70  = MustEncodeEntityId(1023, 0, 70)
-	accountId80  = MustEncodeEntityId(1023, 0, 80)
-	addressBooks = []*domain.AddressBook{
-		getAddressBook(9, 0, 102),
-		getAddressBook(10, 19, 101),
-		getAddressBook(20, 0, 101),
+// run the suite
+func TestAddressBookEntryRepositorySuite(t *testing.T) {
+	suite.Run(t, new(addressBookEntryRepositorySuite))
+}
+
+func TestAddressBookEntryRepositorySuiteNonDefaultShardRealm(t *testing.T) {
+	suite.Run(t, &addressBookEntryRepositorySuite{
+		shard: 1023,
+		realm: 2,
+	})
+}
+
+type addressBookEntryRepositorySuite struct {
+	integrationTest
+	suite.Suite
+
+	accountId3                  domain.EntityId
+	accountId4                  domain.EntityId
+	accountId70                 domain.EntityId
+	accountId80                 domain.EntityId
+	addressBooks                []*domain.AddressBook
+	addressBookEntries          []*domain.AddressBookEntry
+	addressBookServiceEndpoints []*domain.AddressBookServiceEndpoint
+	realm                       int64
+	shard                       int64
+	systemEntity                domain.SystemEntity
+}
+
+func (suite *addressBookEntryRepositorySuite) SetupSuite() {
+	suite.accountId3 = MustEncodeEntityId(suite.shard, suite.realm, 3)
+	suite.accountId4 = MustEncodeEntityId(suite.shard, suite.realm, 4)
+	suite.accountId70 = MustEncodeEntityId(suite.shard, suite.realm, 70)
+	suite.accountId80 = MustEncodeEntityId(suite.shard, suite.realm, 80)
+	suite.systemEntity = domain.NewSystemEntity(config.CommonConfig{
+		Realm: suite.realm,
+		Shard: suite.shard,
+	})
+
+	suite.addressBooks = []*domain.AddressBook{
+		getAddressBook(9, 0, suite.systemEntity.GetAddressBook102()),
+		getAddressBook(10, 19, suite.systemEntity.GetAddressBook101()),
+		getAddressBook(20, 0, suite.systemEntity.GetAddressBook101()),
 	}
-	addressBookEntries = []*domain.AddressBookEntry{
-		getAddressBookEntry(9, 0, accountId3),
-		getAddressBookEntry(9, 1, accountId4),
-		getAddressBookEntry(10, 0, accountId3),
-		getAddressBookEntry(10, 1, accountId4),
-		getAddressBookEntry(20, 0, accountId80),
-		getAddressBookEntry(20, 1, accountId70),
+	suite.addressBookEntries = []*domain.AddressBookEntry{
+		getAddressBookEntry(9, 0, suite.accountId3),
+		getAddressBookEntry(9, 1, suite.accountId4),
+		getAddressBookEntry(10, 0, suite.accountId3),
+		getAddressBookEntry(10, 1, suite.accountId4),
+		getAddressBookEntry(20, 0, suite.accountId80),
+		getAddressBookEntry(20, 1, suite.accountId70),
 	}
-	addressBookServiceEndpoints = []*domain.AddressBookServiceEndpoint{
+	suite.addressBookServiceEndpoints = []*domain.AddressBookServiceEndpoint{
 		{10, "192.168.0.10", 0, 50211},
 		{10, "192.168.1.10", 1, 50211},
 		{20, "192.168.0.10", 0, 50211},
@@ -39,30 +73,20 @@ var (
 		{20, "192.168.0.1", 0, 50211},
 		{20, "192.168.1.10", 1, 50211},
 	}
-)
-
-// run the suite
-func TestAddressBookEntryRepositorySuite(t *testing.T) {
-	suite.Run(t, new(addressBookEntryRepositorySuite))
-}
-
-type addressBookEntryRepositorySuite struct {
-	integrationTest
-	suite.Suite
 }
 
 func (suite *addressBookEntryRepositorySuite) TestEntries() {
 	// given
 	// persist addressbooks before addressbook entries due to foreign key constraint
-	db.CreateDbRecords(dbClient, addressBooks, addressBookEntries, addressBookServiceEndpoints)
+	db.CreateDbRecords(dbClient, suite.addressBooks, suite.addressBookEntries, suite.addressBookServiceEndpoints)
 
 	expected := &types.AddressBookEntries{
 		Entries: []types.AddressBookEntry{
-			{0, accountId80, []string{"192.168.0.1:50211", "192.168.0.1:50217", "192.168.0.10:50211"}},
-			{1, accountId70, []string{"192.168.1.10:50211"}},
+			{0, suite.accountId80, []string{"192.168.0.1:50211", "192.168.0.1:50217", "192.168.0.10:50211"}},
+			{1, suite.accountId70, []string{"192.168.1.10:50211"}},
 		},
 	}
-	repo := NewAddressBookEntryRepository(dbClient)
+	repo := NewAddressBookEntryRepository(suite.systemEntity.GetAddressBook101(), suite.systemEntity.GetAddressBook102(), dbClient)
 
 	// when
 	actual, err := repo.Entries(defaultContext)
@@ -74,10 +98,10 @@ func (suite *addressBookEntryRepositorySuite) TestEntries() {
 
 func (suite *addressBookEntryRepositorySuite) TestEntriesNoEntries() {
 	// given
-	db.CreateDbRecords(dbClient, addressBooks, addressBookServiceEndpoints)
+	db.CreateDbRecords(dbClient, suite.addressBooks, suite.addressBookServiceEndpoints)
 
 	expected := &types.AddressBookEntries{Entries: []types.AddressBookEntry{}}
-	repo := NewAddressBookEntryRepository(dbClient)
+	repo := NewAddressBookEntryRepository(suite.systemEntity.GetAddressBook101(), suite.systemEntity.GetAddressBook102(), dbClient)
 
 	// when
 	actual, err := repo.Entries(defaultContext)
@@ -89,15 +113,15 @@ func (suite *addressBookEntryRepositorySuite) TestEntriesNoEntries() {
 
 func (suite *addressBookEntryRepositorySuite) TestEntriesNoServiceEndpoints() {
 	// given
-	db.CreateDbRecords(dbClient, addressBooks, addressBookEntries)
+	db.CreateDbRecords(dbClient, suite.addressBooks, suite.addressBookEntries)
 
 	expected := &types.AddressBookEntries{
 		Entries: []types.AddressBookEntry{
-			{0, accountId80, []string{}},
-			{1, accountId70, []string{}},
+			{0, suite.accountId80, []string{}},
+			{1, suite.accountId70, []string{}},
 		},
 	}
-	repo := NewAddressBookEntryRepository(dbClient)
+	repo := NewAddressBookEntryRepository(suite.systemEntity.GetAddressBook101(), suite.systemEntity.GetAddressBook102(), dbClient)
 
 	// when
 	actual, err := repo.Entries(defaultContext)
@@ -111,21 +135,21 @@ func (suite *addressBookEntryRepositorySuite) TestEntriesNoFile101() {
 	// given
 	db.CreateDbRecords(
 		dbClient,
-		getAddressBook(10, 19, 102),
-		getAddressBook(20, 0, 102),
-		getAddressBookEntry(10, 0, accountId4),
-		getAddressBookEntry(10, 1, accountId3),
-		getAddressBookEntry(20, 0, accountId70),
-		getAddressBookEntry(20, 1, accountId80),
+		getAddressBook(10, 19, suite.systemEntity.GetAddressBook102()),
+		getAddressBook(20, 0, suite.systemEntity.GetAddressBook101()),
+		getAddressBookEntry(10, 0, suite.accountId4),
+		getAddressBookEntry(10, 1, suite.accountId3),
+		getAddressBookEntry(20, 0, suite.accountId70),
+		getAddressBookEntry(20, 1, suite.accountId80),
 	)
 
 	expected := &types.AddressBookEntries{
 		Entries: []types.AddressBookEntry{
-			{0, accountId70, []string{}},
-			{1, accountId80, []string{}},
+			{0, suite.accountId70, []string{}},
+			{1, suite.accountId80, []string{}},
 		},
 	}
-	repo := NewAddressBookEntryRepository(dbClient)
+	repo := NewAddressBookEntryRepository(suite.systemEntity.GetAddressBook101(), suite.systemEntity.GetAddressBook102(), dbClient)
 
 	// when
 	actual, err := repo.Entries(defaultContext)
@@ -137,7 +161,7 @@ func (suite *addressBookEntryRepositorySuite) TestEntriesNoFile101() {
 
 func (suite *addressBookEntryRepositorySuite) TestEntriesDbConnectionError() {
 	// given
-	repo := NewAddressBookEntryRepository(invalidDbClient)
+	repo := NewAddressBookEntryRepository(suite.systemEntity.GetAddressBook101(), suite.systemEntity.GetAddressBook102(), invalidDbClient)
 
 	// when
 	actual, err := repo.Entries(defaultContext)
@@ -156,8 +180,8 @@ func MustEncodeEntityId(shard, realm, num int64) domain.EntityId {
 	return encodedId
 }
 
-func getAddressBook(start, end int64, fileId int64) *domain.AddressBook {
-	addressBook := domain.AddressBook{StartConsensusTimestamp: start, FileId: domain.MustDecodeEntityId(fileId)}
+func getAddressBook(start, end int64, fileId domain.EntityId) *domain.AddressBook {
+	addressBook := domain.AddressBook{StartConsensusTimestamp: start, FileId: fileId}
 	if end != 0 {
 		addressBook.EndConsensusTimestamp = &end
 	}

@@ -10,9 +10,9 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/client"
 	"github.com/coinbase/rosetta-sdk-go/server"
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/config"
 	"github.com/hellofresh/health-go/v4"
 	"github.com/hellofresh/health-go/v4/checks/postgres"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/config"
 	log "github.com/sirupsen/logrus"
 )
 
