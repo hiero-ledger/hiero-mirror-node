@@ -8,6 +8,7 @@ import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
 import com.hedera.hapi.node.base.CurrentAndNextFeeSchedule;
 import com.hedera.hapi.node.base.FileID;
+import com.hedera.hapi.node.base.NodeAddressBook;
 import com.hedera.hapi.node.state.file.File;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
@@ -64,10 +65,6 @@ public class SystemFileLoader {
             key = "#key",
             unless = "#result == null")
     public @Nullable File load(@Nonnull FileID key, long consensusTimestamp) {
-        if (key.shardNum() != commonProperties.getShard() || key.realmNum() != commonProperties.getRealm()) {
-            return null;
-        }
-
         var systemFile = getSystemFiles().get(key);
         if (systemFile == null) {
             return null;
@@ -125,8 +122,8 @@ public class SystemFileLoader {
         var configuration = properties.getVersionedConfiguration();
 
         var files = List.of(
-                new SystemFile(load(SystemEntity.ADDRESS_BOOK_101, Bytes.EMPTY), null),
-                new SystemFile(load(SystemEntity.ADDRESS_BOOK_102, Bytes.EMPTY), null),
+                new SystemFile(load(SystemEntity.ADDRESS_BOOK_101, Bytes.EMPTY), NodeAddressBook.PROTOBUF),
+                new SystemFile(load(SystemEntity.ADDRESS_BOOK_102, Bytes.EMPTY), NodeAddressBook.PROTOBUF),
                 new SystemFile(
                         load(SystemEntity.FEE_SCHEDULE, fileSchema.genesisFeeSchedules(configuration)),
                         CurrentAndNextFeeSchedule.PROTOBUF),

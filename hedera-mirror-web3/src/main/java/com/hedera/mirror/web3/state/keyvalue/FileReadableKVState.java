@@ -60,7 +60,7 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
                 .map(t -> fileDataRepository.getFileAtTimestamp(fileId, t))
                 .orElseGet(() -> fileDataRepository.getFileAtTimestamp(fileId, currentTimestamp))
                 .map(fileData -> mapToFile(fileData, key, timestamp))
-                .orElseGet(() -> systemFileLoader.load(key));
+                .orElse(null);
     }
 
     private File mapToFile(final FileData fileData, final FileID key, final Optional<Long> timestamp) {
