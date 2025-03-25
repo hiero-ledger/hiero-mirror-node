@@ -59,7 +59,7 @@ public class EntityIdServiceImpl implements EntityIdService {
                 byte[] alias = toBytes(accountId.getAlias());
                 yield alias.length == EVM_ADDRESS_LENGTH
                         ? cacheLookup(accountId.getAlias(), () -> findByEvmAddress(alias, shard, realm))
-                        : cacheLookup(accountId.getAlias(), () -> findByAlias(alias))
+                        : cacheLookup(accountId.getAlias(), () -> findByAlias(shard, realm, alias))
                                 .or(() -> findByAliasEvmAddress(alias, shard, realm));
             }
             default -> {
@@ -165,7 +165,9 @@ public class EntityIdServiceImpl implements EntityIdService {
         var id = Optional.ofNullable(DomainUtils.fromEvmAddress(evmAddress))
                 // Verify shard and realm match when assuming evmAddress is in the 'shard.realm.num' form
                 .filter(e -> e.getShard() == shardNum && e.getRealm() == realmNum)
-                .or(() -> entityRepository.findByEvmAddress(evmAddress).map(EntityId::of));
+                .or(() -> entityRepository
+                        .findByEvmAddress(shardNum, realmNum, evmAddress)
+                        .map(EntityId::of));
 
         if (id.isEmpty() && throwRecoverableError) {
             Utility.handleRecoverableError("Entity not found for EVM address {}", Hex.encodeHexString(evmAddress));
@@ -174,8 +176,8 @@ public class EntityIdServiceImpl implements EntityIdService {
         return id;
     }
 
-    private Optional<EntityId> findByAlias(byte[] alias) {
-        return entityRepository.findByAlias(alias).map(EntityId::of);
+    private Optional<EntityId> findByAlias(long shard, long realm, byte[] alias) {
+        return entityRepository.findByAlias(shard, realm, alias).map(EntityId::of);
     }
 
     // Try to fall back to the 20-byte evm address recovered from the ECDSA secp256k1 alias

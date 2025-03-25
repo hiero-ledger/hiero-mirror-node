@@ -4,7 +4,6 @@ package com.hedera.mirror.web3.state.singleton;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
@@ -13,7 +12,6 @@ import org.junit.jupiter.api.Test;
 class EntityIdSingletonIntegrationTest extends Web3IntegrationTest {
 
     private final EntityIdSingleton entityIdSingleton;
-    private final CommonProperties commonProperties;
 
     @Test
     void shouldReturnNextIdWithIncrementAndRealmAndShard() {
@@ -50,11 +48,8 @@ class EntityIdSingletonIntegrationTest extends Web3IntegrationTest {
         final var entityNumber3 = entityIdSingleton.get();
 
         assertThat(entityNumberBeforeConfig.number()).isNotEqualTo(entityWithShardAndRealm.getNum() + 1);
-
         assertThat(entityNumberAfterConfig.number()).isEqualTo(entityWithShardAndRealm.getNum() + 1);
-
         assertThat(entityNumber2.number()).isEqualTo(entity2.getNum() + 1);
-
         assertThat(entityNumber3.number()).isEqualTo(entity3.getNum() + 1);
     }
 }

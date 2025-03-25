@@ -16,11 +16,14 @@ import com.hedera.mirror.importer.ImporterIntegrationTest;
 import com.hedera.mirror.importer.repository.EntityRepository;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -29,17 +32,38 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 @ExtendWith(OutputCaptureExtension.class)
 class EntityIdServiceImplTest extends ImporterIntegrationTest {
 
-    // in the form 'shard.realm.num'
+    private static final int EVM_ADDRESS_NUM = 100;
     private static final byte[] PARSABLE_EVM_ADDRESS = new byte[] {
-        0, 0, 0, 0, // shard
-        0, 0, 0, 0, 0, 0, 0, 0, // realm
-        0, 0, 0, 0, 0, 0, 0, 100, // num
+        0,
+        0,
+        0,
+        0, // shard
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0, // realm
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        EVM_ADDRESS_NUM, // num
     };
 
     private static final String RECOVERABLE_ERROR_LOG_PREFIX = "Recoverable error. ";
 
     private final EntityRepository entityRepository;
     private final EntityIdService entityIdService;
+
+    private static Stream<Arguments> shardAndRealmData() {
+        return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 0L), Arguments.of(0L, 1L), Arguments.of(1L, 2L));
+    }
 
     @Test
     void cache() {
@@ -75,9 +99,12 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         assertThat(entityIdService.lookup(accountId)).hasValue(EntityId.of(100));
     }
 
-    @Test
-    void lookupAccountAlias() {
-        Entity account = domainBuilder.entity().persist();
+    @MethodSource("shardAndRealmData")
+    @ParameterizedTest
+    void lookupAccountAlias(long shard, long realm) {
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
+        var account = domainBuilder.entity().persist();
         assertThat(entityIdService.lookup(getProtoAccountId(account))).hasValue(account.toEntityId());
     }
 
@@ -188,9 +215,12 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         assertThat(entityIdService.lookup(contractId)).hasValue(EntityId.of(100));
     }
 
-    @Test
-    void lookupContractEvmAddress() {
-        Entity contract = domainBuilder
+    @MethodSource("shardAndRealmData")
+    @ParameterizedTest
+    void lookupContractEvmAddress(long shard, long realm) {
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
+        var contract = domainBuilder
                 .entity()
                 .customize(e -> e.alias(null).type(CONTRACT))
                 .persist();
@@ -202,7 +232,7 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         var contractId = ContractID.newBuilder()
                 .setEvmAddress(DomainUtils.fromBytes(PARSABLE_EVM_ADDRESS))
                 .build();
-        assertThat(entityIdService.lookup(contractId)).hasValue(EntityId.of(100));
+        assertThat(entityIdService.lookup(contractId)).hasValue(EntityId.of(0, 0, EVM_ADDRESS_NUM));
     }
 
     @Test
@@ -375,7 +405,7 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         AccountID accountId = AccountID.newBuilder()
                 .setAlias(DomainUtils.fromBytes(PARSABLE_EVM_ADDRESS))
                 .build();
-        assertThat(entityIdService.lookup(accountId)).hasValue(EntityId.of(100));
+        assertThat(entityIdService.lookup(accountId)).hasValue(EntityId.of(0, 0, EVM_ADDRESS_NUM));
     }
 
     @Test

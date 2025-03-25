@@ -3,6 +3,7 @@
 package com.hedera.mirror.common.config;
 
 import com.google.common.collect.ImmutableMap;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -38,8 +39,11 @@ public class CommonTestConfiguration {
     private boolean v2;
 
     @Bean
-    DomainBuilder domainBuilder(EntityManager entityManager, TransactionOperations transactionOperations) {
-        return new DomainBuilder(entityManager, transactionOperations);
+    DomainBuilder domainBuilder(
+            CommonProperties commonProperties,
+            EntityManager entityManager,
+            TransactionOperations transactionOperations) {
+        return new DomainBuilder(commonProperties, entityManager, transactionOperations);
     }
 
     @Bean

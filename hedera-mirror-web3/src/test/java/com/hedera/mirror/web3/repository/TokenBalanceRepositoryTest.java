@@ -4,7 +4,6 @@ package com.hedera.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.AccountBalance.Id;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
@@ -13,7 +12,6 @@ import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.TokenTransfer;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import lombok.RequiredArgsConstructor;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -25,13 +23,6 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
     private static final long TRANSFER_INCREMENT = 1L;
 
     private final TokenBalanceRepository tokenBalanceRepository;
-
-    private CommonProperties commonProperties;
-
-    @BeforeEach
-    void setup() {
-        commonProperties = new CommonProperties();
-    }
 
     @Test
     void findHistoricalByIdAndTimestampLessThanBlockTimestamp() {
