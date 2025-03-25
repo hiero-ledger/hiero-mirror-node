@@ -80,6 +80,15 @@ public class SystemFileLoader {
         return getSystemFiles().containsKey(key);
     }
 
+    /**
+     * Load file data with retry logic and parsing. This method will attempt to load and parse file data,
+     * retrying with earlier versions if parsing fails.
+     *
+     * @param key The FileID object representing the file
+     * @param currentTimestamp The current timestamp to start loading from
+     * @param systemFile The system file containing the file data and codec for parsing
+     * @return The parsed file data, or the default value if no valid data is found
+     */
     private File loadWithRetry(final FileID key, final long currentTimestamp, SystemFile systemFile) {
         AtomicLong nanoSeconds = new AtomicLong(currentTimestamp);
         final var fileId = toEntityId(key).getId();

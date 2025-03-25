@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -273,6 +274,25 @@ class SystemFileLoaderTest {
         assertThat(actual.contents()).isEqualTo(expected.contents());
         assertThat(actual.fileId()).isEqualTo(fileId);
         verify(fileDataRepository, times(10)).getFileAtTimestamp(eq(entityId), anyLong());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "101, true",
+        "102, true",
+        "111, true",
+        "112, true",
+        "121, true",
+        "122, true",
+        "123, true",
+        "1000, false",
+        "2000, false",
+        "9999, false",
+        "0, false",
+        "-1, false"
+    })
+    void isSystemFileCheck(long fileNum, boolean expectedResult) {
+        assertThat(systemFileLoader.isSystemFile(fileId(fileNum))).isEqualTo(expectedResult);
     }
 
     private FileID fileId(long fileNum) {
