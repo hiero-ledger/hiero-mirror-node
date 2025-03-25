@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 @EntityScan("com.hedera.mirror.common.domain")
 public class CommonConfiguration {
     @Bean
-    SystemEntities systemEntities(CommonProperties commonProperties) {
-        return new SystemEntities(commonProperties);
+    SystemEntities systemEntities() {
+        return new SystemEntities(CommonProperties.getInstance());
     }
 }

@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.AccountBalance.Id;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.TokenTransfer;
 import com.hedera.mirror.web3.Web3IntegrationTest;
@@ -77,7 +76,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
                 .customize(tb -> tb.id(new TokenBalance.Id(
                         accountBalance.getId().getConsensusTimestamp(),
                         accountBalance.getId().getAccountId(),
-                        EntityId.of(shard, realm, domainBuilder.id()))))
+                        domainBuilder.entityId())))
                 .persist();
         long consensusTimestamp = tokenBalance1.getId().getConsensusTimestamp();
 
