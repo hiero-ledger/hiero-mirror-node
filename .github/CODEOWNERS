@@ -9,7 +9,7 @@
 
 # Protection Rules for Github Configuration Files and Actions Workflows
 /.github/                                       @hiero-ledger/github-maintainers @hiero-ledger/hiero-mirror-node-maintainers
-/.github/workflows/                             @hiero-ledger/github-maintainers @hiero-ledger/github-committers @hiero-ledger/hiero-mirror-node-maintainers
+/.github/workflows/                             @hiero-ledger/github-maintainers @hiero-ledger/hiero-mirror-node-maintainers
 
 # Codacy Tool Configurations
 /config/                                        @hiero-ledger/github-maintainers  @hiero-ledger/hiero-mirror-node-maintainers
