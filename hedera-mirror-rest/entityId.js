@@ -7,6 +7,7 @@ import {getMirrorConfig} from './config';
 import * as constants from './constants';
 import {InvalidArgumentError} from './errors';
 import {stripHexPrefix} from './utils.js';
+import config from './config.js';
 
 const {
   common: {realm: systemRealm, shard: systemShard},
@@ -265,7 +266,7 @@ const parseFromString = (id, error) => {
   return [shard, realm, BigInt(numOrEvmAddress), null];
 };
 
-const parseIdParameterToEntityId = (id) => {
+const parseString = (id) => {
   const idPieces = ('' + id).split('.');
   idPieces.unshift(...[systemShard, systemRealm].slice(0, 3 - idPieces.length));
   idPieces[2] = stripHexPrefix(idPieces[2]);
@@ -303,7 +304,6 @@ const cache = new quickLru({
  * @param {Function} error
  * @return {EntityId}
  */
-// Some calls from num here
 const parseCached = (id, allowEvmAddress, evmAddressType, error) => {
   const key = `${id}_${allowEvmAddress}_${evmAddressType}`;
   const value = cache.get(key);
@@ -346,11 +346,38 @@ const parse = (id, {allowEvmAddress, evmAddressType, isNullable, paramName} = {}
   return checkNullId(id, isNullable) || parseCached(`${id}`, allowEvmAddress, evmAddressType, error);
 };
 
+/**
+ * System Entities
+ * */
+const addressBookFile101 = of(systemShard, systemRealm, 101);
+const addressBookFile102 = of(systemShard, systemRealm, 102);
+const exchangeRateFile = of(systemShard, systemRealm, 112);
+const feeScheduleFile = of(systemShard, systemRealm, 111);
+const stakingRewardAccount = of(systemShard, systemRealm, 800);
+const treasuryAccount = of(systemShard, systemRealm, 2);
+const unreleasedSupplyAccounts = config.network.unreleasedSupplyAccounts.map((range) => {
+  const from = of(systemShard, systemRealm, range.from);
+  const to = of(systemShard, systemRealm, range.to);
+  return {from, to};
+});
+const validAddressBookFileIds = [addressBookFile101.getEncodedId(), addressBookFile102.getEncodedId()];
+const isValidAddressBookFileId = (fileId) => {
+  return isValidEntityId(fileId) && validAddressBookFileIds.includes(parseString(fileId)?.getEncodedId());
+};
+
 export default {
+  addressBookFile101,
+  addressBookFile102,
+  exchangeRateFile,
+  feeScheduleFile,
+  isValidAddressBookFileId,
   isValidEntityId,
   isValidEvmAddress,
   computeContractIdPartsFromContractIdValue,
   of,
   parse,
-  parseIdParameterToEntityId,
+  parseString,
+  stakingRewardAccount,
+  treasuryAccount,
+  unreleasedSupplyAccounts,
 };

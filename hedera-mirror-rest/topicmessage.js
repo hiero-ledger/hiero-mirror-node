@@ -93,7 +93,7 @@ const getMessageByTopicAndSequenceRequest = async (req, res) => {
   const seqNum = req.params.sequenceNumber;
   validateGetSequenceMessageParams(topicIdStr, seqNum);
 
-  const topicId = EntityId.parseIdParameterToEntityId(topicIdStr).getEncodedId();
+  const topicId = EntityId.parseString(topicIdStr).getEncodedId();
   let query = `select *
                   from ${TopicMessage.tableName}
                   where ${TopicMessage.TOPIC_ID} = $1
@@ -119,7 +119,7 @@ const getTopicMessages = async (req, res) => {
 
   const encoding = req.query[constants.filterKeys.ENCODING];
   const filters = utils.buildAndValidateFilters(req.query, acceptedTopicsParameters);
-  const topicId = EntityId.parseIdParameterToEntityId(topicIdStr).getEncodedId();
+  const topicId = EntityId.parseString(topicIdStr).getEncodedId();
 
   const topicMessagesResponse = {
     messages: [],

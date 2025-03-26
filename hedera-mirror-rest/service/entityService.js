@@ -123,7 +123,7 @@ class EntityService extends BaseService {
   async getEncodedId(entityIdString, requireResult = true, paramName = filterKeys.ID_OR_ALIAS_OR_EVM_ADDRESS) {
     try {
       if (EntityId.isValidEntityId(entityIdString)) {
-        const entityId = EntityId.parseIdParameterToEntityId(entityIdString, {paramName});
+        const entityId = EntityId.parseString(entityIdString, {paramName});
         return entityId.evmAddress === null
           ? entityId.getEncodedId()
           : await this.getEntityIdFromEvmAddress(entityId, requireResult);

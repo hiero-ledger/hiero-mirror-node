@@ -13,7 +13,7 @@ import util from 'util';
 
 import * as constants from './constants';
 import EntityId from './entityId';
-import config, {getMirrorConfig} from './config';
+import config from './config';
 import ed25519 from './ed25519';
 import {DbError, InvalidArgumentError, InvalidClauseError} from './errors';
 import {Entity, FeeSchedule, TransactionResult, TransactionType} from './model';
@@ -38,10 +38,6 @@ const ltLte = [opsMap.lt, opsMap.lte];
 const gtLtPattern = /[gl]t[e]?:/;
 
 const emptySet = new Set();
-
-const {
-  common: {realm: systemRealm, shard: systemShard},
-} = getMirrorConfig();
 
 /**
  * Returns null if the value is equal to the default, otherwise value.
@@ -201,16 +197,8 @@ const isValidSlot = (slot) => slotPattern.test(slot);
 
 const isValidValueIgnoreCase = (value, validValues) => validValues.includes(value.toLowerCase());
 
-const addressBookFileIdPattern = [
-  '101',
-  `${systemRealm}.101`,
-  `${systemShard}.${systemRealm}.101`,
-  '102',
-  `${systemRealm}.102`,
-  `${systemShard}.${systemRealm}.102`,
-];
 const isValidAddressBookFileIdPattern = (fileId) => {
-  return addressBookFileIdPattern.includes(fileId);
+  return EntityId.validAddressBookFileIds.includes(EntityId.parseString(fileId)?.getEncodedId());
 };
 
 const lowerCaseQueryValue = (queryValue) => (typeof queryValue === 'string' ? queryValue.toLowerCase() : queryValue);
@@ -300,10 +288,7 @@ const filterValidityChecks = (param, op, val) => {
       ret = isValidPublicKeyQuery(val);
       break;
     case constants.filterKeys.FILE_ID:
-      ret =
-        op === constants.queryParamOperators.eq &&
-        EntityId.isValidEntityId(val) &&
-        isValidAddressBookFileIdPattern(val);
+      ret = op === constants.queryParamOperators.eq && EntityId.isValidAddressBookFileId(val);
       break;
     case constants.filterKeys.FROM:
       ret = EntityId.isValidEntityId(val, true, constants.EvmAddressType.NO_SHARD_REALM);
@@ -597,7 +582,7 @@ const validateClauseAndValues = (clause, values) => {
 const parseAccountIdQueryParam = (parsedQueryParams, columnName) => {
   return parseParams(
     parsedQueryParams[constants.filterKeys.ACCOUNT_ID],
-    (value) => EntityId.parseIdParameterToEntityId(value).getEncodedId(),
+    (value) => EntityId.parseString(value).getEncodedId(),
     (op, value) => {
       return Array.isArray(value)
         ? [`${columnName} IN (?`.concat(', ?'.repeat(value.length - 1)).concat(')'), value]
@@ -1290,7 +1275,7 @@ const formatComparator = (comparator) => {
         break;
       case constants.filterKeys.FILE_ID:
         // Accepted forms: shard.realm.num or encoded ID string
-        comparator.value = EntityId.parseIdParameterToEntityId(comparator.value).getEncodedId();
+        comparator.value = EntityId.parseString(comparator.value).getEncodedId();
         break;
       case constants.filterKeys.ENTITY_PUBLICKEY:
         comparator.value = parsePublicKey(comparator.value);

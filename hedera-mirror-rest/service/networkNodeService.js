@@ -11,7 +11,7 @@ import {
   NodeStake,
 } from '../model';
 import {OrderSpec} from '../sql';
-import SystemEntity from './systemEntity';
+import EntityId from '../entityId.js';
 
 /**
  * Network node business model
@@ -93,7 +93,7 @@ class NetworkNodeService extends BaseService {
             (select max(${NetworkStake.CONSENSUS_TIMESTAMP}) from ${NetworkStake.tableName})`;
 
   static unreleasedSupplyAccounts = (column) =>
-    SystemEntity.unreleasedSupplyAccounts
+    EntityId.unreleasedSupplyAccounts
       .map((range) => {
         const from = range.from.getEncodedId();
         const to = range.to.getEncodedId();

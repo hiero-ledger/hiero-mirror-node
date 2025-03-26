@@ -15,7 +15,7 @@ import {
 } from '../constants';
 import {InvalidArgumentError, NotFoundError} from '../errors';
 import {AddressBookEntry, FileData} from '../model';
-import {FileDataService, NetworkNodeService, SystemEntity} from '../service';
+import {FileDataService, NetworkNodeService} from '../service';
 import * as utils from '../utils';
 import {
   ExchangeRateSetViewModel,
@@ -24,6 +24,7 @@ import {
   NetworkStakeViewModel,
   NetworkSupplyViewModel,
 } from '../viewmodel';
+import EntityId from '../entityId.js';
 
 const networkNodesDefaultSize = 10;
 const networkNodesMaxSize = 25;
@@ -43,7 +44,7 @@ class NetworkController extends BaseController {
   extractNetworkNodesQuery = (filters) => {
     let limit = networkNodesDefaultSize;
     let order = orderFilterValues.ASC;
-    let fileId = SystemEntity.addressBookFile102Id.getEncodedId(); // default fileId for mirror node
+    let fileId = EntityId.addressBookFile102.getEncodedId(); // default fileId for mirror node
     const startPosition = 2; // 1st index is reserved for fileId
     const conditions = [];
     const params = [];

@@ -378,9 +378,7 @@ const getTokensRequest = async (req, res) => {
     conditions.push('ta.associated is true');
     getTokensSqlQuery.unshift(tokenAccountCte);
     getTokensSqlQuery.push(tokenAccountJoinQuery);
-    getTokenSqlParams.push(
-      EntityId.parseIdParameterToEntityId(accountId, {paramName: filterKeys.ACCOUNT_ID}).getEncodedId()
-    );
+    getTokenSqlParams.push(EntityId.parseString(accountId, {paramName: filterKeys.ACCOUNT_ID}).getEncodedId());
   }
 
   // add join with entities table to sql query

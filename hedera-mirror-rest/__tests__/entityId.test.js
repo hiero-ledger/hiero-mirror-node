@@ -531,7 +531,7 @@ describe('computeContractIdPartsFromContractIdValue', () => {
   }
 });
 
-describe('parseIdParameterToEntityId', () => {
+describe('parseString', () => {
   const specs = [
     {
       input: '0.0.500',
@@ -561,7 +561,7 @@ describe('parseIdParameterToEntityId', () => {
 
   for (const spec of specs) {
     test(spec.input, () => {
-      expect(EntityId.parseIdParameterToEntityId(spec.input)).toEqual(spec.expected);
+      expect(EntityId.parseString(spec.input)).toEqual(spec.expected);
     });
   }
 });

@@ -14,10 +14,6 @@ import {NotFoundError} from './errors';
 import {Entity} from './model';
 import balances from './balances';
 
-const {
-  common: {realm: systemRealm, shard: systemShard},
-} = getMirrorConfig();
-
 const {tokenBalance: tokenBalanceResponseLimit} = getResponseLimit();
 
 const getEntityStakeQuery = (filter, isHistorical = false) => {
@@ -370,10 +366,7 @@ const getAccounts = async (req, res) => {
     },
   };
 
-  let anchorAcc = `${systemShard}.${systemRealm}.0`;
-  if (ret.accounts.length > 0) {
-    anchorAcc = ret.accounts[ret.accounts.length - 1].account;
-  }
+  let anchorAcc = ret.accounts[ret.accounts.length - 1]?.account;
 
   ret.links = {
     next: utils.getPaginationLink(

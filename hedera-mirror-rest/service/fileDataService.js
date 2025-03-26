@@ -5,7 +5,7 @@ import _ from 'lodash';
 import BaseService from './baseService';
 import {ExchangeRate, FeeSchedule, FileData} from '../model';
 import * as utils from '../utils';
-import {SystemEntity} from '.';
+import EntityId from '../entityId.js';
 
 /**
  * File data retrieval business logic
@@ -89,11 +89,11 @@ class FileDataService extends BaseService {
   };
 
   getExchangeRate = async (filterQueries) => {
-    return this.fallbackRetry(SystemEntity.exchangeRateFileId.getEncodedId(), filterQueries, ExchangeRate);
+    return this.fallbackRetry(EntityId.exchangeRateFile.getEncodedId(), filterQueries, ExchangeRate);
   };
 
   getFeeSchedule = async (filterQueries) => {
-    return this.fallbackRetry(SystemEntity.feeScheduleFileId.getEncodedId(), filterQueries, FeeSchedule);
+    return this.fallbackRetry(EntityId.feeScheduleFile.getEncodedId(), filterQueries, FeeSchedule);
   };
 
   fallbackRetry = async (fileEntityId, filterQueries, resultConstructor) => {
