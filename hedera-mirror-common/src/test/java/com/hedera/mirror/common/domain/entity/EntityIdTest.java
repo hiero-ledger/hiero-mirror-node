@@ -10,6 +10,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hedera.mirror.common.exception.InvalidEntityException;
+import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.FileID;
+import com.hederahashgraph.api.proto.java.ScheduleID;
+import com.hederahashgraph.api.proto.java.TokenID;
+import com.hederahashgraph.api.proto.java.TopicID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -77,5 +83,65 @@ class EntityIdTest {
     void isUnset() {
         assertThat(EntityId.isUnset(UNSET)).isTrue();
         assertThat(EntityId.isUnset(EntityId.of(UNSET.getId()))).isFalse();
+    }
+
+    @Test
+    void toAccountId() {
+        assertThat(EntityId.of(1, 2, 3).toAccountID())
+                .isEqualTo(AccountID.newBuilder()
+                        .setShardNum(1)
+                        .setRealmNum(2)
+                        .setAccountNum(3)
+                        .build());
+    }
+
+    @Test
+    void toContractId() {
+        assertThat(EntityId.of(1, 2, 3).toContractID())
+                .isEqualTo(ContractID.newBuilder()
+                        .setShardNum(1)
+                        .setRealmNum(2)
+                        .setContractNum(3)
+                        .build());
+    }
+
+    @Test
+    void toFileId() {
+        assertThat(EntityId.of(1, 2, 3).toFileID())
+                .isEqualTo(FileID.newBuilder()
+                        .setShardNum(1)
+                        .setRealmNum(2)
+                        .setFileNum(3)
+                        .build());
+    }
+
+    @Test
+    void toScheduleId() {
+        assertThat(EntityId.of(1, 2, 3).toScheduleID())
+                .isEqualTo(ScheduleID.newBuilder()
+                        .setShardNum(1)
+                        .setRealmNum(2)
+                        .setScheduleNum(3)
+                        .build());
+    }
+
+    @Test
+    void toTokenId() {
+        assertThat(EntityId.of(1, 2, 3).toTokenID())
+                .isEqualTo(TokenID.newBuilder()
+                        .setShardNum(1)
+                        .setRealmNum(2)
+                        .setTokenNum(3)
+                        .build());
+    }
+
+    @Test
+    void toTopicId() {
+        assertThat(EntityId.of(1, 2, 3).toTopicID())
+                .isEqualTo(TopicID.newBuilder()
+                        .setShardNum(1)
+                        .setRealmNum(2)
+                        .setTopicNum(3)
+                        .build());
     }
 }

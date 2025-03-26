@@ -5,6 +5,7 @@ package com.hedera.mirror.web3.state.keyvalue;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import static com.hedera.services.utils.EntityIdUtils.toFileId;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -118,7 +119,6 @@ class FileReadableKVStateTest {
     void fileFieldsReturnNullWhenFileDataNotFound() {
         when(contractCallContext.getTimestamp()).thenReturn(TIMESTAMP);
         long fileIdLong = toEntityId(FILE_ID).getId();
-        when(systemFileLoader.load(FILE_ID)).thenReturn(null);
         when(fileDataRepository.getFileAtTimestamp(fileIdLong, TIMESTAMP.get())).thenReturn(Optional.empty());
 
         File file = fileReadableKVState.get(FILE_ID);
@@ -162,7 +162,6 @@ class FileReadableKVStateTest {
         when(contractCallContext.getTimestamp()).thenReturn(TIMESTAMP);
         when(fileDataRepository.getFileAtTimestamp(FILE_ID_LONG, TIMESTAMP.get()))
                 .thenReturn(Optional.empty());
-        when(systemFileLoader.load(FILE_ID)).thenReturn(null);
 
         File result = fileReadableKVState.readFromDataSource(FILE_ID);
 
@@ -172,9 +171,8 @@ class FileReadableKVStateTest {
     @Test
     void readFromDataSourceSystemFile() {
         when(contractCallContext.getTimestamp()).thenReturn(TIMESTAMP);
-        when(fileDataRepository.getFileAtTimestamp(FILE_ID_LONG, TIMESTAMP.get()))
-                .thenReturn(Optional.empty());
-        when(systemFileLoader.load(FILE_ID)).thenReturn(FILE);
+        when(systemFileLoader.isSystemFile(FILE_ID)).thenReturn(true);
+        when(systemFileLoader.load(any(), anyLong())).thenReturn(FILE);
 
         File result = fileReadableKVState.readFromDataSource(FILE_ID);
 

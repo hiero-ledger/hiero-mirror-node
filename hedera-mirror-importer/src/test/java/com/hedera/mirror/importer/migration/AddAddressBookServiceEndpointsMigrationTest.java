@@ -10,7 +10,6 @@ import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.importer.DisableRepeatableSqlMigration;
 import com.hedera.mirror.importer.EnabledIfV1;
 import com.hedera.mirror.importer.ImporterIntegrationTest;
-import com.hedera.mirror.importer.addressbook.AddressBookServiceImpl;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,17 +38,15 @@ import org.springframework.test.context.TestPropertySource;
 @TestPropertySource(properties = "spring.flyway.target=1.37.0")
 class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTest {
 
+    private static final RowMapper<MigrationAddressBookServiceEndpoint> ADDRESS_BOOK_SERVICE_ENDPOINT_MAPPER =
+            rowMapper(MigrationAddressBookServiceEndpoint.class);
+    private static final RowMapper<MigrationAddressBook> ADDRESS_BOOK_MAPPER = rowMapper(MigrationAddressBook.class);
+    private static final RowMapper<MigrationAddressBookEntry> ADDRESS_BOOK_ENTRY_MAPPER =
+            rowMapper(MigrationAddressBookEntry.class);
     private final String baseAccountId = "0.0.";
     private final String baseIp = "127.0.0.";
     private final int basePort = 443;
     private final int nodeAccountOffset = 3;
-
-    private static final RowMapper<MigrationAddressBookServiceEndpoint> ADDRESS_BOOK_SERVICE_ENDPOINT_MAPPER =
-            rowMapper(MigrationAddressBookServiceEndpoint.class);
-    private static final RowMapper<MigrationAddressBook> ADDRESS_BOOK_MAPPER = rowMapper(MigrationAddressBook.class);
-
-    private static final RowMapper<MigrationAddressBookEntry> ADDRESS_BOOK_ENTRY_MAPPER =
-            rowMapper(MigrationAddressBookEntry.class);
 
     @Value("classpath:db/migration/v1/V1.37.1__add_address_book_service_endpoints.sql")
     private final File sql;
@@ -72,7 +69,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         int endPointPerNode = 3;
         int numEndPoints = nodeIdCount * (endPointPerNode + 1);
 
-        insertAddressBook(AddressBookServiceImpl.FILE_101, consensusTimestamp, nodeIdCount);
+        insertAddressBook(systemEntities.addressBookFile101(), consensusTimestamp, nodeIdCount);
         getAndSaveAddressBookEntries(true, consensusTimestamp, nodeIdCount, endPointPerNode);
 
         assertThat(jdbcOperations.queryForObject("select count(*) from address_book_entry", Integer.class))
@@ -100,7 +97,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         int endPointPerNode = 3;
         int numEndPoints = nodeIdCount * endPointPerNode;
 
-        insertAddressBook(AddressBookServiceImpl.FILE_102, consensusTimestamp, nodeIdCount);
+        insertAddressBook(systemEntities.addressBookFile102(), consensusTimestamp, nodeIdCount);
         getAndSaveAddressBookEntries(false, consensusTimestamp, nodeIdCount, endPointPerNode);
 
         assertThat(jdbcOperations.queryForObject("select count(*) from address_book_entry", Integer.class))
@@ -127,7 +124,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         int nodeIdCount = 3;
         int endPointPerNode = 0;
 
-        insertAddressBook(AddressBookServiceImpl.FILE_102, consensusTimestamp, nodeIdCount);
+        insertAddressBook(systemEntities.addressBookFile102(), consensusTimestamp, nodeIdCount);
         getAndSaveAddressBookEntries(true, consensusTimestamp, nodeIdCount, endPointPerNode);
 
         assertThat(jdbcOperations.queryForObject("select count(*) from address_book_entry", Integer.class))
@@ -154,7 +151,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         int nodeIdCount = 3;
         int endPointPerNode = 0;
 
-        insertAddressBook(AddressBookServiceImpl.FILE_102, consensusTimestamp, nodeIdCount);
+        insertAddressBook(systemEntities.addressBookFile102(), consensusTimestamp, nodeIdCount);
         getAndSaveAddressBookEntries(false, consensusTimestamp, nodeIdCount, endPointPerNode);
 
         assertThat(jdbcOperations.queryForObject("select count(*) from address_book_entry", Integer.class))
@@ -187,7 +184,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         int numEndPoints = nodeIds.size() * ports.size();
 
         // populate address_book and address_book_entry
-        insertAddressBook(AddressBookServiceImpl.FILE_102, consensusTimestamp, nodeIdCount);
+        insertAddressBook(systemEntities.addressBookFile102(), consensusTimestamp, nodeIdCount);
         nodeIds.forEach(nodeId -> {
             ports.forEach(port -> {
                 insertAddressBookEntry(
@@ -223,7 +220,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         // verify address_book counts are updated
         assertThat(findById(consensusTimestamp))
                 .get()
-                .returns(AddressBookServiceImpl.FILE_102, MigrationAddressBook::getFileId)
+                .returns(systemEntities.addressBookFile102(), MigrationAddressBook::getFileId)
                 .returns(nodeIds.size(), MigrationAddressBook::getNodeCount)
                 .returns(null, MigrationAddressBook::getEndConsensusTimestamp);
     }
@@ -238,7 +235,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
                 .publicKey("rsa+public/key");
 
         List<Long> nodeIds = List.of(0L, 1L, 2L, 3L);
-        insertAddressBook(AddressBookServiceImpl.FILE_102, consensusTimestamp, nodeIds.size());
+        insertAddressBook(systemEntities.addressBookFile102(), consensusTimestamp, nodeIds.size());
         insertAddressBookEntry(
                 builder.memo(baseAccountId + (nodeIds.get(0) + nodeAccountOffset))
                         .build(),
@@ -285,7 +282,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
                 .publicKey("rsa+public/key");
 
         List<Long> nodeIds = List.of(0L, 1L, 2L, 3L);
-        insertAddressBook(AddressBookServiceImpl.FILE_102, consensusTimestamp, nodeIds.size());
+        insertAddressBook(systemEntities.addressBookFile102(), consensusTimestamp, nodeIds.size());
         insertAddressBookEntry(
                 builder.memo(baseAccountId + (nodeIds.get(0) + nodeAccountOffset))
                         .consensusTimestamp(consensusTimestamp)
@@ -469,23 +466,23 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         // drop describe and stake columns. Also drop primary key
         ownerJdbcTemplate.execute(
                 """
-                            alter table if exists address_book_entry
-                                drop column if exists description,
-                                drop column if exists stake,
-                                drop constraint if exists address_book_entry_pkey;
-                            """);
+                        alter table if exists address_book_entry
+                            drop column if exists description,
+                            drop column if exists stake,
+                            drop constraint if exists address_book_entry_pkey;
+                        """);
 
         // restore id, ip and port columns. Also restore primary key
         ownerJdbcTemplate.execute(
                 """
-                            alter table if exists address_book_entry
-                                add column if not exists id integer,
-                                add column if not exists ip varchar(128) null,
-                                add column if not exists port integer null,
-                                alter column node_account_id drop not null,
-                                alter column node_id drop not null,
-                                add primary key (id);
-                            """);
+                        alter table if exists address_book_entry
+                            add column if not exists id integer,
+                            add column if not exists ip varchar(128) null,
+                            add column if not exists port integer null,
+                            alter column node_account_id drop not null,
+                            alter column node_id drop not null,
+                            add primary key (id);
+                        """);
     }
 
     // Use a custom class for address_book_service_endpoint table since its columns have changed from the current domain

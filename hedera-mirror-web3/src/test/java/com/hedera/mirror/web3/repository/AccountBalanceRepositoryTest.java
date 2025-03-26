@@ -4,13 +4,11 @@ package com.hedera.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import lombok.RequiredArgsConstructor;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -18,24 +16,16 @@ import org.junit.jupiter.params.provider.CsvSource;
 @RequiredArgsConstructor
 class AccountBalanceRepositoryTest extends Web3IntegrationTest {
 
-    private final AccountBalanceRepository accountBalanceRepository;
-
     static final long TRANSFER_AMOUNT = 10L;
     static final long TRANSFER_INCREMENT = 1L;
-
-    private CommonProperties commonProperties;
-
-    @BeforeEach
-    void setup() {
-        commonProperties = new CommonProperties();
-    }
+    private final AccountBalanceRepository accountBalanceRepository;
 
     @Test
     void findHistoricalByIdAndTimestampLessThanBlockTimestamp() {
         var accountBalance = domainBuilder.accountBalance().persist();
         assertThat(accountBalanceRepository.findByIdAndTimestampLessThan(
                         accountBalance.getId().getAccountId().getId(),
-                        accountBalance.getId().getConsensusTimestamp() + 1l))
+                        accountBalance.getId().getConsensusTimestamp() + 1L))
                 .get()
                 .isEqualTo(accountBalance);
     }
@@ -55,7 +45,7 @@ class AccountBalanceRepositoryTest extends Web3IntegrationTest {
         var accountBalance = domainBuilder.accountBalance().persist();
         assertThat(accountBalanceRepository.findByIdAndTimestampLessThan(
                         accountBalance.getId().getAccountId().getId(),
-                        accountBalance.getId().getConsensusTimestamp() - 1l))
+                        accountBalance.getId().getConsensusTimestamp() - 1L))
                 .isEmpty();
     }
 
@@ -124,7 +114,7 @@ class AccountBalanceRepositoryTest extends Web3IntegrationTest {
 
         assertThat(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
                         accountBalance1.getId().getAccountId().getId(),
-                        consensusTimestamp + 10l,
+                        consensusTimestamp + 10L,
                         treasuryAccount.getId()))
                 .get()
                 .isEqualTo(historicalAccountBalance);
@@ -215,14 +205,14 @@ class AccountBalanceRepositoryTest extends Web3IntegrationTest {
 
     private void persistCryptoTransfersBefore(int count, long baseTimestamp, AccountBalance accountBalance1) {
         for (int i = 0; i < count; i++) {
-            long timestamp = baseTimestamp - TRANSFER_INCREMENT * (i + 1l);
+            long timestamp = baseTimestamp - TRANSFER_INCREMENT * (i + 1L);
             persistCryptoTransfer(timestamp, accountBalance1);
         }
     }
 
     private void persistCryptoTransfers(int count, long baseTimestamp, AccountBalance accountBalance1) {
         for (int i = 0; i < count; i++) {
-            long timestamp = baseTimestamp + TRANSFER_INCREMENT * (i + 1l);
+            long timestamp = baseTimestamp + TRANSFER_INCREMENT * (i + 1L);
             persistCryptoTransfer(timestamp, accountBalance1);
         }
     }

@@ -5,7 +5,6 @@ package com.hedera.mirror.importer.repository;
 import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.balance.TokenBalance.Id;
@@ -34,13 +33,12 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
             """)
     void balanceSnapshot(long shard, long realm) {
         // given
-        var commonProperties = new CommonProperties();
         commonProperties.setShard(shard);
         commonProperties.setRealm(realm);
         var treasury = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
-        var tokenAccount1 = domainBuilder.tokenAccount(shard, realm).persist();
+        var tokenAccount1 = domainBuilder.tokenAccount().persist();
         var tokenAccount2 = domainBuilder
-                .tokenAccount(shard, realm)
+                .tokenAccount()
                 .customize(ta -> ta.associated(false).balance(0))
                 .persist();
 
@@ -100,7 +98,6 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
     void balanceSnapshotDeduplicate(long shard, long realm) {
         long lowerRangeTimestamp = 0L;
         long timestamp = 100;
-        var commonProperties = new CommonProperties();
         commonProperties.setShard(shard);
         commonProperties.setRealm(realm);
         var treasury = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
@@ -109,11 +106,11 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
         assertThat(tokenBalanceRepository.findAll()).isEmpty();
 
         var tokenAccount = domainBuilder
-                .tokenAccount(shard, realm)
+                .tokenAccount()
                 .customize(t -> t.balanceTimestamp(1L))
                 .persist();
         var tokenAccount2 = domainBuilder
-                .tokenAccount(shard, realm)
+                .tokenAccount()
                 .customize(t -> t.balanceTimestamp(1L))
                 .persist();
 
@@ -143,7 +140,7 @@ class TokenBalanceRepositoryTest extends ImporterIntegrationTest {
         tokenAccountRepository.save(tokenAccount2);
         expected.add(buildTokenBalance(tokenAccount2, timestamp3));
         var tokenAccount3 = domainBuilder
-                .tokenAccount(shard, realm)
+                .tokenAccount()
                 .customize(t -> t.balanceTimestamp(timestamp3))
                 .persist();
         expected.add(buildTokenBalance(tokenAccount3, timestamp3));

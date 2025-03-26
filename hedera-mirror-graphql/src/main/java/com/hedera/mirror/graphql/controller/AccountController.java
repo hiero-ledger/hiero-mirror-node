@@ -13,13 +13,13 @@ import com.hedera.mirror.graphql.viewmodel.Account;
 import com.hedera.mirror.graphql.viewmodel.AccountInput;
 import com.hedera.mirror.graphql.viewmodel.HbarUnit;
 import jakarta.validation.Valid;
+import java.util.Optional;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.graphql.data.method.annotation.SchemaMapping;
 import org.springframework.stereotype.Controller;
-import reactor.core.publisher.Mono;
 
 @Controller
 @CustomLog
@@ -30,7 +30,7 @@ class AccountController {
     private final EntityService entityService;
 
     @QueryMapping
-    Mono<Account> account(@Argument @Valid AccountInput input) {
+    Optional<Account> account(@Argument @Valid AccountInput input) {
         final var alias = input.getAlias();
         final var evmAddress = input.getEvmAddress();
         final var entityId = input.getEntityId();
@@ -39,27 +39,26 @@ class AccountController {
         validateOneOf(alias, entityId, evmAddress, id);
 
         if (entityId != null) {
-            return Mono.justOrEmpty(entityService
+            return entityService
                     .getByIdAndType(toEntityId(entityId), EntityType.ACCOUNT)
-                    .map(accountMapper::map));
+                    .map(accountMapper::map);
         }
 
         if (alias != null) {
-            return Mono.justOrEmpty(
-                    entityService.getByAliasAndType(alias, EntityType.ACCOUNT).map(accountMapper::map));
+            return entityService.getByAliasAndType(alias, EntityType.ACCOUNT).map(accountMapper::map);
         }
 
         if (evmAddress != null) {
-            return Mono.justOrEmpty(entityService
+            return entityService
                     .getByEvmAddressAndType(evmAddress, EntityType.ACCOUNT)
-                    .map(accountMapper::map));
+                    .map(accountMapper::map);
         }
 
-        return Mono.error(new IllegalStateException("Not implemented"));
+        throw new IllegalStateException("Not implemented");
     }
 
     @SchemaMapping
-    Mono<Long> balance(@Argument @Valid HbarUnit unit, Account account) {
-        return Mono.justOrEmpty(convertCurrency(unit, account.getBalance()));
+    Long balance(@Argument @Valid HbarUnit unit, Account account) {
+        return convertCurrency(unit, account.getBalance());
     }
 }

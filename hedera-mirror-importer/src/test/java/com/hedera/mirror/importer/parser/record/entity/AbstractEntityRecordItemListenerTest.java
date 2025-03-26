@@ -379,13 +379,20 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
         return AccountAmount.newBuilder().setAccountID(account).setAmount(amount);
     }
 
-    protected AccountAmount.Builder accountAmount(long accountNum, long amount) {
-        return accountAmount(AccountID.newBuilder().setAccountNum(accountNum).build(), amount);
+    protected AccountAmount.Builder accountAmount(long accountId, long amount) {
+        return accountAmount(EntityId.of(accountId), amount);
+    }
+
+    protected AccountAmount.Builder accountAmount(EntityId accountId, long amount) {
+        return accountAmount(accountId.toAccountID(), amount);
     }
 
     protected AccountAmount.Builder accountAliasAmount(ByteString alias, long amount) {
         return AccountAmount.newBuilder()
-                .setAccountID(AccountID.newBuilder().setAlias(alias))
+                .setAccountID(AccountID.newBuilder()
+                        .setShardNum(commonProperties.getShard())
+                        .setRealmNum(commonProperties.getRealm())
+                        .setAlias(alias))
                 .setAmount(amount);
     }
 

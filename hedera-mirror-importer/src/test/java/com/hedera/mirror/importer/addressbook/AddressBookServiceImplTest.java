@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import com.hedera.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -80,8 +79,6 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     @Qualifier(CacheConfiguration.CACHE_ADDRESS_BOOK)
     private final CacheManager cacheManager;
 
-    private final CommonProperties commonProperties;
-
     private final FileDataRepository fileDataRepository;
     private final ImporterProperties importerProperties;
 
@@ -136,7 +133,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
 
     private FileData createFileData(
             byte[] contents, long consensusTimeStamp, boolean is102, TransactionType transactionType) {
-        EntityId entityId = is102 ? AddressBookServiceImpl.FILE_102 : AddressBookServiceImpl.FILE_101;
+        EntityId entityId = is102 ? systemEntities.addressBookFile102() : systemEntities.addressBookFile101();
         return new FileData(consensusTimeStamp, contents, entityId, transactionType.getProtoId());
     }
 
@@ -388,7 +385,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertThat(addressBookRepository.findById(initialTimestamp + 1))
                 .get()
                 .returns(addressBookBytes, AddressBook::getFileData)
-                .returns(AddressBookServiceImpl.FILE_102, AddressBook::getFileId)
+                .returns(systemEntities.addressBookFile102(), AddressBook::getFileId)
                 .returns(UPDATED.getNodeAddressCount(), AddressBook::getNodeCount)
                 .returns(initialTimestamp + 1, AddressBook::getStartConsensusTimestamp)
                 .returns(null, AddressBook::getEndConsensusTimestamp)
@@ -401,7 +398,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertThat(addressBookRepository.findById(newTimestamp + 1))
                 .get()
                 .returns(newAddressBookBytes, AddressBook::getFileData)
-                .returns(AddressBookServiceImpl.FILE_102, AddressBook::getFileId)
+                .returns(systemEntities.addressBookFile102(), AddressBook::getFileId)
                 .returns(newTimestamp + 1, AddressBook::getStartConsensusTimestamp)
                 .returns(null, AddressBook::getEndConsensusTimestamp)
                 .satisfies(a -> assertAddressBook(a, FINAL));
@@ -414,7 +411,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         // verify end consensus timestamp was set for previous address book
         assertThat(addressBookRepository.findById(initialTimestamp + 1))
                 .get()
-                .returns(AddressBookServiceImpl.FILE_102, AddressBook::getFileId)
+                .returns(systemEntities.addressBookFile102(), AddressBook::getFileId)
                 .returns(initialTimestamp + 1, AddressBook::getStartConsensusTimestamp)
                 .returns(newTimestamp, AddressBook::getEndConsensusTimestamp);
     }
@@ -428,7 +425,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertThat(addressBookRepository.findById(initialTimestamp + 1))
                 .get()
                 .returns(addressBookBytes, AddressBook::getFileData)
-                .returns(AddressBookServiceImpl.FILE_101, AddressBook::getFileId)
+                .returns(systemEntities.addressBookFile101(), AddressBook::getFileId)
                 .returns(initialTimestamp + 1, AddressBook::getStartConsensusTimestamp)
                 .returns(null, AddressBook::getEndConsensusTimestamp)
                 .satisfies(a -> assertAddressBook(a, UPDATED));
@@ -440,7 +437,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertThat(addressBookRepository.findById(newTimestamp + 1))
                 .get()
                 .returns(newAddressBookBytes, AddressBook::getFileData)
-                .returns(AddressBookServiceImpl.FILE_101, AddressBook::getFileId)
+                .returns(systemEntities.addressBookFile101(), AddressBook::getFileId)
                 .returns(newTimestamp + 1, AddressBook::getStartConsensusTimestamp)
                 .returns(null, AddressBook::getEndConsensusTimestamp)
                 .satisfies(a -> assertAddressBook(a, FINAL));
@@ -453,7 +450,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         // verify end consensus timestamp was set for previous address book
         assertThat(addressBookRepository.findById(initialTimestamp + 1))
                 .get()
-                .returns(AddressBookServiceImpl.FILE_101, AddressBook::getFileId)
+                .returns(systemEntities.addressBookFile101(), AddressBook::getFileId)
                 .returns(initialTimestamp + 1, AddressBook::getStartConsensusTimestamp)
                 .returns(newTimestamp, AddressBook::getEndConsensusTimestamp);
     }
@@ -492,7 +489,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertThat(addressBookRepository.findById(timestamp102 + 1))
                 .get()
                 .returns(addressBookBytes102, AddressBook::getFileData)
-                .returns(AddressBookServiceImpl.FILE_102, AddressBook::getFileId)
+                .returns(systemEntities.addressBookFile102(), AddressBook::getFileId)
                 .returns(timestamp102 + 1, AddressBook::getStartConsensusTimestamp)
                 .returns(null, AddressBook::getEndConsensusTimestamp)
                 .satisfies(a -> assertAddressBook(a, UPDATED));
@@ -504,7 +501,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertThat(addressBookRepository.findById(timestamp101 + 1))
                 .get()
                 .returns(addressBookBytes101, AddressBook::getFileData)
-                .returns(AddressBookServiceImpl.FILE_101, AddressBook::getFileId)
+                .returns(systemEntities.addressBookFile101(), AddressBook::getFileId)
                 .returns(timestamp101 + 1, AddressBook::getStartConsensusTimestamp)
                 .returns(null, AddressBook::getEndConsensusTimestamp)
                 .satisfies(a -> assertAddressBook(a, FINAL));
@@ -568,7 +565,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
 
         assertThat(addressBookService.getCurrent())
                 .returns(initialAddressBookBytes, AddressBook::getFileData)
-                .returns(AddressBookServiceImpl.FILE_102, AddressBook::getFileId)
+                .returns(systemEntities.addressBookFile102(), AddressBook::getFileId)
                 .returns(1L, AddressBook::getStartConsensusTimestamp)
                 .returns(null, AddressBook::getEndConsensusTimestamp);
         assertEquals(1, addressBookRepository.count());
@@ -586,7 +583,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
 
         assertThat(addressBookService.getCurrent())
                 .returns(initialAddressBookBytes, AddressBook::getFileData)
-                .returns(AddressBookServiceImpl.FILE_102, AddressBook::getFileId)
+                .returns(systemEntities.addressBookFile102(), AddressBook::getFileId)
                 .returns(1L, AddressBook::getStartConsensusTimestamp)
                 .returns(null, AddressBook::getEndConsensusTimestamp);
         assertEquals(1, addressBookRepository.count());
