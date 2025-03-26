@@ -35,6 +35,7 @@ public class EquivalenceFeature extends AbstractFeature {
     private static final String INVALID_SOLIDITY_ADDRESS_EXCEPTION = "INVALID_SOLIDITY_ADDRESS";
     private static final String BAD_REQUEST = "400 ";
     private static final String TRANSACTION_SUCCESSFUL_MESSAGE = "Transaction successful";
+    private static final String ACCOUNT_ID_FORMAT = "%s.%s.%s";
 
     private final AcceptanceTestProperties acceptanceTestProperties;
     private final CommonProperties commonProperties;
@@ -84,7 +85,7 @@ public class EquivalenceFeature extends AbstractFeature {
     @Then("I execute selfdestruct and set beneficiary to {string} num")
     public void selfDestructAndSetBeneficiary(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        var beneficiary = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
+        var beneficiary = String.format(ACCOUNT_ID_FORMAT, commonProperties.getShard(), commonProperties.getRealm(), num);
         var accountId = AccountId.fromString(beneficiary);
 
         var data = encodeData(EQUIVALENCE_DESTRUCT, DESTROY_CONTRACT, asAddress(accountId));
@@ -112,7 +113,7 @@ public class EquivalenceFeature extends AbstractFeature {
     @Then("I execute balance opcode to system account {string} num would return 0")
     public void balanceOfAddress(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        var address = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
+        var address = String.format(ACCOUNT_ID_FORMAT, commonProperties.getShard(), commonProperties.getRealm(), num);
         final var accountId = AccountId.fromString(address);
         var data = encodeData(EQUIVALENCE_CALL, GET_BALANCE, asAddress(accountId));
         var functionResult =
@@ -132,7 +133,7 @@ public class EquivalenceFeature extends AbstractFeature {
     @Then("I verify extcodesize opcode against a system account {string} num returns 0")
     public void extCodeSizeAgainstSystemAccount(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        var address = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
+        var address = String.format(ACCOUNT_ID_FORMAT, commonProperties.getShard(), commonProperties.getRealm(), num);
         final var accountId = AccountId.fromString(address);
         var data = encodeData(EQUIVALENCE_CALL, GET_CODE_SIZE, asAddress(accountId));
         var functionResult =
@@ -143,7 +144,7 @@ public class EquivalenceFeature extends AbstractFeature {
     @Then("I verify extcodecopy opcode against a system account {string} num returns empty bytes")
     public void extCodeCopyAgainstSystemAccount(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        var address = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
+        var address = String.format(ACCOUNT_ID_FORMAT, commonProperties.getShard(), commonProperties.getRealm(), num);
         final var accountId = AccountId.fromString(address);
         var data = encodeData(EQUIVALENCE_CALL, COPY_CODE, asAddress(accountId));
         var functionResult = callContract(nodeType, StringUtils.EMPTY, EQUIVALENCE_CALL, COPY_CODE, data, BYTES_TUPLE);
@@ -153,7 +154,7 @@ public class EquivalenceFeature extends AbstractFeature {
     @Then("I verify extcodehash opcode against a system account {string} num returns empty bytes")
     public void extCodeHashAgainstSystemAccount(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        var address = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
+        var address = String.format(ACCOUNT_ID_FORMAT, commonProperties.getShard(), commonProperties.getRealm(), num);
         final var accountId = AccountId.fromString(address);
         var data = encodeData(EQUIVALENCE_CALL, GET_CODE_HASH, asAddress(accountId));
         var functionResult =
