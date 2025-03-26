@@ -85,7 +85,8 @@ public class EquivalenceFeature extends AbstractFeature {
     @Then("I execute selfdestruct and set beneficiary to {string} num")
     public void selfDestructAndSetBeneficiary(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        var beneficiary = String.format(ACCOUNT_ID_FORMAT, commonProperties.getShard(), commonProperties.getRealm(), num);
+        var beneficiary =
+                String.format(ACCOUNT_ID_FORMAT, commonProperties.getShard(), commonProperties.getRealm(), num);
         var accountId = AccountId.fromString(beneficiary);
 
         var data = encodeData(EQUIVALENCE_DESTRUCT, DESTROY_CONTRACT, asAddress(accountId));
