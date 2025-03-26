@@ -109,7 +109,7 @@ public class EquivalenceFeature extends AbstractFeature {
         }
     }
 
-    @Then("I execute balance opcode to system account num {string} would return 0")
+    @Then("I execute balance opcode to system account {string} num would return 0")
     public void balanceOfAddress(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
         var address = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
@@ -129,7 +129,7 @@ public class EquivalenceFeature extends AbstractFeature {
         assertThat(functionResult.getResultAsNumber()).isEqualTo(new BigInteger("10000"));
     }
 
-    @Then("I verify extcodesize opcode against a system account num {string} returns 0")
+    @Then("I verify extcodesize opcode against a system account {string} num returns 0")
     public void extCodeSizeAgainstSystemAccount(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
         var address = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
@@ -140,7 +140,7 @@ public class EquivalenceFeature extends AbstractFeature {
         assertThat(functionResult.getResultAsNumber()).isEqualTo(BigInteger.ZERO);
     }
 
-    @Then("I verify extcodecopy opcode against a system account num {string} returns empty bytes")
+    @Then("I verify extcodecopy opcode against a system account {string} num returns empty bytes")
     public void extCodeCopyAgainstSystemAccount(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
         var address = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
@@ -150,11 +150,10 @@ public class EquivalenceFeature extends AbstractFeature {
         assertThat(functionResult.getResultAsText()).isEmpty();
     }
 
-    @Then("I verify extcodehash opcode against a system account num {string} returns empty bytes")
+    @Then("I verify extcodehash opcode against a system account {string} num returns empty bytes")
     public void extCodeHashAgainstSystemAccount(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
         var address = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
-
         final var accountId = AccountId.fromString(address);
         var data = encodeData(EQUIVALENCE_CALL, GET_CODE_HASH, asAddress(accountId));
         var functionResult =
