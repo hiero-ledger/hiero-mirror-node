@@ -129,11 +129,12 @@ Update
 ```pseudo
 public class ProtoBlockFileReader implements BlockFileReader {
     private void readEventTransactions(ReaderContext context) {
-      While signedTransaction = context.getApplicationTransaction != null)
+      While transaction = context.getApplicationTransaction != null)
         Read transaction result
         Read transaction outputs
         Read State Changes
         Build BlockItem
+          var signedTransaction = SignedTransaction.parseFrom(transaction.getTransactionBytes());
           var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
           var signatureMap = signedTransaction.getSigMap();
           var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
@@ -165,11 +166,11 @@ public class ProtoBlockFileReader implements BlockFileReader {
       public Transaction getApplicationTransaction() {
           Read Event transaction
           If present
-             Create SignedTransaction from event transaction bytes
-             Return SignedTransaction
+             Create Transaction from event transaction bytes
+             Return Transaction
           Else If atomicBatchTransactionBody is not null && batchInnerIndex < atomicBatchTransactionBody.getTransactionsList().size()
-            Create SignedTransaction from atomicBatchTransactionBody.getTransactionsList().get(batchInnerIndex++)
-            Return SignedTransaction
+            Create Transaction from atomicBatchTransactionBody.getTransactionsList().get(batchInnerIndex++)
+            Return Transaction
           Else
             Return null
       }
