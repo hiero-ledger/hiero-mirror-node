@@ -173,7 +173,7 @@ class OpcodeTracerTest {
                         mock(PrecompiledContract.class)));
         REMAINING_GAS.set(INITIAL_GAS);
         tracer = new OpcodeTracer(precompilesHolder, mirrorNodeEvmProperties, mirrorNodeState);
-        tracerOptions = new OpcodeTracerOptions(false, false, false);
+        tracerOptions = new OpcodeTracerOptions(false, false, false, false);
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
     }
 
@@ -480,7 +480,8 @@ class OpcodeTracerTest {
     @DisplayName("given storage is enabled in tracer options, should record storage for modularized services")
     void shouldRecordStorageWhenEnabledModularized() {
         // Given
-        tracerOptions = tracerOptions.toBuilder().storage(true).build();
+        tracerOptions =
+                tracerOptions.toBuilder().storage(true).modularized(true).build();
         when(mirrorNodeEvmProperties.isModularizedServices()).thenReturn(true);
         frame = setupInitialFrame(tracerOptions);
 
@@ -513,7 +514,8 @@ class OpcodeTracerTest {
             "given storage is enabled in tracer options, should return empty storage when there are no updates for modularized services")
     void shouldReturnEmptyStorageWhenThereAreNoUpdates() {
         // Given
-        tracerOptions = tracerOptions.toBuilder().storage(true).build();
+        tracerOptions =
+                tracerOptions.toBuilder().storage(true).modularized(true).build();
         when(mirrorNodeEvmProperties.isModularizedServices()).thenReturn(true);
         frame = setupInitialFrame(tracerOptions);
 
@@ -538,7 +540,8 @@ class OpcodeTracerTest {
             "given storage is enabled in tracer options, should skip slotKey when contract address does not match for modularized services")
     void shouldSkipSlotKeyWhenContractAddressDoesNotMatch() {
         // Given
-        tracerOptions = tracerOptions.toBuilder().storage(true).build();
+        tracerOptions =
+                tracerOptions.toBuilder().storage(true).modularized(true).build();
         when(mirrorNodeEvmProperties.isModularizedServices()).thenReturn(true);
         frame = setupInitialFrame(tracerOptions);
 
@@ -562,7 +565,8 @@ class OpcodeTracerTest {
             "given storage is enabled in tracer options, should skip slotKey when slotValue is null for modularized services")
     void shouldSkipSlotKeyWhenSlotValueIsNull() {
         // Given
-        tracerOptions = tracerOptions.toBuilder().storage(true).build();
+        tracerOptions =
+                tracerOptions.toBuilder().storage(true).modularized(true).build();
         when(mirrorNodeEvmProperties.isModularizedServices()).thenReturn(true);
         frame = setupInitialFrame(tracerOptions);
 
@@ -588,7 +592,8 @@ class OpcodeTracerTest {
             "given storage is enabled in tracer options, should return empty storage when STORAGE_KEY retrieval fails for modularized services")
     void shouldReturnEmptyStorageWhenStorageKeyRetrievalFails() {
         // Given
-        tracerOptions = tracerOptions.toBuilder().storage(true).build();
+        tracerOptions =
+                tracerOptions.toBuilder().storage(true).modularized(true).build();
         when(mirrorNodeEvmProperties.isModularizedServices()).thenReturn(true);
         frame = setupInitialFrame(tracerOptions);
 

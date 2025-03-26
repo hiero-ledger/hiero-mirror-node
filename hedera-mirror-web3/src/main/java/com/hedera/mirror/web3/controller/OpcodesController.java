@@ -62,8 +62,8 @@ class OpcodesController {
             throw new RateLimitException("Requests per second rate limit exceeded.");
         }
 
-        final var options = new OpcodeTracerOptions(stack, memory, storage);
         boolean isModularized = evmProperties.directTrafficThroughTransactionExecutionService();
+        final var options = new OpcodeTracerOptions(stack, memory, storage, isModularized);
         return opcodeService.processOpcodeCall(transactionIdOrHash, options, isModularized);
     }
 }

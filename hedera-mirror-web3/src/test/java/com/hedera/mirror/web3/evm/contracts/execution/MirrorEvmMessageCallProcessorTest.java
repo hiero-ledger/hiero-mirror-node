@@ -144,6 +144,7 @@ class MirrorEvmMessageCallProcessorTest extends MirrorEvmMessageCallProcessorBas
 
     @Test
     void startWithNonHTSPrecompiledContractAddress() {
+        boolean modularized = evmProperties.isModularizedServices();
         subject = new MirrorEvmMessageCallProcessor(
                 autoCreationLogic,
                 entityAddressSequencer,
@@ -161,7 +162,8 @@ class MirrorEvmMessageCallProcessorTest extends MirrorEvmMessageCallProcessorBas
         when(messageFrame.getValue()).thenReturn(Wei.of(5000L));
         when(messageFrame.getBlockValues()).thenReturn(new HederaBlockValues(0L, 0L, Instant.EPOCH));
         when(messageFrame.getGasPrice()).thenReturn(Wei.ONE);
-        when(opcodeTracer.getContext().getOpcodeTracerOptions()).thenReturn(new OpcodeTracerOptions(true, true, true));
+        when(opcodeTracer.getContext().getOpcodeTracerOptions())
+                .thenReturn(new OpcodeTracerOptions(true, true, true, modularized));
         when(messageFrame.getCurrentOperation()).thenReturn(mock(Operation.class));
 
         subject.start(messageFrame, opcodeTracer);

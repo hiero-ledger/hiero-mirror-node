@@ -467,7 +467,8 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     void testGetUpdatedStorageCall(final boolean stack, final boolean memory) {
         final var senderEntity = accountPersistWithAccountBalances();
         final var contract = testWeb3jService.deploy(StorageContract::deploy);
-        final var options = new OpcodeTracerOptions(stack, memory, true);
+        final var options =
+                new OpcodeTracerOptions(stack, memory, true, mirrorNodeEvmProperties.isModularizedServices());
         final var functionCall = contract.send_updateStorage(BigInteger.ONE, BigInteger.TEN);
 
         final var callData =
@@ -512,7 +513,8 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                         TokenTypeEnum.FUNGIBLE_COMMON, treasuryEntity)
                 .getLeft();
         final var tokenAddress = toAddress(tokenEntity.getId());
-        final var options = new OpcodeTracerOptions(stack, memory, storage);
+        final var options =
+                new OpcodeTracerOptions(stack, memory, storage, mirrorNodeEvmProperties.isModularizedServices());
         final var contract = testWeb3jService.deploy(DynamicEthCalls::deploy);
 
         final var functionCall = contract.send_mintTokenGetTotalSupplyAndBalanceOfTreasury(
