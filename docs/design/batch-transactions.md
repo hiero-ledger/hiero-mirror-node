@@ -130,7 +130,7 @@ public class BlockFileTransformer {
 
 Update
 
-```java
+```pseudo
 public class ProtoBlockFileReader implements BlockFileReader {
     private void readEventTransactions(ReaderContext context) {
       // .. current logic
@@ -153,50 +153,36 @@ public class ProtoBlockFileReader implements BlockFileReader {
       }
     }
 
+    /**
+     * Iterate over inner transactions and create block items for each inner transaction (along with preceding and child
+     * transactions)
+     *
+     * @param stateChangesList list of state changes for entire batch
+     * @param context
+     * @param transactionBody transaction body of batch transaction
+     * */
     private void readBatchTransactions(ArrayList<StateChanges> stateChangesList,
                                        ReaderContext context,
                                        TransactionBody transactionBody) {
-      if (transactionBody.hasAtomicBatchBody()) {
-          var signedTransactions = transactionBody.getAtomicBatchBody().getTransactionsList();
-          for (var signedTransactions : signedTransactions) {
-
-            // read preceding transactions
-            readEventTransactions(context);
-
-            var innerTransactionProto = Transaction.newBuilder()
-                    .setSignedTransactionBytes(signedTransaction.toByteString());
-            var transactionResult = context.readBlockItemFor(TRANSACTION_RESULT);
-            if (transactionResult = null) {
-                throw new InvalidStreamFileException(
-                        "Expecting inner transaction result");
-            }
-
-            var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
-            while ((protoBlockItem = context.readBlockItemFor(TRANSACTION_OUTPUT)) != null) {
-              var transactionOutput = protoBlockItem.getTransactionOutput();
-              transactionOutputs.put(transactionOutput.getTransactionCase(), transactionOutput);
-            }
-
-            var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
-                    .transaction(innerTransactionProto)
-                    .transactionBody(TransactionBody.parseFrom(signedTransaction.getBodyBytes()))
-                    .signatureMap(signatureMap)
-                    .transactionResult(transactionResult)
-                    .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
-                    .stateChanges(Collections.unmodifiableList(stateChangesList))
-                    .previous(context.getLastBlockItem())
-                    .build();
-
-            context.getBlockFile().item(blockItem);
-            context.setLastBlockItem(blockItem);
-
-            // read child transactions
-            readEventTransactions(context);
-          }
-      }
+        If transactionBody.hasAtomicBatchBody
+           For Each innerTransaction bytes
+              Read preceding transactions (if any) and build block item for each
+              Read innerTransaction result
+                If no result
+                    throw ParserException
+              Read innerTransaction outputs
+              Build block item for innerTransaction transaction
+              Configure context with new block item
+              Read child transactions (if any) and build block item for each
+           End
+        End
     }
 }
 ```
+
+#### Block Stream Representation
+
+![Block Stream Representation](images/batch-transactions-blockstream.png)
 
 - Record streams can use `UnknownDataTransactionHandler.java` for batch transactions
 - Block streams can use `DefaultTransformer.java` for batch transactions
