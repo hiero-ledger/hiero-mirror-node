@@ -16,6 +16,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import com.esaulpaugh.headlong.abi.TupleType;
 import com.hedera.hashgraph.sdk.AccountId;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.test.e2e.acceptance.client.ContractClient.NodeNameEnum;
 import com.hedera.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import io.cucumber.java.en.Given;
@@ -36,6 +37,7 @@ public class EquivalenceFeature extends AbstractFeature {
     private static final String TRANSACTION_SUCCESSFUL_MESSAGE = "Transaction successful";
 
     private final AcceptanceTestProperties acceptanceTestProperties;
+    private final CommonProperties commonProperties;
     private DeployedContract equivalenceDestructContract;
     private DeployedContract equivalenceCallContract;
 
@@ -79,9 +81,10 @@ public class EquivalenceFeature extends AbstractFeature {
         assertThat(response.getRuntimeBytecode()).isNotBlank();
     }
 
-    @Then("I execute selfdestruct and set beneficiary to {string} address")
-    public void selfDestructAndSetBeneficiary(String beneficiary) {
+    @Then("I execute selfdestruct and set beneficiary to {string} num")
+    public void selfDestructAndSetBeneficiary(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
+        var beneficiary = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
         var accountId = AccountId.fromString(beneficiary);
 
         var data = encodeData(EQUIVALENCE_DESTRUCT, DESTROY_CONTRACT, asAddress(accountId));
@@ -106,9 +109,10 @@ public class EquivalenceFeature extends AbstractFeature {
         }
     }
 
-    @Then("I execute balance opcode to system account {string} address would return 0")
-    public void balanceOfAddress(String address) {
+    @Then("I execute balance opcode to system account num {string} would return 0")
+    public void balanceOfAddress(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
+        var address = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
         final var accountId = AccountId.fromString(address);
         var data = encodeData(EQUIVALENCE_CALL, GET_BALANCE, asAddress(accountId));
         var functionResult =
@@ -125,9 +129,10 @@ public class EquivalenceFeature extends AbstractFeature {
         assertThat(functionResult.getResultAsNumber()).isEqualTo(new BigInteger("10000"));
     }
 
-    @Then("I verify extcodesize opcode against a system account {string} address returns 0")
-    public void extCodeSizeAgainstSystemAccount(String address) {
+    @Then("I verify extcodesize opcode against a system account num {string} returns 0")
+    public void extCodeSizeAgainstSystemAccount(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
+        var address = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
         final var accountId = AccountId.fromString(address);
         var data = encodeData(EQUIVALENCE_CALL, GET_CODE_SIZE, asAddress(accountId));
         var functionResult =
@@ -135,18 +140,21 @@ public class EquivalenceFeature extends AbstractFeature {
         assertThat(functionResult.getResultAsNumber()).isEqualTo(BigInteger.ZERO);
     }
 
-    @Then("I verify extcodecopy opcode against a system account {string} address returns empty bytes")
-    public void extCodeCopyAgainstSystemAccount(String address) {
+    @Then("I verify extcodecopy opcode against a system account num {string} returns empty bytes")
+    public void extCodeCopyAgainstSystemAccount(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
+        var address = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
         final var accountId = AccountId.fromString(address);
         var data = encodeData(EQUIVALENCE_CALL, COPY_CODE, asAddress(accountId));
         var functionResult = callContract(nodeType, StringUtils.EMPTY, EQUIVALENCE_CALL, COPY_CODE, data, BYTES_TUPLE);
         assertThat(functionResult.getResultAsText()).isEmpty();
     }
 
-    @Then("I verify extcodehash opcode against a system account {string} address returns empty bytes")
-    public void extCodeHashAgainstSystemAccount(String address) {
+    @Then("I verify extcodehash opcode against a system account num {string} returns empty bytes")
+    public void extCodeHashAgainstSystemAccount(String num) {
         var nodeType = acceptanceTestProperties.getNodeType();
+        var address = String.format("%s.%s.%s", commonProperties.getShard(), commonProperties.getRealm(), num);
+
         final var accountId = AccountId.fromString(address);
         var data = encodeData(EQUIVALENCE_CALL, GET_CODE_HASH, asAddress(accountId));
         var functionResult =

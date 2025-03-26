@@ -146,15 +146,15 @@ public class TopicFeature {
         assertThat(mirrorTransaction.getTransactionId()).isEqualTo(transactionId);
     }
 
-    @Given("I provide a topic id {string}")
-    public void setTopicIdParam(String topicId) {
+    @Given("I provide a topic num {string}")
+    public void setTopicIdParam(String topicNum) {
         testInstantReference = Instant.now();
         topicMessageQuery = new TopicMessageQuery().setStartTime(Instant.EPOCH);
         consensusTopicId = null;
 
-        if (!topicId.isEmpty()) {
+        if (!topicNum.isEmpty()) {
             consensusTopicId =
-                    new TopicId(commonProperties.getShard(), commonProperties.getRealm(), Long.parseLong(topicId));
+                    new TopicId(commonProperties.getShard(), commonProperties.getRealm(), Long.parseLong(topicNum));
             topicMessageQuery.setTopicId(consensusTopicId);
         }
         messageSubscribeCount = 0;

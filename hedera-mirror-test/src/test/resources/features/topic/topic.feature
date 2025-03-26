@@ -22,9 +22,9 @@ Feature: HCS Base Coverage Feature
 
   @negative
   Scenario Outline: Validate topic subscription with missing topic id
-    Given I provide a topic id <topicId>
+    Given I provide a topic num <topicNum>
     Then the network should observe an error <errorCode>
     Examples:
-      | topicId | errorCode                                                           |
-      | ""      | "INVALID_ARGUMENT: subscribeTopic.filter.topicId: must not be null" |
-      | "-1"    | "INVALID_ARGUMENT: Invalid entity ID: 0.0.-1"                       |
+      | topicNum | errorCode                                                           |
+      | ""       | "INVALID_ARGUMENT: subscribeTopic.filter.topicId: must not be null" |
+      | "-1"     | "INVALID_ARGUMENT: Invalid entity ID"                               |
