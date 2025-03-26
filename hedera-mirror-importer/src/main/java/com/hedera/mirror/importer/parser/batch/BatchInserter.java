@@ -27,9 +27,6 @@ import java.util.Collection;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import lombok.CustomLog;
-import org.postgresql.PGConnection;
-import org.postgresql.copy.CopyIn;
-import org.postgresql.copy.PGCopyOutputStream;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 
 /**
@@ -97,7 +94,8 @@ public class BatchInserter implements BatchPersister {
 
     @Override
     public void persist(Collection<? extends Object> items) {
-        if (items == null || items.isEmpty()) {
+        if (items == null || items.isEmpty() ||
+                tableName.equals("record_file")) { // Ignore record_file table as blocks will never match
             return;
         }
 
@@ -106,7 +104,8 @@ public class BatchInserter implements BatchPersister {
         try {
             Stopwatch stopwatch = Stopwatch.createStarted();
             persistItems(items, connection);
-            log.info("Copied {} rows to {} table in {}", items.size(), tableName, stopwatch);
+            // Remove for clearer test logging
+            //log.info("Copied {} rows to {} table in {}", items.size(), tableName, stopwatch);
         } catch (Exception e) {
             throw new ParserException(String.format("Error copying %d items to table %s", items.size(), tableName), e);
         } finally {
@@ -115,23 +114,11 @@ public class BatchInserter implements BatchPersister {
     }
 
     protected void persistItems(Collection<?> items, Connection connection) throws SQLException, IOException {
-        var stopwatch = Stopwatch.createStarted();
-        PGConnection pgConnection = connection.unwrap(PGConnection.class);
-        CopyIn copyIn = pgConnection.getCopyAPI().copyIn(sql);
-
-        if (log.isTraceEnabled()) {
+        // For this test only generate the sql and csv entries for comparision
+        if (true || log.isTraceEnabled()) {
             String csv = writer.writeValueAsString(items);
-            log.trace("Generated SQL: {}\n{}", sql, csv);
-        }
-
-        try (var pgCopyOutputStream = new PGCopyOutputStream(copyIn, properties.getBufferSize())) {
-            writer.writeValue(pgCopyOutputStream, items);
-            rowsMetric.increment(items.size());
-            latencyMetric.record(stopwatch.elapsed());
-        } finally {
-            if (copyIn.isActive()) {
-                copyIn.cancelCopy();
-            }
+            log.trace("Inserter Generated SQL: {}\n{}", sql, csv);
+            insertCsv.put(tableName, sql + " " + csv);
         }
     }
 }

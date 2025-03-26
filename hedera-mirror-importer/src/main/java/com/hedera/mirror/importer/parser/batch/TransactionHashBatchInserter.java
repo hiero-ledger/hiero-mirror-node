@@ -77,12 +77,12 @@ public class TransactionHashBatchInserter implements BatchPersister {
             Mono.when(shardedItems.entrySet().stream().map(this::processShard).toList())
                     .block();
 
-            log.info(
-                    "Copied {} rows from {} shards to {} table in {}",
-                    items.size(),
-                    shardedItems.size(),
-                    this.tableName,
-                    stopwatch);
+//            log.info(
+//                    "Copied {} rows from {} shards to {} table in {}",
+//                    items.size(),
+//                    shardedItems.size(),
+//                    this.tableName,
+//                    stopwatch);
         } catch (Exception e) {
             throw new ParserException(
                     String.format("Error copying %d items to table %s", items.size(), this.tableName));

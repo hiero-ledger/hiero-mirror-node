@@ -83,6 +83,11 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
         var builders = new ArrayList<RecordItem.RecordItemBuilder>(blockItems.size());
         for (int index = blockItems.size() - 1; index >= 0; index--) {
             var blockItem = blockItems.get(index);
+            if(blockItem.getTransaction().getSignedTransactionBytes().isEmpty()) {
+                // Do not process block items with no signed transaction bytes - Ticket 10552
+                continue;
+            }
+
             var builder = RecordItem.builder()
                     .hapiVersion(hapiVersion)
                     .transaction(blockItem.getTransaction())

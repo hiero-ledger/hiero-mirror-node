@@ -4,21 +4,22 @@ package com.hedera.mirror.importer.downloader.block;
 
 import static com.hedera.mirror.importer.domain.StreamFilename.FileType.DATA;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 import com.hedera.mirror.common.domain.StreamType;
 import com.hedera.mirror.common.domain.transaction.BlockFile;
+import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.importer.ImporterIntegrationTest;
 import com.hedera.mirror.importer.addressbook.ConsensusNodeService;
 import com.hedera.mirror.importer.domain.StreamFilename;
+import com.hedera.mirror.importer.parser.batch.BatchPersister;
+import com.hedera.mirror.importer.parser.record.RecordFileParser;
 import io.micrometer.common.util.StringUtils;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
-import java.util.TreeMap;
-import lombok.AllArgsConstructor;
+import java.util.Map;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.AfterEach;
@@ -26,10 +27,12 @@ import org.junit.jupiter.api.Test;
 
 @CustomLog
 @RequiredArgsConstructor
-class BlockRecordCompareTest extends ImporterIntegrationTest {
+class BlockRecordDbCompareTest extends ImporterIntegrationTest {
 
     private final BlockFileTransformer blockFileTransformer;
     private final ConsensusNodeService consensusNodeService;
+    private final RecordFileParser recordFileParser;
+
     private final BlockDownloadUtility blockDownloadUtility;
 
     @AfterEach
@@ -39,10 +42,8 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
 
     @Test
     void compare() {
-        var compareSet = new TreeMap<Long, BlockRecordSet>();
-
-        long initialBlockNumber = 36600231; // testnet acceptance tests
-        initialBlockNumber = 39915955;
+        long initialBlockNumber = 39364290; // testnet acceptance tests
+        initialBlockNumber = 41464647;
 
         var consensusNode = consensusNodeService.getNodes().stream().filter(n -> n.getNodeId() == 0).findFirst().get();
 
@@ -50,7 +51,14 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
         var streamFilename = StreamFilename.from(blockNumber);
         List<Integer> skippedTransactionTypes = List.of();
 
+        Map<String, String> blockCsv;
+        Map<String, String> recordCsv;
+
         while (true) {
+            Long firstConsensus = 0L;
+            Long lastConsensus = 0L;
+
+            var allTransformedRecordItems = new ArrayList<RecordItem>();
             int blocksToDownload = 100;
             while (blocksToDownload > 0) {
                 BlockFile blockFile;
@@ -74,7 +82,6 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
                 var transformedRecordItems = transformedRecordFile.getItems()
                         .stream()
                         .filter(r -> !r.getTransaction().getSignedTransactionBytes().isEmpty()) // Do not process block items with no signed transaction bytes - Ticket 10552
-                        .filter(r -> !skippedTransactionTypes.contains(r.getTransactionType()))
                         .filter(r -> !(r.getTransactionRecord().getMemo().contains("Monitor pinger") ||
                                 r.getTransactionRecord().getMemo().contains("hedera-mirror-monitor")))
                         .toList();
@@ -84,18 +91,17 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
                     continue;
                 }
 
-                transformedRecordItems.forEach(item -> compareSet.put(item.getConsensusTimestamp(), new BlockRecordSet(item, null)));
+                firstConsensus = firstConsensus == 0L ? transformedRecordFile.getConsensusStart() : firstConsensus;
+                lastConsensus = transformedRecordFile.getConsensusEnd();
+
+                allTransformedRecordItems.addAll(transformedRecordItems);
                 blockNumber = blockFile.getBlockHeader().getNumber() + 1;
                 streamFilename = StreamFilename.from(blockNumber);
-
                 blocksToDownload--;
             }
 
-
-            if(!compareSet.isEmpty()) {
-                var firstConsensus = compareSet.firstKey();
-                var lastConsensus = compareSet.lastKey();
-
+            var allRecordItems = new ArrayList<RecordItem>();
+            if(!allTransformedRecordItems.isEmpty()) {
                 // Set timestamp back 4 seconds to make sure the range of transactions match up to that of the block
                 var firstBlockInstant = Instant.ofEpochSecond(0, firstConsensus - 4000000000L);
                 String filename = StreamFilename.getFilename(StreamType.RECORD, DATA, firstBlockInstant);
@@ -107,103 +113,69 @@ class BlockRecordCompareTest extends ImporterIntegrationTest {
                         continue;
                     }
 
+                    Long finalFirstConsensus = firstConsensus;
+                    Long finalLastConsensus = lastConsensus;
                     var recordItems = recordFile.getItems().stream()
                             .filter(r -> !r.getTransaction().getSignedTransactionBytes().isEmpty()) // Do not process block items with no signed transaction bytes - Ticket 10552
-                            .filter(r -> !skippedTransactionTypes.contains(r.getTransactionType()))
                             .filter(r -> !(r.getTransactionRecord().getMemo().contains("Monitor pinger") ||
                                     r.getTransactionRecord().getMemo().contains("hedera-mirror-monitor")))
+                            .filter(r -> r.getConsensusTimestamp() >= finalFirstConsensus
+                                    && r.getConsensusTimestamp() <= finalLastConsensus)
                             .toList();
-                    for(var item : recordItems) {
-                        var blockRecordSet = compareSet.get(item.getConsensusTimestamp());
-                        if(blockRecordSet != null) {
-                            blockRecordSet.recordItem = item;
-                        } else {
-                            if(item.getConsensusTimestamp() >= firstConsensus && item.getConsensusTimestamp() <= lastConsensus) {
-                                compareSet.put(item.getConsensusTimestamp(), new BlockRecordSet(null, item));
-                            }
-                        }
-                    }
-
-                    if(recordFile.getConsensusEnd() >= lastConsensus) {
+                    allRecordItems.addAll(recordItems);
+                    if(recordFile.getConsensusEnd() > lastConsensus) {
                         break;
                     }
 
                     filename = recordFile.getName();
                 }
 
-                for (var key : compareSet.keySet()) {
-                    var blockRecordItem = compareSet.get(key);
-                    var recordRecordItem = blockRecordItem.recordItem;
-                    var recordTransformedRecordItem = blockRecordItem.transformedRecordItem;
-
-                    if(recordRecordItem == null) {
-                        fail("Record item missing for block consensus timestamp {}", key);
-                    }
-
-                    if(recordTransformedRecordItem == null) {
-                        fail("Block record item missing for block consensus timestamp {}", key);
-                    }
-
-                    var memo = blockRecordItem.transformedRecordItem.getTransactionRecord().getMemo();
-                    if(!StringUtils.isEmpty(memo)) {
+                for (RecordItem item : allTransformedRecordItems) {
+                    var memo = item.getTransactionRecord().getMemo();
+                    if (!StringUtils.isEmpty(memo)) {
                         log.info("Block Transaction memo: " + memo);
                     }
-
-                    assertRecordItem(recordTransformedRecordItem, recordRecordItem);
                 }
 
-                compareSet.clear();
+                var sanitizedTransformedRecordFile = RecordFile.builder()
+                        .name(filename)
+                        .nodeId(0L)
+                        .consensusEnd(lastConsensus)
+                        .consensusStart(firstConsensus)
+                        .fileHash(org.apache.commons.lang3.StringUtils.EMPTY)
+                        .index(0L)
+                        .items(allTransformedRecordItems)
+                        .loadEnd(lastConsensus)
+                        .loadStart(firstConsensus)
+                        .build();
+                recordFileParser.parse(sanitizedTransformedRecordFile);
+                blockCsv = new HashMap<>(BatchPersister.insertCsv);
+                BatchPersister.insertCsv.clear();
+
+                var sanitizedRecordFile = RecordFile.builder()
+                        .name(filename)
+                        .nodeId(0L)
+                        .consensusEnd(lastConsensus)
+                        .consensusStart(firstConsensus)
+                        .fileHash(org.apache.commons.lang3.StringUtils.EMPTY)
+                        .index(0L)
+                        .items(allRecordItems)
+                        .loadEnd(lastConsensus)
+                        .loadStart(firstConsensus)
+                        .build();
+                recordFileParser.parse(sanitizedRecordFile);
+                recordCsv = new HashMap<>(BatchPersister.insertCsv);
+                BatchPersister.insertCsv.clear();
+
+                assertThat(blockCsv.keySet()).isEqualTo(recordCsv.keySet());
+                for(var table : recordCsv.keySet()) {
+                    assertThat(blockCsv.get(table)).isEqualTo(recordCsv.get(table));
+                }
+
+                blockCsv.clear();
+                recordCsv.clear();
             }
         }
-    }
-
-    @AllArgsConstructor
-    static class BlockRecordSet {
-        public RecordItem transformedRecordItem;
-        public RecordItem recordItem;
-    }
-
-    protected void assertRecordItem(RecordItem actual, RecordItem expected) {
-        var ignoreFields = new ArrayList<>(Arrays.asList("transactionIndex",
-                "parent",
-                "previous",
-                "transactionRecord.receipt_.exchangeRate_"
-        ));
-
-        switch (expected.getTransactionType()) {
-            case 8 :// :CONTRACT CREATE INSTANCE
-                // Field not used by importer
-                ignoreFields.add("transactionRecord.body_.errorMessage_");
-                break;
-            case 11: // CRYPTO CREATE ACCOUNT
-                // The transaction handler sets this, it is not expected to be identical
-                ignoreFields.add("transactionRecord.evmAddress_");
-                break;
-            case 15: // CRYPTO UPDATE ACCOUNT
-                // This value is parsed from the transaction body, so the receipt value is not needed
-                ignoreFields.add("transactionRecord.receipt_.accountID_");
-                break;
-            case 29: // TOKEN CREATE
-                // Importer parses total supply from transaction body initial supply, so this value is not needed
-                ignoreFields.add("transactionRecord.receipt_.newTotalSupply_");
-                break;
-            case 43: // SCHEDULE DELETE
-                // This value is parsed from the transaction body, so the receipt value is not needed
-                ignoreFields.add("transactionRecord.receipt_.scheduleID_");
-                break;
-            case 50: // ETHEREUM TRANSACTION
-                // Field not used by importer
-                ignoreFields.add("transactionRecord.body_.errorMessage_");
-                break;
-        }
-
-        assertThat(actual)
-                .usingRecursiveComparison()
-                .ignoringFieldsMatchingRegexes(".*memoizedIsInitialized", ".*memoizedSize", ".*memoizedHashCode", ".*memoizedIsInitialized")
-                .ignoringFields(
-                        ignoreFields.toArray(new String[0])
-                )
-                .isEqualTo(expected);
     }
 
 }

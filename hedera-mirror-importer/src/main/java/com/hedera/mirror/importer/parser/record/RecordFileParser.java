@@ -203,7 +203,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             if (offset != 0 && streamFileRepository instanceof RecordFileRepository repository) {
                 var stopwatch = Stopwatch.createStarted();
                 int count = repository.updateIndex(offset);
-                log.info("Updated {} blocks with offset {} in {}", count, offset, stopwatch);
+                //log.info("Updated {} blocks with offset {} in {}", count, offset, stopwatch);
             }
         }
     }

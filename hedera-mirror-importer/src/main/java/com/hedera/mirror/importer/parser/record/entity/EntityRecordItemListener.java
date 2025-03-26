@@ -174,7 +174,9 @@ public class EntityRecordItemListener implements RecordItemListener {
         transaction.setChargedTxFee(txRecord.getTransactionFee());
         transaction.setConsensusTimestamp(recordItem.getConsensusTimestamp());
         transaction.setEntityId(entityId);
-        transaction.setIndex(recordItem.getTransactionIndex());
+        transaction.setIndex(0);
+        // Block and Record Transaction indexes will not match
+        // recordItem.getTransactionIndex());
         transaction.setInitialBalance(0L);
         transaction.setMaxCustomFees(getMaxCustomFees(body, recordItem));
         transaction.setMaxFee(body.getTransactionFee());

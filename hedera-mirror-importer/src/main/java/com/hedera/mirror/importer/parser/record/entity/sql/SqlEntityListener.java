@@ -364,7 +364,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         try {
             var stopwatch = Stopwatch.createStarted();
             context.forEach(batchPersister::persist);
-            log.info("Completed batch inserts in {}", stopwatch);
+            //log.info("Completed batch inserts in {}", stopwatch);
         } catch (ParserException e) {
             throw e;
         } catch (Exception e) {

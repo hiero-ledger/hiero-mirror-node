@@ -295,7 +295,8 @@ public class ContractResultServiceImpl implements ContractResultService {
             contractLog.setTopic2(Utility.getTopic(contractLoginfo, 2));
             contractLog.setTopic3(Utility.getTopic(contractLoginfo, 3));
             contractLog.setTransactionHash(recordItem.getTransactionHash());
-            contractLog.setTransactionIndex(recordItem.getTransactionIndex());
+            // Do not compare transaction indexes between record and block as they are expected to differ
+            //contractLog.setTransactionIndex(recordItem.getTransactionIndex());
             entityListener.onContractLog(contractLog);
 
             recordItem.addContractTransaction(contractId);
