@@ -149,7 +149,7 @@ public class ProtoBlockFileReader implements BlockFileReader {
                 .build();
         context.getBlockFile().item(blockItem);
         context.setLastBlockItem(blockItem);
-        readBatchTransactions(stateChangesList, context, transactionBody);
+        readInnerTransactions(stateChangesList, context, transactionBody);
       }
     }
 
@@ -161,7 +161,7 @@ public class ProtoBlockFileReader implements BlockFileReader {
      * @param context
      * @param transactionBody transaction body of batch transaction
      * */
-    private void readBatchTransactions(ArrayList<StateChanges> stateChangesList,
+    private void readInnerTransactions(ArrayList<StateChanges> stateChangesList,
                                        ReaderContext context,
                                        TransactionBody transactionBody) {
         If transactionBody.hasAtomicBatchBody
@@ -171,7 +171,7 @@ public class ProtoBlockFileReader implements BlockFileReader {
                 If no result
                     throw ParserException
               Read innerTransaction outputs
-              Build block item for innerTransaction transaction
+              Build block item for innerTransaction
               Configure context with new block item
               Read child transactions (if any) and build block item for each
            End
