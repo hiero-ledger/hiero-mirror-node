@@ -25,8 +25,6 @@ import com.hedera.mirror.web3.repository.EntityRepository;
 import com.hedera.mirror.web3.service.model.ContractDebugParameters;
 import com.hedera.mirror.web3.utils.ContractFunctionProviderRecord;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Meter.MeterProvider;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Optional;
@@ -49,6 +47,9 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     @MockitoSpyBean
     protected TransactionExecutionService transactionExecutionService;
 
+    @Resource
+    protected EntityRepository entityRepository;
+
     @Captor
     private ArgumentCaptor<ContractDebugParameters> paramsCaptor;
 
@@ -58,14 +59,8 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     private HederaEvmTransactionProcessingResult resultCaptor;
     private ContractCallContext contextCaptor;
 
-    @Captor
-    private ArgumentCaptor<MeterProvider<Counter>> gasUsedCounter;
-
     @Resource
     private EntityDatabaseAccessor entityDatabaseAccessor;
-
-    @Resource
-    protected EntityRepository entityRepository;
 
     @BeforeEach
     void setUpArgumentCaptors() {
@@ -90,7 +85,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                         return transactionProcessingResult;
                     })
                     .when(transactionExecutionService)
-                    .execute(paramsCaptor.capture(), gasCaptor.capture(), gasUsedCounter.capture());
+                    .execute(paramsCaptor.capture(), gasCaptor.capture());
         }
     }
 
@@ -246,13 +241,13 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     }
 
     /**
-     * Persists a record in the account_balance table (consensus_timestamp, balance, account_id).
-     * Each record represents the HBAR balance of an account at a particular point in time(consensus timestamp).
-     * Lack of sufficient account balance will result in INSUFFICIENT_PAYER_BALANCE exception,
-     * when trying to pay for transaction execution.
+     * Persists a record in the account_balance table (consensus_timestamp, balance, account_id). Each record represents
+     * the HBAR balance of an account at a particular point in time(consensus timestamp). Lack of sufficient account
+     * balance will result in INSUFFICIENT_PAYER_BALANCE exception, when trying to pay for transaction execution.
+     *
      * @param accountId the account's id whose balance is being recorded
      * @param timestamp the point in time at which the account had the given balance
-     * @param balance the account's balance at the given timestamp
+     * @param balance   the account's balance at the given timestamp
      */
     protected void accountBalanceRecordsPersist(EntityId accountId, Long timestamp, Long balance) {
         domainBuilder

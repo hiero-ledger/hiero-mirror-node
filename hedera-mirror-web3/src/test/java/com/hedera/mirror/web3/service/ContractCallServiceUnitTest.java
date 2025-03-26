@@ -117,7 +117,7 @@ class ContractCallServiceUnitTest {
         when(params.getCallType()).thenReturn(CallType.ETH_CALL);
         when(recordFileService.findByBlockType(any())).thenReturn(Optional.of(new RecordFile()));
         final var successResult = HederaEvmTransactionProcessingResult.successful(null, 1000, 0, 0, null, Address.ZERO);
-        when(transactionExecutionService.execute(any(), anyLong(), any())).thenReturn(successResult);
+        when(transactionExecutionService.execute(any(), anyLong())).thenReturn(successResult);
 
         contractCallService.callContract(params, ctx);
         verify(ctx, never()).initializeStackFrames(any());

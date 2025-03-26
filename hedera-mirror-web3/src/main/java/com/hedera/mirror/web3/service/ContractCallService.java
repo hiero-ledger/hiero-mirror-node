@@ -4,8 +4,6 @@ package com.hedera.mirror.web3.service;
 
 import static com.hedera.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
 import static com.hedera.mirror.web3.evm.exception.ResponseCodeUtil.getStatusOrDefault;
-import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType;
-import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ERROR;
 import static org.apache.logging.log4j.util.Strings.EMPTY;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -19,10 +17,12 @@ import com.hedera.mirror.web3.service.model.CallServiceParameters;
 import com.hedera.mirror.web3.throttle.ThrottleProperties;
 import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
 import jakarta.inject.Named;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
@@ -30,17 +30,21 @@ import org.apache.tuweni.bytes.Bytes;
 @Named
 @CustomLog
 public abstract class ContractCallService {
-    static final String GAS_LIMIT_METRIC = "hedera.mirror.web3.call.gas.limit";
-    static final String GAS_USED_METRIC = "hedera.mirror.web3.call.gas.used";
+
+    static final String EVM_INVOCATION_METRIC = "hedera.mirror.web3.evm.invocation";
+    static final String GAS_LIMIT_METRIC = "hedera.mirror.web3.evm.gas.limit";
+    static final String GAS_USED_METRIC = "hedera.mirror.web3.evm.gas.used";
+
     protected final Store store;
     protected final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+
+    private final MeterProvider<Counter> invocationCounter;
     private final MeterProvider<Counter> gasLimitCounter;
     private final MeterProvider<Counter> gasUsedCounter;
     private final MirrorEvmTxProcessor mirrorEvmTxProcessor;
     private final RecordFileService recordFileService;
     private final ThrottleProperties throttleProperties;
     private final Bucket gasLimitBucket;
-
     private final TransactionExecutionService transactionExecutionService;
 
     @SuppressWarnings("java:S107")
@@ -53,6 +57,9 @@ public abstract class ContractCallService {
             Store store,
             MirrorNodeEvmProperties mirrorNodeEvmProperties,
             TransactionExecutionService transactionExecutionService) {
+        this.invocationCounter = Counter.builder(EVM_INVOCATION_METRIC)
+                .description("The number of EVM invocations")
+                .withRegistry(meterRegistry);
         this.gasLimitCounter = Counter.builder(GAS_LIMIT_METRIC)
                 .description("The amount of gas limit sent in the request")
                 .withRegistry(meterRegistry);
@@ -91,8 +98,8 @@ public abstract class ContractCallService {
      * @throws MirrorEvmTransactionException if any pre-checks fail with {@link IllegalStateException} or
      *                                       {@link IllegalArgumentException}
      */
-    protected HederaEvmTransactionProcessingResult callContract(CallServiceParameters params, ContractCallContext ctx)
-            throws MirrorEvmTransactionException {
+    protected final HederaEvmTransactionProcessingResult callContract(
+            CallServiceParameters params, ContractCallContext ctx) throws MirrorEvmTransactionException {
         ctx.setCallServiceParameters(params);
 
         if (params.isModularized() || params.getBlock() != BlockType.LATEST) {
@@ -106,31 +113,39 @@ public abstract class ContractCallService {
             ctx.initializeStackFrames(store.getStackedStateFrames());
         }
 
-        var result = doProcessCall(params, params.getGas(), true);
-        validateResult(result, params.getCallType(), params.isModularized());
-        return result;
+        return doProcessCall(params, params.getGas(), false);
     }
 
-    protected HederaEvmTransactionProcessingResult doProcessCall(
-            CallServiceParameters params, long estimatedGas, boolean restoreGasToThrottleBucket)
-            throws MirrorEvmTransactionException {
+    protected final HederaEvmTransactionProcessingResult doProcessCall(
+            CallServiceParameters params, long estimatedGas, boolean estimate) throws MirrorEvmTransactionException {
         HederaEvmTransactionProcessingResult result = null;
+        var status = ResponseCodeEnum.SUCCESS.toString();
 
         try {
             if (params.isModularized()) {
-                result = transactionExecutionService.execute(params, estimatedGas, gasUsedCounter);
+                result = transactionExecutionService.execute(params, estimatedGas);
             } else {
                 result = mirrorEvmTxProcessor.execute(params, estimatedGas);
+            }
+
+            if (!estimate) {
+                validateResult(result, params);
             }
         } catch (IllegalStateException | IllegalArgumentException e) {
             throw new MirrorEvmTransactionException(e.getMessage(), EMPTY, EMPTY, params.isModularized());
         } catch (MirrorEvmTransactionException e) {
             // This result is needed in case of exception to be still able to call restoreGasToBucket method
             result = e.getResult();
+            status = e.getMessage();
             throw e;
         } finally {
-            if (restoreGasToThrottleBucket) {
+            if (!estimate) {
                 restoreGasToBucket(result, params.getGas());
+
+                // Only record metric if EVM is invoked and not inside estimate loop
+                if (result != null) {
+                    updateMetrics(params, result.getGasUsed(), 1, status);
+                }
             }
         }
         return result;
@@ -153,27 +168,27 @@ public abstract class ContractCallService {
     }
 
     protected void validateResult(
-            final HederaEvmTransactionProcessingResult txnResult, final CallType type, final boolean isModularized) {
+            final HederaEvmTransactionProcessingResult txnResult, final CallServiceParameters params) {
         if (!txnResult.isSuccessful()) {
-            updateGasUsedMetric(ERROR, txnResult.getGasUsed(), 1);
             var revertReason = txnResult.getRevertReason().orElse(Bytes.EMPTY);
             var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReason);
-            throw new MirrorEvmTransactionException(
-                    getStatusOrDefault(txnResult).name(), detail, revertReason.toHexString(), txnResult, isModularized);
-        } else {
-            updateGasUsedMetric(type, txnResult.getGasUsed(), 1);
+            var status = getStatusOrDefault(txnResult).name();
+            throw new MirrorEvmTransactionException(status, detail, revertReason.toHexString(), txnResult,
+                    params.isModularized());
         }
     }
 
-    protected void updateGasUsedMetric(final CallType callType, final long gasUsed, final int iterations) {
-        gasUsedCounter
-                .withTags("type", callType.toString(), "iteration", String.valueOf(iterations))
-                .increment(gasUsed);
+    protected final void updateMetrics(CallServiceParameters parameters, long gasUsed, int iterations, String status) {
+        var tags = Tags.of("iteration", String.valueOf(iterations))
+                .and("modularized", String.valueOf(parameters.isModularized()))
+                .and("type", parameters.getCallType().toString());
+        invocationCounter.withTags(tags.and("status", status)).increment();
+        gasUsedCounter.withTags(tags).increment(gasUsed);
     }
 
-    protected void updateGasLimitMetric(final CallType callType, final long gasLimit, final boolean modularized) {
-        gasLimitCounter
-                .withTags("type", callType.toString(), "modularized", String.valueOf(modularized))
-                .increment(gasLimit);
+    protected final void updateGasLimitMetric(final CallServiceParameters parameters) {
+        var tags = Tags.of("modularized", String.valueOf(parameters.isModularized()))
+                .and("type", parameters.getCallType().toString());
+        gasLimitCounter.withTags(tags).increment(parameters.getGas());
     }
 }
