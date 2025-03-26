@@ -187,7 +187,7 @@ const getContractByIdOrAddressContractEntityQuery = ({timestampConditions, times
     params.push(...evmAddressParams);
     conditions.push(...evmAddressConditions);
   } else {
-    const encodedId = contractIdParamParts.getEncodedId();
+    const encodedId = EntityId.parseIdParameterToEntityId(contractIdParam).getEncodedId();
     params.push(encodedId);
     conditions.push(`${Entity.getFullName(Entity.ID)} = $${params.length}`);
   }

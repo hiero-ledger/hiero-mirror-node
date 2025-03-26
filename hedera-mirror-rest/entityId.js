@@ -265,21 +265,29 @@ const parseFromString = (id, error) => {
   return [shard, realm, BigInt(numOrEvmAddress), null];
 };
 
-const parseIdParameterToEntityId = (id, {allowEvmAddress, evmAddressType, isNullable, paramName} = {}) => {
+const parseIdParameterToEntityId = (id) => {
   const idPieces = ('' + id).split('.');
   idPieces.unshift(...[systemShard, systemRealm].slice(0, 3 - idPieces.length));
   idPieces[2] = stripHexPrefix(idPieces[2]);
-  return parse(idPieces.join('.'), {allowEvmAddress, evmAddressType, isNullable, paramName});
+
+  return parse(idPieces.join('.'));
 };
 
 const computeContractIdPartsFromContractIdValue = (contractId) => {
-  const contractEntityId = parseIdParameterToEntityId(contractId, {allowEvmAddress: true});
-  const evmAddress = contractEntityId.evmAddress;
-  if (isEvmAddressAlias(evmAddress)) {
-    contractEntityId.create2_evm_address = evmAddress;
+  const idPieces = contractId.split('.');
+  idPieces.unshift(...[null, null].slice(0, 3 - idPieces.length));
+  const contractIdParts = {shard: idPieces[0], realm: idPieces[1]};
+  const evmAddressOrNum = stripHexPrefix(idPieces[2]);
+
+  if (isEvmAddressAlias(evmAddressOrNum)) {
+    contractIdParts.create2_evm_address = evmAddressOrNum;
+  } else {
+    contractIdParts.shard = contractIdParts.shard || systemShard;
+    contractIdParts.realm = contractIdParts.realm || systemRealm;
+    contractIdParts.num = evmAddressOrNum;
   }
 
-  return contractEntityId;
+  return contractIdParts;
 };
 
 const cache = new quickLru({

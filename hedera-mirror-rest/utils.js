@@ -1288,11 +1288,10 @@ const formatComparator = (comparator) => {
           comparator.value = parseInt(comparator.value, 16);
         }
         break;
-      case constants.filterKeys.FILE_ID: {
+      case constants.filterKeys.FILE_ID:
         // Accepted forms: shard.realm.num or encoded ID string
         comparator.value = EntityId.parseIdParameterToEntityId(comparator.value).getEncodedId();
         break;
-      }
       case constants.filterKeys.ENTITY_PUBLICKEY:
         comparator.value = parsePublicKey(comparator.value);
         break;
