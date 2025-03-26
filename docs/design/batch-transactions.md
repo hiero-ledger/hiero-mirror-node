@@ -129,50 +129,51 @@ Update
 ```pseudo
 public class ProtoBlockFileReader implements BlockFileReader {
     private void readEventTransactions(ReaderContext context) {
-      // .. current logic
-      if (transaction != null) {
-        var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
-        var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
-        var signatureMap = signedTransaction.getSigMap();
-        var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
-                .transaction(transaction)
-                .transactionBody(transactionBody)
-                .signatureMap(signatureMap)
-                .transactionResult(transactionResult)
-                .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
-                .stateChanges(Collections.unmodifiableList(stateChangesList))
-                .previous(context.getLastBlockItem())
-                .build();
+      While signedTransaction = context.getApplicationTransaction != null)
+        Read transaction result
+        Read transaction outputs
+        Read State Changes
+        Build BlockItem
+          var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
+          var signatureMap = signedTransaction.getSigMap();
+          var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
+                  .transaction(transaction)
+                  .transactionBody(transactionBody)
+                  .signatureMap(signatureMap)
+                  .transactionResult(transactionResult)
+                  .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
+                  .stateChanges(Collections.unmodifiableList(stateChangesList))
+                  .previous(context.getLastBlockItem())
+                  .build();
         context.getBlockFile().item(blockItem);
         context.setLastBlockItem(blockItem);
-        readInnerTransactions(stateChangesList, context, transactionBody);
-      }
+      End While
     }
 
-    /**
-     * Iterate over inner transactions and create block items for each inner transaction (along with preceding and child
-     * transactions)
-     *
-     * @param stateChangesList list of state changes for entire batch
-     * @param context
-     * @param transactionBody transaction body of batch transaction
-     * */
-    private void readInnerTransactions(ArrayList<StateChanges> stateChangesList,
-                                       ReaderContext context,
-                                       TransactionBody transactionBody) {
-        If transactionBody.hasAtomicBatchBody
-           For Each innerTransaction bytes
-              Read preceding transactions (if any) and build block item for each
-              Read innerTransaction result
-                If no result
-                    throw ParserException
-              Read innerTransaction outputs
-              Build block item for innerTransaction
-              Configure context with new block item
-              Read child transactions (if any) and build block item for each
-           End
-        End
-    }
+    private static class ReaderContext {
+      private int batchInnerIndex;
+      private AtomicBatchTransactionBody atomicBatchTransactionBody;
+
+      public void setLastBlockItem(BlockItem blockItem) {
+        this.lastBlockItem = blockItem;
+        if (blockItem.getTransactionBody().hasAtomicBatchBody()) {
+          this.atomicBatchTransactionBody = blockItem.getTransactionBody().getAtomicBatchBody();
+          this.batchInnerIndex = 0;
+        }
+      }
+
+      public Transaction getApplicationTransaction() {
+          Read Event transaction
+          If present
+             Create SignedTransaction from event transaction bytes
+             Return SignedTransaction
+          Else If atomicBatchTransactionBody is not null && batchInnerIndex < atomicBatchTransactionBody.getTransactionsList().size()
+            Create SignedTransaction from atomicBatchTransactionBody.getTransactionsList().get(batchInnerIndex++)
+            Return SignedTransaction
+          Else
+            Return null
+      }
+  }
 }
 ```
 
