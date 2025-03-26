@@ -50,12 +50,17 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var fileEntityId = toEntityId(key);
         final var fileId = fileEntityId.getId();
+        final var currentTimestamp = getCurrentTimestamp();
+
+        if (systemFileLoader.isSystemFile(key)) {
+            return systemFileLoader.load(key, currentTimestamp);
+        }
 
         return timestamp
                 .map(t -> fileDataRepository.getFileAtTimestamp(fileId, t))
-                .orElseGet(() -> fileDataRepository.getFileAtTimestamp(fileId, getCurrentTimestamp()))
+                .orElseGet(() -> fileDataRepository.getFileAtTimestamp(fileId, currentTimestamp))
                 .map(fileData -> mapToFile(fileData, key, timestamp))
-                .orElseGet(() -> systemFileLoader.load(key));
+                .orElse(null);
     }
 
     private File mapToFile(final FileData fileData, final FileID key, final Optional<Long> timestamp) {

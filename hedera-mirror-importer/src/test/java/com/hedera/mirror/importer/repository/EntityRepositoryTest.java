@@ -93,20 +93,33 @@ class EntityRepositoryTest extends ImporterIntegrationTest {
         Entity entity = domainBuilder.entity().persist();
         byte[] alias = entity.getAlias();
 
-        assertThat(entityRepository.findByAlias(alias)).get().isEqualTo(entity.getId());
+        assertThat(entityRepository.findByAlias(entity.getShard(), entity.getRealm(), alias))
+                .get()
+                .isEqualTo(entity.getId());
+        assertThat(entityRepository.findByAlias(1000L, entity.getRealm(), alias))
+                .isEmpty();
+        assertThat(entityRepository.findByAlias(entity.getShard(), 1000L, alias))
+                .isEmpty();
     }
 
     @Test
     void findByEvmAddress() {
-        Entity entity = domainBuilder.entity().persist();
-        Entity entityDeleted =
+        var entity = domainBuilder.entity().persist();
+        var entityDeleted =
                 domainBuilder.entity().customize(b -> b.deleted(true)).persist();
-        assertThat(entityRepository.findByEvmAddress(entity.getEvmAddress()))
+
+        assertThat(entityRepository.findByEvmAddress(entity.getShard(), entity.getRealm(), entity.getEvmAddress()))
                 .get()
                 .isEqualTo(entity.getId());
-        assertThat(entityRepository.findByEvmAddress(entityDeleted.getEvmAddress()))
+        assertThat(entityRepository.findByEvmAddress(1000L, entity.getRealm(), entity.getEvmAddress()))
                 .isEmpty();
-        assertThat(entityRepository.findByEvmAddress(new byte[] {1, 2, 3})).isEmpty();
+        assertThat(entityRepository.findByEvmAddress(entity.getShard(), 1000L, entity.getEvmAddress()))
+                .isEmpty();
+        assertThat(entityRepository.findByEvmAddress(
+                        entity.getShard(), entity.getRealm(), entityDeleted.getEvmAddress()))
+                .isEmpty();
+        assertThat(entityRepository.findByEvmAddress(entity.getShard(), entity.getRealm(), new byte[] {1, 2, 3}))
+                .isEmpty();
     }
 
     @Test

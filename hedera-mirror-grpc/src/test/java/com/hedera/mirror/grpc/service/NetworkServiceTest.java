@@ -6,7 +6,6 @@ import static com.hedera.mirror.grpc.service.NetworkServiceImpl.INVALID_FILE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
@@ -36,7 +35,6 @@ class NetworkServiceTest extends GrpcIntegrationTest {
 
     private final AddressBookEntryRepository addressBookEntryRepository;
     private final AddressBookProperties addressBookProperties;
-    private final CommonProperties commonProperties;
     private final DomainBuilder domainBuilder;
     private final NetworkService networkService;
     private final NodeStakeRepository nodeStakeRepository;

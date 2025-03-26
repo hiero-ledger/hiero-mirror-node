@@ -8,9 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/config"
 	"github.com/hellofresh/health-go/v4"
-
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/config"
 	"github.com/stretchr/testify/require"
 )
 

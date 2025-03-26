@@ -39,6 +39,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.common.PrecompileContext;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.store.Store;
@@ -177,6 +178,9 @@ class TokenCreatePrecompileTest {
 
     @Mock
     private OptionValidator validator;
+
+    @Mock
+    private CommonProperties commonProperties;
 
     @InjectMocks
     private MirrorNodeEvmProperties evmProperties;

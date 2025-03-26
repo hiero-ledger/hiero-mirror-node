@@ -23,7 +23,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             cacheManager = CACHE_MANAGER_ENTITY,
             key = "T(java.util.Arrays).hashCode(#alias)",
             unless = "#result == null")
-    Optional<Entity> findByEvmAddressAndDeletedIsFalse(byte[] alias);
+    Optional<Entity> findByShardAndRealmAndEvmAddressAndDeletedIsFalse(long shard, long realm, byte[] alias);
 
     @Cacheable(
             cacheNames = CACHE_NAME_ALIAS,
@@ -35,16 +35,18 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     """
             select *
             from entity
-            where (evm_address = ?1 or alias = ?1) and deleted is not true
+            where shard = ?1 and realm = ?2 and (evm_address = ?3 or alias = ?3) and deleted is not true
             """,
             nativeQuery = true)
-    Optional<Entity> findByEvmAddressOrAlias(byte[] alias);
+    Optional<Entity> findByShardAndRealmAndEvmAddressOrAliasAndDeletedIsFalse(long shard, long realm, byte[] alias);
 
     /**
      * Retrieves the most recent state of an entity by its evm address up to a given block timestamp.
      *
      * @param evmAddress      the evm address of the entity to be retrieved.
      * @param blockTimestamp  the block timestamp used to filter the results.
+     * @param shard           the shard identifier that represents a partition of the network.
+     * @param realm           the realm identifier that represents a logical grouping within the network.
      * @return an Optional containing the entity's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
@@ -54,7 +56,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             with entity_cte as (
                 select id
                 from entity
-                where evm_address = ?1 and created_timestamp <= ?2
+                where shard = ?1 and realm = ?2 and evm_address = ?3 and created_timestamp <= ?4
                 order by created_timestamp desc
                 limit 1
             )
@@ -68,7 +70,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             (
                 select *
                 from entity_history eh
-                where lower(eh.timestamp_range) <= ?2
+                where lower(eh.timestamp_range) <= ?4
                 and eh.id = (select id from entity_cte)
                 order by lower(eh.timestamp_range) desc
                 limit 1
@@ -77,13 +79,16 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             limit 1
             """,
             nativeQuery = true)
-    Optional<Entity> findActiveByEvmAddressAndTimestamp(byte[] evmAddress, long blockTimestamp);
+    Optional<Entity> findActiveByShardAndRealmAndEvmAddressAndTimestamp(
+            long shard, long realm, byte[] evmAddress, long blockTimestamp);
 
     /**
      * Retrieves the most recent state of an entity by its alias up to a given block timestamp.
      *
      * @param alias           the alias of the entity to be retrieved.
      * @param blockTimestamp  the block timestamp used to filter the results.
+     * @param shard           the shard identifier that represents a partition of the network.
+     * @param realm           the realm identifier that represents a logical grouping within the network.
      * @return an Optional containing the entity's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
@@ -93,7 +98,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             with entity_cte as (
                 select id
                 from entity
-                where (evm_address = ?1 or alias = ?1) and created_timestamp <= ?2
+                where shard = ?1 and realm = ?2 and (evm_address = ?3 or alias = ?3) and created_timestamp <= ?4
                 order by created_timestamp desc
                 limit 1
             )
@@ -107,7 +112,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             (
                 select *
                 from entity_history eh
-                where lower(eh.timestamp_range) <= ?2
+                where lower(eh.timestamp_range) <= ?4
                 and eh.id = (select id from entity_cte)
                 order by lower(eh.timestamp_range) desc
                 limit 1
@@ -116,7 +121,8 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             limit 1
             """,
             nativeQuery = true)
-    Optional<Entity> findActiveByEvmAddressOrAliasAndTimestamp(byte[] alias, long blockTimestamp);
+    Optional<Entity> findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
+            long shard, long realm, byte[] alias, long blockTimestamp);
 
     /**
      * Retrieves the most recent state of an entity by its ID up to a given block timestamp.

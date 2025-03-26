@@ -50,7 +50,6 @@ import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.ContractID;
-import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
@@ -72,6 +71,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 
@@ -79,9 +79,69 @@ import org.springframework.context.annotation.Scope;
  * Generates typical protobuf request and response objects with all fields populated.
  */
 @Named
+@RequiredArgsConstructor
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class BlockItemBuilder {
-    private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
+
+    private final RecordItemBuilder recordItemBuilder;
+
+    private static StateChanges buildFileIdStateChanges(RecordItem recordItem) {
+        var fileId = recordItem.getTransactionRecord().getReceipt().getFileID();
+        var key = MapChangeKey.newBuilder().setFileIdKey(fileId).build();
+        var mapUpdate = MapUpdateChange.newBuilder().setKey(key).build();
+
+        var firstChange = StateChange.newBuilder()
+                .setMapUpdate(MapUpdateChange.newBuilder().build())
+                .setStateId(1)
+                .build();
+
+        var secondChange = StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_FILES_VALUE)
+                .build();
+
+        var thirdChange = StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_FILES_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder().build())
+                .build();
+
+        var fourtChange = StateChange.newBuilder()
+                .setMapUpdate(mapUpdate)
+                .setStateId(StateIdentifier.STATE_ID_FILES_VALUE)
+                .build();
+
+        var changes = List.of(firstChange, secondChange, thirdChange, fourtChange);
+
+        return StateChanges.newBuilder().addAllStateChanges(changes).build();
+    }
+
+    private static StateChanges buildNodeIdStateChanges(RecordItem recordItem) {
+        var nodeId = recordItem.getTransactionRecord().getReceipt().getNodeId();
+        var key = MapChangeKey.newBuilder()
+                .setEntityNumberKey(UInt64Value.of(nodeId))
+                .build();
+        var mapUpdate = MapUpdateChange.newBuilder().setKey(key).build();
+
+        var firstChange = StateChange.newBuilder()
+                .setMapUpdate(MapUpdateChange.newBuilder().build())
+                .setStateId(1)
+                .build();
+
+        var secondChange =
+                StateChange.newBuilder().setStateId(STATE_ID_NODES_VALUE).build();
+
+        var thirdChange = StateChange.newBuilder()
+                .setStateId(STATE_ID_NODES_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder().build())
+                .build();
+
+        var fourthChange = StateChange.newBuilder()
+                .setMapUpdate(mapUpdate)
+                .setStateId(STATE_ID_NODES_VALUE)
+                .build();
+
+        var changes = List.of(firstChange, secondChange, thirdChange, fourthChange);
+        return StateChanges.newBuilder().addAllStateChanges(changes).build();
+    }
 
     public BlockItemBuilder.Builder contractCall(RecordItem recordItem) {
         var contractCallResult = recordItem.getTransactionRecord().getContractCallResult();
@@ -99,11 +159,7 @@ public class BlockItemBuilder {
         }
 
         var contractId = contractCallResult.getContractID();
-        var accountId = AccountID.newBuilder()
-                .setShardNum(contractId.getShardNum())
-                .setRealmNum(contractId.getRealmNum())
-                .setAccountNum(contractId.getContractNum())
-                .build();
+        var accountId = toAccountId(contractId);
         var stateChanges = StateChanges.newBuilder()
                 .addStateChanges(StateChange.newBuilder()
                         .setStateId(STATE_ID_ACCOUNTS_VALUE)
@@ -139,11 +195,7 @@ public class BlockItemBuilder {
 
         var contractCreateResult = transactionRecord.getContractCreateResult();
         var contractId = contractCreateResult.getContractID();
-        var accountId = AccountID.newBuilder()
-                .setShardNum(contractId.getShardNum())
-                .setRealmNum(contractId.getRealmNum())
-                .setAccountNum(contractId.getContractNum())
-                .build();
+        var accountId = toAccountId(contractId);
         var evmAddress = contractCreateResult.hasEvmAddress()
                 ? contractCreateResult.getEvmAddress().getValue()
                 : ByteString.EMPTY;
@@ -182,11 +234,7 @@ public class BlockItemBuilder {
                     recordItem.getTransactionBody().getContractUpdateInstance().getContractID();
         }
 
-        var accountId = AccountID.newBuilder()
-                .setShardNum(contractId.getShardNum())
-                .setRealmNum(contractId.getRealmNum())
-                .setAccountNum(contractId.getContractNum())
-                .build();
+        var accountId = toAccountId(contractId);
         var evmAddress = getEvmAddress(contractIdInBody);
         var stateChanges = StateChanges.newBuilder()
                 .addStateChanges(StateChange.newBuilder()
@@ -224,11 +272,7 @@ public class BlockItemBuilder {
                 contractId = transactionRecord.getContractCallResult().getContractID();
             }
 
-            var accountId = AccountID.newBuilder()
-                    .setShardNum(contractId.getShardNum())
-                    .setRealmNum(contractId.getRealmNum())
-                    .setAccountNum(contractId.getContractNum())
-                    .build();
+            var accountId = toAccountId(contractId);
             var stateChanges = StateChanges.newBuilder()
                     .addStateChanges(StateChange.newBuilder()
                             .setStateId(STATE_ID_ACCOUNTS_VALUE)
@@ -638,65 +682,6 @@ public class BlockItemBuilder {
                 .build();
     }
 
-    private static StateChanges buildFileIdStateChanges(RecordItem recordItem) {
-        var id = recordItem.getTransactionRecord().getReceipt().getFileID().getFileNum();
-        var fileId = FileID.newBuilder().setFileNum(id).build();
-        var key = MapChangeKey.newBuilder().setFileIdKey(fileId).build();
-        var mapUpdate = MapUpdateChange.newBuilder().setKey(key).build();
-
-        var firstChange = StateChange.newBuilder()
-                .setMapUpdate(MapUpdateChange.newBuilder().build())
-                .setStateId(1)
-                .build();
-
-        var secondChange = StateChange.newBuilder()
-                .setStateId(StateIdentifier.STATE_ID_FILES_VALUE)
-                .build();
-
-        var thirdChange = StateChange.newBuilder()
-                .setStateId(StateIdentifier.STATE_ID_FILES_VALUE)
-                .setMapUpdate(MapUpdateChange.newBuilder().build())
-                .build();
-
-        var fourtChange = StateChange.newBuilder()
-                .setMapUpdate(mapUpdate)
-                .setStateId(StateIdentifier.STATE_ID_FILES_VALUE)
-                .build();
-
-        var changes = List.of(firstChange, secondChange, thirdChange, fourtChange);
-
-        return StateChanges.newBuilder().addAllStateChanges(changes).build();
-    }
-
-    private static StateChanges buildNodeIdStateChanges(RecordItem recordItem) {
-        var nodeId = recordItem.getTransactionRecord().getReceipt().getNodeId();
-        var key = MapChangeKey.newBuilder()
-                .setEntityNumberKey(UInt64Value.of(nodeId))
-                .build();
-        var mapUpdate = MapUpdateChange.newBuilder().setKey(key).build();
-
-        var firstChange = StateChange.newBuilder()
-                .setMapUpdate(MapUpdateChange.newBuilder().build())
-                .setStateId(1)
-                .build();
-
-        var secondChange =
-                StateChange.newBuilder().setStateId(STATE_ID_NODES_VALUE).build();
-
-        var thirdChange = StateChange.newBuilder()
-                .setStateId(STATE_ID_NODES_VALUE)
-                .setMapUpdate(MapUpdateChange.newBuilder().build())
-                .build();
-
-        var fourthChange = StateChange.newBuilder()
-                .setMapUpdate(mapUpdate)
-                .setStateId(STATE_ID_NODES_VALUE)
-                .build();
-
-        var changes = List.of(firstChange, secondChange, thirdChange, fourthChange);
-        return StateChanges.newBuilder().addAllStateChanges(changes).build();
-    }
-
     private ByteString getEvmAddress(ContractID contractId) {
         if (contractId.hasEvmAddress()) {
             var entityId = DomainUtils.fromEvmAddress(DomainUtils.toBytes(contractId.getEvmAddress()));
@@ -711,6 +696,14 @@ public class BlockItemBuilder {
     private Timestamp timestamp(long consensusTimestamp) {
         var instant = Instant.ofEpochSecond(0, consensusTimestamp);
         return Utility.instantToTimestamp(instant);
+    }
+
+    private AccountID toAccountId(ContractID contractId) {
+        return AccountID.newBuilder()
+                .setShardNum(contractId.getShardNum())
+                .setRealmNum(contractId.getRealmNum())
+                .setAccountNum(contractId.getContractNum())
+                .build();
     }
 
     private TransactionResult transactionResult(RecordItem recordItem) {
@@ -739,11 +732,11 @@ public class BlockItemBuilder {
     }
 
     public class Builder {
-        private BlockItem previous;
         private final Transaction transaction;
         private final Map<TransactionCase, TransactionOutput> transactionOutputs;
         private final TransactionResult.Builder transactionResultBuilder;
         private final List<StateChanges> stateChanges;
+        private BlockItem previous;
 
         @SuppressWarnings("java:S1640")
         private Builder(

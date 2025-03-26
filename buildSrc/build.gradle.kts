@@ -9,7 +9,7 @@ repositories {
 
 dependencies {
     val dockerJavaVersion = "3.4.2"
-    val flywayVersion = "11.3.4"
+    val flywayVersion = "11.4.0"
     val jooqVersion = "3.20.2"
 
     // Add docker-java dependencies before gradle-docker-plugin to avoid the docker-java jars

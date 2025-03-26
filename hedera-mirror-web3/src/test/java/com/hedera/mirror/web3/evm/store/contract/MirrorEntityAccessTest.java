@@ -4,13 +4,14 @@ package com.hedera.mirror.web3.evm.store.contract;
 
 import static com.google.protobuf.ByteString.EMPTY;
 import static com.hedera.mirror.common.domain.entity.AbstractEntity.DEFAULT_EXPIRY_TIMESTAMP;
+import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hyperledger.besu.datatypes.Address.ZERO;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.web3.evm.store.Store;
 import com.hedera.mirror.web3.evm.store.Store.OnMissing;
 import com.hedera.mirror.web3.repository.ContractRepository;
@@ -32,14 +33,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class MirrorEntityAccessTest {
-    private static final String HEX = "0x00000000000000000000000000000000000004e4";
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private static final EntityId ENTITY =
+            EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 1252);
+    private static final Address ADDRESS = toAddress(ENTITY);
+    private static final String HEX = ADDRESS.toHexString();
     private static final Bytes BYTES = Bytes.fromHexString(HEX);
     private static final byte[] DATA = BYTES.toArrayUnsafe();
-    private static final Address ADDRESS = Address.fromHexString(HEX);
     private static final Optional<Long> timestamp = Optional.of(1234L);
-    private static final EntityId ENTITY = DomainUtils.fromEvmAddress(ADDRESS.toArrayUnsafe());
-    private static final Long ENTITY_ID =
-            EntityId.of(ENTITY.getShard(), ENTITY.getRealm(), ENTITY.getNum()).getId();
+    private static final Long ENTITY_ID = ENTITY.getId();
     private static final Address NON_MIRROR_ADDRESS =
             Address.fromHexString("0x23f5e49569a835d7bf9aefd30e4f60cdd570f225");
 

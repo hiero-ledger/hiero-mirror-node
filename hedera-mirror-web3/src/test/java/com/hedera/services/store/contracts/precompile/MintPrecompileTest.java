@@ -20,6 +20,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.common.PrecompileContext;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.store.Store;
@@ -133,6 +134,9 @@ class MintPrecompileTest {
 
     @Mock
     private TokenModificationResult tokenModificationResult;
+
+    @Mock
+    private CommonProperties commonProperties;
 
     @InjectMocks
     private MirrorNodeEvmProperties evmProperties;

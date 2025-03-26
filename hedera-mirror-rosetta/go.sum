@@ -675,8 +675,8 @@ github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d h1:dg1dEPuW
 github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d/go.mod h1:iADmTwqILo4mZ8BN3D2Q6+9jd8WM5uGBxy+E8yxSoD4=
 github.com/hellofresh/health-go/v4 v4.7.0 h1:D+0gCkG9oEpUewIkIKxTmalxkM+0QoRDfJelJrG3sFU=
 github.com/hellofresh/health-go/v4 v4.7.0/go.mod h1:XyFAB5J9wAUq7PGN3om2g68bNyWIqKIrMytAT8IMJ4Y=
-github.com/hiero-ledger/hiero-sdk-go/v2 v2.57.0 h1:MKD8Q5bGlbetUdGeXl+XxeC6yi4sIi8SlKJYd90Z5cY=
-github.com/hiero-ledger/hiero-sdk-go/v2 v2.57.0/go.mod h1:l9XayjwTGNRVkhI/bG9tHZjPmAh2AMakbDqQw6ytnZY=
+github.com/hiero-ledger/hiero-sdk-go/v2 v2.58.0 h1:ZxOcIrDHQyvEO9F6Ay/3Qb4ArKCmIgw6KEkfmBRaaVk=
+github.com/hiero-ledger/hiero-sdk-go/v2 v2.58.0/go.mod h1:l9XayjwTGNRVkhI/bG9tHZjPmAh2AMakbDqQw6ytnZY=
 github.com/holiman/uint256 v1.3.2 h1:a9EgMPSC1AAaj1SZL5zIQD3WbwTuHrMGOerLjGmM/TA=
 github.com/holiman/uint256 v1.3.2/go.mod h1:EOMSn4q6Nyt9P6efbI3bueV4e1b3dGlUCXeiRV4ng7E=
 github.com/iancoleman/strcase v0.2.0/go.mod h1:iwCmte+B7n89clKwxIoIXy/HfoL7AsD47ZCWhYzw7ho=

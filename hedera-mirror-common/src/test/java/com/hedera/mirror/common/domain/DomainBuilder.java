@@ -9,6 +9,7 @@ import static com.hedera.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.aggregator.LogsBloomAggregator;
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
@@ -136,9 +137,10 @@ public class DomainBuilder {
 
     private static final long LAST_RESERVED_ID = 1000;
 
+    private final CommonProperties commonProperties;
     private final EntityManager entityManager;
     private final TransactionOperations transactionOperations;
-    private final AtomicLong id = new AtomicLong(0L);
+    private final AtomicLong num = new AtomicLong(0L);
     private final AtomicInteger transactionIndex = new AtomicInteger(0);
     private final Instant now = Instant.now();
     private final SecureRandom random = new SecureRandom();
@@ -147,7 +149,7 @@ public class DomainBuilder {
 
     // Intended for use by unit tests that don't need persistence
     public DomainBuilder() {
-        this(null, null);
+        this(CommonProperties.getInstance(), null, null);
     }
 
     public DomainWrapper<AccountBalance, AccountBalance.AccountBalanceBuilder> accountBalance() {
@@ -452,11 +454,11 @@ public class DomainBuilder {
     }
 
     public DomainWrapper<Entity, Entity.EntityBuilder<?, ?>> entity() {
-        return entity(id(), timestamp());
+        return entity(entityId(), timestamp());
     }
 
     public DomainWrapper<EntityHistory, EntityHistory.EntityHistoryBuilder<?, ?>> entityHistory() {
-        long entityId = id();
+        var entityId = entityId();
         long timestamp = timestamp();
 
         var builder = EntityHistory.builder()
@@ -471,17 +473,17 @@ public class DomainBuilder {
                 .ethereumNonce(1L)
                 .evmAddress(evmAddress())
                 .expirationTimestamp(timestamp + 30_000_000L)
-                .id(entityId)
+                .id(entityId.getId())
                 .key(key())
                 .maxAutomaticTokenAssociations(1)
                 .memo(text(16))
                 .obtainerId(entityId())
                 .permanentRemoval(false)
                 .proxyAccountId(entityId())
-                .num(entityId)
-                .realm(0L)
+                .num(entityId.getNum())
+                .realm(entityId.getRealm())
                 .receiverSigRequired(true)
-                .shard(0L)
+                .shard(entityId.getShard())
                 .stakedNodeId(-1L)
                 .stakePeriodStart(-1L)
                 .timestampRange(Range.closedOpen(timestamp, timestamp + 10))
@@ -863,10 +865,10 @@ public class DomainBuilder {
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
-    public DomainWrapper<TokenAccount, TokenAccount.TokenAccountBuilder<?, ?>> tokenAccount(long shard, long realm) {
+    public DomainWrapper<TokenAccount, TokenAccount.TokenAccountBuilder<?, ?>> tokenAccount() {
         long timestamp = timestamp();
         var builder = TokenAccount.builder()
-                .accountId(EntityId.of(shard, realm, id()).getId())
+                .accountId(id())
                 .automaticAssociation(false)
                 .associated(true)
                 .balance(number())
@@ -875,12 +877,8 @@ public class DomainBuilder {
                 .freezeStatus(null)
                 .kycStatus(null)
                 .timestampRange(Range.atLeast(timestamp))
-                .tokenId(EntityId.of(shard, realm, id()).getId());
+                .tokenId(id());
         return new DomainWrapperImpl<>(builder, builder::build);
-    }
-
-    public DomainWrapper<TokenAccount, TokenAccount.TokenAccountBuilder<?, ?>> tokenAccount() {
-        return tokenAccount(0, 0);
     }
 
     public DomainWrapper<TokenAccountHistory, TokenAccountHistory.TokenAccountHistoryBuilder<?, ?>>
@@ -1115,7 +1113,8 @@ public class DomainBuilder {
     }
 
     public EntityId entityId() {
-        return EntityId.of(0L, 0L, id());
+        long nextNum = number() + LAST_RESERVED_ID;
+        return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), nextNum);
     }
 
     public byte[] evmAddress() {
@@ -1142,11 +1141,11 @@ public class DomainBuilder {
      * @return The generated encoded entity id.
      */
     public long id() {
-        return id.incrementAndGet() + LAST_RESERVED_ID;
+        return entityId().getId();
     }
 
     public byte[] key() {
-        return id.get() % 2 == 0 ? key(KeyCase.ECDSA_SECP256K1) : key(KeyCase.ED25519);
+        return num.get() % 2 == 0 ? key(KeyCase.ECDSA_SECP256K1) : key(KeyCase.ED25519);
     }
 
     public byte[] key(KeyCase keyCase) {
@@ -1164,7 +1163,7 @@ public class DomainBuilder {
     }
 
     public long number() {
-        return id.incrementAndGet();
+        return num.incrementAndGet();
     }
 
     public Key protobufKey(KeyCase keyCase) {

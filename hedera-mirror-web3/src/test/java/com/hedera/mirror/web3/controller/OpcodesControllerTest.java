@@ -23,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSortedMap;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
@@ -771,7 +772,7 @@ class OpcodesControllerTest {
 
         @Bean
         MirrorNodeEvmProperties evmProperties() {
-            return new MirrorNodeEvmProperties();
+            return new MirrorNodeEvmProperties(new CommonProperties());
         }
 
         @Bean

@@ -86,11 +86,12 @@ class HederaEvmStackedWorldStateUpdaterTest {
 
     @BeforeEach
     void setUp() {
-        final var entityDatabaseAccessor = new EntityDatabaseAccessor(entityRepository);
+        final var commonProperties = new CommonProperties();
+        final var entityDatabaseAccessor = new EntityDatabaseAccessor(entityRepository, commonProperties);
         final List<DatabaseAccessor<Object, ?>> accessors = List.of(
                 entityDatabaseAccessor,
                 new AccountDatabaseAccessor(
-                        new CommonProperties(), entityDatabaseAccessor, null, null, null, null, null, null));
+                        commonProperties, entityDatabaseAccessor, null, null, null, null, null, null));
         final var stackedStateFrames = new StackedStateFrames(accessors);
         store = new StoreImpl(stackedStateFrames, validator);
         subject = new HederaEvmStackedWorldStateUpdater(

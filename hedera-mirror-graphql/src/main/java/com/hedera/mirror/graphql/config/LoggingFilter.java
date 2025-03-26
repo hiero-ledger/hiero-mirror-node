@@ -2,93 +2,72 @@
 
 package com.hedera.mirror.graphql.config;
 
+import static org.springframework.web.util.WebUtils.ERROR_EXCEPTION_ATTRIBUTE;
+
 import jakarta.inject.Named;
-import java.io.Serial;
-import java.net.InetSocketAddress;
-import java.net.URI;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.util.CollectionUtils;
-import org.springframework.web.server.ServerWebExchange;
-import org.springframework.web.server.WebFilter;
-import org.springframework.web.server.WebFilterChain;
-import reactor.core.publisher.Mono;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 @CustomLog
 @Named
-class LoggingFilter implements WebFilter {
-
-    static final String X_FORWARDED_FOR = "X-Forwarded-For";
+class LoggingFilter extends OncePerRequestFilter {
 
     @SuppressWarnings("java:S1075")
     private static final String ACTUATOR_PATH = "/actuator/";
 
-    private static final String LOCALHOST = "127.0.0.1";
-    private static final String LOG_FORMAT = "{} {} {} in {} ms: {}";
+    private static final String LOG_FORMAT = "{} {} {} in {} ms: {} {}";
+    private static final String SUCCESS = "Success";
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) {
         long start = System.currentTimeMillis();
-        return chain.filter(exchange)
-                .transformDeferred(call -> call.doOnEach(signal -> doFilter(exchange, signal.getThrowable(), start))
-                        .doOnCancel(() -> doFilter(exchange, new CancelledException(), start)));
-    }
+        Exception cause = null;
 
-    private void doFilter(ServerWebExchange exchange, Throwable cause, long start) {
-        ServerHttpResponse response = exchange.getResponse();
-        if (response.isCommitted() || cause instanceof CancelledException) {
-            logRequest(exchange, start, cause);
-        } else {
-            response.beforeCommit(() -> {
-                logRequest(exchange, start, cause);
-                return Mono.empty();
-            });
+        try {
+            filterChain.doFilter(request, response);
+        } catch (Exception t) {
+            cause = t;
+        } finally {
+            logRequest(request, response, start, cause);
         }
     }
 
-    private void logRequest(ServerWebExchange exchange, long startTime, Throwable cause) {
-        long elapsed = System.currentTimeMillis() - startTime;
-        ServerHttpRequest request = exchange.getRequest();
-        URI uri = request.getURI();
-        var message =
-                cause != null ? cause.getMessage() : exchange.getResponse().getStatusCode();
-        var params = new Object[] {getClient(request), request.getMethod(), uri, elapsed, message};
+    private void logRequest(HttpServletRequest request, HttpServletResponse response, long startTime, Exception cause) {
+        String uri = request.getRequestURI();
+        boolean actuator = StringUtils.startsWith(uri, ACTUATOR_PATH);
 
-        if (StringUtils.startsWith(uri.getPath(), ACTUATOR_PATH)) {
+        if (!log.isDebugEnabled() && actuator) {
+            return;
+        }
+
+        long elapsed = System.currentTimeMillis() - startTime;
+        var message = getMessage(request, cause);
+        int status = response.getStatus();
+        var params = new Object[] {request.getRemoteAddr(), request.getMethod(), uri, elapsed, status, message};
+
+        if (actuator) {
             log.debug(LOG_FORMAT, params);
-        } else if (cause != null) {
+        } else if (status >= HttpStatus.INTERNAL_SERVER_ERROR.value()) {
             log.warn(LOG_FORMAT, params);
         } else {
             log.info(LOG_FORMAT, params);
         }
     }
 
-    private String getClient(ServerHttpRequest request) {
-        String xForwardedFor = CollectionUtils.firstElement(request.getHeaders().get(X_FORWARDED_FOR));
-
-        if (StringUtils.isNotBlank(xForwardedFor)) {
-            return xForwardedFor;
+    private String getMessage(HttpServletRequest request, Exception e) {
+        if (e != null) {
+            return e.getMessage();
         }
 
-        InetSocketAddress remoteAddress = request.getRemoteAddress();
-
-        if (remoteAddress != null && remoteAddress.getAddress() != null) {
-            return remoteAddress.getAddress().toString();
+        if (request.getAttribute(ERROR_EXCEPTION_ATTRIBUTE) instanceof Exception ex) {
+            return ex.getMessage();
         }
 
-        return LOCALHOST;
-    }
-
-    private static class CancelledException extends RuntimeException {
-        private static final String MESSAGE = "cancelled";
-
-        @Serial
-        private static final long serialVersionUID = 1253705095667526091L;
-
-        CancelledException() {
-            super(MESSAGE);
-        }
+        return SUCCESS;
     }
 }
