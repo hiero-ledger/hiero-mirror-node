@@ -10,10 +10,6 @@ This document details how the mirror node will be updated to support it.
 - Store relevant batch transaction information in the database
 - Enhance the REST api for easy retrieval of batch transactions along with their inner transactions
 
-## Non-Goals
-
-- Handle block streams removing duplication of inner transaction bytes
-
 ## Architecture
 
 ### Database
