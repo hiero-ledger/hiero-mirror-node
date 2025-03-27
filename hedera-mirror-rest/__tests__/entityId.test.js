@@ -557,6 +557,10 @@ describe('parseString', () => {
       input: '0x71eaa748d5252be68c1185588beca495459fdba4',
       expected: EntityId.of(0, 0, null, '71eaa748d5252be68c1185588beca495459fdba4'),
     },
+    {
+      input: 1,
+      expected: null,
+    },
   ];
 
   for (const spec of specs) {

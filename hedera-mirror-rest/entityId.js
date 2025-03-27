@@ -266,24 +266,38 @@ const parseFromString = (id, error) => {
 };
 
 const parseString = (id) => {
-  const idPieces = ('' + id).split('.');
-  idPieces.unshift(...[systemShard, systemRealm].slice(0, 3 - idPieces.length));
-  idPieces[2] = stripHexPrefix(idPieces[2]);
+  const pieces = piecesFromString(id);
+  return pieces && parse(pieces.filter((item) => item !== null).join('.'));
+};
 
-  return parse(idPieces.join('.'));
+const piecesFromString = (id) => {
+  if (typeof id !== 'string') {
+    return null;
+  }
+
+  const idPieces = id.split('.');
+
+  if (isEvmAddressAlias(id)) {
+    idPieces.unshift(...[null, null].slice(0, 3 - idPieces.length));
+  } else {
+    idPieces.unshift(...[systemShard, systemRealm].slice(0, 3 - idPieces.length));
+  }
+
+  idPieces[2] = stripHexPrefix(idPieces[2]);
+  return idPieces;
 };
 
 const computeContractIdPartsFromContractIdValue = (contractId) => {
-  const idPieces = contractId.split('.');
-  idPieces.unshift(...[null, null].slice(0, 3 - idPieces.length));
-  const contractIdParts = {shard: idPieces[0], realm: idPieces[1]};
-  const evmAddressOrNum = stripHexPrefix(idPieces[2]);
+  const [shard, realm, evmAddressOrNum] = piecesFromString(contractId);
+
+  const contractIdParts = {
+    shard: shard,
+    realm: realm,
+  };
 
   if (isEvmAddressAlias(evmAddressOrNum)) {
     contractIdParts.create2_evm_address = evmAddressOrNum;
   } else {
-    contractIdParts.shard = contractIdParts.shard ?? systemShard;
-    contractIdParts.realm = contractIdParts.realm ?? systemRealm;
     contractIdParts.num = evmAddressOrNum;
   }
 
