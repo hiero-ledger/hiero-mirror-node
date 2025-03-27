@@ -6,7 +6,7 @@ import {assertSqlQueryEqual} from '../testutils';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
 import * as utils from '../../utils';
-import EntityId from '../../entityId.js';
+import EntityId from '../../entityId';
 
 setupIntegrationTest();
 

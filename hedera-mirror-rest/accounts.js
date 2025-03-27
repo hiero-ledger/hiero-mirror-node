@@ -2,7 +2,7 @@
 
 import _ from 'lodash';
 import base32 from './base32';
-import {getMirrorConfig, getResponseLimit} from './config';
+import {getResponseLimit} from './config';
 import * as constants from './constants';
 import {filterKeys} from './constants';
 import EntityId from './entityId';

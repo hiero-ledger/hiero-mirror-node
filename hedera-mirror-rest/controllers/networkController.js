@@ -24,7 +24,7 @@ import {
   NetworkStakeViewModel,
   NetworkSupplyViewModel,
 } from '../viewmodel';
-import EntityId from '../entityId.js';
+import EntityId from '../entityId';
 
 const networkNodesDefaultSize = 10;
 const networkNodesMaxSize = 25;

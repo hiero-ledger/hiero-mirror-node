@@ -11,7 +11,7 @@ import {
   NodeStake,
 } from '../model';
 import {OrderSpec} from '../sql';
-import EntityId from '../entityId.js';
+import EntityId from '../entityId';
 
 /**
  * Network node business model

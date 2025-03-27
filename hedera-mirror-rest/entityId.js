@@ -3,11 +3,10 @@
 import _ from 'lodash';
 import quickLru from 'quick-lru';
 
-import {getMirrorConfig} from './config';
+import config, {getMirrorConfig} from './config';
 import * as constants from './constants';
 import {InvalidArgumentError} from './errors';
 import {stripHexPrefix} from './utils.js';
-import config from './config.js';
 
 const {
   common: {realm: systemRealm, shard: systemShard},
@@ -276,15 +275,13 @@ const parseString = (id) => {
 
 const computeContractIdPartsFromContractIdValue = (contractId) => {
   const idPieces = contractId.split('.');
-  idPieces.unshift(...[null, null].slice(0, 3 - idPieces.length));
+  idPieces.unshift(...[systemShard, systemRealm].slice(0, 3 - idPieces.length));
   const contractIdParts = {shard: idPieces[0], realm: idPieces[1]};
   const evmAddressOrNum = stripHexPrefix(idPieces[2]);
 
   if (isEvmAddressAlias(evmAddressOrNum)) {
     contractIdParts.create2_evm_address = evmAddressOrNum;
   } else {
-    contractIdParts.shard = contractIdParts.shard || systemShard;
-    contractIdParts.realm = contractIdParts.realm || systemRealm;
     contractIdParts.num = evmAddressOrNum;
   }
 
