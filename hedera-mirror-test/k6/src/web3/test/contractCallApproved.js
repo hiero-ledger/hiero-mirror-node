@@ -4,13 +4,13 @@ import {ContractCallTestScenarioBuilder} from './common.js';
 
 const contract = __ENV.ERC_CONTRACT_ADDRESS;
 const selector = '0x098f2366';
-const token = __ENV.TOKEN_ADDRESS;
-const account = __ENV.ACCOUNT_ADDRESS;
+const token = __ENV.NON_FUNGIBLE_TOKEN_ADDRESS;
+const serialNumber = __ENV.SERIAL_NUMBER;
 
 const {options, run} = new ContractCallTestScenarioBuilder()
   .name('contractCallApproved') // use unique scenario name among all tests
   .selector(selector)
-  .args([token, account])
+  .args([token, serialNumber])
   .to(contract)
   .build();
 
