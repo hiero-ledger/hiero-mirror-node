@@ -275,13 +275,15 @@ const parseString = (id) => {
 
 const computeContractIdPartsFromContractIdValue = (contractId) => {
   const idPieces = contractId.split('.');
-  idPieces.unshift(...[systemShard, systemRealm].slice(0, 3 - idPieces.length));
+  idPieces.unshift(...[null, null].slice(0, 3 - idPieces.length));
   const contractIdParts = {shard: idPieces[0], realm: idPieces[1]};
   const evmAddressOrNum = stripHexPrefix(idPieces[2]);
 
   if (isEvmAddressAlias(evmAddressOrNum)) {
     contractIdParts.create2_evm_address = evmAddressOrNum;
   } else {
+    contractIdParts.shard = contractIdParts.shard ?? systemShard;
+    contractIdParts.realm = contractIdParts.realm ?? systemRealm;
     contractIdParts.num = evmAddressOrNum;
   }
 
