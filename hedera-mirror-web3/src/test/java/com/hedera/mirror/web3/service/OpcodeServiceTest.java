@@ -116,12 +116,12 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 Bytes.fromHexString(functionCall.encodeFunctionCall()).toArray();
 
         final var options = new OpcodeTracerOptions();
+        options.setModularized(mirrorNodeEvmProperties.isModularizedServices());
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(
-                transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices());
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, SUCCESS_PREFIX + expectedResult);
@@ -177,13 +177,13 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var callData =
                 Bytes.fromHexString(functionCall.encodeFunctionCall()).toArray();
 
-        final var options = new OpcodeTracerOptions();
+        final var options =
+                new OpcodeTracerOptions(true, false, false, mirrorNodeEvmProperties.isModularizedServices());
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(
-                transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices());
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, SUCCESS_PREFIX + expectedResult);
@@ -216,11 +216,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
 
-        final OpcodeTracerOptions options = new OpcodeTracerOptions();
+        final var options =
+                new OpcodeTracerOptions(true, false, false, mirrorNodeEvmProperties.isModularizedServices());
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(
-                transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices());
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, HEX_PREFIX + expectedResult);
@@ -254,11 +254,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
-        final OpcodeTracerOptions options = new OpcodeTracerOptions();
+        final var options =
+                new OpcodeTracerOptions(true, false, false, mirrorNodeEvmProperties.isModularizedServices());
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(
-                transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices());
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, expectedResult);
     }
@@ -292,11 +292,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
 
-        final OpcodeTracerOptions options = new OpcodeTracerOptions();
+        final var options =
+                new OpcodeTracerOptions(true, false, false, mirrorNodeEvmProperties.isModularizedServices());
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(
-                transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices());
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, expectedResult);
@@ -331,11 +331,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
 
-        final OpcodeTracerOptions options = new OpcodeTracerOptions();
+        final var options =
+                new OpcodeTracerOptions(true, false, false, mirrorNodeEvmProperties.isModularizedServices());
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(
-                transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices());
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, expectedResult);
@@ -363,11 +363,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
 
-        final OpcodeTracerOptions options = new OpcodeTracerOptions();
+        final var options =
+                new OpcodeTracerOptions(true, false, false, mirrorNodeEvmProperties.isModularizedServices());
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(
-                transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices());
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, HEX_PREFIX + expectedResult);
@@ -408,11 +408,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         final var transactionIdOrHash = setUpEthereumTransactionWithSenderBalance(
                 contract, callData, DEFAULT_TRANSACTION_VALUE, expectedResultBytes);
-        final OpcodeTracerOptions options = new OpcodeTracerOptions();
+        final var options =
+                new OpcodeTracerOptions(true, false, false, mirrorNodeEvmProperties.isModularizedServices());
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(
-                transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices());
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, HEX_PREFIX + expectedResult);
@@ -452,11 +452,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         final var transactionIdOrHash = setUpEthereumTransactionWithSenderBalance(
                 contract, callData, DEFAULT_TRANSACTION_VALUE, expectedResultBytes);
-        final OpcodeTracerOptions options = new OpcodeTracerOptions();
+        final var options =
+                new OpcodeTracerOptions(true, false, false, mirrorNodeEvmProperties.isModularizedServices());
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(
-                transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices());
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, HEX_PREFIX + expectedResult);
@@ -484,8 +484,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 domainBuilder.timestamp());
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(
-                transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices());
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
         verifyOpcodesResponse(opcodesResponse, options);
@@ -533,8 +532,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 domainBuilder.timestamp());
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(
-                transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices());
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
         verifyOpcodesResponse(opcodesResponse, options);
@@ -557,12 +555,12 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 senderEntity.toEntityId(),
                 DEFAULT_TRANSACTION_VALUE,
                 consensusTimestamp);
-        final OpcodeTracerOptions options = new OpcodeTracerOptions();
+        final var options =
+                new OpcodeTracerOptions(true, false, false, mirrorNodeEvmProperties.isModularizedServices());
 
         // Then
         assertThatExceptionOfType(EntityNotFoundException.class)
-                .isThrownBy(() -> opcodeService.processOpcodeCall(
-                        transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices()))
+                .isThrownBy(() -> opcodeService.processOpcodeCall(transactionIdOrHash, options))
                 .withMessage("Contract result not found: " + consensusTimestamp);
     }
 
@@ -583,12 +581,12 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 senderEntity.toEntityId(),
                 DEFAULT_TRANSACTION_VALUE,
                 domainBuilder.timestamp());
-        final OpcodeTracerOptions options = new OpcodeTracerOptions();
+        final var options =
+                new OpcodeTracerOptions(true, false, false, mirrorNodeEvmProperties.isModularizedServices());
 
         // Then
         assertThatExceptionOfType(EntityNotFoundException.class)
-                .isThrownBy(() -> opcodeService.processOpcodeCall(
-                        transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices()))
+                .isThrownBy(() -> opcodeService.processOpcodeCall(transactionIdOrHash, options))
                 .withMessage("Transaction not found: " + transactionIdOrHash);
     }
 
@@ -606,7 +604,8 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 treasuryEntity.toEntityId(),
                 tokenWithAutoRenewPair.getRight());
 
-        final OpcodeTracerOptions options = new OpcodeTracerOptions();
+        final var options =
+                new OpcodeTracerOptions(true, false, false, mirrorNodeEvmProperties.isModularizedServices());
         final var functionCall =
                 contract.call_createFungibleTokenAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
                         tokenInfo, BigInteger.ONE, BigInteger.ONE);
@@ -622,8 +621,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // Then
         assertThatExceptionOfType(EntityNotFoundException.class)
-                .isThrownBy(() -> opcodeService.processOpcodeCall(
-                        transactionIdOrHash, options, mirrorNodeEvmProperties.isModularizedServices()))
+                .isThrownBy(() -> opcodeService.processOpcodeCall(transactionIdOrHash, options))
                 .withMessage("Contract transaction hash not found: " + transactionIdOrHash);
     }
 

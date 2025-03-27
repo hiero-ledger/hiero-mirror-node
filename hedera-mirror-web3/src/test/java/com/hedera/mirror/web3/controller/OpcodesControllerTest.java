@@ -153,14 +153,14 @@ class OpcodesControllerTest {
 
     static Stream<Arguments> transactionsWithDifferentTracerOptions() {
         final List<OpcodeTracerOptions> tracerOptions = List.of(
-                new OpcodeTracerOptions(true, true, true, true),
-                new OpcodeTracerOptions(false, true, true, true),
-                new OpcodeTracerOptions(true, false, true, true),
-                new OpcodeTracerOptions(true, true, false, true),
-                new OpcodeTracerOptions(false, false, true, true),
-                new OpcodeTracerOptions(false, true, false, true),
-                new OpcodeTracerOptions(true, false, false, true),
-                new OpcodeTracerOptions(false, false, false, true));
+                new OpcodeTracerOptions(true, true, true),
+                new OpcodeTracerOptions(false, true, true),
+                new OpcodeTracerOptions(true, false, true),
+                new OpcodeTracerOptions(true, true, false),
+                new OpcodeTracerOptions(false, false, true),
+                new OpcodeTracerOptions(false, true, false),
+                new OpcodeTracerOptions(true, false, false),
+                new OpcodeTracerOptions(false, false, false));
         return Arrays.stream(TransactionProviderEnum.values())
                 .flatMap(providerEnum -> tracerOptions.stream().map(options -> Arguments.of(providerEnum, options)));
     }

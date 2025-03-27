@@ -12,12 +12,8 @@ public interface OpcodeService {
     /**
      * @param transactionIdOrHash the {@link TransactionIdOrHashParameter}
      * @param options the {@link OpcodeTracerOptions}
-     * @param isModularized whether the opcode call will follow the modularized or the mono
-     *                      txn execution workflow
      * @return the {@link OpcodesResponse} holding the result of the opcode call
      */
     OpcodesResponse processOpcodeCall(
-            @NonNull TransactionIdOrHashParameter transactionIdOrHash,
-            @NonNull OpcodeTracerOptions options,
-            boolean isModularized);
+            @NonNull TransactionIdOrHashParameter transactionIdOrHash, @NonNull OpcodeTracerOptions options);
 }

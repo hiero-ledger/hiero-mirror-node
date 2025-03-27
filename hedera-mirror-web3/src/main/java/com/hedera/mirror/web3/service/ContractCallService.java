@@ -153,13 +153,13 @@ public abstract class ContractCallService {
     }
 
     protected void validateResult(
-            final HederaEvmTransactionProcessingResult txnResult, final CallType type, final boolean modularized) {
+            final HederaEvmTransactionProcessingResult txnResult, final CallType type, final boolean isModularized) {
         if (!txnResult.isSuccessful()) {
             updateGasUsedMetric(ERROR, txnResult.getGasUsed(), 1);
             var revertReason = txnResult.getRevertReason().orElse(Bytes.EMPTY);
             var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReason);
             throw new MirrorEvmTransactionException(
-                    getStatusOrDefault(txnResult).name(), detail, revertReason.toHexString(), txnResult, modularized);
+                    getStatusOrDefault(txnResult).name(), detail, revertReason.toHexString(), txnResult, isModularized);
         } else {
             updateGasUsedMetric(type, txnResult.getGasUsed(), 1);
         }

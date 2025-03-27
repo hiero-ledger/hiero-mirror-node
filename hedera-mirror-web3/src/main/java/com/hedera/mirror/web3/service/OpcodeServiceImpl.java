@@ -59,10 +59,9 @@ public class OpcodeServiceImpl implements OpcodeService {
 
     @Override
     public OpcodesResponse processOpcodeCall(
-            @NonNull TransactionIdOrHashParameter transactionIdOrHashParameter,
-            @NonNull OpcodeTracerOptions options,
-            boolean isModularized) {
-        final ContractDebugParameters params = buildCallServiceParameters(transactionIdOrHashParameter, isModularized);
+            @NonNull TransactionIdOrHashParameter transactionIdOrHashParameter, @NonNull OpcodeTracerOptions options) {
+        final ContractDebugParameters params =
+                buildCallServiceParameters(transactionIdOrHashParameter, options.isModularized());
         final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, options);
         return buildOpcodesResponse(result);
     }

@@ -37,4 +37,8 @@ public class OpcodeTracerOptions {
     public OpcodeTracerOptions() {
         this(true, false, false, true);
     }
+
+    public OpcodeTracerOptions(boolean stack, boolean memory, boolean storage) {
+        this(stack, memory, storage, true);
+    }
 }
