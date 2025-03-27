@@ -1,15 +1,12 @@
 module github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta
 
-go 1.23.0
-
-toolchain go1.23.1
+go 1.24.1
 
 require (
 	github.com/Code-Hex/go-generics-cache v1.5.1
 	github.com/coinbase/rosetta-sdk-go v0.8.9
 	github.com/coinbase/rosetta-sdk-go/types v1.0.0
 	github.com/cucumber/godog v0.15.0
-	github.com/ethereum/go-ethereum v1.15.5
 	github.com/go-playground/validator/v10 v10.25.0
 	github.com/hellofresh/health-go/v4 v4.7.0
 	github.com/hiero-ledger/hiero-sdk-go/v2 v2.58.0
@@ -22,12 +19,11 @@ require (
 	github.com/prometheus/client_golang v1.21.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/pflag v1.0.6
-	github.com/spf13/viper v1.20.0
+	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	github.com/thanhpk/randstr v1.0.6
 	github.com/weaveworks/common v0.0.0-20230728070032-dd9e68f319d5
-	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/gorm v1.25.12
@@ -70,7 +66,6 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-memdb v1.3.4 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
-	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20231201235250-de7065d80cb9 // indirect
@@ -118,6 +113,7 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df // indirect
 	golang.org/x/net v0.36.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect

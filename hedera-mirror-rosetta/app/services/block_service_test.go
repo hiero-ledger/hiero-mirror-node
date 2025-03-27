@@ -8,12 +8,12 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/server"
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/config"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/domain/types"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/errors"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/persistence/domain"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/test/mocks"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/test/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -21,7 +21,7 @@ import (
 const ed25519AliasHex = "0x12205a081255a92b7c262bc2ea3ab7114b8a815345b3cc40f800b2b40914afecc44e"
 
 var (
-	ed25519Alias    = hexutil.MustDecode(ed25519AliasHex)
+	ed25519Alias    = utils.MustDecode(ed25519AliasHex)
 	accountEntityId = domain.MustDecodeEntityId(500)
 	account         = types.NewAccountIdFromEntityId(accountEntityId)
 	accountAlias, _ = types.NewAccountIdFromEntity(domain.Entity{Alias: ed25519Alias, Id: accountEntityId})

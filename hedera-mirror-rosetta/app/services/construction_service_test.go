@@ -5,8 +5,6 @@ package services
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/interfaces"
-	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/services/construction"
 	"math/rand"
 	"reflect"
 	"strconv"
@@ -14,13 +12,15 @@ import (
 	"time"
 
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/config"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/domain/types"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/errors"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/interfaces"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/persistence/domain"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/services/construction"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/tools"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/test/mocks"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/test/utils"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -825,7 +825,7 @@ func TestConstructionPayloads(t *testing.T) {
 				Payloads: []*rTypes.SigningPayload{
 					{
 						AccountIdentifier: defaultCryptoAccountId1.ToRosetta(),
-						Bytes:             hexutil.MustDecode("0x0a0f0a0708959aef3a107b120418d8c307120218031880c2d72f220308b40172020a00"),
+						Bytes:             utils.MustDecode("0x0a0f0a0708959aef3a107b120418d8c307120218031880c2d72f220308b40172020a00"),
 						SignatureType:     rTypes.Ed25519,
 					},
 				},
@@ -840,7 +840,7 @@ func TestConstructionPayloads(t *testing.T) {
 				Payloads: []*rTypes.SigningPayload{
 					{
 						AccountIdentifier: aliasAccount.ToRosetta(),
-						Bytes:             hexutil.MustDecode("0x0a0d0a0708959aef3a107b12021864120218031880c2d72f220308b40172020a00"),
+						Bytes:             utils.MustDecode("0x0a0d0a0708959aef3a107b12021864120218031880c2d72f220308b40172020a00"),
 						SignatureType:     rTypes.Ed25519,
 					},
 				},
@@ -855,7 +855,7 @@ func TestConstructionPayloads(t *testing.T) {
 				Payloads: []*rTypes.SigningPayload{
 					{
 						AccountIdentifier: defaultCryptoAccountId1.ToRosetta(),
-						Bytes:             hexutil.MustDecode("0x0a0f0a0708959aef3a107b120418d8c307120218031880c2d72f220308b40132087472616e7366657272020a00"),
+						Bytes:             utils.MustDecode("0x0a0f0a0708959aef3a107b120418d8c307120218031880c2d72f220308b40132087472616e7366657272020a00"),
 						SignatureType:     rTypes.Ed25519,
 					},
 				},
@@ -875,7 +875,7 @@ func TestConstructionPayloads(t *testing.T) {
 				Payloads: []*rTypes.SigningPayload{
 					{
 						AccountIdentifier: defaultCryptoAccountId1.ToRosetta(),
-						Bytes:             hexutil.MustDecode("0x0a0f0a0708ad97ef3a107b120418d8c307120218031880c2d72f220308b40172020a00"),
+						Bytes:             utils.MustDecode("0x0a0f0a0708ad97ef3a107b120418d8c307120218031880c2d72f220308b40172020a00"),
 						SignatureType:     rTypes.Ed25519,
 					},
 				},
