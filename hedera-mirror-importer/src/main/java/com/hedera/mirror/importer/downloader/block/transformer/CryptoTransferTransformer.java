@@ -2,8 +2,6 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
-import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
-import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;
 
@@ -17,14 +15,9 @@ final class CryptoTransferTransformer extends AbstractBlockItemTransformer {
             return;
         }
 
-        blockItem
-                .getTransactionOutput(TransactionCase.CRYPTO_TRANSFER)
-                .map(TransactionOutput::getCryptoTransfer)
-                .ifPresent(cryptoTransfer -> {
-                    var recordBuilder =
-                            blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
-                    recordBuilder.addAllAssessedCustomFees(cryptoTransfer.getAssessedCustomFeesList());
-                });
+        var recordBuilder =
+                blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
+        recordBuilder.addAllAssessedCustomFees(blockItem.getTransactionResult().getAssessedCustomFeesList());
     }
 
     @Override

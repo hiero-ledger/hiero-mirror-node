@@ -348,6 +348,16 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     public void onTransaction(Transaction transaction) throws ImporterException {
         context.add(transaction);
 
+        if (transaction.getBatchKey() != null && transaction.getNonce() == 0) {
+            Transaction batchParent = context.get(Transaction.class, transaction.getParentConsensusTimestamp());
+
+            if (batchParent == null) {
+                throw new ParserException("Batch parent not found for transaction: " + transaction.getConsensusTimestamp());
+            }
+
+            batchParent.addInnerTransaction(transaction);
+        }
+
         if (entityProperties.getPersist().shouldPersistTransactionHash(TransactionType.of(transaction.getType()))) {
             context.add(transaction.toTransactionHash());
         }

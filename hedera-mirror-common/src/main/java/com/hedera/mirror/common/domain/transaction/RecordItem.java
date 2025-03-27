@@ -270,24 +270,26 @@ public class RecordItem implements StreamItem {
          */
         @SuppressWarnings("deprecation")
         private void parseTransaction() {
-            try {
-                if (!transaction.getSignedTransactionBytes().equals(ByteString.EMPTY)) {
-                    var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
-                    this.transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
-                    this.signatureMap = signedTransaction.getSigMap();
-                } else if (!transaction.getBodyBytes().equals(ByteString.EMPTY)) {
-                    this.transactionBody = TransactionBody.parseFrom(transaction.getBodyBytes());
-                    this.signatureMap = transaction.getSigMap();
-                } else if (transaction.hasBody()) {
-                    this.transactionBody = transaction.getBody();
-                    this.signatureMap = transaction.getSigMap();
-                }
+            if (transactionBody == null || signatureMap == null) {
+                try {
+                    if (!transaction.getSignedTransactionBytes().equals(ByteString.EMPTY)) {
+                        var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
+                        this.transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
+                        this.signatureMap = signedTransaction.getSigMap();
+                    } else if (!transaction.getBodyBytes().equals(ByteString.EMPTY)) {
+                        this.transactionBody = TransactionBody.parseFrom(transaction.getBodyBytes());
+                        this.signatureMap = transaction.getSigMap();
+                    } else if (transaction.hasBody()) {
+                        this.transactionBody = transaction.getBody();
+                        this.signatureMap = transaction.getSigMap();
+                    }
 
-                if (transactionBody == null || signatureMap == null) {
-                    throw new ProtobufException(BAD_TRANSACTION_BODY_BYTES_MESSAGE);
+                    if (transactionBody == null || signatureMap == null) {
+                        throw new ProtobufException(BAD_TRANSACTION_BODY_BYTES_MESSAGE);
+                    }
+                } catch (InvalidProtocolBufferException e) {
+                    throw new ProtobufException(BAD_TRANSACTION_BODY_BYTES_MESSAGE, e);
                 }
-            } catch (InvalidProtocolBufferException e) {
-                throw new ProtobufException(BAD_TRANSACTION_BODY_BYTES_MESSAGE, e);
             }
         }
 

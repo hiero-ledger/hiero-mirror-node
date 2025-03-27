@@ -9,7 +9,9 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.mirror.common.domain.StreamItem;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.Transaction;
+import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,6 +34,8 @@ public class BlockItem implements StreamItem {
     private final List<StateChanges> stateChanges;
     private final boolean successful;
     private final Transaction transaction;
+    private final TransactionBody transactionBody;
+    private final SignatureMap signatureMap;
 
     @Getter(value = AccessLevel.NONE)
     private final Map<TransactionCase, TransactionOutput> transactionOutputs;
@@ -48,7 +52,9 @@ public class BlockItem implements StreamItem {
             TransactionResult transactionResult,
             Map<TransactionCase, TransactionOutput> transactionOutputs,
             List<StateChanges> stateChanges,
-            BlockItem previous) {
+            BlockItem previous,
+            TransactionBody transactionBody,
+            SignatureMap signatureMap) {
         this.transaction = transaction;
         this.transactionResult = transactionResult;
         this.transactionOutputs = transactionOutputs;
@@ -61,6 +67,8 @@ public class BlockItem implements StreamItem {
                 : null;
         parent = parseParent();
         successful = parseSuccess();
+        this.transactionBody = transactionBody;
+        this.signatureMap = signatureMap;
     }
 
     public Optional<TransactionOutput> getTransactionOutput(TransactionCase transactionCase) {

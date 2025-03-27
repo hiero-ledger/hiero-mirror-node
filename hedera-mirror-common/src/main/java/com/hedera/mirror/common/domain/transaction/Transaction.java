@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.hedera.mirror.common.converter.ObjectToStringSerializer;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.NftTransfer;
+import io.hypersistence.utils.hibernate.type.array.LongArrayType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -21,6 +22,7 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.ToString;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.Type;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.domain.Persistable;
 
@@ -30,6 +32,7 @@ import org.springframework.data.domain.Persistable;
 @Entity
 @NoArgsConstructor
 public class Transaction implements Persistable<Long> {
+    private byte [] batchKey;
 
     @Id
     private Long consensusTimestamp;
@@ -43,6 +46,9 @@ public class Transaction implements Persistable<Long> {
     private ErrataType errata;
 
     private Integer index;
+
+    @Type(value = LongArrayType.class)
+    private List<long[]> innerTransactions;
 
     private Long initialBalance;
 
@@ -115,6 +121,18 @@ public class Transaction implements Persistable<Long> {
     @Override
     public boolean isNew() {
         return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+    }
+
+    public void addInnerTransaction(Transaction transaction) {
+        if (innerTransactions == null) {
+            innerTransactions = new ArrayList<>();
+        }
+
+        innerTransactions.add(transaction.toInnerTransaction());
+    }
+
+    private long[] toInnerTransaction() {
+        return new long[]{payerAccountId.getId(), validStartNs};
     }
 
     public TransactionHash toTransactionHash() {

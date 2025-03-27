@@ -173,10 +173,10 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
     private void logItem(RecordItem recordItem) {
         if (log.isTraceEnabled()) {
-            log.trace(
-                    "Transaction = {}, Record = {}",
-                    Utility.printProtoMessage(recordItem.getTransaction()),
-                    Utility.printProtoMessage(recordItem.getTransactionRecord()));
+//            log.trace(
+//                    "Transaction = {}, Record = {}",
+//                    Utility.printProtoMessage(recordItem.getTransaction()),
+//                    Utility.printProtoMessage(recordItem.getTransactionRecord()));
         } else if (log.isDebugEnabled()) {
             log.debug("Parsing transaction with consensus timestamp {}", recordItem.getConsensusTimestamp());
         }
