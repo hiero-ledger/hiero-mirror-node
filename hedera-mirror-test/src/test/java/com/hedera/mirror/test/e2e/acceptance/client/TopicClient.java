@@ -129,7 +129,7 @@ public class TopicClient extends AbstractNetworkClient {
         TopicMessageSubmitTransaction consensusMessageSubmitTransaction = new TopicMessageSubmitTransaction()
                 .setTopicId(topicId)
                 .setMessage(message)
-                .setTransactionMemo(getMemo("Publish topic message"));
+                .setTransactionMemo(getMemo("Publish topic message to topic with fixed fee"));
         if (feeLimit != null) {
             consensusMessageSubmitTransaction.addCustomFeeLimit(feeLimit);
         }

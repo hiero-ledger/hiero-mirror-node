@@ -126,12 +126,9 @@ public class TopicFeature extends AbstractFeature {
 
         // Create a list of Fixed Fees
         var exemptAccount = accountClient.getAccount(exemptAccountName);
-        List<CustomFixedFee> listOfFixedFees = new ArrayList<>();
-        listOfFixedFees.add(fixedHTSFee);
-        listOfFixedFees.add(fixedHbarFee);
+        List<CustomFixedFee> listOfFixedFees = List.of(fixedHTSFee, fixedHbarFee);
         // Add account to exempt list
-        List<Key> listOfExemptKeys = new ArrayList<>();
-        listOfExemptKeys.add(exemptAccount.getPublicKey());
+        List<Key> listOfExemptKeys = List.of(exemptAccount.getPublicKey());
         // Create Topic with custom fixed fees
         networkTransactionResponse = topicClient.createTopicWithCustomFees(
                 topicClient.getSdkClient().getExpandedOperatorAccountId(),
@@ -397,9 +394,9 @@ public class TopicFeature extends AbstractFeature {
             backoff = @Backoff(delayExpression = "#{@acceptanceTestProperties.backOffPeriod.toMillis()}"),
             maxAttemptsExpression = "#{@acceptanceTestProperties.maxRetries}")
     public void submitTopicMessage(
-            AccountNameEnum payerAccountName, String isExempt, AccountNameEnum colleectorAccountName) {
+            AccountNameEnum payerAccountName, String isExempt, AccountNameEnum collectorAccountName) {
         var payerAccount = accountClient.getAccount(payerAccountName);
-        var collectorAccount = accountClient.getAccount(colleectorAccountName);
+        var collectorAccount = accountClient.getAccount(collectorAccountName);
 
         // Create a list of Max Fixed Fees
         var maxCustomHTSFee = new CustomFixedFee();
@@ -409,9 +406,7 @@ public class TopicFeature extends AbstractFeature {
         var maxCustomHbarFee = new CustomFixedFee();
         maxCustomHbarFee.setHbarAmount(Hbar.fromTinybars(FIXED_FEE_AMOUNT + 1));
 
-        ArrayList<CustomFixedFee> listOfMaxFixedFees = new ArrayList<>();
-        listOfMaxFixedFees.add(maxCustomHTSFee);
-        listOfMaxFixedFees.add(maxCustomHbarFee);
+        List<CustomFixedFee> listOfMaxFixedFees = List.of(maxCustomHTSFee, maxCustomHbarFee);
 
         var customFeeLimit = new CustomFeeLimit();
         customFeeLimit.setPayerId(payerAccount.getAccountId()).setCustomFees(listOfMaxFixedFees);
