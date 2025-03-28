@@ -10,10 +10,6 @@ This document details how the mirror node will be updated to support it.
 - Store relevant batch transaction information in the database
 - Enhance the REST api for easy retrieval of batch transactions along with their inner transactions
 
-## Non-Goals
-
-- Handle block streams removing duplication of inner transaction bytes
-
 ## Architecture
 
 ### Database
@@ -90,6 +86,101 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
   }
 }
 ```
+
+Update
+
+```java
+public class BlockItem {
+  private final TransactionBody transactionBody;
+  private final SignatureMap signatureMap;
+}
+```
+
+Update
+
+```java
+public class RecordItem {
+  private void parseTransaction() {
+    if (transactionBody == null || signatureMap == null) {
+      // do current logic
+    }
+  }
+}
+```
+
+Update
+
+```java
+public class BlockFileTransformer {
+    private List<RecordItem> getRecordItems() {
+      // Update built record items to
+      RecordItem.builder()
+              .hapiVersion(hapiVersion)
+              .signatureMap(blockItem.getSignatureMap())
+              .transaction(blockItem.getTransaction())
+              .transactionBody(blockItem.getTransactionBody())
+              .transactionIndex(index);
+    }
+}
+```
+
+Update
+
+```pseudo
+public class ProtoBlockFileReader implements BlockFileReader {
+    private void readEventTransactions(ReaderContext context) {
+      While transaction = context.getApplicationTransaction != null)
+        Read transaction result
+        Read transaction outputs
+        Read State Changes
+        Build BlockItem
+          var signedTransaction = SignedTransaction.parseFrom(transaction.getTransactionBytes());
+          var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
+          var signatureMap = signedTransaction.getSigMap();
+          var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
+                  .transaction(transaction)
+                  .transactionBody(transactionBody)
+                  .signatureMap(signatureMap)
+                  .transactionResult(transactionResult)
+                  .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
+                  .stateChanges(Collections.unmodifiableList(stateChangesList))
+                  .previous(context.getLastBlockItem())
+                  .build();
+        context.getBlockFile().item(blockItem);
+        context.setLastBlockItem(blockItem);
+      End While
+    }
+
+    private static class ReaderContext {
+      private int batchInnerIndex;
+      private AtomicBatchTransactionBody atomicBatchTransactionBody;
+
+      public void setLastBlockItem(BlockItem blockItem) {
+        this.lastBlockItem = blockItem;
+        if (blockItem.getTransactionBody().hasAtomicBatchBody()) {
+          this.atomicBatchTransactionBody = blockItem.getTransactionBody().getAtomicBatchBody();
+          this.batchInnerIndex = 0;
+        }
+      }
+
+      public Transaction getApplicationTransaction() {
+          Read Event transaction
+          If present
+             Create Transaction from event transaction bytes
+             Return Transaction
+          Else If atomicBatchTransactionBody is not null && batchInnerIndex < atomicBatchTransactionBody.getTransactionsList().size()
+            Create Transaction from atomicBatchTransactionBody.getTransactionsList().get(batchInnerIndex++)
+            Return Transaction
+          Else
+            Return null
+      }
+  }
+}
+```
+
+#### Block Stream Representation
+
+![Block Stream Representation](images/batch-transactions-blockstream.png)
 
 - Record streams can use `UnknownDataTransactionHandler.java` for batch transactions
 - Block streams can use `DefaultTransformer.java` for batch transactions

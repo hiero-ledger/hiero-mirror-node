@@ -76,6 +76,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hamcrest.core.StringContains;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -148,6 +149,8 @@ class OpcodesControllerTest {
 
     @Captor
     private ArgumentCaptor<OpcodeTracerOptions> tracerOptionsCaptor;
+
+    private double modularizedTrafficPercent;
 
     static Stream<Arguments> transactionsWithDifferentTracerOptions() {
         final List<OpcodeTracerOptions> tracerOptions = List.of(
@@ -249,6 +252,14 @@ class OpcodesControllerTest {
 
     @BeforeEach
     void setUp() {
+        modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
+
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
+        } else {
+            mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
+        }
+
         when(rateLimitBucket.tryConsume(anyLong())).thenReturn(true);
         when(contractDebugService.processOpcodeCall(
                         callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
@@ -258,6 +269,11 @@ class OpcodesControllerTest {
                     opcodesResultCaptor.set(Builder.successfulOpcodesProcessingResult(params, options));
                     return opcodesResultCaptor.get();
                 });
+    }
+
+    @AfterEach
+    void after() {
+        mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
     }
 
     TransactionIdOrHashParameter setUp(final TransactionProviderEnum provider) {
@@ -346,65 +362,43 @@ class OpcodesControllerTest {
     @ParameterizedTest
     @EnumSource(TransactionProviderEnum.class)
     void unsuccessfulCall(final TransactionProviderEnum providerEnum) throws Exception {
-        double modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
-        try {
-            final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
-            if (mirrorNodeEvmProperties.isModularizedServices()) {
-                mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
-            } else {
-                mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
-            }
+        reset(contractDebugService);
+        when(contractDebugService.processOpcodeCall(
+                        callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
+                .thenAnswer(context -> {
+                    final OpcodeTracerOptions options = context.getArgument(1);
+                    opcodesResultCaptor.set(Builder.unsuccessfulOpcodesProcessingResult(options));
+                    return opcodesResultCaptor.get();
+                });
 
-            reset(contractDebugService);
-            when(contractDebugService.processOpcodeCall(
-                            callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
-                    .thenAnswer(context -> {
-                        final OpcodeTracerOptions options = context.getArgument(1);
-                        opcodesResultCaptor.set(Builder.unsuccessfulOpcodesProcessingResult(options));
-                        return opcodesResultCaptor.get();
-                    });
+        mockMvc.perform(opcodesRequest(transactionIdOrHash))
+                .andExpect(status().isOk())
+                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
 
-            mockMvc.perform(opcodesRequest(transactionIdOrHash))
-                    .andExpect(status().isOk())
-                    .andExpect(
-                            responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
+        expectedCallServiceParameters.set(expectedCallServiceParameters.get().toBuilder()
+                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
+                .build());
 
-            expectedCallServiceParameters.set(expectedCallServiceParameters.get().toBuilder()
-                    .isModularized(mirrorNodeEvmProperties.isModularizedServices())
-                    .build());
-
-            assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
-        } finally {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
-        }
+        assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
     }
 
     @ParameterizedTest
     @MethodSource("transactionsWithDifferentTracerOptions")
     void callWithDifferentCombinationsOfTracerOptions(
-            final TransactionProviderEnum providerEnum, final OpcodeTracerOptions options) throws Exception {
-        double modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
-        try {
-            final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
+            final TransactionProviderEnum providerEnum, OpcodeTracerOptions options) throws Exception {
 
-            if (mirrorNodeEvmProperties.isModularizedServices()) {
-                mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
-            } else {
-                mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
-            }
+        options.setModularized(mirrorNodeEvmProperties.isModularizedServices());
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
-            mockMvc.perform(opcodesRequest(transactionIdOrHash, options))
-                    .andExpect(status().isOk())
-                    .andExpect(
-                            responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
+        mockMvc.perform(opcodesRequest(transactionIdOrHash, options))
+                .andExpect(status().isOk())
+                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
 
-            assertThat(tracerOptionsCaptor.getValue()).isEqualTo(options);
-            assertThat(callServiceParametersCaptor.getValue())
-                    .isEqualTo(expectedCallServiceParameters.get().toBuilder().build());
-        } finally {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
-        }
+        assertThat(tracerOptionsCaptor.getValue()).isEqualTo(options);
+        assertThat(callServiceParametersCaptor.getValue())
+                .isEqualTo(expectedCallServiceParameters.get().toBuilder().build());
     }
 
     @ParameterizedTest
@@ -457,12 +451,6 @@ class OpcodesControllerTest {
         try {
             final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
-            if (mirrorNodeEvmProperties.isModularizedServices()) {
-                mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
-            } else {
-                mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
-            }
-
             if (transactionIdOrHash instanceof TransactionIdParameter id && id.payerAccountId() == null) {
                 mockMvc.perform(opcodesRequest(transactionIdOrHash))
                         .andExpect(status().isBadRequest())
@@ -496,29 +484,19 @@ class OpcodesControllerTest {
     @MethodSource("transactionsWithDifferentReceiverAddresses")
     void callWithDifferentReceiverAddressShouldUseEvmAddressWhenPossible(final TransactionProviderEnum providerEnum)
             throws Exception {
-        double modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
-        try {
-            final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
-            if (mirrorNodeEvmProperties.isModularizedServices()) {
-                mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
-            } else {
-                mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
-            }
-            expectedCallServiceParameters.set(expectedCallServiceParameters.get().toBuilder()
-                    .receiver(entityAddress(providerEnum.getContractEntity().get()))
-                    .isModularized(mirrorNodeEvmProperties.isModularizedServices())
-                    .build());
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
-            mockMvc.perform(opcodesRequest(transactionIdOrHash))
-                    .andExpect(status().isOk())
-                    .andExpect(
-                            responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
+        expectedCallServiceParameters.set(expectedCallServiceParameters.get().toBuilder()
+                .receiver(entityAddress(providerEnum.getContractEntity().get()))
+                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
+                .build());
 
-            assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
-        } finally {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
-        }
+        mockMvc.perform(opcodesRequest(transactionIdOrHash))
+                .andExpect(status().isOk())
+                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
+
+        assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
     }
 
     @ParameterizedTest
@@ -549,35 +527,25 @@ class OpcodesControllerTest {
     @ParameterizedTest
     @EnumSource(TransactionProviderEnum.class)
     void exceedingRateLimit(final TransactionProviderEnum providerEnum) throws Exception {
-        double modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
-        try {
-            final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
-            if (mirrorNodeEvmProperties.isModularizedServices()) {
-                mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
-            } else {
-                mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
-            }
-            expectedCallServiceParameters.set(
-                    expectedCallServiceParameters.get().toBuilder().build());
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
+        expectedCallServiceParameters.set(
+                expectedCallServiceParameters.get().toBuilder().build());
 
-            for (var i = 0; i < 3; i++) {
-                mockMvc.perform(opcodesRequest(transactionIdOrHash))
-                        .andExpect(status().isOk())
-                        .andExpect(responseBody(
-                                Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
-
-                assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
-            }
-
-            when(rateLimitBucket.tryConsume(1)).thenReturn(false);
+        for (var i = 0; i < 3; i++) {
             mockMvc.perform(opcodesRequest(transactionIdOrHash))
-                    .andExpect(status().isTooManyRequests())
-                    .andExpect(responseBody(new GenericErrorResponse(
-                            TOO_MANY_REQUESTS.getReasonPhrase(), "Requests per second rate limit exceeded.")));
-        } finally {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
+
+            assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
         }
+
+        when(rateLimitBucket.tryConsume(1)).thenReturn(false);
+        mockMvc.perform(opcodesRequest(transactionIdOrHash))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(responseBody(new GenericErrorResponse(
+                        TOO_MANY_REQUESTS.getReasonPhrase(), "Requests per second rate limit exceeded.")));
     }
 
     /*

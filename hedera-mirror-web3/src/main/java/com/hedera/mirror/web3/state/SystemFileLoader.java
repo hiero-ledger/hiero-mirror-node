@@ -54,11 +54,6 @@ public class SystemFileLoader {
     @Getter(lazy = true)
     private final Map<FileID, SystemFile> systemFiles = loadAll();
 
-    public @Nullable File load(@Nonnull FileID key) {
-        var systemFile = getSystemFiles().get(key);
-        return systemFile != null ? systemFile.genesisFile() : null;
-    }
-
     @Cacheable(
             cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
             cacheNames = CACHE_NAME_MODULARIZED,

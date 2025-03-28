@@ -22,6 +22,7 @@ import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.TopicId;
 import com.hedera.hashgraph.sdk.TopicMessageQuery;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.rest.model.Key.TypeEnum;
 import com.hedera.mirror.rest.model.Topic;
 import com.hedera.mirror.test.e2e.acceptance.client.AccountClient;
@@ -63,6 +64,7 @@ public class TopicFeature extends AbstractFeature {
     private final MirrorNodeClient mirrorClient;
     private final SDKClient sdkClient;
     private final TopicClient topicClient;
+    private final CommonProperties commonProperties;
     private final TokenClient tokenClient;
     private final AccountClient accountClient;
 
@@ -232,14 +234,15 @@ public class TopicFeature extends AbstractFeature {
         assertThat(mirrorTransaction.getTransactionId()).isEqualTo(transactionId);
     }
 
-    @Given("I provide a topic id {string}")
-    public void setTopicIdParam(String topicId) {
+    @Given("I provide a topic num {string}")
+    public void setTopicIdParam(String topicNum) {
         testInstantReference = Instant.now();
         topicMessageQuery = new TopicMessageQuery().setStartTime(Instant.EPOCH);
         consensusTopicId = null;
 
-        if (!topicId.isEmpty()) {
-            consensusTopicId = new TopicId(0, 0, Long.parseLong(topicId));
+        if (!topicNum.isEmpty()) {
+            consensusTopicId =
+                    new TopicId(commonProperties.getShard(), commonProperties.getRealm(), Long.parseLong(topicNum));
             topicMessageQuery.setTopicId(consensusTopicId);
         }
         messageSubscribeCount = 0;

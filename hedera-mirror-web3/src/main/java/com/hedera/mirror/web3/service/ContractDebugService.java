@@ -68,9 +68,9 @@ public class ContractDebugService extends ContractCallService {
 
     @Override
     protected void validateResult(
-            final HederaEvmTransactionProcessingResult txnResult, final CallType type, boolean modularized) {
+            final HederaEvmTransactionProcessingResult txnResult, final CallType type, boolean isModularized) {
         try {
-            super.validateResult(txnResult, type, modularized);
+            super.validateResult(txnResult, type, isModularized);
         } catch (MirrorEvmTransactionException e) {
             log.warn(
                     "Transaction failed with status: {}, detail: {}, revertReason: {}",

@@ -178,7 +178,7 @@ public class OpcodeTracer implements HederaOperationTracer {
                 return Collections.emptyMap();
             }
 
-            if (evmProperties.isModularizedServices()) {
+            if (options.modularized) {
                 return getModularizedUpdatedStorage(address);
             }
 

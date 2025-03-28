@@ -60,13 +60,14 @@ public class OpcodeServiceImpl implements OpcodeService {
     @Override
     public OpcodesResponse processOpcodeCall(
             @NonNull TransactionIdOrHashParameter transactionIdOrHashParameter, @NonNull OpcodeTracerOptions options) {
-        final ContractDebugParameters params = buildCallServiceParameters(transactionIdOrHashParameter);
+        final ContractDebugParameters params =
+                buildCallServiceParameters(transactionIdOrHashParameter, options.isModularized());
         final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, options);
         return buildOpcodesResponse(result);
     }
 
     private ContractDebugParameters buildCallServiceParameters(
-            @NonNull TransactionIdOrHashParameter transactionIdOrHash) {
+            @NonNull TransactionIdOrHashParameter transactionIdOrHash, boolean isModularized) {
         final Long consensusTimestamp;
         final Optional<Transaction> transaction;
         final Optional<EthereumTransaction> ethereumTransaction;
@@ -97,7 +98,7 @@ public class OpcodeServiceImpl implements OpcodeService {
             }
         }
 
-        return buildCallServiceParameters(consensusTimestamp, transaction, ethereumTransaction);
+        return buildCallServiceParameters(consensusTimestamp, transaction, ethereumTransaction, isModularized);
     }
 
     private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result) {
@@ -144,7 +145,10 @@ public class OpcodeServiceImpl implements OpcodeService {
     }
 
     private ContractDebugParameters buildCallServiceParameters(
-            Long consensusTimestamp, Optional<Transaction> transaction, Optional<EthereumTransaction> ethTransaction) {
+            Long consensusTimestamp,
+            Optional<Transaction> transaction,
+            Optional<EthereumTransaction> ethTransaction,
+            boolean isModularized) {
         final ContractResult contractResult = contractResultRepository
                 .findById(consensusTimestamp)
                 .orElseThrow(() -> new EntityNotFoundException("Contract result not found: " + consensusTimestamp));
@@ -162,7 +166,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                 .callData(getCallData(ethTransaction, contractResult))
                 .consensusTimestamp(consensusTimestamp)
                 .gas(getGasLimit(ethTransaction, contractResult))
-                .isModularized(mirrorNodeEvmProperties.directTrafficThroughTransactionExecutionService())
+                .isModularized(isModularized)
                 .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType))
                 .sender(new HederaEvmAccount(getSenderAddress(contractResult)))
                 .value(getValue(ethTransaction, contractResult).longValue())

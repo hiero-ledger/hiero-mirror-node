@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.rest.model.CryptoAllowance;
 import com.hedera.mirror.rest.model.TransactionByIdResponse;
 import com.hedera.mirror.rest.model.TransactionDetail;
@@ -40,9 +41,9 @@ import org.springframework.http.HttpStatus;
 public class AccountFeature extends AbstractFeature {
 
     private static final AtomicReference<Runnable> CLEANUP = new AtomicReference<>();
-
     private final AccountClient accountClient;
     private final MirrorNodeClient mirrorClient;
+    private final CommonProperties commonProperties;
     private final Collection<Cleanable> cleanables;
 
     private AccountId receiverAccountId;
@@ -89,7 +90,7 @@ public class AccountFeature extends AbstractFeature {
         var recipientPrivateKey =
                 "ED25519".equalsIgnoreCase(keyType) ? PrivateKey.generateED25519() : PrivateKey.generateECDSA();
 
-        receiverAccountId = recipientPrivateKey.toAccountId(0, 0);
+        receiverAccountId = recipientPrivateKey.toAccountId(commonProperties.getShard(), commonProperties.getRealm());
         networkTransactionResponse =
                 accountClient.sendCryptoTransfer(receiverAccountId, Hbar.fromTinybars(amount), null);
 
