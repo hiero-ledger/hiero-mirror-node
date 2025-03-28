@@ -173,8 +173,8 @@ public abstract class ContractCallService {
             var revertReason = txnResult.getRevertReason().orElse(Bytes.EMPTY);
             var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReason);
             var status = getStatusOrDefault(txnResult).name();
-            throw new MirrorEvmTransactionException(status, detail, revertReason.toHexString(), txnResult,
-                    params.isModularized());
+            throw new MirrorEvmTransactionException(
+                    status, detail, revertReason.toHexString(), txnResult, params.isModularized());
         }
     }
 
