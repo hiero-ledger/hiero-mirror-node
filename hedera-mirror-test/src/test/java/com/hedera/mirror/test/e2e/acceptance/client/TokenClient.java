@@ -907,6 +907,12 @@ public class TokenClient extends AbstractNetworkClient {
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
                 false),
+        TOPIC_CUSTOM_FEE_FUNGIBLE(
+                "fungible",
+                TokenType.FUNGIBLE_COMMON,
+                TokenKycStatus.KycNotApplicable,
+                TokenFreezeStatus.Unfrozen,
+                false),
         ;
 
         private final String symbol;
