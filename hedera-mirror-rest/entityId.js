@@ -3,7 +3,7 @@
 import _ from 'lodash';
 import quickLru from 'quick-lru';
 
-import {getMirrorConfig} from './config';
+import config, {getMirrorConfig} from './config';
 import * as constants from './constants';
 import {InvalidArgumentError} from './errors';
 import {stripHexPrefix} from './utils.js';
@@ -265,16 +265,40 @@ const parseFromString = (id, error) => {
   return [shard, realm, BigInt(numOrEvmAddress), null];
 };
 
-const computeContractIdPartsFromContractIdValue = (contractId) => {
-  const idPieces = contractId.split('.');
-  idPieces.unshift(...[null, null].slice(0, 3 - idPieces.length));
-  const contractIdParts = {shard: idPieces[0], realm: idPieces[1]};
-  const evmAddress = stripHexPrefix(idPieces[2]);
+const parseString = (id) => {
+  const pieces = piecesFromString(id);
+  return pieces && parse(pieces.filter((item) => item !== null).join('.'));
+};
 
-  if (isEvmAddressAlias(evmAddress)) {
-    contractIdParts.create2_evm_address = evmAddress;
+const piecesFromString = (id) => {
+  if (typeof id !== 'string') {
+    throw new InvalidArgumentError(`Entity ID "${id}" is not a string`);
+  }
+
+  id = stripHexPrefix(id);
+  const idPieces = id.split('.');
+
+  if (isEvmAddressAlias(id)) {
+    idPieces.unshift(...[null, null].slice(0, 3 - idPieces.length));
   } else {
-    contractIdParts.num = idPieces[2];
+    idPieces.unshift(...[systemShard, systemRealm].slice(0, 3 - idPieces.length));
+  }
+
+  return idPieces;
+};
+
+const computeContractIdPartsFromContractIdValue = (contractId) => {
+  const [shard, realm, evmAddressOrNum] = piecesFromString(contractId);
+
+  const contractIdParts = {
+    shard: shard,
+    realm: realm,
+  };
+
+  if (isEvmAddressAlias(evmAddressOrNum)) {
+    contractIdParts.create2_evm_address = evmAddressOrNum;
+  } else {
+    contractIdParts.num = evmAddressOrNum;
   }
 
   return contractIdParts;
@@ -303,7 +327,6 @@ const parseCached = (id, allowEvmAddress, evmAddressType, error) => {
   if (!isValidEntityId(id, allowEvmAddress, evmAddressType)) {
     throw error();
   }
-
   const [shard, realm, num, evmAddress] =
     id.includes('.') || isValidEvmAddressLength(id.length) ? parseFromString(id, error) : parseFromEncodedId(id, error);
   if (evmAddress === null && (num > maxNum || realm > maxRealm || shard > maxShard)) {
@@ -336,10 +359,38 @@ const parse = (id, {allowEvmAddress, evmAddressType, isNullable, paramName} = {}
   return checkNullId(id, isNullable) || parseCached(`${id}`, allowEvmAddress, evmAddressType, error);
 };
 
+/**
+ * System Entities
+ * */
+const addressBookFile101 = of(systemShard, systemRealm, 101);
+const addressBookFile102 = of(systemShard, systemRealm, 102);
+const exchangeRateFile = of(systemShard, systemRealm, 112);
+const feeScheduleFile = of(systemShard, systemRealm, 111);
+const stakingRewardAccount = of(systemShard, systemRealm, 800);
+const treasuryAccount = of(systemShard, systemRealm, 2);
+const unreleasedSupplyAccounts = config.network.unreleasedSupplyAccounts.map((range) => {
+  const from = of(systemShard, systemRealm, range.from);
+  const to = of(systemShard, systemRealm, range.to);
+  return {from, to};
+});
+const validAddressBookFileIds = [addressBookFile101.getEncodedId(), addressBookFile102.getEncodedId()];
+const isValidAddressBookFileId = (fileId) => {
+  return isValidEntityId(fileId) && validAddressBookFileIds.includes(parseString(fileId)?.getEncodedId());
+};
+
 export default {
+  addressBookFile101,
+  addressBookFile102,
+  exchangeRateFile,
+  feeScheduleFile,
+  isValidAddressBookFileId,
   isValidEntityId,
   isValidEvmAddress,
   computeContractIdPartsFromContractIdValue,
   of,
   parse,
+  parseString,
+  stakingRewardAccount,
+  treasuryAccount,
+  unreleasedSupplyAccounts,
 };

@@ -366,10 +366,7 @@ const getAccounts = async (req, res) => {
     },
   };
 
-  let anchorAcc = '0.0.0';
-  if (ret.accounts.length > 0) {
-    anchorAcc = ret.accounts[ret.accounts.length - 1].account;
-  }
+  let anchorAcc = ret.accounts[ret.accounts.length - 1]?.account;
 
   ret.links = {
     next: utils.getPaginationLink(

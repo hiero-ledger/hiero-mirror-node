@@ -6,11 +6,11 @@ import request from 'supertest';
 process.env['HEDERA_MIRROR_COMMON_SHARD'] = 1;
 process.env['HEDERA_MIRROR_COMMON_REALM'] = 2;
 
+const config = (await import('../config')).default;
 const EntityId = (await import('../entityId')).default;
 const {JSONParse} = await import('../utils');
 const {loadBalances} = (await import('./integrationDomainOps')).default;
 const {default: server} = await import('../server');
-const {SystemEntity} = await import('../service');
 
 (await import('./integrationUtils')).setupIntegrationTest();
 
@@ -84,12 +84,45 @@ describe('balances', () => {
   });
 });
 
-describe('SystemEntity', () => {
+describe('EntityId System Entities', () => {
+  test('addressBookFile101', () => {
+    expect(EntityId.addressBookFile101.toString()).toEqual('1.2.101');
+  });
+
+  test('addressBookFile102', () => {
+    expect(EntityId.addressBookFile102.toString()).toEqual('1.2.102');
+  });
+
+  test('exchangeRateFile', () => {
+    expect(EntityId.exchangeRateFile.toString()).toEqual('1.2.112');
+  });
+
+  test('feeScheduleFile', () => {
+    expect(EntityId.feeScheduleFile.toString()).toEqual('1.2.111');
+  });
+
   test('stakingRewardAccount', () => {
-    expect(SystemEntity.stakingRewardAccount.toString()).toEqual('1.2.800');
+    expect(EntityId.stakingRewardAccount.toString()).toEqual('1.2.800');
   });
 
   test('treasuryAccount', () => {
-    expect(SystemEntity.treasuryAccount.toString()).toEqual('1.2.2');
+    expect(EntityId.treasuryAccount.toString()).toEqual('1.2.2');
+  });
+
+  test('unreleasedSupplyAccounts', () => {
+    const expected = config.network.unreleasedSupplyAccounts.map((item) => {
+      return {
+        from: `1.2.${item.from}`,
+        to: `1.2.${item.to}`,
+      };
+    });
+    expect(
+      EntityId.unreleasedSupplyAccounts.map((item) => {
+        return {
+          from: item.from.toString(),
+          to: item.to.toString(),
+        };
+      })
+    ).toEqual(expected);
   });
 });

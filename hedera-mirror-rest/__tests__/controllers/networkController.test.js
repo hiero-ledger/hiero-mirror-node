@@ -29,7 +29,7 @@ describe('extractNetworkNodesQuery', () => {
       expected: {
         ...defaultExpected,
         limit: 20,
-        params: ['102'],
+        params: [102],
       },
     },
     {
@@ -47,7 +47,7 @@ describe('extractNetworkNodesQuery', () => {
         ...defaultExpected,
         order: constants.orderFilterValues.DESC,
         conditions: [],
-        params: ['102'],
+        params: [102],
       },
     },
     {
@@ -64,7 +64,7 @@ describe('extractNetworkNodesQuery', () => {
       expected: {
         ...defaultExpected,
         conditions: ['abe.node_id in ($2)'],
-        params: ['102', '10'],
+        params: [102, '10'],
       },
     },
   ];
