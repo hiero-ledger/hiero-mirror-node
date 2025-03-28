@@ -42,7 +42,6 @@ import io.cucumber.java.en.When;
 import io.grpc.StatusRuntimeException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -435,19 +434,7 @@ public class TopicFeature extends AbstractFeature {
 
         // Verify max custom fees
         var transactionId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
-        var getTransactionResponse = mirrorClient
-                .getTransactions(transactionId)
-                .getTransactions()
-                .getFirst()
-                .getMaxCustomFees();
-        getTransactionResponse.stream()
-                .peek(fee -> {
-                    assertThat(fee.getAmount()).isEqualTo(FIXED_FEE_AMOUNT + 1);
-                    assertThat(fee.getAccountId())
-                            .isEqualTo(payerAccount.getAccountId().toString());
-                })
-                .filter(fee -> fee.getDenominatingTokenId() != null)
-                .forEach(fee -> assertThat(fee.getDenominatingTokenId()).isEqualTo(fungibleToken.toString()));
+        verifyMaxCustomFees(transactionId, payerAccount.getAccountId().toString(), fungibleToken.toString() );
     }
 
     @Then("I verify the published message from {account} in mirror node REST API")
@@ -594,5 +581,23 @@ public class TopicFeature extends AbstractFeature {
                 mirrorClient.getTokenRelationships(accountId, tokenId).getTokens();
         assertThat(tokenRelationships).isNotNull().hasSize(1);
         return tokenRelationships.getFirst().getBalance();
+    }
+
+    private void verifyMaxCustomFees(String transactionId, String payerAccount, String fungibleToken) {
+        mirrorClient.getTransactions(transactionId).getTransactions()
+                .getFirst()
+                .getMaxCustomFees()
+                .forEach(fee -> verifyMaxFee(fee, payerAccount, fungibleToken));
+    }
+
+    private void verifyMaxFee(com.hedera.mirror.rest.model.CustomFeeLimit fee, String payerAccount, String fungibleToken) {
+        // Common verifications for all fees.
+        assertThat(fee.getAmount()).isEqualTo(FIXED_FEE_AMOUNT + 1);
+        assertThat(fee.getAccountId()).isEqualTo(payerAccount);
+
+        // Check if the fee has denominating token.
+        if (fee.getDenominatingTokenId() != null) {
+            assertThat(fee.getDenominatingTokenId()).isEqualTo(fungibleToken.toString());
+        }
     }
 }
