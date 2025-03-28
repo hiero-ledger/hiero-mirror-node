@@ -118,7 +118,7 @@ The following parameters can be used to configure a rosetta test:
 The following parameters can be used to configure a web3 test:
 
 | Name                                                          | Default | Description                                                                                                                                     |
-|---------------------------------------------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| ------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | ACCOUNT_ADDRESS                                               |         | 64 character hex encoded account address without `0x` prefix                                                                                    |
 | AMOUNT                                                        |         | 64 character hex encoded amount without `0x` prefix                                                                                             |
 | ASSOCIATED_ACCOUNT                                            |         | 64 character hex encoded account evm address without `0x` prefix - associated to TOKEN_ADDRESS and NON_FUNGIBLE_TOKEN_ADDRESS                   |
@@ -126,7 +126,7 @@ The following parameters can be used to configure a web3 test:
 | DEFAULT_CONTRACT_ADDRESS                                      |         | 40 character hex encoded contract address without `0x` prefix for `Parent.sol`                                                                  |
 | ERC_CONTRACT_ADDRESS                                          |         | 40 character hex encoded contract address without `0x` prefix for `ErcTestContract.sol`                                                         |
 | ESTIMATE_PRECOMPILE_CONTRACT                                  |         | 40 character hex encoded contract address without `0x` prefix for `EstimatePrecompileContract.sol`                                              |
-| FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS                        |         | 64 character hex encoded fungible token address without `0x` prefix - with a freeze key set                                                     |                                                                   |
+| FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS                        |         | 64 character hex encoded fungible token address without `0x` prefix - with a freeze key set                                                     |
 | FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ASSOCIATED_ACCOUNT_ADDRESS     |         | 64 character hex encoded account evm address without `0x` prefix - an account associated to FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS              |
 | HTS_CONTRACT_ADDRESS                                          |         | 40 character hex encoded contract address without `0x` prefix for `PrecompileTestContract.sol`                                                  |
 | KEY_TYPE                                                      |         | 64 character hex encoded key type without `0x` prefix                                                                                           |
