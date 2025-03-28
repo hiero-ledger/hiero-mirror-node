@@ -21,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.web3.Web3Properties;
 import com.hedera.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
@@ -639,7 +640,9 @@ class ContractControllerTest {
 
         @Bean
         MirrorNodeEvmProperties evmProperties() {
-            return new MirrorNodeEvmProperties(new CommonProperties());
+            var commonProperties = new CommonProperties();
+            var systemEntity = new SystemEntity(commonProperties);
+            return new MirrorNodeEvmProperties(commonProperties, systemEntity);
         }
 
         @Bean

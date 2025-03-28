@@ -40,12 +40,12 @@ class AddressBookRepositoryTest extends ImporterIntegrationTest {
         var addressBook2 = domainBuilder.addressBook().persist();
         var addressBook3 = domainBuilder
                 .addressBook()
-                .customize(a -> a.fileId(systemEntities.addressBookFile101()))
+                .customize(a -> a.fileId(systemEntity.addressBookFile101()))
                 .persist();
 
         assertThat(addressBookRepository.findLatest(
                         addressBook3.getStartConsensusTimestamp(),
-                        systemEntities.addressBookFile102().getId()))
+                        systemEntity.addressBookFile102().getId()))
                 .get()
                 .isEqualTo(addressBook2);
     }

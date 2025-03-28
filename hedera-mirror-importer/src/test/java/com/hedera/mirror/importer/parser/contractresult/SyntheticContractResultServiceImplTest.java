@@ -7,6 +7,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.importer.parser.domain.RecordItemBuilder;
@@ -25,7 +26,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SyntheticContractResultServiceImplTest {
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
-    private final EntityProperties entityProperties = new EntityProperties(CommonProperties.getInstance());
+    private final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
+    private final EntityProperties entityProperties = new EntityProperties(systemEntity);
 
     @Mock
     private EntityListener entityListener;

@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.token.AbstractNft;
@@ -122,29 +123,30 @@ class StoreImplTest {
     @BeforeEach
     void setup() {
         final var commonProperties = new CommonProperties();
+        final var systemEntity = new SystemEntity(commonProperties);
         final var accountDatabaseAccessor = new AccountDatabaseAccessor(
-                commonProperties,
                 entityDatabaseAccessor,
                 nftAllowanceRepository,
                 nftRepository,
                 tokenAllowanceRepository,
                 cryptoAllowanceRepository,
                 tokenAccountRepository,
-                accountBalanceRepository);
+                accountBalanceRepository,
+                systemEntity);
         final var tokenDatabaseAccessor = new TokenDatabaseAccessor(
-                commonProperties,
                 tokenRepository,
                 entityDatabaseAccessor,
                 entityRepository,
                 customFeeDatabaseAccessor,
-                nftRepository);
+                nftRepository,
+                systemEntity);
         final var tokenRelationshipDatabaseAccessor = new TokenRelationshipDatabaseAccessor(
-                commonProperties,
                 tokenDatabaseAccessor,
                 accountDatabaseAccessor,
                 tokenAccountRepository,
                 tokenBalanceRepository,
-                nftRepository);
+                nftRepository,
+                systemEntity);
         final var uniqueTokenDatabaseAccessor = new UniqueTokenDatabaseAccessor(nftRepository);
         final var entityDbAccessor = new EntityDatabaseAccessor(entityRepository, commonProperties);
         final List<DatabaseAccessor<Object, ?>> accessors = List.of(

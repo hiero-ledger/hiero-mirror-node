@@ -10,7 +10,7 @@ import lombok.experimental.Accessors;
 
 @Accessors(fluent = true)
 @RequiredArgsConstructor
-public class SystemEntities {
+public class SystemEntity {
 
     private final CommonProperties commonProperties;
 
@@ -21,13 +21,28 @@ public class SystemEntities {
     private final EntityId addressBookFile102 = toEntityId(102L);
 
     @Getter(lazy = true)
+    private final EntityId exchangeRateFile = toEntityId(112L);
+
+    @Getter(lazy = true)
     private final EntityId feeCollectorAccount = toEntityId(98L);
+
+    @Getter(lazy = true)
+    private final EntityId feeScheduleFile = toEntityId(111L);
+
+    @Getter(lazy = true)
+    private final EntityId hapiPermissionFile = toEntityId(122L);
+
+    @Getter(lazy = true)
+    private final EntityId networkPropertyFile = toEntityId(121L);
 
     @Getter(lazy = true)
     private final EntityId nodeRewardAccount = toEntityId(801L);
 
     @Getter(lazy = true)
     private final EntityId stakingRewardAccount = toEntityId(800L);
+
+    @Getter(lazy = true)
+    private final EntityId throttleDefinitionFile = toEntityId(123L);
 
     @Getter(lazy = true)
     private final EntityId treasuryAccount = toEntityId(2L);

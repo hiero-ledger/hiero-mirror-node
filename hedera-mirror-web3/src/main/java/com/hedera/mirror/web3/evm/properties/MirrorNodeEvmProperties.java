@@ -15,8 +15,8 @@ import static com.swirlds.state.lifecycle.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.evm.contracts.execution.EvmProperties;
@@ -34,7 +34,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
@@ -55,6 +54,7 @@ import org.springframework.util.unit.DataSize;
 import org.springframework.util.unit.DataUnit;
 import org.springframework.validation.annotation.Validated;
 
+@RequiredArgsConstructor(onConstructor_ = {@Autowired})
 @Setter
 @Validated
 @ConfigurationProperties(prefix = "hedera.mirror.web3.evm")
@@ -64,6 +64,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
             ImmutableSortedMap.of(0L, EVM_VERSION);
 
     private final CommonProperties commonProperties;
+    private final SystemEntity systemEntity;
 
     @Getter
     private boolean allowTreasuryToOwnNfts = true;
@@ -195,13 +196,6 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @DecimalMax("1.0")
     private double modularizedTrafficPercent = 0.0;
 
-    @Autowired
-    public MirrorNodeEvmProperties(CommonProperties commonProperties) {
-        this.commonProperties = commonProperties;
-        fundingAccount = toAddress(SystemEntity.FEE_COLLECTOR_ACCOUNT.getScopedEntityId(this.commonProperties))
-                .toHexString();
-    }
-
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);
     }
@@ -275,6 +269,9 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     @Override
     public Address fundingAccountAddress() {
+        if (fundingAccount == null) {
+            fundingAccount = toAddress(systemEntity.feeCollectorAccount()).toHexString();
+        }
         return Address.fromHexString(fundingAccount);
     }
 
@@ -343,22 +340,12 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("contracts.maxRefundPercentOfGasLimit", String.valueOf(maxGasRefundPercentage()));
         props.put("contracts.sidecars", "");
         props.put("contracts.throttle.throttleByGas", "false");
-        props.put(
-                "hedera.shard",
-                Optional.ofNullable(commonProperties)
-                        .map(CommonProperties::getShard)
-                        .map(String::valueOf)
-                        .orElse("0"));
-        props.put(
-                "hedera.realm",
-                Optional.ofNullable(commonProperties)
-                        .map(CommonProperties::getRealm)
-                        .map(String::valueOf)
-                        .orElse("0"));
         // The configured data in the request is currently 128 KB. In services, we have a property for the
         // max signed transaction size. We put 1 KB more here to have a buffer because the transaction has other
         // fields (apart from the data) that will increase the transaction size.
         props.put("executor.maxSignedTxnSize", String.valueOf(maxDataSize.toBytes() + 1024));
+        props.put("hedera.realm", String.valueOf(commonProperties.getRealm()));
+        props.put("hedera.shard", String.valueOf(commonProperties.getShard()));
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
         props.putAll(properties); // Allow user defined properties to override the defaults
         return Collections.unmodifiableMap(props);

@@ -14,7 +14,7 @@ import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionReceipt;
 import com.hedera.hapi.node.transaction.TransactionRecord;
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.SystemEntities;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.web3.ContextExtension;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.contracts.execution.traceability.MirrorOperationTracer;
@@ -77,12 +77,14 @@ class TransactionExecutionServiceTest {
 
     @BeforeEach
     void setUp() {
+        var commonProperties = new CommonProperties();
+        var systemEntity = new SystemEntity(commonProperties);
         transactionExecutionService = new TransactionExecutionService(
                 aliasesReadableKVState,
-                new MirrorNodeEvmProperties(new CommonProperties()),
+                new MirrorNodeEvmProperties(commonProperties, systemEntity),
                 opcodeTracer,
                 mirrorOperationTracer,
-                new SystemEntities(CommonProperties.getInstance()),
+                systemEntity,
                 transactionExecutorFactory);
         when(transactionExecutorFactory.get()).thenReturn(transactionExecutor);
     }
