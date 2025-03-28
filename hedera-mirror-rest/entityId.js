@@ -272,9 +272,10 @@ const parseString = (id) => {
 
 const piecesFromString = (id) => {
   if (typeof id !== 'string') {
-    return null;
+    throw new InvalidArgumentError(`Entity ID "${id}" is not a string`);
   }
 
+  id = stripHexPrefix(id);
   const idPieces = id.split('.');
 
   if (isEvmAddressAlias(id)) {
@@ -283,7 +284,6 @@ const piecesFromString = (id) => {
     idPieces.unshift(...[systemShard, systemRealm].slice(0, 3 - idPieces.length));
   }
 
-  idPieces[2] = stripHexPrefix(idPieces[2]);
   return idPieces;
 };
 
