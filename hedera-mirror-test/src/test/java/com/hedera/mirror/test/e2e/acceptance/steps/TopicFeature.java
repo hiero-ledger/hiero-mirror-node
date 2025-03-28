@@ -434,7 +434,7 @@ public class TopicFeature extends AbstractFeature {
 
         // Verify max custom fees
         var transactionId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
-        verifyMaxCustomFees(transactionId, payerAccount.getAccountId().toString(), fungibleToken.toString() );
+        verifyMaxCustomFees(transactionId, payerAccount.getAccountId().toString(), fungibleToken.toString());
     }
 
     @Then("I verify the published message from {account} in mirror node REST API")
@@ -584,13 +584,16 @@ public class TopicFeature extends AbstractFeature {
     }
 
     private void verifyMaxCustomFees(String transactionId, String payerAccount, String fungibleToken) {
-        mirrorClient.getTransactions(transactionId).getTransactions()
+        mirrorClient
+                .getTransactions(transactionId)
+                .getTransactions()
                 .getFirst()
                 .getMaxCustomFees()
                 .forEach(fee -> verifyMaxFee(fee, payerAccount, fungibleToken));
     }
 
-    private void verifyMaxFee(com.hedera.mirror.rest.model.CustomFeeLimit fee, String payerAccount, String fungibleToken) {
+    private void verifyMaxFee(
+            com.hedera.mirror.rest.model.CustomFeeLimit fee, String payerAccount, String fungibleToken) {
         // Common verifications for all fees.
         assertThat(fee.getAmount()).isEqualTo(FIXED_FEE_AMOUNT + 1);
         assertThat(fee.getAccountId()).isEqualTo(payerAccount);
