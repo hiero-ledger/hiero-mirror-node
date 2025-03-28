@@ -82,6 +82,7 @@ public class TopicFeature extends AbstractFeature {
     @Given("I successfully create a new topic id")
     public void createNewTopic() {
         testInstantReference = Instant.now();
+        privateKey = PrivateKey.generateED25519();
         PublicKey submitPublicKey = privateKey.getPublicKey();
         log.trace("Topic creation PrivateKey : {}, PublicKey : {}", privateKey, submitPublicKey);
 
