@@ -21,7 +21,6 @@ const {options, run} =
         .args([token, spender, serialNumber])
         .to(contract)
         .estimate(true)
-        .gas(15000000)
         .build();
 
 export {options, run};

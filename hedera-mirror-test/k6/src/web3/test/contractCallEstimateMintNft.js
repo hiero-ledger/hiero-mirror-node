@@ -26,7 +26,6 @@ const {options, run} =
         .args([token, amount, metadata])
         .to(contract)
         .estimate(true)
-        .gas(15000000)
         .build();
 
 export {options, run};

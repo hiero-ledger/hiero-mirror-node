@@ -22,7 +22,6 @@ const {options, run} =
         .to(contract)
         .from(from)
         .estimate(true)
-        .gas(15000000)
         .value(5000000000)
         .build();
 
