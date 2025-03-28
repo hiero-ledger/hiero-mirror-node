@@ -2,8 +2,7 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.token.AbstractTokenAccount;
 import com.hedera.mirror.common.domain.token.TokenAccount;
 import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
@@ -30,13 +29,14 @@ import org.hyperledger.besu.datatypes.Address;
 @RequiredArgsConstructor
 public class TokenRelationshipDatabaseAccessor extends DatabaseAccessor<Object, TokenRelationship> {
 
-    private final CommonProperties commonProperties;
+    static final Optional<Long> ZERO_BALANCE = Optional.of(0L);
+
     private final TokenDatabaseAccessor tokenDatabaseAccessor;
     private final AccountDatabaseAccessor accountDatabaseAccessor;
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenBalanceRepository tokenBalanceRepository;
     private final NftRepository nftRepository;
-    static final Optional<Long> ZERO_BALANCE = Optional.of(0L);
+    private final SystemEntity systemEntity;
 
     @Override
     public @NonNull Optional<TokenRelationship> get(@NonNull Object key, final Optional<Long> timestamp) {
@@ -108,9 +108,7 @@ public class TokenRelationshipDatabaseAccessor extends DatabaseAccessor<Object, 
         return timestamp
                 .map(t -> {
                     if (t >= accountCreatedTimestamp) {
-                        long treasuryAccountId = SystemEntity.TREASURY_ACCOUNT
-                                .getScopedEntityId(commonProperties)
-                                .getId();
+                        long treasuryAccountId = systemEntity.treasuryAccount().getId();
                         return tokenBalanceRepository.findHistoricalTokenBalanceUpToTimestamp(
                                 tokenAccount.getTokenId(), tokenAccount.getAccountId(), t, treasuryAccountId);
                     } else {

@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.repository.EntityRepository;
 import java.util.stream.Stream;
@@ -29,10 +30,16 @@ class EntityIdSingletonTest {
     @Mock
     private EntityRepository entityRepository;
 
+    // Method that provides the test data
+    private static Stream<Arguments> shardAndRealmData() {
+        return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 2L));
+    }
+
     @BeforeEach
     void setup() {
+        var systemEntity = new SystemEntity(commonProperties);
         entityIdSingleton = new EntityIdSingleton(
-                entityRepository, new MirrorNodeEvmProperties(commonProperties), commonProperties);
+                entityRepository, new MirrorNodeEvmProperties(commonProperties, systemEntity), commonProperties);
     }
 
     @ParameterizedTest
@@ -85,10 +92,5 @@ class EntityIdSingletonTest {
         when(commonProperties.getRealm()).thenReturn(realm);
         when(entityRepository.findMaxId(shard, realm)).thenReturn(maxId);
         assertThat(entityIdSingleton.get().number()).isEqualTo(maxId + 1);
-    }
-
-    // Method that provides the test data
-    private static Stream<Arguments> shardAndRealmData() {
-        return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 2L));
     }
 }

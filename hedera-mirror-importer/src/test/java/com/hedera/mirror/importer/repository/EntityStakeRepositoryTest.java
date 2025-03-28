@@ -53,7 +53,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
     @BeforeEach
     void setup() {
-        stakingRewardAccountId = systemEntities.stakingRewardAccount().getId();
+        stakingRewardAccountId = systemEntity.stakingRewardAccount().getId();
     }
 
     @Test
@@ -77,7 +77,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .entity(stakingRewardAccountId, nodeStakeTimestamp - 10)
                 .persist();
         var treasury = domainBuilder
-                .entity(systemEntities.treasuryAccount(), nodeStakeTimestamp - 20)
+                .entity(systemEntity.treasuryAccount(), nodeStakeTimestamp - 20)
                 .persist();
         var account1 = domainBuilder
                 .entity()
@@ -245,7 +245,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         long balanceTimestamp = timestamp - 1000L;
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(balanceTimestamp, systemEntities.treasuryAccount())))
+                .customize(ab -> ab.id(new AccountBalance.Id(balanceTimestamp, systemEntity.treasuryAccount())))
                 .persist();
         domainBuilder
                 .accountBalance()
@@ -290,7 +290,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .customize(e -> e.timestampRange(Range.atLeast(balanceTimestamp - 1000L)))
                 .persist();
         var treasury = domainBuilder
-                .entity(systemEntities.treasuryAccount(), balanceTimestamp - 9000)
+                .entity(systemEntity.treasuryAccount(), balanceTimestamp - 9000)
                 .persist();
         domainBuilder
                 .accountBalance()
@@ -324,7 +324,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .entity(stakingRewardAccountId, previousNodeStakeTimestamp - 8000)
                 .persist();
         var treasury = domainBuilder
-                .entity(systemEntities.treasuryAccount(), previousNodeStakeTimestamp - 9000)
+                .entity(systemEntity.treasuryAccount(), previousNodeStakeTimestamp - 9000)
                 .customize(e -> e.stakedNodeId(1L))
                 .persist();
         var aliceHistory1 = domainBuilder
@@ -442,7 +442,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         var expectedTreasury = domainBuilder
                 .entity()
                 .customize(e -> e.balance(5000L)
-                        .id(systemEntities.treasuryAccount().getId())
+                        .id(systemEntity.treasuryAccount().getId())
                         .stakedAccountId(0L)
                         .stakedNodeId(1L)
                         .stakePeriodStart(-1L))
@@ -814,7 +814,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         domainBuilder
                 .accountBalance()
                 .customize(
-                        ab -> ab.id(new AccountBalance.Id(nodeStakeTimestamp - 1000, systemEntities.treasuryAccount())))
+                        ab -> ab.id(new AccountBalance.Id(nodeStakeTimestamp - 1000, systemEntity.treasuryAccount())))
                 .persist();
         // The following two are old NodeStake, which shouldn't be used in pending reward calculation
         domainBuilder

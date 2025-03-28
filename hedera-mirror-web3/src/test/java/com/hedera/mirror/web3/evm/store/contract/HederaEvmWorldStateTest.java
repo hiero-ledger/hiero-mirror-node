@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.web3.ContextExtension;
 import com.hedera.mirror.web3.evm.account.MirrorEvmContractAliases;
 import com.hedera.mirror.web3.evm.store.StackedStateFrames;
@@ -104,22 +105,23 @@ class HederaEvmWorldStateTest {
     @BeforeEach
     void setUp() {
         var commProperties = new CommonProperties();
+        var systemEntity = new SystemEntity(commProperties);
         final var accountDatabaseAccessor =
-                new AccountDatabaseAccessor(commProperties, entityDatabaseAccessor, null, null, null, null, null, null);
+                new AccountDatabaseAccessor(entityDatabaseAccessor, null, null, null, null, null, null, systemEntity);
         final var tokenDatabaseAccessor = new TokenDatabaseAccessor(
-                commProperties,
                 tokenRepository,
                 entityDatabaseAccessor,
                 entityRepository,
                 customFeeDatabaseAccessor,
-                nftRepository);
+                nftRepository,
+                systemEntity);
         final var tokenRelationshipDatabaseAccessor = new TokenRelationshipDatabaseAccessor(
-                commProperties,
                 tokenDatabaseAccessor,
                 accountDatabaseAccessor,
                 tokenAccountRepository,
                 tokenBalanceRepository,
-                nftRepository);
+                nftRepository,
+                systemEntity);
         final var uniqueTokenDatabaseAccessor = new UniqueTokenDatabaseAccessor(nftRepository);
         final List<DatabaseAccessor<Object, ?>> accessors = List.of(
                 accountDatabaseAccessor,

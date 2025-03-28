@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.web3.state.keyvalue;
 
-import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,6 +21,7 @@ import com.hedera.hapi.node.base.TokenType;
 import com.hedera.hapi.node.state.token.Token;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
@@ -45,13 +45,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mock.Strictness;
 import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -69,18 +69,19 @@ class TokenReadableKVStateTest {
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final TokenID DENOMINATING_TOKEN_ID =
             TokenID.newBuilder().shardNum(11L).realmNum(12L).tokenNum(13L).build();
-    private static MockedStatic<ContractCallContext> contextMockedStatic;
+
+    @AutoClose
+    private static final MockedStatic<ContractCallContext> contextMockedStatic = mockStatic(ContractCallContext.class);
+
     private final EntityId collectorId = EntityId.of(1L, 2L, 3L);
     private final AccountID collectorAccountId = new AccountID(
             collectorId.getShard(),
             collectorId.getRealm(),
             new OneOf<>(AccountOneOfType.ACCOUNT_NUM, collectorId.getNum()));
     private final EntityId denominatingTokenId = EntityId.of(11L, 12L, 13L);
-    com.hedera.mirror.common.domain.token.Token databaseToken;
-    private CustomFee customFee;
 
-    @Mock
-    private CommonProperties commonProperties;
+    private com.hedera.mirror.common.domain.token.Token databaseToken;
+    private CustomFee customFee;
 
     @InjectMocks
     private TokenReadableKVState tokenReadableKVState;
@@ -100,26 +101,22 @@ class TokenReadableKVStateTest {
     @Mock
     private EntityRepository entityRepository;
 
+    @Mock(strictness = Strictness.LENIENT)
+    private SystemEntity systemEntity;
+
     private DomainBuilder domainBuilder;
     private Entity entity;
     private Entity account;
     private Entity collector;
+    private EntityId treasuryAccountId;
 
     @Spy
     private ContractCallContext contractCallContext;
 
-    @BeforeAll
-    static void initStaticMocks() {
-        contextMockedStatic = mockStatic(ContractCallContext.class);
-    }
-
-    @AfterAll
-    static void closeStaticMocks() {
-        contextMockedStatic.close();
-    }
-
     @BeforeEach
     void setup() {
+        var systemEntity = new SystemEntity(CommonProperties.getInstance());
+        treasuryAccountId = systemEntity.treasuryAccount();
         domainBuilder = new DomainBuilder();
         entity = domainBuilder
                 .entity()
@@ -152,6 +149,7 @@ class TokenReadableKVStateTest {
         customFee = new CustomFee();
 
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
+        when(this.systemEntity.treasuryAccount()).thenReturn(treasuryAccountId);
     }
 
     @Test
@@ -365,7 +363,7 @@ class TokenReadableKVStateTest {
 
         when(commonEntityAccessor.get(TOKEN_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
         when(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
-                        databaseToken.getTokenId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
+                        databaseToken.getTokenId(), timestamp.get(), treasuryAccountId.getId()))
                 .thenReturn(historicalSupply);
 
         assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID))
@@ -374,7 +372,7 @@ class TokenReadableKVStateTest {
 
         verify(tokenRepository)
                 .findFungibleTotalSupplyByTokenIdAndTimestamp(
-                        databaseToken.getTokenId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
+                        databaseToken.getTokenId(), timestamp.get(), treasuryAccountId.getId());
     }
 
     @Test

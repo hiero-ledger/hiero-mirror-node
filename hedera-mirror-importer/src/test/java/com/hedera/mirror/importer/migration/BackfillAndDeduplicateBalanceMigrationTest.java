@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.importer.migration;
 
-import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -94,11 +93,11 @@ class BackfillAndDeduplicateBalanceMigrationTest
     void migrate() {
         // given
         // based on partitionTimeInterval of '10 years' in test application config
-        var treasury = DEFAULT_TREASURY_ACCOUNT;
-        var account2 = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
-        var account3 = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
-        var account4 = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
-        var token = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
+        var treasury = systemEntity.treasuryAccount();
+        var account2 = EntityId.of(domainBuilder.id() + treasury.getId());
+        var account3 = EntityId.of(domainBuilder.id() + treasury.getId());
+        var account4 = EntityId.of(domainBuilder.id() + treasury.getId());
+        var token = EntityId.of(domainBuilder.id() + treasury.getId());
 
         // The balance snapshot already in db, processed by V1.89.2
         long sentinelTimestamp = LocalDate.now(UTC).toEpochSecond(LocalTime.of(22, 0), UTC) * 1_000_000_000L;
@@ -408,9 +407,9 @@ class BackfillAndDeduplicateBalanceMigrationTest
         // given
         // there is no balance info before the portion already handled by V1.89.2, for simplicity, no data is populated
         // for account_balance_old and token_balance_old
-        var treasury = DEFAULT_TREASURY_ACCOUNT;
-        var account = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
-        var token = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
+        var treasury = systemEntity.treasuryAccount();
+        var account = EntityId.of(domainBuilder.id() + treasury.getId());
+        var token = EntityId.of(domainBuilder.id() + treasury.getId());
         long timestamp = domainBuilder.timestamp();
         setSentinelTimestamp(timestamp);
         domainBuilder
@@ -446,9 +445,9 @@ class BackfillAndDeduplicateBalanceMigrationTest
         // given min frequency is set to 6 minutes
         migration.migrationProperties.getParams().put("minFrequency", "6m");
 
-        var treasury = DEFAULT_TREASURY_ACCOUNT;
-        var account = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
-        var token = EntityId.of(domainBuilder.id() + DEFAULT_TREASURY_ACCOUNT.getId());
+        var treasury = systemEntity.treasuryAccount();
+        var account = EntityId.of(domainBuilder.id() + treasury.getId());
+        var token = EntityId.of(domainBuilder.id() + treasury.getId());
         long sentinelTimestamp = domainBuilder.timestamp();
         setSentinelTimestamp(sentinelTimestamp);
 

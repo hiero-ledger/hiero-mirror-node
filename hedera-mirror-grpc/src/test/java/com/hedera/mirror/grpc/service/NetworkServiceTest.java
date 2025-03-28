@@ -10,7 +10,6 @@ import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.grpc.GrpcIntegrationTest;
 import com.hedera.mirror.grpc.domain.AddressBookFilter;
 import com.hedera.mirror.grpc.exception.EntityNotFoundException;
@@ -64,7 +63,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     @Test
     void addressBookNotFound() {
         var filter = AddressBookFilter.builder()
-                .fileId(SystemEntity.ADDRESS_BOOK_102.getScopedEntityId(commonProperties))
+                .fileId(systemEntity.addressBookFile102())
                 .build();
 
         assertThatThrownBy(() -> networkService.getNodes(filter))

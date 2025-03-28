@@ -4,7 +4,7 @@ package com.hedera.mirror.common.config;
 
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.SystemEntities;
+import com.hedera.mirror.common.domain.SystemEntity;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.Resource;
 import java.util.Collection;
@@ -36,7 +36,7 @@ public abstract class CommonIntegrationTest {
     protected MeterRegistry meterRegistry;
 
     @Resource
-    protected SystemEntities systemEntities;
+    protected SystemEntity systemEntity;
 
     @Autowired(required = false)
     private Collection<CacheManager> cacheManagers;

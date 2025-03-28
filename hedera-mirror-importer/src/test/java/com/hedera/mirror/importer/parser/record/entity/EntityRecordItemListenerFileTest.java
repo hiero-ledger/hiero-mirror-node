@@ -73,7 +73,7 @@ class EntityRecordItemListenerFileTest extends AbstractEntityRecordItemListenerT
 
     @BeforeEach
     void before() {
-        addressBookFileId = systemEntities.addressBookFile102().toFileID();
+        addressBookFileId = systemEntity.addressBookFile102().toFileID();
         entityProperties.getPersist().setFiles(true);
         entityProperties.getPersist().setSystemFiles(true);
         entityProperties.getPersist().setCryptoTransferAmounts(true);

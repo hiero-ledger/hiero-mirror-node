@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.web3.state.keyvalue;
 
-import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -20,6 +19,7 @@ import com.hedera.hapi.node.state.token.AccountApprovalForAllAllowance;
 import com.hedera.hapi.node.state.token.AccountCryptoAllowance;
 import com.hedera.hapi.node.state.token.AccountFungibleTokenAllowance;
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.AbstractEntity;
 import com.hedera.mirror.common.domain.entity.CryptoAllowance;
 import com.hedera.mirror.common.domain.entity.Entity;
@@ -46,13 +46,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mock.Strictness;
 import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -99,18 +99,19 @@ class AccountReadableKVStateTest {
                     return false;
                 }
             });
-    private static MockedStatic<ContractCallContext> contextMockedStatic;
+
+    @AutoClose
+    private static final MockedStatic<ContractCallContext> contextMockedStatic = mockStatic(ContractCallContext.class);
+
     private Entity entity;
     private Entity token;
+    private EntityId treasuryAccountId;
 
     @InjectMocks
     private AccountReadableKVState accountReadableKVState;
 
     @Mock
     private CommonEntityAccessor commonEntityAccessor;
-
-    @Mock
-    private CommonProperties commonProperties;
 
     @Mock
     private NftAllowanceRepository nftAllowanceRepository;
@@ -133,18 +134,13 @@ class AccountReadableKVStateTest {
     @Spy
     private ContractCallContext contractCallContext;
 
-    @BeforeAll
-    static void initStaticMocks() {
-        contextMockedStatic = mockStatic(ContractCallContext.class);
-    }
-
-    @AfterAll
-    static void closeStaticMocks() {
-        contextMockedStatic.close();
-    }
+    @Mock(strictness = Strictness.LENIENT)
+    private SystemEntity systemEntity;
 
     @BeforeEach
     void setup() {
+        var systemEntity = new SystemEntity(CommonProperties.getInstance());
+        treasuryAccountId = systemEntity.treasuryAccount();
         entity = new Entity();
         entity.setId(EntityIdUtils.toAccountId(SHARD, REALM, NUM).accountNum());
         entity.setCreatedTimestamp(timestamp.get());
@@ -169,6 +165,7 @@ class AccountReadableKVStateTest {
         token.setType(EntityType.TOKEN);
 
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
+        when(this.systemEntity.treasuryAccount()).thenReturn(treasuryAccountId);
     }
 
     @Test
@@ -314,14 +311,13 @@ class AccountReadableKVStateTest {
         when(commonEntityAccessor.get(ACCOUNT_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
         long balance = 20;
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
+                        entity.getId(), timestamp.get(), treasuryAccountId.getId()))
                 .thenReturn(Optional.of(balance));
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID)).returns(balance, Account::tinybarBalance);
 
         verify(accountBalanceRepository)
-                .findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
+                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get(), treasuryAccountId.getId());
     }
 
     @Test
@@ -342,14 +338,13 @@ class AccountReadableKVStateTest {
         when(commonEntityAccessor.get(ACCOUNT_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
         long balance = 0;
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
+                        entity.getId(), timestamp.get(), treasuryAccountId.getId()))
                 .thenReturn(Optional.of(balance));
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID)).returns(balance, Account::tinybarBalance);
 
         verify(accountBalanceRepository)
-                .findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
+                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get(), treasuryAccountId.getId());
     }
 
     @Test
@@ -359,14 +354,13 @@ class AccountReadableKVStateTest {
         long balance = 20;
         entity.setCreatedTimestamp(null);
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
+                        entity.getId(), timestamp.get(), treasuryAccountId.getId()))
                 .thenReturn(Optional.of(balance));
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID)).returns(balance, Account::tinybarBalance);
 
         verify(accountBalanceRepository)
-                .findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
+                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get(), treasuryAccountId.getId());
     }
 
     @Test

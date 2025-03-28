@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
-import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.AbstractEntity;
 import com.hedera.mirror.common.domain.entity.CryptoAllowance;
 import com.hedera.mirror.common.domain.entity.Entity;
@@ -45,6 +45,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mock.Strictness;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -86,12 +87,10 @@ class AccountDatabaseAccessorTest {
             });
 
     private Entity entity;
+    private EntityId treasuryAccountId;
 
     @InjectMocks
     private AccountDatabaseAccessor accountAccessor;
-
-    @Mock
-    private CommonProperties commonProperties;
 
     @Mock
     private EntityDatabaseAccessor entityDatabaseAccessor;
@@ -114,8 +113,13 @@ class AccountDatabaseAccessorTest {
     @Mock
     private TokenAccountRepository tokenAccountRepository;
 
+    @Mock(strictness = Strictness.LENIENT)
+    private SystemEntity systemEntity;
+
     @BeforeEach
     void setup() {
+        var systemEntity = new SystemEntity(CommonProperties.getInstance());
+        treasuryAccountId = systemEntity.treasuryAccount();
         final var entityNum = entityIdNumFromEvmAddress(ADDRESS);
         entity = new Entity();
         entity.setId(entityNum);
@@ -130,6 +134,7 @@ class AccountDatabaseAccessorTest {
         entity.setProxyAccountId(PROXY_ACCOUNT_ID);
         entity.setMaxAutomaticTokenAssociations(MAX_AUTOMATIC_TOKEN_ASSOCIATIONS);
         entity.setType(EntityType.ACCOUNT);
+        when(this.systemEntity.treasuryAccount()).thenReturn(treasuryAccountId);
     }
 
     @Test
@@ -220,15 +225,14 @@ class AccountDatabaseAccessorTest {
         when(entityDatabaseAccessor.get(ADDRESS, timestamp)).thenReturn(Optional.of(entity));
         long balance = 20;
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
+                        entity.getId(), timestamp.get(), treasuryAccountId.getId()))
                 .thenReturn(Optional.of(balance));
 
         assertThat(accountAccessor.get(ADDRESS, timestamp))
                 .hasValueSatisfying(account -> assertThat(account).returns(balance, Account::getBalance));
 
         verify(accountBalanceRepository)
-                .findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
+                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get(), treasuryAccountId.getId());
     }
 
     @Test
@@ -247,15 +251,14 @@ class AccountDatabaseAccessorTest {
         when(entityDatabaseAccessor.get(ADDRESS, timestamp)).thenReturn(Optional.of(entity));
         long balance = 0;
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
+                        entity.getId(), timestamp.get(), treasuryAccountId.getId()))
                 .thenReturn(Optional.of(balance));
 
         assertThat(accountAccessor.get(ADDRESS, timestamp))
                 .hasValueSatisfying(account -> assertThat(account).returns(balance, Account::getBalance));
 
         verify(accountBalanceRepository)
-                .findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
+                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get(), treasuryAccountId.getId());
     }
 
     @Test
@@ -264,14 +267,13 @@ class AccountDatabaseAccessorTest {
         long balance = 20;
         entity.setCreatedTimestamp(null);
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
+                        entity.getId(), timestamp.get(), treasuryAccountId.getId()))
                 .thenReturn(Optional.of(balance));
 
         assertThat(accountAccessor.get(ADDRESS, timestamp))
                 .hasValueSatisfying(account -> assertThat(account).returns(balance, Account::getBalance));
         verify(accountBalanceRepository)
-                .findHistoricalAccountBalanceUpToTimestamp(
-                        entity.getId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
+                .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), timestamp.get(), treasuryAccountId.getId());
     }
 
     @Test

@@ -6,9 +6,8 @@ import static com.hedera.mirror.common.domain.transaction.TransactionType.CONSEN
 import static com.hedera.mirror.common.domain.transaction.TransactionType.SCHEDULECREATE;
 import static com.hedera.mirror.common.domain.transaction.TransactionType.SCHEDULESIGN;
 
-import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -29,8 +28,8 @@ public class EntityProperties {
     private PersistProperties persist;
 
     @Autowired
-    public EntityProperties(CommonProperties commonProperties) {
-        this.persist = new PersistProperties(commonProperties);
+    public EntityProperties(SystemEntity systemEntity) {
+        this.persist = new PersistProperties(systemEntity);
     }
 
     @Data
@@ -111,11 +110,11 @@ public class EntityProperties {
         @NotNull
         private Set<TransactionType> transactionSignatures = EnumSet.of(SCHEDULECREATE, SCHEDULESIGN);
 
-        public PersistProperties(CommonProperties commonProperties) {
+        public PersistProperties(SystemEntity systemEntity) {
             this.entityTransactionExclusion = Set.of(
-                    SystemEntity.FEE_COLLECTOR_ACCOUNT.getScopedEntityId(commonProperties),
-                    SystemEntity.STAKING_REWARD_ACCOUNT.getScopedEntityId(commonProperties),
-                    SystemEntity.NODE_REWARD_ACCOUNT.getScopedEntityId(commonProperties));
+                    systemEntity.feeCollectorAccount(),
+                    systemEntity.nodeRewardAccount(),
+                    systemEntity.stakingRewardAccount());
         }
 
         public boolean isTokenAirdrops() {

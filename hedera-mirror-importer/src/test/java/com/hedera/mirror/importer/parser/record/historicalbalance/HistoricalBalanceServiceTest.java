@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.SystemEntities;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
 import com.hedera.mirror.importer.db.TimePartitionService;
 import com.hedera.mirror.importer.downloader.balance.BalanceDownloaderProperties;
@@ -61,7 +61,7 @@ class HistoricalBalanceServiceTest {
                     platformTransactionManager,
                     historicalBalanceProperties,
                     recordFileRepository,
-                    new SystemEntities(new CommonProperties()),
+                    new SystemEntity(new CommonProperties()),
                     timePartitionService,
                     tokenBalanceRepository);
 

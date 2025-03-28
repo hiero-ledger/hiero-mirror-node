@@ -2,10 +2,9 @@
 
 package com.hedera.mirror.grpc.service;
 
-import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.grpc.domain.AddressBookFilter;
 import com.hedera.mirror.grpc.exception.EntityNotFoundException;
 import com.hedera.mirror.grpc.repository.AddressBookEntryRepository;
@@ -18,7 +17,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -44,17 +42,15 @@ public class NetworkServiceImpl implements NetworkService {
     private final AddressBookProperties addressBookProperties;
     private final AddressBookRepository addressBookRepository;
     private final AddressBookEntryRepository addressBookEntryRepository;
-    private final CommonProperties commonProperties;
     private final NodeStakeRepository nodeStakeRepository;
+    private final SystemEntity systemEntity;
 
     @Qualifier("readOnly")
     private final TransactionOperations transactionOperations;
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final Set<EntityId> validFileIds =
-            Set.of(SystemEntity.ADDRESS_BOOK_101, SystemEntity.ADDRESS_BOOK_102).stream()
-                    .map(s -> s.getScopedEntityId(commonProperties))
-                    .collect(Collectors.toUnmodifiableSet());
+            Set.of(systemEntity.addressBookFile101(), systemEntity.addressBookFile102());
 
     @Override
     public Flux<AddressBookEntry> getNodes(AddressBookFilter filter) {

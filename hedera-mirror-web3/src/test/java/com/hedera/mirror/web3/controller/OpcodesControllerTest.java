@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.rest.model.OpcodesResponse;
@@ -740,7 +741,9 @@ class OpcodesControllerTest {
 
         @Bean
         MirrorNodeEvmProperties evmProperties() {
-            return new MirrorNodeEvmProperties(new CommonProperties());
+            var commonProperties = new CommonProperties();
+            var systemEntity = new SystemEntity(commonProperties);
+            return new MirrorNodeEvmProperties(commonProperties, systemEntity);
         }
 
         @Bean

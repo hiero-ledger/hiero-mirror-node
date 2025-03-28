@@ -8,7 +8,6 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.common.domain.token.TokenTransfer;
 import com.hedera.mirror.web3.Web3IntegrationTest;
@@ -142,7 +141,7 @@ class TokenRepositoryTest extends Web3IntegrationTest {
         long snapshotTimestamp = blockTimestamp - Duration.ofMinutes(12).toNanos();
         commonProperties.setShard(shard);
         commonProperties.setRealm(realm);
-        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasuryAccountId = systemEntity.treasuryAccount();
         domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.id(new AccountBalance.Id(snapshotTimestamp, treasuryAccountId)))
@@ -202,7 +201,9 @@ class TokenRepositoryTest extends Web3IntegrationTest {
     @Test
     void findFungibleTotalSupplyByTokenIdAndTimestampEmpty() {
         assertThat(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
-                        domainBuilder.id(), domainBuilder.timestamp(), SystemEntity.TREASURY_ACCOUNT.getNum()))
+                        domainBuilder.id(),
+                        domainBuilder.timestamp(),
+                        systemEntity.treasuryAccount().getId()))
                 .isZero();
     }
 
@@ -212,7 +213,7 @@ class TokenRepositoryTest extends Web3IntegrationTest {
         var tokenId = domainBuilder.entityId();
         long blockTimestamp = domainBuilder.timestamp();
         long snapshotTimestamp = blockTimestamp - Duration.ofMinutes(12).toNanos();
-        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasuryAccountId = systemEntity.treasuryAccount();
         domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.id(new AccountBalance.Id(snapshotTimestamp, treasuryAccountId)))
@@ -256,7 +257,7 @@ class TokenRepositoryTest extends Web3IntegrationTest {
         var tokenId = domainBuilder.entityId();
         long blockTimestamp = domainBuilder.timestamp();
         long snapshotTimestamp = blockTimestamp - Duration.ofMinutes(12).toNanos();
-        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasuryAccountId = systemEntity.treasuryAccount();
         domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.id(new AccountBalance.Id(snapshotTimestamp, treasuryAccountId)))

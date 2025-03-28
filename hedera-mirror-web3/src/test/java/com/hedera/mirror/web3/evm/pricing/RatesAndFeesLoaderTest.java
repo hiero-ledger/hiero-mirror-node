@@ -10,7 +10,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties.HederaNetwork;
@@ -29,7 +29,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -75,26 +74,30 @@ class RatesAndFeesLoaderTest {
     @Mock
     private FileDataRepository fileDataRepository;
 
-    @Mock
     private MirrorNodeEvmProperties evmProperties;
-
-    @Mock
     private CommonProperties commonProperties;
-
-    @InjectMocks
+    private SystemEntity systemEntity;
     private RatesAndFeesLoader subject;
+
+    // Method that provides the test data
+    public static Stream<Arguments> shardAndRealmData() {
+        return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 2L));
+    }
 
     @BeforeEach
     void setup() {
-        when(evmProperties.getNetwork()).thenReturn(HederaNetwork.TESTNET);
+        commonProperties = new CommonProperties();
+        systemEntity = new SystemEntity(commonProperties);
+        evmProperties = new MirrorNodeEvmProperties(commonProperties, systemEntity);
+        subject = new RatesAndFeesLoader(fileDataRepository, evmProperties, systemEntity);
     }
 
     @ParameterizedTest
     @MethodSource("shardAndRealmData")
     void loadExchangeRates(long shard, long realm) {
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        var exchangeRateEntityId = SystemEntity.EXCHANGE_RATE.getScopedEntityId(commonProperties);
+        commonProperties.setRealm(realm);
+        commonProperties.setShard(shard);
+        var exchangeRateEntityId = systemEntity.exchangeRateFile();
         when(fileDataRepository.getFileAtTimestamp(eq(exchangeRateEntityId.getId()), anyLong()))
                 .thenReturn(Optional.of(exchangeRatesFileData));
 
@@ -106,10 +109,10 @@ class RatesAndFeesLoaderTest {
     @ParameterizedTest
     @MethodSource("shardAndRealmData")
     void loadDefaultExchangeRates(long shard, long realm) {
-        when(evmProperties.getNetwork()).thenReturn(HederaNetwork.OTHER);
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        var exchangeRateEntityId = SystemEntity.EXCHANGE_RATE.getScopedEntityId(commonProperties);
+        evmProperties.setNetwork(HederaNetwork.OTHER);
+        commonProperties.setRealm(realm);
+        commonProperties.setShard(shard);
+        var exchangeRateEntityId = systemEntity.exchangeRateFile();
         when(fileDataRepository.getFileAtTimestamp(eq(exchangeRateEntityId.getId()), anyLong()))
                 .thenReturn(Optional.empty());
 
@@ -120,9 +123,9 @@ class RatesAndFeesLoaderTest {
     @ParameterizedTest
     @MethodSource("shardAndRealmData")
     void loadEmptyExchangeRates(long shard, long realm) {
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        var exchangeRateEntityId = SystemEntity.EXCHANGE_RATE.getScopedEntityId(commonProperties);
+        commonProperties.setRealm(realm);
+        commonProperties.setShard(shard);
+        var exchangeRateEntityId = systemEntity.exchangeRateFile();
         when(fileDataRepository.getFileAtTimestamp(eq(exchangeRateEntityId.getId()), anyLong()))
                 .thenReturn(Optional.empty());
 
@@ -133,9 +136,9 @@ class RatesAndFeesLoaderTest {
     @ParameterizedTest
     @MethodSource("shardAndRealmData")
     void loadWrongDataExchangeRates(long shard, long realm) {
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        var exchangeRateEntityId = SystemEntity.EXCHANGE_RATE.getScopedEntityId(commonProperties);
+        commonProperties.setRealm(realm);
+        commonProperties.setShard(shard);
+        var exchangeRateEntityId = systemEntity.exchangeRateFile();
         var expectedMessage = String.format("Rates %s are corrupt!", exchangeRateEntityId);
         when(fileDataRepository.getFileAtTimestamp(eq(exchangeRateEntityId.getId()), anyLong()))
                 .thenReturn(Optional.of(fileDataCorrupt));
@@ -149,9 +152,9 @@ class RatesAndFeesLoaderTest {
     @MethodSource("shardAndRealmData")
     void getFileForExchangeRatesFallback(long shard, long realm) {
         long currentNanos = 350L;
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        var exchangeRateEntityId = SystemEntity.EXCHANGE_RATE.getScopedEntityId(commonProperties);
+        commonProperties.setRealm(realm);
+        commonProperties.setShard(shard);
+        var exchangeRateEntityId = systemEntity.exchangeRateFile();
         when(fileDataRepository.getFileAtTimestamp(exchangeRateEntityId.getId(), currentNanos))
                 .thenReturn(Optional.of(fileDataCorrupt));
         when(fileDataRepository.getFileAtTimestamp(exchangeRateEntityId.getId(), 299L))
@@ -164,9 +167,9 @@ class RatesAndFeesLoaderTest {
     @ParameterizedTest
     @MethodSource("shardAndRealmData")
     void loadFeeSchedules(long shard, long realm) {
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        var feeScheduleEntityId = SystemEntity.FEE_SCHEDULE.getScopedEntityId(commonProperties);
+        commonProperties.setRealm(realm);
+        commonProperties.setShard(shard);
+        var feeScheduleEntityId = systemEntity.feeScheduleFile();
         when(fileDataRepository.getFileAtTimestamp(eq(feeScheduleEntityId.getId()), anyLong()))
                 .thenReturn(Optional.of(feeScheduleFileData));
 
@@ -178,10 +181,10 @@ class RatesAndFeesLoaderTest {
     @ParameterizedTest
     @MethodSource("shardAndRealmData")
     void loadDefaultFeeSchedules(long shard, long realm) {
-        when(evmProperties.getNetwork()).thenReturn(HederaNetwork.OTHER);
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        var feeScheduleEntityId = SystemEntity.FEE_SCHEDULE.getScopedEntityId(commonProperties);
+        evmProperties.setNetwork(HederaNetwork.OTHER);
+        commonProperties.setRealm(realm);
+        commonProperties.setShard(shard);
+        var feeScheduleEntityId = systemEntity.feeScheduleFile();
         when(fileDataRepository.getFileAtTimestamp(eq(feeScheduleEntityId.getId()), anyLong()))
                 .thenReturn(Optional.empty());
 
@@ -192,9 +195,9 @@ class RatesAndFeesLoaderTest {
     @ParameterizedTest
     @MethodSource("shardAndRealmData")
     void loadEmptyFeeSchedules(long shard, long realm) {
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        var feeScheduleEntityId = SystemEntity.FEE_SCHEDULE.getScopedEntityId(commonProperties);
+        commonProperties.setRealm(realm);
+        commonProperties.setShard(shard);
+        var feeScheduleEntityId = systemEntity.feeScheduleFile();
         when(fileDataRepository.getFileAtTimestamp(eq(feeScheduleEntityId.getId()), anyLong()))
                 .thenReturn(Optional.empty());
 
@@ -205,9 +208,9 @@ class RatesAndFeesLoaderTest {
     @ParameterizedTest
     @MethodSource("shardAndRealmData")
     void loadWrongDataFeeSchedules(long shard, long realm) {
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        var feeScheduleEntityId = SystemEntity.FEE_SCHEDULE.getScopedEntityId(commonProperties);
+        commonProperties.setRealm(realm);
+        commonProperties.setShard(shard);
+        var feeScheduleEntityId = systemEntity.feeScheduleFile();
         var expectedMessage = String.format("Fee schedule %s is corrupt!", feeScheduleEntityId);
         when(fileDataRepository.getFileAtTimestamp(eq(feeScheduleEntityId.getId()), anyLong()))
                 .thenReturn(Optional.of(fileDataCorrupt));
@@ -221,9 +224,9 @@ class RatesAndFeesLoaderTest {
     @MethodSource("shardAndRealmData")
     void getFileForFeeScheduleFallback(long shard, long realm) {
         long currentNanos = 350L;
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        var feeScheduleEntityId = SystemEntity.FEE_SCHEDULE.getScopedEntityId(commonProperties);
+        commonProperties.setRealm(realm);
+        commonProperties.setShard(shard);
+        var feeScheduleEntityId = systemEntity.feeScheduleFile();
         when(fileDataRepository.getFileAtTimestamp(feeScheduleEntityId.getId(), currentNanos))
                 .thenReturn(Optional.of(fileDataCorrupt));
         when(fileDataRepository.getFileAtTimestamp(feeScheduleEntityId.getId(), 299L))
@@ -231,10 +234,5 @@ class RatesAndFeesLoaderTest {
 
         var actual = subject.loadFeeSchedules(currentNanos);
         assertThat(actual).isEqualTo(feeSchedules);
-    }
-
-    // Method that provides the test data
-    public static Stream<Arguments> shardAndRealmData() {
-        return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 2L));
     }
 }

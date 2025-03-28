@@ -20,7 +20,8 @@ import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
+import com.hedera.mirror.common.domain.SystemEntity;
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
@@ -58,17 +59,19 @@ class SystemFileLoaderTest {
     private SystemFileLoader systemFileLoader;
     private CommonProperties commonProperties;
     private VersionedConfiguration configuration;
+    private SystemEntity systemEntity;
 
     // Method that provides the test data
     public static Stream<Arguments> shardAndRealmData() {
-        return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 2L));
+        return Stream.of(Arguments.of(0L, 0L), Arguments.of(0L, 2L), Arguments.of(1L, 0L), Arguments.of(1L, 2L));
     }
 
     @BeforeEach
     void setup() {
         commonProperties = new CommonProperties();
-        final var mirrorNodeEvmProperties = new MirrorNodeEvmProperties(commonProperties);
-        systemFileLoader = new SystemFileLoader(mirrorNodeEvmProperties, fileDataRepository, commonProperties);
+        systemEntity = new SystemEntity(commonProperties);
+        final var mirrorNodeEvmProperties = new MirrorNodeEvmProperties(commonProperties, systemEntity);
+        systemFileLoader = new SystemFileLoader(mirrorNodeEvmProperties, fileDataRepository, systemEntity);
         configuration = mirrorNodeEvmProperties.getVersionedConfiguration();
     }
 
@@ -84,7 +87,7 @@ class SystemFileLoaderTest {
     @MethodSource("shardAndRealmData")
     void loadAddressBook(long shard, long realm) throws Exception {
         setCommonProperties(shard, realm);
-        var fileId = fileId(101);
+        var fileId = fileId(systemEntity.addressBookFile101());
         var file = systemFileLoader.load(fileId, getCurrentTimestamp());
         assertFile(file, fileId);
         var nodeAddressBook = NodeAddressBook.PROTOBUF.parse(file.contents());
@@ -95,7 +98,7 @@ class SystemFileLoaderTest {
     @MethodSource("shardAndRealmData")
     void loadNodeDetails(long shard, long realm) throws Exception {
         setCommonProperties(shard, realm);
-        var fileId = fileId(102);
+        var fileId = fileId(systemEntity.addressBookFile102());
         var file = systemFileLoader.load(fileId, getCurrentTimestamp());
         assertFile(file, fileId);
         var nodeAddressBook = NodeAddressBook.PROTOBUF.parse(file.contents());
@@ -106,7 +109,7 @@ class SystemFileLoaderTest {
     @MethodSource("shardAndRealmData")
     void loadFeeSchedule(long shard, long realm) throws Exception {
         setCommonProperties(shard, realm);
-        var fileId = fileId(111);
+        var fileId = fileId(systemEntity.feeScheduleFile());
         var file = systemFileLoader.load(fileId, getCurrentTimestamp());
         assertFile(file, fileId);
         var feeSchedule = CurrentAndNextFeeSchedule.PROTOBUF.parse(file.contents());
@@ -121,7 +124,7 @@ class SystemFileLoaderTest {
     @MethodSource("shardAndRealmData")
     void loadExchangeRate(long shard, long realm) throws Exception {
         setCommonProperties(shard, realm);
-        var fileId = fileId(112);
+        var fileId = fileId(systemEntity.exchangeRateFile());
         var file = systemFileLoader.load(fileId, getCurrentTimestamp());
         assertFile(file, fileId);
         var exchangeRateSet = ExchangeRateSet.PROTOBUF.parse(file.contents());
@@ -133,7 +136,7 @@ class SystemFileLoaderTest {
     @MethodSource("shardAndRealmData")
     void loadNetworkProperties(long shard, long realm) throws Exception {
         setCommonProperties(shard, realm);
-        var fileId = fileId(121);
+        var fileId = fileId(systemEntity.networkPropertyFile());
         var file = systemFileLoader.load(fileId, getCurrentTimestamp());
         assertFile(file, fileId);
         var networkProperties = ServicesConfigurationList.PROTOBUF.parse(file.contents());
@@ -144,7 +147,7 @@ class SystemFileLoaderTest {
     @MethodSource("shardAndRealmData")
     void loadHapiPermissions(long shard, long realm) throws Exception {
         setCommonProperties(shard, realm);
-        var fileId = fileId(122);
+        var fileId = fileId(systemEntity.hapiPermissionFile());
         var file = systemFileLoader.load(fileId, getCurrentTimestamp());
         assertFile(file, fileId);
         var networkProperties = ServicesConfigurationList.PROTOBUF.parse(file.contents());
@@ -155,7 +158,7 @@ class SystemFileLoaderTest {
     @MethodSource("shardAndRealmData")
     void loadThrottleDefinitions(long shard, long realm) throws Exception {
         setCommonProperties(shard, realm);
-        var fileId = fileId(123);
+        var fileId = fileId(systemEntity.throttleDefinitionFile());
         var file = systemFileLoader.load(fileId, getCurrentTimestamp());
         assertFile(file, fileId);
         var throttleDefinitions = ThrottleDefinitions.PROTOBUF.parse(file.contents());
@@ -165,7 +168,7 @@ class SystemFileLoaderTest {
 
     @Test
     void loadThrottlesWithRetryAndCorruptData() {
-        var fileId = fileId(SystemEntity.THROTTLE_DEFINITION.getNum());
+        var fileId = fileId(systemEntity.throttleDefinitionFile());
         var expected = getFile(fileId, fileSchema.genesisThrottleDefinitions(configuration));
         var entityId = toEntityId(fileId).getId();
         assertFile(expected, fileId);
@@ -178,15 +181,16 @@ class SystemFileLoaderTest {
 
         final var actual = systemFileLoader.load(fileId, currentNanos);
 
-        assertThat(actual).isNotNull();
-        assertThat(actual.contents()).isEqualTo(expected.contents());
-        assertThat(actual.fileId()).isEqualTo(fileId);
+        assertThat(actual)
+                .isNotNull()
+                .returns(expected.contents(), File::contents)
+                .returns(fileId, File::fileId);
         verify(fileDataRepository, times(2)).getFileAtTimestamp(eq(entityId), anyLong());
     }
 
     @Test
     void loadThrottlesWithRetryCorruptDataResolveToSystemFile() {
-        var fileId = fileId(SystemEntity.THROTTLE_DEFINITION.getNum());
+        var fileId = fileId(systemEntity.throttleDefinitionFile());
         var expected = getFile(fileId, fileSchema.genesisThrottleDefinitions(configuration));
         var entityId = toEntityId(fileId).getId();
         assertFile(expected, fileId);
@@ -194,15 +198,16 @@ class SystemFileLoaderTest {
 
         final var actual = systemFileLoader.load(fileId, 350L);
 
-        assertThat(actual).isNotNull();
-        assertThat(actual.contents()).isEqualTo(expected.contents());
-        assertThat(actual.fileId()).isEqualTo(fileId);
+        assertThat(actual)
+                .isNotNull()
+                .returns(expected.contents(), File::contents)
+                .returns(fileId, File::fileId);
         verify(fileDataRepository, times(10)).getFileAtTimestamp(eq(entityId), anyLong());
     }
 
     @Test
     void loadThrottlesWithRetrySuccessfully() {
-        var fileId = fileId(SystemEntity.THROTTLE_DEFINITION.getNum());
+        var fileId = fileId(systemEntity.throttleDefinitionFile());
         var expected = getFile(fileId, fileSchema.genesisThrottleDefinitions(configuration));
         var entityId = toEntityId(fileId).getId();
         assertFile(expected, fileId);
@@ -213,15 +218,16 @@ class SystemFileLoaderTest {
 
         final var actual = systemFileLoader.load(fileId, 250L);
 
-        assertThat(actual).isNotNull();
-        assertThat(actual.contents()).isEqualTo(expected.contents());
-        assertThat(actual.fileId()).isEqualTo(fileId);
+        assertThat(actual)
+                .isNotNull()
+                .returns(expected.contents(), File::contents)
+                .returns(fileId, File::fileId);
         verify(fileDataRepository, times(1)).getFileAtTimestamp(eq(entityId), anyLong());
     }
 
     @Test
     void loadFeesWithRetrySuccessfully() {
-        var fileId = fileId(SystemEntity.FEE_SCHEDULE.getNum());
+        var fileId = fileId(systemEntity.feeScheduleFile());
         var expected = getFile(fileId, fileSchema.genesisFeeSchedules(configuration));
         var entityId = toEntityId(fileId).getId();
         assertFile(expected, fileId);
@@ -232,9 +238,10 @@ class SystemFileLoaderTest {
 
         final var actual = systemFileLoader.load(fileId, 250L);
 
-        assertThat(actual).isNotNull();
-        assertThat(actual.contents()).isEqualTo(expected.contents());
-        assertThat(actual.fileId()).isEqualTo(fileId);
+        assertThat(actual)
+                .isNotNull()
+                .returns(expected.contents(), File::contents)
+                .returns(fileId, File::fileId);
         verify(fileDataRepository, times(1)).getFileAtTimestamp(eq(entityId), anyLong());
     }
 
@@ -254,7 +261,7 @@ class SystemFileLoaderTest {
 
     @Test
     void loadThrottlesWithRetryNoData() {
-        var fileId = fileId(SystemEntity.THROTTLE_DEFINITION.getNum());
+        var fileId = fileId(systemEntity.throttleDefinitionFile());
         var expected = getFile(fileId, fileSchema.genesisThrottleDefinitions(configuration));
         var entityId = toEntityId(fileId).getId();
         assertFile(expected, fileId);
@@ -262,15 +269,16 @@ class SystemFileLoaderTest {
 
         final var actual = systemFileLoader.load(fileId, 100L);
 
-        assertThat(actual).isNotNull();
-        assertThat(actual.contents()).isEqualTo(expected.contents());
-        assertThat(actual.fileId()).isEqualTo(fileId);
+        assertThat(actual)
+                .isNotNull()
+                .returns(expected.contents(), File::contents)
+                .returns(fileId, File::fileId);
         verify(fileDataRepository, times(1)).getFileAtTimestamp(eq(entityId), anyLong());
     }
 
     @Test
     void loadThrottlesWithRetryAllRetriesFailing() {
-        var fileId = fileId(SystemEntity.THROTTLE_DEFINITION.getNum());
+        var fileId = fileId(systemEntity.throttleDefinitionFile());
         var expected = getFile(fileId, fileSchema.genesisThrottleDefinitions(configuration));
         var entityId = toEntityId(fileId).getId();
         assertFile(expected, fileId);
@@ -278,9 +286,10 @@ class SystemFileLoaderTest {
 
         final var actual = systemFileLoader.load(fileId, 350L);
 
-        assertThat(actual).isNotNull();
-        assertThat(actual.contents()).isEqualTo(expected.contents());
-        assertThat(actual.fileId()).isEqualTo(fileId);
+        assertThat(actual)
+                .isNotNull()
+                .returns(expected.contents(), File::contents)
+                .returns(fileId, File::fileId);
         verify(fileDataRepository, times(10)).getFileAtTimestamp(eq(entityId), anyLong());
     }
 
@@ -301,6 +310,14 @@ class SystemFileLoaderTest {
     })
     void isSystemFileCheck(long fileNum, boolean expectedResult) {
         assertThat(systemFileLoader.isSystemFile(fileId(fileNum))).isEqualTo(expectedResult);
+    }
+
+    private FileID fileId(EntityId fileId) {
+        return FileID.newBuilder()
+                .shardNum(fileId.getShard())
+                .realmNum(fileId.getRealm())
+                .fileNum(fileId.getNum())
+                .build();
     }
 
     private FileID fileId(long fileNum) {

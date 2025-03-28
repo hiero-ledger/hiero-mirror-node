@@ -9,9 +9,6 @@ import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCal
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
@@ -29,8 +26,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 @RequiredArgsConstructor
 class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
 
-    private final RatesAndFeesLoader subject;
-
     private static final ExchangeRateSet exchangeRatesSet = ExchangeRateSet.newBuilder()
             .setCurrentRate(ExchangeRate.newBuilder()
                     .setCentEquiv(1)
@@ -43,7 +38,6 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
                     .setExpirationTime(TimestampSeconds.newBuilder().setSeconds(2_234_567_890L))
                     .build())
             .build();
-
     private static final ExchangeRateSet exchangeRatesSet2 = ExchangeRateSet.newBuilder()
             .setCurrentRate(ExchangeRate.newBuilder()
                     .setCentEquiv(3)
@@ -56,7 +50,6 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
                     .setExpirationTime(TimestampSeconds.newBuilder().setSeconds(2_234_567_893L))
                     .build())
             .build();
-
     private static final CurrentAndNextFeeSchedule feeSchedules = CurrentAndNextFeeSchedule.newBuilder()
             .setCurrentFeeSchedule(FeeSchedule.newBuilder()
                     .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(200L))
@@ -69,7 +62,6 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
                             .setHederaFunctionality(ContractCall)
                             .addFees(FeeData.newBuilder().build())))
             .build();
-
     private static final CurrentAndNextFeeSchedule feeSchedules2 = CurrentAndNextFeeSchedule.newBuilder()
             .setCurrentFeeSchedule(FeeSchedule.newBuilder()
                     .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(300L))
@@ -83,11 +75,7 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
                             .addFees(FeeData.newBuilder().build())))
             .build();
 
-    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
-    private static final EntityId FEE_SCHEDULE_ENTITY_ID =
-            SystemEntity.FEE_SCHEDULE.getScopedEntityId(COMMON_PROPERTIES);
-    private static final EntityId EXCHANGE_RATE_ENTITY_ID =
-            SystemEntity.EXCHANGE_RATE.getScopedEntityId(COMMON_PROPERTIES);
+    private final RatesAndFeesLoader subject;
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
@@ -100,21 +88,21 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
                 .fileData()
                 .customize(f -> f.transactionType(FILECREATE.getProtoId())
                         .fileData(exchangeSetPart1)
-                        .entityId(EXCHANGE_RATE_ENTITY_ID)
+                        .entityId(systemEntity.exchangeRateFile())
                         .consensusTimestamp(200L))
                 .persist();
         domainBuilder
                 .fileData()
                 .customize(f -> f.transactionType(FILEAPPEND.getProtoId())
                         .fileData(exchangeSetPart2)
-                        .entityId(EXCHANGE_RATE_ENTITY_ID)
+                        .entityId(systemEntity.exchangeRateFile())
                         .consensusTimestamp(205L))
                 .persist();
         domainBuilder
                 .fileData()
                 .customize(f -> f.transactionType(FILEAPPEND.getProtoId())
                         .fileData(exchangeSetPart3)
-                        .entityId(EXCHANGE_RATE_ENTITY_ID)
+                        .entityId(systemEntity.exchangeRateFile())
                         .consensusTimestamp(210L))
                 .persist();
 
@@ -126,14 +114,14 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
                 .fileData()
                 .customize(f -> f.transactionType(FILEUPDATE.getProtoId())
                         .fileData(exchangeSet2Part1)
-                        .entityId(EXCHANGE_RATE_ENTITY_ID)
+                        .entityId(systemEntity.exchangeRateFile())
                         .consensusTimestamp(300L))
                 .persist();
         domainBuilder
                 .fileData()
                 .customize(f -> f.transactionType(FILEAPPEND.getProtoId())
                         .fileData(exchangeSet2Part2)
-                        .entityId(EXCHANGE_RATE_ENTITY_ID)
+                        .entityId(systemEntity.exchangeRateFile())
                         .consensusTimestamp(305L))
                 .persist();
 
@@ -142,7 +130,7 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
                 .fileData()
                 .customize(f -> f.transactionType(FILEAPPEND.getProtoId())
                         .fileData(fileData)
-                        .entityId(EXCHANGE_RATE_ENTITY_ID)
+                        .entityId(systemEntity.exchangeRateFile())
                         .consensusTimestamp(310L))
                 .persist();
 
@@ -162,21 +150,21 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
                 .fileData()
                 .customize(f -> f.transactionType(FILEUPDATE.getProtoId())
                         .fileData(feeSchedulesPart1)
-                        .entityId(FEE_SCHEDULE_ENTITY_ID)
+                        .entityId(systemEntity.feeScheduleFile())
                         .consensusTimestamp(200L))
                 .persist();
         domainBuilder
                 .fileData()
                 .customize(f -> f.transactionType(FILEAPPEND.getProtoId())
                         .fileData(feeSchedulesPart2)
-                        .entityId(FEE_SCHEDULE_ENTITY_ID)
+                        .entityId(systemEntity.feeScheduleFile())
                         .consensusTimestamp(205L))
                 .persist();
         domainBuilder
                 .fileData()
                 .customize(f -> f.transactionType(FILEAPPEND.getProtoId())
                         .fileData(feeSchedulesPart3)
-                        .entityId(FEE_SCHEDULE_ENTITY_ID)
+                        .entityId(systemEntity.feeScheduleFile())
                         .consensusTimestamp(210L))
                 .persist();
 
@@ -188,14 +176,14 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
                 .fileData()
                 .customize(f -> f.transactionType(FILEUPDATE.getProtoId())
                         .fileData(feeSchedules2Part1)
-                        .entityId(FEE_SCHEDULE_ENTITY_ID)
+                        .entityId(systemEntity.feeScheduleFile())
                         .consensusTimestamp(300L))
                 .persist();
         domainBuilder
                 .fileData()
                 .customize(f -> f.transactionType(FILEAPPEND.getProtoId())
                         .fileData(feeSchedules2Part2)
-                        .entityId(FEE_SCHEDULE_ENTITY_ID)
+                        .entityId(systemEntity.feeScheduleFile())
                         .consensusTimestamp(305L))
                 .persist();
 
@@ -204,7 +192,7 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
                 .fileData()
                 .customize(f -> f.transactionType(FILEAPPEND.getProtoId())
                         .fileData(fileData)
-                        .entityId(FEE_SCHEDULE_ENTITY_ID)
+                        .entityId(systemEntity.feeScheduleFile())
                         .consensusTimestamp(310L))
                 .persist();
 
@@ -221,7 +209,7 @@ class RatesAndFeesLoaderIntegrationTest extends Web3IntegrationTest {
                     .fileData()
                     .customize(f -> f.transactionType(FILECREATE.getProtoId())
                             .fileData("corrupt".getBytes())
-                            .entityId(FEE_SCHEDULE_ENTITY_ID)
+                            .entityId(systemEntity.feeScheduleFile())
                             .consensusTimestamp(timestamp))
                     .persist();
         }

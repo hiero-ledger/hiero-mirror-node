@@ -15,6 +15,7 @@ import com.hedera.hapi.node.state.common.EntityIDPair;
 import com.hedera.hapi.node.state.token.TokenRelation;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.token.TokenAccount;
 import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
 import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
@@ -35,6 +36,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mock.Strictness;
 import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -50,9 +52,6 @@ class TokenRelationshipReadableKVStateTest {
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final long ACCOUNT_BALANCE = 3L;
     private static MockedStatic<ContractCallContext> contextMockedStatic;
-
-    @Mock
-    private CommonProperties commonProperties;
 
     @InjectMocks
     private TokenRelationshipReadableKVState tokenRelationshipReadableKVState;
@@ -72,6 +71,9 @@ class TokenRelationshipReadableKVStateTest {
     @Spy
     private ContractCallContext contractCallContext;
 
+    @Mock(strictness = Strictness.LENIENT)
+    private SystemEntity systemEntity;
+
     private DomainBuilder domainBuilder;
 
     private TokenAccount tokenAccount;
@@ -90,6 +92,8 @@ class TokenRelationshipReadableKVStateTest {
     void setup() {
         domainBuilder = new DomainBuilder();
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
+        when(this.systemEntity.treasuryAccount())
+                .thenReturn(new SystemEntity(CommonProperties.getInstance()).treasuryAccount());
     }
 
     @Test

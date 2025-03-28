@@ -14,8 +14,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.importer.parser.record.entity.EntityProperties;
 import com.hedera.mirror.importer.repository.EntityStakeRepository;
 import java.util.Optional;
@@ -42,19 +41,20 @@ class EntityStakeCalculatorImplTest {
     @Mock(strictness = LENIENT)
     private EntityStakeRepository entityStakeRepository;
 
+    private SystemEntity systemEntity;
+
     private EntityStakeCalculatorImpl entityStakeCalculator;
 
     private long stakingRewardAccountId;
 
     @BeforeEach
     void setup() {
-        entityProperties = new EntityProperties(COMMON_PROPERTIES);
+        systemEntity = new SystemEntity(COMMON_PROPERTIES);
+        entityProperties = new EntityProperties(systemEntity);
         entityStakeCalculator = new EntityStakeCalculatorImpl(
-                entityProperties, entityStakeRepository, TransactionOperations.withoutTransaction(), COMMON_PROPERTIES);
+                entityProperties, entityStakeRepository, TransactionOperations.withoutTransaction(), systemEntity);
 
-        stakingRewardAccountId = SystemEntity.STAKING_REWARD_ACCOUNT
-                .getScopedEntityId(COMMON_PROPERTIES)
-                .getId();
+        stakingRewardAccountId = systemEntity.stakingRewardAccount().getId();
         when(entityStakeRepository.updated(anyLong())).thenReturn(false, true);
         when(entityStakeRepository.getEndStakePeriod(anyLong()))
                 .thenReturn(Optional.of(100L))
@@ -75,9 +75,7 @@ class EntityStakeCalculatorImplTest {
     void calculate(Long endStakePeriodBefore, Long endStakePeriodAfter, long shard, long realm) {
         COMMON_PROPERTIES.setShard(shard);
         COMMON_PROPERTIES.setRealm(realm);
-
-        stakingRewardAccountId =
-                EntityId.of(shard, realm, stakingRewardAccountId).getId();
+        stakingRewardAccountId = systemEntity.stakingRewardAccount().getId();
 
         when(entityStakeRepository.getEndStakePeriod(stakingRewardAccountId))
                 .thenReturn(Optional.ofNullable(endStakePeriodBefore))

@@ -86,10 +86,10 @@ class MissingAddressBooksMigrationTest extends ImporterIntegrationTest {
     @Transactional
     void verifyAddressBookMigrationWithNewFileDataAfterCurrentAddressBook() {
         // store initial address books
-        addressBookRepository.save(addressBook(ab -> ab.fileId(systemEntities.addressBookFile101()), 1, 4));
-        addressBookRepository.save(addressBook(ab -> ab.fileId(systemEntities.addressBookFile102()), 2, 4));
-        addressBookRepository.save(addressBook(ab -> ab.fileId(systemEntities.addressBookFile101()), 11, 8));
-        addressBookRepository.save(addressBook(ab -> ab.fileId(systemEntities.addressBookFile102()), 12, 8));
+        addressBookRepository.save(addressBook(ab -> ab.fileId(systemEntity.addressBookFile101()), 1, 4));
+        addressBookRepository.save(addressBook(ab -> ab.fileId(systemEntity.addressBookFile102()), 2, 4));
+        addressBookRepository.save(addressBook(ab -> ab.fileId(systemEntity.addressBookFile101()), 11, 8));
+        addressBookRepository.save(addressBook(ab -> ab.fileId(systemEntity.addressBookFile102()), 12, 8));
         assertEquals(4, addressBookRepository.count());
 
         // un-parsed file_data
@@ -114,7 +114,7 @@ class MissingAddressBooksMigrationTest extends ImporterIntegrationTest {
         missingAddressBooksMigration.doMigrate();
         assertEquals(6, addressBookRepository.count());
         AddressBook newAddressBook = addressBookRepository
-                .findLatest(205, systemEntities.addressBookFile102().getId())
+                .findLatest(205, systemEntity.addressBookFile102().getId())
                 .get();
         assertThat(newAddressBook.getStartConsensusTimestamp()).isEqualTo(203L);
         assertAddressBook(newAddressBook, FINAL);
@@ -154,7 +154,7 @@ class MissingAddressBooksMigrationTest extends ImporterIntegrationTest {
                 .startConsensusTimestamp(startConsensusTimestamp)
                 .fileData("address book memo".getBytes())
                 .nodeCount(nodeCount)
-                .fileId(systemEntities.addressBookFile102())
+                .fileId(systemEntity.addressBookFile102())
                 .entries(addressBookEntryList);
 
         if (addressBookCustomizer != null) {
@@ -185,7 +185,7 @@ class MissingAddressBooksMigrationTest extends ImporterIntegrationTest {
 
     private FileData createAndStoreFileData(
             byte[] contents, long consensusTimeStamp, boolean is102, TransactionType transactionType) {
-        EntityId entityId = is102 ? systemEntities.addressBookFile102() : systemEntities.addressBookFile101();
+        EntityId entityId = is102 ? systemEntity.addressBookFile102() : systemEntity.addressBookFile101();
         FileData fileData = new FileData(consensusTimeStamp, contents, entityId, transactionType.getProtoId());
         return fileDataRepository.save(fileData);
     }

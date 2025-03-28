@@ -6,7 +6,7 @@ import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_ADDRESS
 import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.SystemEntities;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import com.hedera.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -69,7 +69,7 @@ public class AddressBookServiceImpl implements AddressBookService {
     private final FileDataRepository fileDataRepository;
     private final ImporterProperties importerProperties;
     private final NodeStakeRepository nodeStakeRepository;
-    private final SystemEntities systemEntities;
+    private final SystemEntity systemEntity;
     private final TransactionTemplate transactionTemplate;
 
     @Override
@@ -109,7 +109,7 @@ public class AddressBookServiceImpl implements AddressBookService {
     @Override
     public AddressBook getCurrent() {
         long consensusTimestamp = DomainUtils.convertToNanosMax(Instant.now());
-        long fileId = systemEntities.addressBookFile102().getId();
+        long fileId = systemEntity.addressBookFile102().getId();
 
         // retrieve latest address book. If address_book is empty parse initial and historic address book files
         return addressBookRepository.findLatest(consensusTimestamp, fileId).orElseGet(this::migrate);
@@ -181,8 +181,8 @@ public class AddressBookServiceImpl implements AddressBookService {
      */
     @Override
     public boolean isAddressBook(EntityId entityId) {
-        return systemEntities.addressBookFile101().equals(entityId)
-                || systemEntities.addressBookFile102().equals(entityId);
+        return systemEntity.addressBookFile101().equals(entityId)
+                || systemEntity.addressBookFile102().equals(entityId);
     }
 
     /**
@@ -232,7 +232,7 @@ public class AddressBookServiceImpl implements AddressBookService {
     @Override
     public synchronized AddressBook migrate() {
         long consensusTimestamp = DomainUtils.convertToNanosMax(Instant.now());
-        long fileId = systemEntities.addressBookFile102().getId();
+        long fileId = systemEntity.addressBookFile102().getId();
         var currentAddressBook =
                 addressBookRepository.findLatest(consensusTimestamp, fileId).orElse(null);
 
@@ -550,7 +550,7 @@ public class AddressBookServiceImpl implements AddressBookService {
         }
 
         return new FileData(
-                0L, addressBookBytes, systemEntities.addressBookFile102(), TransactionType.FILECREATE.getProtoId());
+                0L, addressBookBytes, systemEntity.addressBookFile102(), TransactionType.FILECREATE.getProtoId());
     }
 
     /**
