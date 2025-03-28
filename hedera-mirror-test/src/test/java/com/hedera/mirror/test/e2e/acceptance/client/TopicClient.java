@@ -124,13 +124,14 @@ public class TopicClient extends AbstractNetworkClient {
         return response;
     }
 
-    public NetworkTransactionResponse publishMessageToTopicWithFixedFee(TopicId topicId, String message, KeyList submitKeys, ExpandedAccountId payer, CustomFeeLimit feeLimit){
+    public NetworkTransactionResponse publishMessageToTopicWithFixedFee(
+            TopicId topicId, String message, KeyList submitKeys, ExpandedAccountId payer, CustomFeeLimit feeLimit) {
         TopicMessageSubmitTransaction consensusMessageSubmitTransaction = new TopicMessageSubmitTransaction()
                 .setTopicId(topicId)
                 .setMessage(message)
                 .setTransactionMemo(getMemo("Publish topic message"));
-        if(feeLimit != null){
-                consensusMessageSubmitTransaction.addCustomFeeLimit(feeLimit);
+        if (feeLimit != null) {
+            consensusMessageSubmitTransaction.addCustomFeeLimit(feeLimit);
         }
 
         return payer == null

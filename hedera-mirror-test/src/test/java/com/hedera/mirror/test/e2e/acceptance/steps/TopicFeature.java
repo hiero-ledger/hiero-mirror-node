@@ -102,7 +102,8 @@ public class TopicFeature extends AbstractFeature {
         privateKey = PrivateKey.generateED25519();
     }
 
-    @Given("I successfully create a new topic with fixed HTS and HBAR fee. {account} is collector and {account} is exempt")
+    @Given(
+            "I successfully create a new topic with fixed HTS and HBAR fee. {account} is collector and {account} is exempt")
     public void createNewTopicWithFixedHTSFee(AccountNameEnum collectorAccountName, AccountNameEnum exemptAccountName) {
         var collectorAccount = accountClient.getAccount(collectorAccountName);
         var exemptAccount = accountClient.getAccount(exemptAccountName);
@@ -128,7 +129,7 @@ public class TopicFeature extends AbstractFeature {
         // Add account to exempt list
         List<Key> listOfExemptKeys = new ArrayList<>();
         listOfExemptKeys.add(exemptAccount.getPublicKey());
-       //Create Topic with custom fixed fees
+        // Create Topic with custom fixed fees
         networkTransactionResponse = topicClient.createTopicWithCustomFees(
                 topicClient.getSdkClient().getExpandedOperatorAccountId(),
                 submitPublicKey,
@@ -144,15 +145,12 @@ public class TopicFeature extends AbstractFeature {
         assertThat(submitPublicKey.toString())
                 .contains(getTopicResponse.getFeeScheduleKey().getKey());
         assertThat(listOfExemptKeys.getFirst().toString())
-                .contains(getTopicResponse
-                        .getFeeExemptKeyList()
-                        .getFirst()
-                        .getKey());
+                .contains(getTopicResponse.getFeeExemptKeyList().getFirst().getKey());
 
-        //Assert fixed fees
-        assertThat(mirrorClient.getTopic(topicId.toString()).getCustomFees().getFixedFees()).hasSize(2);
-        var fixedFeesResponse =
-                getTopicResponse.getCustomFees().getFixedFees();
+        // Assert fixed fees
+        assertThat(mirrorClient.getTopic(topicId.toString()).getCustomFees().getFixedFees())
+                .hasSize(2);
+        var fixedFeesResponse = getTopicResponse.getCustomFees().getFixedFees();
         assertThat(fixedFeesResponse).isNotNull();
         fixedFeesResponse.stream()
                 .peek(fee -> {
@@ -161,8 +159,7 @@ public class TopicFeature extends AbstractFeature {
                             .isEqualTo(collectorAccount.getAccountId().toString());
                 })
                 .filter(fee -> fee.getDenominatingTokenId() != null)
-                .forEach(fee -> assertThat(fee.getDenominatingTokenId())
-                        .isEqualTo(fungibleToken.toString()));
+                .forEach(fee -> assertThat(fee.getDenominatingTokenId()).isEqualTo(fungibleToken.toString()));
 
         assertNotNull(topicId);
         consensusTopicId = topicId;
@@ -347,13 +344,14 @@ public class TopicFeature extends AbstractFeature {
             maxAttemptsExpression = "#{@acceptanceTestProperties.maxRetries}")
     public void publishAndVerifyTopicMessages(int messageCount) {
         messageSubscribeCount = messageCount;
-        publishedTransactionReceipts = topicClient.publishMessagesToTopic(
-                consensusTopicId, "New message", getKeys(), messageCount, true);
+        publishedTransactionReceipts =
+                topicClient.publishMessagesToTopic(consensusTopicId, "New message", getKeys(), messageCount, true);
         assertEquals(messageCount, publishedTransactionReceipts.size());
     }
 
     @Then("I associate {account} as payer, {account} as collector and {account} as exempt with fungible token")
-    public void associateAccountsAndTransferFunds(AccountNameEnum payerAccountName, AccountNameEnum collectorAccountName, AccountNameEnum exemptAccountName) {
+    public void associateAccountsAndTransferFunds(
+            AccountNameEnum payerAccountName, AccountNameEnum collectorAccountName, AccountNameEnum exemptAccountName) {
         var payerAccount = accountClient.getAccount(payerAccountName);
         var collectorAccount = accountClient.getAccount(collectorAccountName);
         var exemptAccount = accountClient.getAccount(exemptAccountName);
@@ -366,7 +364,7 @@ public class TopicFeature extends AbstractFeature {
 
         networkTransactionResponse = tokenClient.associate(exemptAccount, fungibleToken);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
-        //Transfer funds to payer account
+        // Transfer funds to payer account
         networkTransactionResponse = tokenClient.transferFungibleToken(
                 fungibleToken,
                 sdkClient.getExpandedOperatorAccountId(),
@@ -376,7 +374,7 @@ public class TopicFeature extends AbstractFeature {
         verifyMirrorTransactionsResponse(mirrorClient, 200);
         assertNotNull(networkTransactionResponse.getTransactionId());
         assertNotNull(networkTransactionResponse.getReceipt());
-        //Transfer funds to exempt account
+        // Transfer funds to exempt account
         networkTransactionResponse = tokenClient.transferFungibleToken(
                 fungibleToken,
                 sdkClient.getExpandedOperatorAccountId(),
@@ -388,12 +386,14 @@ public class TopicFeature extends AbstractFeature {
         assertNotNull(networkTransactionResponse.getReceipt());
     }
 
-    @When("{account} is exempt - {string}, publishes message to topic with fixed fee. {account} is a fixed fees collector")
+    @When(
+            "{account} is exempt - {string}, publishes message to topic with fixed fee. {account} is a fixed fees collector")
     @Retryable(
             retryFor = {AssertionError.class, PrecheckStatusException.class, ReceiptStatusException.class},
             backoff = @Backoff(delayExpression = "#{@acceptanceTestProperties.backOffPeriod.toMillis()}"),
             maxAttemptsExpression = "#{@acceptanceTestProperties.maxRetries}")
-    public void submitTopicMessage(AccountNameEnum payerAccountName, String isExempt, AccountNameEnum colleectorAccountName) {
+    public void submitTopicMessage(
+            AccountNameEnum payerAccountName, String isExempt, AccountNameEnum colleectorAccountName) {
         var payerAccount = accountClient.getAccount(payerAccountName);
         var collectorAccount = accountClient.getAccount(colleectorAccountName);
 
@@ -419,9 +419,13 @@ public class TopicFeature extends AbstractFeature {
         networkTransactionResponse = topicClient.publishMessageToTopicWithFixedFee(
                 consensusTopicId, TOPIC_MESSAGE, getKeys(), payerAccount, customFeeLimit);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
-        //Verify max custom fees
+        // Verify max custom fees
         var transactionId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
-        var getTransactionResponse = mirrorClient.getTransactions(transactionId).getTransactions().getFirst().getMaxCustomFees();
+        var getTransactionResponse = mirrorClient
+                .getTransactions(transactionId)
+                .getTransactions()
+                .getFirst()
+                .getMaxCustomFees();
         getTransactionResponse.stream()
                 .peek(fee -> {
                     assertThat(fee.getAmount()).isEqualTo(FIXED_FEE_AMOUNT + 1);
@@ -429,14 +433,13 @@ public class TopicFeature extends AbstractFeature {
                             .isEqualTo(payerAccount.getAccountId().toString());
                 })
                 .filter(fee -> fee.getDenominatingTokenId() != null)
-                .forEach(fee -> assertThat(fee.getDenominatingTokenId())
-                        .isEqualTo(fungibleToken.toString()));
+                .forEach(fee -> assertThat(fee.getDenominatingTokenId()).isEqualTo(fungibleToken.toString()));
 
         var payerAccountHTSBalance = getTokenBalance(payerAccount.getAccountId(), fungibleToken);
         var collectorAccountHTSBalance = getTokenBalance(collectorAccount.getAccountId(), fungibleToken);
         var collectorAccountHBARBalance = accountClient.getBalance(collectorAccount);
 
-        if(Boolean.parseBoolean(isExempt)) {
+        if (Boolean.parseBoolean(isExempt)) {
             assertThat(payerAccountHTSBalance).isEqualTo(payerAccountInitialHTSBalance);
             assertThat(collectorAccountHTSBalance).isEqualTo(collectorAccountInitialHTSBalance);
             assertThat(collectorAccountHBARBalance).isEqualTo(collectorAccountInitialHBARBalance);
@@ -448,24 +451,25 @@ public class TopicFeature extends AbstractFeature {
     }
 
     @Then("I verify the published message from {account} in mirror node REST API")
-    public void verifyTopicMessage(AccountNameEnum accountName){
+    public void verifyTopicMessage(AccountNameEnum accountName) {
         var payerAccount = accountClient.getAccount(accountName);
-        var getTopicMessageResponse = mirrorClient.getTopicMessage(consensusTopicId.toString()).getMessages();
+        var getTopicMessageResponse =
+                mirrorClient.getTopicMessage(consensusTopicId.toString()).getMessages();
         assertThat(getTopicMessageResponse).isNotNull();
-        String base64EncodedMessage = Base64.getEncoder().encodeToString(TOPIC_MESSAGE.getBytes(StandardCharsets.UTF_8));
-        //Filter the messages that were published by the payer account
+        String base64EncodedMessage =
+                Base64.getEncoder().encodeToString(TOPIC_MESSAGE.getBytes(StandardCharsets.UTF_8));
+        // Filter the messages that were published by the payer account
         var topicMessage = getTopicMessageResponse.stream()
                 .filter(message -> {
                     assert message.getPayerAccountId() != null;
-                    return message.getPayerAccountId().equals(payerAccount.getAccountId().toString());
+                    return message.getPayerAccountId()
+                            .equals(payerAccount.getAccountId().toString());
                 })
                 .findFirst();
-        //Verify the message
-        assertThat(topicMessage)
-                .isPresent()
-                .hasValueSatisfying(message -> {
-                    assertThat(message.getMessage()).isEqualTo(base64EncodedMessage);
-                });
+        // Verify the message
+        assertThat(topicMessage).isPresent().hasValueSatisfying(message -> {
+            assertThat(message.getMessage()).isEqualTo(base64EncodedMessage);
+        });
     }
 
     @Then("I unsubscribe from a topic")
@@ -554,9 +558,7 @@ public class TopicFeature extends AbstractFeature {
                     () -> {
                         try {
                             topicClient.publishMessageToTopic(
-                                    consensusTopicId,
-                                    "backgroundMessage".getBytes(StandardCharsets.UTF_8),
-                                    getKeys());
+                                    consensusTopicId, "backgroundMessage".getBytes(StandardCharsets.UTF_8), getKeys());
                         } catch (Exception e) {
                             log.error("Error publishing to topic", e);
                         }
