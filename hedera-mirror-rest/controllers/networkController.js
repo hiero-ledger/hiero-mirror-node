@@ -44,7 +44,7 @@ class NetworkController extends BaseController {
   extractNetworkNodesQuery = (filters) => {
     let limit = networkNodesDefaultSize;
     let order = orderFilterValues.ASC;
-    let fileId = EntityId.addressBookFile102.getEncodedId(); // default fileId for mirror node
+    let fileId = EntityId.systemEntity.addressBookFile102.getEncodedId(); // default fileId for mirror node
     const startPosition = 2; // 1st index is reserved for fileId
     const conditions = [];
     const params = [];

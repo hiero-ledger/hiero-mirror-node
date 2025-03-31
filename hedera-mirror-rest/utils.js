@@ -197,10 +197,6 @@ const isValidSlot = (slot) => slotPattern.test(slot);
 
 const isValidValueIgnoreCase = (value, validValues) => validValues.includes(value.toLowerCase());
 
-const isValidAddressBookFileIdPattern = (fileId) => {
-  return EntityId.validAddressBookFileIds.includes(EntityId.parseString(fileId)?.getEncodedId());
-};
-
 const lowerCaseQueryValue = (queryValue) => (typeof queryValue === 'string' ? queryValue.toLowerCase() : queryValue);
 
 /**
@@ -288,7 +284,7 @@ const filterValidityChecks = (param, op, val) => {
       ret = isValidPublicKeyQuery(val);
       break;
     case constants.filterKeys.FILE_ID:
-      ret = op === constants.queryParamOperators.eq && EntityId.isValidAddressBookFileId(val);
+      ret = op === constants.queryParamOperators.eq && EntityId.systemEntity.isValidAddressBookFileId(val);
       break;
     case constants.filterKeys.FROM:
       ret = EntityId.isValidEntityId(val, true, constants.EvmAddressType.NO_SHARD_REALM);

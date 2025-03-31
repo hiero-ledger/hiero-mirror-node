@@ -84,29 +84,29 @@ describe('balances', () => {
   });
 });
 
-describe('EntityId System Entities', () => {
+describe('System Entities', () => {
   test('addressBookFile101', () => {
-    expect(EntityId.addressBookFile101.toString()).toEqual('1.2.101');
+    expect(EntityId.systemEntity.addressBookFile101.toString()).toEqual('1.2.101');
   });
 
   test('addressBookFile102', () => {
-    expect(EntityId.addressBookFile102.toString()).toEqual('1.2.102');
+    expect(EntityId.systemEntity.addressBookFile102.toString()).toEqual('1.2.102');
   });
 
   test('exchangeRateFile', () => {
-    expect(EntityId.exchangeRateFile.toString()).toEqual('1.2.112');
+    expect(EntityId.systemEntity.exchangeRateFile.toString()).toEqual('1.2.112');
   });
 
   test('feeScheduleFile', () => {
-    expect(EntityId.feeScheduleFile.toString()).toEqual('1.2.111');
+    expect(EntityId.systemEntity.feeScheduleFile.toString()).toEqual('1.2.111');
   });
 
   test('stakingRewardAccount', () => {
-    expect(EntityId.stakingRewardAccount.toString()).toEqual('1.2.800');
+    expect(EntityId.systemEntity.stakingRewardAccount.toString()).toEqual('1.2.800');
   });
 
   test('treasuryAccount', () => {
-    expect(EntityId.treasuryAccount.toString()).toEqual('1.2.2');
+    expect(EntityId.systemEntity.treasuryAccount.toString()).toEqual('1.2.2');
   });
 
   test('unreleasedSupplyAccounts', () => {
@@ -117,7 +117,7 @@ describe('EntityId System Entities', () => {
       };
     });
     expect(
-      EntityId.unreleasedSupplyAccounts.map((item) => {
+      EntityId.systemEntity.unreleasedSupplyAccounts.map((item) => {
         return {
           from: item.from.toString(),
           to: item.to.toString(),

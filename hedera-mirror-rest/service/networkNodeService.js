@@ -93,7 +93,7 @@ class NetworkNodeService extends BaseService {
             (select max(${NetworkStake.CONSENSUS_TIMESTAMP}) from ${NetworkStake.tableName})`;
 
   static unreleasedSupplyAccounts = (column) =>
-    EntityId.unreleasedSupplyAccounts
+    EntityId.systemEntity.unreleasedSupplyAccounts
       .map((range) => {
         const from = range.from.getEncodedId();
         const to = range.to.getEncodedId();

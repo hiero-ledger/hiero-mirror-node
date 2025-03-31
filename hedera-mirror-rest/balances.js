@@ -173,7 +173,7 @@ const getAccountBalanceTimestampRange = async (tsQuery, tsParams) => {
   // Add the treasury account to the query as it will always be in the balance snapshot and account_id is the first
   // column of the primary key
   let condition = 'account_id = $1 and consensus_timestamp >= $2 and consensus_timestamp <= $3';
-  const params = [EntityId.treasuryAccount.getEncodedId(), lowerBound, upperBound];
+  const params = [EntityId.systemEntity.treasuryAccount.getEncodedId(), lowerBound, upperBound];
   if (neParams.length) {
     condition += ' and not consensus_timestamp = any ($4)';
     params.push(neParams);

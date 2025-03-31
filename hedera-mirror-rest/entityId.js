@@ -265,9 +265,9 @@ const parseFromString = (id, error) => {
   return [shard, realm, BigInt(numOrEvmAddress), null];
 };
 
-const parseString = (id) => {
+const parseString = (id, options) => {
   const pieces = piecesFromString(id);
-  return pieces && parse(pieces.filter((item) => item !== null).join('.'));
+  return pieces && parse(pieces.filter((item) => item !== null).join('.'), options);
 };
 
 const piecesFromString = (id) => {
@@ -359,38 +359,59 @@ const parse = (id, {allowEvmAddress, evmAddressType, isNullable, paramName} = {}
   return checkNullId(id, isNullable) || parseCached(`${id}`, allowEvmAddress, evmAddressType, error);
 };
 
-/**
- * System Entities
- * */
-const addressBookFile101 = of(systemShard, systemRealm, 101);
-const addressBookFile102 = of(systemShard, systemRealm, 102);
-const exchangeRateFile = of(systemShard, systemRealm, 112);
-const feeScheduleFile = of(systemShard, systemRealm, 111);
-const stakingRewardAccount = of(systemShard, systemRealm, 800);
-const treasuryAccount = of(systemShard, systemRealm, 2);
-const unreleasedSupplyAccounts = config.network.unreleasedSupplyAccounts.map((range) => {
-  const from = of(systemShard, systemRealm, range.from);
-  const to = of(systemShard, systemRealm, range.to);
-  return {from, to};
-});
-const validAddressBookFileIds = [addressBookFile101.getEncodedId(), addressBookFile102.getEncodedId()];
-const isValidAddressBookFileId = (fileId) => {
-  return isValidEntityId(fileId) && validAddressBookFileIds.includes(parseString(fileId)?.getEncodedId());
-};
+class SystemEntity {
+  #addressBookFile101 = of(systemShard, systemRealm, 101);
+  #addressBookFile102 = of(systemShard, systemRealm, 102);
+  #exchangeRateFile = of(systemShard, systemRealm, 112);
+  #feeScheduleFile = of(systemShard, systemRealm, 111);
+  #stakingRewardAccount = of(systemShard, systemRealm, 800);
+  #treasuryAccount = of(systemShard, systemRealm, 2);
+  unreleasedSupplyAccounts = config.network.unreleasedSupplyAccounts.map((range) => {
+    const from = of(systemShard, systemRealm, range.from);
+    const to = of(systemShard, systemRealm, range.to);
+    return {from, to};
+  });
+
+  get addressBookFile101() {
+    return this.#addressBookFile101;
+  }
+
+  get addressBookFile102() {
+    return this.#addressBookFile102;
+  }
+
+  get exchangeRateFile() {
+    return this.#exchangeRateFile;
+  }
+
+  get feeScheduleFile() {
+    return this.#feeScheduleFile;
+  }
+
+  get stakingRewardAccount() {
+    return this.#stakingRewardAccount;
+  }
+
+  get treasuryAccount() {
+    return this.#treasuryAccount;
+  }
+
+  isValidAddressBookFileId = (fileId) => {
+    return (
+      isValidEntityId(fileId) &&
+      [this.#addressBookFile101.getEncodedId(), this.#addressBookFile102.getEncodedId()].includes(
+        parseString(fileId)?.getEncodedId()
+      )
+    );
+  };
+}
 
 export default {
-  addressBookFile101,
-  addressBookFile102,
-  exchangeRateFile,
-  feeScheduleFile,
-  isValidAddressBookFileId,
   isValidEntityId,
   isValidEvmAddress,
   computeContractIdPartsFromContractIdValue,
   of,
   parse,
   parseString,
-  stakingRewardAccount,
-  treasuryAccount,
-  unreleasedSupplyAccounts,
+  systemEntity: new SystemEntity(),
 };

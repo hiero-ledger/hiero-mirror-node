@@ -89,11 +89,11 @@ class FileDataService extends BaseService {
   };
 
   getExchangeRate = async (filterQueries) => {
-    return this.fallbackRetry(EntityId.exchangeRateFile.getEncodedId(), filterQueries, ExchangeRate);
+    return this.fallbackRetry(EntityId.systemEntity.exchangeRateFile.getEncodedId(), filterQueries, ExchangeRate);
   };
 
   getFeeSchedule = async (filterQueries) => {
-    return this.fallbackRetry(EntityId.feeScheduleFile.getEncodedId(), filterQueries, FeeSchedule);
+    return this.fallbackRetry(EntityId.systemEntity.feeScheduleFile.getEncodedId(), filterQueries, FeeSchedule);
   };
 
   fallbackRetry = async (fileEntityId, filterQueries, resultConstructor) => {
