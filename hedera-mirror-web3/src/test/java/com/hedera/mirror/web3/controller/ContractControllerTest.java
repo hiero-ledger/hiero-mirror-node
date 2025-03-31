@@ -604,6 +604,38 @@ class ContractControllerTest {
     }
 
     @Test
+    void testModularizedRequestIsFalse() throws Exception {
+        if (!evmProperties.isModularizedServices()) {
+            return;
+        }
+        final var request = request();
+
+        contractCall(request, Collections.singletonMap("Is-Modularized", "false"))
+                .andExpect(status().isOk());
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
+        verify(service).processCall(paramsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        assertThat(capturedParams.isModularized()).isFalse();
+    }
+
+    @Test
+    void testModularizedRequestIsTrueButModularizedNotEnabled() throws Exception {
+        if (evmProperties.isModularizedServices()) {
+            return;
+        }
+        final var request = request();
+
+        contractCall(request, Collections.singletonMap("Is-Modularized", "true"))
+                .andExpect(status().isOk());
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
+        verify(service).processCall(paramsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        assertThat(capturedParams.isModularized()).isFalse();
+    }
+
+    @Test
     void testModularizedRequestFalseWithModularizedFlagTrue() throws Exception {
         if (!evmProperties.isModularizedServices()) {
             return;

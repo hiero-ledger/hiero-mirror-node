@@ -105,7 +105,7 @@ class ContractController {
         // Temporary workaround to ensure modularized services are fully available when enabled.
         // This prevents flakiness in acceptance tests, as directTrafficThroughTransactionExecutionService()
         // can distribute traffic between the old and new logic.
-        if (isModularizedHeader != null) {
+        if (isModularizedHeader != null && evmProperties.isModularizedServices()) {
             isModularized = Boolean.parseBoolean(isModularizedHeader);
         }
 
