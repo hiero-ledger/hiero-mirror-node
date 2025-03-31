@@ -3,7 +3,6 @@
 package com.hedera.mirror.web3.service;
 
 import static com.hedera.mirror.web3.evm.exception.ResponseCodeUtil.getStatusOrDefault;
-import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType;
 
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
@@ -13,6 +12,7 @@ import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.store.Store;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.repository.ContractActionRepository;
+import com.hedera.mirror.web3.service.model.CallServiceParameters;
 import com.hedera.mirror.web3.service.model.ContractDebugParameters;
 import com.hedera.mirror.web3.throttle.ThrottleProperties;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
@@ -61,16 +61,15 @@ public class ContractDebugService extends ContractCallService {
             ctx.setContractActions(contractActionRepository.findFailedSystemActionsByConsensusTimestamp(
                     params.getConsensusTimestamp()));
             final var ethCallTxnResult = callContract(params, ctx);
-            validateResult(ethCallTxnResult, params.getCallType(), params.isModularized());
             return new OpcodesProcessingResult(ethCallTxnResult, ctx.getOpcodes());
         });
     }
 
     @Override
     protected void validateResult(
-            final HederaEvmTransactionProcessingResult txnResult, final CallType type, boolean isModularized) {
+            final HederaEvmTransactionProcessingResult txnResult, final CallServiceParameters params) {
         try {
-            super.validateResult(txnResult, type, isModularized);
+            super.validateResult(txnResult, params);
         } catch (MirrorEvmTransactionException e) {
             log.warn(
                     "Transaction failed with status: {}, detail: {}, revertReason: {}",

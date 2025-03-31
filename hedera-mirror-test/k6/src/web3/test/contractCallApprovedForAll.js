@@ -4,7 +4,7 @@ import {ContractCallTestScenarioBuilder} from './common.js';
 
 const contract = __ENV.ERC_CONTRACT_ADDRESS;
 const selector = '0xf49f40db';
-const token = __ENV.TOKEN_ADDRESS;
+const token = __ENV.NON_FUNGIBLE_TOKEN_ADDRESS;
 const account = __ENV.ACCOUNT_ADDRESS;
 const spender = __ENV.SPENDER_ADDRESS;
 
