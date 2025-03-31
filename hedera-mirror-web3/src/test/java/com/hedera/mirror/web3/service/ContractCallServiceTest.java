@@ -149,7 +149,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     @Test
     void callWithoutDataToAddressWithNoBytecodeReturnsEmptyResult() {
         // Given
-        final var receiver = accountEntityWithEvmAddressPersist();
+        final var receiver = accountWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiver);
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
         final var serviceParameters = getContractExecutionParameters(Bytes.EMPTY, receiverAddress);
@@ -167,7 +167,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     void pureCall() throws Exception {
         // Given
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
-        final var payer = accountEntityWithEvmAddressPersist();
+        final var payer = accountWithEvmAddressPersist();
         accountBalancePersist(payer, payer.getCreatedTimestamp());
         testWeb3jService.setSender(toAddress(payer.toEntityId()).toHexString());
         final var contract = testWeb3jService.deploy(EthCall::deploy);
@@ -377,7 +377,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     @Test
     void estimateGasForViewCall() {
         // Given
-        final var payer = accountEntityWithEvmAddressPersist();
+        final var payer = accountWithEvmAddressPersist();
         accountBalancePersist(payer, payer.getCreatedTimestamp());
         testWeb3jService.setSender(toAddress(payer.toEntityId()).toHexString());
         final var contract = testWeb3jService.deploy(EthCall::deploy);
@@ -392,8 +392,8 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     @Test
     void transferFunds() {
         // Given
-        final var sender = accountEntityWithEvmAddressPersist();
-        final var receiver = accountEntityWithEvmAddressPersist();
+        final var sender = accountWithEvmAddressPersist();
+        final var receiver = accountWithEvmAddressPersist();
         final var senderAddress = getAliasAddressFromEntity(sender);
         final var receiverAddress = getAliasAddressFromEntity(receiver);
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
@@ -409,7 +409,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     void balanceCallToNonSystemAccount() throws Exception {
         // Given
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
-        final var account = accountEntityWithEvmAddressPersist();
+        final var account = accountWithEvmAddressPersist();
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         meterRegistry.clear();
 
@@ -553,7 +553,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     @Test
     void ethCallWithValueAndSenderWithoutAlias() {
         // Given
-        final var receiverEntity = accountEntityWithEvmAddressPersist();
+        final var receiverEntity = accountWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
         final var payer = accountEntityPersist(); // Account without alias
 
@@ -570,7 +570,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
 
     @Test
     void ethCallWithValueAndNotExistingSenderAddress() {
-        final var receiverEntity = accountEntityWithEvmAddressPersist();
+        final var receiverEntity = accountWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
         final var notExistingAccountAddress = toAddress(EntityId.of(4325));
 
@@ -613,9 +613,9 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     @Test
     void transferNegative() {
         // Given
-        final var receiver = accountEntityWithEvmAddressPersist();
+        final var receiver = accountWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiver);
-        final var payer = accountEntityWithEvmAddressPersist();
+        final var payer = accountWithEvmAddressPersist();
         accountBalancePersist(payer, payer.getCreatedTimestamp());
         final var serviceParameters = getContractExecutionParametersWithValue(
                 Bytes.EMPTY, toAddress(payer.toEntityId()), receiverAddress, -5L);
@@ -635,9 +635,9 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     @Test
     void transferExceedsBalance() {
         // Given
-        final var receiver = accountEntityWithEvmAddressPersist();
+        final var receiver = accountWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiver);
-        final var senderEntity = accountEntityWithEvmAddressPersist();
+        final var senderEntity = accountWithEvmAddressPersist();
         final var senderAddress = getAliasAddressFromEntity(senderEntity);
         final var value = senderEntity.getBalance() + 5L;
         final var serviceParameters =
@@ -660,10 +660,10 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     @Test
     void transferThruContract() throws Exception {
         // Given
-        final var receiver = accountEntityWithEvmAddressPersist();
+        final var receiver = accountWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiver);
         final var contract = testWeb3jService.deploy(EthCall::deploy);
-        final var payer = accountEntityWithEvmAddressPersist();
+        final var payer = accountWithEvmAddressPersist();
         accountBalancePersist(payer, payer.getCreatedTimestamp());
         meterRegistry.clear();
         testWeb3jService.setSender(toAddress(payer.toEntityId()).toHexString());
@@ -684,7 +684,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         // Given
         final var value = 10L;
         final var hollowAccountAlias = domainBuilder.evmAddress();
-        final var sender = accountEntityWithEvmAddressPersist();
+        final var sender = accountWithEvmAddressPersist();
         final var senderAddress = getAliasAddressFromEntity(sender);
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         testWeb3jService.setSender(senderAddress.toHexString());
@@ -724,7 +724,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     @Test
     void estimateGasForDirectCreateContractDeploy() {
         // Given
-        final var sender = accountEntityWithEvmAddressPersist();
+        final var sender = accountWithEvmAddressPersist();
         final var senderAddress = getAliasAddressFromEntity(sender);
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
@@ -861,7 +861,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         // Given
         final var token = fungibleTokenPersist();
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
-        final var payer = accountEntityWithEvmAddressPersist();
+        final var payer = accountWithEvmAddressPersist();
         accountBalancePersist(payer, payer.getCreatedTimestamp());
         testWeb3jService.setSender(toAddress(payer.toEntityId()).toHexString());
 
@@ -904,7 +904,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     void ercPrecompileContractRevertReturnsExpectedGasToBucket(
             final CallType callType, final long gasLimit, final int gasUnit) {
         // Given
-        final var payer = accountEntityWithEvmAddressPersist();
+        final var payer = accountWithEvmAddressPersist();
         accountBalancePersist(payer, payer.getBalance());
         testWeb3jService.setSender(toAddress(payer.toEntityId()).toHexString());
 
@@ -1138,7 +1138,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         @Test
         void transferToNonExistingContract() {
             // Given
-            final var payer = accountEntityWithEvmAddressPersist();
+            final var payer = accountWithEvmAddressPersist();
 
             // The NON_EXISTING_ADDRESS should be a valid EVM alias key(Ethereum-style address derived from an ECDSA
             // public key), otherwise INVALID_ALIAS_KEY could be thrown

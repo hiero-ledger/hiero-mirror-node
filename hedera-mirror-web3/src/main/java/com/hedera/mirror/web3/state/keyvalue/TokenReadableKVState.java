@@ -205,7 +205,8 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
                     .get());
             final var denominatingTokenId = f.getDenominatingTokenId();
 
-            final var fixedFee = new FixedFee(f.getAmount(), toTokenId(denominatingTokenId));
+            final var fixedFee =
+                    new FixedFee(f.getAmount(), denominatingTokenId == null ? null : toTokenId(denominatingTokenId));
             var constructed = new CustomFee(
                     new OneOf<>(FeeOneOfType.FIXED_FEE, fixedFee), collector, f.isAllCollectorsAreExempt());
             fixedFees.add(constructed);

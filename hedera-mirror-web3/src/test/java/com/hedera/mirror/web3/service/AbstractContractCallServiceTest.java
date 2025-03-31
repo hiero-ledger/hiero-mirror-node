@@ -20,7 +20,6 @@ import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.entity.NftAllowance;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
-import com.hedera.mirror.common.domain.token.FixedFee;
 import com.hedera.mirror.common.domain.token.Nft;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.common.domain.token.TokenAccount;
@@ -79,7 +78,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final long DEFAULT_TOKEN_SUPPLY = 1000L;
     protected static final long DEFAULT_AMOUNT_GRANTED = 10L;
     protected static final BigInteger DEFAULT_FEE_AMOUNT = BigInteger.valueOf(100L);
-    protected static final BigInteger DEFAULT_DENOMINATOR_VALUE = BigInteger.valueOf(10L);
+    protected static final BigInteger DEFAULT_DENOMINATOR_VALUE = BigInteger.valueOf(100L);
     protected static final BigInteger DEFAULT_NUMERATOR_VALUE = BigInteger.valueOf(20L);
     protected static final BigInteger DEFAULT_FEE_MIN_VALUE = BigInteger.valueOf(1L);
     protected static final BigInteger DEFAULT_FEE_MAX_VALUE = BigInteger.valueOf(1000L);
@@ -292,25 +291,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param treasuryEntityId - the treasuryEntityId that has to be set in the token
      * @return Token object that is persisted in db
      */
-    protected Token fungibleTokenPersistWithTreasuryAccount(final EntityId treasuryEntityId) {
+    protected Token fungibleTokenPersist(final EntityId treasuryEntityId) {
         return fungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
-    }
-
-    protected FixedFee fixedFeePersist(Token token, Entity collectorAccount, Long amount) {
-        final var fixedFee = FixedFee.builder()
-                .amount(amount)
-                .collectorAccountId(collectorAccount.toEntityId())
-                .denominatingTokenId(EntityId.of(token.getTokenId()))
-                .build();
-
-        domainBuilder
-                .customFee()
-                .customize(f -> f.entityId(token.getTokenId())
-                        .fixedFees(List.of(fixedFee))
-                        .fractionalFees(List.of())
-                        .royaltyFees(List.of()))
-                .persist();
-        return fixedFee;
     }
 
     /**
@@ -356,7 +338,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param tokenEntity The entity from the entity db table related to the token
      * @param treasuryAccount - The treasury account to be set in the token
      */
-    protected Token nonFungibleTokenPersist(final Entity tokenEntity, final Entity treasuryAccount) {
+    protected Token nftPersist(final Entity tokenEntity, final Entity treasuryAccount) {
         return domainBuilder
                 .token()
                 .customize(t -> t.tokenId(tokenEntity.getId())
@@ -370,7 +352,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @return Token object persisted in the database.
      */
     protected Token nonFungibleTokenPersist() {
-        return nonFungibleTokenCustomizable(t -> {});
+        return nftCustomizable(t -> {});
     }
 
     /**
@@ -379,8 +361,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param treasuryEntityId The treasury account ID.
      * @return Token object persisted in the database.
      */
-    protected Token nonFungibleTokenPersistWithTreasury(final EntityId treasuryEntityId) {
-        return nonFungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
+    protected Token nftPersist(final EntityId treasuryEntityId) {
+        return nftCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
     }
 
     /**
@@ -390,7 +372,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param customizer the consumer used to customize the Token
      * @return Token object that is persisted in the database
      */
-    protected Token nonFungibleTokenCustomizable(Consumer<Token.TokenBuilder<?, ?>> customizer) {
+    protected Token nftCustomizable(Consumer<Token.TokenBuilder<?, ?>> customizer) {
         final var nft = tokenEntityPersist();
 
         return domainBuilder
@@ -427,16 +409,15 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @return Token object that is persisted in the database
      */
     protected Token nftPersist(final EntityId treasury, final EntityId accountId, final EntityId spender) {
-        final var token = nonFungibleTokenPersistWithTreasury(treasury);
+        final var token = nftPersist(treasury);
         nftPersistCustomizable(
                 n -> n.accountId(accountId).tokenId(token.getTokenId()).spender(spender));
         return token;
     }
 
     /**
-     * Method used to persist TokenAllowance object with specific customization
-     * provided in the customizer object
-     *
+     * Persists token allowance which allows an account(spender) to spend a specific amount
+     * of tokens on behalf of another account(owner)
      * @param customizer the consumer used to customize the TokenAllowance
      * @return TokenAllowance object that is persisted in the database
      */
@@ -501,7 +482,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      *
      * @return Entity that is persisted in the database
      */
-    protected Entity accountEntityWithEvmAddressPersist() {
+    protected Entity accountWithEvmAddressPersist() {
         return accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT).balance(DEFAULT_ACCOUNT_BALANCE));
     }
 

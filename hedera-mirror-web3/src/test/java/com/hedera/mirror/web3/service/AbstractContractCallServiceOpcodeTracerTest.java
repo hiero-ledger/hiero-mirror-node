@@ -4,7 +4,10 @@ package com.hedera.mirror.web3.service;
 
 import static com.hedera.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
+import static com.hedera.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
+import static com.hedera.mirror.web3.utils.ContractCallTestUtil.longValueOf;
 import static com.hedera.mirror.web3.utils.OpcodeTracerUtil.OPTIONS;
 import static com.hedera.mirror.web3.utils.OpcodeTracerUtil.gasComparator;
 import static com.hedera.mirror.web3.utils.OpcodeTracerUtil.toHumanReadableMessage;
@@ -14,6 +17,7 @@ import static org.mockito.Mockito.doAnswer;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.rest.model.OpcodesResponse;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.convert.BytesDecoder;
@@ -39,6 +43,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.tx.Contract;
 
 abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContractCallServiceHistoricalTest {
@@ -270,5 +275,31 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
 
     protected Entity getEntity(EntityId entityId) {
         return entityRepository.findById(entityId.getId()).get();
+    }
+
+    protected String getAccountEvmAddress(Entity account) {
+        return Bytes.wrap(account.getEvmAddress()).toHexString();
+    }
+
+    protected String getTokenAddress(Token token) {
+        return toAddress(token.getTokenId()).toHexString();
+    }
+
+    protected void verifyEthCallAndEstimateGas(
+            final RemoteFunctionCall<?> functionCall, final Contract contract, final Long value) throws Exception {
+        // Given
+        testWeb3jService.setEstimateGas(true);
+        functionCall.send();
+
+        final var estimateGasUsedResult = longValueOf.applyAsLong(testWeb3jService.getEstimatedGas());
+
+        // When
+        final var actualGasUsed = gasUsedAfterExecution(getContractExecutionParameters(functionCall, contract, value));
+
+        // Then
+        assertThat(isWithinExpectedGasRange(estimateGasUsedResult, actualGasUsed))
+                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimateGasUsedResult, actualGasUsed)
+                .isTrue();
+        testWeb3jService.setEstimateGas(false);
     }
 }

@@ -134,9 +134,9 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
     @Test
     void approveFungibleTokenWithAlias() {
         // Given
-        final var spender = accountEntityWithEvmAddressPersist();
+        final var spender = accountWithEvmAddressPersist();
         final var treasury = accountEntityPersist().toEntityId();
-        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var token = fungibleTokenPersist(treasury);
         final var tokenId = token.getTokenId();
 
         tokenAccountPersist(tokenId, spender.getId());
@@ -157,7 +157,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
     @Test
     void approveNFTWithAlias() {
         // Given
-        var spender = accountEntityWithEvmAddressPersist();
+        var spender = accountWithEvmAddressPersist();
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
@@ -177,7 +177,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         // Given
         final var recipient = accountEntityPersist().toEntityId();
         final var treasury = accountEntityPersist().toEntityId();
-        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var token = fungibleTokenPersist(treasury);
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, recipient.getId());
 
@@ -202,7 +202,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         final var owner = accountEntityPersist().toEntityId();
         final var recipient = accountEntityPersist().toEntityId();
 
-        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var token = fungibleTokenPersist(treasury);
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, owner.getId());
         tokenAccountPersist(tokenId, recipient.getId());
@@ -281,9 +281,9 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
     @Test
     void transferWithAlias() {
         // Given
-        final var recipient = accountEntityWithEvmAddressPersist();
-        final var treasury = accountEntityWithEvmAddressPersist().toEntityId();
-        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var recipient = accountWithEvmAddressPersist();
+        final var treasury = accountWithEvmAddressPersist().toEntityId();
+        final var token = fungibleTokenPersist(treasury);
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, recipient.getId());
 
@@ -305,9 +305,9 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
     void transferFromWithAlias() {
         // Given
         final var treasury = accountEntityPersist().toEntityId();
-        final var owner = accountEntityWithEvmAddressPersist();
-        final var recipient = accountEntityWithEvmAddressPersist();
-        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var owner = accountWithEvmAddressPersist();
+        final var recipient = accountWithEvmAddressPersist();
+        final var token = fungibleTokenPersist(treasury);
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, owner.getId());
         tokenAccountPersist(tokenId, recipient.getId());
@@ -332,9 +332,9 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
     @Test
     void transferFromNFTWithAlias() {
         // Given
-        final var owner = accountEntityWithEvmAddressPersist();
+        final var owner = accountWithEvmAddressPersist();
         final var ownerEntity = owner.toEntityId();
-        final var recipient = accountEntityWithEvmAddressPersist();
+        final var recipient = accountWithEvmAddressPersist();
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
@@ -415,7 +415,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
     @Test
     void approveFungibleTokenWithAliasRedirect() {
         // Given
-        final var spender = accountEntityWithEvmAddressPersist();
+        final var spender = accountWithEvmAddressPersist();
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, spender.getId());
@@ -436,7 +436,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
     @Test
     void approveNFTWithAliasRedirect() {
         // Given
-        var spender = accountEntityWithEvmAddressPersist();
+        var spender = accountWithEvmAddressPersist();
 
         final var contract = testWeb3jService.deploy(RedirectTestContract::deploy);
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
@@ -458,7 +458,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         // Given
         final var recipient = accountEntityPersist().toEntityId();
         final var treasury = accountEntityPersist().toEntityId();
-        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var token = fungibleTokenPersist(treasury);
 
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, recipient.getId());
@@ -483,7 +483,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         final var owner = accountEntityPersist().toEntityId();
         final var recipient = accountEntityPersist().toEntityId();
 
-        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var token = fungibleTokenPersist(treasury);
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, owner.getId());
         tokenAccountPersist(tokenId, recipient.getId());
@@ -509,7 +509,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         // Given
         final var treasury = accountEntityPersist().toEntityId();
         final var owner = accountEntityPersist().toEntityId();
-        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var token = fungibleTokenPersist(treasury);
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, owner.getId());
 
@@ -560,9 +560,9 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
     @Test
     void transferWithAliasRedirect() {
         // Given
-        final var recipient = accountEntityWithEvmAddressPersist();
-        final var treasury = accountEntityWithEvmAddressPersist().toEntityId();
-        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var recipient = accountWithEvmAddressPersist();
+        final var treasury = accountWithEvmAddressPersist().toEntityId();
+        final var token = fungibleTokenPersist(treasury);
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, recipient.getId());
 
@@ -584,9 +584,9 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
     void transferFromWithAliasRedirect() {
         // Given
         final var treasury = accountEntityPersist().toEntityId();
-        final var owner = accountEntityWithEvmAddressPersist();
-        final var recipient = accountEntityWithEvmAddressPersist();
-        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var owner = accountWithEvmAddressPersist();
+        final var recipient = accountWithEvmAddressPersist();
+        final var token = fungibleTokenPersist(treasury);
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, owner.getId());
         tokenAccountPersist(tokenId, recipient.getId());
@@ -610,9 +610,9 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
     @Test
     void transferFromNFTWithAliasRedirect() {
         // Given
-        final var owner = accountEntityWithEvmAddressPersist();
+        final var owner = accountWithEvmAddressPersist();
         final var ownerEntityId = owner.toEntityId();
-        final var recipient = accountEntityWithEvmAddressPersist();
+        final var recipient = accountWithEvmAddressPersist();
 
         final var contract = testWeb3jService.deploy(RedirectTestContract::deploy);
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
@@ -639,7 +639,7 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         // Given
         final var recipient = accountEntityPersist().toEntityId();
         final var treasury = accountEntityPersist().toEntityId();
-        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var token = fungibleTokenPersist(treasury);
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, recipient.getId());
 
