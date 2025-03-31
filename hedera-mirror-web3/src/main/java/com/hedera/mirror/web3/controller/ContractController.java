@@ -100,7 +100,8 @@ class ContractController {
         final var callType = request.isEstimate() ? ETH_ESTIMATE_GAS : ETH_CALL;
         final var block = request.getBlock();
 
-        boolean isModularized = evmProperties.directTrafficThroughTransactionExecutionService();
+        boolean isModularized =
+                evmProperties.directTrafficThroughTransactionExecutionService() && !request.isEstimate();
 
         boolean isModularizedRequest = Boolean.parseBoolean(isModularizedHeader);
         // Temporary workaround to ensure modularized services are fully available when enabled.
