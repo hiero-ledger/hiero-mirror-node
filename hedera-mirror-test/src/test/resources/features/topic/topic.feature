@@ -20,9 +20,11 @@ Feature: HCS Base Coverage Feature
 #    Fixed Fees tests
     And I associate ALICE as payer, DAVE as collector and CAROL as exempt with fungible token
     Then I successfully create a new topic with fixed HTS and HBAR fee. DAVE is collector and CAROL is exempt
-    Then ALICE is exempt - "false", publishes message to topic with fixed fee. DAVE is a fixed fees collector
+    And I set max custom fees
+    Then ALICE publishes message to topic
     Then I verify the published message from ALICE in mirror node REST API
-    Then CAROL is exempt - "true", publishes message to topic with fixed fee. DAVE is a fixed fees collector
+    Then I verify the max custom fees
+    Then CAROL publishes message to topic
     Then I verify the published message from CAROL in mirror node REST API
     And I subscribe with a filter to retrieve messages
     Then the network should successfully observe these messages
