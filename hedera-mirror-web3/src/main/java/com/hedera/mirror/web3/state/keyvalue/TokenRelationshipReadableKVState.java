@@ -8,8 +8,7 @@ import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.common.EntityIDPair;
 import com.hedera.hapi.node.state.token.TokenRelation;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.token.AbstractTokenAccount;
 import com.hedera.mirror.common.domain.token.TokenAccount;
 import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
@@ -32,21 +31,21 @@ public class TokenRelationshipReadableKVState extends AbstractReadableKVState<En
 
     public static final String KEY = "TOKEN_RELS";
 
-    private final CommonProperties commonProperties;
     private final NftRepository nftRepository;
+    private final SystemEntity systemEntity;
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenBalanceRepository tokenBalanceRepository;
     private final TokenRepository tokenRepository;
 
     protected TokenRelationshipReadableKVState(
-            final CommonProperties commonProperties,
             final NftRepository nftRepository,
+            final SystemEntity systemEntity,
             final TokenAccountRepository tokenAccountRepository,
             final TokenBalanceRepository tokenBalanceRepository,
             final TokenRepository tokenRepository) {
         super(KEY);
-        this.commonProperties = commonProperties;
         this.nftRepository = nftRepository;
+        this.systemEntity = systemEntity;
         this.tokenAccountRepository = tokenAccountRepository;
         this.tokenBalanceRepository = tokenBalanceRepository;
         this.tokenRepository = tokenRepository;
@@ -118,9 +117,7 @@ public class TokenRelationshipReadableKVState extends AbstractReadableKVState<En
     }
 
     private Long getFungibleBalance(final TokenAccount tokenAccount, final long timestamp) {
-        long treasuryAccountId = SystemEntity.TREASURY_ACCOUNT
-                .getScopedEntityId(commonProperties)
-                .getId();
+        long treasuryAccountId = systemEntity.treasuryAccount().getId();
         return tokenBalanceRepository
                 .findHistoricalTokenBalanceUpToTimestamp(
                         tokenAccount.getTokenId(), tokenAccount.getAccountId(), timestamp, treasuryAccountId)

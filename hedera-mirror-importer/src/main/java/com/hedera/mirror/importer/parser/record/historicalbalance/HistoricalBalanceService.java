@@ -7,7 +7,7 @@ import static com.hedera.mirror.importer.parser.AbstractStreamFileParser.STREAM_
 
 import com.google.common.base.Stopwatch;
 import com.hedera.mirror.common.domain.StreamType;
-import com.hedera.mirror.common.domain.SystemEntities;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.importer.db.TimePartitionService;
@@ -50,7 +50,7 @@ public class HistoricalBalanceService {
     private final HistoricalBalanceProperties properties;
     private final RecordFileRepository recordFileRepository;
     private final AtomicBoolean running = new AtomicBoolean(false);
-    private final SystemEntities systemEntities;
+    private final SystemEntity systemEntity;
     private final TimePartitionService timePartitionService;
     private final TokenBalanceRepository tokenBalanceRepository;
     private final TransactionTemplate transactionTemplate;
@@ -67,14 +67,14 @@ public class HistoricalBalanceService {
             PlatformTransactionManager platformTransactionManager,
             HistoricalBalanceProperties properties,
             RecordFileRepository recordFileRepository,
-            SystemEntities systemEntities,
+            SystemEntity systemEntity,
             TimePartitionService timePartitionService,
             TokenBalanceRepository tokenBalanceRepository) {
         this.accountBalanceFileRepository = accountBalanceFileRepository;
         this.accountBalanceRepository = accountBalanceRepository;
         this.properties = properties;
         this.recordFileRepository = recordFileRepository;
-        this.systemEntities = systemEntities;
+        this.systemEntity = systemEntity;
         this.timePartitionService = timePartitionService;
         this.tokenBalanceRepository = tokenBalanceRepository;
 
@@ -112,7 +112,7 @@ public class HistoricalBalanceService {
                 return;
             }
 
-            final long treasuryAccountId = systemEntities.treasuryAccount().getId();
+            final long treasuryAccountId = systemEntity.treasuryAccount().getId();
             log.info("Generating historical balances after processing record file with consensusEnd {}", consensusEnd);
             transactionTemplate.executeWithoutResult(t -> {
                 long loadStart = System.currentTimeMillis();
@@ -186,7 +186,7 @@ public class HistoricalBalanceService {
                     String.format("No account_balance partition found for timestamp %s", timestamp));
         }
 
-        long treasuryAccountId = systemEntities.treasuryAccount().getId();
+        long treasuryAccountId = systemEntity.treasuryAccount().getId();
         var partitionRange = partitions.getFirst().getTimestampRange();
         return accountBalanceRepository.getMaxConsensusTimestampInRange(
                 partitionRange.lowerEndpoint(), partitionRange.upperEndpoint(), treasuryAccountId);

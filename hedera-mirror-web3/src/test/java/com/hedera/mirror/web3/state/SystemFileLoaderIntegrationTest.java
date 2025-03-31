@@ -8,17 +8,16 @@ import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.hapi.node.base.FileID;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.Web3IntegrationTest;
-import com.hedera.mirror.web3.repository.FileDataRepository;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
-import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
 
+@RequiredArgsConstructor
 class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
 
     private static final ExchangeRateSet exchangeRatesSet = ExchangeRateSet.newBuilder()
@@ -47,19 +46,12 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                     .build())
             .build();
 
-    @Resource
-    private FileDataRepository fileDataRepository;
-
-    @Resource
-    private SystemFileLoader systemFileLoader;
-
-    @Resource
-    private CommonProperties commonProperties;
+    private final SystemFileLoader systemFileLoader;
 
     @Test
     void loadCachingBehavior() {
         // Setup
-        final var fileId = fileId(SystemEntity.EXCHANGE_RATE.getNum());
+        final var fileId = fileId(systemEntity.exchangeRateFile());
         final var entityId = toEntityId(fileId);
 
         domainBuilder
@@ -89,11 +81,11 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
         assertThat(secondLoad.contents()).isEqualTo(Bytes.wrap(exchangeRatesSet.toByteArray()));
     }
 
-    private FileID fileId(long fileNum) {
+    private FileID fileId(EntityId fileId) {
         return FileID.newBuilder()
-                .shardNum(commonProperties.getShard())
-                .realmNum(commonProperties.getRealm())
-                .fileNum(fileNum)
+                .shardNum(fileId.getShard())
+                .realmNum(fileId.getRealm())
+                .fileNum(fileId.getNum())
                 .build();
     }
 }

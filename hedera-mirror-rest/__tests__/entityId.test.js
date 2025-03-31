@@ -504,7 +504,7 @@ describe('computeContractIdPartsFromContractIdValue', () => {
     {input: '0.0.500', expected: {shard: '0', realm: '0', num: '500'}},
     {
       input: '500',
-      expected: {shard: null, realm: null, num: '500'},
+      expected: {shard: 0n, realm: 0n, num: '500'},
     },
     {
       input: '0.0.71eaa748d5252be68c1185588beca495459fdba4',
@@ -515,10 +515,6 @@ describe('computeContractIdPartsFromContractIdValue', () => {
       expected: {shard: null, realm: null, create2_evm_address: '71eaa748d5252be68c1185588beca495459fdba4'},
     },
     {
-      input: '0.0.0x71eaa748d5252be68c1185588beca495459fdba4',
-      expected: {shard: '0', realm: '0', create2_evm_address: '71eaa748d5252be68c1185588beca495459fdba4'},
-    },
-    {
       input: '0x71eaa748d5252be68c1185588beca495459fdba4',
       expected: {shard: null, realm: null, create2_evm_address: '71eaa748d5252be68c1185588beca495459fdba4'},
     },
@@ -527,6 +523,61 @@ describe('computeContractIdPartsFromContractIdValue', () => {
   for (const spec of specs) {
     test(spec.input, () => {
       expect(EntityId.computeContractIdPartsFromContractIdValue(spec.input)).toEqual(spec.expected);
+    });
+  }
+});
+
+describe('parseString', () => {
+  const specs = [
+    {
+      input: '0.0.500',
+      expected: EntityId.of(0, 0, 500),
+    },
+    {
+      input: '500',
+      expected: EntityId.of(0, 0, 500),
+    },
+    {
+      input: '0.0.71eaa748d5252be68c1185588beca495459fdba4',
+      expected: EntityId.of(0, 0, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+    },
+    {
+      input: '71eaa748d5252be68c1185588beca495459fdba4',
+      expected: EntityId.of(0, 0, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+    },
+    {
+      input: '0x71eaa748d5252be68c1185588beca495459fdba4',
+      expected: EntityId.of(0, 0, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+    },
+    {
+      input: null,
+      expectErr: true,
+    },
+    {
+      input: undefined,
+      expectErr: true,
+    },
+    {
+      input: 1,
+      expectErr: true,
+    },
+    {
+      input: '-1.1.1',
+      expectErr: true,
+    },
+    {
+      input: '0.0.0x71eaa748d5252be68c1185588beca495459fdba4',
+      expectErr: true,
+    },
+  ];
+
+  for (const spec of specs) {
+    test(spec.input || `Invalid - ${spec.input}`, () => {
+      if (!spec.expectErr) {
+        expect(EntityId.parseString(spec.input)).toEqual(spec.expected);
+      } else {
+        expect(() => EntityId.parseString(spec.input)).toThrowErrorMatchingSnapshot();
+      }
     });
   }
 });

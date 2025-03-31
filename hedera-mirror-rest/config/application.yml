@@ -48,20 +48,20 @@ hedera:
         ipMetrics: false
       network:
         unreleasedSupplyAccounts:
-          - from: 0.0.2
-            to: 0.0.2
-          - from: 0.0.42
-            to: 0.0.42
-          - from: 0.0.44
-            to: 0.0.71
-          - from: 0.0.73
-            to: 0.0.87
-          - from: 0.0.99
-            to: 0.0.100
-          - from: 0.0.200
-            to: 0.0.349
-          - from: 0.0.400
-            to: 0.0.750
+          - from: 2
+            to: 2
+          - from: 42
+            to: 42
+          - from: 44
+            to: 71
+          - from: 73
+            to: 87
+          - from: 99
+            to: 100
+          - from: 200
+            to: 349
+          - from: 400
+            to: 750
         # valid values for currencyFormat are 'BOTH', 'HBARS', and 'TINYBARS'
         currencyFormat: "BOTH"
       openapi:

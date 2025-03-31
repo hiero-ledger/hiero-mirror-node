@@ -15,6 +15,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.web3.ContextExtension;
 import com.hedera.mirror.web3.evm.account.MirrorEvmContractAliases;
 import com.hedera.mirror.web3.evm.store.StackedStateFrames;
@@ -87,11 +88,11 @@ class HederaEvmStackedWorldStateUpdaterTest {
     @BeforeEach
     void setUp() {
         final var commonProperties = new CommonProperties();
+        final var systemEntity = new SystemEntity(commonProperties);
         final var entityDatabaseAccessor = new EntityDatabaseAccessor(entityRepository, commonProperties);
         final List<DatabaseAccessor<Object, ?>> accessors = List.of(
                 entityDatabaseAccessor,
-                new AccountDatabaseAccessor(
-                        commonProperties, entityDatabaseAccessor, null, null, null, null, null, null));
+                new AccountDatabaseAccessor(entityDatabaseAccessor, null, null, null, null, null, null, systemEntity));
         final var stackedStateFrames = new StackedStateFrames(accessors);
         store = new StoreImpl(stackedStateFrames, validator);
         subject = new HederaEvmStackedWorldStateUpdater(

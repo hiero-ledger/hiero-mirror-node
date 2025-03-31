@@ -20,6 +20,7 @@ import com.google.protobuf.Message;
 import com.google.protobuf.StringValue;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.AbstractEntity;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
@@ -105,7 +106,8 @@ abstract class AbstractTransactionHandlerTest {
 
     protected final ContractID contractId =
             ContractID.newBuilder().setContractNum(DEFAULT_ENTITY_NUM).build();
-    protected final EntityProperties entityProperties = new EntityProperties(CommonProperties.getInstance());
+    protected final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
+    protected final EntityProperties entityProperties = new EntityProperties(systemEntity);
 
     protected TransactionHandler transactionHandler;
 

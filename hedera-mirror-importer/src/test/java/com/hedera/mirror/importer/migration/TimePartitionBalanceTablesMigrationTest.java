@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.importer.migration;
 
-import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
@@ -102,7 +101,7 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
     @Test
     void migrate() {
         // given
-        var treasury = DEFAULT_TREASURY_ACCOUNT;
+        var treasury = systemEntity.treasuryAccount();
         var account2 = domainBuilder.entityId();
         var account3 = domainBuilder.entityId();
         var account4 = domainBuilder.entityId();

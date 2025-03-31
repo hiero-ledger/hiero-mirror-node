@@ -5,9 +5,6 @@ package com.hedera.mirror.web3.repository;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCall;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
@@ -78,59 +75,56 @@ class FileDataRepositoryTest extends Web3IntegrationTest {
                             .addFees(FeeData.newBuilder().build())))
             .build()
             .toByteArray();
-    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
-    private static final EntityId FEE_SCHEDULE_ENTITY_ID =
-            SystemEntity.FEE_SCHEDULE.getScopedEntityId(COMMON_PROPERTIES);
-    private static final EntityId EXCHANGE_RATE_ENTITY_ID =
-            SystemEntity.EXCHANGE_RATE.getScopedEntityId(COMMON_PROPERTIES);
 
     private final FileDataRepository fileDataRepository;
 
     @Test
     void getHistoricalFileForExchangeRates() {
+        var exchangeRateFileId = systemEntity.exchangeRateFile();
         var expected1 = domainBuilder
                 .fileData()
                 .customize(f -> f.fileData(EXCHANGE_RATES_SET_200)
-                        .entityId(EXCHANGE_RATE_ENTITY_ID)
+                        .entityId(exchangeRateFileId)
                         .consensusTimestamp(200L))
                 .persist();
         var expected2 = domainBuilder
                 .fileData()
                 .customize(f -> f.fileData(EXCHANGE_RATES_SET_300)
-                        .entityId(EXCHANGE_RATE_ENTITY_ID)
+                        .entityId(exchangeRateFileId)
                         .consensusTimestamp(300L))
                 .persist();
 
-        assertThat(fileDataRepository.getFileAtTimestamp(EXCHANGE_RATE_ENTITY_ID.getId(), 301))
+        assertThat(fileDataRepository.getFileAtTimestamp(exchangeRateFileId.getId(), 301))
                 .get()
                 .usingRecursiveComparison()
                 .ignoringFields("transactionType")
                 .isEqualTo(expected2);
-        assertThat(fileDataRepository.getFileAtTimestamp(EXCHANGE_RATE_ENTITY_ID.getId(), 300))
+        assertThat(fileDataRepository.getFileAtTimestamp(exchangeRateFileId.getId(), 300))
                 .get()
                 .usingRecursiveComparison()
                 .ignoringFields("transactionType")
                 .isEqualTo(expected2);
 
-        assertThat(fileDataRepository.getFileAtTimestamp(EXCHANGE_RATE_ENTITY_ID.getId(), 299))
+        assertThat(fileDataRepository.getFileAtTimestamp(exchangeRateFileId.getId(), 299))
                 .get()
                 .usingRecursiveComparison()
                 .ignoringFields("transactionType")
                 .isEqualTo(expected1);
-        assertThat(fileDataRepository.getFileAtTimestamp(EXCHANGE_RATE_ENTITY_ID.getId(), 199))
+        assertThat(fileDataRepository.getFileAtTimestamp(exchangeRateFileId.getId(), 199))
                 .isEmpty();
     }
 
     @Test
     void getFileForExchangeRates() {
+        var exchangeRateFileId = systemEntity.exchangeRateFile();
         var expected = domainBuilder
                 .fileData()
                 .customize(f -> f.fileData(EXCHANGE_RATES_SET)
-                        .entityId(EXCHANGE_RATE_ENTITY_ID)
+                        .entityId(exchangeRateFileId)
                         .consensusTimestamp(EXPIRY))
                 .persist();
 
-        assertThat(fileDataRepository.getFileAtTimestamp(EXCHANGE_RATE_ENTITY_ID.getId(), EXPIRY))
+        assertThat(fileDataRepository.getFileAtTimestamp(exchangeRateFileId.getId(), EXPIRY))
                 .get()
                 .usingRecursiveComparison()
                 .ignoringFields("transactionType")
@@ -139,14 +133,14 @@ class FileDataRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void getFileForFeeSchedules() {
+        var feeScheduleFileId = systemEntity.feeScheduleFile();
         var expected = domainBuilder
                 .fileData()
-                .customize(f -> f.fileData(FEE_SCHEDULES)
-                        .entityId(FEE_SCHEDULE_ENTITY_ID)
-                        .consensusTimestamp(EXPIRY))
+                .customize(f ->
+                        f.fileData(FEE_SCHEDULES).entityId(feeScheduleFileId).consensusTimestamp(EXPIRY))
                 .persist();
 
-        assertThat(fileDataRepository.getFileAtTimestamp(FEE_SCHEDULE_ENTITY_ID.getId(), EXPIRY))
+        assertThat(fileDataRepository.getFileAtTimestamp(feeScheduleFileId.getId(), EXPIRY))
                 .get()
                 .usingRecursiveComparison()
                 .ignoringFields("transactionType")

@@ -21,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.web3.Web3Properties;
 import com.hedera.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
@@ -604,6 +605,38 @@ class ContractControllerTest {
     }
 
     @Test
+    void testModularizedRequestIsFalse() throws Exception {
+        if (!evmProperties.isModularizedServices()) {
+            return;
+        }
+        final var request = request();
+
+        contractCall(request, Collections.singletonMap("Is-Modularized", "false"))
+                .andExpect(status().isOk());
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
+        verify(service).processCall(paramsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        assertThat(capturedParams.isModularized()).isFalse();
+    }
+
+    @Test
+    void testModularizedRequestIsTrueButModularizedNotEnabled() throws Exception {
+        if (evmProperties.isModularizedServices()) {
+            return;
+        }
+        final var request = request();
+
+        contractCall(request, Collections.singletonMap("Is-Modularized", "true"))
+                .andExpect(status().isOk());
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
+        verify(service).processCall(paramsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        assertThat(capturedParams.isModularized()).isFalse();
+    }
+
+    @Test
     void testModularizedRequestFalseWithModularizedFlagTrue() throws Exception {
         if (!evmProperties.isModularizedServices()) {
             return;
@@ -639,7 +672,9 @@ class ContractControllerTest {
 
         @Bean
         MirrorNodeEvmProperties evmProperties() {
-            return new MirrorNodeEvmProperties(new CommonProperties());
+            var commonProperties = new CommonProperties();
+            var systemEntity = new SystemEntity(commonProperties);
+            return new MirrorNodeEvmProperties(commonProperties, systemEntity);
         }
 
         @Bean

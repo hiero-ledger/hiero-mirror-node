@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
-import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
 import static com.hedera.services.utils.MiscUtils.asFcKeyUnchecked;
 import static java.util.Collections.emptyList;
@@ -18,6 +17,7 @@ import static org.mockito.Mockito.when;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
@@ -43,17 +43,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mock.Strictness;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class TokenDatabaseAccessorTest {
+
     private static final String HEX = "0x00000000000000000000000000000000000004e4";
     private static final Address ADDRESS = Address.fromHexString(HEX);
     private static final Address ADDRESS_ZERO = Address.ZERO;
-    com.hedera.mirror.common.domain.token.Token databaseToken;
+    private static final Optional<Long> timestamp = Optional.of(1234L);
 
-    @Mock
-    private CommonProperties commonProperties;
+    private com.hedera.mirror.common.domain.token.Token databaseToken;
 
     @InjectMocks
     private TokenDatabaseAccessor tokenDatabaseAccessor;
@@ -73,22 +74,27 @@ class TokenDatabaseAccessorTest {
     @Mock
     private EntityRepository entityRepository;
 
+    @Mock(strictness = Strictness.LENIENT)
+    private SystemEntity systemEntity;
+
     private DomainBuilder domainBuilder;
 
     @Mock
     private Entity defaultEntity;
 
-    private static final Optional<Long> timestamp = Optional.of(1234L);
     private Entity entity;
+    private EntityId treasuryAccountId;
 
     @BeforeEach
     void setup() {
+        treasuryAccountId = new SystemEntity(CommonProperties.getInstance()).treasuryAccount();
         domainBuilder = new DomainBuilder();
         entity = domainBuilder
                 .entity()
                 .customize(e -> e.id(entityIdNumFromEvmAddress(ADDRESS)))
                 .customize(e -> e.type(EntityType.TOKEN))
                 .get();
+        when(this.systemEntity.treasuryAccount()).thenReturn(treasuryAccountId);
     }
 
     @Test
@@ -278,7 +284,7 @@ class TokenDatabaseAccessorTest {
 
         when(entityDatabaseAccessor.get(ADDRESS, timestamp)).thenReturn(Optional.ofNullable(entity));
         when(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
-                        databaseToken.getTokenId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId()))
+                        databaseToken.getTokenId(), timestamp.get(), treasuryAccountId.getId()))
                 .thenReturn(historicalSupply);
 
         tokenDatabaseAccessor.get(ADDRESS, timestamp);
@@ -290,7 +296,7 @@ class TokenDatabaseAccessorTest {
 
         verify(tokenRepository)
                 .findFungibleTotalSupplyByTokenIdAndTimestamp(
-                        databaseToken.getTokenId(), timestamp.get(), DEFAULT_TREASURY_ACCOUNT.getId());
+                        databaseToken.getTokenId(), timestamp.get(), treasuryAccountId.getId());
     }
 
     @Test

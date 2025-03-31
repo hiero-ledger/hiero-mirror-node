@@ -197,11 +197,6 @@ const isValidSlot = (slot) => slotPattern.test(slot);
 
 const isValidValueIgnoreCase = (value, validValues) => validValues.includes(value.toLowerCase());
 
-const addressBookFileIdPattern = ['101', '0.101', '0.0.101', '102', '0.102', '0.0.102'];
-const isValidAddressBookFileIdPattern = (fileId) => {
-  return addressBookFileIdPattern.includes(fileId);
-};
-
 const lowerCaseQueryValue = (queryValue) => (typeof queryValue === 'string' ? queryValue.toLowerCase() : queryValue);
 
 /**
@@ -289,10 +284,7 @@ const filterValidityChecks = (param, op, val) => {
       ret = isValidPublicKeyQuery(val);
       break;
     case constants.filterKeys.FILE_ID:
-      ret =
-        op === constants.queryParamOperators.eq &&
-        EntityId.isValidEntityId(val) &&
-        isValidAddressBookFileIdPattern(val);
+      ret = op === constants.queryParamOperators.eq && EntityId.systemEntity.isValidAddressBookFileId(val);
       break;
     case constants.filterKeys.FROM:
       ret = EntityId.isValidEntityId(val, true, constants.EvmAddressType.NO_SHARD_REALM);
@@ -586,7 +578,7 @@ const validateClauseAndValues = (clause, values) => {
 const parseAccountIdQueryParam = (parsedQueryParams, columnName) => {
   return parseParams(
     parsedQueryParams[constants.filterKeys.ACCOUNT_ID],
-    (value) => EntityId.parse(value).getEncodedId(),
+    (value) => EntityId.parseString(value).getEncodedId(),
     (op, value) => {
       return Array.isArray(value)
         ? [`${columnName} IN (?`.concat(', ?'.repeat(value.length - 1)).concat(')'), value]
@@ -1279,7 +1271,7 @@ const formatComparator = (comparator) => {
         break;
       case constants.filterKeys.FILE_ID:
         // Accepted forms: shard.realm.num or encoded ID string
-        comparator.value = EntityId.parse(comparator.value).getEncodedId();
+        comparator.value = EntityId.parseString(comparator.value).getEncodedId();
         break;
       case constants.filterKeys.ENTITY_PUBLICKEY:
         comparator.value = parsePublicKey(comparator.value);

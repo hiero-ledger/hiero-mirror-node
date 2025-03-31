@@ -16,8 +16,7 @@ import static com.hederahashgraph.api.proto.java.HederaFunctionality.TokenCreate
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.TokenMint;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.exception.InvalidFileException;
 import com.hedera.mirror.web3.repository.FileDataRepository;
@@ -257,7 +256,7 @@ public class RatesAndFeesLoader {
 
     private final FileDataRepository fileDataRepository;
     private final MirrorNodeEvmProperties evmProperties;
-    private final CommonProperties commonProperties;
+    private final SystemEntity systemEntity;
 
     /**
      * Loads the exchange rates for a given time. Currently, works only with current timestamp.
@@ -267,7 +266,7 @@ public class RatesAndFeesLoader {
      */
     @Cacheable(cacheNames = CACHE_NAME_EXCHANGE_RATE, key = "'now'", unless = "#result == null")
     public ExchangeRateSet loadExchangeRates(final long nanoSeconds) {
-        final var exchangeRateEntityId = SystemEntity.EXCHANGE_RATE.getScopedEntityId(commonProperties);
+        final var exchangeRateEntityId = systemEntity.exchangeRateFile();
         try {
             return getFileData(
                     exchangeRateEntityId.getId(),
@@ -288,7 +287,7 @@ public class RatesAndFeesLoader {
      */
     @Cacheable(cacheNames = CACHE_NAME_FEE_SCHEDULE, key = "'now'", unless = "#result == null")
     public CurrentAndNextFeeSchedule loadFeeSchedules(final long nanoSeconds) {
-        var feeScheduleEntityId = SystemEntity.FEE_SCHEDULE.getScopedEntityId(commonProperties);
+        var feeScheduleEntityId = systemEntity.feeScheduleFile();
         try {
             return getFileData(
                     feeScheduleEntityId.getId(),

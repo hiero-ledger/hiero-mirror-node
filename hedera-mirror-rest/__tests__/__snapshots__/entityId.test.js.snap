@@ -59,3 +59,13 @@ exports[`EntityId parse from entityId string a.b.c 1`] = `"Invalid entity ID "a.
 exports[`EntityId parse from entityId string null 1`] = `"Null entity ID"`;
 
 exports[`EntityId parse from entityId string undefined 1`] = `"Null entity ID"`;
+
+exports[`parseString -1.1.1 1`] = `"Invalid entity ID "-1.1.1""`;
+
+exports[`parseString 0.0.0x71eaa748d5252be68c1185588beca495459fdba4 1`] = `"Invalid entity ID "0.0.0x71eaa748d5252be68c1185588beca495459fdba4""`;
+
+exports[`parseString 1 1`] = `"Entity ID "1" is not a string"`;
+
+exports[`parseString Invalid - null 1`] = `"Entity ID "null" is not a string"`;
+
+exports[`parseString Invalid - undefined 1`] = `"Entity ID "undefined" is not a string"`;

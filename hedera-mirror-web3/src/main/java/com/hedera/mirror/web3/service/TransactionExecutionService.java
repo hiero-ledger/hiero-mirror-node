@@ -17,7 +17,7 @@ import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
-import com.hedera.mirror.common.domain.SystemEntities;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.contracts.execution.traceability.MirrorOperationTracer;
@@ -52,7 +52,7 @@ public class TransactionExecutionService {
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
     private final OpcodeTracer opcodeTracer;
     private final MirrorOperationTracer mirrorOperationTracer;
-    private final SystemEntities systemEntities;
+    private final SystemEntity systemEntity;
     private final TransactionExecutorFactory transactionExecutorFactory;
 
     public HederaEvmTransactionProcessingResult execute(final CallServiceParameters params, final long estimatedGas) {
@@ -142,7 +142,7 @@ public class TransactionExecutionService {
                         .transactionValidStart(new Timestamp(Instant.now().getEpochSecond(), 0))
                         .accountID(getSenderAccountID(params))
                         .build())
-                .nodeAccountID(EntityIdUtils.toAccountId(systemEntities.treasuryAccount()))
+                .nodeAccountID(EntityIdUtils.toAccountId(systemEntity.treasuryAccount()))
                 .transactionValidDuration(TRANSACTION_DURATION);
     }
 
@@ -184,7 +184,7 @@ public class TransactionExecutionService {
     private AccountID getSenderAccountID(final CallServiceParameters params) {
         // Set a default account to keep the sender parameter optional.
         if (params.getSender().canonicalAddress().isZero() && params.getValue() == 0L) {
-            return EntityIdUtils.toAccountId(systemEntities.treasuryAccount());
+            return EntityIdUtils.toAccountId(systemEntity.treasuryAccount());
         }
 
         final var senderAddress = params.getSender().canonicalAddress();

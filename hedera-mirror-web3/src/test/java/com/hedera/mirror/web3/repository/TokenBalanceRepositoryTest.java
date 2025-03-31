@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.AccountBalance.Id;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.TokenTransfer;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import lombok.RequiredArgsConstructor;
@@ -66,7 +65,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
     void shouldNotIncludeBalanceBeforeConsensusTimestamp(long shard, long realm) {
         commonProperties.setShard(shard);
         commonProperties.setRealm(realm);
-        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasuryAccountId = systemEntity.treasuryAccount();
         var accountBalance = domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.id(new AccountBalance.Id(domainBuilder.timestamp(), treasuryAccountId)))
@@ -92,7 +91,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void shouldIncludeBalanceDuringValidTimestampRange() {
-        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasuryAccountId = systemEntity.treasuryAccount();
         var accountBalance = domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.id(new AccountBalance.Id(domainBuilder.timestamp(), treasuryAccountId)))
@@ -121,7 +120,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void shouldNotIncludeBalanceAfterTimestampFilter() {
-        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasuryAccountId = systemEntity.treasuryAccount();
         var accountBalance = domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.id(new AccountBalance.Id(domainBuilder.timestamp(), treasuryAccountId)))
@@ -155,7 +154,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
         // usually the account_balance/token_balance gets persisted ~8 mins after the account creation
 
         // not persisted
-        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasuryAccountId = systemEntity.treasuryAccount();
         var tokenBalance1 = domainBuilder
                 .tokenBalance()
                 .customize(tb -> tb.id(
@@ -180,7 +179,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
     void findHistoricalTokenBalanceUpToTimestampMissingTokenBalance() {
         var accountId = domainBuilder.entityId();
         var tokenId = domainBuilder.entityId();
-        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasuryAccountId = systemEntity.treasuryAccount();
         long snapshotTimestamp = domainBuilder.timestamp();
         domainBuilder
                 .accountBalance()

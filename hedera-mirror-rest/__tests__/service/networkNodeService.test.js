@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import _ from 'lodash';
-import config from '../../config';
-import entityId from '../../entityId';
 import {NetworkNodeService} from '../../service';
 import {assertSqlQueryEqual} from '../testutils';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
 import * as utils from '../../utils';
+import EntityId from '../../entityId';
 
 setupIntegrationTest();
 
@@ -624,9 +623,9 @@ describe(`NetworkNodeService.getSupply`, () => {
   test('Without timestamp', async () => {
     const accounts = [];
     const timestamp = utils.nowInNs();
-    config.network.unreleasedSupplyAccounts.forEach((range) => {
-      const from = entityId.parse(range.from).getEncodedId();
-      const to = entityId.parse(range.to).getEncodedId();
+    EntityId.systemEntity.unreleasedSupplyAccounts.forEach((range) => {
+      const from = range.from.getEncodedId();
+      const to = range.to.getEncodedId();
       _.range(from, to + 1).forEach((id) => {
         accounts.push({balance: 1n, balance_timestamp: timestamp, num: id});
       });
@@ -640,9 +639,9 @@ describe(`NetworkNodeService.getSupply`, () => {
   test('With timestamp', async () => {
     const balances = [];
     const timestamp = utils.nowInNs();
-    config.network.unreleasedSupplyAccounts.forEach((range) => {
-      const from = entityId.parse(range.from).getEncodedId();
-      const to = entityId.parse(range.to).getEncodedId();
+    EntityId.systemEntity.unreleasedSupplyAccounts.forEach((range) => {
+      const from = range.from.getEncodedId();
+      const to = range.to.getEncodedId();
       _.range(from, to + 1).forEach((id) => {
         balances.push({balance: 1n, timestamp: timestamp, id: id});
       });
