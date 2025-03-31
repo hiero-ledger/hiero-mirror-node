@@ -27,7 +27,7 @@ dependencies {
     implementation("gradle.plugin.org.flywaydb:gradle-plugin-publishing:$flywayVersion") {
         exclude(group = "org.antlr")
     }
-    implementation("io.freefair.gradle:lombok-plugin:8.13")
+    implementation("io.freefair.gradle:lombok-plugin:8.13.1")
     implementation("io.spring.gradle:dependency-management-plugin:1.1.7")
     implementation("org.apache.commons:commons-compress:1.27.1")
     implementation("org.flywaydb:flyway-database-postgresql:$flywayVersion") {
