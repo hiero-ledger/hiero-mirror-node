@@ -102,12 +102,11 @@ class ContractController {
 
         boolean isModularized = evmProperties.directTrafficThroughTransactionExecutionService();
 
-        boolean isModularizedRequest = Boolean.parseBoolean(isModularizedHeader);
         // Temporary workaround to ensure modularized services are fully available when enabled.
         // This prevents flakiness in acceptance tests, as directTrafficThroughTransactionExecutionService()
         // can distribute traffic between the old and new logic.
-        if (isModularizedRequest && evmProperties.isModularizedServices()) {
-            isModularized = true;
+        if (isModularizedHeader != null) {
+            isModularized = Boolean.parseBoolean(isModularizedHeader);
         }
 
         return ContractExecutionParameters.builder()
