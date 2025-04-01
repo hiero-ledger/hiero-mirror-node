@@ -266,10 +266,8 @@ public class MirrorNodeClient {
     }
 
     public ContractCallResponse contractsCall(ContractCallRequest request) {
-        Map<String, String> headers = Collections.emptyMap();
-        if (web3Properties.isModularizedServices()) {
-            headers = Collections.singletonMap("Is-Modularized", "true");
-        }
+        Map<String, String> headers =
+                Collections.singletonMap("Is-Modularized", String.valueOf(web3Properties.isModularizedServices()));
         return callPostRestEndpoint("/contracts/call", ContractCallResponse.class, request, headers);
     }
 
