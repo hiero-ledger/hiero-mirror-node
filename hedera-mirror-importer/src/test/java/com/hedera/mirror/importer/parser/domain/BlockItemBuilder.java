@@ -548,8 +548,7 @@ public class BlockItemBuilder {
 
         var stateChanges = StateChanges.newBuilder().addAllStateChanges(changes).build();
 
-        var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(
-                TransactionCase.class);
+        var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
 
         return new BlockItemBuilder.Builder(
                 recordItem.getTransaction(), transactionResult(recordItem), transactionOutputs, List.of(stateChanges));
