@@ -2,9 +2,6 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
-import com.hedera.hapi.block.stream.output.protoc.TokenAirdropOutput;
-import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
-import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.AccountAmount;
@@ -17,7 +14,6 @@ import com.hederahashgraph.api.proto.java.TokenAirdropTransactionBody;
 import com.hederahashgraph.api.proto.java.TokenID;
 import jakarta.inject.Named;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -60,12 +56,10 @@ final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
                         PendingAirdropRecord.newBuilder().setPendingAirdropId(pendingAirdropId));
             }
         }
-
-        recordBuilder.addAllAssessedCustomFees(blockItem
-                .getTransactionOutput(TransactionCase.TOKEN_AIRDROP)
-                .map(TransactionOutput::getTokenAirdrop)
-                .map(TokenAirdropOutput::getAssessedCustomFeesList)
-                .orElse(Collections.emptyList()));
+        var customFees = blockItem.getTransactionResult().getAssessedCustomFeesList();
+        if (!customFees.isEmpty()) {
+            recordBuilder.addAllAssessedCustomFees(customFees);
+        }
     }
 
     @Override

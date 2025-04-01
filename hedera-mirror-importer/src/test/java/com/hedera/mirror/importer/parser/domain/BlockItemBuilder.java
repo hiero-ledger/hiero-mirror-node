@@ -12,11 +12,8 @@ import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.Trans
 import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.CONTRACT_CALL;
 import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.CONTRACT_CREATE;
 import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.CREATE_SCHEDULE;
-import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.CRYPTO_TRANSFER;
 import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.ETHEREUM_CALL;
 import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.SIGN_SCHEDULE;
-import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.SUBMIT_MESSAGE;
-import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.TOKEN_AIRDROP;
 import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.UTIL_PRNG;
 
 import com.google.protobuf.ByteString;
@@ -25,7 +22,6 @@ import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
 import com.hedera.hapi.block.stream.output.protoc.CreateAccountOutput;
 import com.hedera.hapi.block.stream.output.protoc.CreateContractOutput;
 import com.hedera.hapi.block.stream.output.protoc.CreateScheduleOutput;
-import com.hedera.hapi.block.stream.output.protoc.CryptoTransferOutput;
 import com.hedera.hapi.block.stream.output.protoc.EthereumOutput;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
@@ -35,8 +31,6 @@ import com.hedera.hapi.block.stream.output.protoc.SignScheduleOutput;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
-import com.hedera.hapi.block.stream.output.protoc.SubmitMessageOutput;
-import com.hedera.hapi.block.stream.output.protoc.TokenAirdropOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
@@ -302,16 +296,7 @@ public class BlockItemBuilder {
 
     public BlockItemBuilder.Builder cryptoTransfer(RecordItem recordItem) {
         var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
-        if (recordItem.getTransactionRecord().getAssessedCustomFeesCount() > 0) {
-            transactionOutputs.put(
-                    CRYPTO_TRANSFER,
-                    TransactionOutput.newBuilder()
-                            .setCryptoTransfer(CryptoTransferOutput.newBuilder()
-                                    .addAllAssessedCustomFees(
-                                            recordItem.getTransactionRecord().getAssessedCustomFeesList())
-                                    .build())
-                            .build());
-        }
+
         return new BlockItemBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
@@ -487,15 +472,6 @@ public class BlockItemBuilder {
         }
 
         var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
-        if (recordItem.getTransactionRecord().getAssessedCustomFeesCount() > 0) {
-            transactionOutputs.put(
-                    SUBMIT_MESSAGE,
-                    TransactionOutput.newBuilder()
-                            .setSubmitMessage(SubmitMessageOutput.newBuilder()
-                                    .addAllAssessedCustomFees(
-                                            recordItem.getTransactionRecord().getAssessedCustomFeesList()))
-                            .build());
-        }
         var topicRunningHash = recordItem.getTransactionRecord().getReceipt().getTopicRunningHash();
         var sequenceNumber = recordItem.getTransactionRecord().getReceipt().getTopicSequenceNumber();
         var topicId =
@@ -572,15 +548,11 @@ public class BlockItemBuilder {
 
         var stateChanges = StateChanges.newBuilder().addAllStateChanges(changes).build();
 
-        var transactionOutput = TransactionOutput.newBuilder()
-                .setTokenAirdrop(TokenAirdropOutput.newBuilder())
-                .build();
+        var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(
+                TransactionCase.class);
 
         return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(),
-                transactionResult(recordItem),
-                Map.of(TOKEN_AIRDROP, transactionOutput),
-                List.of(stateChanges));
+                recordItem.getTransaction(), transactionResult(recordItem), transactionOutputs, List.of(stateChanges));
     }
 
     public Builder tokenBurn(RecordItem recordItem) {
@@ -725,6 +697,7 @@ public class BlockItemBuilder {
         return builder.addAllPaidStakingRewards(transactionRecord.getPaidStakingRewardsList())
                 .addAllAutomaticTokenAssociations(transactionRecord.getAutomaticTokenAssociationsList())
                 .addAllTokenTransferLists(transactionRecord.getTokenTransferListsList())
+                .addAllAssessedCustomFees(transactionRecord.getAssessedCustomFeesList())
                 .setConsensusTimestamp(consensusTimestamp)
                 .setTransferList(transactionRecord.getTransferList())
                 .setTransactionFeeCharged(transactionRecord.getTransactionFee())

@@ -47,7 +47,7 @@ public class ProtoBlockFileReaderTest {
                     .count(7L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "847ec86e6da4d279e0445a983f198ccf1883a2c32a7f8c8f87361e1311417b2b8d7531211aa52454a7de2aa06c162bf4")
+                            "69a5b5a95d5adc867683b68f8bd5d73ff89ed72ea55f0c48a5a114a06c70406926534bb0077eac8e0797698a63a07207")
                     .index(981L)
                     .name(BlockFile.getBlockStreamFilename(981))
                     .previousHash(
@@ -62,11 +62,11 @@ public class ProtoBlockFileReaderTest {
                     .count(6L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "df7c5f12ca2ee96bd42c4f08c52450bb5ee334092fdab4fc2b632b03bca9b6aebeabe77ff93b08685d4df20f99af13d6")
+                            "47601ce3e082b876995d11542d3fc546c4dee3e824b5c945491f101d170636553ca750efacf891a89ef08e61e04a1295")
                     .index(982L)
                     .name(BlockFile.getBlockStreamFilename(982))
                     .previousHash(
-                            "847ec86e6da4d279e0445a983f198ccf1883a2c32a7f8c8f87361e1311417b2b8d7531211aa52454a7de2aa06c162bf4")
+                            "69a5b5a95d5adc867683b68f8bd5d73ff89ed72ea55f0c48a5a114a06c70406926534bb0077eac8e0797698a63a07207")
                     .roundStart(983L)
                     .roundEnd(983L)
                     .version(ProtoBlockFileReader.VERSION)
@@ -77,7 +77,7 @@ public class ProtoBlockFileReaderTest {
                     .count(0L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "61d19c07b316211e82a8f0602df493b0376f4911095095541b2934736495cf6d21a2f9c9d58ce64cfd51bfb8b1eb815a")
+                            "40ecba4f4134cf9e7a6fb643b54cda852ed4dcacee7d339a120165a6552169b52568dcdd921913df69b18074d6fd6cf0")
                     .index(0L)
                     .name(BlockFile.getBlockStreamFilename(0))
                     .previousHash(
@@ -266,8 +266,7 @@ public class ProtoBlockFileReaderTest {
     private BlockItem blockHeader() {
         return BlockItem.newBuilder()
                 .setBlockHeader(BlockHeader.newBuilder()
-                        .setFirstTransactionConsensusTime(Timestamp.newBuilder().setSeconds(TIMESTAMP))
-                        .setPreviousBlockHash(DomainUtils.fromBytes(TestUtils.generateRandomByteArray(48))))
+                        .setFirstTransactionConsensusTime(Timestamp.newBuilder().setSeconds(TIMESTAMP)))
                 .build();
     }
 

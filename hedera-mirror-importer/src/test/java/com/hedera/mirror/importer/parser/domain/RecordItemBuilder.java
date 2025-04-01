@@ -16,7 +16,7 @@ import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
 import com.google.protobuf.BoolValue;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
-import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.StringValue;
@@ -198,7 +198,7 @@ public class RecordItemBuilder {
     private final AtomicLong entityId = new AtomicLong(INITIAL_ID);
     private final AtomicLong id = new AtomicLong(0L);
     private final SecureRandom random = new SecureRandom();
-    private final Map<GeneratedMessageV3, EntityState> state = new ConcurrentHashMap<>();
+    private final Map<GeneratedMessage, EntityState> state = new ConcurrentHashMap<>();
 
     @Getter
     private final PersistProperties persistProperties =
@@ -1198,7 +1198,7 @@ public class RecordItemBuilder {
         return createTransactions;
     }
 
-    private Builder<?> toCreateTransaction(Map.Entry<GeneratedMessageV3, EntityState> entry) {
+    private Builder<?> toCreateTransaction(Map.Entry<GeneratedMessage, EntityState> entry) {
         entry.getValue().created.set(true);
         return switch (entry.getKey()) {
             case AccountID accountId -> cryptoCreate().receipt(r -> r.setAccountID(accountId));
@@ -1389,7 +1389,7 @@ public class RecordItemBuilder {
         return topicId;
     }
 
-    private void updateState(GeneratedMessageV3 id) {
+    private void updateState(GeneratedMessage id) {
         // Don't cascade creations that occur during an auto creation to avoid infinite recursion
         if (!autoCreation.get()) {
             state.computeIfAbsent(id, k -> new EntityState());
@@ -1417,7 +1417,7 @@ public class RecordItemBuilder {
         }
     }
 
-    public class Builder<T extends GeneratedMessageV3.Builder<T>> {
+    public class Builder<T extends GeneratedMessage.Builder<T>> {
 
         private final TransactionType type;
         private final T transactionBody;

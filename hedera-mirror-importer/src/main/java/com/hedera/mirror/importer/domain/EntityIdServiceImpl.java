@@ -10,7 +10,7 @@ import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 import static com.hedera.mirror.importer.util.Utility.aliasToEvmAddress;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.GeneratedMessage;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
@@ -116,7 +116,7 @@ public class EntityIdServiceImpl implements EntityIdService {
         }
     }
 
-    private <T extends GeneratedMessageV3> Optional<EntityId> doLookups(
+    private <T extends GeneratedMessage> Optional<EntityId> doLookups(
             T[] entityIdProtos, Function<T, Optional<EntityId>> loader) {
         for (T entityIdProto : entityIdProtos) {
             var entityId = loader.apply(entityIdProto);

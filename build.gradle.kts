@@ -20,7 +20,7 @@ extra.apply {
     set("jooq.version", "3.20.2") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "18.20.8")
-    set("protobufVersion", "3.25.5")
+    set("protobufVersion", "4.30.2")
     set("reactorGrpcVersion", "1.2.4")
     set("vertxVersion", "4.5.13")
     set("tuweniVersion", "2.3.1")
@@ -51,7 +51,7 @@ dependencies {
         api("com.graphql-java:graphql-java-extended-validation:22.0")
         api("com.hedera.hashgraph:app:0.59.3")
         api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.59.1")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.61.0")
         api("com.hedera.hashgraph:sdk:2.50.0")
         api("com.ongres.scram:client:2.1")
         api("com.playtika.testcontainers:embedded-google-pubsub:3.1.11")
