@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.hedera.hashgraph.sdk.AccountId;
-import com.hedera.hashgraph.sdk.CustomFee;
 import com.hedera.hashgraph.sdk.CustomFeeLimit;
 import com.hedera.hashgraph.sdk.CustomFixedFee;
 import com.hedera.hashgraph.sdk.Hbar;
@@ -17,13 +16,13 @@ import com.hedera.hashgraph.sdk.Key;
 import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import com.hedera.hashgraph.sdk.PrivateKey;
-import com.hedera.hashgraph.sdk.PublicKey;
 import com.hedera.hashgraph.sdk.ReceiptStatusException;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.TopicId;
 import com.hedera.hashgraph.sdk.TopicMessageQuery;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.rest.model.FixedCustomFee;
 import com.hedera.mirror.rest.model.Key.TypeEnum;
 import com.hedera.mirror.rest.model.Topic;
 import com.hedera.mirror.test.e2e.acceptance.client.AccountClient;
@@ -90,7 +89,7 @@ public class TopicFeature extends AbstractFeature {
     public void createNewTopic() {
         testInstantReference = Instant.now();
         privateKey = PrivateKey.generateED25519();
-        PublicKey submitPublicKey = privateKey.getPublicKey();
+        var submitPublicKey = privateKey.getPublicKey();
         log.trace("Topic creation PrivateKey : {}, PublicKey : {}", privateKey, submitPublicKey);
 
         networkTransactionResponse =
@@ -116,12 +115,11 @@ public class TopicFeature extends AbstractFeature {
             "I successfully create a new topic with fixed HTS and HBAR fee. {account} is collector and {account} is exempt")
     public void createNewTopicWithFixedHTSFee(AccountNameEnum collectorAccountName, AccountNameEnum exemptAccountName) {
         testInstantReference = Instant.now();
-        PublicKey submitPublicKey = privateKey.getPublicKey();
+        var submitPublicKey = privateKey.getPublicKey();
 
         log.trace("Topic creation PrivateKey : {}, PublicKey : {}", privateKey, submitPublicKey);
 
         // Create new HBAR and HTS fixed fees
-//        var collectorAccount = accountClient.getAccount(collectorAccountName);
         var fixedHTSFee = new CustomFixedFee()
                 .setAmount(FIXED_FEE_AMOUNT)
                 .setFeeCollectorAccountId(collectorAccount.getAccountId())
@@ -131,7 +129,6 @@ public class TopicFeature extends AbstractFeature {
                 .setFeeCollectorAccountId(collectorAccount.getAccountId());
 
         // Create a list of Fixed Fees
-//        var exemptAccount = accountClient.getAccount(exemptAccountName);
         List<CustomFixedFee> listOfFixedFees = List.of(fixedHTSFee, fixedHbarFee);
         // Add account to exempt list
         List<Key> listOfExemptKeys = List.of(exemptAccount.getPublicKey());
@@ -158,16 +155,20 @@ public class TopicFeature extends AbstractFeature {
                 .hasSize(2);
         var fixedFeesResponse = getTopicResponse.getCustomFees().getFixedFees();
         assertThat(fixedFeesResponse).isNotNull();
-        fixedFeesResponse.stream()
-                .peek(fee -> {
-                    assertThat(fee.getAmount()).isEqualTo(FIXED_FEE_AMOUNT);
-                    assertThat(fee.getCollectorAccountId())
-                            .isEqualTo(collectorAccount.getAccountId().toString());
-                })
-                .filter(fee -> fee.getDenominatingTokenId() != null)
-                .forEach(fee -> assertThat(fee.getDenominatingTokenId()).isEqualTo(fungibleToken.toString()));
+        // Create expected fees
+        var expectedHTSFee = new FixedCustomFee();
+        expectedHTSFee.setDenominatingTokenId(fungibleToken.toString());
+        expectedHTSFee.setAmount(FIXED_FEE_AMOUNT);
+        expectedHTSFee.setCollectorAccountId(collectorAccount.getAccountId().toString());
+        var expectedHbarFee = new FixedCustomFee();
+        expectedHbarFee.setDenominatingTokenId(null);
+        expectedHbarFee.setAmount(FIXED_FEE_AMOUNT);
+        expectedHbarFee.setCollectorAccountId(collectorAccount.getAccountId().toString());
+        List<FixedCustomFee> expectedFeeList = List.of(expectedHTSFee, expectedHbarFee);
 
+        assertThat(fixedFeesResponse).containsExactlyInAnyOrderElementsOf(expectedFeeList);
         assertNotNull(topicId);
+
         consensusTopicId = topicId;
         topicMessageQuery = new TopicMessageQuery().setTopicId(consensusTopicId).setStartTime(Instant.EPOCH);
     }
@@ -370,52 +371,15 @@ public class TopicFeature extends AbstractFeature {
         verifyMirrorTransactionsResponse(mirrorClient, 200);
 
         networkTransactionResponse = tokenClient.associate(exemptAccount, fungibleToken);
-        verifyMirrorTransactionsResponse(mirrorClient, 200);
         // Transfer funds to payer account
         networkTransactionResponse = tokenClient.transferFungibleToken(
-                fungibleToken,
-                sdkClient.getExpandedOperatorAccountId(),
-                payerAccount.getAccountId(),
-                payerAccount.getPrivateKey(),
-                1000L);
+                fungibleToken, sdkClient.getExpandedOperatorAccountId(), payerAccount.getAccountId(), null, 1000L);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
-        assertNotNull(networkTransactionResponse.getTransactionId());
-        assertNotNull(networkTransactionResponse.getReceipt());
-        // Transfer funds to exempt account
-        networkTransactionResponse = tokenClient.transferFungibleToken(
-                fungibleToken,
-                sdkClient.getExpandedOperatorAccountId(),
-                exemptAccount.getAccountId(),
-                exemptAccount.getPrivateKey(),
-                1000L);
-        verifyMirrorTransactionsResponse(mirrorClient, 200);
-        assertNotNull(networkTransactionResponse.getTransactionId());
-        assertNotNull(networkTransactionResponse.getReceipt());
     }
 
-    @When(
-            "{account} publishes message to topic")
-    @Retryable(
-            retryFor = {AssertionError.class, PrecheckStatusException.class, ReceiptStatusException.class},
-            backoff = @Backoff(delayExpression = "#{@acceptanceTestProperties.backOffPeriod.toMillis()}"),
-            maxAttemptsExpression = "#{@acceptanceTestProperties.maxRetries}")
-    public void submitTopicMessage(
-            AccountNameEnum accountName) {
+    @When("{account} publishes message to topic")
+    public void submitTopicMessage(AccountNameEnum accountName) {
         var account = accountClient.getAccount(accountName);
-//        var collectorAccount = accountClient.getAccount(collectorAccountName);
-
-//        // Create a list of Max Fixed Fees
-//        var maxCustomHTSFee = new CustomFixedFee();
-//        maxCustomHTSFee.setAmount(FIXED_FEE_AMOUNT + 1);
-//        maxCustomHTSFee.setDenominatingTokenId(fungibleToken);
-//
-//        var maxCustomHbarFee = new CustomFixedFee();
-//        maxCustomHbarFee.setHbarAmount(Hbar.fromTinybars(FIXED_FEE_AMOUNT + 1));
-//
-//        List<CustomFixedFee> listOfMaxFixedFees = List.of(maxCustomHTSFee, maxCustomHbarFee);
-//
-//        var customFeeLimit = new CustomFeeLimit();
-//        customFeeLimit.setPayerId(payerAccount.getAccountId()).setCustomFees(listOfMaxFixedFees);
 
         var accountInitialHTSBalance = getTokenBalance(account.getAccountId(), fungibleToken);
         var collectorAccountInitialHTSBalance = getTokenBalance(collectorAccount.getAccountId(), fungibleToken);
@@ -439,12 +403,10 @@ public class TopicFeature extends AbstractFeature {
             assertThat(collectorAccountHTSBalance).isEqualTo(collectorAccountInitialHTSBalance + FIXED_FEE_AMOUNT);
             assertThat(collectorAccountHbarBalance).isEqualTo(collectorAccountInitialHbarBalance + FIXED_FEE_AMOUNT);
         }
-
     }
 
     @Then("I set max custom fees")
     public void setMaxCustomFees() {
-
         // Create a list of Max Fixed Fees
         var maxCustomHTSFee = new CustomFixedFee();
         maxCustomHTSFee.setAmount(FIXED_FEE_AMOUNT + 1);
@@ -455,19 +417,20 @@ public class TopicFeature extends AbstractFeature {
 
         List<CustomFixedFee> listOfMaxFixedFees = List.of(maxCustomHTSFee, maxCustomHbarFee);
 
-//        var customFeeLimit = new CustomFeeLimit();
         customFeeLimit.setPayerId(payerAccount.getAccountId()).setCustomFees(listOfMaxFixedFees);
-
     }
 
     @Then("I verify the max custom fees")
     public void verifyMaxCustomFees() {
-        verifyMaxCustomFees(transactionId, payerAccount.getAccountId().toString(), fungibleToken.toString());
+        verifyMaxAndAssessedFees(
+                transactionId,
+                payerAccount.getAccountId().toString(),
+                collectorAccount.getAccountId().toString(),
+                fungibleToken.toString());
     }
 
     @Then("I verify the published message from {account} in mirror node REST API")
     public void verifyTopicMessage(AccountNameEnum accountName) {
-//        var payerAccount = accountClient.getAccount(accountName);
         var getTopicMessageResponse =
                 mirrorClient.getTopicMessage(consensusTopicId.toString()).getMessages();
         assertThat(getTopicMessageResponse).isNotNull();
@@ -611,24 +574,35 @@ public class TopicFeature extends AbstractFeature {
         return tokenRelationships.getFirst().getBalance();
     }
 
-    private void verifyMaxCustomFees(String transactionId, String payerAccount, String fungibleToken) {
-        mirrorClient
-                .getTransactions(transactionId)
-                .getTransactions()
-                .getFirst()
-                .getMaxCustomFees()
-                .forEach(fee -> verifyMaxFee(fee, payerAccount, fungibleToken));
-    }
-
-    private void verifyMaxFee(
-            com.hedera.mirror.rest.model.CustomFeeLimit fee, String payerAccount, String fungibleToken) {
-        // Common verifications for all fees.
-        assertThat(fee.getAmount()).isEqualTo(FIXED_FEE_AMOUNT + 1);
-        assertThat(fee.getAccountId()).isEqualTo(payerAccount);
-
-        // Check if the fee has denominating token.
-        if (fee.getDenominatingTokenId() != null) {
-            assertThat(fee.getDenominatingTokenId()).isEqualTo(fungibleToken.toString());
-        }
+    private void verifyMaxAndAssessedFees(
+            String transactionId, String payerAccount, String collectorAccount, String fungibleToken) {
+        var transaction =
+                mirrorClient.getTransactions(transactionId).getTransactions().getFirst();
+        // Create expected Max fees
+        var expectedMaxHtsLimit = new com.hedera.mirror.rest.model.CustomFeeLimit();
+        expectedMaxHtsLimit.setAccountId(payerAccount);
+        expectedMaxHtsLimit.setAmount(FIXED_FEE_AMOUNT + 1);
+        expectedMaxHtsLimit.setDenominatingTokenId(fungibleToken);
+        var expectedMaxHbarLimit = new com.hedera.mirror.rest.model.CustomFeeLimit();
+        expectedMaxHbarLimit.setAccountId(payerAccount);
+        expectedMaxHbarLimit.setAmount(FIXED_FEE_AMOUNT + 1);
+        expectedMaxHbarLimit.setDenominatingTokenId(null);
+        List<com.hedera.mirror.rest.model.CustomFeeLimit> expectedMaxFees =
+                List.of(expectedMaxHtsLimit, expectedMaxHbarLimit);
+        assertThat(transaction.getMaxCustomFees()).containsExactlyInAnyOrderElementsOf(expectedMaxFees);
+        // Create expected Assessed fees
+        var expectedAssessedHtsFee = new com.hedera.mirror.rest.model.AssessedCustomFee();
+        expectedAssessedHtsFee.setAmount(FIXED_FEE_AMOUNT);
+        expectedAssessedHtsFee.setCollectorAccountId(collectorAccount);
+        expectedAssessedHtsFee.setEffectivePayerAccountIds(List.of(payerAccount));
+        expectedAssessedHtsFee.setTokenId(fungibleToken);
+        var expectedAssessedHbarFee = new com.hedera.mirror.rest.model.AssessedCustomFee();
+        expectedAssessedHbarFee.setAmount(FIXED_FEE_AMOUNT);
+        expectedAssessedHbarFee.setCollectorAccountId(collectorAccount);
+        expectedAssessedHbarFee.setEffectivePayerAccountIds(List.of(payerAccount));
+        expectedAssessedHbarFee.setTokenId(null);
+        List<com.hedera.mirror.rest.model.AssessedCustomFee> expectedAssessedFees =
+                List.of(expectedAssessedHtsFee, expectedAssessedHbarFee);
+        assertThat(transaction.getAssessedCustomFees()).containsExactlyInAnyOrderElementsOf(expectedAssessedFees);
     }
 }
