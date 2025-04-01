@@ -16,6 +16,10 @@ import com.hedera.mirror.web3.evm.contracts.operations.HederaBlockHashOperation;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.store.contract.EntityAddressSequencer;
 import com.hedera.mirror.web3.repository.properties.CacheProperties;
+import com.hedera.mirror.web3.state.components.NoOpMetrics;
+import com.hedera.node.app.config.ConfigProviderImpl;
+import com.hedera.node.app.ids.AppEntityIdFactory;
+import com.hedera.node.app.metrics.StoreMetricsServiceImpl;
 import com.hedera.node.app.service.contract.impl.exec.operations.HederaCustomCallOperation;
 import com.hedera.node.app.service.evm.contracts.execution.traceability.HederaEvmOperationTracer;
 import com.hedera.node.app.service.evm.contracts.operations.CreateOperationExternalizer;
@@ -38,6 +42,7 @@ import com.hedera.services.evm.contracts.operations.HederaSelfDestructOperationV
 import com.hedera.services.evm.contracts.operations.HederaSelfDestructOperationV050;
 import com.hedera.services.txns.crypto.AbstractAutoCreationLogic;
 import com.hedera.services.txns.util.PrngLogic;
+import com.swirlds.state.lifecycle.EntityIdFactory;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -456,6 +461,21 @@ public class EvmConfiguration {
     @Bean
     public MirrorEvmMessageCallProcessor mirrorEvmMessageCallProcessor46(@Qualifier("evm046") EVM evm) {
         return mirrorEvmMessageCallProcessor(evm);
+    }
+
+    @Bean
+    public StoreMetricsServiceImpl storeMetricsService() {
+        return new StoreMetricsServiceImpl(new NoOpMetrics());
+    }
+
+    @Bean
+    public ConfigProviderImpl configProvider() {
+        return new ConfigProviderImpl();
+    }
+
+    @Bean
+    public EntityIdFactory entityIdFactory() {
+        return new AppEntityIdFactory(mirrorNodeEvmProperties.getVersionedConfiguration());
     }
 
     @SuppressWarnings("java:S107")
