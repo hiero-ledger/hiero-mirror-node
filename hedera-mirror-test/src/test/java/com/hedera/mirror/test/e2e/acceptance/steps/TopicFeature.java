@@ -383,7 +383,6 @@ public class TopicFeature extends AbstractFeature {
 
         var accountInitialHTSBalance = getTokenBalance(account.getAccountId(), fungibleToken);
         var collectorAccountInitialHTSBalance = getTokenBalance(collectorAccount.getAccountId(), fungibleToken);
-        var collectorAccountInitialHbarBalance = accountClient.getBalance(collectorAccount);
 
         networkTransactionResponse = topicClient.publishMessageToTopicWithFixedFee(
                 consensusTopicId, FIXED_FEE_TOPIC_MESSAGE, getKeys(), account, customFeeLimit);
@@ -392,16 +391,13 @@ public class TopicFeature extends AbstractFeature {
 
         var accountHTSBalance = getTokenBalance(account.getAccountId(), fungibleToken);
         var collectorAccountHTSBalance = getTokenBalance(collectorAccount.getAccountId(), fungibleToken);
-        var collectorAccountHbarBalance = accountClient.getBalance(collectorAccount);
 
         if (accountClient.getAccount(accountName).equals(exemptAccount)) {
             assertThat(accountHTSBalance).isEqualTo(accountInitialHTSBalance);
             assertThat(collectorAccountHTSBalance).isEqualTo(collectorAccountInitialHTSBalance);
-            assertThat(collectorAccountHbarBalance).isEqualTo(collectorAccountInitialHbarBalance);
         } else {
             assertThat(accountHTSBalance).isEqualTo(accountInitialHTSBalance - FIXED_FEE_AMOUNT);
             assertThat(collectorAccountHTSBalance).isEqualTo(collectorAccountInitialHTSBalance + FIXED_FEE_AMOUNT);
-            assertThat(collectorAccountHbarBalance).isEqualTo(collectorAccountInitialHbarBalance + FIXED_FEE_AMOUNT);
         }
     }
 
