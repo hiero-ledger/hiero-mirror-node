@@ -32,7 +32,7 @@ import org.springframework.data.domain.Persistable;
 @Entity
 @NoArgsConstructor
 public class Transaction implements Persistable<Long> {
-    private byte [] batchKey;
+    private byte[] batchKey;
 
     @Id
     private Long consensusTimestamp;
@@ -132,7 +132,7 @@ public class Transaction implements Persistable<Long> {
     }
 
     private long[] toInnerTransaction() {
-        return new long[]{payerAccountId.getId(), validStartNs};
+        return new long[] {payerAccountId.getId(), validStartNs};
     }
 
     public TransactionHash toTransactionHash() {

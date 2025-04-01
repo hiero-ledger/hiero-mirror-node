@@ -9,16 +9,7 @@ import jakarta.inject.Named;
 final class CryptoTransferTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
-        if (!blockItem.isSuccessful()) {
-            return;
-        }
-
-        var recordBuilder =
-                blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
-        recordBuilder.addAllAssessedCustomFees(blockItem.getTransactionResult().getAssessedCustomFeesList());
-    }
+    protected void doTransform(BlockItemTransformation blockItemTransformation) {}
 
     @Override
     public TransactionType getType() {

@@ -10,8 +10,6 @@ import com.google.common.base.CaseFormat;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.GeneratedMessage;
-import com.google.protobuf.GeneratedMessageV3;
-import com.google.protobuf.TextFormat;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.importer.exception.ParserException;
 import com.hederahashgraph.api.proto.java.AccountID;

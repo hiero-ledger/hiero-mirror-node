@@ -260,11 +260,12 @@ public class ProtoBlockFileReader implements BlockFileReader {
             var blockItemProto = readBlockItemFor(EVENT_TRANSACTION);
 
             if (blockItemProto != null && blockItemProto.hasEventTransaction()) {
-                return Transaction.parseFrom(blockItemProto.getEventTransaction().getApplicationTransaction());
+                return Transaction.parseFrom(
+                        blockItemProto.getEventTransaction().getApplicationTransaction());
             }
 
             if (batchBody != null && batchIndex < batchBody.getTransactionsCount()) {
-                return batchBody.getTransactions(batchIndex++); //TODO change to bytes
+                return batchBody.getTransactions(batchIndex++); // TODO change to bytes
             }
 
             return null;

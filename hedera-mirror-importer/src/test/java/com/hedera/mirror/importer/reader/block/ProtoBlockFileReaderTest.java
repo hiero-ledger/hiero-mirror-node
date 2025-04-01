@@ -266,8 +266,7 @@ public class ProtoBlockFileReaderTest {
     private BlockItem blockHeader() {
         return BlockItem.newBuilder()
                 .setBlockHeader(BlockHeader.newBuilder()
-                        .setFirstTransactionConsensusTime(Timestamp.newBuilder().setSeconds(TIMESTAMP))
-                        .setPreviousBlockHash(DomainUtils.fromBytes(TestUtils.generateRandomByteArray(48))))
+                        .setFirstTransactionConsensusTime(Timestamp.newBuilder().setSeconds(TIMESTAMP)))
                 .build();
     }
 

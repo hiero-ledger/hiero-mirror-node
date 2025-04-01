@@ -3,6 +3,7 @@
 package com.hedera.mirror.importer.parser.domain;
 
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
+import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.mirror.common.domain.DigestAlgorithm;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.transaction.BlockFile;
@@ -12,6 +13,7 @@ import com.hederahashgraph.api.proto.java.SemanticVersion;
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 
 @Named
@@ -20,6 +22,7 @@ public class BlockFileBuilder {
 
     private final DomainBuilder domainBuilder;
 
+    @SneakyThrows
     public BlockFile.BlockFileBuilder items(List<BlockItem> blockItems) {
         long blockNumber = domainBuilder.number();
         byte[] bytes = domainBuilder.bytes(256);
@@ -38,9 +41,11 @@ public class BlockFileBuilder {
                 .blockHeader(BlockHeader.newBuilder()
                         .setFirstTransactionConsensusTime(firstConsensusTimestamp)
                         .setNumber(blockNumber)
-                        .setPreviousBlockHash(DomainUtils.fromBytes(previousHash))
                         .setHapiProtoVersion(SemanticVersion.newBuilder().setMinor(57))
                         .setSoftwareVersion(SemanticVersion.newBuilder().setMinor(57))
+                        .build())
+                .blockProof(BlockProof.newBuilder()
+                        .setPreviousBlockRootHash(DomainUtils.fromBytes(previousHash))
                         .build())
                 .bytes(bytes)
                 .consensusEnd(consensusEnd)

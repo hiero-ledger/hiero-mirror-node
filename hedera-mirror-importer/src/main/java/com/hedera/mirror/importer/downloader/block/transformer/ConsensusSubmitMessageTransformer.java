@@ -4,8 +4,6 @@ package com.hedera.mirror.importer.downloader.block.transformer;
 
 import static com.hedera.mirror.importer.util.Utility.DEFAULT_RUNNING_HASH_VERSION;
 
-import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
-import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hedera.mirror.common.util.DomainUtils;
 import jakarta.inject.Named;
@@ -21,7 +19,6 @@ final class ConsensusSubmitMessageTransformer extends AbstractBlockItemTransform
         }
 
         var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
-        recordBuilder.addAllAssessedCustomFees(blockItem.getTransactionResult().getAssessedCustomFeesList());
 
         var topicMessage = blockItem
                 .getStateChangeContext()

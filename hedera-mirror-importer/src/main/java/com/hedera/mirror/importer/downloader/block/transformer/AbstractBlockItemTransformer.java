@@ -29,6 +29,7 @@ abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
         var recordBuilder = blockItemTransformation
                 .recordItemBuilder()
                 .transactionRecordBuilder()
+                .addAllAssessedCustomFees(transactionResult.getAssessedCustomFeesList())
                 .addAllAutomaticTokenAssociations(transactionResult.getAutomaticTokenAssociationsList())
                 .addAllPaidStakingRewards(transactionResult.getPaidStakingRewardsList())
                 .addAllTokenTransferLists(transactionResult.getTokenTransferListsList())
