@@ -70,6 +70,16 @@ public record TokenRelation(
             TokenID nextToken) {
         this(tokenId, accountId, () -> balance, frozen, kycGranted, automaticAssociation, previousToken, nextToken);
     }
+
+    /**
+     * Return a new builder for building a model object. This is just a shortcut for <code>new Model.Builder()</code>.
+     *
+     * @return a new builder
+     */
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
     /**
      * Override the default hashCode method for
      * all other objects to make hashCode
@@ -120,6 +130,7 @@ public record TokenRelation(
 
         return (int) hashCode;
     }
+
     /**
      * Override the default equals method for
      */
@@ -164,6 +175,7 @@ public record TokenRelation(
         }
         return nextToken == null || nextToken.equals(thatObj.nextToken);
     }
+
     /**
      * Convenience method to check if the tokenId has a value
      *
@@ -336,6 +348,9 @@ public record TokenRelation(
      * @return The balance of the token relationship
      */
     public long balance() {
+        if (balanceSupplier == null) {
+            return 0;
+        }
         return balanceSupplier.get();
     }
 
@@ -357,14 +372,6 @@ public record TokenRelation(
                 nextToken);
     }
 
-    /**
-     * Return a new builder for building a model object. This is just a shortcut for <code>new Model.Builder()</code>.
-     *
-     * @return a new builder
-     */
-    public static Builder newBuilder() {
-        return new Builder();
-    }
     /**
      * Builder class for easy creation, ideal for clean code where performance is not critical. In critical performance
      * paths use the constructor directly.
