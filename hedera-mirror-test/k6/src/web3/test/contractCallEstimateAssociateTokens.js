@@ -8,7 +8,7 @@ const account = __ENV.SPENDER_ADDRESS;
 const token = __ENV.TOKEN_ADDRESS;
 const runMode = __ENV.RUN_WITH_VARIABLES;
 const selector = '0xd91cfc95'; //associateTokenExternal
-const testName = 'estimateAssociateToken';
+const testName = 'estimateAssociateTokens';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =
