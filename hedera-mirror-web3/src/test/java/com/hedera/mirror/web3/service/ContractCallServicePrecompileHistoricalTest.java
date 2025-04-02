@@ -301,7 +301,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         final var tokenId = tokenEntity.getId();
-        nftCustomizable(t -> t.tokenId(tokenId).freezeDefault(true).timestampRange(historicalRange));
+        nonFungibleTokenCustomizable(t -> t.tokenId(tokenId).freezeDefault(true).timestampRange(historicalRange));
 
         nftPersistCustomizable(n -> n.tokenId(tokenId).timestampRange(historicalRange));
 
@@ -491,7 +491,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var approvedAccount = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
         final var tokenId = tokenEntity.getId();
-        nftCustomizable(t -> t.tokenId(tokenId).freezeDefault(true).timestampRange(historicalRange));
+        nonFungibleTokenCustomizable(t -> t.tokenId(tokenId).freezeDefault(true).timestampRange(historicalRange));
         nftPersistCustomizable(
                 n -> n.tokenId(tokenId).timestampRange(historicalRange).spender(approvedAccount.toEntityId()));
 
@@ -613,7 +613,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var treasury = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        final var token = nftCustomizable(t -> t.tokenId(tokenEntity.getId())
+        final var token = nonFungibleTokenCustomizable(t -> t.tokenId(tokenEntity.getId())
                 .treasuryAccountId(treasury.toEntityId())
                 .timestampRange(historicalRange)
                 .createdTimestamp(historicalRange.lowerEndpoint())
@@ -710,7 +710,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var treasury = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
-        final var token = nftCustomizable(t -> t.tokenId(tokenEntity.getId())
+        final var token = nonFungibleTokenCustomizable(t -> t.tokenId(tokenEntity.getId())
                 .treasuryAccountId(treasury.toEntityId())
                 .timestampRange(historicalRange)
                 .createdTimestamp(historicalRange.lowerEndpoint())

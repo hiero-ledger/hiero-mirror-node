@@ -69,7 +69,8 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     void updateTokenKeysAndGetUpdatedTokenKeyForFungibleToken(final KeyValueType keyValueType, final KeyType keyType)
             throws Exception {
         // Given
-        final var token = fungibleTokenPersist(domainBuilder.entity().persist().toEntityId());
+        final var token = fungibleTokenPersistWithTreasuryAccount(
+                domainBuilder.entity().persist().toEntityId());
         final var tokenAddress = toAddress(token.getTokenId());
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var contractAddress = contract.getContractAddress();
@@ -536,7 +537,8 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             final EntityId treasuryAccountId,
             boolean freezeDefault,
             List<TokenKey> tokenKeys) {
-        final var autoRenewAccount = accountWithEvmAddressPersist(); // the account that is going to be charged for
+        final var autoRenewAccount =
+                accountEntityWithEvmAddressPersist(); // the account that is going to be charged for
         // token renewal upon expiration
         final var tokenEntity = domainBuilder
                 .entity()
@@ -573,7 +575,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
 
     private Token nftPersist() {
         final var treasury = domainBuilder.entity().persist().toEntityId();
-        final var token = nftPersist(treasury);
+        final var token = nonFungibleTokenPersistWithTreasury(treasury);
         nftPersistCustomizable(n -> n.accountId(treasury).spender(treasury).tokenId(token.getTokenId()));
         return token;
     }

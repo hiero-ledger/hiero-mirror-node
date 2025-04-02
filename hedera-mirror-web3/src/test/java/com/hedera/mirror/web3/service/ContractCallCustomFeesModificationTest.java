@@ -55,8 +55,9 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
     @Test
     void updateFungibleTokenFixedFeeInHBAR() throws Exception {
         // 1.CREATE TOKEN WITH FIXED FEE IN HBAR
-        final var token = fungibleTokenPersist(accountWithEvmAddressPersist().toEntityId());
-        final var collector = accountWithEvmAddressPersist();
+        final var token = fungibleTokenPersistWithTreasuryAccount(
+                accountEntityWithEvmAddressPersist().toEntityId());
+        final var collector = accountEntityWithEvmAddressPersist();
         final var fixedFee = fixedFeeInHbarPersist(token, collector, FIXED_FEE_AMOUNT);
 
         // 2.GET TOKEN FIXED FEES USING PRECOMPILED CONTRACT FUNCTION
@@ -73,7 +74,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         final var modificationPrecompileTestContract =
                 testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
-        final var newCollector = accountWithEvmAddressPersist();
+        final var newCollector = accountEntityWithEvmAddressPersist();
         final var newFee = createFixedFeeInHBAR(newCollector);
         final var updateFeesFunctionCall =
                 modificationPrecompileTestContract.call_updateFungibleTokenCustomFeesAndGetExternal(
@@ -98,8 +99,9 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
     @Test
     void updateFungibleTokenFixedFeeInCustomToken() throws Exception {
         // 1.CREATE TOKEN WITH FIXED FEES IN CUSTOM TOKEN
-        final var token = fungibleTokenPersist(accountWithEvmAddressPersist().toEntityId());
-        final var collector = accountWithEvmAddressPersist();
+        final var token = fungibleTokenPersistWithTreasuryAccount(
+                accountEntityWithEvmAddressPersist().toEntityId());
+        final var collector = accountEntityWithEvmAddressPersist();
         final var fixedFee = fixedFeeInCustomTokenPersist(token, collector, FIXED_FEE_AMOUNT);
 
         // 2.GET TOKEN FIXED FEES USING PRECOMPILED CONTRACT FUNCTION
@@ -117,7 +119,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         final var modificationPrecompileTestContract =
                 testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
-        final var newCollector = accountWithEvmAddressPersist();
+        final var newCollector = accountEntityWithEvmAddressPersist();
         final var newFee = buildFixedFeeInCustomToken(token, newCollector);
         final var updateFeesFunctionCall =
                 modificationPrecompileTestContract.call_updateFungibleTokenCustomFeesAndGetExternal(
@@ -142,8 +144,9 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
     @Test
     void updateFungibleTokenFractionalFee() throws Exception {
         // 1.CREATE TOKEN WITH FRACTIONAL FEE
-        final var collector = accountWithEvmAddressPersist();
-        final var token = fungibleTokenPersist(accountWithEvmAddressPersist().toEntityId());
+        final var collector = accountEntityWithEvmAddressPersist();
+        final var token = fungibleTokenPersistWithTreasuryAccount(
+                accountEntityWithEvmAddressPersist().toEntityId());
         final var fractionalFee =
                 fractionalFeePersist(token, collector, DENOMINATOR, MAX_AMOUNT, MIN_AMOUNT, NUMERATOR, true);
 
@@ -162,7 +165,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         final var modificationPrecompileTestContract =
                 testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
-        final var newCollector = accountWithEvmAddressPersist();
+        final var newCollector = accountEntityWithEvmAddressPersist();
         final var newFee = buildFractionalFee(newCollector);
         final var updateFeesFunctionCall =
                 modificationPrecompileTestContract.call_updateFungibleTokenCustomFeesAndGetExternal(
@@ -187,8 +190,9 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
     @Test
     void updateFungibleTokenFixedAndFractionalFeeCombination() throws Exception {
         // 1.CREATE TOKEN WITH FRACTIONAL AND FIXED FEES IN CUSTOM TOKEN
-        final var token = fungibleTokenPersist(accountWithEvmAddressPersist().toEntityId());
-        final var collector = accountWithEvmAddressPersist();
+        final var token = fungibleTokenPersistWithTreasuryAccount(
+                accountEntityWithEvmAddressPersist().toEntityId());
+        final var collector = accountEntityWithEvmAddressPersist();
         final var fixedFee = getFixedFeeInCustomToken(token, collector, FIXED_FEE_AMOUNT);
         final var fractionalFee = getFractionalFee(DENOMINATOR, MAX_AMOUNT, MIN_AMOUNT, NUMERATOR, true, collector);
         fractionalAndFixedFeeInCustomTokenPersist(token, fixedFee, fractionalFee);
@@ -208,7 +212,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         final var modificationPrecompileTestContract =
                 testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
-        final var newCollector = accountWithEvmAddressPersist();
+        final var newCollector = accountEntityWithEvmAddressPersist();
         final var newFractionalFee = buildFractionalFee(newCollector);
         final var newFixedFee = createFixedFeeInHBAR(newCollector);
 
@@ -245,8 +249,9 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
     @Test
     void updateNonFungibleTokenFixedFeeInHBAR() throws Exception {
         // 1.CREATE NFT WITH FIXED FEE
-        final var nft = nftPersist(accountWithEvmAddressPersist().toEntityId());
-        final var collector = accountWithEvmAddressPersist();
+        final var nft = nonFungibleTokenPersistWithTreasury(
+                accountEntityWithEvmAddressPersist().toEntityId());
+        final var collector = accountEntityWithEvmAddressPersist();
         final var fixedFee = fixedFeeInHbarPersist(nft, collector, FIXED_FEE_AMOUNT);
 
         // 2.GET CREATED NFT CUSTOM FEES USING PRECOMPILED CONTRACT FUNCTION
@@ -263,7 +268,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         final var modificationPrecompileTestContract =
                 testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
-        final var newCollector = accountWithEvmAddressPersist();
+        final var newCollector = accountEntityWithEvmAddressPersist();
         final var newFee = createFixedFeeInHBAR(newCollector);
         final var updateFeesFunctionCall =
                 modificationPrecompileTestContract.call_updateNonFungibleTokenCustomFeesAndGetExternal(
@@ -289,8 +294,9 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
     @Test
     void updateNonFungibleTokenFixedFeeInCustomToken() throws Exception {
         // 1.CREATE NFT WITH FIXED FEE
-        final var nft = nftPersist(accountWithEvmAddressPersist().toEntityId());
-        final var collector = accountWithEvmAddressPersist();
+        final var nft = nonFungibleTokenPersistWithTreasury(
+                accountEntityWithEvmAddressPersist().toEntityId());
+        final var collector = accountEntityWithEvmAddressPersist();
         final var fixedFee = fixedFeeInCustomTokenPersist(nft, collector, FIXED_FEE_AMOUNT);
 
         // 2.GET CREATED NFT CUSTOM FEES USING PRECOMPILED CONTRACT FUNCTION
@@ -308,7 +314,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         final var modificationPrecompileTestContract =
                 testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
-        final var newCollector = accountWithEvmAddressPersist();
+        final var newCollector = accountEntityWithEvmAddressPersist();
         final var newFixedFee = createFixedFeeInHBAR(newCollector);
 
         final var updateFeesFunctionCall =

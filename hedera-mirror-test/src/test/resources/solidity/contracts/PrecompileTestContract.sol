@@ -68,7 +68,7 @@ contract PrecompileTestContract is HederaTokenService {
     {
         (int256 responseCode,IHederaTokenService.TokenInfo memory retrievedTokenInfo) = HederaTokenService.getTokenInfo(token);
         if (responseCode != HederaResponseCodes.SUCCESS) {
-            revert("Failed to get token info");
+            revert();
         }
         tokenInfo = retrievedTokenInfo;
     }

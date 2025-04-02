@@ -99,7 +99,8 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                             """)
     void updateTokenKeysAndGetUpdatedTokenKeyForFungibleToken(final KeyValueType keyValueType, final KeyType keyType) {
         // Given
-        final var token = fungibleTokenPersist(domainBuilder.entity().persist().toEntityId());
+        final var token = fungibleTokenPersistWithTreasuryAccount(
+                domainBuilder.entity().persist().toEntityId());
         final var tokenAddress = toAddress(token.getTokenId());
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var contractAddress = contract.getContractAddress();
@@ -954,7 +955,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
             boolean freezeDefault,
             List<TokenKey> tokenKeys) {
         final var autoRenewAccount =
-                accountWithEvmAddressPersist(); // the account that is going to be charged for token renewal upon
+                accountEntityWithEvmAddressPersist(); // the account that is going to be charged for token renewal upon
         // expiration
         final var tokenEntity = domainBuilder
                 .entity()

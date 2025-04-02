@@ -120,7 +120,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void isTokenFrozenWithAlias() throws Exception {
         // Given
-        final var account = accountWithEvmAddressPersist();
+        final var account = accountEntityWithEvmAddressPersist();
         final var token = fungibleTokenCustomizable(t -> t.freezeDefault(true));
         final var tokenId = token.getTokenId();
         tokenAccount(t -> t.tokenId(tokenId).accountId(account.getId()).freezeStatus(TokenFreezeStatusEnum.FROZEN));
@@ -158,7 +158,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void isKycGrantedWithAlias() throws Exception {
         // Given
-        final var account = accountWithEvmAddressPersist();
+        final var account = accountEntityWithEvmAddressPersist();
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, account.getId());
@@ -198,7 +198,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void isKycGrantedForNFTWithAlias() throws Exception {
         // Given
-        final var account = accountWithEvmAddressPersist();
+        final var account = accountEntityWithEvmAddressPersist();
         final var token = nftPersist();
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, account.getId());
@@ -268,7 +268,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void getDefaultKycNFT() throws Exception {
         // Given
-        final var token = nftCustomizable(t -> t.kycStatus(TokenKycStatusEnum.GRANTED));
+        final var token = nonFungibleTokenCustomizable(t -> t.kycStatus(TokenKycStatusEnum.GRANTED));
         final var tokenId = token.getTokenId();
         nftPersistCustomizable(n -> n.tokenId(tokenId));
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
@@ -336,7 +336,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void getNFTDefaultFreeze() throws Exception {
         // Given
-        final var token = nftCustomizable(t -> t.freezeDefault(true));
+        final var token = nonFungibleTokenCustomizable(t -> t.freezeDefault(true));
         final var tokenId = token.getTokenId();
         nftPersistCustomizable(n -> n.tokenId(tokenId));
 
@@ -429,7 +429,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void getCustomFeesForTokenWithFixedFee() throws Exception {
         // Given
-        final var collectorAccount = accountWithEvmAddressPersist();
+        final var collectorAccount = accountEntityWithEvmAddressPersist();
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
         final var entityId = EntityId.of(tokenId);
@@ -470,7 +470,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void getCustomFeesForTokenWithFractionalFee() throws Exception {
         // Given
-        final var collectorAccount = accountWithEvmAddressPersist();
+        final var collectorAccount = accountEntityWithEvmAddressPersist();
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
         final var fractionalFee = FractionalFee.builder()
@@ -514,7 +514,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void getCustomFeesForTokenWithRoyaltyFee() throws Exception {
         // Given
-        final var collectorAccount = accountWithEvmAddressPersist();
+        final var collectorAccount = accountEntityWithEvmAddressPersist();
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
         final var entityId = EntityId.of(tokenId);
@@ -563,7 +563,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         // Given
         final var expiryPeriod = 9999999999999L;
         final var autoRenewExpiry = 100000000L;
-        final var autoRenewAccount = accountWithEvmAddressPersist();
+        final var autoRenewAccount = accountEntityWithEvmAddressPersist();
         final var tokenEntity = domainBuilder
                 .entity()
                 .customize(e -> e.type(EntityType.TOKEN)
@@ -597,8 +597,8 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void getAllowanceForToken() throws Exception {
         // Given
-        final var owner = accountWithEvmAddressPersist();
-        final var spender = accountWithEvmAddressPersist();
+        final var owner = accountEntityWithEvmAddressPersist();
+        final var spender = accountEntityWithEvmAddressPersist();
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
 
@@ -618,8 +618,8 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void isApprovedForAllNFT() throws Exception {
         // Given
-        final var owner = accountWithEvmAddressPersist();
-        final var spender = accountWithEvmAddressPersist();
+        final var owner = accountEntityWithEvmAddressPersist();
+        final var spender = accountEntityWithEvmAddressPersist();
         final var token = nftPersist();
         final var tokenId = token.getTokenId();
         nftAllowancePersist(tokenId, spender.getId(), owner.toEntityId());
@@ -639,8 +639,8 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @Test
     void getFungibleTokenInfo() throws Exception {
         // Given
-        final var treasury = accountWithEvmAddressPersist();
-        final var feeCollector = accountWithEvmAddressPersist();
+        final var treasury = accountEntityWithEvmAddressPersist();
+        final var feeCollector = accountEntityWithEvmAddressPersist();
         final var tokenEntity =
                 domainBuilder.entity().customize(e -> e.type(EntityType.TOKEN)).persist();
         final var token = domainBuilder
@@ -706,8 +706,8 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     void getNonFungibleTokenInfo() throws Exception {
         // Given
         final var owner = accountEntityPersist();
-        final var treasury = accountWithEvmAddressPersist();
-        final var feeCollector = accountWithEvmAddressPersist();
+        final var treasury = accountEntityWithEvmAddressPersist();
+        final var feeCollector = accountEntityWithEvmAddressPersist();
         final var tokenEntity =
                 domainBuilder.entity().customize(e -> e.type(EntityType.TOKEN)).persist();
         final var token = domainBuilder
@@ -786,8 +786,8 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     @EnumSource(TokenTypeEnum.class)
     void getTokenInfo(final TokenTypeEnum tokenType) throws Exception {
         // Given
-        final var treasury = accountWithEvmAddressPersist();
-        final var feeCollector = accountWithEvmAddressPersist();
+        final var treasury = accountEntityWithEvmAddressPersist();
+        final var feeCollector = accountEntityWithEvmAddressPersist();
         final var tokenEntity =
                 domainBuilder.entity().customize(e -> e.type(EntityType.TOKEN)).persist();
         final var token = domainBuilder
