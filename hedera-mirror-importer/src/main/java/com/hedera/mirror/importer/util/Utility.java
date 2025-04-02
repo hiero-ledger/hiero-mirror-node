@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.importer.util;
 
-import static com.google.protobuf.TextFormat.printer;
 import static org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1.CONTEXT;
 import static org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1.SECP256K1_EC_UNCOMPRESSED;
 
@@ -10,6 +9,7 @@ import com.google.common.base.CaseFormat;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.GeneratedMessage;
+import com.google.protobuf.TextFormat;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.importer.exception.ParserException;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -104,7 +104,7 @@ public class Utility {
      * @return
      */
     public static String printProtoMessage(GeneratedMessage message) {
-        return printer().emittingSingleLine(true).printToString(message);
+        return TextFormat.printer().printToString(message);
     }
 
     public static void archiveFile(String filename, byte[] contents, Path destinationRoot) {

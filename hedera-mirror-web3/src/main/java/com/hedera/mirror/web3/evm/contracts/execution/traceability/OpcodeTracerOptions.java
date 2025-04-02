@@ -5,13 +5,11 @@ package com.hedera.mirror.web3.evm.contracts.execution.traceability;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.Value;
 
 /**
  * Options for tracing opcodes
  */
 @Data
-@Value
 @Builder(toBuilder = true)
 @AllArgsConstructor
 public class OpcodeTracerOptions {
@@ -31,7 +29,16 @@ public class OpcodeTracerOptions {
      */
     boolean storage;
 
+    /**
+     * Modularized or mono workflow
+     */
+    boolean modularized;
+
     public OpcodeTracerOptions() {
-        this(true, false, false);
+        this(true, false, false, true);
+    }
+
+    public OpcodeTracerOptions(boolean stack, boolean memory, boolean storage) {
+        this(stack, memory, storage, true);
     }
 }

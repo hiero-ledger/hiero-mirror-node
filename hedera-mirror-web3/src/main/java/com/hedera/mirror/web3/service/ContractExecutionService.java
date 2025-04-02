@@ -2,8 +2,6 @@
 
 package com.hedera.mirror.web3.service;
 
-import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType;
-
 import com.google.common.base.Stopwatch;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
@@ -12,6 +10,7 @@ import com.hedera.mirror.web3.evm.store.Store;
 import com.hedera.mirror.web3.service.model.ContractExecutionParameters;
 import com.hedera.mirror.web3.service.utils.BinaryGasEstimator;
 import com.hedera.mirror.web3.throttle.ThrottleProperties;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
@@ -54,7 +53,7 @@ public class ContractExecutionService extends ContractCallService {
             var stringResult = "";
 
             try {
-                updateGasLimitMetric(params.getCallType(), params.getGas(), params.isModularized());
+                updateGasLimitMetric(params);
 
                 Bytes result;
                 if (params.isEstimate()) {
@@ -86,8 +85,6 @@ public class ContractExecutionService extends ContractCallService {
      */
     private Bytes estimateGas(final ContractExecutionParameters params, final ContractCallContext context) {
         final var processingResult = callContract(params, context);
-        validateResult(processingResult, CallType.ETH_ESTIMATE_GAS, params.isModularized());
-
         final var gasUsedByInitialCall = processingResult.getGasUsed();
 
         // sanity check ensuring gasUsed is always lower than the inputted one
@@ -95,11 +92,13 @@ public class ContractExecutionService extends ContractCallService {
             return Bytes.ofUnsignedLong(gasUsedByInitialCall);
         }
 
+        final var status = ResponseCodeEnum.SUCCESS.toString();
         final var estimatedGas = binaryGasEstimator.search(
-                (totalGas, iterations) -> updateGasUsedMetric(CallType.ETH_ESTIMATE_GAS, totalGas, iterations),
-                gas -> doProcessCall(params, gas, false),
+                (totalGas, iterations) -> updateMetrics(params, totalGas, iterations, status),
+                gas -> doProcessCall(params, gas, true),
                 gasUsedByInitialCall,
-                params.getGas());
+                params.getGas(),
+                params.isModularized());
 
         return Bytes.ofUnsignedLong(estimatedGas);
     }

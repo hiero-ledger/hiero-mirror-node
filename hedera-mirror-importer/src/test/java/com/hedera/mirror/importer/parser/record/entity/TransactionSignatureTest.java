@@ -15,6 +15,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Message;
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionSignature;
@@ -96,14 +97,14 @@ class TransactionSignatureTest {
     private Set<TransactionType> transactionSignatures;
 
     private static Stream<Arguments> provideDefaultTransactionSignatures() {
-        return new EntityProperties(commonProperties)
+        return new EntityProperties(new SystemEntity(commonProperties))
                 .getPersist().getTransactionSignatures().stream().map(Arguments::of);
     }
 
     @BeforeEach
     void setup() {
         CommonParserProperties commonParserProperties = new CommonParserProperties();
-        EntityProperties entityProperties = new EntityProperties(commonProperties);
+        EntityProperties entityProperties = new EntityProperties(new SystemEntity(commonProperties));
         entityRecordItemListener = new EntityRecordItemListener(
                 commonParserProperties,
                 contractResultService,

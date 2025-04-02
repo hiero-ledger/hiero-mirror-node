@@ -6,6 +6,7 @@ import static com.hedera.node.app.service.evm.store.contracts.utils.EvmParsingCo
 
 import com.esaulpaugh.headlong.abi.TupleType;
 
+@SuppressWarnings("rawtypes")
 public final class ParsingConstants {
     // data types
     public static final String INT_BOOL_PAIR_RETURN_TYPE = "(int32,bool)";

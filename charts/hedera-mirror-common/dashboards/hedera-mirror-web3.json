@@ -24,9 +24,8 @@
   "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 113,
+  "id": 131,
   "links": [],
-  "liveNow": false,
   "panels": [
     {
       "datasource": {
@@ -52,8 +51,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
+                "color": "red"
               },
               {
                 "color": "green",
@@ -72,12 +70,12 @@
         "y": 0
       },
       "id": 13,
-      "links": [],
       "options": {
         "colorMode": "background",
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -85,10 +83,12 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.2.0-61469",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -129,8 +129,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
+                "color": "red"
               },
               {
                 "color": "green",
@@ -153,12 +152,12 @@
         "y": 0
       },
       "id": 30,
-      "links": [],
       "options": {
         "colorMode": "background",
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -166,10 +165,12 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.2.0-61469",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -208,8 +209,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -236,12 +236,12 @@
         "y": 0
       },
       "id": 31,
-      "links": [],
       "options": {
         "colorMode": "background",
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "max"
@@ -249,10 +249,12 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.2.0-61469",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -316,11 +318,12 @@
           "values": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -328,7 +331,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(hedera_mirror_web3_call_gas_used_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",type=\"ETH_ESTIMATE_GAS\"}) by (iteration) / on() group_left() sum(hedera_mirror_web3_call_gas_used_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",type=\"ETH_ESTIMATE_GAS\"})",
+          "expr": "sum(hedera_mirror_web3_evm_gas_used_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",type=\"ETH_ESTIMATE_GAS\"}) by (iteration) / on() group_left() sum(hedera_mirror_web3_evm_gas_used_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",type=\"ETH_ESTIMATE_GAS\"})",
           "hide": false,
           "interval": "1m",
           "legendFormat": "{{ type }}",
@@ -340,11 +343,80 @@
       "type": "piechart"
     },
     {
-      "collapsed": false,
       "datasource": {
         "type": "prometheus",
         "uid": "${prometheus}"
       },
+      "description": "The percentage of traffic received by the modularized flow",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "min": 0,
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 12,
+        "y": 0
+      },
+      "id": 94,
+      "options": {
+        "displayLabels": [],
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.6.0-84846",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(hedera_mirror_web3_evm_invocation_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}) by (modularized) / on() group_left() sum(hedera_mirror_web3_evm_invocation_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
+          "hide": false,
+          "instant": false,
+          "interval": "1m",
+          "legendFormat": "{{ modularized }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Modularized percent",
+      "type": "piechart"
+    },
+    {
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -353,15 +425,6 @@
       },
       "id": 79,
       "panels": [],
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${prometheus}"
-          },
-          "refId": "A"
-        }
-      ],
       "title": "HTTP",
       "type": "row"
     },
@@ -383,6 +446,7 @@
             "axisLabel": "Requests per second",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -415,8 +479,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -449,11 +512,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -474,7 +538,7 @@
         "type": "prometheus",
         "uid": "${prometheus}"
       },
-      "description": "The amount of gas consumed by the EVM",
+      "description": "The number of EVM invocations per second grouped by response code",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -485,9 +549,10 @@
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisGridShow": false,
-            "axisLabel": "Gas per second",
+            "axisLabel": "Requests per second",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -520,8 +585,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -579,11 +643,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -591,14 +656,14 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(hedera_mirror_web3_call_gas_used_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (type)",
+          "expr": "sum(rate(hedera_mirror_web3_evm_invocation_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (status)",
           "interval": "1m",
-          "legendFormat": "{{ type }}",
+          "legendFormat": "{{ status }}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Gas Consumed",
+      "title": "EVM Execution Rate",
       "type": "timeseries"
     },
     {
@@ -606,7 +671,7 @@
         "type": "prometheus",
         "uid": "${prometheus}"
       },
-      "description": "The amount of gas consumed to estimate gas at different iterations",
+      "description": "The number of modularized EVM invocations per second grouped by response code",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -617,9 +682,10 @@
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisGridShow": false,
-            "axisLabel": "Gas per second",
+            "axisLabel": "Requests per second",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -652,8 +718,539 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 15000000
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "Value"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
+      "id": 96,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0-84846",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(hedera_mirror_web3_evm_invocation_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",modularized=\"true\"}[$__rate_interval])) by (status)",
+          "interval": "1m",
+          "legendFormat": "{{ status }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "EVM Execution Rate (Modularized)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "How much percent of traffic is modularized",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "percent"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 15000000
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "Value"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      },
+      "id": 97,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": false,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0-84846",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(hedera_mirror_web3_evm_invocation_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (modularized)",
+          "interval": "1m",
+          "legendFormat": "{{ modularized }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Modularized Traffic Percent",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "The amount of gas consumed by the EVM",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "Gas per second",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 15000000
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "Value"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 37
+      },
+      "id": 95,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0-84846",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(hedera_mirror_web3_evm_gas_used_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (type)",
+          "interval": "1m",
+          "legendFormat": "{{ type }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Gas Consumed",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "The amount of gas limit passed in the request",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "Gas per second",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 15000000
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "Value"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 45
+      },
+      "id": 93,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0-84846",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(hedera_mirror_web3_evm_gas_limit_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (type, modularized)",
+          "interval": "1m",
+          "legendFormat": "{{ type }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Gas Limit",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "The amount of gas consumed to estimate gas at different iterations",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "Gas per second",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
               },
               {
                 "color": "red",
@@ -669,7 +1266,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 21
+        "y": 53
       },
       "id": 86,
       "options": {
@@ -686,11 +1283,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -698,7 +1296,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(hedera_mirror_web3_call_gas_used_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (iteration) > 0",
+          "expr": "sum(rate(hedera_mirror_web3_evm_gas_used_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (iteration) > 0",
           "interval": "1m",
           "legendFormat": "{{ type }}",
           "range": true,
@@ -727,6 +1325,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -760,8 +1359,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -777,7 +1375,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 61
       },
       "id": 81,
       "options": {
@@ -794,11 +1392,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -835,6 +1434,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -867,8 +1467,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -884,7 +1483,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 69
       },
       "id": 77,
       "options": {
@@ -901,11 +1500,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -942,6 +1542,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -974,8 +1575,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -991,7 +1591,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 77
       },
       "id": 82,
       "options": {
@@ -1008,11 +1608,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -1049,6 +1650,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -1081,8 +1683,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1098,7 +1699,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 53
+        "y": 85
       },
       "id": 80,
       "options": {
@@ -1115,11 +1716,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -1139,27 +1741,14 @@
     },
     {
       "collapsed": false,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${prometheus}"
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 61
+        "y": 93
       },
       "id": 25,
       "panels": [],
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${prometheus}"
-          },
-          "refId": "A"
-        }
-      ],
       "title": "Resources",
       "type": "row"
     },
@@ -1181,6 +1770,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -1213,8 +1803,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1230,7 +1819,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 62
+        "y": 94
       },
       "id": 2,
       "options": {
@@ -1247,11 +1836,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -1305,6 +1895,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -1336,8 +1927,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1353,7 +1943,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 71
+        "y": 103
       },
       "id": 3,
       "options": {
@@ -1370,11 +1960,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -1410,6 +2001,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "bars",
             "fillOpacity": 100,
             "gradientMode": "hue",
@@ -1442,8 +2034,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1520,7 +2111,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 80
+        "y": 112
       },
       "id": 7,
       "options": {
@@ -1531,11 +2122,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "11.6.0-84846",
       "targets": [
         {
           "datasource": {
@@ -1601,8 +2193,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1679,7 +2270,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 88
+        "y": 120
       },
       "id": 59,
       "options": {
@@ -1768,8 +2359,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1801,7 +2391,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 96
+        "y": 128
       },
       "id": 15,
       "interval": "1m",
@@ -1917,8 +2507,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1950,7 +2539,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 104
+        "y": 136
       },
       "id": 72,
       "interval": "1m",
@@ -2065,8 +2654,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2082,7 +2670,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 112
+        "y": 144
       },
       "id": 83,
       "options": {
@@ -2169,8 +2757,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2186,7 +2773,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 121
+        "y": 153
       },
       "id": 84,
       "options": {
@@ -2224,7 +2811,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 129
+        "y": 161
       },
       "id": 88,
       "panels": [],
@@ -2282,8 +2869,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "#EAB839",
@@ -2303,7 +2889,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 130
+        "y": 162
       },
       "id": 89,
       "options": {
@@ -2389,8 +2975,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "#EAB839",
@@ -2410,7 +2995,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 130
+        "y": 162
       },
       "id": 90,
       "options": {
@@ -2496,8 +3081,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "#EAB839",
@@ -2517,7 +3101,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 138
+        "y": 170
       },
       "id": 91,
       "options": {
@@ -2603,8 +3187,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "#EAB839",
@@ -2624,7 +3207,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 138
+        "y": 170
       },
       "id": 92,
       "options": {
@@ -2661,27 +3244,14 @@
     },
     {
       "collapsed": false,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${prometheus}"
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 146
+        "y": 178
       },
       "id": 35,
       "panels": [],
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${prometheus}"
-          },
-          "refId": "A"
-        }
-      ],
       "title": "Logs",
       "type": "row"
     },
@@ -2736,8 +3306,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2844,7 +3413,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 147
+        "y": 179
       },
       "id": 5,
       "options": {
@@ -2881,14 +3450,17 @@
         "uid": "${loki}"
       },
       "description": "The log events",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "gridPos": {
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 155
+        "y": 187
       },
       "id": 54,
-      "links": [],
       "options": {
         "dedupStrategy": "none",
         "enableLogDetails": false,
@@ -2913,8 +3485,9 @@
       "type": "logs"
     }
   ],
+  "preload": false,
   "refresh": "1m",
-  "schemaVersion": 38,
+  "schemaVersion": 41,
   "tags": [
     "hedera",
     "mirror",
@@ -2925,15 +3498,18 @@
   "templating": {
     "list": [
       {
+        "current": {
+          "text": "hedera-mirror-web3",
+          "value": "hedera-mirror-web3"
+        },
         "hide": 2,
         "name": "application",
         "query": "hedera-mirror-web3",
-        "skipUrlSync": false,
+        "skipUrlSync": true,
         "type": "constant"
       },
       {
         "current": {
-          "selected": false,
           "text": "",
           "value": ""
         },
@@ -2941,42 +3517,31 @@
         "hide": 2,
         "includeAll": false,
         "label": "Loki",
-        "multi": false,
         "name": "loki",
         "options": [],
         "query": "loki",
-        "queryValue": "",
         "refresh": 1,
         "regex": ".*(Loki|logs)$",
-        "skipUrlSync": false,
         "type": "datasource"
       },
       {
         "current": {
-          "selected": false,
           "text": "default",
           "value": "default"
         },
         "description": "Name of the Prometheus datasource to use",
-        "hide": 0,
         "includeAll": false,
         "label": "Prometheus",
-        "multi": false,
         "name": "prometheus",
         "options": [],
         "query": "prometheus",
-        "queryValue": "",
         "refresh": 1,
         "regex": ".*(?<!usage)",
-        "skipUrlSync": false,
         "type": "datasource"
       },
       {
         "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
+          "text": "All",
           "value": [
             "$__all"
           ]
@@ -2987,7 +3552,6 @@
         },
         "definition": "label_values(system_cpu_count{application=\"$application\"}, cluster)",
         "description": "Kubernetes cluster",
-        "hide": 0,
         "includeAll": true,
         "label": "Cluster",
         "multi": true,
@@ -2999,13 +3563,11 @@
         },
         "refresh": 2,
         "regex": "",
-        "skipUrlSync": false,
         "sort": 5,
         "type": "query"
       },
       {
         "current": {
-          "selected": false,
           "text": "All",
           "value": "$__all"
         },
@@ -3014,10 +3576,8 @@
           "uid": "${prometheus}"
         },
         "definition": "label_values(system_cpu_count{application=\"$application\",cluster=~\"$cluster\"},namespace)",
-        "hide": 0,
         "includeAll": true,
         "label": "Namespace",
-        "multi": false,
         "name": "namespace",
         "options": [],
         "query": {
@@ -3026,16 +3586,11 @@
         },
         "refresh": 2,
         "regex": "",
-        "skipUrlSync": false,
         "sort": 1,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
+        "type": "query"
       },
       {
         "current": {
-          "selected": false,
           "text": "All",
           "value": "$__all"
         },
@@ -3044,10 +3599,8 @@
           "uid": "${prometheus}"
         },
         "definition": "label_values(system_cpu_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\"},pod)",
-        "hide": 0,
         "includeAll": true,
         "label": "Pod",
-        "multi": false,
         "name": "pod",
         "options": [],
         "query": {
@@ -3056,12 +3609,8 @@
         },
         "refresh": 2,
         "regex": "",
-        "skipUrlSync": false,
         "sort": 1,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
+        "type": "query"
       }
     ]
   },
@@ -3085,6 +3634,5 @@
   "timezone": "",
   "title": "Hedera / Mirror / Web3 API",
   "uid": "Si3C9zAnk",
-  "version": 3,
-  "weekStart": ""
+  "version": 4
 }

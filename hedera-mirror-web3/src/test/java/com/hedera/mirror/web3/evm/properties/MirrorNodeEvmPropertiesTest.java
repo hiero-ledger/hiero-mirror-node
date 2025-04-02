@@ -14,6 +14,7 @@ import static org.mockito.Mockito.mockStatic;
 
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties.HederaNetwork;
@@ -24,7 +25,7 @@ import java.util.TreeMap;
 import java.util.stream.Stream;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.datatypes.Address;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,8 +43,12 @@ class MirrorNodeEvmPropertiesTest {
     private static final Address FUNDING_ADDRESS = Address.fromHexString("0x0000000000000000000000000000000000000062");
     private static final Bytes32 CHAIN_ID = Bytes32.fromHexString("0x0128");
 
-    private final MirrorNodeEvmProperties properties = new MirrorNodeEvmProperties(new CommonProperties());
-    private MockedStatic<ContractCallContext> staticMock;
+    private final CommonProperties commonProperties = new CommonProperties();
+    private final SystemEntity systemEntity = new SystemEntity(commonProperties);
+    private final MirrorNodeEvmProperties properties = new MirrorNodeEvmProperties(commonProperties, systemEntity);
+
+    @AutoClose
+    private final MockedStatic<ContractCallContext> staticMock = mockStatic(ContractCallContext.class);
 
     @Mock
     private ContractCallContext contractCallContext;
@@ -106,16 +111,8 @@ class MirrorNodeEvmPropertiesTest {
         properties.setEvmVersions(new TreeMap<>());
     }
 
-    @AfterEach
-    void cleanup() {
-        if (staticMock != null) {
-            staticMock.close();
-        }
-    }
-
     @Test
     void correctPropertiesEvaluation() {
-        staticMock = mockStatic(ContractCallContext.class);
         staticMock.when(ContractCallContext::get).thenReturn(contractCallContext);
         given(contractCallContext.useHistorical()).willReturn(false);
         assertThat(properties.evmVersion()).isEqualTo(EVM_VERSION.toString());
@@ -136,7 +133,6 @@ class MirrorNodeEvmPropertiesTest {
     @ParameterizedTest
     @MethodSource("blockNumberToEvmVersionProviderCustom")
     void correctHistoricalEvmVersion(Long blockNumber, SemanticVersion expectedEvmVersion) {
-        staticMock = mockStatic(ContractCallContext.class);
         staticMock.when(ContractCallContext::get).thenReturn(contractCallContext);
         given(contractCallContext.useHistorical()).willReturn(true);
         var recordFile = new RecordFile();

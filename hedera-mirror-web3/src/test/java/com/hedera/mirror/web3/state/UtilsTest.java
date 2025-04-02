@@ -3,19 +3,22 @@
 package com.hedera.mirror.web3.state;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.Timestamp;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
 import java.time.Instant;
+import org.apache.commons.codec.binary.Hex;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -82,21 +85,23 @@ class UtilsTest {
         assertTrue(Utils.isMirror(address));
     }
 
-    @Test
-    void isMirrorByteArrayAddressReturnsTrue() {
-        final var byteArrayAddress = new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, -28};
-        assertTrue(Utils.isMirror(byteArrayAddress));
-    }
-
-    @Test
-    void isMirrorByteArrayAddressDoesNotStartWithZeroesReturnsFalse() {
-        final var byteArrayAddress = new byte[] {1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, -28};
-        assertFalse(Utils.isMirror(byteArrayAddress));
-    }
-
-    @Test
-    void isMirrorAddressLengthIncorrectReturnsFalse() {
-        byte[] address = new byte[] {0x01};
-        assertFalse(Utils.isMirror(address));
+    @CsvSource(
+            value = {
+                "0, 0, 00000000000000000000000000000000000004e4, true",
+                "1, 1, 00000001000000000000000100000000000004e4, true",
+                "1, 0, 00000000000000000000000000000000000004e4, false",
+                "0, 1, 00000000000000000000000000000000000004e4, false",
+                "1, 1, 00000000000000000000000000000000000004e4, false",
+                "0, 1, 00000001000000000000000100000000000004e4, false",
+                "1, 0, 00000001000000000000000100000000000004e4, false",
+                "0, 0, 000000000000000000000000000000000004e4, false",
+                "0, 0, , false",
+            })
+    @ParameterizedTest
+    void isMirror(long shard, long realm, String hexAddress, boolean result) throws Exception {
+        CommonProperties.getInstance().setShard(shard);
+        CommonProperties.getInstance().setRealm(realm);
+        var address = hexAddress != null ? Hex.decodeHex(hexAddress) : null;
+        assertThat(Utils.isMirror(address)).isEqualTo(result);
     }
 }

@@ -48,6 +48,7 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public long size() {
         return backingStore.size();
     }

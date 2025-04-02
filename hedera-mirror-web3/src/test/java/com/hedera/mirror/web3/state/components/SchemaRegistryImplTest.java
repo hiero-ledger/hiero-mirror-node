@@ -15,6 +15,7 @@ import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.state.core.MapWritableStates;
 import com.hedera.node.app.config.ConfigProviderImpl;
+import com.hedera.node.app.ids.AppEntityIdFactory;
 import com.hedera.node.app.state.merkle.SchemaApplicationType;
 import com.hedera.node.app.state.merkle.SchemaApplications;
 import com.hedera.pbj.runtime.Codec;
@@ -63,6 +64,9 @@ class SchemaRegistryImplTest {
 
     @Mock
     private StartupNetworks startupNetworks;
+
+    @Mock
+    private AppEntityIdFactory appEntityIdFactory;
 
     @Mock
     private Codec<String> mockCodec;
@@ -201,7 +205,8 @@ class SchemaRegistryImplTest {
                 networkInfo,
                 new AtomicLong(1),
                 EMPTY_MAP,
-                startupNetworks);
+                startupNetworks,
+                appEntityIdFactory);
 
         assertThat(context).satisfies(c -> {
             assertDoesNotThrow(() -> c.copyAndReleaseOnDiskState(""));

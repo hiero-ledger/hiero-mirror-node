@@ -295,12 +295,10 @@ public class BlockItemBuilder {
     }
 
     public BlockItemBuilder.Builder cryptoTransfer(RecordItem recordItem) {
-        var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
-
         return new BlockItemBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
-                transactionOutputs,
+                Collections.emptyMap(),
                 Collections.emptyList());
     }
 
@@ -549,7 +547,10 @@ public class BlockItemBuilder {
         var stateChanges = StateChanges.newBuilder().addAllStateChanges(changes).build();
 
         return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(), transactionResult(recordItem), Map.of(), List.of(stateChanges));
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Collections.emptyMap(),
+                List.of(stateChanges));
     }
 
     public Builder tokenBurn(RecordItem recordItem) {
@@ -691,10 +692,10 @@ public class BlockItemBuilder {
             builder.setScheduleRef(transactionRecord.getScheduleRef());
         }
 
-        return builder.addAllAssessedCustomFees(transactionRecord.getAssessedCustomFeesList())
-                .addAllPaidStakingRewards(transactionRecord.getPaidStakingRewardsList())
+        return builder.addAllPaidStakingRewards(transactionRecord.getPaidStakingRewardsList())
                 .addAllAutomaticTokenAssociations(transactionRecord.getAutomaticTokenAssociationsList())
                 .addAllTokenTransferLists(transactionRecord.getTokenTransferListsList())
+                .addAllAssessedCustomFees(transactionRecord.getAssessedCustomFeesList())
                 .setConsensusTimestamp(consensusTimestamp)
                 .setTransferList(transactionRecord.getTransferList())
                 .setTransactionFeeCharged(transactionRecord.getTransactionFee())

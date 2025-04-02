@@ -6,7 +6,7 @@ import AccountAlias from './accountAlias';
 import {getResponseLimit} from './config';
 import * as constants from './constants';
 import EntityId from './entityId';
-import {EntityService, SystemEntity} from './service';
+import {EntityService} from './service';
 import {EvmAddressType} from './constants';
 import {InvalidArgumentError} from './errors';
 import * as utils from './utils';
@@ -173,7 +173,7 @@ const getAccountBalanceTimestampRange = async (tsQuery, tsParams) => {
   // Add the treasury account to the query as it will always be in the balance snapshot and account_id is the first
   // column of the primary key
   let condition = 'account_id = $1 and consensus_timestamp >= $2 and consensus_timestamp <= $3';
-  const params = [SystemEntity.treasuryAccount.getEncodedId(), lowerBound, upperBound];
+  const params = [EntityId.systemEntity.treasuryAccount.getEncodedId(), lowerBound, upperBound];
   if (neParams.length) {
     condition += ' and not consensus_timestamp = any ($4)';
     params.push(neParams);
@@ -323,7 +323,7 @@ const parseAccountIdQueryParam = (query, columnName) => {
     query[constants.filterKeys.ACCOUNT_ID],
     (value) => {
       if (EntityId.isValidEntityId(value, false)) {
-        return EntityId.parse(value).getEncodedId();
+        return EntityId.parseString(value).getEncodedId();
       }
       if (EntityId.isValidEvmAddress(value, EvmAddressType.NO_SHARD_REALM) && ++evmAliasAddressCount === 1) {
         return EntityService.getEncodedId(value, false);

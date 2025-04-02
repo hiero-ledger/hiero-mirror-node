@@ -22,6 +22,7 @@ import static org.mockito.Mockito.verify;
 import com.google.protobuf.ByteString;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.web3.ContextExtension;
 import com.hedera.mirror.web3.common.ContractCallContext;
@@ -116,7 +117,7 @@ class AutoCreationLogicTest {
     @BeforeEach
     void setUp() {
         final List<DatabaseAccessor<Object, ?>> accessors = List.of(new AccountDatabaseAccessor(
-                new CommonProperties(), entityDatabaseAccessor, null, null, null, null, null, null));
+                entityDatabaseAccessor, null, null, null, null, null, null, new SystemEntity(new CommonProperties())));
         final var stackedStateFrames = new StackedStateFrames(accessors);
         store = spy(new StoreImpl(stackedStateFrames, validator));
         subject = new AutoCreationLogic(feeCalculator, evmProperties, syntheticTxnFactory, aliasManager);

@@ -8,6 +8,7 @@ import static com.hedera.services.store.contracts.precompile.PrngSystemPrecompil
 import static org.mockito.Mockito.mockStatic;
 
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.account.MirrorEvmContractAliases;
 import com.hedera.mirror.web3.evm.pricing.RatesAndFeesLoader;
@@ -51,6 +52,7 @@ public abstract class MirrorEvmMessageCallProcessorBaseTest {
             "65386630386164632d356537632d343964342d623437372d62636134346538386338373133633038316162372d6163");
 
     private static MockedStatic<ContractCallContext> contextMockedStatic;
+    private final CommonProperties commonProperties = new CommonProperties();
 
     @Mock
     AbstractAutoCreationLogic autoCreationLogic;
@@ -99,7 +101,7 @@ public abstract class MirrorEvmMessageCallProcessorBaseTest {
     final ExchangeRatePrecompiledContract exchangeRatePrecompiledContract = new ExchangeRatePrecompiledContract(
             gasCalculatorHederaV22,
             new BasicHbarCentExchange(ratesAndFeesLoader),
-            new MirrorNodeEvmProperties(new CommonProperties()),
+            new MirrorNodeEvmProperties(commonProperties, new SystemEntity(commonProperties)),
             Instant.now());
     final PrngSystemPrecompiledContract prngSystemPrecompiledContract = new PrngSystemPrecompiledContract(
             gasCalculatorHederaV22,

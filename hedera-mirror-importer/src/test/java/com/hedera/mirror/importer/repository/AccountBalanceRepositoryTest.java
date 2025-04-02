@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.importer.repository;
 
-import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
@@ -12,7 +11,6 @@ import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.importer.ImporterIntegrationTest;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +30,8 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
     @Test
     void balanceSnapshot() {
         long timestamp = 100;
-        assertThat(accountBalanceRepository.balanceSnapshot(timestamp, DEFAULT_TREASURY_ACCOUNT.getId()))
+        assertThat(accountBalanceRepository.balanceSnapshot(
+                        timestamp, systemEntity.treasuryAccount().getId()))
                 .isZero();
         assertThat(accountBalanceRepository.findAll()).isEmpty();
 
@@ -63,7 +62,8 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
                         .id(new AccountBalance.Id(timestamp, e.toEntityId()))
                         .build())
                 .toList();
-        assertThat(accountBalanceRepository.balanceSnapshot(timestamp, DEFAULT_TREASURY_ACCOUNT.getId()))
+        assertThat(accountBalanceRepository.balanceSnapshot(
+                        timestamp, systemEntity.treasuryAccount().getId()))
                 .isEqualTo(expected.size());
         assertThat(accountBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
     }
@@ -79,7 +79,7 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
         commonProperties.setShard(shard);
         commonProperties.setRealm(realm);
         long lastSnapshotTimestamp = domainBuilder.timestamp();
-        var treasury = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasury = systemEntity.treasuryAccount();
         var treasuryAccountBalance = domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.id(new AccountBalance.Id(lastSnapshotTimestamp, treasury)))
@@ -123,7 +123,7 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
         commonProperties.setRealm(realm);
         long lowerRangeTimestamp = 0L;
         long timestamp = 100;
-        var treasury = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasury = systemEntity.treasuryAccount();
         assertThat(accountBalanceRepository.balanceSnapshotDeduplicate(
                         lowerRangeTimestamp, timestamp, treasury.getId()))
                 .isZero();
@@ -223,7 +223,7 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
         var commonProperties = new CommonProperties();
         commonProperties.setShard(shard);
         commonProperties.setRealm(realm);
-        var treasury = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasury = systemEntity.treasuryAccount();
         assertThat(accountBalanceRepository.getMaxConsensusTimestampInRange(0L, 10L, treasury.getId()))
                 .isEmpty();
 

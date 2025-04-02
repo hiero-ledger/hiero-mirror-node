@@ -20,6 +20,7 @@ public abstract class AbstractReadableKVState<K, V> extends ReadableKVStateBase<
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public long size() {
         return 0;
     }

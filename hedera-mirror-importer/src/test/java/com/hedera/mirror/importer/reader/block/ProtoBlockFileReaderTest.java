@@ -42,33 +42,33 @@ public class ProtoBlockFileReaderTest {
 
     public static final List<BlockFile> TEST_BLOCK_FILES = List.of(
             BlockFile.builder()
-                    .consensusStart(1738953031945593129L)
-                    .consensusEnd(1738953032202698150L)
-                    .count(7L)
+                    .consensusStart(1743543388185101630L)
+                    .consensusEnd(1743543388372187000L)
+                    .count(5L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "847ec86e6da4d279e0445a983f198ccf1883a2c32a7f8c8f87361e1311417b2b8d7531211aa52454a7de2aa06c162bf4")
-                    .index(981L)
-                    .name(BlockFile.getBlockStreamFilename(981))
+                            "449e750e4da69fecb92234a8dede0ac3e7b53141aecc1a30cba050ec44a729c9b5e5a06607ac6ac8a17110fb99c202ef")
+                    .index(2301160L)
+                    .name(BlockFile.getBlockStreamFilename(2301160))
                     .previousHash(
-                            "2b223b895e1a847579150a85a86e32e4aa42de0cc17a9f4e73f7f330e231515ece0fbf1818c29160a5f46da0268138d3")
-                    .roundStart(982L)
-                    .roundEnd(982L)
+                            "aeb9db588e53e6b3d1d39f1a75dbf7123e95c18cea102380989bdda89079809e2217bfb230eda982e37e36f40e87988a")
+                    .roundStart(2301161L)
+                    .roundEnd(2301161L)
                     .version(ProtoBlockFileReader.VERSION)
                     .build(),
             BlockFile.builder()
-                    .consensusStart(1738953032298721606L)
-                    .consensusEnd(1738953032428026822L)
-                    .count(6L)
+                    .consensusStart(1743543388490143524L)
+                    .consensusEnd(1743543388704490000L)
+                    .count(4L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "df7c5f12ca2ee96bd42c4f08c52450bb5ee334092fdab4fc2b632b03bca9b6aebeabe77ff93b08685d4df20f99af13d6")
-                    .index(982L)
-                    .name(BlockFile.getBlockStreamFilename(982))
+                            "0d2523cc3f44a0ffebd9bcd1950c685deb932e53b7af3e8cd202397ae2d110c3452797eb0ff05cca1ffe9780e31bec34")
+                    .index(2301161L)
+                    .name(BlockFile.getBlockStreamFilename(2301161))
                     .previousHash(
-                            "847ec86e6da4d279e0445a983f198ccf1883a2c32a7f8c8f87361e1311417b2b8d7531211aa52454a7de2aa06c162bf4")
-                    .roundStart(983L)
-                    .roundEnd(983L)
+                            "449e750e4da69fecb92234a8dede0ac3e7b53141aecc1a30cba050ec44a729c9b5e5a06607ac6ac8a17110fb99c202ef")
+                    .roundStart(2301162L)
+                    .roundEnd(2301162L)
                     .version(ProtoBlockFileReader.VERSION)
                     .build(),
             BlockFile.builder()
@@ -77,7 +77,7 @@ public class ProtoBlockFileReaderTest {
                     .count(0L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "61d19c07b316211e82a8f0602df493b0376f4911095095541b2934736495cf6d21a2f9c9d58ce64cfd51bfb8b1eb815a")
+                            "40ecba4f4134cf9e7a6fb643b54cda852ed4dcacee7d339a120165a6552169b52568dcdd921913df69b18074d6fd6cf0")
                     .index(0L)
                     .name(BlockFile.getBlockStreamFilename(0))
                     .previousHash(

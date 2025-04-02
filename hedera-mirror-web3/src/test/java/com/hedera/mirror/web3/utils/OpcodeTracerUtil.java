@@ -11,7 +11,7 @@ import org.apache.tuweni.bytes.Bytes;
 @UtilityClass
 public class OpcodeTracerUtil {
 
-    public static final OpcodeTracerOptions OPTIONS = new OpcodeTracerOptions(false, false, false);
+    public static final OpcodeTracerOptions OPTIONS = new OpcodeTracerOptions(false, false, false, true);
 
     public static String toHumanReadableMessage(final String solidityError) {
         return BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage(Bytes.fromHexString(solidityError));

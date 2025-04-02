@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import com.google.protobuf.ByteString;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
@@ -68,9 +69,9 @@ class TokenAccessorImplTest {
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     private static final EntityId TOKEN_ENTITY_ID =
             EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 1252);
+    private static final Address TOKEN_ADDRESS = toAddress(TOKEN_ENTITY_ID);
     private static final EntityId ACCOUNT_ENTITY_ID =
             EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 1253);
-    private static final Address TOKEN_ADDRESS = toAddress(TOKEN_ENTITY_ID);
     private static final Address ACCOUNT_ADDRESS = toAddress(ACCOUNT_ENTITY_ID);
     private final long serialNo = 0L;
     private final DomainBuilder domainBuilder = new DomainBuilder();
@@ -128,29 +129,30 @@ class TokenAccessorImplTest {
     void setUp() {
         final var entityAccessor = new EntityDatabaseAccessor(entityRepository, COMMON_PROPERTIES);
         final var customFeeAccessor = new CustomFeeDatabaseAccessor(customFeeRepository, entityAccessor);
+        final var systemEntity = new SystemEntity(COMMON_PROPERTIES);
         final var tokenDatabaseAccessor = new TokenDatabaseAccessor(
-                COMMON_PROPERTIES, tokenRepository, entityAccessor, entityRepository, customFeeAccessor, nftRepository);
+                tokenRepository, entityAccessor, entityRepository, customFeeAccessor, nftRepository, systemEntity);
         final var accountDatabaseAccessor = new AccountDatabaseAccessor(
-                COMMON_PROPERTIES,
                 entityAccessor,
                 nftAllowanceRepository,
                 nftRepository,
                 tokenAllowanceRepository,
                 cryptoAllowanceRepository,
                 tokenAccountRepository,
-                accountBalanceRepository);
+                accountBalanceRepository,
+                systemEntity);
         accessors = List.of(
                 entityAccessor,
                 customFeeAccessor,
                 accountDatabaseAccessor,
                 tokenDatabaseAccessor,
                 new TokenRelationshipDatabaseAccessor(
-                        COMMON_PROPERTIES,
                         tokenDatabaseAccessor,
                         accountDatabaseAccessor,
                         tokenAccountRepository,
                         tokenBalanceRepository,
-                        nftRepository),
+                        nftRepository,
+                        systemEntity),
                 new UniqueTokenDatabaseAccessor(nftRepository));
         final var stackedStateFrames = new StackedStateFrames(accessors);
         store = new StoreImpl(stackedStateFrames, validator);

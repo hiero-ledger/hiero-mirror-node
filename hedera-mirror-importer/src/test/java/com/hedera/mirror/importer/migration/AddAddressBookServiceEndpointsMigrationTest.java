@@ -69,7 +69,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         int endPointPerNode = 3;
         int numEndPoints = nodeIdCount * (endPointPerNode + 1);
 
-        insertAddressBook(systemEntities.addressBookFile101(), consensusTimestamp, nodeIdCount);
+        insertAddressBook(systemEntity.addressBookFile101(), consensusTimestamp, nodeIdCount);
         getAndSaveAddressBookEntries(true, consensusTimestamp, nodeIdCount, endPointPerNode);
 
         assertThat(jdbcOperations.queryForObject("select count(*) from address_book_entry", Integer.class))
@@ -97,7 +97,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         int endPointPerNode = 3;
         int numEndPoints = nodeIdCount * endPointPerNode;
 
-        insertAddressBook(systemEntities.addressBookFile102(), consensusTimestamp, nodeIdCount);
+        insertAddressBook(systemEntity.addressBookFile102(), consensusTimestamp, nodeIdCount);
         getAndSaveAddressBookEntries(false, consensusTimestamp, nodeIdCount, endPointPerNode);
 
         assertThat(jdbcOperations.queryForObject("select count(*) from address_book_entry", Integer.class))
@@ -124,7 +124,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         int nodeIdCount = 3;
         int endPointPerNode = 0;
 
-        insertAddressBook(systemEntities.addressBookFile102(), consensusTimestamp, nodeIdCount);
+        insertAddressBook(systemEntity.addressBookFile102(), consensusTimestamp, nodeIdCount);
         getAndSaveAddressBookEntries(true, consensusTimestamp, nodeIdCount, endPointPerNode);
 
         assertThat(jdbcOperations.queryForObject("select count(*) from address_book_entry", Integer.class))
@@ -151,7 +151,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         int nodeIdCount = 3;
         int endPointPerNode = 0;
 
-        insertAddressBook(systemEntities.addressBookFile102(), consensusTimestamp, nodeIdCount);
+        insertAddressBook(systemEntity.addressBookFile102(), consensusTimestamp, nodeIdCount);
         getAndSaveAddressBookEntries(false, consensusTimestamp, nodeIdCount, endPointPerNode);
 
         assertThat(jdbcOperations.queryForObject("select count(*) from address_book_entry", Integer.class))
@@ -184,7 +184,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         int numEndPoints = nodeIds.size() * ports.size();
 
         // populate address_book and address_book_entry
-        insertAddressBook(systemEntities.addressBookFile102(), consensusTimestamp, nodeIdCount);
+        insertAddressBook(systemEntity.addressBookFile102(), consensusTimestamp, nodeIdCount);
         nodeIds.forEach(nodeId -> {
             ports.forEach(port -> {
                 insertAddressBookEntry(
@@ -220,7 +220,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         // verify address_book counts are updated
         assertThat(findById(consensusTimestamp))
                 .get()
-                .returns(systemEntities.addressBookFile102(), MigrationAddressBook::getFileId)
+                .returns(systemEntity.addressBookFile102(), MigrationAddressBook::getFileId)
                 .returns(nodeIds.size(), MigrationAddressBook::getNodeCount)
                 .returns(null, MigrationAddressBook::getEndConsensusTimestamp);
     }
@@ -235,7 +235,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
                 .publicKey("rsa+public/key");
 
         List<Long> nodeIds = List.of(0L, 1L, 2L, 3L);
-        insertAddressBook(systemEntities.addressBookFile102(), consensusTimestamp, nodeIds.size());
+        insertAddressBook(systemEntity.addressBookFile102(), consensusTimestamp, nodeIds.size());
         insertAddressBookEntry(
                 builder.memo(baseAccountId + (nodeIds.get(0) + nodeAccountOffset))
                         .build(),
@@ -282,7 +282,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
                 .publicKey("rsa+public/key");
 
         List<Long> nodeIds = List.of(0L, 1L, 2L, 3L);
-        insertAddressBook(systemEntities.addressBookFile102(), consensusTimestamp, nodeIds.size());
+        insertAddressBook(systemEntity.addressBookFile102(), consensusTimestamp, nodeIds.size());
         insertAddressBookEntry(
                 builder.memo(baseAccountId + (nodeIds.get(0) + nodeAccountOffset))
                         .consensusTimestamp(consensusTimestamp)

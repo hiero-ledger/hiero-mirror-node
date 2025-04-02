@@ -7,10 +7,9 @@ import static com.hedera.services.utils.MiscUtils.asFcKeyUnchecked;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.TokenPauseStatusEnum;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.common.util.DomainUtils;
@@ -41,12 +40,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class TokenDatabaseAccessor extends DatabaseAccessor<Object, Token> {
 
-    private final CommonProperties commonProperties;
     private final TokenRepository tokenRepository;
     private final EntityDatabaseAccessor entityDatabaseAccessor;
     private final EntityRepository entityRepository;
     private final CustomFeeDatabaseAccessor customFeeDatabaseAccessor;
     private final NftRepository nftRepository;
+    private final SystemEntity systemEntity;
 
     @Override
     public @NonNull Optional<Token> get(@NonNull Object key, final Optional<Long> timestamp) {
@@ -117,9 +116,7 @@ public class TokenDatabaseAccessor extends DatabaseAccessor<Object, Token> {
 
     private Long getTotalSupplyHistorical(boolean isFungible, long tokenId, long timestamp) {
         if (isFungible) {
-            long treasuryAccountId = SystemEntity.TREASURY_ACCOUNT
-                    .getScopedEntityId(commonProperties)
-                    .getId();
+            long treasuryAccountId = systemEntity.treasuryAccount().getId();
             return tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(tokenId, timestamp, treasuryAccountId);
         } else {
             return nftRepository.findNftTotalSupplyByTokenIdAndTimestamp(tokenId, timestamp);

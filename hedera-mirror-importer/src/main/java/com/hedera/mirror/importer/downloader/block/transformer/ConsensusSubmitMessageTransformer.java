@@ -19,7 +19,6 @@ final class ConsensusSubmitMessageTransformer extends AbstractBlockItemTransform
         }
 
         var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
-
         var topicMessage = blockItem
                 .getStateChangeContext()
                 .getTopicMessage(blockItemTransformation

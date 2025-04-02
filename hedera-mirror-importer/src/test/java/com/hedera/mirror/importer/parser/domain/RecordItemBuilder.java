@@ -21,7 +21,7 @@ import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.StringValue;
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.SystemEntities;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
@@ -201,18 +201,19 @@ public class RecordItemBuilder {
     private final Map<GeneratedMessage, EntityState> state = new ConcurrentHashMap<>();
 
     @Getter
-    private final PersistProperties persistProperties = new PersistProperties(CommonProperties.getInstance());
+    private final PersistProperties persistProperties =
+            new PersistProperties(new SystemEntity(CommonProperties.getInstance()));
 
     private final CommonProperties commonProperties;
-    private final SystemEntities systemEntities;
+    private final SystemEntity systemEntity;
 
     @Setter
     private Instant now = Instant.now();
 
     @Autowired
-    public RecordItemBuilder(CommonProperties commonProperties, SystemEntities systemEntities) {
+    public RecordItemBuilder(CommonProperties commonProperties, SystemEntity systemEntity) {
         this.commonProperties = commonProperties;
-        this.systemEntities = systemEntities;
+        this.systemEntity = systemEntity;
         // Dynamically lookup method references for every transaction body builder in this class
         Collection<Supplier<Builder<?>>> suppliers = TestUtils.gettersByType(this, Builder.class);
         suppliers.forEach(s -> builders.put(s.get().type, s));
@@ -221,7 +222,7 @@ public class RecordItemBuilder {
 
     // Intended for use only in unit tests
     public RecordItemBuilder() {
-        this(CommonProperties.getInstance(), new SystemEntities(CommonProperties.getInstance()));
+        this(CommonProperties.getInstance(), new SystemEntity(CommonProperties.getInstance()));
     }
 
     public Supplier<Builder<?>> lookup(TransactionType type) {
@@ -1574,8 +1575,8 @@ public class RecordItemBuilder {
                     .setTransferList(TransferList.newBuilder()
                             .addAccountAmounts(accountAmount(payerAccountId, -6000L))
                             .addAccountAmounts(accountAmount(nodeAccountId, 1000L))
-                            .addAccountAmounts(accountAmount(systemEntities.feeCollectorAccount(), 2000L))
-                            .addAccountAmounts(accountAmount(systemEntities.stakingRewardAccount(), 3000L))
+                            .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 2000L))
+                            .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), 3000L))
                             .build());
             transactionRecordBuilder.getReceiptBuilder().setStatus(ResponseCodeEnum.SUCCESS);
             return transactionRecordBuilder;
