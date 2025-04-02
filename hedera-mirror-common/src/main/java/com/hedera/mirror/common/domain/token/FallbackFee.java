@@ -18,7 +18,7 @@ public class FallbackFee {
     private long amount;
 
     /**
-     * Fungible token the fee is paid in, if left unset - paid in HBAR
+     * Fungible token the fee is paid in, if left unset - paid in HBAR.
      */
     private EntityId denominatingTokenId;
 }

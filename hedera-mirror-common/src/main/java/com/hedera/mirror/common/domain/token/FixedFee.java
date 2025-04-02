@@ -13,12 +13,12 @@ import lombok.experimental.SuperBuilder;
 public class FixedFee extends AbstractFee {
 
     /**
-     * The amount transferred to the collector account when a token is transferred
+     * The amount transferred to the collector account when a token is transferred.
      */
     private long amount;
 
     /**
-     * Fungible token the fee is paid in, if left unset - paid in HBAR
+     * Fungible token the fee is paid in, if left unset - paid in HBAR.
      */
     private EntityId denominatingTokenId;
 

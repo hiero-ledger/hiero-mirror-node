@@ -17,7 +17,6 @@ import static org.mockito.Mockito.doAnswer;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.rest.model.OpcodesResponse;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.convert.BytesDecoder;
@@ -279,10 +278,6 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
 
     protected String getAccountEvmAddress(Entity account) {
         return Bytes.wrap(account.getEvmAddress()).toHexString();
-    }
-
-    protected String getTokenAddress(Token token) {
-        return toAddress(token.getTokenId()).toHexString();
     }
 
     protected void verifyEthCallAndEstimateGas(

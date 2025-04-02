@@ -26,9 +26,12 @@ import com.hedera.mirror.web3.utils.ContractFunctionProviderRecord;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.AccountAmount;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.Expiry;
+import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.FixedFee;
+import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.FractionalFee;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.HederaToken;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.KeyValue;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.NftTransfer;
+import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.RoyaltyFee;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TokenKey;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TokenTransferList;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TransferList;
@@ -626,6 +629,119 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 .value(value)
                 .build();
 
+        // Then
+        assertThat(result.component2()).isNotEqualTo(Address.ZERO.toHexString());
+
+        verifyEthCallAndEstimateGas(functionCall, contract, value);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
+    }
+
+    @Test
+    void createFungibleTokenWithCustomFees() throws Exception {
+        // Given
+        var initialSupply = BigInteger.valueOf(10L);
+        var decimals = BigInteger.valueOf(10L);
+        var value = 10000L * 100_000_000L;
+
+        final var sender = accountEntityPersist();
+
+        accountBalanceRecordsPersist(sender);
+
+        final var treasuryAccount = accountEntityPersist();
+
+        final var tokenForDenomination = fungibleTokenPersist();
+        final var feeCollector = accountEntityWithEvmAddressPersist();
+        final var tokenId = tokenForDenomination.getTokenId();
+
+        tokenAccountPersist(tokenId, feeCollector.getId());
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
+        testWeb3jService.setValue(value);
+
+        final var token = populateHederaToken(
+                contract.getContractAddress(), TokenTypeEnum.FUNGIBLE_COMMON, treasuryAccount.toEntityId());
+
+        final var fixedFee = new FixedFee(
+                BigInteger.valueOf(100L),
+                toAddress(tokenId).toHexString(),
+                false,
+                false,
+                getAliasFromEntity(feeCollector));
+        final var fractionalFee = new FractionalFee(
+                BigInteger.valueOf(1L),
+                BigInteger.valueOf(100L),
+                BigInteger.valueOf(10L),
+                BigInteger.valueOf(1000L),
+                false,
+                getAliasFromEntity(feeCollector));
+
+        // When
+        final var functionCall = contract.call_createFungibleTokenWithCustomFeesExternal(
+                token, initialSupply, decimals, List.of(fixedFee), List.of(fractionalFee));
+        final var result = functionCall.send();
+
+        final var contractFunctionProvider = ContractFunctionProviderRecord.builder()
+                .contractAddress(Address.fromHexString(contract.getContractAddress()))
+                .sender(toAddress(sender.toEntityId()))
+                .value(value)
+                .build();
+
+        // Then
+        assertThat(result.component2()).isNotEqualTo(Address.ZERO.toHexString());
+
+        verifyEthCallAndEstimateGas(functionCall, contract, value);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
+    }
+
+    @Test
+    void createNonFungibleTokenWithCustomFees() throws Exception {
+        // Given
+        var value = 10000L * 100_000_000L;
+        final var sender = accountEntityPersist();
+
+        accountBalanceRecordsPersist(sender);
+
+        final var tokenForDenomination = fungibleTokenPersist();
+        final var feeCollector = accountEntityWithEvmAddressPersist();
+        final var tokenId = tokenForDenomination.getTokenId();
+
+        tokenAccountPersist(tokenId, feeCollector.getId());
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
+        testWeb3jService.setValue(value);
+
+        final var treasuryAccount = accountEntityPersist();
+        final var token = populateHederaToken(
+                contract.getContractAddress(), TokenTypeEnum.NON_FUNGIBLE_UNIQUE, treasuryAccount.toEntityId());
+        final var fixedFee = new FixedFee(
+                BigInteger.valueOf(100L),
+                toAddress(tokenId).toHexString(),
+                false,
+                false,
+                getAliasFromEntity(feeCollector));
+        final var royaltyFee = new RoyaltyFee(
+                BigInteger.valueOf(1L),
+                BigInteger.valueOf(100L),
+                BigInteger.valueOf(10L),
+                toAddress(tokenId).toHexString(),
+                false,
+                getAliasFromEntity(feeCollector));
+
+        // When
+        testWeb3jService.setValue(value);
+        final var functionCall = contract.call_createNonFungibleTokenWithCustomFeesExternal(
+                token, List.of(fixedFee), List.of(royaltyFee));
+        final var result = functionCall.send();
+
+        final var contractFunctionProvider = ContractFunctionProviderRecord.builder()
+                .contractAddress(Address.fromHexString(contract.getContractAddress()))
+                .sender(toAddress(sender.toEntityId()))
+                .value(value)
+                .build();
         // Then
         assertThat(result.component2()).isNotEqualTo(Address.ZERO.toHexString());
 

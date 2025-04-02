@@ -334,9 +334,9 @@ class EntityIdUtilsTest {
     }
 
     @Test
-    void toTokenIdFromNull() {
+    void toTokenIdFromNullShouldReturnNull() {
         EntityId entityId = null;
-        assertNull(EntityIdUtils.toTokenId(entityId));
+        assertNull(toTokenId(entityId));
     }
 
     @Test

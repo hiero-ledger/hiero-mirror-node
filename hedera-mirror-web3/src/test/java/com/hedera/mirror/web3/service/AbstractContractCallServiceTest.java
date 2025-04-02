@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.service;
 
+import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
@@ -610,6 +611,10 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected String getAddressFromEntity(final Entity entity) {
         return EvmTokenUtils.toAddress(entity.toEntityId()).toHexString();
+    }
+
+    protected String getTokenAddress(Token token) {
+        return toAddress(token.getTokenId()).toHexString();
     }
 
     protected String getAliasFromEntity(final Entity entity) {

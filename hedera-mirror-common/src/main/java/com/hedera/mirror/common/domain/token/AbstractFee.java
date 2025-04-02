@@ -19,7 +19,7 @@ public abstract class AbstractFee {
     private boolean allCollectorsAreExempt;
 
     /**
-     * The id of the account collecting the fee
+     * The id of the account collecting the fee.
      */
     private EntityId collectorAccountId;
 

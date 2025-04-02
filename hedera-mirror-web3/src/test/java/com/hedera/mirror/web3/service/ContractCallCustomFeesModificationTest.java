@@ -7,7 +7,6 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.RoyaltyFee;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.FixedFee;
@@ -53,23 +52,23 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     @Test
     void updateFungibleTokenFixedFeeInHBAR() throws Exception {
-        // 1.CREATE TOKEN WITH FIXED FEE IN HBAR
+        // Given I create token with fixed fee in HBAR
         final var token = fungibleTokenPersistWithTreasuryAccount(
                 accountEntityWithEvmAddressPersist().toEntityId());
         final var collector = accountEntityWithEvmAddressPersist();
         final var fixedFee = fixedFeeInHbarPersist(token, collector, FIXED_FEE_AMOUNT);
 
-        // 2.GET TOKEN FIXED FEES USING PRECOMPILED CONTRACT FUNCTION
+        // When I get the token fees using system contract function
         final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
         final var getFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(getTokenAddress(token));
         final var getFeesFunctionCallResult = getFeesFunctionCall.send();
 
-        // 3.VERIFY THE TOKEN FIXED FEES ARE AS EXPECTED
+        // Then I verify the token fixed fees are as expected
         compareFixedFeesInHBAR(fixedFee, getFeesFunctionCallResult.component1().getFirst());
 
         verifyEthCallAndEstimateGas(getFeesFunctionCall, precompileTestContract, ZERO_VALUE);
 
-        // 4.UPDATE TOKEN FIXED FEES
+        // When I update the token fees
         final var modificationPrecompileTestContract =
                 testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
@@ -81,7 +80,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
 
-        // 5.VERIFY THE TOKEN FIXED FEE IS UPDATED AS EXPECTED
+        // Then I verify the token fixed fees are updated as expected
         final var updatedFixedFee = updateFeesFunctionCallResult.component1().getFirst();
 
         assertThat(updatedFixedFee.amount).isEqualTo(newFee.amount);
@@ -95,24 +94,24 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     @Test
     void updateFungibleTokenFixedFeeInCustomToken() throws Exception {
-        // 1.CREATE TOKEN WITH FIXED FEES IN CUSTOM TOKEN
+        // Given
         final var token = fungibleTokenPersistWithTreasuryAccount(
                 accountEntityWithEvmAddressPersist().toEntityId());
         final var collector = accountEntityWithEvmAddressPersist();
         final var fixedFee = fixedFeeInCustomTokenPersist(token, collector, FIXED_FEE_AMOUNT);
 
-        // 2.GET TOKEN FIXED FEES USING PRECOMPILED CONTRACT FUNCTION
+        // When
         final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
         final var getFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(getTokenAddress(token));
         final var getFeesFunctionCallResult = getFeesFunctionCall.send();
 
-        // 3.VERIFY THE TOKEN FIXED FEES ARE AS EXPECTED
+        // Then
         compareFixedFeesInCustomToken(
                 fixedFee, getFeesFunctionCallResult.component1().getFirst());
 
         verifyEthCallAndEstimateGas(getFeesFunctionCall, precompileTestContract, ZERO_VALUE);
 
-        // 4.UPDATE TOKEN FIXED FEES
+        // When
         final var modificationPrecompileTestContract =
                 testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
@@ -125,7 +124,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         tokenAccountPersist(token.getTokenId(), newCollector.getId());
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
 
-        // 5.VERIFY THE TOKEN FIXED FEE IS UPDATED AS EXPECTED
+        // Then
         final var updatedFixedFee = updateFeesFunctionCallResult.component1().getFirst();
         assertThat(updatedFixedFee.amount).isEqualTo(newFee.amount);
         assertThat(updatedFixedFee.useCurrentTokenForPayment).isEqualTo(newFee.useCurrentTokenForPayment);
@@ -138,25 +137,25 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     @Test
     void updateFungibleTokenFractionalFee() throws Exception {
-        // 1.CREATE TOKEN WITH FRACTIONAL FEE
+        // Given
         final var collector = accountEntityWithEvmAddressPersist();
         final var token = fungibleTokenPersistWithTreasuryAccount(
                 accountEntityWithEvmAddressPersist().toEntityId());
         final var fractionalFee =
                 fractionalFeePersist(token, collector, DENOMINATOR, MAX_AMOUNT, MIN_AMOUNT, NUMERATOR, true);
 
-        // 2.GET CREATED TOKEN FRACTIONAL FEES USING PRECOMPILED CONTRACT FUNCTION
+        // When
         final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
         final var getFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(getTokenAddress(token));
         final var getFeesFunctionCallResult = getFeesFunctionCall.send();
 
-        // 3.VERIFY THE TOKEN FRACTIONAL FEE IS AS EXPECTED
+        // Then
         compareFractionalFees(
                 fractionalFee, getFeesFunctionCallResult.component2().getFirst());
 
         verifyEthCallAndEstimateGas(getFeesFunctionCall, precompileTestContract, ZERO_VALUE);
 
-        // 4.UPDATE TOKEN FRACTIONAL FEE
+        // When
         final var modificationPrecompileTestContract =
                 testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
@@ -169,7 +168,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         tokenAccountPersist(token.getTokenId(), newCollector.getId());
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
 
-        // 5.VERIFY THE TOKEN FRACTIONAL FEES ARE UPDATED AS EXPECTED
+        // Then
         final var newFractionalFee = updateFeesFunctionCallResult.component2().getFirst();
         assertThat(newFractionalFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
         assertThat(newFractionalFee.numerator).isEqualTo(newFee.numerator);
@@ -182,7 +181,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     @Test
     void updateFungibleTokenFixedAndFractionalFeeCombination() throws Exception {
-        // 1.CREATE TOKEN WITH FRACTIONAL AND FIXED FEES IN CUSTOM TOKEN
+        // Given
         final var token = fungibleTokenPersistWithTreasuryAccount(
                 accountEntityWithEvmAddressPersist().toEntityId());
         final var collector = accountEntityWithEvmAddressPersist();
@@ -190,18 +189,18 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         final var fractionalFee = getFractionalFee(DENOMINATOR, MAX_AMOUNT, MIN_AMOUNT, NUMERATOR, true, collector);
         fractionalAndFixedFeeInCustomTokenPersist(token, fixedFee, fractionalFee);
 
-        // 2.GET TOKEN CUSTOM FEES USING PRECOMPILED CONTRACT FUNCTION
+        // When
         final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
         final var getFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(getTokenAddress(token));
         final var getFeesFunctionCallResult = getFeesFunctionCall.send();
 
-        // 3.VERIFY THE TOKEN CUSTOM FEES ARE AS EXPECTED
+        // Then
         compareFixedFeesInCustomToken(
                 fixedFee, getFeesFunctionCallResult.component1().getFirst());
         compareFractionalFees(
                 fractionalFee, getFeesFunctionCallResult.component2().getFirst());
 
-        // 4.UPDATE TOKEN CUSTOM FEES
+        // When
         final var modificationPrecompileTestContract =
                 testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
@@ -218,7 +217,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
 
-        // 5.VERIFY THE TOKEN CUSTOM FEES ARE UPDATED AS EXPECTED
+        // Then
         final var actualFixedFees = updateFeesFunctionCallResult.component1().getFirst();
         assertThat(actualFixedFees.amount).isEqualTo(newFixedFee.amount);
         assertThat(actualFixedFees.useCurrentTokenForPayment).isEqualTo(newFixedFee.useCurrentTokenForPayment);
@@ -237,23 +236,23 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     @Test
     void updateNonFungibleTokenFixedFeeInHBAR() throws Exception {
-        // 1.CREATE NFT WITH FIXED FEE
+        // Given
         final var nft = nonFungibleTokenPersistWithTreasury(
                 accountEntityWithEvmAddressPersist().toEntityId());
         final var collector = accountEntityWithEvmAddressPersist();
         final var fixedFee = fixedFeeInHbarPersist(nft, collector, FIXED_FEE_AMOUNT);
 
-        // 2.GET CREATED NFT CUSTOM FEES USING PRECOMPILED CONTRACT FUNCTION
+        // When
         final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
         final var getFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(getTokenAddress(nft));
         final var getFeesFunctionCallResult = getFeesFunctionCall.send();
 
-        // 3.VERIFY THE NFT FIXED FEE IS AS EXPECTED
+        // Then
         compareFixedFeesInHBAR(fixedFee, getFeesFunctionCallResult.component1().getFirst());
 
         verifyEthCallAndEstimateGas(getFeesFunctionCall, precompileTestContract, ZERO_VALUE);
 
-        // 4.UPDATE TOKEN FIXED FEE
+        // When
         final var modificationPrecompileTestContract =
                 testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
@@ -266,7 +265,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         tokenAccountPersist(nft.getTokenId(), newCollector.getId());
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
 
-        // 5.VERIFY THE TOKEN FIXED FEE IS UPDATED AS EXPECTED
+        // Then
         final var actualFixedFee = updateFeesFunctionCallResult.component1().getFirst();
 
         assertThat(actualFixedFee.amount).isEqualTo(newFee.amount);
@@ -280,24 +279,24 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     @Test
     void updateNonFungibleTokenFixedFeeInCustomToken() throws Exception {
-        // 1.CREATE NFT WITH FIXED FEE
+        // Given
         final var nft = nonFungibleTokenPersistWithTreasury(
                 accountEntityWithEvmAddressPersist().toEntityId());
         final var collector = accountEntityWithEvmAddressPersist();
         final var fixedFee = fixedFeeInCustomTokenPersist(nft, collector, FIXED_FEE_AMOUNT);
 
-        // 2.GET CREATED NFT CUSTOM FEES USING PRECOMPILED CONTRACT FUNCTION
+        // When
         final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
         final var getFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(getTokenAddress(nft));
         final var getFeesFunctionCallResult = getFeesFunctionCall.send();
 
-        // 3.VERIFY THE NFT FIXED FEE IS AS EXPECTED
+        // Then
         compareFixedFeesInCustomToken(
                 fixedFee, getFeesFunctionCallResult.component1().getFirst());
 
         verifyEthCallAndEstimateGas(getFeesFunctionCall, precompileTestContract, ZERO_VALUE);
 
-        // 4.UPDATE TOKEN FIXED FEE
+        // When
         final var modificationPrecompileTestContract =
                 testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
@@ -311,7 +310,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         tokenAccountPersist(nft.getTokenId(), newCollector.getId());
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
 
-        // 5.VERIFY THE TOKEN FIXED FEE IS UPDATED AS EXPECTED
+        // Then
         final var actualFixedFee = updateFeesFunctionCallResult.component1().getFirst();
 
         assertThat(actualFixedFee.amount).isEqualTo(newFixedFee.amount);
@@ -346,19 +345,6 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(actualFixedFee.amount).isEqualTo(BigInteger.valueOf(expectedFixedFee.getAmount()));
         assertThat(actualFixedFee.useCurrentTokenForPayment).isFalse();
         assertThat(actualFixedFee.useHbarsForPayment).isFalse();
-    }
-
-    private void compareRoyaltyFees(RoyaltyFee expectedFixedFee, PrecompileTestContract.RoyaltyFee actualFixedFee) {
-        assertThat(actualFixedFee.feeCollector)
-                .isEqualTo(getEvmAddressBytesFromEntity(getEntity(expectedFixedFee.getCollectorAccountId()))
-                        .toHexString());
-        assertThat(actualFixedFee.amount)
-                .isEqualTo(BigInteger.valueOf(expectedFixedFee.getFallbackFee().getAmount()));
-        assertThat(actualFixedFee.tokenId)
-                .isEqualTo(
-                        getAddressFromEntityId(expectedFixedFee.getFallbackFee().getDenominatingTokenId()));
-        assertThat(actualFixedFee.numerator).isEqualTo(BigInteger.valueOf(expectedFixedFee.getNumerator()));
-        assertThat(actualFixedFee.denominator).isEqualTo(BigInteger.valueOf(expectedFixedFee.getDenominator()));
     }
 
     private void compareFractionalFees(
