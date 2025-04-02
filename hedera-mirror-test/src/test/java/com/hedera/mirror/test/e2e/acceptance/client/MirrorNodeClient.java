@@ -36,6 +36,7 @@ import com.hedera.mirror.rest.model.TokenInfo;
 import com.hedera.mirror.rest.model.TokenRelationshipResponse;
 import com.hedera.mirror.rest.model.TokensResponse;
 import com.hedera.mirror.rest.model.Topic;
+import com.hedera.mirror.rest.model.TopicMessage;
 import com.hedera.mirror.rest.model.TopicMessagesResponse;
 import com.hedera.mirror.rest.model.TransactionByIdResponse;
 import com.hedera.mirror.rest.model.TransactionsResponse;
@@ -340,6 +341,11 @@ public class MirrorNodeClient {
 
     public TopicMessagesResponse getTopicMessage(String topicId) {
         return callRestEndpoint("/topics/{topicId}/messages", TopicMessagesResponse.class, topicId);
+    }
+
+    public TopicMessage getTopicMessageBySequenceNumber(String topicId, String sequenceNumber) {
+        return callRestEndpoint(
+                "/topics/{topicId}/messages/{sequenceNumber}", TopicMessage.class, topicId, sequenceNumber);
     }
 
     public TransactionsResponse getTransactionInfoByTimestamp(String timestamp) {

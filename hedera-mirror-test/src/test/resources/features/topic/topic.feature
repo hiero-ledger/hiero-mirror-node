@@ -8,10 +8,10 @@ Feature: HCS Base Coverage Feature
     Then I successfully create a new topic with fixed HTS and HBAR fee
     And ALICE publishes message to topic
     Then I verify the publish message transaction from ALICE in mirror node REST API
-    Then I verify the published message from ALICE in mirror node REST API
+    Then I verify the published message in mirror node REST API
     And DAVE publishes message to topic
     Then I verify the publish message transaction from DAVE in mirror node REST API
-    Then I verify the published message from DAVE in mirror node REST API
+    Then I verify the published message in mirror node REST API
     And I publish and verify <numMessages> messages sent
     Then the mirror node should successfully observe the transaction
     Then the mirror node should retrieve the topic

@@ -24,7 +24,6 @@ import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.rest.model.FixedCustomFee;
 import com.hedera.mirror.rest.model.Key.TypeEnum;
 import com.hedera.mirror.rest.model.Topic;
-import com.hedera.mirror.rest.model.TopicMessage;
 import com.hedera.mirror.test.e2e.acceptance.client.AccountClient;
 import com.hedera.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import com.hedera.mirror.test.e2e.acceptance.client.MirrorNodeClient;
@@ -85,6 +84,7 @@ public class TopicFeature extends AbstractFeature {
     private ExpandedAccountId collectorAccount;
     private String transactionId;
     private final CustomFeeLimit customFeeLimit = new CustomFeeLimit();
+    private Long topicSequenceNumber;
 
     @Given("I successfully create a new topic id")
     public void createNewTopic() {
@@ -385,27 +385,18 @@ public class TopicFeature extends AbstractFeature {
                 account.equals(exemptAccount) ? null : customFeeLimit);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
         transactionId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
+        topicSequenceNumber = networkTransactionResponse.getReceipt().topicSequenceNumber;
     }
 
-    @Then("I verify the published message from {account} in mirror node REST API")
-    public void verifyTopicMessage(AccountNameEnum accountName) {
-        var account = accountClient.getAccount(accountName);
-        var getTopicMessageResponse =
-                mirrorClient.getTopicMessage(consensusTopicId.toString()).getMessages();
+    @Then("I verify the published message in mirror node REST API")
+    public void verifyTopicMessage() {
+        var getTopicMessageResponse = mirrorClient.getTopicMessageBySequenceNumber(
+                consensusTopicId.toString(), String.valueOf(topicSequenceNumber));
         assertThat(getTopicMessageResponse).isNotNull();
+
         var base64EncodedMessage =
                 Base64.getEncoder().encodeToString(FIXED_FEE_TOPIC_MESSAGE.getBytes(StandardCharsets.UTF_8));
-
-        // Filter the messages that were submitted by the publisher account
-        var topicMessage = getTopicMessageResponse.stream().filter(message -> {
-            assert message.getPayerAccountId() != null;
-            return message.getPayerAccountId().equals(account.getAccountId().toString());
-        });
-
-        assertThat(topicMessage)
-                .first()
-                .returns(account.getAccountId().toString(), TopicMessage::getPayerAccountId)
-                .returns(base64EncodedMessage, TopicMessage::getMessage);
+        assertThat(getTopicMessageResponse.getMessage()).isEqualTo(base64EncodedMessage);
     }
 
     @Then("I verify the publish message transaction from {account} in mirror node REST API")
