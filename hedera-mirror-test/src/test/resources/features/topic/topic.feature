@@ -4,14 +4,14 @@ Feature: HCS Base Coverage Feature
   @critical @release @basicsubscribe
   Scenario Outline: Validate Topic message submission
     Given I create Fungible token and a key
-    And I associate ALICE as payer, DAVE as collector and CAROL as exempt with fungible token
-    Then I successfully create a new topic with fixed HTS and HBAR fee. DAVE is collector and CAROL is exempt
-    And I set max custom fees
-    Then ALICE publishes message to topic
+    And I associate ALICE as payer, CAROL as collector and set DAVE as exempt with fungible token
+    Then I successfully create a new topic with fixed HTS and HBAR fee
+    And ALICE publishes message to topic
+    Then I verify the publish message transaction from ALICE in mirror node REST API
     Then I verify the published message from ALICE in mirror node REST API
-    Then I verify the max custom fees
-    Then CAROL publishes message to topic
-    Then I verify the published message from CAROL in mirror node REST API
+    And DAVE publishes message to topic
+    Then I verify the publish message transaction from DAVE in mirror node REST API
+    Then I verify the published message from DAVE in mirror node REST API
     And I publish and verify <numMessages> messages sent
     Then the mirror node should successfully observe the transaction
     Then the mirror node should retrieve the topic
