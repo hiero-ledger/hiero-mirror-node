@@ -32,8 +32,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         // Given
         final var contract = testWeb3jService.deployWithValue(Airdrop::deploy, BigInteger.valueOf(100_000_000L));
         final var sender = accountEntityPersist();
-        final var receiver = accountEntityPersistCustomizable(
-                e -> e.maxAutomaticTokenAssociations(-1).evmAddress(null).alias(null));
+        final var receiver = persistAirdropReceiver();
 
         final var token = fungibleTokenCustomizable(e -> e.kycKey(null));
         tokenAccountPersist(token.getTokenId(), sender.getId());
@@ -269,8 +268,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         // Deploy contract with 0 balance
         final var contract = testWeb3jService.deployWithValue(Airdrop::deploy, BigInteger.valueOf(0L));
         final var sender = accountEntityPersist();
-        final var receiver = accountEntityPersistCustomizable(
-                e -> e.maxAutomaticTokenAssociations(-1).evmAddress(null).alias(null));
+        final var receiver = persistAirdropReceiver();
 
         final var token = fungibleTokenCustomizable(e -> e.kycKey(null));
         tokenAccountPersist(token.getTokenId(), sender.getId());
@@ -318,8 +316,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         // Given
         final var contract = testWeb3jService.deployWithValue(Airdrop::deploy, BigInteger.valueOf(10_000_000_000L));
         final var sender = accountEntityPersist();
-        final var receiver = accountEntityPersistCustomizable(
-                e -> e.maxAutomaticTokenAssociations(-1).evmAddress(null).alias(null));
+        final var receiver = persistAirdropReceiver();
         final var token = accountEntityPersist();
 
         // When
