@@ -11,14 +11,26 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class TokenTransformerTest extends AbstractTransformerTest {
 
-    @Test
-    void tokenAirdrop() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void tokenAirdrop(boolean assessedCustomFees) {
         // given
-        var expectedRecordItem =
-                recordItemBuilder.tokenAirdrop().customize(this::finalize).build();
+        var expectedRecordItem = recordItemBuilder
+                .tokenAirdrop()
+                .record(r -> {
+                    if (assessedCustomFees) {
+                        r.addAssessedCustomFees(recordItemBuilder.assessedCustomFee())
+                                .addAssessedCustomFees(recordItemBuilder.assessedCustomFee());
+                    } else {
+                        r.clearAssessedCustomFees();
+                    }
+                })
+                .customize(this::finalize)
+                .build();
         var blockItem = blockItemBuilder.tokenAirdrop(expectedRecordItem).build();
         var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
 

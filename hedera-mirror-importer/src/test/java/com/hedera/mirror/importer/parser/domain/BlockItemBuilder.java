@@ -295,12 +295,10 @@ public class BlockItemBuilder {
     }
 
     public BlockItemBuilder.Builder cryptoTransfer(RecordItem recordItem) {
-        var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
-
         return new BlockItemBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
-                transactionOutputs,
+                Collections.emptyMap(),
                 Collections.emptyList());
     }
 
@@ -548,10 +546,11 @@ public class BlockItemBuilder {
 
         var stateChanges = StateChanges.newBuilder().addAllStateChanges(changes).build();
 
-        var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
-
         return new BlockItemBuilder.Builder(
-                recordItem.getTransaction(), transactionResult(recordItem), transactionOutputs, List.of(stateChanges));
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Collections.emptyMap(),
+                List.of(stateChanges));
     }
 
     public Builder tokenBurn(RecordItem recordItem) {

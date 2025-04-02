@@ -32,6 +32,7 @@ abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
                 .addAllAutomaticTokenAssociations(transactionResult.getAutomaticTokenAssociationsList())
                 .addAllPaidStakingRewards(transactionResult.getPaidStakingRewardsList())
                 .addAllTokenTransferLists(transactionResult.getTokenTransferListsList())
+                .addAllAssessedCustomFees(transactionResult.getAssessedCustomFeesList())
                 .setConsensusTimestamp(transactionResult.getConsensusTimestamp())
                 .setMemo(transactionBody.getMemo())
                 .setReceipt(receiptBuilder)

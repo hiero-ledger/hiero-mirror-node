@@ -56,10 +56,6 @@ final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
                         PendingAirdropRecord.newBuilder().setPendingAirdropId(pendingAirdropId));
             }
         }
-        var customFees = blockItem.getTransactionResult().getAssessedCustomFeesList();
-        if (!customFees.isEmpty()) {
-            recordBuilder.addAllAssessedCustomFees(customFees);
-        }
     }
 
     @Override
