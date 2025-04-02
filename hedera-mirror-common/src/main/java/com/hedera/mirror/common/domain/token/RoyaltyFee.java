@@ -23,12 +23,12 @@ public class RoyaltyFee extends AbstractFee {
     private FallbackFee fallbackFee;
 
     /**
-     * denominator of the fraction of the value exchanged for the NFT
+     * Denominator of the fraction of the value exchanged for the NFT.
      */
     private long denominator;
 
     /**
-     * numerator of the fraction of the value exchanged for the NFT
+     * Numerator of the fraction of the value exchanged for the NFT.
      */
     private long numerator;
 

@@ -7,7 +7,6 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.FallbackFee;
 import com.hedera.mirror.common.domain.token.RoyaltyFee;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract;
@@ -89,9 +88,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(updatedFixedFee.useCurrentTokenForPayment).isEqualTo(newFee.useCurrentTokenForPayment);
         assertThat(updatedFixedFee.useHbarsForPayment).isEqualTo(newFee.useHbarsForPayment);
         assertThat(updatedFixedFee.tokenId).isEqualTo(newFee.tokenId);
-        assertThat(updatedFixedFee.feeCollector)
-                .as("Failed to update the fee collector")
-                .isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
+        assertThat(updatedFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
 
         verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
     }
@@ -134,9 +131,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(updatedFixedFee.useCurrentTokenForPayment).isEqualTo(newFee.useCurrentTokenForPayment);
         assertThat(updatedFixedFee.useHbarsForPayment).isEqualTo(newFee.useHbarsForPayment);
         assertThat(updatedFixedFee.tokenId).isEqualTo(newFee.tokenId);
-        assertThat(updatedFixedFee.feeCollector)
-                .as("Failed to update the fee collector")
-                .isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
+        assertThat(updatedFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
 
         verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
     }
@@ -176,9 +171,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
         // 5.VERIFY THE TOKEN FRACTIONAL FEES ARE UPDATED AS EXPECTED
         final var newFractionalFee = updateFeesFunctionCallResult.component2().getFirst();
-        assertThat(newFractionalFee.feeCollector)
-                .as("Failed to update the fee collector")
-                .isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
+        assertThat(newFractionalFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
         assertThat(newFractionalFee.numerator).isEqualTo(newFee.numerator);
         assertThat(newFractionalFee.denominator).isEqualTo(newFee.denominator);
         assertThat(newFractionalFee.minimumAmount).isEqualTo(newFee.minimumAmount);
@@ -231,15 +224,11 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(actualFixedFees.useCurrentTokenForPayment).isEqualTo(newFixedFee.useCurrentTokenForPayment);
         assertThat(actualFixedFees.useHbarsForPayment).isEqualTo(newFixedFee.useHbarsForPayment);
         assertThat(actualFixedFees.tokenId).isEqualTo(newFixedFee.tokenId);
-        assertThat(actualFixedFees.feeCollector)
-                .as("Failed to update the fee collector")
-                .isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
+        assertThat(actualFixedFees.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
 
         final var actualFractionalFees =
                 updateFeesFunctionCallResult.component2().getFirst();
-        assertThat(actualFractionalFees.feeCollector)
-                .as("Failed to update the fee collector")
-                .isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
+        assertThat(actualFractionalFees.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
         assertThat(actualFractionalFees.numerator).isEqualTo(newFractionalFee.numerator);
         assertThat(actualFractionalFees.denominator).isEqualTo(newFractionalFee.denominator);
         assertThat(actualFractionalFees.minimumAmount).isEqualTo(newFractionalFee.minimumAmount);
@@ -284,9 +273,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(actualFixedFee.useCurrentTokenForPayment).isEqualTo(newFee.useCurrentTokenForPayment);
         assertThat(actualFixedFee.useHbarsForPayment).isEqualTo(newFee.useHbarsForPayment);
         assertThat(actualFixedFee.tokenId).isEqualTo(newFee.tokenId);
-        assertThat(actualFixedFee.feeCollector)
-                .as("Failed to update the fee collector")
-                .isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
+        assertThat(actualFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
 
         verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
     }
@@ -331,9 +318,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(actualFixedFee.useCurrentTokenForPayment).isEqualTo(newFixedFee.useCurrentTokenForPayment);
         assertThat(actualFixedFee.useHbarsForPayment).isEqualTo(newFixedFee.useHbarsForPayment);
         assertThat(actualFixedFee.tokenId).isEqualTo(newFixedFee.tokenId);
-        assertThat(actualFixedFee.feeCollector)
-                .as("Failed to update the fee collector")
-                .isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
+        assertThat(actualFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
 
         verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
     }
@@ -363,9 +348,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(actualFixedFee.useHbarsForPayment).isFalse();
     }
 
-    private void compareRoyaltyFees(
-            com.hedera.mirror.common.domain.token.RoyaltyFee expectedFixedFee,
-            PrecompileTestContract.RoyaltyFee actualFixedFee) {
+    private void compareRoyaltyFees(RoyaltyFee expectedFixedFee, PrecompileTestContract.RoyaltyFee actualFixedFee) {
         assertThat(actualFixedFee.feeCollector)
                 .isEqualTo(getEvmAddressBytesFromEntity(getEntity(expectedFixedFee.getCollectorAccountId()))
                         .toHexString());
@@ -510,92 +493,6 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
                         .fixedFees(List.of(fixedFee))
                         .fractionalFees(List.of(fractionalFee))
                         .royaltyFees(List.of()))
-                .persist();
-    }
-
-    private ModificationPrecompileTestContract.RoyaltyFee createRoyaltyFee(
-            Token token, long amount, long denominator, long numerator, Entity collector, boolean useHbarForPayment) {
-        return new ModificationPrecompileTestContract.RoyaltyFee(
-                BigInteger.valueOf(numerator),
-                BigInteger.valueOf(denominator),
-                BigInteger.valueOf(amount),
-                token == null ? null : getTokenAddress(token),
-                useHbarForPayment,
-                getAddressFromEntityId(collector.toEntityId()));
-    }
-
-    private com.hedera.mirror.common.domain.token.RoyaltyFee getRoyaltyFee(
-            Token token, long amount, long denominator, long numerator, Entity collector) {
-        return RoyaltyFee.builder()
-                .fallbackFee(FallbackFee.builder()
-                        .amount(amount)
-                        .denominatingTokenId(EntityId.of(token.getTokenId()))
-                        .build())
-                .denominator(denominator)
-                .collectorAccountId(collector.toEntityId())
-                .numerator(numerator)
-                .allCollectorsAreExempt(true)
-                .build();
-    }
-
-    private com.hedera.mirror.common.domain.token.RoyaltyFee getRoyaltyFeeHbar(
-            long amount, long denominator, long numerator, Entity collector) {
-        return RoyaltyFee.builder()
-                .fallbackFee(FallbackFee.builder()
-                        .amount(amount)
-                        .denominatingTokenId(null)
-                        //                        .denominatingTokenId(EntityId.of(token.getTokenId()))
-                        .build())
-                .denominator(denominator)
-                .collectorAccountId(collector.toEntityId())
-                .numerator(numerator)
-                .allCollectorsAreExempt(true)
-                .build();
-    }
-
-    private com.hedera.mirror.common.domain.token.RoyaltyFee royaltyFeePersist(
-            Token nft,
-            Token denominatingToken,
-            Long amount,
-            Long denominator,
-            Long numerator,
-            Entity collectorAccount) {
-        final var royaltyFee = getRoyaltyFee(denominatingToken, amount, denominator, numerator, collectorAccount);
-
-        domainBuilder
-                .customFee()
-                .customize(f -> f.entityId(nft.getTokenId())
-                        .fixedFees(List.of())
-                        .fractionalFees(List.of())
-                        .royaltyFees(List.of(royaltyFee)))
-                .persist();
-        return royaltyFee;
-    }
-
-    private com.hedera.mirror.common.domain.token.RoyaltyFee royaltyFeePersistHbar(
-            Token nft, Long amount, Long denominator, Long numerator, Entity collectorAccount) {
-        final var royaltyFee = getRoyaltyFeeHbar(amount, denominator, numerator, collectorAccount);
-
-        domainBuilder
-                .customFee()
-                .customize(f -> f.entityId(nft.getTokenId())
-                        .fixedFees(List.of())
-                        .fractionalFees(List.of())
-                        .royaltyFees(List.of(royaltyFee)))
-                .persist();
-        return royaltyFee;
-    }
-
-    private void royaltyAndFixedFeePersist(
-            Token token,
-            com.hedera.mirror.common.domain.token.RoyaltyFee royaltyFee,
-            com.hedera.mirror.common.domain.token.FixedFee fixedFee) {
-        domainBuilder
-                .customFee()
-                .customize(f -> f.entityId(token.getTokenId())
-                        .fixedFees(List.of(fixedFee))
-                        .fractionalFees(List.of())
-                        .royaltyFees(List.of(royaltyFee)))
                 .persist();
     }
 }
