@@ -75,7 +75,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 nftAddress,
                 getAddressFromEntity(sender),
                 getAddressFromEntity(receiver),
-                BigInteger.ONE,
+                DEFAULT_SERIAL_NUMBER,
                 BigInteger.ZERO);
 
         // Then
@@ -141,7 +141,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
             nfts.add(nftAddress);
             senders.add(getAddressFromEntity(sender));
             receivers.add(getAddressFromEntity(receiver));
-            serials.add(BigInteger.ONE);
+            serials.add(DEFAULT_SERIAL_NUMBER);
         }
 
         // When
@@ -193,7 +193,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
             nfts.add(nftAddress);
             nftSenders.add(getAddressFromEntity(sender));
             nftReceivers.add(getAddressFromEntity(receiver));
-            serials.add(BigInteger.ONE);
+            serials.add(DEFAULT_SERIAL_NUMBER);
         }
 
         // When
@@ -246,7 +246,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
             nfts.add(nftAddress);
             nftSenders.add(getAddressFromEntity(sender));
             nftReceivers.add(getAddressFromEntity(receiver));
-            serials.add(BigInteger.ONE);
+            serials.add(DEFAULT_SERIAL_NUMBER);
         }
 
         // When
