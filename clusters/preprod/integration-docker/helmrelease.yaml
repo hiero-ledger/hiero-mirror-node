@@ -33,6 +33,10 @@ spec:
     - kind: Secret
       name: mirror
   values:
+    global:
+      env:
+        HEDERA_MIRROR_COMMON_REALM: "1"
+        HEDERA_MIRROR_COMMON_SHARD: "1"
     importer:
       env:
         HEDERA_MIRROR_IMPORTER_NETWORK: "OTHER"
