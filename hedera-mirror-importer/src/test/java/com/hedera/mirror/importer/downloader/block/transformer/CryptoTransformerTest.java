@@ -97,7 +97,7 @@ class CryptoTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem = recordItemBuilder
                 .cryptoTransfer()
-                .useBodyBytesAndSigMap(true)
+                .useTransactionBodyBytesAndSigMap(true)
                 .customize(this::finalize)
                 .build();
         var blockItem = blockItemBuilder.cryptoTransfer(expectedRecordItem).build();

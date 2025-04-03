@@ -1431,7 +1431,7 @@ public class RecordItemBuilder {
         private Predicate<EntityId> entityTransactionPredicate = persistProperties::shouldPersistEntityTransaction;
         private Predicate<EntityId> contractTransactionPredicate = e -> persistProperties.isContractTransaction();
         private BiConsumer<TransactionBody.Builder, TransactionRecord.Builder> incrementer = (b, r) -> {};
-        private boolean useBodyBytesAndSigMap;
+        private boolean useTransactionBodyBytesAndSigMap;
 
         private Builder(TransactionType type, T transactionBody) {
             this.payerAccountId = accountId();
@@ -1464,7 +1464,7 @@ public class RecordItemBuilder {
             var transaction = transaction();
             if (transactionRecord.getTransactionHash() == ByteString.EMPTY) {
                 var digest = createSha384Digest();
-                byte[] transactionHash = useBodyBytesAndSigMap
+                byte[] transactionHash = useTransactionBodyBytesAndSigMap
                         ? digest.digest(transaction.toByteArray())
                         : digest.digest(toBytes(transaction.getSignedTransactionBytes()));
                 transactionRecord.setTransactionHash(fromBytes(transactionHash));
@@ -1559,8 +1559,8 @@ public class RecordItemBuilder {
             return this;
         }
 
-        public Builder<T> useBodyBytesAndSigMap(boolean value) {
-            this.useBodyBytesAndSigMap = value;
+        public Builder<T> useTransactionBodyBytesAndSigMap(boolean value) {
+            this.useTransactionBodyBytesAndSigMap = value;
             return this;
         }
 
@@ -1613,7 +1613,7 @@ public class RecordItemBuilder {
         private Transaction transaction() {
             var bodyBytes = transactionBodyWrapper.build().toByteString();
             var builder = Transaction.newBuilder();
-            if (useBodyBytesAndSigMap) {
+            if (useTransactionBodyBytesAndSigMap) {
                 builder.setBodyBytes(bodyBytes).setSigMap(signatureMap);
             } else {
                 // use signedTransactionBytes
