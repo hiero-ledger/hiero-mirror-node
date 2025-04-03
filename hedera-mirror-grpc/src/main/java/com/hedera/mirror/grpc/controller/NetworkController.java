@@ -49,7 +49,7 @@ public class NetworkController extends ReactorNetworkServiceGrpc.NetworkServiceI
     @SuppressWarnings("deprecation")
     private NodeAddress toNodeAddress(AddressBookEntry addressBookEntry) {
         var nodeAddress = NodeAddress.newBuilder()
-                .setNodeAccountId(ProtoUtil.toAccountID(addressBookEntry.getNodeAccountId()))
+                .setNodeAccountId(addressBookEntry.getNodeAccountId().toAccountID())
                 .setNodeId(addressBookEntry.getNodeId());
 
         if (addressBookEntry.getDescription() != null) {

@@ -98,7 +98,7 @@ public class ConsensusController extends ReactorConsensusServiceGrpc.ConsensusSe
                 chunkBuilder.setInitialTransactionID(transactionID);
             } else if (payerAccountEntity != null && validStartInstant != null) {
                 chunkBuilder.setInitialTransactionID(TransactionID.newBuilder()
-                        .setAccountID(ProtoUtil.toAccountID(payerAccountEntity))
+                        .setAccountID(payerAccountEntity.toAccountID())
                         .setTransactionValidStart(validStartInstant)
                         .build());
             }

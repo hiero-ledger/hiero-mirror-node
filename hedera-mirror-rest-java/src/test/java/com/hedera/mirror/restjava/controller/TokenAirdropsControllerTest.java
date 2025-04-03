@@ -30,6 +30,10 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
     private final TokenAirdropMapper mapper;
 
+    private TokenAirdropsResponse getExpectedResponse(List<TokenAirdrop> tokenAirdrops, String next) {
+        return new TokenAirdropsResponse().airdrops(mapper.map(tokenAirdrops)).links(new Links().next(next));
+    }
+
     @DisplayName("/api/v1/accounts/{id}/airdrops/outstanding")
     @Nested
     class OutstandingTokenAirdropsEndpointTest extends EndpointTest {
@@ -731,8 +735,8 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @ParameterizedTest
         @ValueSource(
                 strings = {
-                    "0.0x000000000000000000000000000000000186Fb1b",
-                    "0.0.0x000000000000000000000000000000000186Fb1b",
+                    "0.000000000000000000000000000000000186Fb1b",
+                    "0.0.000000000000000000000000000000000186Fb1b",
                     "0x000000000000000000000000000000000186Fb1b",
                     "0.0.AABBCC22",
                     "0.AABBCC22",
@@ -1510,8 +1514,8 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @ParameterizedTest
         @ValueSource(
                 strings = {
-                    "0.0x000000000000000000000000000000000186Fb1b",
-                    "0.0.0x000000000000000000000000000000000186Fb1b",
+                    "0.000000000000000000000000000000000186Fb1b",
+                    "0.0.000000000000000000000000000000000186Fb1b",
                     "0x000000000000000000000000000000000186Fb1b",
                     "0.0.AABBCC22",
                     "0.AABBCC22",
@@ -1636,9 +1640,5 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     HttpClientErrorException.BadRequest.class,
                     "Failed to convert 'token.id' with value: '" + tokenId + "'");
         }
-    }
-
-    private TokenAirdropsResponse getExpectedResponse(List<TokenAirdrop> tokenAirdrops, String next) {
-        return new TokenAirdropsResponse().airdrops(mapper.map(tokenAirdrops)).links(new Links().next(next));
     }
 }

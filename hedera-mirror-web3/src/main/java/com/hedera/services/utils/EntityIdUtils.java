@@ -90,19 +90,6 @@ public final class EntityIdUtils {
         return Address.wrap(Bytes.wrap(toEvmAddress(id)));
     }
 
-    public static AccountID parseAccount(final String literal) {
-        try {
-            final var parts = parseLongTriple(literal);
-            return AccountID.newBuilder()
-                    .setShardNum(parts[0])
-                    .setRealmNum(parts[1])
-                    .setAccountNum(parts[2])
-                    .build();
-        } catch (final NumberFormatException | ArrayIndexOutOfBoundsException e) {
-            throw new IllegalArgumentException(String.format("Argument 'literal=%s' is not an account", literal), e);
-        }
-    }
-
     public static AccountID toGrpcAccountId(final int code) {
         var entityId = EntityId.of(code);
 

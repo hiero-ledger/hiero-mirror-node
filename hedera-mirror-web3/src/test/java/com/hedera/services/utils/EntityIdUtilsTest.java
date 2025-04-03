@@ -3,7 +3,9 @@
 package com.hedera.services.utils;
 
 import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
-import static com.hedera.services.utils.EntityIdUtils.*;
+import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
+import static com.hedera.services.utils.EntityIdUtils.contractIdFromEvmAddress;
+import static com.hedera.services.utils.EntityIdUtils.tokenIdFromEvmAddress;
 import static com.hedera.services.utils.IdUtils.asAccount;
 import static com.hedera.services.utils.IdUtils.asContract;
 import static com.hedera.services.utils.IdUtils.asToken;
@@ -125,13 +127,14 @@ class EntityIdUtilsTest {
     @ParameterizedTest
     @CsvSource({"1.0.0", "0.1.0", "0.0.1", "1.2.3"})
     void parsesValidLiteral(final String goodLiteral) {
-        assertEquals(asAccount(goodLiteral), parseAccount(goodLiteral));
+        assertEquals(asAccount(goodLiteral), EntityId.of(goodLiteral).toAccountID());
     }
 
     @ParameterizedTest
     @CsvSource({"asdf", "notANumber"})
     void parsesNonValidLiteral(final String badLiteral) {
-        assertThrows(IllegalArgumentException.class, () -> parseAccount(badLiteral));
+        assertThrows(
+                IllegalArgumentException.class, () -> EntityId.of(badLiteral).toAccountID());
     }
 
     @Test
