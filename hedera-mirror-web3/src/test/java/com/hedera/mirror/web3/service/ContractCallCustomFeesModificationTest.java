@@ -6,12 +6,10 @@ import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ZERO_VALUE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.FixedFee;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.FractionalFee;
-import com.hedera.mirror.web3.web3j.generated.PrecompileTestContract;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.List;
@@ -51,22 +49,42 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
     }
 
     @Test
-    void updateFungibleTokenFixedFeeInHBAR() throws Exception {
+    void updateFungibleTokenFixedFeeInHbarAlreadyExists() throws Exception {
         // Given I create token with fixed fee in HBAR
         final var token = fungibleTokenPersistWithTreasuryAccount(
                 accountEntityWithEvmAddressPersist().toEntityId());
         final var collector = accountEntityWithEvmAddressPersist();
-        final var fixedFee = fixedFeeInHbarPersist(token, collector, FIXED_FEE_AMOUNT);
+        fixedFeeInHbarPersist(token, collector, FIXED_FEE_AMOUNT);
 
-        // When I get the token fees using system contract function
-        final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
-        final var getFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(getTokenAddress(token));
-        final var getFeesFunctionCallResult = getFeesFunctionCall.send();
+        // When I update the token fees
+        final var modificationPrecompileTestContract =
+                testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
-        // Then I verify the token fixed fees are as expected
-        compareFixedFeesInHBAR(fixedFee, getFeesFunctionCallResult.component1().getFirst());
+        final var newCollector = accountEntityWithEvmAddressPersist();
+        final var newFee = createFixedFeeInHBAR(newCollector);
+        final var updateFeesFunctionCall =
+                modificationPrecompileTestContract.call_updateFungibleTokenCustomFeesAndGetExternal(
+                        getTokenAddress(token), List.of(newFee), List.of(), List.of());
 
-        verifyEthCallAndEstimateGas(getFeesFunctionCall, precompileTestContract, ZERO_VALUE);
+        final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
+
+        // Then I verify the token fixed fees are updated as expected
+        final var updatedFixedFee = updateFeesFunctionCallResult.component1().getFirst();
+
+        assertThat(updatedFixedFee.amount).isEqualTo(newFee.amount);
+        assertThat(updatedFixedFee.useCurrentTokenForPayment).isEqualTo(newFee.useCurrentTokenForPayment);
+        assertThat(updatedFixedFee.useHbarsForPayment).isEqualTo(newFee.useHbarsForPayment);
+        assertThat(updatedFixedFee.tokenId).isEqualTo(newFee.tokenId);
+        assertThat(updatedFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
+
+        verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
+    }
+
+    @Test
+    void updateFungibleTokenFixedFeeNotExisting() throws Exception {
+        // Given I create token with no fixed fee set
+        final var token = fungibleTokenPersistWithTreasuryAccount(
+                accountEntityWithEvmAddressPersist().toEntityId());
 
         // When I update the token fees
         final var modificationPrecompileTestContract =
@@ -97,19 +115,6 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         // Given
         final var token = fungibleTokenPersistWithTreasuryAccount(
                 accountEntityWithEvmAddressPersist().toEntityId());
-        final var collector = accountEntityWithEvmAddressPersist();
-        final var fixedFee = fixedFeeInCustomTokenPersist(token, collector, FIXED_FEE_AMOUNT);
-
-        // When
-        final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
-        final var getFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(getTokenAddress(token));
-        final var getFeesFunctionCallResult = getFeesFunctionCall.send();
-
-        // Then
-        compareFixedFeesInCustomToken(
-                fixedFee, getFeesFunctionCallResult.component1().getFirst());
-
-        verifyEthCallAndEstimateGas(getFeesFunctionCall, precompileTestContract, ZERO_VALUE);
 
         // When
         final var modificationPrecompileTestContract =
@@ -138,22 +143,8 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
     @Test
     void updateFungibleTokenFractionalFee() throws Exception {
         // Given
-        final var collector = accountEntityWithEvmAddressPersist();
         final var token = fungibleTokenPersistWithTreasuryAccount(
                 accountEntityWithEvmAddressPersist().toEntityId());
-        final var fractionalFee =
-                fractionalFeePersist(token, collector, DENOMINATOR, MAX_AMOUNT, MIN_AMOUNT, NUMERATOR, true);
-
-        // When
-        final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
-        final var getFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(getTokenAddress(token));
-        final var getFeesFunctionCallResult = getFeesFunctionCall.send();
-
-        // Then
-        compareFractionalFees(
-                fractionalFee, getFeesFunctionCallResult.component2().getFirst());
-
-        verifyEthCallAndEstimateGas(getFeesFunctionCall, precompileTestContract, ZERO_VALUE);
 
         // When
         final var modificationPrecompileTestContract =
@@ -184,21 +175,6 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         // Given
         final var token = fungibleTokenPersistWithTreasuryAccount(
                 accountEntityWithEvmAddressPersist().toEntityId());
-        final var collector = accountEntityWithEvmAddressPersist();
-        final var fixedFee = getFixedFeeInCustomToken(token, collector, FIXED_FEE_AMOUNT);
-        final var fractionalFee = getFractionalFee(DENOMINATOR, MAX_AMOUNT, MIN_AMOUNT, NUMERATOR, true, collector);
-        fractionalAndFixedFeeInCustomTokenPersist(token, fixedFee, fractionalFee);
-
-        // When
-        final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
-        final var getFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(getTokenAddress(token));
-        final var getFeesFunctionCallResult = getFeesFunctionCall.send();
-
-        // Then
-        compareFixedFeesInCustomToken(
-                fixedFee, getFeesFunctionCallResult.component1().getFirst());
-        compareFractionalFees(
-                fractionalFee, getFeesFunctionCallResult.component2().getFirst());
 
         // When
         final var modificationPrecompileTestContract =
@@ -212,7 +188,6 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
                 modificationPrecompileTestContract.call_updateFungibleTokenCustomFeesAndGetExternal(
                         getTokenAddress(token), List.of(newFixedFee), List.of(newFractionalFee), List.of());
 
-        tokenAccountPersist(token.getTokenId(), collector.getId());
         tokenAccountPersist(token.getTokenId(), newCollector.getId());
 
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
@@ -239,18 +214,6 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         // Given
         final var nft = nonFungibleTokenPersistWithTreasury(
                 accountEntityWithEvmAddressPersist().toEntityId());
-        final var collector = accountEntityWithEvmAddressPersist();
-        final var fixedFee = fixedFeeInHbarPersist(nft, collector, FIXED_FEE_AMOUNT);
-
-        // When
-        final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
-        final var getFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(getTokenAddress(nft));
-        final var getFeesFunctionCallResult = getFeesFunctionCall.send();
-
-        // Then
-        compareFixedFeesInHBAR(fixedFee, getFeesFunctionCallResult.component1().getFirst());
-
-        verifyEthCallAndEstimateGas(getFeesFunctionCall, precompileTestContract, ZERO_VALUE);
 
         // When
         final var modificationPrecompileTestContract =
@@ -282,19 +245,6 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         // Given
         final var nft = nonFungibleTokenPersistWithTreasury(
                 accountEntityWithEvmAddressPersist().toEntityId());
-        final var collector = accountEntityWithEvmAddressPersist();
-        final var fixedFee = fixedFeeInCustomTokenPersist(nft, collector, FIXED_FEE_AMOUNT);
-
-        // When
-        final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
-        final var getFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(getTokenAddress(nft));
-        final var getFeesFunctionCallResult = getFeesFunctionCall.send();
-
-        // Then
-        compareFixedFeesInCustomToken(
-                fixedFee, getFeesFunctionCallResult.component1().getFirst());
-
-        verifyEthCallAndEstimateGas(getFeesFunctionCall, precompileTestContract, ZERO_VALUE);
 
         // When
         final var modificationPrecompileTestContract =
@@ -320,43 +270,6 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(actualFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
 
         verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
-    }
-
-    private void compareFixedFeesInHBAR(
-            com.hedera.mirror.common.domain.token.FixedFee expectedFixedFee,
-            PrecompileTestContract.FixedFee actualFixedFee) {
-        assertThat(actualFixedFee.feeCollector)
-                .isEqualTo(getEvmAddressBytesFromEntity(getEntity(expectedFixedFee.getCollectorAccountId()))
-                        .toHexString());
-        assertThat(actualFixedFee.tokenId).isEqualTo(Address.ZERO.toHexString());
-        assertThat(actualFixedFee.amount).isEqualTo(BigInteger.valueOf(expectedFixedFee.getAmount()));
-        assertThat(actualFixedFee.useCurrentTokenForPayment).isFalse();
-        assertThat(actualFixedFee.useHbarsForPayment).isTrue();
-    }
-
-    private void compareFixedFeesInCustomToken(
-            com.hedera.mirror.common.domain.token.FixedFee expectedFixedFee,
-            PrecompileTestContract.FixedFee actualFixedFee) {
-        assertThat(actualFixedFee.feeCollector)
-                .isEqualTo(getEvmAddressBytesFromEntity(getEntity(expectedFixedFee.getCollectorAccountId()))
-                        .toHexString());
-        assertThat(actualFixedFee.tokenId)
-                .isEqualTo(getAddressFromEntity(getEntity(expectedFixedFee.getDenominatingTokenId())));
-        assertThat(actualFixedFee.amount).isEqualTo(BigInteger.valueOf(expectedFixedFee.getAmount()));
-        assertThat(actualFixedFee.useCurrentTokenForPayment).isFalse();
-        assertThat(actualFixedFee.useHbarsForPayment).isFalse();
-    }
-
-    private void compareFractionalFees(
-            com.hedera.mirror.common.domain.token.FractionalFee expectedFixedFee,
-            PrecompileTestContract.FractionalFee actualFixedFee) {
-        assertThat(actualFixedFee.feeCollector)
-                .isEqualTo(getEvmAddressBytesFromEntity(getEntity(expectedFixedFee.getCollectorAccountId()))
-                        .toHexString());
-        assertThat(actualFixedFee.numerator).isEqualTo(BigInteger.valueOf(expectedFixedFee.getNumerator()));
-        assertThat(actualFixedFee.denominator).isEqualTo(BigInteger.valueOf(expectedFixedFee.getDenominator()));
-        assertThat(actualFixedFee.minimumAmount).isEqualTo(BigInteger.valueOf(expectedFixedFee.getMinimumAmount()));
-        assertThat(actualFixedFee.maximumAmount).isEqualTo(BigInteger.valueOf(expectedFixedFee.getMaximumAmount()));
     }
 
     private FixedFee createFixedFeeInHBAR(Entity collectorAccount) {
@@ -387,34 +300,11 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
                 getAccountEvmAddress(collectorAccount));
     }
 
-    private com.hedera.mirror.common.domain.token.FixedFee getFixedFeeInCustomToken(
-            Token token, Entity collectorAccount, Long amount) {
-        return com.hedera.mirror.common.domain.token.FixedFee.builder()
-                .amount(amount)
-                .collectorAccountId(collectorAccount.toEntityId())
-                .denominatingTokenId(EntityId.of(token.getTokenId()))
-                .build();
-    }
-
     private com.hedera.mirror.common.domain.token.FixedFee getFixedFeeInHBAR(Entity collectorAccount, Long amount) {
         return com.hedera.mirror.common.domain.token.FixedFee.builder()
                 .amount(amount)
                 .collectorAccountId(collectorAccount.toEntityId())
                 .build();
-    }
-
-    private com.hedera.mirror.common.domain.token.FixedFee fixedFeeInCustomTokenPersist(
-            Token token, Entity collectorAccount, Long amount) {
-        final var fixedFee = getFixedFeeInCustomToken(token, collectorAccount, amount);
-
-        domainBuilder
-                .customFee()
-                .customize(f -> f.entityId(token.getTokenId())
-                        .fixedFees(List.of(fixedFee))
-                        .fractionalFees(List.of())
-                        .royaltyFees(List.of()))
-                .persist();
-        return fixedFee;
     }
 
     private com.hedera.mirror.common.domain.token.FixedFee fixedFeeInHbarPersist(
@@ -429,56 +319,5 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
                         .royaltyFees(List.of()))
                 .persist();
         return fixedFee;
-    }
-
-    private com.hedera.mirror.common.domain.token.FractionalFee getFractionalFee(
-            Long denominator,
-            Long maxAmount,
-            Long minAmount,
-            Long numerator,
-            boolean netOfTransfers,
-            Entity collectorAccount) {
-        return com.hedera.mirror.common.domain.token.FractionalFee.builder()
-                .denominator(denominator)
-                .maximumAmount(maxAmount)
-                .minimumAmount(minAmount)
-                .numerator(numerator)
-                .netOfTransfers(netOfTransfers)
-                .collectorAccountId(collectorAccount.toEntityId())
-                .build();
-    }
-
-    private com.hedera.mirror.common.domain.token.FractionalFee fractionalFeePersist(
-            Token token,
-            Entity collectorAccount,
-            Long denominator,
-            Long maxAmount,
-            Long minAmount,
-            Long numerator,
-            boolean netOfTransfers) {
-        final var fractionalFee =
-                getFractionalFee(denominator, maxAmount, minAmount, numerator, netOfTransfers, collectorAccount);
-
-        domainBuilder
-                .customFee()
-                .customize(f -> f.entityId(token.getTokenId())
-                        .fixedFees(List.of())
-                        .fractionalFees(List.of(fractionalFee))
-                        .royaltyFees(List.of()))
-                .persist();
-        return fractionalFee;
-    }
-
-    private void fractionalAndFixedFeeInCustomTokenPersist(
-            Token token,
-            com.hedera.mirror.common.domain.token.FixedFee fixedFee,
-            com.hedera.mirror.common.domain.token.FractionalFee fractionalFee) {
-        domainBuilder
-                .customFee()
-                .customize(f -> f.entityId(token.getTokenId())
-                        .fixedFees(List.of(fixedFee))
-                        .fractionalFees(List.of(fractionalFee))
-                        .royaltyFees(List.of()))
-                .persist();
     }
 }
