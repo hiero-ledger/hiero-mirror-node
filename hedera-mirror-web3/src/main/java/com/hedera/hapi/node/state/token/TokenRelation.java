@@ -348,10 +348,7 @@ public record TokenRelation(
      * @return The balance of the token relationship
      */
     public long balance() {
-        if (balanceSupplier == null) {
-            return 0;
-        }
-        return balanceSupplier.get();
+        return balanceSupplier == null ? 0 : balanceSupplier.get();
     }
 
     /**

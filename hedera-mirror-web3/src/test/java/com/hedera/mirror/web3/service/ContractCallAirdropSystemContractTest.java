@@ -22,6 +22,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceTest {
 
+    private static final BigInteger DEFAULT_TOKEN_AIRDROP_AMOUNT = BigInteger.TEN;
+    private static final BigInteger ZERO_VALUE = BigInteger.ZERO;
+
     @BeforeEach
     void setUp() {
         persistRewardAccounts();
@@ -44,8 +47,8 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 tokenAddress,
                 getAddressFromEntity(sender),
                 getAddressFromEntity(receiver),
-                BigInteger.TEN,
-                BigInteger.ZERO);
+                DEFAULT_TOKEN_AIRDROP_AMOUNT,
+                ZERO_VALUE);
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -76,7 +79,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 getAddressFromEntity(sender),
                 getAddressFromEntity(receiver),
                 DEFAULT_SERIAL_NUMBER,
-                BigInteger.ZERO);
+                ZERO_VALUE);
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -107,8 +110,8 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         }
 
         // When
-        final var functionCall =
-                contract.send_tokenNAmountAirdrops(tokens, senders, receivers, BigInteger.TEN, BigInteger.ZERO);
+        final var functionCall = contract.send_tokenNAmountAirdrops(
+                tokens, senders, receivers, DEFAULT_TOKEN_AIRDROP_AMOUNT, ZERO_VALUE);
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -145,7 +148,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         }
 
         // When
-        final var functionCall = contract.send_nftNAmountAirdrops(nfts, senders, receivers, serials, BigInteger.ZERO);
+        final var functionCall = contract.send_nftNAmountAirdrops(nfts, senders, receivers, serials, ZERO_VALUE);
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -198,7 +201,15 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
 
         // When
         final var functionCall = contract.send_mixedAirdrop(
-                tokens, nfts, senders, receivers, nftSenders, nftReceivers, BigInteger.TEN, serials, BigInteger.ZERO);
+                tokens,
+                nfts,
+                senders,
+                receivers,
+                nftSenders,
+                nftReceivers,
+                DEFAULT_TOKEN_AIRDROP_AMOUNT,
+                serials,
+                ZERO_VALUE);
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -251,7 +262,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
 
         // When
         final var functionCall = contract.call_mixedAirdrop(
-                tokens, nfts, senders, receivers, nftSenders, nftReceivers, BigInteger.TEN, serials);
+                tokens, nfts, senders, receivers, nftSenders, nftReceivers, DEFAULT_TOKEN_AIRDROP_AMOUNT, serials);
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -277,7 +288,10 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
 
         // When
         final var functionCall = contract.call_tokenAirdrop(
-                tokenAddress, getAddressFromEntity(sender), getAddressFromEntity(receiver), BigInteger.TEN);
+                tokenAddress,
+                getAddressFromEntity(sender),
+                getAddressFromEntity(receiver),
+                DEFAULT_TOKEN_AIRDROP_AMOUNT);
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
@@ -300,8 +314,8 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
 
         // When
-        final var functionCall =
-                contract.call_tokenAirdrop(tokenAddress, getAddressFromEntity(sender), receiverAddress, BigInteger.TEN);
+        final var functionCall = contract.call_tokenAirdrop(
+                tokenAddress, getAddressFromEntity(sender), receiverAddress, DEFAULT_TOKEN_AIRDROP_AMOUNT);
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
@@ -324,7 +338,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 getAddressFromEntity(token),
                 getAddressFromEntity(sender),
                 getAddressFromEntity(receiver),
-                BigInteger.TEN);
+                DEFAULT_TOKEN_AIRDROP_AMOUNT);
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
@@ -393,8 +407,8 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         }
 
         // When
-        final var functionCall = contract.send_nftAirdropDistribute(
-                nftAddress, getAddressFromEntity(sender), receivers, BigInteger.ZERO);
+        final var functionCall =
+                contract.send_nftAirdropDistribute(nftAddress, getAddressFromEntity(sender), receivers, ZERO_VALUE);
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
