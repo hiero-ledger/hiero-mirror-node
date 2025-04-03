@@ -12,12 +12,14 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Transient;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.ToString;
@@ -32,6 +34,12 @@ import org.springframework.data.domain.Persistable;
 @Entity
 @NoArgsConstructor
 public class Transaction implements Persistable<Long> {
+
+    @Transient
+    @ToString.Exclude
+    @Getter(AccessLevel.NONE)
+    private List<long[]> innerTransactionList;
+
     private byte[] batchKey;
 
     @Id
@@ -48,7 +56,7 @@ public class Transaction implements Persistable<Long> {
     private Integer index;
 
     @Type(value = LongArrayType.class)
-    private List<long[]> innerTransactions;
+    private long[][] innerTransactions;
 
     private Long initialBalance;
 
@@ -124,15 +132,25 @@ public class Transaction implements Persistable<Long> {
     }
 
     public void addInnerTransaction(Transaction transaction) {
-        if (innerTransactions == null) {
-            innerTransactions = new ArrayList<>();
+        if (this.type != TransactionType.ATOMIC_BATCH.getProtoId()) {
+            throw new IllegalStateException("Inner transactions can only be added to atomic batch transaction");
         }
 
-        innerTransactions.add(transaction.toInnerTransaction());
+        if (innerTransactionList == null) {
+            innerTransactionList = new ArrayList<>();
+        }
+
+        innerTransactionList.add(transaction.toInnerTransaction());
     }
 
     private long[] toInnerTransaction() {
         return new long[] {payerAccountId.getId(), validStartNs};
+    }
+
+    public long[][] getInnerTransactions() {
+        return innerTransactionList == null || innerTransactionList.isEmpty()
+                ? innerTransactions
+                : innerTransactionList.toArray(long[][]::new);
     }
 
     public TransactionHash toTransactionHash() {
