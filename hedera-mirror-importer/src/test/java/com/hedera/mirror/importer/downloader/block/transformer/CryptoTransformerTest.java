@@ -91,4 +91,22 @@ class CryptoTransformerTest extends AbstractTransformerTest {
             assertThat(items).map(RecordItem::getParent).containsOnlyNulls();
         });
     }
+
+    @Test
+    void cryptoTransferLegacyTransaction() {
+        // given
+        var expectedRecordItem = recordItemBuilder
+                .cryptoTransfer()
+                .useBodyBytesAndSigMap(true)
+                .customize(this::finalize)
+                .build();
+        var blockItem = blockItemBuilder.cryptoTransfer(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
 }
