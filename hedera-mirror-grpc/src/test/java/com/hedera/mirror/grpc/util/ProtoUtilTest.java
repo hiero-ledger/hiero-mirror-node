@@ -98,9 +98,9 @@ class ProtoUtilTest {
 
     @Test
     void toByteString() {
-        var bytes = new byte[]{0, 1, 2, 3};
+        var bytes = new byte[] {0, 1, 2, 3};
         assertThat(ProtoUtil.toByteString(null)).isEqualTo(ByteString.EMPTY);
-        assertThat(ProtoUtil.toByteString(new byte[]{})).isEqualTo(ByteString.EMPTY);
+        assertThat(ProtoUtil.toByteString(new byte[] {})).isEqualTo(ByteString.EMPTY);
         assertThat(ProtoUtil.toByteString(bytes))
                 .isEqualTo(ByteString.copyFrom(bytes))
                 .isNotSameAs(ProtoUtil.toByteString(bytes));
