@@ -347,6 +347,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("hedera.realm", String.valueOf(commonProperties.getRealm()));
         props.put("hedera.shard", String.valueOf(commonProperties.getShard()));
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
+        props.put("nodes.gossipFqdnRestricted", "false");
         props.putAll(properties); // Allow user defined properties to override the defaults
         return Collections.unmodifiableMap(props);
     }

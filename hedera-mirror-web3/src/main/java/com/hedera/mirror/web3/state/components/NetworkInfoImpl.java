@@ -8,6 +8,7 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.state.State;
 import com.swirlds.state.lifecycle.info.NetworkInfo;
 import com.swirlds.state.lifecycle.info.NodeInfo;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
@@ -83,6 +84,12 @@ public class NetworkInfoImpl implements NetworkInfo {
 
             @Override
             public List<ServiceEndpoint> gossipEndpoints() {
+                return Collections.emptyList();
+            }
+
+            @NonNull
+            @Override
+            public List<ServiceEndpoint> hapiEndpoints() {
                 return Collections.emptyList();
             }
 

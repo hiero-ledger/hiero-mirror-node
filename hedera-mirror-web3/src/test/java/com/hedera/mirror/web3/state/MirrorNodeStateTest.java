@@ -34,7 +34,6 @@ import com.hedera.node.app.services.ServicesRegistry;
 import com.swirlds.state.StateChangeListener;
 import com.swirlds.state.StateChangeListener.StateType;
 import com.swirlds.state.lifecycle.StartupNetworks;
-import com.swirlds.state.lifecycle.info.NetworkInfo;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.WritableStates;
 import java.util.HashMap;
@@ -93,9 +92,6 @@ class MirrorNodeStateTest {
 
     @Mock
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
-
-    @Mock
-    private NetworkInfo networkInfo;
 
     @Mock
     private StartupNetworks startupNetworks;
@@ -504,7 +500,6 @@ class MirrorNodeStateTest {
                 readableKVStates,
                 servicesRegistry,
                 serviceMigrator,
-                networkInfo,
                 startupNetworks,
                 mirrorNodeEvmProperties,
                 recordFileRepository,
