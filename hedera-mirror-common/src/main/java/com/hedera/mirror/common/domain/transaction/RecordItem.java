@@ -283,13 +283,13 @@ public class RecordItem implements StreamItem {
                         this.transactionBody = transaction.getBody();
                         this.signatureMap = transaction.getSigMap();
                     }
-
-                    if (transactionBody == null || signatureMap == null) {
-                        throw new ProtobufException(BAD_TRANSACTION_BODY_BYTES_MESSAGE);
-                    }
                 } catch (InvalidProtocolBufferException e) {
                     throw new ProtobufException(BAD_TRANSACTION_BODY_BYTES_MESSAGE, e);
                 }
+            }
+
+            if (transactionBody == null || signatureMap == null) {
+                throw new ProtobufException(BAD_TRANSACTION_BODY_BYTES_MESSAGE);
             }
         }
 

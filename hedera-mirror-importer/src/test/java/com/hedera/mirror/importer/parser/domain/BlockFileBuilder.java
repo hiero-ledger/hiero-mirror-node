@@ -13,7 +13,6 @@ import com.hederahashgraph.api.proto.java.SemanticVersion;
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 
 @Named
@@ -22,7 +21,6 @@ public class BlockFileBuilder {
 
     private final DomainBuilder domainBuilder;
 
-    @SneakyThrows
     public BlockFile.BlockFileBuilder items(List<BlockItem> blockItems) {
         long blockNumber = domainBuilder.number();
         byte[] bytes = domainBuilder.bytes(256);

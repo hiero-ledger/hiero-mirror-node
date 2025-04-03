@@ -26,7 +26,6 @@ services:
     tty: true
     volumes:
       - ./db:/var/lib/postgresql/data
-      - ./scripts:/scripts
       - ./hedera-mirror-importer/src/main/resources/db/scripts/init.sh:/docker-entrypoint-initdb.d/init.sh
 
   graphql:

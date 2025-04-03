@@ -52,7 +52,7 @@ class ConsensusTransformerTest extends AbstractTransformerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {true})
+    @ValueSource(booleans = {true, false})
     void consensusSubmitMessageTransform(boolean assessedCustomFees) {
         // given
         var expectedRecordItem = recordItemBuilder
