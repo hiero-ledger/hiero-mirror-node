@@ -107,7 +107,8 @@ public class EvmConfiguration {
     public static final SemanticVersion EVM_VERSION_0_38 = new SemanticVersion(0, 38, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_46 = new SemanticVersion(0, 46, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_50 = new SemanticVersion(0, 50, 0, "", "");
-    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_50;
+    public static final SemanticVersion EVM_VERSION_0_51 = new SemanticVersion(0, 51, 0, "", "");
+    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_51;
     private final CacheProperties cacheProperties;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
     private final GasCalculatorHederaV22 gasCalculator;
@@ -251,6 +252,7 @@ public class EvmConfiguration {
         processorsMap.put(EVM_VERSION_0_38, () -> contractCreationProcessor38);
         processorsMap.put(EVM_VERSION_0_46, () -> contractCreationProcessor46);
         processorsMap.put(EVM_VERSION_0_50, () -> contractCreationProcessor50);
+        processorsMap.put(EVM_VERSION_0_51, () -> contractCreationProcessor50);
         return processorsMap;
     }
 
@@ -267,6 +269,7 @@ public class EvmConfiguration {
         processorsMap.put(EVM_VERSION_0_38, () -> mirrorEvmMessageCallProcessor38);
         processorsMap.put(EVM_VERSION_0_46, () -> mirrorEvmMessageCallProcessor46);
         processorsMap.put(EVM_VERSION_0_50, () -> mirrorEvmMessageCallProcessor50);
+        processorsMap.put(EVM_VERSION_0_51, () -> mirrorEvmMessageCallProcessor50);
         return processorsMap;
     }
 
