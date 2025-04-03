@@ -78,6 +78,4 @@ spec:
       env:
         HEDERA_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1.0"
         HEDERA_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
-      git:
-        branch: main
 

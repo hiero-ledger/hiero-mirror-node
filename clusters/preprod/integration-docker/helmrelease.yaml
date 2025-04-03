@@ -13,7 +13,7 @@ spec:
       valuesFiles:
         - values.yaml
         - values-prod.yaml
-      version: '>0.0.0' # Update to the latest release
+      version: '0.127.0-rc2'
   dependsOn:
     - name: mirror
       namespace: common
@@ -66,8 +66,12 @@ spec:
             test:
               acceptance:
                 network: OTHER
+                web3:
+                  modularizedServices: true
       enabled: true
     web3:
       env:
+        HEDERA_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1.0"
+        HEDERA_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
         HEDERA_MIRROR_WEB3_EVM_NETWORK: OTHER
 
