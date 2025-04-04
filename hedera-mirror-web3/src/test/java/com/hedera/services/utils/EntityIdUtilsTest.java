@@ -5,6 +5,7 @@ package com.hedera.services.utils;
 import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.contractIdFromEvmAddress;
+import static com.hedera.services.utils.EntityIdUtils.toTokenId;
 import static com.hedera.services.utils.EntityIdUtils.tokenIdFromEvmAddress;
 import static com.hedera.services.utils.IdUtils.asAccount;
 import static com.hedera.services.utils.IdUtils.asContract;
@@ -333,7 +334,7 @@ class EntityIdUtilsTest {
                 .realmNum(REALM)
                 .tokenNum(NUM)
                 .build();
-        assertEquals(expectedTokenId, EntityIdUtils.toTokenId(id));
+        assertEquals(expectedTokenId, toTokenId(id));
     }
 
     @Test
@@ -351,7 +352,7 @@ class EntityIdUtilsTest {
                 .realmNum(REALM)
                 .tokenNum(NUM)
                 .build();
-        assertEquals(expectedTokenId, EntityIdUtils.toTokenId(entityId));
+        assertEquals(expectedTokenId, toTokenId(entityId));
     }
 
     @Test
