@@ -23,14 +23,6 @@ class CustomFeeServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void findByInvalidShard() {
-        var entityId = EntityId.of(1, 0, 200);
-        assertThatThrownBy(() -> service.findById(entityId))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("ID " + entityId + " has an invalid shard. Shard must be 0");
-    }
-
-    @Test
     void findByIdNotFound() {
         var entityId = EntityId.of(10L);
         assertThatThrownBy(() -> service.findById(entityId)).isInstanceOf(EntityNotFoundException.class);
