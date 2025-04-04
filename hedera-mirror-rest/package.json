@@ -6,13 +6,13 @@
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">= 18 < 20"
+    "node": ">= 22"
   },
   "scripts": {
-    "dev": "HEDERA_MIRROR_REST_LOG_LEVEL=trace nodemon --experimental-specifier-resolution=node server.js",
-    "start": "node --experimental-specifier-resolution=node server.js",
-    "pretest": "node --experimental-specifier-resolution=node __tests__/integration/generator.js",
-    "test": "node --experimental-specifier-resolution=node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "dev": "HEDERA_MIRROR_REST_LOG_LEVEL=trace nodemon --import=extensionless/register server.js",
+    "start": "node --import=extensionless/register server.js",
+    "pretest": "node --import=extensionless/register __tests__/integration/generator.js",
+    "test": "node --import=extensionless/register --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "author": "Hedera Mirror Node Team",
   "license": "Apache-2.0",
@@ -29,6 +29,7 @@
     "express-http-context": "^1.2.5",
     "express-openapi-validator": "^5.4.7",
     "extend": "^3.0.2",
+    "extensionless": "^1.9.9",
     "ioredis": "^5.6.0",
     "ip-anonymize": "^0.1.0",
     "js-yaml": "^4.1.0",
@@ -50,7 +51,7 @@
     "word-wrap": "npm:@aashutoshrathi/word-wrap@^1.2.6"
   },
   "devDependencies": {
-    "@testcontainers/postgresql": "^10.23.0",
+    "@testcontainers/postgresql": "^10.24.0",
     "app-root-path": "^3.1.0",
     "jest": "^29.7.0",
     "jest-extended": "^4.0.2",
