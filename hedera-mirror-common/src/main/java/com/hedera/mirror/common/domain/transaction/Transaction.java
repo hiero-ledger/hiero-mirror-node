@@ -7,20 +7,24 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.hedera.mirror.common.converter.ObjectToStringSerializer;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.NftTransfer;
+import io.hypersistence.utils.hibernate.type.array.LongArrayType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Transient;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.ToString;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.Type;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.domain.Persistable;
 
@@ -30,6 +34,13 @@ import org.springframework.data.domain.Persistable;
 @Entity
 @NoArgsConstructor
 public class Transaction implements Persistable<Long> {
+
+    @Transient
+    @ToString.Exclude
+    @Getter(AccessLevel.NONE)
+    private List<long[]> innerTransactionList;
+
+    private byte[] batchKey;
 
     @Id
     private Long consensusTimestamp;
@@ -43,6 +54,9 @@ public class Transaction implements Persistable<Long> {
     private ErrataType errata;
 
     private Integer index;
+
+    @Type(value = LongArrayType.class)
+    private long[][] innerTransactions;
 
     private Long initialBalance;
 
@@ -115,6 +129,28 @@ public class Transaction implements Persistable<Long> {
     @Override
     public boolean isNew() {
         return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+    }
+
+    public void addInnerTransaction(Transaction transaction) {
+        if (this.type != TransactionType.ATOMIC_BATCH.getProtoId()) {
+            throw new IllegalStateException("Inner transactions can only be added to atomic batch transaction");
+        }
+
+        if (innerTransactionList == null) {
+            innerTransactionList = new ArrayList<>();
+        }
+
+        innerTransactionList.add(transaction.toInnerTransaction());
+    }
+
+    private long[] toInnerTransaction() {
+        return new long[] {payerAccountId.getId(), validStartNs};
+    }
+
+    public long[][] getInnerTransactions() {
+        return innerTransactionList == null || innerTransactionList.isEmpty()
+                ? innerTransactions
+                : innerTransactionList.toArray(long[][]::new);
     }
 
     public TransactionHash toTransactionHash() {

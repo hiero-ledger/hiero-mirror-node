@@ -3,6 +3,7 @@
 package com.hedera.mirror.importer.parser.domain;
 
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
+import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.mirror.common.domain.DigestAlgorithm;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.transaction.BlockFile;
@@ -40,6 +41,9 @@ public class BlockFileBuilder {
                         .setNumber(blockNumber)
                         .setHapiProtoVersion(SemanticVersion.newBuilder().setMinor(57))
                         .setSoftwareVersion(SemanticVersion.newBuilder().setMinor(57))
+                        .build())
+                .blockProof(BlockProof.newBuilder()
+                        .setPreviousBlockRootHash(DomainUtils.fromBytes(previousHash))
                         .build())
                 .bytes(bytes)
                 .consensusEnd(consensusEnd)
