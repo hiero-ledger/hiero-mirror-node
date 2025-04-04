@@ -15,12 +15,9 @@ import lombok.RequiredArgsConstructor;
 public class CustomFeeServiceImpl implements CustomFeeService {
 
     private final CustomFeeRepository customFeeRepository;
-    private final Validator validator;
 
     @Override
     public CustomFee findById(@Nonnull EntityId id) {
-        validator.validateShard(id, id.getShard());
-
         return customFeeRepository
                 .findById(id.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Custom fee for entity id %s not found".formatted(id)));

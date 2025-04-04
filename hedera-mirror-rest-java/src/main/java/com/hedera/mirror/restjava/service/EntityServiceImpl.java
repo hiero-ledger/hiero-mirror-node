@@ -20,24 +20,15 @@ import lombok.RequiredArgsConstructor;
 class EntityServiceImpl implements EntityService {
 
     private final EntityRepository entityRepository;
-    private final Validator validator;
 
     @Override
     public Entity findById(@Nonnull EntityId id) {
-        validator.validateShard(id, id.getShard());
-
         return entityRepository.findById(id.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Entity not found: " + id));
     }
 
     @Override
     public EntityId lookup(@Nonnull EntityIdParameter accountId) {
-        validator.validateShard(accountId, accountId.shard());
-
-        if (accountId.realm() != 0) {
-            throw new IllegalArgumentException("ID %s has an invalid realm".formatted(accountId));
-        }
-
         var id = switch (accountId) {
             case EntityIdNumParameter p -> Optional.of(p.id());
             case EntityIdAliasParameter p -> entityRepository.findByAlias(p.alias()).map(EntityId::of);
