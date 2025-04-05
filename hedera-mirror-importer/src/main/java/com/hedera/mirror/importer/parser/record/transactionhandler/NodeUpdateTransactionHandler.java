@@ -29,27 +29,30 @@ class NodeUpdateTransactionHandler extends AbstractNodeTransactionHandler {
 
     @Override
     public Node parseNode(RecordItem recordItem) {
-        if (recordItem.isSuccessful()) {
-            var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
-            long consensusTimestamp = recordItem.getConsensusTimestamp();
-            var node = new Node();
-
-            if (nodeUpdate.hasAdminKey()) {
-                node.setAdminKey(nodeUpdate.getAdminKey().toByteArray());
-            }
-
-            // As a special case, nodes migrated state to mirror nodes via a NodeUpdate instead of a proper NodeCreate
-            if (recordItem.getTransactionRecord().getTransactionID().getNonce() > 0) {
-                node.setCreatedTimestamp(consensusTimestamp);
-            }
-
-            node.setDeleted(false);
-            node.setNodeId(nodeUpdate.getNodeId());
-            node.setTimestampRange(Range.atLeast(consensusTimestamp));
-
-            return node;
+        if (!recordItem.isSuccessful()) {
+            return null;
         }
 
-        return null;
+        var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
+        long consensusTimestamp = recordItem.getConsensusTimestamp();
+        var node = new Node();
+
+        if (nodeUpdate.hasAdminKey()) {
+            node.setAdminKey(nodeUpdate.getAdminKey().toByteArray());
+        }
+
+        if (nodeUpdate.hasDeclineReward()) {
+            node.setDeclineReward(nodeUpdate.getDeclineReward().getValue());
+        }
+
+        // As a special case, nodes migrated state to mirror nodes via a NodeUpdate instead of a proper NodeCreate
+        if (recordItem.getTransactionRecord().getTransactionID().getNonce() > 0) {
+            node.setCreatedTimestamp(consensusTimestamp);
+        }
+
+        node.setDeleted(false);
+        node.setNodeId(nodeUpdate.getNodeId());
+        node.setTimestampRange(Range.atLeast(consensusTimestamp));
+        return node;
     }
 }

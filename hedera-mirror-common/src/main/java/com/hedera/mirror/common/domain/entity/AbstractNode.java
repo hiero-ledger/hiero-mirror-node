@@ -26,6 +26,8 @@ public abstract class AbstractNode implements History {
     @Column(updatable = false)
     private Long createdTimestamp;
 
+    private Boolean declineReward;
+
     private boolean deleted;
 
     @Id

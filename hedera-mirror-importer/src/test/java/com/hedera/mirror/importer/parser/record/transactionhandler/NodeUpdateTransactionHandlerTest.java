@@ -77,23 +77,25 @@ class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        var adminKey =
-                recordItem.getTransactionBody().getNodeUpdate().getAdminKey().toByteArray();
+        var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
+        var adminKey = nodeUpdate.getAdminKey().toByteArray();
         verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
                 .isNotNull()
                 .returns(recordItem.getTransactionBody().getNodeUpdate().getNodeId(), Node::getNodeId)
                 .returns(adminKey, Node::getAdminKey)
+                .returns(nodeUpdate.getDeclineReward().getValue(), Node::getDeclineReward)
                 .returns(recordItem.getConsensusTimestamp(), Node::getCreatedTimestamp)
                 .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
                 .returns(false, Node::isDeleted)));
     }
 
     @Test
-    void nodeUpdateTransactionPersistNoAdminKey() {
+    void nodeUpdateMissingFields() {
         // given
         var recordItem = recordItemBuilder
                 .nodeUpdate()
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearAdminKey)
+                .transactionBody(NodeUpdateTransactionBody.Builder::clearDeclineReward)
                 .build();
         var transaction = domainBuilder.transaction().get();
 
@@ -111,6 +113,7 @@ class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
                 .isNotNull()
                 .returns(recordItem.getTransactionBody().getNodeUpdate().getNodeId(), Node::getNodeId)
                 .returns(null, Node::getAdminKey)
+                .returns(null, Node::getDeclineReward)
                 .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
                 .returns(false, Node::isDeleted)));
     }
