@@ -6,6 +6,7 @@ import static com.hedera.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.input.protoc.EventHeader;
 import com.hedera.hapi.block.stream.input.protoc.RoundHeader;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
@@ -293,29 +294,11 @@ public class ProtoBlockFileReaderTest {
                 .setParentConsensusTimestamp(batchTransactionTimestamp)
                 .build();
 
-        var batchTransaction = Transaction.newBuilder()
-                .setSignedTransactionBytes(SignedTransaction.newBuilder()
-                        .setBodyBytes(TransactionBody.newBuilder()
-                                .setAtomicBatch(AtomicBatchTransactionBody.newBuilder()
-                                        .addTransactions(
-                                                Transaction.newBuilder().build().toByteString())
-                                        .build())
-                                .build()
-                                .toByteString())
-                        .build()
-                        .toByteString())
-                .build()
-                .toByteString();
-
         var block = Block.newBuilder()
                 .addItems(blockHeader())
                 .addItems(roundHeader)
                 .addItems(eventHeader)
-                .addItems(BlockItem.newBuilder()
-                        .setEventTransaction(EventTransaction.newBuilder()
-                                .setApplicationTransaction(batchTransaction)
-                                .build())
-                        .build())
+                .addItems(batchEventTransaction(List.of(Transaction.newBuilder().build().toByteString())))
                 .addItems(BlockItem.newBuilder().setTransactionResult(batchTransactionResult))
                 .addItems(BlockItem.newBuilder().setStateChanges(batchStateChanges))
                 .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult1))
@@ -469,12 +452,15 @@ public class ProtoBlockFileReaderTest {
     }
 
     private BlockItem eventTransaction() {
+        return eventTransaction(TransactionBody.newBuilder()
+                .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
+                .build());
+    }
+
+    private BlockItem eventTransaction(TransactionBody transactionBody) {
         var transaction = Transaction.newBuilder()
                 .setSignedTransactionBytes(SignedTransaction.newBuilder()
-                        .setBodyBytes(TransactionBody.newBuilder()
-                                .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
-                                .build()
-                                .toByteString())
+                        .setBodyBytes(transactionBody.toByteString())
                         .build()
                         .toByteString())
                 .build()
@@ -507,25 +493,16 @@ public class ProtoBlockFileReaderTest {
                         .toByteString())
                 .build()
                 .toByteString();
+        return batchEventTransaction(List.of(cryptoTransfer, cryptoTransfer2));
+    }
 
-        var transaction = Transaction.newBuilder()
-                .setSignedTransactionBytes(SignedTransaction.newBuilder()
-                        .setBodyBytes(TransactionBody.newBuilder()
-                                .setAtomicBatch(AtomicBatchTransactionBody.newBuilder()
-                                        .addTransactions(cryptoTransfer)
-                                        .addTransactions(cryptoTransfer2)
-                                        .build())
-                                .build()
-                                .toByteString())
-                        .build()
-                        .toByteString())
-                .build()
-                .toByteString();
-        return BlockItem.newBuilder()
-                .setEventTransaction(EventTransaction.newBuilder()
-                        .setApplicationTransaction(transaction)
+    private BlockItem batchEventTransaction(List<ByteString> innerTransactions) {
+        var transaction = TransactionBody.newBuilder()
+                .setAtomicBatch(AtomicBatchTransactionBody.newBuilder()
+                        .addAllTransactions(innerTransactions)
                         .build())
                 .build();
+        return eventTransaction(transaction);
     }
 
     private byte[] gzip(Block block) {
