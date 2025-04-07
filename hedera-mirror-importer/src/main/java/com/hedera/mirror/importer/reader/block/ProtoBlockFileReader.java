@@ -265,7 +265,12 @@ public class ProtoBlockFileReader implements BlockFileReader {
             }
 
             if (batchBody != null && batchIndex < batchBody.getTransactionsCount()) {
-                return batchBody.getTransactions(batchIndex++); // TODO change to bytes
+                var innerTransaction = Transaction.parseFrom(batchBody.getTransactions(batchIndex++));
+                if (innerTransaction == null || Transaction.getDefaultInstance().equals(innerTransaction)) {
+                    throw new InvalidStreamFileException(
+                            "Failed to parse inner transaction from atomic batch in block file " + filename);
+                }
+                return innerTransaction;
             }
 
             return null;

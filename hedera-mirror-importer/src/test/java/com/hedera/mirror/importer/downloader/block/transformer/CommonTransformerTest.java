@@ -25,6 +25,7 @@ class CommonTransformerTest extends AbstractTransformerTest {
 
     private static Stream<Arguments> provideDefaultTransforms() {
         return Stream.of(
+                Arguments.of(TransactionType.ATOMIC_BATCH, recordItemBuilder.atomicBatch()),
                 Arguments.of(TransactionType.CONSENSUSDELETETOPIC, recordItemBuilder.consensusDeleteTopic()),
                 Arguments.of(TransactionType.CONSENSUSUPDATETOPIC, recordItemBuilder.consensusUpdateTopic()),
                 Arguments.of(TransactionType.CRYPTOADDLIVEHASH, recordItemBuilder.cryptoAddLiveHash()),

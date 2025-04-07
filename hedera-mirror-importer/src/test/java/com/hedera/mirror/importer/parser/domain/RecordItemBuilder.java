@@ -247,7 +247,10 @@ public class RecordItemBuilder {
 
         return new Builder<>(
                 TransactionType.ATOMIC_BATCH,
-                AtomicBatchTransactionBody.newBuilder().addAllTransactions(transactions));
+                AtomicBatchTransactionBody.newBuilder()
+                        .addAllTransactions(transactions.stream()
+                                .map(Transaction::toByteString)
+                                .toList()));
     }
 
     public Builder<ConsensusCreateTopicTransactionBody.Builder> consensusCreateTopic() {
