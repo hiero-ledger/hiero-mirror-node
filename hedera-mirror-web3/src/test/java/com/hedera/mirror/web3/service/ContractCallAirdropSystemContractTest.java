@@ -22,7 +22,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceTest {
 
-    private static final BigInteger DEFAULT_TOKEN_AIRDROP_AMOUNT = BigInteger.TEN;
     private static final BigInteger ZERO_VALUE = BigInteger.ZERO;
 
     @BeforeEach
