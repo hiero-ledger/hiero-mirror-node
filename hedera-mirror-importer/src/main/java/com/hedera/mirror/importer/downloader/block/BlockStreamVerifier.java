@@ -2,40 +2,87 @@
 
 package com.hedera.mirror.importer.downloader.block;
 
+import com.hedera.mirror.common.domain.StreamType;
 import com.hedera.mirror.common.domain.transaction.BlockFile;
 import com.hedera.mirror.importer.downloader.StreamFileNotifier;
 import com.hedera.mirror.importer.exception.HashMismatchException;
 import com.hedera.mirror.importer.exception.InvalidStreamFileException;
 import com.hedera.mirror.importer.repository.RecordFileRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
 import jakarta.validation.constraints.NotNull;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FilenameUtils;
 
 @Named
-@RequiredArgsConstructor
 public class BlockStreamVerifier {
 
-    private static final BlockFile EMPTY = BlockFile.builder().build();
+    private static final BlockFile EMPTY = BlockFile.builder().consensusStart(0L).build();
 
     private final BlockFileTransformer blockFileTransformer;
     private final RecordFileRepository recordFileRepository;
     private final StreamFileNotifier streamFileNotifier;
 
+    // Metrics
+    private final MeterRegistry meterRegistry;
+    private final Timer.Builder streamVerificationMetric;
+    private final Timer streamCloseMetric;
+
     private final AtomicReference<Optional<BlockFile>> lastBlockFile = new AtomicReference<>(Optional.empty());
+
+    public BlockStreamVerifier(
+            BlockFileTransformer blockFileTransformer,
+            RecordFileRepository recordFileRepository,
+            StreamFileNotifier streamFileNotifier,
+            MeterRegistry meterRegistry) {
+        this.blockFileTransformer = blockFileTransformer;
+        this.recordFileRepository = recordFileRepository;
+        this.streamFileNotifier = streamFileNotifier;
+        this.meterRegistry = meterRegistry;
+
+        this.streamVerificationMetric = Timer.builder("hedera.mirror.download.stream.verification")
+                .description("The duration in seconds it took to verify consensus and hash chain of a stream file")
+                .tag("type", StreamType.BLOCK.toString());
+
+        streamCloseMetric = Timer.builder("hedera.mirror.stream.close.latency")
+                .description("The difference between the consensus start of the current and the last stream file")
+                .tag("type", StreamType.BLOCK.toString())
+                .register(meterRegistry);
+    }
 
     public Optional<Long> getLastBlockNumber() {
         return getLastBlockFile().map(BlockFile::getIndex);
     }
 
     public void verify(@NotNull BlockFile blockFile) {
-        verifyBlockNumber(blockFile);
-        verifyHashChain(blockFile);
-        var recordFile = blockFileTransformer.transform(blockFile);
-        streamFileNotifier.verified(recordFile);
-        setLastBlockFile(blockFile);
+        var startTime = Instant.now();
+        boolean success = true;
+        try {
+            verifyBlockNumber(blockFile);
+            verifyHashChain(blockFile);
+            var recordFile = blockFileTransformer.transform(blockFile);
+            streamFileNotifier.verified(recordFile);
+
+            getLastBlockFile().ifPresent(last -> {
+                    long latency = blockFile.getConsensusStart() - last.getConsensusStart();
+                    streamCloseMetric.record(latency, TimeUnit.NANOSECONDS);
+            });
+
+            setLastBlockFile(blockFile);
+        } catch (Exception e) {
+            success = false;
+            throw e;
+        } finally {
+            streamVerificationMetric
+                    .tag("success", String.valueOf(success))
+                    .register(meterRegistry)
+                    .record(Duration.between(startTime, Instant.now()));
+        }
     }
 
     private Optional<String> getExpectedPreviousHash() {
@@ -49,6 +96,7 @@ public class BlockStreamVerifier {
                     .map(r -> BlockFile.builder()
                             .hash(r.getHash())
                             .index(r.getIndex())
+                            .consensusStart(r.getConsensusStart())
                             .build())
                     .or(() -> Optional.of(EMPTY));
             lastBlockFile.compareAndSet(Optional.empty(), last);
