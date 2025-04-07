@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.from;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DigestAlgorithm;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.StreamType;
@@ -67,6 +68,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 public abstract class AbstractEntityRecordItemListenerTest extends ImporterIntegrationTest {
 
+    private static final CommonProperties commonProperties = CommonProperties.getInstance();
     protected static final ContractID CONTRACT_ID =
             ContractID.newBuilder().setContractNum(901).build();
     protected static final ContractID CREATED_CONTRACT_ID =
@@ -88,7 +90,10 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
     protected static final AccountID NODE =
             AccountID.newBuilder().setAccountNum(3).build();
     protected static final AccountID TREASURY =
-            AccountID.newBuilder().setAccountNum(98).build();
+            AccountID.newBuilder()
+                    .setShardNum(commonProperties.getShard())
+                    .setRealmNum(commonProperties.getRealm())
+                    .setAccountNum(98).build();
     protected static final AccountID PROXY =
             AccountID.newBuilder().setAccountNum(1003).build();
     protected static final AccountID PROXY_UPDATE =
@@ -338,10 +343,10 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
         long[] transferAccounts = {PAYER.getAccountNum(), TREASURY.getAccountNum(), NODE.getAccountNum()};
         long[] transferAmounts = {-2000, 1000, 1000};
         TransferList.Builder transferList = recordBuilder.getTransferListBuilder();
-        for (int i = 0; i < transferAccounts.length; i++) {
-            // Irrespective of transaction success, node and network fees are present.
-            transferList.addAccountAmounts(accountAmount(transferAccounts[i], transferAmounts[i]));
-        }
+        // Irrespective of transaction success, node and network fees are present.
+        transferList.addAccountAmounts(AccountAmount.newBuilder().setAccountID(PAYER).setAmount(-2000).build());
+        transferList.addAccountAmounts(AccountAmount.newBuilder().setAccountID(TREASURY).setAmount(1000).build());
+        transferList.addAccountAmounts(AccountAmount.newBuilder().setAccountID(NODE).setAmount(1000).build());
 
         if (transactionBody.hasCryptoTransfer() && status == ResponseCodeEnum.SUCCESS.getNumber()) {
             for (var aa : transactionBody.getCryptoTransfer().getTransfers().getAccountAmountsList()) {
