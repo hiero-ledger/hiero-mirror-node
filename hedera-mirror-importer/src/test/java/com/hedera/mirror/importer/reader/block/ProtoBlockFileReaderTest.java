@@ -298,7 +298,8 @@ public class ProtoBlockFileReaderTest {
                 .addItems(blockHeader())
                 .addItems(roundHeader)
                 .addItems(eventHeader)
-                .addItems(batchEventTransaction(List.of(Transaction.newBuilder().build().toByteString())))
+                .addItems(batchEventTransaction(
+                        List.of(Transaction.newBuilder().build().toByteString())))
                 .addItems(BlockItem.newBuilder().setTransactionResult(batchTransactionResult))
                 .addItems(BlockItem.newBuilder().setStateChanges(batchStateChanges))
                 .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult1))
