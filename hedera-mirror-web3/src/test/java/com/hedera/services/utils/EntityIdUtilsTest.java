@@ -3,13 +3,17 @@
 package com.hedera.services.utils;
 
 import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
-import static com.hedera.services.utils.EntityIdUtils.*;
+import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
+import static com.hedera.services.utils.EntityIdUtils.contractIdFromEvmAddress;
+import static com.hedera.services.utils.EntityIdUtils.toTokenId;
+import static com.hedera.services.utils.EntityIdUtils.tokenIdFromEvmAddress;
 import static com.hedera.services.utils.IdUtils.asAccount;
 import static com.hedera.services.utils.IdUtils.asContract;
 import static com.hedera.services.utils.IdUtils.asToken;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.primitives.Ints;
@@ -125,13 +129,14 @@ class EntityIdUtilsTest {
     @ParameterizedTest
     @CsvSource({"1.0.0", "0.1.0", "0.0.1", "1.2.3"})
     void parsesValidLiteral(final String goodLiteral) {
-        assertEquals(asAccount(goodLiteral), parseAccount(goodLiteral));
+        assertEquals(asAccount(goodLiteral), EntityId.of(goodLiteral).toAccountID());
     }
 
     @ParameterizedTest
     @CsvSource({"asdf", "notANumber"})
     void parsesNonValidLiteral(final String badLiteral) {
-        assertThrows(IllegalArgumentException.class, () -> parseAccount(badLiteral));
+        assertThrows(
+                IllegalArgumentException.class, () -> EntityId.of(badLiteral).toAccountID());
     }
 
     @Test
@@ -329,7 +334,13 @@ class EntityIdUtilsTest {
                 .realmNum(REALM)
                 .tokenNum(NUM)
                 .build();
-        assertEquals(expectedTokenId, EntityIdUtils.toTokenId(id));
+        assertEquals(expectedTokenId, toTokenId(id));
+    }
+
+    @Test
+    void toTokenIdFromNullShouldReturnNull() {
+        EntityId entityId = null;
+        assertNull(toTokenId(entityId));
     }
 
     @Test
@@ -341,7 +352,7 @@ class EntityIdUtilsTest {
                 .realmNum(REALM)
                 .tokenNum(NUM)
                 .build();
-        assertEquals(expectedTokenId, EntityIdUtils.toTokenId(entityId));
+        assertEquals(expectedTokenId, toTokenId(entityId));
     }
 
     @Test

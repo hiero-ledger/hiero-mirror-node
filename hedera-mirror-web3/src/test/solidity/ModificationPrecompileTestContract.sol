@@ -362,6 +362,25 @@ contract ModificationPrecompileTestContract is HederaTokenService {
         }
 
         (newFixedFees, newFractionalFees, newRoyaltyFees) = getCustomFeesForToken(token);
+        return (newFixedFees, newFractionalFees, newRoyaltyFees);
+    }
+
+    function updateNonFungibleTokenCustomFeesAndGetExternal(
+        address token,
+        IHederaTokenService.FixedFee[] memory fixedFees,
+        IHederaTokenService.FractionalFee[] memory fractionalFees,
+        IHederaTokenService.RoyaltyFee[] memory royaltyFees) external
+    returns (
+        IHederaTokenService.FixedFee[] memory newFixedFees,
+        IHederaTokenService.FractionalFee[] memory newFractionalFees,
+        IHederaTokenService.RoyaltyFee[] memory newRoyaltyFees)
+    {
+        int64 responseCode = HederaTokenService.updateNonFungibleTokenCustomFees(token, fixedFees, royaltyFees);
+        if (responseCode != HederaResponseCodes.SUCCESS) {
+            revert("Failed to update nft custom fees");
+        }
+
+        (newFixedFees, newFractionalFees, newRoyaltyFees) = getCustomFeesForToken(token);
 
         return (newFixedFees, newFractionalFees, newRoyaltyFees);
     }

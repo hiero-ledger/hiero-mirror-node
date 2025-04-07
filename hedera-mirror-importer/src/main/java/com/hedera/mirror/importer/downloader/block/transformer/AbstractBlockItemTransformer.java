@@ -10,6 +10,7 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionC
 import com.hedera.mirror.common.domain.transaction.BlockItem;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.util.DomainUtils;
+import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import java.security.MessageDigest;
 import org.slf4j.Logger;
@@ -29,16 +30,15 @@ abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
         var recordBuilder = blockItemTransformation
                 .recordItemBuilder()
                 .transactionRecordBuilder()
+                .addAllAssessedCustomFees(transactionResult.getAssessedCustomFeesList())
                 .addAllAutomaticTokenAssociations(transactionResult.getAutomaticTokenAssociationsList())
                 .addAllPaidStakingRewards(transactionResult.getPaidStakingRewardsList())
                 .addAllTokenTransferLists(transactionResult.getTokenTransferListsList())
-                .addAllAssessedCustomFees(transactionResult.getAssessedCustomFeesList())
                 .setConsensusTimestamp(transactionResult.getConsensusTimestamp())
                 .setMemo(transactionBody.getMemo())
                 .setReceipt(receiptBuilder)
                 .setTransactionFee(transactionResult.getTransactionFeeCharged())
-                .setTransactionHash(
-                        calculateTransactionHash(blockItem.getTransaction().getSignedTransactionBytes()))
+                .setTransactionHash(calculateTransactionHash(blockItem.getTransaction()))
                 .setTransactionID(transactionBody.getTransactionID())
                 .setTransferList(transactionResult.getTransferList());
 
@@ -58,8 +58,11 @@ abstract class AbstractBlockItemTransformer implements BlockItemTransformer {
         // do nothing
     }
 
-    private ByteString calculateTransactionHash(ByteString signedTransactionBytes) {
-        return DomainUtils.fromBytes(DIGEST.digest(DomainUtils.toBytes(signedTransactionBytes)));
+    private ByteString calculateTransactionHash(Transaction transaction) {
+        byte[] bytes = transaction.getSignedTransactionBytes().isEmpty()
+                ? transaction.toByteArray()
+                : DomainUtils.toBytes(transaction.getSignedTransactionBytes());
+        return DomainUtils.fromBytes(DIGEST.digest(bytes));
     }
 
     /**

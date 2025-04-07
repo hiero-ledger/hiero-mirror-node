@@ -1,4 +1,4 @@
-FROM node:18.20.8-bookworm-slim
+FROM node:lts-bookworm-slim
 LABEL maintainer="mirrornode@hedera.com"
 
 # Setup
@@ -25,4 +25,4 @@ RUN apt-get update && \
 USER node
 
 # Run
-ENTRYPOINT ["node", "--experimental-specifier-resolution=node", "server.js"]
+ENTRYPOINT ["node", "--import=extensionless/register", "server.js"]

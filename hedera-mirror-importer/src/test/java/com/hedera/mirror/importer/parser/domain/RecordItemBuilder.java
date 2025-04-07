@@ -773,6 +773,7 @@ public class RecordItemBuilder {
         var builder = NodeCreateTransactionBody.newBuilder()
                 .setAccountId(accountId())
                 .setAdminKey(key())
+                .setDeclineReward(false)
                 .setDescription("Node create")
                 .setGossipCaCertificate(bytes(4))
                 .addGossipEndpoint(gossipEndpoint())
@@ -785,6 +786,7 @@ public class RecordItemBuilder {
         var builder = NodeUpdateTransactionBody.newBuilder()
                 .setAccountId(accountId())
                 .setAdminKey(key())
+                .setDeclineReward(BoolValue.of(false))
                 .setDescription(StringValue.of("Node update"))
                 .setGossipCaCertificate(BytesValue.of(bytes(4)))
                 .addGossipEndpoint(gossipEndpoint())
@@ -1450,6 +1452,7 @@ public class RecordItemBuilder {
         private Predicate<EntityId> entityTransactionPredicate = persistProperties::shouldPersistEntityTransaction;
         private Predicate<EntityId> contractTransactionPredicate = e -> persistProperties.isContractTransaction();
         private BiConsumer<TransactionBody.Builder, TransactionRecord.Builder> incrementer = (b, r) -> {};
+        private boolean useTransactionBodyBytesAndSigMap;
 
         private Builder(TransactionType type, T transactionBody) {
             this.payerAccountId = accountId();
@@ -1479,11 +1482,15 @@ public class RecordItemBuilder {
             transactionRecord.setTransactionID(transactionId);
 
             incrementer.accept(transactionBodyWrapper, transactionRecord);
-            var transaction = transaction().build();
+            var transaction = transaction();
             if (transactionRecord.getTransactionHash() == ByteString.EMPTY) {
-                transactionRecord.setTransactionHash(
-                        fromBytes(createSha384Digest().digest(toBytes(transaction.getSignedTransactionBytes()))));
+                var digest = createSha384Digest();
+                byte[] transactionHash = useTransactionBodyBytesAndSigMap
+                        ? digest.digest(transaction.toByteArray())
+                        : digest.digest(toBytes(transaction.getSignedTransactionBytes()));
+                transactionRecord.setTransactionHash(fromBytes(transactionHash));
             }
+
             var transactionRecordInstance = transactionRecord.build();
             var contractId = transactionRecordInstance.getReceipt().getContractID();
 
@@ -1573,6 +1580,11 @@ public class RecordItemBuilder {
             return this;
         }
 
+        public Builder<T> useTransactionBodyBytesAndSigMap(boolean value) {
+            this.useTransactionBodyBytesAndSigMap = value;
+            return this;
+        }
+
         private SignatureMap.Builder defaultSignatureMap() {
             return SignatureMap.newBuilder()
                     .addSigPair(SignaturePair.newBuilder().setEd25519(bytes(32)).setPubKeyPrefix(bytes(16)));
@@ -1618,13 +1630,22 @@ public class RecordItemBuilder {
                     .build();
         }
 
-        private Transaction.Builder transaction() {
-            return Transaction.newBuilder()
-                    .setSignedTransactionBytes(SignedTransaction.newBuilder()
-                            .setBodyBytes(transactionBodyWrapper.build().toByteString())
-                            .setSigMap(signatureMap)
-                            .build()
-                            .toByteString());
+        @SuppressWarnings("deprecation")
+        private Transaction transaction() {
+            var bodyBytes = transactionBodyWrapper.build().toByteString();
+            var builder = Transaction.newBuilder();
+            if (useTransactionBodyBytesAndSigMap) {
+                builder.setBodyBytes(bodyBytes).setSigMap(signatureMap);
+            } else {
+                // use signedTransactionBytes
+                builder.setSignedTransactionBytes(SignedTransaction.newBuilder()
+                        .setBodyBytes(bodyBytes)
+                        .setSigMap(signatureMap)
+                        .build()
+                        .toByteString());
+            }
+
+            return builder.build();
         }
     }
 }

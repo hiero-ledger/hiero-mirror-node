@@ -7,6 +7,7 @@ import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_3
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_34;
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_38;
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_46;
+import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_50;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
@@ -164,6 +165,8 @@ class MirrorEvmTxProcessorTest {
                 () -> new MessageCallProcessor(v38, new PrecompileContractRegistry()),
                 EVM_VERSION_0_46,
                 () -> new MessageCallProcessor(v38, new PrecompileContractRegistry()),
+                EVM_VERSION_0_50,
+                () -> new MessageCallProcessor(v50, new PrecompileContractRegistry()),
                 EVM_VERSION,
                 () -> new MessageCallProcessor(v50, new PrecompileContractRegistry()));
         Map<SemanticVersion, Provider<ContractCreationProcessor>> processorsMap = Map.of(
@@ -171,6 +174,7 @@ class MirrorEvmTxProcessorTest {
                 EVM_VERSION_0_34, () -> new ContractCreationProcessor(gasCalculator, v34, true, List.of(), 1),
                 EVM_VERSION_0_38, () -> new ContractCreationProcessor(gasCalculator, v38, true, List.of(), 1),
                 EVM_VERSION_0_46, () -> new ContractCreationProcessor(gasCalculator, v38, true, List.of(), 1),
+                EVM_VERSION_0_50, () -> new ContractCreationProcessor(gasCalculator, v50, true, List.of(), 1),
                 EVM_VERSION, () -> new ContractCreationProcessor(gasCalculator, v50, true, List.of(), 1));
 
         mirrorEvmTxProcessor = new MirrorEvmTxProcessorImpl(

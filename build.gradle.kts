@@ -19,7 +19,7 @@ extra.apply {
     set("grpcVersion", "1.71.0")
     set("jooq.version", "3.20.2") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
-    set("nodeJsVersion", "18.20.8")
+    set("nodeJsVersion", "22.14.0")
     set("protobufVersion", "4.30.2")
     set("reactorGrpcVersion", "1.2.4")
     set("vertxVersion", "4.5.13")
@@ -58,7 +58,7 @@ dependencies {
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.10.1")
         api("commons-io:commons-io:2.18.0")
-        api("io.cucumber:cucumber-bom:7.21.1")
+        api("io.cucumber:cucumber-bom:7.22.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.9.8")
@@ -92,7 +92,6 @@ dependencies {
         api("uk.org.webcompere:system-stubs-jupiter:2.1.7")
         api("org.web3j:core:4.12.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
-        api("com.hedera.cryptography:hedera-cryptography-bls:0.1.1-SNAPSHOT")
     }
 }
 

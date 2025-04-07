@@ -89,7 +89,6 @@ import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractAction.ResultDataCase;
 import com.hedera.services.stream.proto.ContractActionType;
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
 import com.hederahashgraph.api.proto.java.FreezeType;
 import com.hederahashgraph.api.proto.java.Key;
@@ -671,6 +670,7 @@ public class DomainBuilder {
         var builder = Node.builder()
                 .adminKey(key())
                 .createdTimestamp(timestamp)
+                .declineReward(false)
                 .deleted(false)
                 .nodeId(number())
                 .timestampRange(Range.atLeast(timestamp));
@@ -683,6 +683,7 @@ public class DomainBuilder {
         var builder = NodeHistory.builder()
                 .adminKey(key())
                 .createdTimestamp(timestamp)
+                .declineReward(false)
                 .deleted(false)
                 .nodeId(number())
                 .timestampRange(Range.closedOpen(timestamp, timestamp + 10));
@@ -1019,8 +1020,9 @@ public class DomainBuilder {
     }
 
     public DomainWrapper<TopicMessage, TopicMessage.TopicMessageBuilder> topicMessage() {
+        var payer = entityId();
         var transactionId = TransactionID.newBuilder()
-                .setAccountID(AccountID.newBuilder().setAccountNum(id()))
+                .setAccountID(payer.toAccountID())
                 .setTransactionValidStart(protoTimestamp())
                 .build()
                 .toByteArray();
@@ -1030,7 +1032,7 @@ public class DomainBuilder {
                 .consensusTimestamp(timestamp())
                 .initialTransactionId(transactionId)
                 .message(bytes(128))
-                .payerAccountId(entityId())
+                .payerAccountId(payer)
                 .runningHashVersion(2)
                 .runningHash(bytes(48))
                 .sequenceNumber(number())

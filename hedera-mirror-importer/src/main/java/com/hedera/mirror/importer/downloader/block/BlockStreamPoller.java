@@ -16,6 +16,7 @@ import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -46,7 +47,7 @@ final class BlockStreamPoller implements StreamPoller {
         var nodes = getRandomizedNodes();
         var stopwatch = Stopwatch.createStarted();
         var streamFilename = StreamFilename.from(blockNumber);
-        String filename = streamFilename.getFilename();
+        var filename = streamFilename.getFilename();
         var streamPath = commonDownloaderProperties.getImporterProperties().getStreamPath();
         var timeout = commonDownloaderProperties.getTimeout();
 
@@ -87,15 +88,12 @@ final class BlockStreamPoller implements StreamPoller {
     }
 
     private long getNextBlockNumber() {
-        return blockStreamVerifier.getLastBlockNumber().map(v -> v + 1).orElseGet(() -> {
-            var startBlockNumber =
-                    commonDownloaderProperties.getImporterProperties().getStartBlockNumber();
-            if (startBlockNumber != null) {
-                return startBlockNumber;
-            }
-
-            return GENESIS_BLOCK_NUMBER;
-        });
+        return blockStreamVerifier
+                .getLastBlockNumber()
+                .map(v -> v + 1)
+                .or(() -> Optional.ofNullable(
+                        commonDownloaderProperties.getImporterProperties().getStartBlockNumber()))
+                .orElse(GENESIS_BLOCK_NUMBER);
     }
 
     private List<ConsensusNode> getRandomizedNodes() {
