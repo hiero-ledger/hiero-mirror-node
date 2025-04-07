@@ -20,7 +20,7 @@ dependencies {
     implementation("com.diffplug.spotless:spotless-plugin-gradle:7.0.2")
     implementation("com.gradleup.shadow:shadow-gradle-plugin:8.3.6")
     implementation("com.github.node-gradle:gradle-node-plugin:7.1.0")
-    implementation("com.google.protobuf:protobuf-gradle-plugin:0.9.4")
+    implementation("com.google.protobuf:protobuf-gradle-plugin:0.9.5")
     implementation("com.gorylenko.gradle-git-properties:gradle-git-properties:2.5.0")
     implementation("com.graphql-java-generator:graphql-gradle-plugin3:2.9")
     implementation("gradle.plugin.io.snyk.gradle.plugin:snyk:0.7.0")
