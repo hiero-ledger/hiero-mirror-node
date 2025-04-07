@@ -368,6 +368,7 @@
     "nodes": [
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": 5000,
@@ -399,6 +400,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -427,6 +429,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -455,6 +458,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -483,6 +487,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -511,6 +516,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -539,6 +545,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -567,6 +574,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -595,6 +603,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -623,6 +632,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -651,6 +661,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -679,6 +690,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -707,6 +719,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -735,6 +748,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -763,6 +777,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -791,6 +806,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -819,6 +835,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -847,6 +864,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -875,6 +893,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -903,6 +922,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -931,6 +951,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -959,6 +980,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -987,6 +1009,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -1015,6 +1038,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
@@ -1043,6 +1067,7 @@
       },
       {
         "admin_key": null,
+        "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,
