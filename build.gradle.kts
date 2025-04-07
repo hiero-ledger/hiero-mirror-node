@@ -89,7 +89,7 @@ dependencies {
         api("org.testcontainers:junit-jupiter:1.20.6")
         api("org.mockito:mockito-inline:5.2.0")
         api("software.amazon.awssdk:bom:2.31.16")
-        api("uk.org.webcompere:system-stubs-jupiter:2.1.7")
+        api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
         api("org.web3j:core:4.12.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
     }
