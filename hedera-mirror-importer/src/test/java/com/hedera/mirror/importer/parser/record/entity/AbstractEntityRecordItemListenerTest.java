@@ -89,11 +89,11 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
     protected static final AccountID DEFAULT_ACCOUNT_ID = AccountID.getDefaultInstance();
     protected static final AccountID NODE =
             AccountID.newBuilder().setAccountNum(3).build();
-    protected static final AccountID TREASURY =
-            AccountID.newBuilder()
-                    .setShardNum(commonProperties.getShard())
-                    .setRealmNum(commonProperties.getRealm())
-                    .setAccountNum(98).build();
+    protected static final AccountID TREASURY = AccountID.newBuilder()
+            .setShardNum(commonProperties.getShard())
+            .setRealmNum(commonProperties.getRealm())
+            .setAccountNum(98)
+            .build();
     protected static final AccountID PROXY =
             AccountID.newBuilder().setAccountNum(1003).build();
     protected static final AccountID PROXY_UPDATE =
@@ -344,9 +344,14 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
         long[] transferAmounts = {-2000, 1000, 1000};
         TransferList.Builder transferList = recordBuilder.getTransferListBuilder();
         // Irrespective of transaction success, node and network fees are present.
-        transferList.addAccountAmounts(AccountAmount.newBuilder().setAccountID(PAYER).setAmount(-2000).build());
-        transferList.addAccountAmounts(AccountAmount.newBuilder().setAccountID(TREASURY).setAmount(1000).build());
-        transferList.addAccountAmounts(AccountAmount.newBuilder().setAccountID(NODE).setAmount(1000).build());
+        transferList.addAccountAmounts(
+                AccountAmount.newBuilder().setAccountID(PAYER).setAmount(-2000).build());
+        transferList.addAccountAmounts(AccountAmount.newBuilder()
+                .setAccountID(TREASURY)
+                .setAmount(1000)
+                .build());
+        transferList.addAccountAmounts(
+                AccountAmount.newBuilder().setAccountID(NODE).setAmount(1000).build());
 
         if (transactionBody.hasCryptoTransfer() && status == ResponseCodeEnum.SUCCESS.getNumber()) {
             for (var aa : transactionBody.getCryptoTransfer().getTransfers().getAccountAmountsList()) {
