@@ -2,9 +2,9 @@
 
 import _ from 'lodash';
 
-import BaseController from './baseController';
-import Bound from './bound';
-import {getResponseLimit} from '../config';
+import BaseController from './baseController.js';
+import Bound from './bound.js';
+import {getResponseLimit} from '../config.js';
 import {
   filterKeys,
   httpStatusCodes,
@@ -12,9 +12,9 @@ import {
   queryParamOperators,
   requestPathLabel,
   responseDataLabel,
-} from '../constants';
-import EntityId from '../entityId';
-import {InvalidArgumentError, NotFoundError} from '../errors';
+} from '../constants.js';
+import EntityId from '../entityId.js';
+import {InvalidArgumentError, NotFoundError} from '../errors/index.js';
 import {
   Contract,
   ContractLog,
@@ -24,12 +24,12 @@ import {
   Entity,
   TransactionResult,
   TransactionType,
-} from '../model';
-import {ContractService, EntityService, FileDataService, RecordFileService, TransactionService} from '../service';
-import {bindTimestampRange} from '../timestampRange';
-import {getTransactionHash} from '../transactionHash';
-import TransactionId from '../transactionId';
-import * as utils from '../utils';
+} from '../model/index.js';
+import {ContractService, EntityService, FileDataService, RecordFileService, TransactionService} from '../service/index.js';
+import {bindTimestampRange} from '../timestampRange.js';
+import {getTransactionHash} from '../transactionHash.js';
+import TransactionId from '../transactionId.js';
+import * as utils from '../utils.js';
 import {
   ContractActionViewModel,
   ContractBytecodeViewModel,
@@ -38,7 +38,7 @@ import {
   ContractResultViewModel,
   ContractStateViewModel,
   ContractViewModel,
-} from '../viewmodel';
+} from '../viewmodel/index.js';
 
 const contractSelectFields = [
   Entity.AUTO_RENEW_ACCOUNT_ID,

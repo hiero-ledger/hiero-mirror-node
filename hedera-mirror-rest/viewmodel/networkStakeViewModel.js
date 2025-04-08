@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as utils from '../utils';
+import * as utils from '../utils.js';
 import * as math from 'mathjs';
 
 /**

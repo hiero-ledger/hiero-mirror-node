@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {Range} from 'pg-range';
-import {ContractBytecodeViewModel, ContractViewModel} from '../../viewmodel';
+import {ContractBytecodeViewModel, ContractViewModel} from '../../viewmodel/index.js';
 
 const defaultContract = {
   fileId: 2800n,

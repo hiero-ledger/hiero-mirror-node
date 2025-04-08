@@ -2,10 +2,10 @@
 
 import {Range} from 'pg-range';
 
-import * as constants from '../../constants';
+import * as constants from '../../constants.js';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
-import * as utils from '../../utils';
+import * as utils from '../../utils.js';
 
 import topicMessage from '../../topicmessage';
 

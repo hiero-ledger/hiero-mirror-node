@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {BYTE_SIZE} from './constants';
-import StreamObject from './streamObject';
-import {readLengthAndBytes} from './utils';
+import {BYTE_SIZE} from './constants.js';
+import StreamObject from './streamObject.js';
+import {readLengthAndBytes} from './utils.js';
 
 class RecordStreamObject extends StreamObject {
   static MAX_RECORD_LENGTH = 64 * 1024;

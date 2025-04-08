@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import ExchangeRateViewModel from './exchangeRateViewModel';
-import {nsToSecNs} from '../utils';
+import ExchangeRateViewModel from './exchangeRateViewModel.js';
+import {nsToSecNs} from '../utils.js';
 
 /**
  * Exchange rate set view model

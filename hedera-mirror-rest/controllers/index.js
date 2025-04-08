@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import AccountController from './accountController';
-import ContractController from './contractController';
-import CryptoAllowanceController from './cryptoAllowanceController';
-import NetworkController from './networkController';
-import TokenController from './tokenController';
-import TokenAllowanceController from './tokenAllowanceController';
-import BlockController from './blockController';
+import AccountController from './accountController.js';
+import ContractController from './contractController.js';
+import CryptoAllowanceController from './cryptoAllowanceController.js';
+import NetworkController from './networkController.js';
+import TokenController from './tokenController.js';
+import TokenAllowanceController from './tokenAllowanceController.js';
+import BlockController from './blockController.js';
 
 export {
   AccountController,

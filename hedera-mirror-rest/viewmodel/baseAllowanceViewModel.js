@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import EntityId from '../entityId';
-import {nsToSecNs} from '../utils';
+import EntityId from '../entityId.js';
+import {nsToSecNs} from '../utils.js';
 
 /**
  * BaseAllowance view model, captures the common fields of the allowance view model classes

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import Fee from './fee';
-import FixedFee from './fixedFee';
+import Fee from './fee.js';
+import FixedFee from './fixedFee.js';
 
 class RoyaltyFee extends Fee {
   /**

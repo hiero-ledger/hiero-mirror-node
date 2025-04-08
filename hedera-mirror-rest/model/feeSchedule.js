@@ -2,7 +2,7 @@
 
 import _ from 'lodash';
 import {proto} from '@hashgraph/proto';
-import {FileDecodeError} from '../errors';
+import {FileDecodeError} from '../errors/index.js';
 
 class FeeSchedule {
   static FEE_DIVISOR_FACTOR = 1000n;

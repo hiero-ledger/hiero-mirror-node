@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {getMirrorConfig} from '../config';
-import * as constants from '../constants';
-import EntityId from '../entityId';
-import {InvalidArgumentError} from '../errors';
+import {getMirrorConfig} from '../config.js';
+import * as constants from '../constants.js';
+import EntityId from '../entityId.js';
+import {InvalidArgumentError} from '../errors/index.js';
 
 const {
   common: {realm, shard},

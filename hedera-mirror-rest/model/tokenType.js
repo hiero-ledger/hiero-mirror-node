@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {InvalidArgumentError} from '../errors';
+import {InvalidArgumentError} from '../errors/index.js';
 
 class TokenType {
   static TYPE = ['FUNGIBLE_COMMON', 'NON_FUNGIBLE_UNIQUE'];

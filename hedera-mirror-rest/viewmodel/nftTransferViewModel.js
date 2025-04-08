@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import _ from 'lodash';
-import EntityId from '../entityId';
+import EntityId from '../entityId.js';
 
 /**
  * Nft transfer view model

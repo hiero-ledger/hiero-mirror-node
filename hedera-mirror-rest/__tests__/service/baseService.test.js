@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import BaseService from '../../service/baseService';
-import {OrderSpec} from '../../sql';
+import BaseService from '../../service/baseService.js';
+import {OrderSpec} from '../../sql/index.js';
 
 describe('getOrderByQuery', () => {
   const baseService = new BaseService();

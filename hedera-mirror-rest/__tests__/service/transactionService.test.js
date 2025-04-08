@@ -2,9 +2,9 @@
 
 import _ from 'lodash';
 
-import TransactionId from '../../transactionId';
-import {TransactionService} from '../../service';
-import {TransactionResult, TransactionType} from '../../model';
+import TransactionId from '../../transactionId.js';
+import {TransactionService} from '../../service/index.js';
+import {TransactionResult, TransactionType} from '../../model/index.js';
 
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';

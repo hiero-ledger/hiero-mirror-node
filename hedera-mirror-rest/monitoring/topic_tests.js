@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import config from './config';
+import config from './config.js';
 
 import {
   checkAPIResponseError,
@@ -14,7 +14,7 @@ import {
   getUrl,
   testRunner,
   CheckRunner,
-} from './utils';
+} from './utils.js';
 
 const resource = 'topic';
 const resourceLimit = config[resource].limit || DEFAULT_LIMIT;

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {apiPrefix, requestPathLabel} from '../constants';
+import {apiPrefix, requestPathLabel} from '../constants.js';
 
-import AccountRoutes from './accountRoute';
-import BlockRoutes from './blockRoute';
-import ContractRoutes from './contractRoute';
-import NetworkRoutes from './networkRoute';
+import AccountRoutes from './accountRoute.js';
+import BlockRoutes from './blockRoute.js';
+import ContractRoutes from './contractRoute.js';
+import NetworkRoutes from './networkRoute.js';
 
 /**
  * Router middleware to record the complete registered request path as res.locals[requestPathLabel]

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {INT_SIZE} from './constants';
-import StreamObject from './streamObject';
-import {readLengthAndBytes} from './utils';
+import {INT_SIZE} from './constants.js';
+import StreamObject from './streamObject.js';
+import {readLengthAndBytes} from './utils.js';
 
 class HashObject extends StreamObject {
   // properties of SHA-384 hash algorithm

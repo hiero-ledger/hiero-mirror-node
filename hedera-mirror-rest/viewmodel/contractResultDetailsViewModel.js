@@ -3,12 +3,12 @@
 import _ from 'lodash';
 import {toBigIntBE} from '@trufflesuite/bigint-buffer';
 
-import ContractLogResultsViewModel from './contractResultLogViewModel';
-import ContractResultStateChangeViewModel from './contractResultStateChangeViewModel';
-import ContractResultViewModel from './contractResultViewModel';
-import EntityId from '../entityId';
-import {TransactionResult} from '../model';
-import * as utils from '../utils';
+import ContractLogResultsViewModel from './contractResultLogViewModel.js';
+import ContractResultStateChangeViewModel from './contractResultStateChangeViewModel.js';
+import ContractResultViewModel from './contractResultViewModel.js';
+import EntityId from '../entityId.js';
+import {TransactionResult} from '../model/index.js';
+import * as utils from '../utils.js';
 
 /**
  * Contract result details view model

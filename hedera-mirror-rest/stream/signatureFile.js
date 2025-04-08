@@ -2,10 +2,10 @@
 
 import {proto} from '@hashgraph/proto';
 
-import {BYTE_SIZE, INT_SIZE} from './constants';
-import HashObject from './hashObject';
-import SignatureObject from './signatureObject';
-import {readLengthAndBytes, readNBytes} from './utils';
+import {BYTE_SIZE, INT_SIZE} from './constants.js';
+import HashObject from './hashObject.js';
+import SignatureObject from './signatureObject.js';
+import {readLengthAndBytes, readNBytes} from './utils.js';
 
 // version, object stream signature version
 const V5_FILE_HASH_OFFSET = BYTE_SIZE + INT_SIZE;

@@ -6,7 +6,7 @@ import os from 'os';
 import path from 'path';
 import yaml from 'js-yaml';
 import _ from 'lodash';
-import {cloudProviders, defaultBucketNames, networks} from '../constants';
+import {cloudProviders, defaultBucketNames, networks} from '../constants.js';
 
 let tempDir;
 const custom = {
@@ -50,7 +50,7 @@ const assertCustomConfig = (actual, customConfig) => {
   expect(actual.rest.response.compression).toBe(customConfig.hedera.mirror.rest.response.compression);
 };
 
-const loadConfig = async () => (await import('../config')).getMirrorConfig();
+const loadConfig = async () => (await import('../config.js')).getMirrorConfig();
 
 const loadCustomConfig = async (customConfig, filename = 'application.yml') => {
   fs.writeFileSync(path.join(tempDir, filename), yaml.dump(customConfig));
@@ -472,11 +472,11 @@ describe('Override network currencyFormat config', () => {
 
 describe('getResponseLimit', () => {
   test('default', async () => {
-    const func = (await import('../config')).getResponseLimit;
+    const func = (await import('../config.js')).getResponseLimit;
     expect(func()).toEqual({default: 25, max: 100, tokenBalance: {multipleAccounts: 50, singleAccount: 1000}});
   });
   test('custom response limit', async () => {
-    const module = await import('../config');
+    const module = await import('../config.js');
     const customLimit = {default: 10, max: 200, tokenBalance: {multipleAccounts: 90, singleAccount: 200}};
     module.default.response.limit = customLimit;
     expect(module.getResponseLimit()).toEqual(customLimit);

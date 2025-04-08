@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import BaseAllowanceViewModel from './baseAllowanceViewModel';
+import BaseAllowanceViewModel from './baseAllowanceViewModel.js';
 
 /**
  * CryptoAllowance view model

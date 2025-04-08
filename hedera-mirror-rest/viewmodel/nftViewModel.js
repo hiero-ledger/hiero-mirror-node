@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import EntityId from '../entityId';
-import {encodeBase64, nsToSecNs} from '../utils';
+import EntityId from '../entityId.js';
+import {encodeBase64, nsToSecNs} from '../utils.js';
 
 /**
  * NFT view model

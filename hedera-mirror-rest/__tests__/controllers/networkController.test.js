@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as constants from '../../constants';
-import {NetworkController} from '../../controllers';
-import {FileData} from '../../model';
+import * as constants from '../../constants.js';
+import {NetworkController} from '../../controllers/index.js';
+import {FileData} from '../../model/index.js';
 import networkCtrl from '../../controllers/networkController';
-import * as utils from '../../utils';
+import * as utils from '../../utils.js';
 
 describe('extractNetworkNodesQuery', () => {
   const defaultExpected = {

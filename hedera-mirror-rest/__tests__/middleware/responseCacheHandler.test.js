@@ -2,14 +2,14 @@
 
 import {jest} from '@jest/globals';
 
-import config from '../../config';
+import config from '../../config.js';
 import {gzipSync, unzipSync} from 'zlib';
-import {Cache} from '../../cache';
+import {Cache} from '../../cache.js';
 import {RedisContainer} from '@testcontainers/redis';
 import {defaultBeforeAllTimeoutMillis} from '../integrationUtils';
 import CachedApiResponse from '../../model/cachedApiResponse.js';
 import {cacheKeyGenerator, responseCacheCheckHandler, responseCacheUpdateHandler, setCache} from '../../middleware';
-import {httpStatusCodes, responseBodyLabel, responseCacheKeyLabel} from '../../constants';
+import {httpStatusCodes, responseBodyLabel, responseCacheKeyLabel} from '../../constants.js';
 import {JSONStringify} from '../../utils.js';
 
 let cache;

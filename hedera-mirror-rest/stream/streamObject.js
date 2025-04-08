@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {INT_SIZE, LONG_SIZE} from './constants';
+import {INT_SIZE, LONG_SIZE} from './constants.js';
 
 // classId, classVersion
 const STREAM_OBJECT_HEADER_SIZE = LONG_SIZE + INT_SIZE;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {getResponseLimit} from './config';
-import {ETH_HASH_LENGTH, orderFilterValues} from './constants';
-import {TransactionHash} from './model';
+import {getResponseLimit} from './config.js';
+import {ETH_HASH_LENGTH, orderFilterValues} from './constants.js';
+import {TransactionHash} from './model/index.js';
 
 const {default: defaultLimit} = getResponseLimit();
 

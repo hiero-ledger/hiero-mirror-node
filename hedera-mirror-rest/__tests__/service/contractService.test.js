@@ -2,13 +2,13 @@
 
 import _ from 'lodash';
 
-import {NotFoundError} from '../../errors';
-import {ContractService} from '../../service';
+import {NotFoundError} from '../../errors/index.js';
+import {ContractService} from '../../service/index.js';
 import {assertSqlQueryEqual} from '../testutils';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
-import {TransactionResult, TransactionType} from '../../model';
-import {orderFilterValues} from '../../constants';
+import {TransactionResult, TransactionType} from '../../model/index.js';
+import {orderFilterValues} from '../../constants.js';
 
 setupIntegrationTest();
 

@@ -2,10 +2,10 @@
 
 import _ from 'lodash';
 
-import AccountAlias from '../accountAlias';
+import AccountAlias from '../accountAlias.js';
 import {getAllAccountAliases, invalidBase32Strs} from './testutils';
 import {InvalidArgumentError} from '../errors/index.js';
-import {getMirrorConfig} from '../config';
+import {getMirrorConfig} from '../config.js';
 
 const {common} = getMirrorConfig();
 

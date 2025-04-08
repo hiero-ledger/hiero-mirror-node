@@ -2,10 +2,10 @@
 
 import {jest} from '@jest/globals';
 
-import config from '../../config';
-import {NotFoundError} from '../../errors';
+import config from '../../config.js';
+import {NotFoundError} from '../../errors/index.js';
 import {responseHandler} from '../../middleware';
-import {JSONStringify} from '../../utils';
+import {JSONStringify} from '../../utils.js';
 import {contentTypeHeader, responseHeadersLabel} from '../../constants.js';
 
 const {

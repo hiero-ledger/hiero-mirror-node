@@ -12,7 +12,7 @@ task('accounts', 'Prints the list of accounts', async (taskArgs, hre) => {
 // Go to https://hardhat.org/config/ to learn more
 
 /**
- * @type import('hardhat/config').HardhatUserConfig
+ * @type import('hardhat/config.js').HardhatUserConfig
  */
 module.exports = {
   solidity: {

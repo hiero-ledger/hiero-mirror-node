@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {TokenFreezeStatus, TokenKycStatus} from '../../model';
-import {TokenRelationshipViewModel} from '../../viewmodel';
+import {TokenFreezeStatus, TokenKycStatus} from '../../model/index.js';
+import {TokenRelationshipViewModel} from '../../viewmodel/index.js';
 
 describe('TokenRelationshipViewModel', () => {
   const specs = [

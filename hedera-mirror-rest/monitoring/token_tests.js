@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as math from 'mathjs';
-import config from './config';
+import config from './config.js';
 
 import {
   accountIdCompare,
@@ -18,7 +18,7 @@ import {
   getUrl,
   hasEmptyList,
   testRunner,
-} from './utils';
+} from './utils.js';
 
 const tokensPath = '/tokens';
 const resource = 'token';

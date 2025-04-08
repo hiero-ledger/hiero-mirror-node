@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {INT_SIZE, LONG_SIZE} from '../../stream/constants';
-import SignatureObject from '../../stream/signatureObject';
+import SignatureObject from '../../stream/signatureObject.js';
 
 const {SHA_384_WITH_RSA} = SignatureObject;
 

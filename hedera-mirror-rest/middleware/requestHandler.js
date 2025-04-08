@@ -3,8 +3,8 @@
 import httpContext from 'express-http-context';
 import qs from 'qs';
 
-import {httpStatusCodes, requestIdLabel, requestStartTime} from '../constants';
-import {lowerCaseQueryValue, randomString} from '../utils';
+import {httpStatusCodes, requestIdLabel, requestStartTime} from '../constants.js';
+import {lowerCaseQueryValue, randomString} from '../utils.js';
 
 const queryCanonicalizationMap = {
   order: lowerCaseQueryValue,

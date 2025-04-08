@@ -3,11 +3,11 @@
 import _ from 'lodash';
 import quickLru from 'quick-lru';
 
-import BaseService from './baseService';
-import config from '../config';
-import {CachedToken, TokenAccount} from '../model';
-import {OrderSpec} from '../sql';
-import {isTestEnv} from '../utils';
+import BaseService from './baseService.js';
+import config from '../config.js';
+import {CachedToken, TokenAccount} from '../model/index.js';
+import {OrderSpec} from '../sql/index.js';
+import {isTestEnv} from '../utils.js';
 
 const tokenCache = new quickLru({
   maxSize: config.cache.token.maxSize,

@@ -3,10 +3,10 @@
 import crypto from 'crypto';
 import _ from 'lodash';
 
-import HashObject from './hashObject';
-import RecordFile from './recordFile';
-import RecordStreamObject from './recordStreamObject';
-import {calculateRunningHash} from './runningHash';
+import HashObject from './hashObject.js';
+import RecordFile from './recordFile.js';
+import RecordStreamObject from './recordStreamObject.js';
+import {calculateRunningHash} from './runningHash.js';
 
 const {SHA_384} = HashObject;
 

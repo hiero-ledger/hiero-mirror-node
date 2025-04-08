@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {ContractStateViewModel} from '../../viewmodel';
+import {ContractStateViewModel} from '../../viewmodel/index.js';
 
 describe('ContractStateViewModel', () => {
   const defaultContractState = {

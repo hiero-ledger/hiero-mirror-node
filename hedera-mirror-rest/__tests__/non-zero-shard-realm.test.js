@@ -6,7 +6,7 @@ import request from 'supertest';
 process.env['HEDERA_MIRROR_COMMON_SHARD'] = 1;
 process.env['HEDERA_MIRROR_COMMON_REALM'] = 2;
 
-const config = (await import('../config')).default;
+const config = (await import('../config.js')).default;
 const EntityId = (await import('../entityId')).default;
 const {JSONParse} = await import('../utils');
 const {loadBalances} = (await import('./integrationDomainOps')).default;

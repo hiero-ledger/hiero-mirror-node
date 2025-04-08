@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import BaseAllowanceViewModel from './baseAllowanceViewModel';
-import EntityId from '../entityId';
+import BaseAllowanceViewModel from './baseAllowanceViewModel.js';
+import EntityId from '../entityId.js';
 
 /**
  * TokenAllowance view model

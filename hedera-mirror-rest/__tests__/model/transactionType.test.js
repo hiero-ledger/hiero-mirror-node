@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {proto} from '@hashgraph/proto';
-import {TransactionType} from '../../model';
-import {InvalidArgumentError} from '../../errors';
+import {TransactionType} from '../../model/index.js';
+import {InvalidArgumentError} from '../../errors/index.js';
 
 const hederaFunctionalityLength = 86;
 const cryptoCreateAccountProtoId = 11;

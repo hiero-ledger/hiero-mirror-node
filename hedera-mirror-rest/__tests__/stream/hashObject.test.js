@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import HashObject from '../../stream/hashObject';
+import HashObject from '../../stream/hashObject.js';
 
 describe('HashObject', () => {
   let buffer;

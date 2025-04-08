@@ -3,11 +3,11 @@
 // external libraries
 import crypto from 'crypto';
 
-import {BYTE_SIZE, INT_SIZE} from './constants';
-import HashObject from './hashObject';
-import RecordFile from './recordFile';
-import RecordStreamObject from './recordStreamObject';
-import {readLengthAndBytes} from './utils';
+import {BYTE_SIZE, INT_SIZE} from './constants.js';
+import HashObject from './hashObject.js';
+import RecordFile from './recordFile.js';
+import RecordStreamObject from './recordStreamObject.js';
+import {readLengthAndBytes} from './utils.js';
 
 const {MAX_TRANSACTION_LENGTH, MAX_RECORD_LENGTH} = RecordStreamObject;
 const {SHA_384} = HashObject;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {FileData} from '../../model';
-import {FileDataService} from '../../service';
+import {FileData} from '../../model/index.js';
+import {FileDataService} from '../../service/index.js';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
 

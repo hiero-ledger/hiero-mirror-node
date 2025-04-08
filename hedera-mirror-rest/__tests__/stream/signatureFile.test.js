@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {BYTE_SIZE} from '../../stream/constants';
-import HashObject from '../../stream/hashObject';
+import HashObject from '../../stream/hashObject.js';
 import SignatureFile from '../../stream/signatureFile';
 import testUtils from './testUtils';
 

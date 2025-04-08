@@ -4,7 +4,7 @@ import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
 
-import config from './config';
+import config from './config.js';
 import common from './common';
 import logger from './logger';
 import {runEverything} from './monitor';

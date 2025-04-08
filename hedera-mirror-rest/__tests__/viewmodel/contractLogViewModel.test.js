@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {ContractLogViewModel} from '../../viewmodel';
+import {ContractLogViewModel} from '../../viewmodel/index.js';
 
 describe('ContractLogViewModel', () => {
   const hexArray = Array(18).fill(0x00).concat(0x12, 0x34);

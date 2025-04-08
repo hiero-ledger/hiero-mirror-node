@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import _ from 'lodash';
-import config from './config';
+import config from './config.js';
 
 import {
   checkEntityId,
@@ -16,7 +16,7 @@ import {
   getUrl,
   hasEmptyList,
   testRunner,
-} from './utils';
+} from './utils.js';
 
 const balancesPath = '/balances';
 const resource = 'balance';

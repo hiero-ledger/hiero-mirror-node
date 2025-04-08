@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {SignatureType} from '../../model';
+import {SignatureType} from '../../model/index.js';
 
 describe('getName', () => {
   test('Valid', () => {

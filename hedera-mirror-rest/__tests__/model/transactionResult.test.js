@@ -3,7 +3,7 @@
 import {proto} from '@hashgraph/proto';
 
 // models
-import {TransactionResult} from '../../model';
+import {TransactionResult} from '../../model/index.js';
 
 describe('transactionResult constants are up to date', () => {
   describe('Name to ID', () => {

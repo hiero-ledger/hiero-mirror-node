@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import AddressBook from './addressBook';
-import AddressBookEntry from './addressBookEntry';
-import AddressBookServiceEndpoint from './addressBookServiceEndpoint';
-import Node from './node';
-import NodeStake from './nodeStake';
+import AddressBook from './addressBook.js';
+import AddressBookEntry from './addressBookEntry.js';
+import AddressBookServiceEndpoint from './addressBookServiceEndpoint.js';
+import Node from './node.js';
+import NodeStake from './nodeStake.js';
 
 class NetworkNode {
   /**

@@ -2,10 +2,10 @@
 
 import _ from 'lodash';
 
-import {getResponseLimit} from '../config';
-import * as constants from '../constants';
+import {getResponseLimit} from '../config.js';
+import * as constants from '../constants.js';
 import schedules from '../schedules';
-import * as utils from '../utils';
+import * as utils from '../utils.js';
 
 const {default: defaultLimit} = getResponseLimit();
 

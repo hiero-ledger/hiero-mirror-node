@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {NetworkStakeViewModel} from '../../viewmodel';
+import {NetworkStakeViewModel} from '../../viewmodel/index.js';
 
 describe('NetworkStakeViewModel', () => {
   const defaultNetworkStake = {

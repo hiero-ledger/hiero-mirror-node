@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import EntityId from '../entityId';
+import EntityId from '../entityId.js';
 
 /**
  * Assessed custom fee view model

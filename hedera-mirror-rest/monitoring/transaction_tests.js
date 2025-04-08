@@ -2,7 +2,7 @@
 
 import _ from 'lodash';
 import * as math from 'mathjs';
-import config from './config';
+import config from './config.js';
 
 import {
   checkAPIResponseError,
@@ -18,7 +18,7 @@ import {
   getUrl,
   hasEmptyList,
   testRunner,
-} from './utils';
+} from './utils.js';
 
 const transactionsPath = '/transactions';
 const resource = 'transaction';

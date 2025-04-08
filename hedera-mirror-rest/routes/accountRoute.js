@@ -3,8 +3,8 @@
 // external libraries
 import {Router} from '@awaitjs/express';
 
-import {filterKeys} from '../constants';
-import {AccountController, CryptoAllowanceController, TokenAllowanceController, TokenController} from '../controllers';
+import {filterKeys} from '../constants.js';
+import {AccountController, CryptoAllowanceController, TokenAllowanceController, TokenController} from '../controllers/index.js';
 
 const router = Router();
 

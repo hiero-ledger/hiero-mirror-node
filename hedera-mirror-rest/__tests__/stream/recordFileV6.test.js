@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import RecordFileV6 from '../../stream/recordFileV6';
+import RecordFileV6 from '../../stream/recordFileV6.js';
 import testUtils from './testUtils';
 
 describe('unsupported record file version', () => {

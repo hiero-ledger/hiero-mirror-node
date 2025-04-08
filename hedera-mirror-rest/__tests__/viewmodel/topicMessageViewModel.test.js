@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {TopicMessageViewModel} from '../../viewmodel';
+import {TopicMessageViewModel} from '../../viewmodel/index.js';
 
 describe('topicMessageViewModel tests', () => {
   test('Basic topic message', () => {

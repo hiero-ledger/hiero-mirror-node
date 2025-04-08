@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import config from '../config';
+import config from '../config.js';
 import {
   contentTypeHeader,
   requestPathLabel,
@@ -8,9 +8,9 @@ import {
   responseBodyLabel,
   responseDataLabel,
   responseHeadersLabel,
-} from '../constants';
-import {NotFoundError} from '../errors';
-import {JSONStringify} from '../utils';
+} from '../constants.js';
+import {NotFoundError} from '../errors/index.js';
+import {JSONStringify} from '../utils.js';
 
 const {
   response: {headers},

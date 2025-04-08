@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import Nft from './nft';
+import Nft from './nft.js';
 
 class NftHistory extends Nft {
   /**

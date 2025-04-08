@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import FixedFee from './fixedFee';
-import FractionalFee from './fractionalFee';
-import RoyaltyFee from './royaltyFee';
+import FixedFee from './fixedFee.js';
+import FractionalFee from './fractionalFee.js';
+import RoyaltyFee from './royaltyFee.js';
 
 class CustomFee {
   static tableName = `custom_fee`;

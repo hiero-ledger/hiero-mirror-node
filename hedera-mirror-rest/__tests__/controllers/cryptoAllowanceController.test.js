@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {getResponseLimit} from '../../config';
-import * as constants from '../../constants';
-import {CryptoAllowanceController} from '../../controllers';
-import * as utils from '../../utils';
+import {getResponseLimit} from '../../config.js';
+import * as constants from '../../constants.js';
+import {CryptoAllowanceController} from '../../controllers/index.js';
+import * as utils from '../../utils.js';
 
 const {default: defaultLimit} = getResponseLimit();
 

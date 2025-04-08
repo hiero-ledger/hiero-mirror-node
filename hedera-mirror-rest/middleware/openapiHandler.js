@@ -8,7 +8,7 @@ import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 
 // files
-import config from '../config';
+import config from '../config.js';
 import {isTestEnv} from '../utils.js';
 
 let v1OpenApiDocument;

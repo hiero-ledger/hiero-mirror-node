@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {filterKeys} from '../constants';
-import CustomFeeLimits from './customFeeLimits';
-import NftTransfer from './nftTransfer';
+import {filterKeys} from '../constants.js';
+import CustomFeeLimits from './customFeeLimits.js';
+import NftTransfer from './nftTransfer.js';
 
 class Transaction {
   static BASE64_HASH_SIZE = 64;

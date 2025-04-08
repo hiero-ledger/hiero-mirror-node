@@ -2,12 +2,12 @@
 
 import _ from 'lodash';
 
-import {getResponseLimit} from './config';
-import * as constants from './constants';
-import EntityId from './entityId';
-import {NotFoundError} from './errors';
-import {SignatureType} from './model';
-import * as utils from './utils';
+import {getResponseLimit} from './config.js';
+import * as constants from './constants.js';
+import EntityId from './entityId.js';
+import {NotFoundError} from './errors/index.js';
+import {SignatureType} from './model/index.js';
+import * as utils from './utils.js';
 
 const {default: defaultLimit} = getResponseLimit();
 const LONGER_SCHEDULE_CACHE_CONTROL_HEADER = {'cache-control': 'public, max-age=3600'};

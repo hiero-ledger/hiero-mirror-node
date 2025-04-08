@@ -2,14 +2,14 @@
 
 import _ from 'lodash';
 
-import {getResponseLimit} from '../config';
-import {filterKeys, orderFilterValues, responseDataLabel} from '../constants';
-import BaseController from './baseController';
-import {InvalidArgumentError} from '../errors';
-import {CryptoAllowance} from '../model';
-import {CryptoAllowanceService, EntityService} from '../service';
-import * as utils from '../utils';
-import {CryptoAllowanceViewModel} from '../viewmodel';
+import {getResponseLimit} from '../config.js';
+import {filterKeys, orderFilterValues, responseDataLabel} from '../constants.js';
+import BaseController from './baseController.js';
+import {InvalidArgumentError} from '../errors/index.js';
+import {CryptoAllowance} from '../model/index.js';
+import {CryptoAllowanceService, EntityService} from '../service/index.js';
+import * as utils from '../utils.js';
+import {CryptoAllowanceViewModel} from '../viewmodel/index.js';
 
 const {default: defaultLimit} = getResponseLimit();
 

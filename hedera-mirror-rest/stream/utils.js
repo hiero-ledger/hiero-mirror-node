@@ -2,8 +2,8 @@
 
 import log4js from 'log4js';
 
-import {INT_SIZE} from './constants';
-import TransactionId from '../transactionId';
+import {INT_SIZE} from './constants.js';
+import TransactionId from '../transactionId.js';
 
 const logger = log4js.getLogger();
 

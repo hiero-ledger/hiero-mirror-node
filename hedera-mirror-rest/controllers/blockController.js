@@ -2,14 +2,14 @@
 
 import _ from 'lodash';
 
-import BaseController from './baseController';
-import {filterKeys, orderFilterValues, responseDataLabel} from '../constants';
-import {getResponseLimit} from '../config';
-import {InvalidArgumentError, NotFoundError} from '../errors';
-import {RecordFile} from '../model';
-import {RecordFileService} from '../service';
-import * as utils from '../utils';
-import {BlockViewModel} from '../viewmodel';
+import BaseController from './baseController.js';
+import {filterKeys, orderFilterValues, responseDataLabel} from '../constants.js';
+import {getResponseLimit} from '../config.js';
+import {InvalidArgumentError, NotFoundError} from '../errors/index.js';
+import {RecordFile} from '../model/index.js';
+import {RecordFileService} from '../service/index.js';
+import * as utils from '../utils.js';
+import {BlockViewModel} from '../viewmodel/index.js';
 
 const {default: defaultLimit, max: maxLimit} = getResponseLimit();
 

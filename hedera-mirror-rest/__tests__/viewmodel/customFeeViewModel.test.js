@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {CustomFee} from '../../model';
-import {CustomFeeViewModel} from '../../viewmodel';
+import {CustomFee} from '../../model/index.js';
+import {CustomFeeViewModel} from '../../viewmodel/index.js';
 
 describe('CustomFeeViewModel', () => {
   const fixedFeeTestSpecs = [

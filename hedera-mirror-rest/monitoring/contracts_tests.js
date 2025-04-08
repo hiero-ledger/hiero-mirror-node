@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import _ from 'lodash';
-import config from './config';
+import config from './config.js';
 
 import {
   checkAPIResponseError,
@@ -14,7 +14,7 @@ import {
   fetchAPIResponse,
   getUrl,
   testRunner,
-} from './utils';
+} from './utils.js';
 
 const contractsPath = '/contracts';
 const resource = 'contract';

@@ -3,7 +3,7 @@
 // external libraries
 import {Router} from '@awaitjs/express';
 
-import {NetworkController} from '../controllers';
+import {NetworkController} from '../controllers/index.js';
 
 const router = Router();
 

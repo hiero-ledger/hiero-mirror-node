@@ -2,8 +2,8 @@
 
 import _ from 'lodash';
 
-import {InvalidArgumentError} from '../errors';
-import * as utils from '../utils';
+import {InvalidArgumentError} from '../errors/index.js';
+import * as utils from '../utils.js';
 
 class BaseController {
   updateConditionsAndParamsWithInValues = (

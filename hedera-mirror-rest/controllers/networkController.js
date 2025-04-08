@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import _ from 'lodash';
-import BaseController from './baseController';
-import config from '../config';
+import BaseController from './baseController.js';
+import config from '../config.js';
 import {
   DECIMALS_IN_HBARS,
   contentTypeHeader,
@@ -12,19 +12,19 @@ import {
   orderFilterValues,
   responseDataLabel,
   responseHeadersLabel,
-} from '../constants';
-import {InvalidArgumentError, NotFoundError} from '../errors';
-import {AddressBookEntry, FileData} from '../model';
-import {FileDataService, NetworkNodeService} from '../service';
-import * as utils from '../utils';
+} from '../constants.js';
+import {InvalidArgumentError, NotFoundError} from '../errors/index.js';
+import {AddressBookEntry, FileData} from '../model/index.js';
+import {FileDataService, NetworkNodeService} from '../service/index.js';
+import * as utils from '../utils.js';
 import {
   ExchangeRateSetViewModel,
   FeeScheduleViewModel,
   NetworkNodeViewModel,
   NetworkStakeViewModel,
   NetworkSupplyViewModel,
-} from '../viewmodel';
-import EntityId from '../entityId';
+} from '../viewmodel/index.js';
+import EntityId from '../entityId.js';
 
 const networkNodesDefaultSize = 10;
 const networkNodesMaxSize = 25;

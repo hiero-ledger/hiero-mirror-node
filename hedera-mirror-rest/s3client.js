@@ -3,8 +3,8 @@
 import {GetObjectCommand, S3} from '@aws-sdk/client-s3';
 import {NodeHttpHandler} from '@smithy/node-http-handler';
 
-import config from './config';
-import {cloudProviders, defaultCloudProviderEndpoints} from './constants';
+import config from './config.js';
+import {cloudProviders, defaultCloudProviderEndpoints} from './constants.js';
 
 class S3Client {
   constructor(s3, hasCredentials, gcpProjectId) {

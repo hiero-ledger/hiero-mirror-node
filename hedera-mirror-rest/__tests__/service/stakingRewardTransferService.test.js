@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {assertSqlQueryEqual} from '../testutils';
-import {StakingRewardTransferService} from '../../service';
+import {StakingRewardTransferService} from '../../service/index.js';
 
 describe('getRewardsQuery', () => {
   const queryFields = 'srt.account_id,srt.amount,srt.consensus_timestamp ';

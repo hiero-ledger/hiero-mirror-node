@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import AddressBookServiceEndpointViewModel from './addressBookServiceEndpointViewModel';
-import EntityId from '../entityId';
-import * as utils from '../utils';
+import AddressBookServiceEndpointViewModel from './addressBookServiceEndpointViewModel.js';
+import EntityId from '../entityId.js';
+import * as utils from '../utils.js';
 
 /**
  * Network node view model

@@ -2,13 +2,13 @@
 
 import _ from 'lodash';
 
-import BaseService from './baseService';
-import {getResponseLimit} from '../config';
-import {filterKeys, MAX_LONG, orderFilterValues} from '../constants';
-import EntityId from '../entityId';
-import {NotFoundError} from '../errors';
-import {OrderSpec} from '../sql';
-import {JSONStringify} from '../utils';
+import BaseService from './baseService.js';
+import {getResponseLimit} from '../config.js';
+import {filterKeys, MAX_LONG, orderFilterValues} from '../constants.js';
+import EntityId from '../entityId.js';
+import {NotFoundError} from '../errors/index.js';
+import {OrderSpec} from '../sql/index.js';
+import {JSONStringify} from '../utils.js';
 import {
   ContractAction,
   ContractLog,
@@ -18,9 +18,9 @@ import {
   ContractTransactionHash,
   Entity,
   EthereumTransaction,
-} from '../model';
-import ContractTransaction from '../model/contractTransaction';
-import {RecordFileService} from './index';
+} from '../model/index.js';
+import ContractTransaction from '../model/contractTransaction.js';
+import {RecordFileService} from './index.js';
 
 const {default: defaultLimit} = getResponseLimit();
 const contractLogsFields = `${ContractLog.getFullName(ContractLog.BLOOM)},

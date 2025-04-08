@@ -2,7 +2,7 @@
 
 import subject from '../accounts';
 import base32 from '../base32';
-import * as constants from '../constants';
+import * as constants from '../constants.js';
 
 describe('processRow', () => {
   const inputAccount = {

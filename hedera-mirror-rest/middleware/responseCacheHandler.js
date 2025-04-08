@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {Cache} from '../cache';
-import CachedApiResponse from '../model/cachedApiResponse';
+import {Cache} from '../cache.js';
+import CachedApiResponse from '../model/cachedApiResponse.js';
 import {gzipSync, unzipSync} from 'zlib';
-import {httpStatusCodes, requestStartTime, responseBodyLabel, responseCacheKeyLabel} from '../constants';
+import {httpStatusCodes, requestStartTime, responseBodyLabel, responseCacheKeyLabel} from '../constants.js';
 import config from '../config.js';
 import crypto from 'crypto';
 

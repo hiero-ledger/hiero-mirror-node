@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import _ from 'lodash';
-import base32 from './base32';
-import {getResponseLimit} from './config';
-import * as constants from './constants';
-import {filterKeys} from './constants';
-import EntityId from './entityId';
-import * as utils from './utils';
-import {opsMap} from './utils';
-import {EntityService} from './service';
-import transactions from './transactions';
-import {NotFoundError} from './errors';
-import {Entity} from './model';
-import balances from './balances';
+import base32 from './base32.js';
+import {getResponseLimit} from './config.js';
+import * as constants from './constants.js';
+import {filterKeys} from './constants.js';
+import EntityId from './entityId.js';
+import * as utils from './utils.js';
+import {opsMap} from './utils.js';
+import {EntityService} from './service/index.js';
+import transactions from './transactions.js';
+import {NotFoundError} from './errors/index.js';
+import {Entity} from './model/index.js';
+import balances from './balances.js';
 
 const {tokenBalance: tokenBalanceResponseLimit} = getResponseLimit();
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {proto} from '@hashgraph/proto';
-import {CustomFeeLimitsViewModel} from '../../viewmodel';
-import {CustomFeeLimits} from '../../model';
+import {CustomFeeLimitsViewModel} from '../../viewmodel/index.js';
+import {CustomFeeLimits} from '../../model/index.js';
 
 describe('CustomFeeLimitViewModel', () => {
   test('formats max_custom_fees correctly', () => {

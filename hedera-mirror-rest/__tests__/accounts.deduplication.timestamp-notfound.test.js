@@ -2,10 +2,10 @@
 
 import {setupIntegrationTest} from './integrationUtils';
 import integrationDomainOps from './integrationDomainOps';
-import * as utils from '../utils';
+import * as utils from '../utils.js';
 import request from 'supertest';
 import server from '../server';
-import * as constants from '../constants';
+import * as constants from '../constants.js';
 
 setupIntegrationTest();
 

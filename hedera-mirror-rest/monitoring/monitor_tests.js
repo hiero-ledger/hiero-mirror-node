@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import common from './common';
-import config from './config';
-import * as utils from './utils';
+import config from './config.js';
+import * as utils from './utils.js';
 
 import accountTests from './account_tests';
 import balanceTests from './balance_tests';

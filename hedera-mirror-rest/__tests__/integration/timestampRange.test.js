@@ -3,12 +3,12 @@
 import {Range} from 'pg-range';
 import sinon from 'sinon';
 
-import config from '../../config';
-import {NANOSECONDS_PER_MILLISECOND, orderFilterValues} from '../../constants';
+import config from '../../config.js';
+import {NANOSECONDS_PER_MILLISECOND, orderFilterValues} from '../../constants.js';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
-import testExports, {bindTimestampRange} from '../../timestampRange';
-import * as util from '../../utils';
+import testExports, {bindTimestampRange} from '../../timestampRange.js';
+import * as util from '../../utils.js';
 
 setupIntegrationTest();
 

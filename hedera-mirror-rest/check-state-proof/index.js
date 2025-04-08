@@ -4,7 +4,7 @@ import log4js from 'log4js';
 
 import startUpScreen from './startUpScreen';
 import StateProofHandler from './stateProofHandler';
-import {getAPIResponse, readJSONFile} from './utils';
+import {getAPIResponse, readJSONFile} from './utils.js';
 
 const logger = log4js
   .configure({

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {TokenFreezeStatus} from '../../model';
+import {TokenFreezeStatus} from '../../model/index.js';
 
 describe('TokenFreezeStatus', () => {
   describe('invalid id', () => {

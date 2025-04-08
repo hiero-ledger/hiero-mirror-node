@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {nsToSecNs} from '../utils';
+import {nsToSecNs} from '../utils.js';
 
 /**
  * Network supply view model

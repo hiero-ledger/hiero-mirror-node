@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {INT_SIZE, LONG_SIZE} from '../../stream/constants';
-import StreamObject from '../../stream/streamObject';
+import StreamObject from '../../stream/streamObject.js';
 
 describe('StreamObject', () => {
   let buffer;

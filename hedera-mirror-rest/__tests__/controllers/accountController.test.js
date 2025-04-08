@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {getResponseLimit} from '../../config';
-import * as constants from '../../constants';
-import * as utils from '../../utils';
+import {getResponseLimit} from '../../config.js';
+import * as constants from '../../constants.js';
+import * as utils from '../../utils.js';
 
 const {default: defaultLimit} = getResponseLimit();
 
@@ -13,8 +13,8 @@ const {
   opsMap: {eq, gt, gte, lt, lte, ne},
 } = utils;
 
-import Bound from '../../controllers/bound';
-import {AccountController} from '../../controllers';
+import Bound from '../../controllers/bound.js';
+import {AccountController} from '../../controllers/index.js';
 
 const ownerAccountId = BigInt(1);
 

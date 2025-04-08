@@ -2,14 +2,14 @@
 
 import _ from 'lodash';
 
-import AccountAlias from './accountAlias';
-import {getResponseLimit} from './config';
-import * as constants from './constants';
-import EntityId from './entityId';
-import {EntityService} from './service';
-import {EvmAddressType} from './constants';
-import {InvalidArgumentError} from './errors';
-import * as utils from './utils';
+import AccountAlias from './accountAlias.js';
+import {getResponseLimit} from './config.js';
+import * as constants from './constants.js';
+import EntityId from './entityId.js';
+import {EntityService} from './service/index.js';
+import {EvmAddressType} from './constants.js';
+import {InvalidArgumentError} from './errors/index.js';
+import * as utils from './utils.js';
 
 const {tokenBalance: tokenBalanceLimit} = getResponseLimit();
 

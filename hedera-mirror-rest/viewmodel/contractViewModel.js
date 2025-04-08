@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import EntityId from '../entityId';
-import * as utils from '../utils';
+import EntityId from '../entityId.js';
+import * as utils from '../utils.js';
 
 /**
  * Contract view model

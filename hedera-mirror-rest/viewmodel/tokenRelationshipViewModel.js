@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import EntityId from '../entityId';
-import {TokenFreezeStatus, TokenKycStatus} from '../model';
-import {nsToSecNs} from '../utils';
+import EntityId from '../entityId.js';
+import {TokenFreezeStatus, TokenKycStatus} from '../model/index.js';
+import {nsToSecNs} from '../utils.js';
 
 /**
  * TokenRelationship view model

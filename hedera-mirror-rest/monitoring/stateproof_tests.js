@@ -9,7 +9,7 @@ import {
   fetchAPIResponse,
   getUrl,
   testRunner,
-} from './utils';
+} from './utils.js';
 
 const resource = 'stateproof';
 const transactionsPath = '/transactions';

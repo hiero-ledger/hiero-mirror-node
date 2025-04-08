@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {proto} from '@hashgraph/proto';
-import {FileDecodeError} from '../errors';
+import {FileDecodeError} from '../errors/index.js';
 
 class ExchangeRate {
   /**

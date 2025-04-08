@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import config from './config';
+import config from './config.js';
 
 const TEST_RESULT_TYPES = {
   ALL: 'all', // all means to include both 'failed' and 'passed' test results

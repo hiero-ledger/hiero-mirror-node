@@ -6,11 +6,11 @@ import {Range} from 'pg-range';
 import {proto} from '@hashgraph/proto';
 
 import base32 from '../base32';
-import {getMirrorConfig} from '../config';
-import * as constants from '../constants';
-import EntityId from '../entityId';
+import {getMirrorConfig} from '../config.js';
+import * as constants from '../constants.js';
+import EntityId from '../entityId.js';
 import {valueToBuffer} from './testutils';
-import {JSONStringify} from '../utils';
+import {JSONStringify} from '../utils.js';
 
 const config = getMirrorConfig();
 const NETWORK_FEE = 1n;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {filterKeys} from '../../constants';
-import {opsMap} from '../../utils';
+import {filterKeys} from '../../constants.js';
+import {opsMap} from '../../utils.js';
 import {assertSqlQueryEqual} from '../testutils';
-import {TokenAllowanceService} from '../../service';
+import {TokenAllowanceService} from '../../service/index.js';
 
 const {SPENDER_ID, TOKEN_ID} = filterKeys;
 const {eq, gt, gte, lt, lte} = opsMap;

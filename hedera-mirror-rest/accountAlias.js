@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {getMirrorConfig} from './config';
-import base32 from './base32';
-import {InvalidArgumentError} from './errors';
+import {getMirrorConfig} from './config.js';
+import base32 from './base32.js';
+import {InvalidArgumentError} from './errors/index.js';
 import _ from 'lodash';
 
 // limit the alias to the base32 alphabet excluding padding, other checks will be done in base32.decode. We need

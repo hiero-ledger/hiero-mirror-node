@@ -3,10 +3,10 @@
 import _ from 'lodash';
 import crypto from 'crypto';
 import {proto} from '@hashgraph/proto';
-import * as utils from '../utils';
-import config from '../config';
-import * as constants from '../constants';
-import {InvalidArgumentError, InvalidClauseError} from '../errors';
+import * as utils from '../utils.js';
+import config from '../config.js';
+import * as constants from '../constants.js';
+import {InvalidArgumentError, InvalidClauseError} from '../errors/index.js';
 import {Entity} from '../model/index';
 import {Range} from 'pg-range';
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import _ from 'lodash';
-import {InvalidArgumentError} from '../errors';
+import {InvalidArgumentError} from '../errors/index.js';
 
 const protoToName = {
   7: 'CONTRACTCALL',

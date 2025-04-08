@@ -8,10 +8,10 @@ import swStats from 'swagger-stats';
 import url from 'url';
 
 // files
-import config from '../config';
+import config from '../config.js';
 
-import {getV1OpenApiObject} from './openapiHandler';
-import {ipMask} from '../utils';
+import {getV1OpenApiObject} from './openapiHandler.js';
+import {ipMask} from '../utils.js';
 
 const onMetricsAuthenticate = async (req, username, password) => {
   return new Promise(function (resolve, reject) {

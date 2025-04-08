@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {FeeScheduleViewModel} from '../../viewmodel';
+import {FeeScheduleViewModel} from '../../viewmodel/index.js';
 
 describe('FeeScheduleViewModel', () => {
   const exchangeRate = {

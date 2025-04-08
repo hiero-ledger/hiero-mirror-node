@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as utils from '../utils';
-import ContractViewModel from './contractViewModel';
+import * as utils from '../utils.js';
+import ContractViewModel from './contractViewModel.js';
 
 /**
  * Contract with bytecode view model

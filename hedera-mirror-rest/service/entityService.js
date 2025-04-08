@@ -2,12 +2,12 @@
 
 import _ from 'lodash';
 
-import AccountAlias from '../accountAlias';
-import BaseService from './baseService';
-import {filterKeys} from '../constants';
-import EntityId from '../entityId';
-import {InvalidArgumentError, NotFoundError} from '../errors';
-import {Entity} from '../model';
+import AccountAlias from '../accountAlias.js';
+import BaseService from './baseService.js';
+import {filterKeys} from '../constants.js';
+import EntityId from '../entityId.js';
+import {InvalidArgumentError, NotFoundError} from '../errors/index.js';
+import {Entity} from '../model/index.js';
 
 /**
  * Entity retrieval business logic

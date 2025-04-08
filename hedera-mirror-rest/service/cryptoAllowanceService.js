@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import BaseService from './baseService';
-import {CryptoAllowance} from '../model';
-import {OrderSpec} from '../sql';
+import BaseService from './baseService.js';
+import {CryptoAllowance} from '../model/index.js';
+import {OrderSpec} from '../sql/index.js';
 
 /**
  * CryptoAllowance business model

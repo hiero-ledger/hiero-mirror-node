@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {getResponseLimit} from '../config';
-import * as constants from '../constants';
-import * as utils from '../utils';
-import {opsMap} from '../utils';
+import {getResponseLimit} from '../config.js';
+import * as constants from '../constants.js';
+import * as utils from '../utils.js';
+import {opsMap} from '../utils.js';
 import {assertSqlQueryEqual} from './testutils';
 import tokens from '../tokens';
 import _ from 'lodash';

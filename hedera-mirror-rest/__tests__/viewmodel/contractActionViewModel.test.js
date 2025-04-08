@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {ContractActionViewModel} from '../../viewmodel';
+import {ContractActionViewModel} from '../../viewmodel/index.js';
 
 describe('ContractActionViewModel', () => {
   const defaultContractAction = {

@@ -3,9 +3,9 @@
 import crypto from 'crypto';
 import {proto} from '@hashgraph/proto';
 
-import {INT_SIZE} from './constants';
-import CompactRecordFile from './compactRecordFile';
-import HashObject from './hashObject';
+import {INT_SIZE} from './constants.js';
+import CompactRecordFile from './compactRecordFile.js';
+import HashObject from './hashObject.js';
 
 class RecordFileV6 extends CompactRecordFile {
   // hash object class ID (long) and class version (int), in big-endian

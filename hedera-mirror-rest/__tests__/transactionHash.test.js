@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {isValidTransactionHash} from '../transactionHash';
+import {isValidTransactionHash} from '../transactionHash.js';
 
 describe('isValidTransactionHash', () => {
   describe('valid', () => {

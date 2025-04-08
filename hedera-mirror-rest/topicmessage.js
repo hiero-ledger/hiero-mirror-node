@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {getResponseLimit} from './config';
-import config from './config';
-import * as constants from './constants';
-import EntityId from './entityId';
-import {InvalidArgumentError, NotFoundError} from './errors';
-import {TopicMessage} from './model';
-import * as utils from './utils';
-import {TopicMessageViewModel} from './viewmodel';
+import {getResponseLimit} from './config.js';
+import config from './config.js';
+import * as constants from './constants.js';
+import EntityId from './entityId.js';
+import {InvalidArgumentError, NotFoundError} from './errors/index.js';
+import {TopicMessage} from './model/index.js';
+import * as utils from './utils.js';
+import {TopicMessageViewModel} from './viewmodel/index.js';
 
 const {default: defaultLimit} = getResponseLimit();
 

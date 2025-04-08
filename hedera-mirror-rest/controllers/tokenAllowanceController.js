@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {getResponseLimit} from '../config';
-import {filterKeys, orderFilterValues, responseDataLabel} from '../constants';
-import BaseController from './baseController';
-import Bound from './bound';
-import {EntityService, TokenAllowanceService} from '../service';
-import * as utils from '../utils';
-import {TokenAllowanceViewModel} from '../viewmodel';
+import {getResponseLimit} from '../config.js';
+import {filterKeys, orderFilterValues, responseDataLabel} from '../constants.js';
+import BaseController from './baseController.js';
+import Bound from './bound.js';
+import {EntityService, TokenAllowanceService} from '../service/index.js';
+import * as utils from '../utils.js';
+import {TokenAllowanceViewModel} from '../viewmodel/index.js';
 
 const {default: defaultLimit} = getResponseLimit();
 

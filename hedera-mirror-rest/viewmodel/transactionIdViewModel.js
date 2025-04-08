@@ -2,8 +2,8 @@
 
 import {proto} from '@hashgraph/proto';
 
-import EntityId from '../entityId';
-import {nsToSecNs} from '../utils';
+import EntityId from '../entityId.js';
+import {nsToSecNs} from '../utils.js';
 
 /**
  * TransactionId view model

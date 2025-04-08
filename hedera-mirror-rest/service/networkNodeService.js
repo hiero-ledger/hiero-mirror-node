@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import BaseService from './baseService';
+import BaseService from './baseService.js';
 import {
   AddressBook,
   AddressBookEntry,
@@ -9,9 +9,9 @@ import {
   NetworkNode,
   NetworkStake,
   NodeStake,
-} from '../model';
-import {OrderSpec} from '../sql';
-import EntityId from '../entityId';
+} from '../model/index.js';
+import {OrderSpec} from '../sql/index.js';
+import EntityId from '../entityId.js';
 
 /**
  * Network node business model

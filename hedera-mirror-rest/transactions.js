@@ -2,15 +2,15 @@
 
 import _ from 'lodash';
 
-import {Cache} from './cache';
-import config from './config';
-import * as constants from './constants';
-import EntityId from './entityId';
-import {NotFoundError} from './errors';
-import {bindTimestampRange} from './timestampRange';
-import {getTransactionHash, isValidTransactionHash} from './transactionHash';
-import TransactionId from './transactionId';
-import * as utils from './utils';
+import {Cache} from './cache.js';
+import config from './config.js';
+import * as constants from './constants.js';
+import EntityId from './entityId.js';
+import {NotFoundError} from './errors/index.js';
+import {bindTimestampRange} from './timestampRange.js';
+import {getTransactionHash, isValidTransactionHash} from './transactionHash.js';
+import TransactionId from './transactionId.js';
+import * as utils from './utils.js';
 
 import {
   AssessedCustomFee,
@@ -22,9 +22,9 @@ import {
   Transaction,
   TransactionResult,
   TransactionType,
-} from './model';
+} from './model/index.js';
 
-import {AssessedCustomFeeViewModel, CustomFeeLimitsViewModel, NftTransferViewModel} from './viewmodel';
+import {AssessedCustomFeeViewModel, CustomFeeLimitsViewModel, NftTransferViewModel} from './viewmodel/index.js';
 
 const SUCCESS_PROTO_IDS = TransactionResult.getSuccessProtoIds();
 

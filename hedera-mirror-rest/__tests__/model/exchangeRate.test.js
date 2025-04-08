@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {FileDecodeError} from '../../errors';
+import {FileDecodeError} from '../../errors/index.js';
 
 // models
-import {ExchangeRate} from '../../model';
+import {ExchangeRate} from '../../model/index.js';
 
 describe('exchange rate proto parse', () => {
   const input = {

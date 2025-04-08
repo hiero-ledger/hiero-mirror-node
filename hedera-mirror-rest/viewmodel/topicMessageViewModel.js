@@ -3,10 +3,10 @@
 import _ from 'lodash';
 import {proto} from '@hashgraph/proto';
 
-import EntityId from '../entityId';
-import {TransactionId} from '../model/index';
-import TransactionIdViewModel from './transactionIdViewModel';
-import {encodeBase64, encodeBinary, nsToSecNs} from '../utils';
+import EntityId from '../entityId.js';
+import {TransactionId} from '../model/index.js';
+import TransactionIdViewModel from './transactionIdViewModel.js';
+import {encodeBase64, encodeBinary, nsToSecNs} from '../utils.js';
 
 /**
  * Topic message view model

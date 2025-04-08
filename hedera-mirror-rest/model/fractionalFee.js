@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import Fee from './fee';
+import Fee from './fee.js';
 
 class FractionalFee extends Fee {
   /**

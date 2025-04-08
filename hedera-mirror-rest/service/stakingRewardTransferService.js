@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import BaseService from './baseService';
-import {StakingRewardTransfer} from '../model';
-import {OrderSpec} from '../sql';
+import BaseService from './baseService.js';
+import {StakingRewardTransfer} from '../model/index.js';
+import {OrderSpec} from '../sql/index.js';
 
 /**
  * Staking Reward Transfer retrieval business logic

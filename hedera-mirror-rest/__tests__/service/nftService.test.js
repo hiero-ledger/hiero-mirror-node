@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {filterKeys} from '../../constants';
-import {NftService} from '../../service';
+import {filterKeys} from '../../constants.js';
+import {NftService} from '../../service/index.js';
 import {assertSqlQueryEqual} from '../testutils';
-import {opsMap} from '../../utils';
+import {opsMap} from '../../utils.js';
 
 const {SERIAL_NUMBER, SPENDER_ID, TOKEN_ID} = filterKeys;
 const {eq, gt, gte, lt, lte} = opsMap;

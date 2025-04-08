@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {httpStatusCodes, requestStartTime, StatusCode} from '../constants';
+import {httpStatusCodes, requestStartTime, StatusCode} from '../constants.js';
 import {HttpError} from 'http-errors';
-import RestError from '../errors/restError';
+import RestError from '../errors/restError.js';
 
 const defaultStatusCode = httpStatusCodes.INTERNAL_ERROR;
 

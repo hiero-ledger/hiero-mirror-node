@@ -10,17 +10,29 @@ import httpContext from 'express-http-context';
 import compression from 'compression';
 
 // local files
-import accounts from './accounts';
-import balances from './balances';
-import config from './config';
-import * as constants from './constants';
-import health from './health';
-import schedules from './schedules';
-import stateproof from './stateproof';
-import tokens from './tokens';
-import topicmessage from './topicmessage';
-import transactions from './transactions';
-import {isTestEnv} from './utils';
+import accounts from './accounts.js';
+import balances from './balances.js';
+import config from './config.js';
+import * as constants from './constants.js';
+import health from './health.js';
+import schedules from './schedules.js';
+import stateproof from './stateproof.js';
+import tokens from './tokens.js';
+import topicmessage from './topicmessage.js';
+import transactions from './transactions.js';
+import {isTestEnv} from './utils.js';
+
+// import {handleError} from './middleware';
+// import {metricsHandler} from './middleware';
+// import {openApiValidator} from './middleware';
+// import {recordIpAndEndpoint} from './middleware';
+// import {requestLogger} from './middleware';
+// import {requestQueryParser} from './middleware';
+// import {responseCacheCheckHandler} from './middleware';
+// import {responseCacheUpdateHandler} from './middleware';
+// import {responseHandler} from './middleware';
+// import {serveSwaggerDocs} from './middleware';
+
 
 import {
   handleError,
@@ -33,11 +45,11 @@ import {
   responseCacheUpdateHandler,
   responseHandler,
   serveSwaggerDocs,
-} from './middleware';
+} from './middleware/index.js';
 
 // routes
-import {AccountRoutes, BlockRoutes, ContractRoutes, NetworkRoutes} from './routes';
-import {handleRejection, handleUncaughtException} from './middleware/httpErrorHandler';
+import {AccountRoutes, BlockRoutes, ContractRoutes, NetworkRoutes} from './routes/index.js';
+import {handleRejection, handleUncaughtException} from './middleware/httpErrorHandler.js';
 import {initializePool} from './dbpool.js';
 
 // use a dummy port for jest unit tests

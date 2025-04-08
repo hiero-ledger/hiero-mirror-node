@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {getResponseLimit} from '../../config';
-import * as constants from '../../constants';
-import {BlockController} from '../../controllers';
+import {getResponseLimit} from '../../config.js';
+import * as constants from '../../constants.js';
+import {BlockController} from '../../controllers/index.js';
 
 const {default: defaultLimit, max: maxLimit} = getResponseLimit();
 

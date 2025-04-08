@@ -2,8 +2,8 @@
 
 import _ from 'lodash';
 
-import balances from './balances';
-import {getResponseLimit} from './config';
+import balances from './balances.js';
+import {getResponseLimit} from './config.js';
 import {
   EMPTY_STRING,
   entityTypes,
@@ -13,13 +13,13 @@ import {
   queryParamOperators,
   responseDataLabel,
   tokenTypeFilter,
-} from './constants';
-import EntityId from './entityId';
-import {InvalidArgumentError, NotFoundError} from './errors';
-import {CustomFee, Entity, Nft, NftHistory, Token, Transaction} from './model';
-import {NftService, TokenService} from './service';
-import * as utils from './utils';
-import {CustomFeeViewModel, NftTransactionHistoryViewModel, NftViewModel} from './viewmodel';
+} from './constants.js';
+import EntityId from './entityId.js';
+import {InvalidArgumentError, NotFoundError} from './errors/index.js';
+import {CustomFee, Entity, Nft, NftHistory, Token, Transaction} from './model/index.js';
+import {NftService, TokenService} from './service/index.js';
+import * as utils from './utils.js';
+import {CustomFeeViewModel, NftTransactionHistoryViewModel, NftViewModel} from './viewmodel/index.js';
 
 const {default: defaultLimit} = getResponseLimit();
 

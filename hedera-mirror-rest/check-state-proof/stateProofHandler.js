@@ -4,11 +4,11 @@ import _ from 'lodash';
 import log4js from 'log4js';
 import path from 'path';
 
-import AddressBook from './addressBook';
+import AddressBook from './addressBook.js';
 import {CompositeRecordFile, SignatureFile} from '../stream';
-import TransactionId from '../transactionId';
+import TransactionId from '../transactionId.js';
 import {performStateProof} from './transactionValidator';
-import {makeStateProofDir, storeFile} from './utils';
+import {makeStateProofDir, storeFile} from './utils.js';
 
 const logger = log4js.getLogger();
 

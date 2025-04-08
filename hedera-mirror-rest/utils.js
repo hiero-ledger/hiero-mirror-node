@@ -11,12 +11,12 @@ import pgRange, {Range} from 'pg-range';
 import {format} from 'sql-formatter';
 import util from 'util';
 
-import * as constants from './constants';
-import EntityId from './entityId';
-import config from './config';
-import ed25519 from './ed25519';
-import {DbError, InvalidArgumentError, InvalidClauseError} from './errors';
-import {Entity, FeeSchedule, TransactionResult, TransactionType} from './model';
+import * as constants from './constants.js';
+import EntityId from './entityId.js';
+import config from './config.js';
+import ed25519 from './ed25519.js';
+import {DbError, InvalidArgumentError, InvalidClauseError} from './errors/index.js';
+import {Entity, FeeSchedule, TransactionResult, TransactionType} from './model/index.js';
 
 const JSONBig = JSONBigFactory({useNativeBigInt: true});
 

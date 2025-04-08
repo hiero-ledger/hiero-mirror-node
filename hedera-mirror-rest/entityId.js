@@ -3,9 +3,9 @@
 import _ from 'lodash';
 import quickLru from 'quick-lru';
 
-import config, {getMirrorConfig} from './config';
-import * as constants from './constants';
-import {InvalidArgumentError} from './errors';
+import config, {getMirrorConfig} from './config.js';
+import * as constants from './constants.js';
+import {InvalidArgumentError} from './errors/index.js';
 import {stripHexPrefix} from './utils.js';
 
 const {

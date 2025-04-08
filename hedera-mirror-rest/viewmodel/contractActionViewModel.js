@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import EntityId from '../entityId';
-import * as utils from '../utils';
-import {entityTypes} from '../constants';
+import EntityId from '../entityId.js';
+import * as utils from '../utils.js';
+import {entityTypes} from '../constants.js';
 import {proto} from '@hashgraph/proto';
 import _ from 'lodash';
 

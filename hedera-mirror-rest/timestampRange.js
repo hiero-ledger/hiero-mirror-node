@@ -2,9 +2,9 @@
 
 import {Range} from 'pg-range';
 
-import {orderFilterValues} from './constants';
-import config from './config';
-import {isTestEnv, nowInNs, nsToSecNs} from './utils';
+import {orderFilterValues} from './constants.js';
+import config from './config.js';
+import {isTestEnv, nowInNs, nsToSecNs} from './utils.js';
 
 const queryConfig = config.query;
 

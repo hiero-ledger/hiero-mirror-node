@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import ContractLogResultsViewModel from './contractResultLogViewModel';
-import EntityId from '../entityId';
-import {addHexPrefix, nsToSecNs, toHexStringNonQuantity} from '../utils';
+import ContractLogResultsViewModel from './contractResultLogViewModel.js';
+import EntityId from '../entityId.js';
+import {addHexPrefix, nsToSecNs, toHexStringNonQuantity} from '../utils.js';
 
 /**
  * Contract log view model

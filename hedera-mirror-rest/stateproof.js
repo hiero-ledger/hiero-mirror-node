@@ -3,14 +3,14 @@
 import _ from 'lodash';
 import {gunzipSync} from 'zlib';
 
-import config from './config';
-import * as constants from './constants';
-import EntityId from './entityId';
-import {DbError, FileDownloadError, NotFoundError} from './errors';
-import s3client from './s3client';
-import {CompositeRecordFile} from './stream';
-import TransactionId from './transactionId';
-import * as utils from './utils';
+import config from './config.js';
+import * as constants from './constants.js';
+import EntityId from './entityId.js';
+import {DbError, FileDownloadError, NotFoundError} from './errors/index.js';
+import s3client from './s3client.js';
+import {CompositeRecordFile} from './stream/index.js';
+import TransactionId from './transactionId.js';
+import * as utils from './utils.js';
 import {NoSuchKey} from '@aws-sdk/client-s3';
 
 const fileQuery = `select file_data,

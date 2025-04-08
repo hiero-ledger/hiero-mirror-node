@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {RecordFileService} from '../../service';
+import {RecordFileService} from '../../service/index.js';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
 

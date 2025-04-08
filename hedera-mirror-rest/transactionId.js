@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import long from 'long';
-import EntityId from './entityId';
-import {InvalidArgumentError} from './errors';
+import EntityId from './entityId.js';
+import {InvalidArgumentError} from './errors/index.js';
 
 class TransactionId {
   constructor(entityId, validStartSeconds, validStartNanos) {

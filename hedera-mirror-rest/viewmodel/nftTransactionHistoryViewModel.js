@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import EntityId from '../entityId';
-import {createTransactionId, nsToSecNs} from '../utils';
-import {TransactionType} from '../model';
+import EntityId from '../entityId.js';
+import {createTransactionId, nsToSecNs} from '../utils.js';
+import {TransactionType} from '../model/index.js';
 
 const defaultNftTransfer = {
   isApproval: false,

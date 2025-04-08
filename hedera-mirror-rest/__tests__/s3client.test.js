@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import config from '../config';
-import {cloudProviders, defaultCloudProviderEndpoints} from '../constants';
+import config from '../config.js';
+import {cloudProviders, defaultCloudProviderEndpoints} from '../constants.js';
 import s3client from '../s3client';
 import {jest} from '@jest/globals';
 

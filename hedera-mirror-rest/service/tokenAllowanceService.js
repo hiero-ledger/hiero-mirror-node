@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import BaseService from './baseService';
-import {filterKeys} from '../constants';
-import {TokenAllowance} from '../model';
-import {OrderSpec} from '../sql';
+import BaseService from './baseService.js';
+import {filterKeys} from '../constants.js';
+import {TokenAllowance} from '../model/index.js';
+import {OrderSpec} from '../sql/index.js';
 
 /**
  * TokenAllowance business model

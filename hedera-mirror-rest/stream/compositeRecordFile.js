@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import RecordFile from './recordFile';
-import RecordFilePreV5 from './recordFilePreV5';
-import RecordFileV5 from './recordFileV5';
-import RecordFileV6 from './recordFileV6';
+import RecordFile from './recordFile.js';
+import RecordFilePreV5 from './recordFilePreV5.js';
+import RecordFileV5 from './recordFileV5.js';
+import RecordFileV6 from './recordFileV6.js';
 
 const delegates = [RecordFilePreV5, RecordFileV5, RecordFileV6];
 

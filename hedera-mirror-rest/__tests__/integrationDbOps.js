@@ -5,9 +5,9 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-import config from '../config';
+import config from '../config.js';
 import {getModuleDirname, isV2Schema} from './testutils';
-import {getPoolClass} from '../utils';
+import {getPoolClass} from '../utils.js';
 import {PostgreSqlContainer} from '@testcontainers/postgresql';
 
 const {db: defaultDbConfig} = config;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {TokenKycStatus} from '../../model';
+import {TokenKycStatus} from '../../model/index.js';
 
 describe('TokenKycStatus', () => {
   describe('invalid id', () => {

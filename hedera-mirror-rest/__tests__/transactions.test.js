@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import config from '../config';
-import * as constants from '../constants';
+import config from '../config.js';
+import * as constants from '../constants.js';
 import * as testutils from './testutils';
 import subject from '../transactions';
-import * as utils from '../utils';
+import * as utils from '../utils.js';
 
 const {
   query: {maxScheduledTransactionConsensusTimestampRangeNs},

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import EntityId from '../../entityId';
-import {EntityService} from '../../service';
-import AccountAlias from '../../accountAlias';
+import EntityId from '../../entityId.js';
+import {EntityService} from '../../service/index.js';
+import AccountAlias from '../../accountAlias.js';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import StateProofHandler from '../stateProofHandler';
-import {readJSONFile} from '../utils';
+import {readJSONFile} from '../utils.js';
 
 describe('stateproof sample test', () => {
   test('transaction 0.0.94139-1570800748-313194300 in v2 sample json', () => {

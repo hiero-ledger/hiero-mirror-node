@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {DbError, NotFoundError} from './errors';
+import {DbError, NotFoundError} from './errors/index.js';
 
 const readinessQuery = 'select true from address_book limit 1';
 

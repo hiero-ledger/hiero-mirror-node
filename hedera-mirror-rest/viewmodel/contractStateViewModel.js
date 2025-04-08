@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {filterKeys} from '../constants';
-import EntityId from '../entityId';
-import {toHexString, nsToSecNs, toUint256} from '../utils';
+import {filterKeys} from '../constants.js';
+import EntityId from '../entityId.js';
+import {toHexString, nsToSecNs, toUint256} from '../utils.js';
 
 /**
  * Contract result state view model

@@ -2,10 +2,10 @@
 
 import _ from 'lodash';
 
-import BaseService from './baseService';
-import {filterKeys} from '../constants';
-import {Nft, Entity} from '../model';
-import {OrderSpec} from '../sql';
+import BaseService from './baseService.js';
+import {filterKeys} from '../constants.js';
+import {Nft, Entity} from '../model/index.js';
+import {OrderSpec} from '../sql/index.js';
 
 /**
  * Nft business model

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import EntityId from '../entityId';
-import TransactionId from '../transactionId';
+import EntityId from '../entityId.js';
+import TransactionId from '../transactionId.js';
 
 describe('TransactionId from invalid transaction ID string', () => {
   const invalidTransactionIdStrs = [

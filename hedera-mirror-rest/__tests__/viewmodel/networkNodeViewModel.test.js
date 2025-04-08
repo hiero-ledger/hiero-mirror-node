@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {NetworkNodeViewModel} from '../../viewmodel';
+import {NetworkNodeViewModel} from '../../viewmodel/index.js';
 
 describe('NetworkNodeViewModel', () => {
   const defaultNetworkNode = {

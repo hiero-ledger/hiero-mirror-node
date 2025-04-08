@@ -3,7 +3,7 @@
 // external libraries
 import {Router} from '@awaitjs/express';
 
-import {BlockController} from '../controllers';
+import {BlockController} from '../controllers/index.js';
 
 const router = Router();
 

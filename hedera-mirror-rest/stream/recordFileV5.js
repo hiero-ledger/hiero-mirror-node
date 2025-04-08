@@ -2,10 +2,10 @@
 
 import crypto from 'crypto';
 
-import {INT_SIZE} from './constants';
-import CompactRecordFile from './compactRecordFile';
-import HashObject from './hashObject';
-import RecordStreamObject from './recordStreamObject';
+import {INT_SIZE} from './constants.js';
+import CompactRecordFile from './compactRecordFile.js';
+import HashObject from './hashObject.js';
+import RecordStreamObject from './recordStreamObject.js';
 
 // version, hapi version major/minor/patch, object stream version
 const V5_START_HASH_OFFSET = INT_SIZE + (INT_SIZE + INT_SIZE + INT_SIZE) + INT_SIZE;

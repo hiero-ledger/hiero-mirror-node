@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {BlockViewModel} from '../../viewmodel';
-import {RecordFile} from '../../model';
+import {BlockViewModel} from '../../viewmodel/index.js';
+import {RecordFile} from '../../model/index.js';
 
 describe('BlockViewModel', () => {
   const defaultRecordFile = new RecordFile({

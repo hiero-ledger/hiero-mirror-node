@@ -7,9 +7,9 @@ import parseDuration from 'parse-duration';
 import path from 'path';
 import {fileURLToPath} from 'url';
 
-import {cloudProviders, defaultBucketNames, NANOSECONDS_PER_MILLISECOND, networks} from './constants';
-import {InvalidConfigError} from './errors';
-import configureLogger from './logger';
+import {cloudProviders, defaultBucketNames, NANOSECONDS_PER_MILLISECOND, networks} from './constants.js';
+import {InvalidConfigError} from './errors/index.js';
+import configureLogger from './logger.js';
 
 configureLogger();
 

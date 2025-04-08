@@ -3,8 +3,8 @@
 import sinon from 'sinon';
 
 import balances from '../balances';
-import {MAX_LONG} from '../constants';
-import {opsMap} from '../utils';
+import {MAX_LONG} from '../constants.js';
+import {opsMap} from '../utils.js';
 
 describe('getOptimizedTimestampRange', () => {
   let clock;

@@ -2,10 +2,10 @@
 
 import _ from 'lodash';
 
-import BaseService from './baseService';
-import {ExchangeRate, FeeSchedule, FileData} from '../model';
-import * as utils from '../utils';
-import EntityId from '../entityId';
+import BaseService from './baseService.js';
+import {ExchangeRate, FeeSchedule, FileData} from '../model/index.js';
+import * as utils from '../utils.js';
+import EntityId from '../entityId.js';
 
 /**
  * File data retrieval business logic

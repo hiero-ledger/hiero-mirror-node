@@ -8,7 +8,7 @@ import {
   InvalidClauseError,
   InvalidConfigError,
   NotFoundError,
-} from '../../errors';
+} from '../../errors/index.js';
 
 import {handleUncaughtException} from '../../middleware/httpErrorHandler';
 

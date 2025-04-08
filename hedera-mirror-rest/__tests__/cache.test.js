@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import config from '../config';
-import {Cache} from '../cache';
+import config from '../config.js';
+import {Cache} from '../cache.js';
 import {RedisContainer} from '@testcontainers/redis';
 import {defaultBeforeAllTimeoutMillis} from './integrationUtils';
 

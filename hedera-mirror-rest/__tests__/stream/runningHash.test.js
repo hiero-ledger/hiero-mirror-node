@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import HashObject from '../../stream/hashObject';
-import {calculateRunningHash} from '../../stream/runningHash';
+import HashObject from '../../stream/hashObject.js';
+import {calculateRunningHash} from '../../stream/runningHash.js';
 
 test('calculateRunningHash', () => {
   const header = Buffer.from([0xde, 0xad, 0xbe, 0xef]);

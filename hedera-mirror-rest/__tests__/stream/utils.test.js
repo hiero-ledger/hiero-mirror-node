@@ -2,8 +2,8 @@
 
 import long from 'long';
 import {proto} from '@hashgraph/proto';
-import TransactionId from '../../transactionId';
-import * as utils from '../../stream/utils';
+import TransactionId from '../../transactionId.js';
+import * as utils from '../../stream/utils.js';
 
 describe('protoTransactionIdToTransactionId', () => {
   const accountID = {

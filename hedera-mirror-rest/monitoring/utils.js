@@ -7,7 +7,7 @@ import * as math from 'mathjs';
 import parseDuration from 'parse-duration';
 import prettyMilliseconds from 'pretty-ms';
 import querystring from 'querystring';
-import config from './config';
+import config from './config.js';
 
 const apiPrefix = '/api/v1';
 const DEFAULT_LIMIT = 10;

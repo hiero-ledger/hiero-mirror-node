@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {CryptoAllowanceService} from '../../service';
+import {CryptoAllowanceService} from '../../service/index.js';
 import {assertSqlQueryEqual} from '../testutils';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';

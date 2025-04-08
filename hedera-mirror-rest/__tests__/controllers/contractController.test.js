@@ -2,14 +2,14 @@
 
 import {Range} from 'pg-range';
 
-import {getResponseLimit} from '../../config';
-import * as constants from '../../constants';
+import {getResponseLimit} from '../../config.js';
+import * as constants from '../../constants.js';
 import contracts from '../../controllers/contractController';
 import {assertSqlQueryEqual} from '../testutils';
-import * as utils from '../../utils';
-import {Entity} from '../../model';
-import Bound from '../../controllers/bound';
-import {ContractBytecodeViewModel, ContractViewModel} from '../../viewmodel';
+import * as utils from '../../utils.js';
+import {Entity} from '../../model/index.js';
+import Bound from '../../controllers/bound.js';
+import {ContractBytecodeViewModel, ContractViewModel} from '../../viewmodel/index.js';
 
 const {default: defaultLimit} = getResponseLimit();
 

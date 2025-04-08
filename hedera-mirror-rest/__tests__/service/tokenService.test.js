@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {assertSqlQueryEqual} from '../testutils';
-import {TokenService} from '../../service';
+import {TokenService} from '../../service/index.js';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
 import integrationDbOps from '../integrationDbOps';
-import {CachedToken} from '../../model';
+import {CachedToken} from '../../model/index.js';
 
 setupIntegrationTest();
 

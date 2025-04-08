@@ -3,9 +3,9 @@
 import crypto from 'crypto';
 import _ from 'lodash';
 
-import {ETH_HASH_LENGTH} from '../../constants';
-import {getTransactionHash} from '../../transactionHash';
-import {opsMap} from '../../utils';
+import {ETH_HASH_LENGTH} from '../../constants.js';
+import {getTransactionHash} from '../../transactionHash.js';
+import {opsMap} from '../../utils.js';
 
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';

@@ -2,12 +2,12 @@
 
 import _ from 'lodash';
 
-import BaseService from './baseService';
-import {orderFilterValues} from '../constants';
-import {EthereumTransaction, Transaction} from '../model';
-import {OrderSpec} from '../sql';
-import TransactionId from '../transactionId';
-import config from '../config';
+import BaseService from './baseService.js';
+import {orderFilterValues} from '../constants.js';
+import {EthereumTransaction, Transaction} from '../model/index.js';
+import {OrderSpec} from '../sql/index.js';
+import TransactionId from '../transactionId.js';
+import config from '../config.js';
 
 const {maxTransactionConsensusTimestampRangeNs} = config.query;
 /**

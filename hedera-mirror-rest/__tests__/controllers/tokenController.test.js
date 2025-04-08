@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as constants from '../../constants';
-import * as utils from '../../utils';
+import * as constants from '../../constants.js';
+import * as utils from '../../utils.js';
 import tokenController from '../../controllers/tokenController';
 
 const ownerAccountId = BigInt(98);

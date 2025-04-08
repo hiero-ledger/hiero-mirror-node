@@ -2,7 +2,7 @@
 
 import httpContext from 'express-http-context';
 import log4js from 'log4js';
-import * as constants from './constants';
+import * as constants from './constants.js';
 
 const configureLogger = (logLevel = 'info') => {
   log4js.configure({

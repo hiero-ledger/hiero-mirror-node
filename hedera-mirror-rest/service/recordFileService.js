@@ -2,10 +2,10 @@
 
 import _ from 'lodash';
 
-import BaseService from './baseService';
-import config from '../config';
-import {RecordFile} from '../model';
-import {orderFilterValues} from '../constants';
+import BaseService from './baseService.js';
+import config from '../config.js';
+import {RecordFile} from '../model/index.js';
+import {orderFilterValues} from '../constants.js';
 
 const buildWhereSqlStatement = (whereQuery) => {
   let where = '';

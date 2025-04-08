@@ -2,10 +2,10 @@
 
 import sinon from 'sinon';
 
-import config from '../config';
-import * as constants from '../constants';
-import EntityId from '../entityId';
-import * as utils from '../utils';
+import config from '../config.js';
+import * as constants from '../constants.js';
+import EntityId from '../entityId.js';
+import * as utils from '../utils.js';
 
 describe('utils buildAndValidateFilters test', () => {
   const defaultMaxRepeatedQueryParameters = config.maxRepeatedQueryParameters;

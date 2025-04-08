@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {proto} from '@hashgraph/proto';
-import {logger, protoTransactionIdToTransactionId} from './utils';
+import {logger, protoTransactionIdToTransactionId} from './utils.js';
 
 class RecordFile {
   static version;

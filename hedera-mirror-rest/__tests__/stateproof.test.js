@@ -4,14 +4,14 @@ import _ from 'lodash';
 import {Readable} from 'stream';
 import sinon from 'sinon';
 
-import config from '../config';
-import * as constants from '../constants';
-import EntityId from '../entityId';
+import config from '../config.js';
+import * as constants from '../constants.js';
+import EntityId from '../entityId.js';
 import s3client from '../s3client';
 import stateproof from '../stateproof';
 import {CompositeRecordFile} from '../stream';
-import TransactionId from '../transactionId';
-import {opsMap} from '../utils';
+import TransactionId from '../transactionId.js';
+import {opsMap} from '../utils.js';
 import * as utils from '../utils.js';
 
 global.pool = {};

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as constants from '../constants';
+import * as constants from '../constants.js';
 import {assertSqlQueryEqual} from './testutils';
 import topicMessage from '../topicmessage';
-import * as utils from '../utils';
+import * as utils from '../utils.js';
 
 const {LIMIT, ORDER, SEQUENCE_NUMBER, TIMESTAMP} = constants.filterKeys;
 const {eq, gt, gte, lt, lte, ne} = utils.opsMap;

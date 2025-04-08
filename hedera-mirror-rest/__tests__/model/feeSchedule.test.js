@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {FileDecodeError} from '../../errors';
+import {FileDecodeError} from '../../errors/index.js';
 
 // models
-import {FeeSchedule} from '../../model';
+import {FeeSchedule} from '../../model/index.js';
 
 describe('fee schedule proto parse', () => {
   const input = {
