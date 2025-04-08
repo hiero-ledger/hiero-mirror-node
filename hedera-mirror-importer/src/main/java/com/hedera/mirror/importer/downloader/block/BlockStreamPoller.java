@@ -99,18 +99,17 @@ final class BlockStreamPoller implements StreamPoller {
                 var blockFile = blockFileReader.read(blockFileData);
                 blockFile.setNodeId(nodeId);
 
-                Instant cloudStorageTime = blockFileData.getLastModified();
-                Instant consensusEnd = Instant.ofEpochSecond(0, blockFile.getConsensusEnd());
-
-                cloudStorageLatencyMetric.record(Duration.between(consensusEnd, cloudStorageTime));
-                downloadLatencyMetric.record(Duration.between(consensusEnd, Instant.now()));
-
                 byte[] bytes = blockFile.getBytes();
                 if (!properties.isPersistBytes()) {
                     blockFile.setBytes(null);
                 }
 
                 blockStreamVerifier.verify(blockFile);
+
+                Instant cloudStorageTime = blockFileData.getLastModified();
+                Instant consensusEnd = Instant.ofEpochSecond(0, blockFile.getConsensusEnd());
+                cloudStorageLatencyMetric.record(Duration.between(consensusEnd, cloudStorageTime));
+                downloadLatencyMetric.record(Duration.between(consensusEnd, Instant.now()));
 
                 if (properties.isWriteFiles()) {
                     Utility.archiveFile(blockFileData.getFilePath(), bytes, streamPath);
