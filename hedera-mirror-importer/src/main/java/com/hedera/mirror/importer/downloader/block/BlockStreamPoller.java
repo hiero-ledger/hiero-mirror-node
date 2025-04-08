@@ -41,7 +41,7 @@ final class BlockStreamPoller implements StreamPoller {
     private final Timer cloudStorageLatencyMetric;
     private final Timer downloadLatencyMetric;
 
-    BlockStreamPoller(
+    public BlockStreamPoller(
             BlockFileReader blockFileReader,
             BlockStreamVerifier blockStreamVerifier,
             CommonDownloaderProperties commonDownloaderProperties,

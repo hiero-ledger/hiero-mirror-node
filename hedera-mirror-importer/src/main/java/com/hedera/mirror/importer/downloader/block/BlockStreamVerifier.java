@@ -69,7 +69,7 @@ public class BlockStreamVerifier {
             streamFileNotifier.verified(recordFile);
 
             getLastBlockFile().ifPresent(last -> {
-                if(!last.equals(EMPTY)) {
+                if (!last.equals(EMPTY)) {
                     long latency = blockFile.getConsensusStart() - last.getConsensusStart();
                     streamCloseMetric.record(latency, TimeUnit.NANOSECONDS);
                 }
