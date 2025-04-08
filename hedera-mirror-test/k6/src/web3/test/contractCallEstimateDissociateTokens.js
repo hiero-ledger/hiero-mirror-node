@@ -9,6 +9,9 @@ const token = __ENV.FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS;
 const selector = '0x2390c1fa'; //dissociateTokensExternal
 const runMode = __ENV.RUN_WITH_VARIABLES;
 const testName = 'estimateDissociateTokens';
+const data =
+    '0000000000000000000000000000000000000000000000000000000000000040' +
+    '0000000000000000000000000000000000000000000000000000000000000001';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =
@@ -17,7 +20,7 @@ const {options, run} =
     : new ContractCallTestScenarioBuilder()
         .name(testName) // use unique scenario name among all tests
         .selector(selector)
-        .args([account, token])
+        .args([account, data, token])
         .to(contract)
         .estimate(true)
         .build();

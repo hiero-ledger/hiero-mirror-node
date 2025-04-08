@@ -4,10 +4,10 @@ import {ContractCallTestScenarioBuilder} from './common.js';
 import {ContractCallEstimateTestTemplate} from './commonContractCallEstimateTemplate.js';
 
 const contract = __ENV.ESTIMATE_PRECOMPILE_CONTRACT;
-const account = __ENV.FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ASSOCIATED_ACCOUNT_ADDRESS;
+const account = __ENV.TOKENS_FREEZE_KEY_ACCOUNT_ADDRESS;
 const token = __ENV.FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS;
 const runMode = __ENV.RUN_WITH_VARIABLES;
-const selector = '0xe95a71e5'; //unfreezeTokenExternal
+const selector = '0x9333700b'; //unfreezeTokenExternal
 const testName = 'estimateFreezeToken';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables

@@ -21,10 +21,33 @@ Configuration of the k6 tests is done via environment variables. Environment var
 placed in an environment file and sourced before each run. For example, here's a `k6.env`:
 
 ```shell
-export BASE_URL=https://testnet.mirrornode.hedera.com
+export BASE_URL=https://mainnet-public.mirrornode.hedera.com
+export ACCOUNT_ADDRESS=0000000000000000000000000000000000000000000000000000000000429f69
+export AMOUNT=0000000000000000000000000000000000000000000000000000000000000001
+export DEFAULT_ACCOUNT_ADDRESS=0000000000000000000000000000000000429f69
+export DEFAULT_CONTRACT_ADDRESS=0000000000000000000000000000000000429f6b
 export DEFAULT_DURATION=1s
-export DEFAULT_LIMIT=100
 export DEFAULT_VUS=1
+export DEFAULT_LIMIT=100
+export ERC_CONTRACT_ADDRESS=0000000000000000000000000000000000870671
+export ESTIMATE_PRECOMPILE_CONTRACT=000000000000000000000000000000000071ade1
+export HTS_CONTRACT_ADDRESS=0000000000000000000000000000000000429f7a
+export PRECOMPILE_CONTRACT=000000000000000000000000000000000071c6d7
+export RECEIVER_ADDRESS=000000000000000000000000b36acabf4d3d191bd50f5773a0264543c9ef7ca0
+export RUN_ESTIMATE_TESTS=true
+export RUN_MODIFICATION_TESTS=true
+export RUN_WITH_VARIABLES=true
+export KEY_TYPE=0000000000000000000000000000000000000000000000000000000000000001
+export NON_FUNGIBLE_TOKEN_ADDRESS=0000000000000000000000000000000000000000000000000000000000429f75
+export SERIAL_NUMBER=0000000000000000000000000000000000000000000000000000000000000001
+export SPENDER_ADDRESS=0000000000000000000000000000000000000000000000000000000000429f77
+export TOKEN_ADDRESS=0000000000000000000000000000000000000000000000000000000000429f74
+export ASSOCIATED_ACCOUNT=000000000000000000000000f418432aa69558b93d4c0a08b93b52ec9cc116a6
+export NON_FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS=0000000000000000000000000000000000000000000000000000000000876948
+export FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS=000000000000000000000000000000000000000000000000000000000086b7b8
+export FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ASSOCIATED_ACCOUNT_ADDRESS=000000000000000000000000000000000000000000000000000000000087d1b1
+export TOKENS_FREEZE_KEY_ACCOUNT_ADDRESS=000000000000000000000000000000000000000000000000000000000071acef
+export PAYER_ACCOUNT=00000000000000000000000000000000006d65ba
 ```
 
 This file can then be sourced before executing k6:
@@ -143,6 +166,7 @@ The following parameters can be used to configure a web3 test:
 | SERIAL_NUMBER                                                 |         | 64 character hex encoded nft serial number without `0x` prefix                                                                                  |
 | SPENDER_ADDRESS                                               |         | 64 character hex encoded account address without `0x` prefix                                                                                    |
 | TOKEN_ADDRESS                                                 |         | 64 character hex encoded token address without `0x` prefix                                                                                      |
+| TOKENS_FREEZE_KEY_ACCOUNT_ADDRESS                             |         | 64 character hex encoded account evm address without `0x` prefix - a freeze key account for FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS and NON_FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS                                                                                                                                                |
 | WEB3_TEST_EXCLUDE                                             | ^$      | The web3 test scenarios to exclude                                                                                                              |
 | WEB3_TEST_INCLUDE                                             | .\*     | The web3 test scenarios to include                                                                                                              |
 
