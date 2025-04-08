@@ -22,7 +22,7 @@ import org.apache.commons.io.FilenameUtils;
 @Named
 public class BlockStreamVerifier {
 
-    private static final BlockFile EMPTY = BlockFile.builder().consensusStart(0L).build();
+    private static final BlockFile EMPTY = BlockFile.builder().build();
 
     private final BlockFileTransformer blockFileTransformer;
     private final RecordFileRepository recordFileRepository;
@@ -69,8 +69,10 @@ public class BlockStreamVerifier {
             streamFileNotifier.verified(recordFile);
 
             getLastBlockFile().ifPresent(last -> {
+                if(!last.equals(EMPTY)) {
                     long latency = blockFile.getConsensusStart() - last.getConsensusStart();
                     streamCloseMetric.record(latency, TimeUnit.NANOSECONDS);
+                }
             });
 
             setLastBlockFile(blockFile);
