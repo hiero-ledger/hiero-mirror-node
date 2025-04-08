@@ -71,8 +71,8 @@ class AccountControllerTest extends GraphqlIntegrationTest {
         var entity = domainBuilder.entity().persist();
         tester.document(
                         """
-                        query Account($id: Long!) {
-                          account(input: { entityId: { num: $id } }) {
+                        query Account($realm: Long!,$shard: Long!,$num: Long!) {
+                          account(input: { entityId: {realm: $realm, shard: $shard, num: $num} }) {
                             alias
                             autoRenewPeriod
                             balance
@@ -94,7 +94,9 @@ class AccountControllerTest extends GraphqlIntegrationTest {
                           }
                         }
                         """)
-                .variable("id", entity.getNum())
+                .variable("num", entity.getNum())
+                .variable("realm", entity.getRealm())
+                .variable("shard", entity.getShard())
                 .execute()
                 .errors()
                 .verify()
@@ -200,9 +202,16 @@ class AccountControllerTest extends GraphqlIntegrationTest {
     @Test
     void balanceFormat() {
         var entity = domainBuilder.entity().persist();
-        var query = "query Account($id: Long!) {account(input: { entityId: { num: $id } }) {balance(unit: HBAR) }}";
+        var query =
+                """
+                        query Account($realm: Long!,$shard: Long!,$num: Long!) {
+                          account(input: { entityId: {realm: $realm, shard: $shard, num: $num} })
+                            {balance(unit: HBAR) }}
+                    """;
         tester.document(query)
-                .variable("id", entity.getNum())
+                .variable("num", entity.getNum())
+                .variable("realm", entity.getRealm())
+                .variable("shard", entity.getShard())
                 .execute()
                 .errors()
                 .verify()
