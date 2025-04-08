@@ -89,7 +89,7 @@ const tests = {
   contractCallTokenType,
   contractCallTokenURI,
   contractCallTotalSupply,
-  // rampUp,
+  rampUp,
 };
 
 if (__ENV.RUN_ESTIMATE_TESTS !== 'false') {
