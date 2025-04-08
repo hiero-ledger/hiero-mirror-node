@@ -70,6 +70,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
             historyNodes.add(Node.builder()
                     .adminKey(node.getAdminKey())
                     .createdTimestamp(node.getCreatedTimestamp())
+                    .declineReward(false)
                     .deleted(true)
                     .nodeId(node.getNodeId())
                     .timestampRange(
@@ -83,6 +84,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                             .getAdminKey()
                             .toByteArray())
                     .createdTimestamp(node.getCreatedTimestamp())
+                    .declineReward(false)
                     .deleted(false)
                     .nodeId(node.getNodeId())
                     .timestampRange(Range.atLeast(nodeUpdate.getConsensusTimestamp()))
@@ -177,6 +179,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                         .getAdminKey()
                         .toByteArray())
                 .createdTimestamp(nodeCreateRecordItem.getConsensusTimestamp())
+                .declineReward(false)
                 .deleted(false)
                 .nodeId(nodeCreateRecordItem.getTransactionRecord().getReceipt().getNodeId())
                 .timestampRange(Range.atLeast(nodeCreateRecordItem.getConsensusTimestamp()))
@@ -188,6 +191,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                         .getAdminKey()
                         .toByteArray())
                 .createdTimestamp(nodeUpdateRecordItem.getConsensusTimestamp())
+                .declineReward(false)
                 .deleted(false)
                 .nodeId(nodeUpdateRecordItem
                         .getTransactionBody()
@@ -203,6 +207,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                         .getAdminKey()
                         .toByteArray())
                 .createdTimestamp(null)
+                .declineReward(false)
                 .deleted(false)
                 .nodeId(nodeUpdateWithoutCreateRecordItem
                         .getTransactionBody()

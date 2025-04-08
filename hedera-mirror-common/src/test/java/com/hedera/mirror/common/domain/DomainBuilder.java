@@ -670,6 +670,7 @@ public class DomainBuilder {
         var builder = Node.builder()
                 .adminKey(key())
                 .createdTimestamp(timestamp)
+                .declineReward(false)
                 .deleted(false)
                 .nodeId(number())
                 .timestampRange(Range.atLeast(timestamp));
@@ -682,6 +683,7 @@ public class DomainBuilder {
         var builder = NodeHistory.builder()
                 .adminKey(key())
                 .createdTimestamp(timestamp)
+                .declineReward(false)
                 .deleted(false)
                 .nodeId(number())
                 .timestampRange(Range.closedOpen(timestamp, timestamp + 10));

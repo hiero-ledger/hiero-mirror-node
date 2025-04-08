@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.common.collect.Range;
+import com.google.protobuf.BoolValue;
 import com.hedera.mirror.common.domain.addressbook.NetworkStake;
 import com.hedera.mirror.common.domain.addressbook.NodeStake;
 import com.hedera.mirror.common.domain.entity.Node;
@@ -28,12 +29,12 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
     private final NetworkStakeRepository networkStakeRepository;
     private final NodeStakeRepository nodeStakeRepository;
 
-    private static Node getExpectedNode(RecordItem recordItem) {
+    private static Node.NodeBuilder<?, ?> getExpectedNode(RecordItem recordItem) {
         return Node.builder()
                 .createdTimestamp(recordItem.getConsensusTimestamp())
+                .declineReward(false)
                 .nodeId(recordItem.getTransactionRecord().getReceipt().getNodeId())
-                .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
-                .build();
+                .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()));
     }
 
     @SuppressWarnings("deprecation")
@@ -97,9 +98,10 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
     @Test
     void nodeCreate() {
         var recordItem = recordItemBuilder.nodeCreate().build();
-        var expectedNode = getExpectedNode(recordItem);
-        expectedNode.setAdminKey(
-                recordItem.getTransactionBody().getNodeCreate().getAdminKey().toByteArray());
+        var nodeCreate = recordItem.getTransactionBody().getNodeCreate();
+        var expectedNode = getExpectedNode(recordItem)
+                .adminKey(nodeCreate.getAdminKey().toByteArray())
+                .build();
 
         parseRecordItemAndCommit(recordItem);
 
@@ -115,12 +117,16 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void nodeUpdate() {
-        var recordItem = recordItemBuilder.nodeUpdate().build();
+        var recordItem = recordItemBuilder
+                .nodeUpdate()
+                .transactionBody(b -> b.setDeclineReward(BoolValue.of(true)))
+                .build();
         var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
         var timestamp = recordItem.getConsensusTimestamp() - 1;
         var node = domainBuilder
                 .node()
                 .customize(n -> n.createdTimestamp(timestamp)
+                        .declineReward(false)
                         .nodeId(nodeUpdate.getNodeId())
                         .timestampRange(Range.atLeast(timestamp)))
                 .persist();
@@ -128,6 +134,7 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
         var expectedNode = Node.builder()
                 .adminKey(nodeUpdate.getAdminKey().toByteArray())
                 .createdTimestamp(node.getCreatedTimestamp())
+                .declineReward(true)
                 .nodeId(node.getNodeId())
                 .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                 .build();
@@ -148,16 +155,18 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
     }
 
     @Test
-    void nodeUpdateWithoutAdminKeyUpdate() {
+    void nodeUpdateNoChange() {
         var recordItem = recordItemBuilder
                 .nodeUpdate()
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearAdminKey)
+                .transactionBody(NodeUpdateTransactionBody.Builder::clearDeclineReward)
                 .build();
         var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
         var timestamp = recordItem.getConsensusTimestamp() - 1;
         var node = domainBuilder
                 .node()
                 .customize(n -> n.createdTimestamp(timestamp)
+                        .declineReward(true)
                         .nodeId(nodeUpdate.getNodeId())
                         .timestampRange(Range.atLeast(timestamp)))
                 .persist();
@@ -165,6 +174,7 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
         var expectedNode = Node.builder()
                 .adminKey(node.getAdminKey())
                 .createdTimestamp(node.getCreatedTimestamp())
+                .declineReward(node.getDeclineReward())
                 .nodeId(node.getNodeId())
                 .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                 .build();
@@ -192,10 +202,11 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
                 .receipt(r -> r.setNodeId(node.getNodeId()))
                 .transactionBody(b -> b.setNodeId(node.getNodeId()))
                 .build();
-        var expectedNode = getExpectedNode(recordItem);
-        expectedNode.setDeleted(true);
-        expectedNode.setCreatedTimestamp(node.getCreatedTimestamp());
-        expectedNode.setAdminKey(node.getAdminKey());
+        var expectedNode = getExpectedNode(recordItem)
+                .adminKey(node.getAdminKey())
+                .createdTimestamp(node.getCreatedTimestamp())
+                .deleted(true)
+                .build();
 
         parseRecordItemAndCommit(recordItem);
 
