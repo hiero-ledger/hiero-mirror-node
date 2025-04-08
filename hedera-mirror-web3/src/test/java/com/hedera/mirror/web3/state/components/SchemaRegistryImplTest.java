@@ -15,7 +15,6 @@ import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.state.core.MapWritableStates;
 import com.hedera.node.app.config.ConfigProviderImpl;
-import com.hedera.node.app.ids.AppEntityIdFactory;
 import com.hedera.node.app.state.merkle.SchemaApplicationType;
 import com.hedera.node.app.state.merkle.SchemaApplications;
 import com.hedera.pbj.runtime.Codec;
@@ -24,14 +23,12 @@ import com.swirlds.state.lifecycle.MigrationContext;
 import com.swirlds.state.lifecycle.Schema;
 import com.swirlds.state.lifecycle.StartupNetworks;
 import com.swirlds.state.lifecycle.StateDefinition;
-import com.swirlds.state.lifecycle.info.NetworkInfo;
 import com.swirlds.state.spi.ReadableStates;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
-import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,9 +45,6 @@ class SchemaRegistryImplTest {
     private MirrorNodeState mirrorNodeState;
 
     @Mock
-    private NetworkInfo networkInfo;
-
-    @Mock
     private Schema schema;
 
     @Mock
@@ -64,9 +58,6 @@ class SchemaRegistryImplTest {
 
     @Mock
     private StartupNetworks startupNetworks;
-
-    @Mock
-    private AppEntityIdFactory appEntityIdFactory;
 
     @Mock
     private Codec<String> mockCodec;
@@ -89,7 +80,7 @@ class SchemaRegistryImplTest {
 
     @Test
     void testMigrateWithNoSchemas() {
-        schemaRegistry.migrate(serviceName, mirrorNodeState, networkInfo, startupNetworks);
+        schemaRegistry.migrate(serviceName, mirrorNodeState, startupNetworks);
         verify(mirrorNodeState, never()).getWritableStates(any());
     }
 
@@ -103,15 +94,7 @@ class SchemaRegistryImplTest {
         schemaRegistry.register(schema);
 
         schemaRegistry.migrate(
-                serviceName,
-                mirrorNodeState,
-                previousVersion,
-                networkInfo,
-                config,
-                config,
-                new HashMap<>(),
-                new AtomicLong(),
-                startupNetworks);
+                serviceName, mirrorNodeState, previousVersion, config, config, new HashMap<>(), startupNetworks);
         verify(mirrorNodeState, times(1)).getWritableStates(serviceName);
         verify(mirrorNodeState, times(1)).getReadableStates(serviceName);
         verify(writableStates, times(1)).commit();
@@ -125,15 +108,7 @@ class SchemaRegistryImplTest {
                 .thenReturn(EnumSet.of(SchemaApplicationType.MIGRATION));
         schemaRegistry.register(schema);
         schemaRegistry.migrate(
-                serviceName,
-                mirrorNodeState,
-                previousVersion,
-                networkInfo,
-                config,
-                config,
-                new HashMap<>(),
-                new AtomicLong(),
-                startupNetworks);
+                serviceName, mirrorNodeState, previousVersion, config, config, new HashMap<>(), startupNetworks);
 
         verify(schema).migrate(any());
         verify(writableStates, times(1)).commit();
@@ -155,15 +130,7 @@ class SchemaRegistryImplTest {
 
         schemaRegistry.register(schema);
         schemaRegistry.migrate(
-                serviceName,
-                mirrorNodeState,
-                previousVersion,
-                networkInfo,
-                config,
-                config,
-                new HashMap<>(),
-                new AtomicLong(),
-                startupNetworks);
+                serviceName, mirrorNodeState, previousVersion, config, config, new HashMap<>(), startupNetworks);
         verify(mirrorNodeState, times(1)).getWritableStates(serviceName);
         verify(mirrorNodeState, times(1)).getReadableStates(serviceName);
         verify(schema).migrate(any());
@@ -180,15 +147,7 @@ class SchemaRegistryImplTest {
 
         schemaRegistry.register(schema);
         schemaRegistry.migrate(
-                serviceName,
-                mirrorNodeState,
-                previousVersion,
-                networkInfo,
-                config,
-                config,
-                new HashMap<>(),
-                new AtomicLong(),
-                startupNetworks);
+                serviceName, mirrorNodeState, previousVersion, config, config, new HashMap<>(), startupNetworks);
 
         verify(schema).restart(any());
         verify(writableStates, times(1)).commit();
@@ -197,16 +156,7 @@ class SchemaRegistryImplTest {
     @Test
     void testNewMigrationContext() {
         MigrationContext context = schemaRegistry.newMigrationContext(
-                previousVersion,
-                readableStates,
-                writableStates,
-                config,
-                config,
-                networkInfo,
-                new AtomicLong(1),
-                EMPTY_MAP,
-                startupNetworks,
-                appEntityIdFactory);
+                previousVersion, readableStates, writableStates, config, config, EMPTY_MAP, startupNetworks);
 
         assertThat(context).satisfies(c -> {
             assertDoesNotThrow(() -> c.copyAndReleaseOnDiskState(""));
@@ -217,8 +167,6 @@ class SchemaRegistryImplTest {
             assertThat(c.newStates()).isEqualTo(writableStates);
             assertThat(c.appConfig()).isEqualTo(config);
             assertThat(c.platformConfig()).isEqualTo(config);
-            assertThat(c.genesisNetworkInfo()).isEqualTo(networkInfo);
-            assertThat(c.newEntityNumForAccount()).isEqualTo(1);
             assertThat(c.sharedValues()).isEqualTo(EMPTY_MAP);
         });
     }

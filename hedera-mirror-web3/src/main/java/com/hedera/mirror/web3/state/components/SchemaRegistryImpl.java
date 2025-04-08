@@ -11,21 +11,17 @@ import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.state.core.MapWritableStates;
 import com.hedera.mirror.web3.state.singleton.DefaultSingleton;
 import com.hedera.mirror.web3.state.singleton.SingletonState;
-import com.hedera.node.app.ids.AppEntityIdFactory;
 import com.hedera.node.app.state.merkle.SchemaApplications;
 import com.swirlds.config.api.Configuration;
 import com.swirlds.config.api.ConfigurationBuilder;
-import com.swirlds.state.lifecycle.EntityIdFactory;
 import com.swirlds.state.lifecycle.MigrationContext;
 import com.swirlds.state.lifecycle.Schema;
 import com.swirlds.state.lifecycle.SchemaRegistry;
 import com.swirlds.state.lifecycle.StartupNetworks;
-import com.swirlds.state.lifecycle.info.NetworkInfo;
 import com.swirlds.state.spi.FilteredReadableStates;
 import com.swirlds.state.spi.FilteredWritableStates;
 import com.swirlds.state.spi.ReadableStates;
 import com.swirlds.state.spi.WritableStates;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.Collection;
@@ -36,7 +32,6 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -67,19 +62,9 @@ public class SchemaRegistryImpl implements SchemaRegistry {
     public void migrate(
             @Nonnull final String serviceName,
             @Nonnull final MirrorNodeState state,
-            @Nonnull final NetworkInfo networkInfo,
             @Nonnull final StartupNetworks startupNetworks) {
         final var config = ConfigurationBuilder.create().build();
-        migrate(
-                serviceName,
-                state,
-                CURRENT_VERSION,
-                networkInfo,
-                config,
-                config,
-                new HashMap<>(),
-                new AtomicLong(),
-                startupNetworks);
+        migrate(serviceName, state, CURRENT_VERSION, config, config, new HashMap<>(), startupNetworks);
     }
 
     @SuppressWarnings("java:S107")
@@ -87,11 +72,9 @@ public class SchemaRegistryImpl implements SchemaRegistry {
             @Nonnull final String serviceName,
             @Nonnull final MirrorNodeState state,
             @Nullable final SemanticVersion previousVersion,
-            @Nonnull final NetworkInfo networkInfo,
             @Nonnull final Configuration appConfig,
             @Nonnull final Configuration platformConfig,
             @Nonnull final Map<String, Object> sharedValues,
-            @Nonnull final AtomicLong nextEntityNum,
             @Nonnull final StartupNetworks startupNetworks) {
         if (schemas.isEmpty()) {
             return;
@@ -122,11 +105,8 @@ public class SchemaRegistryImpl implements SchemaRegistry {
                     newStates,
                     appConfig,
                     platformConfig,
-                    networkInfo,
-                    nextEntityNum,
                     sharedValues,
-                    startupNetworks,
-                    new AppEntityIdFactory(appConfig));
+                    startupNetworks);
             if (applications.contains(MIGRATION)) {
                 schema.migrate(context);
             }
@@ -149,11 +129,8 @@ public class SchemaRegistryImpl implements SchemaRegistry {
             @Nonnull final WritableStates writableStates,
             @Nonnull final Configuration appConfig,
             @Nonnull final Configuration platformConfig,
-            @Nonnull final NetworkInfo networkInfo,
-            @Nonnull final AtomicLong nextEntityNum,
             @Nonnull final Map<String, Object> sharedValues,
-            @Nonnull final StartupNetworks startupNetworks,
-            @Nonnull final EntityIdFactory entityIdFactory) {
+            @Nonnull final StartupNetworks startupNetworks) {
         return new MigrationContext() {
             @Override
             public void copyAndReleaseOnDiskState(String stateKey) {
@@ -169,17 +146,6 @@ public class SchemaRegistryImpl implements SchemaRegistry {
             @Override
             public StartupNetworks startupNetworks() {
                 return startupNetworks;
-            }
-
-            @NonNull
-            @Override
-            public EntityIdFactory entityIdFactory() {
-                return entityIdFactory;
-            }
-
-            @Override
-            public long newEntityNumForAccount() {
-                return nextEntityNum.getAndIncrement();
             }
 
             @Override
@@ -209,11 +175,6 @@ public class SchemaRegistryImpl implements SchemaRegistry {
             @Override
             public Configuration platformConfig() {
                 return platformConfig;
-            }
-
-            @Override
-            public NetworkInfo genesisNetworkInfo() {
-                return networkInfo;
             }
 
             @Override

@@ -86,6 +86,12 @@ public class NetworkInfoImpl implements NetworkInfo {
                 return Collections.emptyList();
             }
 
+            @Nonnull
+            @Override
+            public List<ServiceEndpoint> hapiEndpoints() {
+                return Collections.emptyList();
+            }
+
             @Override
             public String hexEncodedPublicKey() {
                 return "";

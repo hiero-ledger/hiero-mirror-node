@@ -18,8 +18,8 @@ import com.hedera.node.app.version.ServicesSoftwareVersion;
 import com.hedera.node.config.VersionedConfiguration;
 import com.hedera.node.config.data.VersionConfig;
 import com.swirlds.metrics.api.Metrics;
+import com.swirlds.platform.state.MerkleNodeState;
 import com.swirlds.platform.state.service.PlatformStateFacade;
-import com.swirlds.state.State;
 import com.swirlds.state.lifecycle.SchemaRegistry;
 import com.swirlds.state.lifecycle.Service;
 import com.swirlds.state.lifecycle.StartupNetworks;
@@ -68,7 +68,7 @@ class ServiceMigratorImplTest {
     private PlatformStateFacade platformStateFacade;
 
     @Mock
-    private State mockState;
+    private MerkleNodeState mockState;
 
     private VersionedConfiguration bootstrapConfig;
 
@@ -94,7 +94,6 @@ class ServiceMigratorImplTest {
                         bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion()),
                 new ConfigProviderImpl().getConfiguration(),
                 new ConfigProviderImpl().getConfiguration(),
-                networkInfo,
                 metrics,
                 startupNetworks,
                 storeMetricsService,
@@ -122,7 +121,6 @@ class ServiceMigratorImplTest {
                         bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion()),
                 new ConfigProviderImpl().getConfiguration(),
                 new ConfigProviderImpl().getConfiguration(),
-                networkInfo,
                 metrics,
                 startupNetworks,
                 storeMetricsService,
@@ -156,7 +154,6 @@ class ServiceMigratorImplTest {
                     servicesSoftwareVersion,
                     configuration,
                     configuration,
-                    networkInfo,
                     metrics,
                     startupNetworks,
                     storeMetricsService,
@@ -181,7 +178,6 @@ class ServiceMigratorImplTest {
                     servicesSoftwareVersion,
                     configuration,
                     configuration,
-                    networkInfo,
                     metrics,
                     startupNetworks,
                     storeMetricsService,
@@ -206,7 +202,6 @@ class ServiceMigratorImplTest {
                     servicesSoftwareVersion,
                     configuration,
                     configuration,
-                    networkInfo,
                     metrics,
                     startupNetworks,
                     storeMetricsService,
@@ -235,7 +230,6 @@ class ServiceMigratorImplTest {
                     servicesSoftwareVersion,
                     configuration,
                     configuration,
-                    networkInfo,
                     metrics,
                     startupNetworks,
                     storeMetricsService,

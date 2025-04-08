@@ -38,7 +38,7 @@ dependencies {
         val tuweniVersion: String by rootProject.extra
         val vertxVersion: String by rootProject.extra
 
-        api("com.esaulpaugh:headlong:10.0.2")
+        api("com.esaulpaugh:headlong:12.3.3")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("org.bouncycastle:bcprov-jdk18on:1.80")
@@ -49,7 +49,7 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:2.9")
         api("com.graphql-java:graphql-java-extended-scalars:22.0")
         api("com.graphql-java:graphql-java-extended-validation:22.0")
-        api("com.hedera.hashgraph:app:0.60.0")
+        api("com.hedera.hashgraph:app:0.61.0")
         api("com.hedera.evm:hedera-evm:0.54.2")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:0.61.1")
         api("com.hedera.hashgraph:sdk:2.50.0")
