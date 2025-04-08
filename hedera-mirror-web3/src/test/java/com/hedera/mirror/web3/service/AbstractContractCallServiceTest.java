@@ -610,6 +610,26 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return Pair.of(tokenToUpdateEntity, autoRenewAccount);
     }
 
+    protected void persistAirdropForFungibleToken(final Token token, final Entity sender, final Entity receiver) {
+        domainBuilder
+                .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
+                .customize(t -> t.amount(DEFAULT_TOKEN_AIRDROP_AMOUNT.longValue())
+                        .tokenId(token.getTokenId())
+                        .receiverAccountId(receiver.getId())
+                        .senderAccountId(sender.getId()))
+                .persist();
+    }
+
+    protected void persistAirdropForNft(final Token token, final Entity sender, final Entity receiver) {
+        domainBuilder
+                .tokenAirdrop(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
+                .customize(t -> t.serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
+                        .tokenId(token.getTokenId())
+                        .receiverAccountId(receiver.getId())
+                        .senderAccountId(sender.getId()))
+                .persist();
+    }
+
     protected String getAddressFromEntity(final Entity entity) {
         return EvmTokenUtils.toAddress(entity.toEntityId()).toHexString();
     }

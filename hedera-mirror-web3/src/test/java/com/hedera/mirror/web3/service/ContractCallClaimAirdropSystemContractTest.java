@@ -28,13 +28,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
         final var token = fungibleTokenCustomizable(e -> e.kycKey(null));
         tokenAccountPersist(token.getTokenId(), sender.getId());
 
-        domainBuilder
-                .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
-                .customize(t -> t.amount(DEFAULT_TOKEN_AIRDROP_AMOUNT.longValue())
-                        .tokenId(token.getTokenId())
-                        .receiverAccountId(receiver.getId())
-                        .senderAccountId(sender.getId()))
-                .persist();
+        persistAirdropForFungibleToken(token, sender, receiver);
 
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
 
@@ -60,13 +54,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
                 n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.toEntityId()));
         tokenAccountPersist(token.getTokenId(), sender.getId());
 
-        domainBuilder
-                .tokenAirdrop(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                .customize(t -> t.serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
-                        .tokenId(token.getTokenId())
-                        .receiverAccountId(receiver.getId())
-                        .senderAccountId(sender.getId()))
-                .persist();
+        persistAirdropForNft(token, sender, receiver);
 
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
 
@@ -105,13 +93,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
             tokenAccountPersist(token.getTokenId(), sender.getId());
             final var tokenAddress = toAddress(token.getTokenId()).toHexString();
 
-            domainBuilder
-                    .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
-                    .customize(t -> t.amount(DEFAULT_TOKEN_AIRDROP_AMOUNT.longValue())
-                            .tokenId(token.getTokenId())
-                            .receiverAccountId(receiver.getId())
-                            .senderAccountId(sender.getId()))
-                    .persist();
+            persistAirdropForFungibleToken(token, sender, receiver);
 
             tokens.add(tokenAddress);
             senders.add(getAddressFromEntity(sender));
@@ -128,13 +110,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
                     n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.toEntityId()));
             tokenAccountPersist(token.getTokenId(), sender.getId());
             final var nftAddress = toAddress(token.getTokenId()).toHexString();
-            domainBuilder
-                    .tokenAirdrop(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                    .customize(t -> t.serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
-                            .tokenId(token.getTokenId())
-                            .receiverAccountId(receiver.getId())
-                            .senderAccountId(sender.getId()))
-                    .persist();
+            persistAirdropForNft(token, sender, receiver);
 
             tokens.add(nftAddress);
             senders.add(getAddressFromEntity(sender));
@@ -176,13 +152,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
             tokenAccountPersist(token.getTokenId(), sender.getId());
             final var tokenAddress = toAddress(token.getTokenId()).toHexString();
 
-            domainBuilder
-                    .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
-                    .customize(t -> t.amount(DEFAULT_TOKEN_AIRDROP_AMOUNT.longValue())
-                            .tokenId(token.getTokenId())
-                            .receiverAccountId(receiver.getId())
-                            .senderAccountId(sender.getId()))
-                    .persist();
+            persistAirdropForFungibleToken(token, sender, receiver);
 
             tokens.add(tokenAddress);
             senders.add(getAddressFromEntity(sender));
@@ -199,13 +169,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
                     n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.toEntityId()));
             tokenAccountPersist(token.getTokenId(), sender.getId());
             final var nftAddress = toAddress(token.getTokenId()).toHexString();
-            domainBuilder
-                    .tokenAirdrop(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                    .customize(t -> t.serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
-                            .tokenId(token.getTokenId())
-                            .receiverAccountId(receiver.getId())
-                            .senderAccountId(sender.getId()))
-                    .persist();
+            persistAirdropForNft(token, sender, receiver);
 
             tokens.add(nftAddress);
             senders.add(getAddressFromEntity(sender));
@@ -349,13 +313,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
                 n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.toEntityId()));
         tokenAccountPersist(token.getTokenId(), sender.getId());
 
-        domainBuilder
-                .tokenAirdrop(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                .customize(t -> t.serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
-                        .tokenId(token.getTokenId())
-                        .receiverAccountId(receiver.getId())
-                        .senderAccountId(sender.getId()))
-                .persist();
+        persistAirdropForNft(token, sender, receiver);
 
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
 
