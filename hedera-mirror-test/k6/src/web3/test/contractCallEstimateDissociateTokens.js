@@ -9,6 +9,7 @@ const token = __ENV.FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS;
 const selector = '0x2390c1fa'; //dissociateTokensExternal
 const runMode = __ENV.RUN_WITH_VARIABLES;
 const testName = 'estimateDissociateTokens';
+//ABI encoded slot params that describe the token array parameters in the contract call data (Offset 64 bytes and Length 1)
 const data =
   '0000000000000000000000000000000000000000000000000000000000000040' +
   '0000000000000000000000000000000000000000000000000000000000000001';
