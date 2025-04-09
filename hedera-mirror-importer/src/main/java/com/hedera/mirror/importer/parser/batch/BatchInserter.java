@@ -15,7 +15,6 @@ import com.hedera.mirror.common.converter.ListToStringSerializer;
 import com.hedera.mirror.common.converter.RangeToStringSerializer;
 import com.hedera.mirror.importer.converter.ByteArrayArrayToHexSerializer;
 import com.hedera.mirror.importer.converter.ByteArrayToHexSerializer;
-import com.hedera.mirror.importer.converter.LongArrayArraySerializer;
 import com.hedera.mirror.importer.exception.ParserException;
 import com.hedera.mirror.importer.parser.CommonParserProperties;
 import io.micrometer.core.instrument.Counter;
@@ -73,7 +72,6 @@ public class BatchInserter implements BatchPersister {
         module.addSerializer(byte[].class, ByteArrayToHexSerializer.INSTANCE);
         module.addSerializer(EntityIdSerializer.INSTANCE);
         module.addSerializer(ListToStringSerializer.INSTANCE);
-        module.addSerializer(long[][].class, LongArrayArraySerializer.INSTANCE);
         module.addSerializer(RangeToStringSerializer.INSTANCE);
         mapper.registerModule(module);
         mapper.configure(CsvGenerator.Feature.ALWAYS_QUOTE_EMPTY_STRINGS, true);

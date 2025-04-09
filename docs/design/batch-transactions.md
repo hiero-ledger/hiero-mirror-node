@@ -19,7 +19,7 @@ This document details how the mirror node will be updated to support it.
 ```postgresql
 alter table if exists transaction
   add column if not exists batch_key          bytea      default null,
-  add column if not exists inner_transactions bigint[][] default null;
+  add column if not exists inner_transactions bigint[] default null;
 ```
 
 ### Importer
@@ -37,20 +37,15 @@ Update
 ```java
 public class Transaction {
   private byte[] batchKey;
-  private List<long[]> innerTransactions;
+  private List<Long> innerTransactions;
 
   public void addInnerTransaction(Transaction transaction) {
     if (innerTransactions == null) {
       innerTransactions = new ArrayList<>();
     }
 
-    innerTransactions.add(transaction.toInnerTransaction());
+    innerTransactions.add(transaction.getPayerAccountId().getId(), transaction.getValidStartNs());
   }
-
-  private long[] toInnerTransaction() {
-    return new long []{payerAccountId, validStartNs};
-  }
-
 }
 ```
 

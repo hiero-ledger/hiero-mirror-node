@@ -1413,11 +1413,8 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         sqlEntityListener.onTransaction(secondInner);
 
         completeFileAndCommit();
-        batchParent.setInnerTransactions(batchParent.getInnerTransactions());
 
-        assertThat(transactionRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("innerTransactionList")
-                .containsExactlyInAnyOrder(batchParent, firstInner, secondInner);
+        assertThat(transactionRepository.findAll()).containsExactlyInAnyOrder(batchParent, firstInner, secondInner);
     }
 
     @ParameterizedTest

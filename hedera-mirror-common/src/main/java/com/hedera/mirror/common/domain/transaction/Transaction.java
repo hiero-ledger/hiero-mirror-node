@@ -4,27 +4,24 @@ package com.hedera.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.hedera.mirror.common.converter.ListToStringSerializer;
 import com.hedera.mirror.common.converter.ObjectToStringSerializer;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.NftTransfer;
-import io.hypersistence.utils.hibernate.type.array.LongArrayType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
-import jakarta.persistence.Transient;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.ToString;
 import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.Type;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.domain.Persistable;
 
@@ -35,11 +32,7 @@ import org.springframework.data.domain.Persistable;
 @NoArgsConstructor
 public class Transaction implements Persistable<Long> {
 
-    @Transient
     @ToString.Exclude
-    @Getter(AccessLevel.NONE)
-    private List<long[]> innerTransactionList;
-
     private byte[] batchKey;
 
     @Id
@@ -55,8 +48,9 @@ public class Transaction implements Persistable<Long> {
 
     private Integer index;
 
-    @Type(value = LongArrayType.class)
-    private long[][] innerTransactions;
+    // Repeated sequence of payer_account_id, valid_start_ns
+    @JsonSerialize(using = ListToStringSerializer.class)
+    private List<Long> innerTransactions;
 
     private Long initialBalance;
 
@@ -136,21 +130,12 @@ public class Transaction implements Persistable<Long> {
             throw new IllegalStateException("Inner transactions can only be added to atomic batch transaction");
         }
 
-        if (innerTransactionList == null) {
-            innerTransactionList = new ArrayList<>();
+        if (innerTransactions == null) {
+            innerTransactions = new ArrayList<>();
         }
 
-        innerTransactionList.add(transaction.toInnerTransaction());
-    }
-
-    private long[] toInnerTransaction() {
-        return new long[] {payerAccountId.getId(), validStartNs};
-    }
-
-    public long[][] getInnerTransactions() {
-        return innerTransactionList == null || innerTransactionList.isEmpty()
-                ? innerTransactions
-                : innerTransactionList.toArray(long[][]::new);
+        innerTransactions.add(transaction.getPayerAccountId().getId());
+        innerTransactions.add(transaction.getValidStartNs());
     }
 
     public TransactionHash toTransactionHash() {

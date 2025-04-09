@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.NftTransfer;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompareMode;
@@ -109,10 +110,11 @@ class TransactionTest {
         var innerTransaction2 = domainBuilder.transaction().get();
         batchTransaction.addInnerTransaction(innerTransaction2);
 
-        var expectedInnerTransactions = new long[][] {
-            {innerTransaction.getPayerAccountId().getId(), innerTransaction.getValidStartNs()},
-            {innerTransaction2.getPayerAccountId().getId(), innerTransaction2.getValidStartNs()}
-        };
+        var expectedInnerTransactions = List.of(
+                innerTransaction.getPayerAccountId().getId(),
+                innerTransaction.getValidStartNs(),
+                innerTransaction2.getPayerAccountId().getId(),
+                innerTransaction2.getValidStartNs());
 
         assertThat(batchTransaction.getInnerTransactions()).isEqualTo(expectedInnerTransactions);
 
