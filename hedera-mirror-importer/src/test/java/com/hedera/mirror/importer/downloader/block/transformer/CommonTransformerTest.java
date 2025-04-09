@@ -3,16 +3,9 @@
 package com.hedera.mirror.importer.downloader.block.transformer;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
-import com.hedera.mirror.common.domain.transaction.BlockItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hedera.mirror.common.exception.ProtobufException;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.importer.parser.domain.RecordItemBuilder;
-import com.hederahashgraph.api.proto.java.SignedTransaction;
-import com.hederahashgraph.api.proto.java.Transaction;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
@@ -75,43 +68,6 @@ class CommonTransformerTest extends AbstractTransformerTest {
 
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
-    }
-
-    @Test
-    void corruptedTransactionBodyBytes() {
-        // given
-        var blockItem = BlockItem.builder()
-                .transaction(Transaction.newBuilder()
-                        .setSignedTransactionBytes(SignedTransaction.newBuilder()
-                                .setBodyBytes(DomainUtils.fromBytes(domainBuilder.bytes(512)))
-                                .build()
-                                .toByteString())
-                        .build())
-                .transactionResult(TransactionResult.newBuilder().build())
-                .transactionOutputs(Collections.emptyMap())
-                .stateChanges(Collections.emptyList())
-                .build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
-
-        // when, then
-        assertThatThrownBy(() -> blockFileTransformer.transform(blockFile)).isInstanceOf(ProtobufException.class);
-    }
-
-    @Test
-    void corruptedSignedTransactionBytes() {
-        // given
-        var blockItem = BlockItem.builder()
-                .transaction(Transaction.newBuilder()
-                        .setSignedTransactionBytes(DomainUtils.fromBytes(domainBuilder.bytes(256)))
-                        .build())
-                .transactionResult(TransactionResult.newBuilder().build())
-                .transactionOutputs(Collections.emptyMap())
-                .stateChanges(Collections.emptyList())
-                .build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
-
-        // when, then
-        assertThatThrownBy(() -> blockFileTransformer.transform(blockFile)).isInstanceOf(ProtobufException.class);
     }
 
     @Test

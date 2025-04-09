@@ -2,14 +2,17 @@
 
 package com.hedera.mirror.common.domain.transaction;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.mirror.common.domain.StreamItem;
+import com.hedera.mirror.common.exception.ProtobufException;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignatureMap;
+import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.List;
@@ -108,5 +111,37 @@ public class BlockItem implements StreamItem {
         return status == ResponseCodeEnum.FEE_SCHEDULE_FILE_PART_UPLOADED
                 || status == ResponseCodeEnum.SUCCESS
                 || status == ResponseCodeEnum.SUCCESS_BUT_MISSING_EXPECTED_OPERATION;
+    }
+
+    public static class BlockItemBuilder {
+        public BlockItem build() {
+            if (transactionBody == null || signatureMap == null) {
+                parseBody();
+            }
+            return new BlockItem(
+                    transaction,
+                    transactionResult,
+                    transactionOutputs,
+                    stateChanges,
+                    previous,
+                    transactionBody,
+                    signatureMap);
+        }
+
+        @SuppressWarnings("deprecation")
+        private void parseBody() {
+            try {
+                if (transaction.getSignedTransactionBytes().isEmpty()) {
+                    this.transactionBody(TransactionBody.parseFrom(transaction.getBodyBytes()))
+                            .signatureMap(transaction.getSigMap());
+                } else {
+                    var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
+                    this.transactionBody(TransactionBody.parseFrom(signedTransaction.getBodyBytes()))
+                            .signatureMap(signedTransaction.getSigMap());
+                }
+            } catch (InvalidProtocolBufferException e) {
+                throw new ProtobufException("Error parsing transaction body from transaction", e);
+            }
+        }
     }
 }

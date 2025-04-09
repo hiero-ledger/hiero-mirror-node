@@ -26,9 +26,7 @@ import com.hedera.mirror.importer.domain.StreamFileData;
 import com.hedera.mirror.importer.exception.InvalidStreamFileException;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
-import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -172,15 +170,10 @@ public class ProtoBlockFileReader implements BlockFileReader {
                     stateChangesList.add(stateChanges);
                 }
 
-                var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
-                var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
-
                 var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
                         .previous(context.getLastBlockItem())
-                        .signatureMap(signedTransaction.getSigMap())
                         .stateChanges(Collections.unmodifiableList(stateChangesList))
                         .transaction(transaction)
-                        .transactionBody(transactionBody)
                         .transactionResult(transactionResult)
                         .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
                         .build();
