@@ -93,6 +93,11 @@ public class NetworkInfoImpl implements NetworkInfo {
             }
 
             @Override
+            public boolean declineReward() {
+                return false;
+            }
+
+            @Override
             public String hexEncodedPublicKey() {
                 return "";
             }
