@@ -153,10 +153,10 @@ interface Entity implements Node {
 An incrementing identifier that is shared across all entity types and associated with a particular shard and realm.
 """
 type EntityId {
-    "The shard number to allow for horizontal scaling of networks. Currently always zero."
+    "The shard number to allow for horizontal scaling of networks."
     shard: Long!
 
-    "The realm number. Currently always zero."
+    "The realm number."
     realm: Long!
 
     "The unique incrementing identifier associated with this entity."

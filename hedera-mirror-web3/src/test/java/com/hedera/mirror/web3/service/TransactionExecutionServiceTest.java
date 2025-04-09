@@ -81,6 +81,7 @@ class TransactionExecutionServiceTest {
         var systemEntity = new SystemEntity(commonProperties);
         transactionExecutionService = new TransactionExecutionService(
                 aliasesReadableKVState,
+                commonProperties,
                 new MirrorNodeEvmProperties(commonProperties, systemEntity),
                 opcodeTracer,
                 mirrorOperationTracer,

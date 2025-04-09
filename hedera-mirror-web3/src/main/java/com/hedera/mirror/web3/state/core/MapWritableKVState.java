@@ -8,6 +8,7 @@ import jakarta.annotation.Nonnull;
 import java.util.Iterator;
 import java.util.Objects;
 
+@SuppressWarnings("deprecation")
 public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
 
     private final ReadableKVState<K, V> readableBackingStore;

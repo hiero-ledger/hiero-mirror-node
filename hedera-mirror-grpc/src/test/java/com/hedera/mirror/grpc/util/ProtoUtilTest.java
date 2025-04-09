@@ -86,11 +86,11 @@ class ProtoUtilTest {
 
     @Test
     void toAccountID() {
-        assertThat(ProtoUtil.toAccountID(EntityId.of(0L, 0L, 5L)))
+        assertThat(EntityId.of(0L, 0L, 5L).toAccountID())
                 .returns(0L, AccountID::getShardNum)
                 .returns(0L, AccountID::getRealmNum)
                 .returns(5L, AccountID::getAccountNum);
-        assertThat(ProtoUtil.toAccountID(EntityId.of(1L, 2L, 3L)))
+        assertThat(EntityId.of(1L, 2L, 3L).toAccountID())
                 .returns(1L, AccountID::getShardNum)
                 .returns(2L, AccountID::getRealmNum)
                 .returns(3L, AccountID::getAccountNum);

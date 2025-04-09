@@ -23,7 +23,9 @@ import com.hedera.mirror.web3.state.keyvalue.NftReadableKVState;
 import com.hedera.mirror.web3.state.keyvalue.TokenReadableKVState;
 import com.hedera.mirror.web3.state.keyvalue.TokenRelationshipReadableKVState;
 import com.hedera.mirror.web3.state.singleton.DefaultSingleton;
+import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.ids.EntityIdService;
+import com.hedera.node.app.metrics.StoreMetricsServiceImpl;
 import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.node.app.service.file.FileService;
 import com.hedera.node.app.service.token.TokenService;
@@ -103,6 +105,12 @@ class MirrorNodeStateTest {
 
     @Mock
     private RecordFileRepository recordFileRepository;
+
+    @Mock
+    private StoreMetricsServiceImpl storeMetricsService;
+
+    @Mock
+    private ConfigProviderImpl configProvider;
 
     private List<ReadableKVState> readableKVStates;
 
@@ -499,6 +507,8 @@ class MirrorNodeStateTest {
                 networkInfo,
                 startupNetworks,
                 mirrorNodeEvmProperties,
-                recordFileRepository);
+                recordFileRepository,
+                storeMetricsService,
+                configProvider);
     }
 }

@@ -166,6 +166,7 @@
         "admin_key": "122049cddef8b8e974b8c8862cb48bf80ffcb565b0edad096f78ba8a9ca39c43f7bc",
         "node_id": 1,
         "created_timestamp": 1664365660048674966,
+        "decline_reward": true,
         "deleted": false,
         "timestamp_range": "[0,)"
       }
@@ -180,6 +181,7 @@
           "_type": "ECDSA_SECP256K1",
           "key": "b5b1ce6a41a2c3c147ea7c183cbabca97c519cc257ac02b673043b0482fcabd0c4"
         },
+        "decline_reward": false,
         "description": "description",
         "file_id": "0.0.101",
         "max_stake": 2000,
@@ -214,6 +216,7 @@
           "_type": "ED25519",
           "key": "49cddef8b8e974b8c8862cb48bf80ffcb565b0edad096f78ba8a9ca39c43f7bc"
         },
+        "decline_reward": true,
         "description": "description",
         "file_id": "0.0.101",
         "max_stake": 2000,

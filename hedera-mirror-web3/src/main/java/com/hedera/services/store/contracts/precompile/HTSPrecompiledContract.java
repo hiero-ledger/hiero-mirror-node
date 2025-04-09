@@ -68,6 +68,7 @@ import org.hyperledger.besu.evm.frame.MessageFrame;
  * workaround to execute read only precompiles via calling ViewExecutor and RedirectViewExecutors, thus removing the
  * need of having separate precompile classes. 3. All stateful fields are extracted into {@link ContractCallContext} and the class is converted to a singleton bean
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class HTSPrecompiledContract extends EvmHTSPrecompiledContract {
 
     public static final TupleType redirectType = TupleType.parse("(int32,bytes)");

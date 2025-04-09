@@ -32,7 +32,7 @@ class NetworkNodeService extends BaseService {
         (select max(${NodeStake.CONSENSUS_TIMESTAMP}) from ${NodeStake.tableName})
     ),
     ${Node.tableAlias} as (
-      select ${Node.ADMIN_KEY}, ${Node.NODE_ID}
+      select ${Node.ADMIN_KEY}, ${Node.DECLINE_REWARD}, ${Node.NODE_ID}
       from ${Node.tableName}
     )
     select ${AddressBookEntry.getFullName(AddressBookEntry.DESCRIPTION)},
@@ -45,6 +45,7 @@ class NetworkNodeService extends BaseService {
       ${AddressBook.getFullName(AddressBook.START_CONSENSUS_TIMESTAMP)},
       ${AddressBook.getFullName(AddressBook.END_CONSENSUS_TIMESTAMP)},
       ${Node.getFullName(Node.ADMIN_KEY)},
+      ${Node.getFullName(Node.DECLINE_REWARD)},
       ${NodeStake.getFullName(NodeStake.MAX_STAKE)},
       ${NodeStake.getFullName(NodeStake.MIN_STAKE)},
       ${NodeStake.getFullName(NodeStake.REWARD_RATE)},

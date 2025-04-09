@@ -212,7 +212,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"network_identifier\": {{networkId}},\n    \"account_identifier\": {\n        \"address\": \"0.0.98\",\n        \"metadata\": {}\n    },\n    \"block_identifier\": {\n        \"index\": {{genesisIndex}}\n    }\n}",
+              "raw": "{\n    \"network_identifier\": {{networkId}},\n    \"account_identifier\": {\n        \"address\": \"{{shard}}.{{realm}}.98\",\n        \"metadata\": {}\n    },\n    \"block_identifier\": {\n        \"index\": {{genesisIndex}}\n    }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -430,6 +430,14 @@
       "key": "base_url",
       "value": "http://localhost:5700",
       "type": "string"
+    },
+    {
+      "key": "realm",
+      "value": "0"
+    },
+    {
+      "key": "shard",
+      "value": "0"
     }
   ],
   "protocolProfileBehavior": {}

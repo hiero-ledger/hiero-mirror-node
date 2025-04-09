@@ -28,6 +28,7 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.log.Log;
 import org.hyperledger.besu.evm.log.LogTopic;
 
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class EncodingFacade {
     public static final Bytes SUCCESS_RESULT = resultFrom(SUCCESS);
     private static final long[] NO_MINTED_SERIAL_NUMBERS = new long[0];
@@ -227,14 +228,14 @@ public class EncodingFacade {
                         case HAPI_CREATE -> Tuple.of(status, convertBesuAddressToHeadlongAddress(newTokenAddress));
                         case HAPI_MINT -> Tuple.of(status, BigInteger.valueOf(totalSupply), serialNumbers);
                         case HAPI_BURN -> Tuple.of(status, BigInteger.valueOf(totalSupply));
-                        case ERC_TRANSFER -> Tuple.of(ercFungibleTransferStatus);
-                        case ERC_APPROVE -> Tuple.of(approve);
+                        case ERC_TRANSFER -> Tuple.from(ercFungibleTransferStatus);
+                        case ERC_APPROVE -> Tuple.from(approve);
                         case HAPI_APPROVE -> Tuple.of(status, approve);
-                        case HAPI_APPROVE_NFT -> Tuple.of(status);
+                        case HAPI_APPROVE_NFT -> Tuple.from(status);
                         case HAPI_ALLOWANCE -> Tuple.of(status, BigInteger.valueOf(allowance));
                         case HAPI_GET_APPROVED -> Tuple.of(status, convertBesuAddressToHeadlongAddress(approved));
                         case HAPI_IS_APPROVED_FOR_ALL -> Tuple.of(status, isApprovedForAllStatus);
-                        default -> Tuple.of(status);
+                        default -> Tuple.from(status);
                     };
 
             return Bytes.wrap(tupleType.encode(result).array());
@@ -311,7 +312,7 @@ public class EncodingFacade {
             if (tupleTypes.length() > 1) {
                 tupleTypes.deleteCharAt(tupleTypes.length() - 1);
                 tupleTypes.append(")");
-                final var tuple = Tuple.of(data.toArray());
+                final var tuple = Tuple.from(data.toArray());
                 final var tupleType = TupleType.parse(tupleTypes.toString());
                 return new Log(logger, Bytes.wrap(tupleType.encode(tuple).array()), topics);
             } else {

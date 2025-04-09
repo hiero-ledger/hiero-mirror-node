@@ -4,10 +4,8 @@ package com.hedera.mirror.grpc.util;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.exception.InvalidEntityException;
 import com.hedera.mirror.grpc.exception.EntityNotFoundException;
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -34,14 +32,6 @@ public final class ProtoUtil {
         }
 
         return Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
-    }
-
-    public static AccountID toAccountID(EntityId entityId) {
-        return AccountID.newBuilder()
-                .setShardNum(entityId.getShard())
-                .setRealmNum(entityId.getRealm())
-                .setAccountNum(entityId.getNum())
-                .build();
     }
 
     public static ByteString toByteString(byte[] bytes) {

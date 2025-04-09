@@ -906,8 +906,7 @@ public class TokenClient extends AbstractNetworkClient {
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
-                false),
-        ;
+                false);
 
         private final String symbol;
         private final TokenType tokenType;

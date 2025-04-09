@@ -9,6 +9,7 @@ import com.hedera.node.app.workflows.standalone.TransactionExecutor;
 import com.hedera.node.app.workflows.standalone.TransactionExecutors;
 import com.hedera.node.app.workflows.standalone.TransactionExecutors.Properties;
 import com.swirlds.state.State;
+import com.swirlds.state.lifecycle.EntityIdFactory;
 import jakarta.inject.Named;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,6 +25,7 @@ public class TransactionExecutorFactory {
     private final State mirrorNodeState;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
     private final Map<SemanticVersion, TransactionExecutor> transactionExecutors = new ConcurrentHashMap<>();
+    private final EntityIdFactory entityIdFactory;
 
     // Reuse TransactionExecutor across requests for the same EVM version
     public TransactionExecutor get() {
@@ -41,6 +43,6 @@ public class TransactionExecutorFactory {
                 .state(mirrorNodeState)
                 .build();
 
-        return TransactionExecutors.TRANSACTION_EXECUTORS.newExecutor(executorConfig);
+        return TransactionExecutors.TRANSACTION_EXECUTORS.newExecutor(executorConfig, entityIdFactory);
     }
 }

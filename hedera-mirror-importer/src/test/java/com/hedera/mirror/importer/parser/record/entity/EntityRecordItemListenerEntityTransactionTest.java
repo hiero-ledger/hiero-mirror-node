@@ -6,7 +6,7 @@ import static com.hederahashgraph.api.proto.java.TransactionRecord.BodyCase.CONT
 import static com.hederahashgraph.api.proto.java.TransactionRecord.BodyCase.CONTRACTCREATERESULT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.GeneratedMessage;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityTransaction;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
@@ -124,7 +124,7 @@ class EntityRecordItemListenerEntityTransactionTest extends AbstractEntityRecord
         return entities;
     }
 
-    private Set<EntityId> getEntities(GeneratedMessageV3 message, boolean includeTransfers) {
+    private Set<EntityId> getEntities(GeneratedMessage message, boolean includeTransfers) {
         if (message instanceof SchedulableTransactionBody) {
             // Don't include any entities in a  SchedulableTransactionBody
             return Collections.emptySet();
@@ -152,7 +152,7 @@ class EntityRecordItemListenerEntityTransactionTest extends AbstractEntityRecord
             entities.add(EntityId.of(tokenId));
         } else if (value instanceof TopicID topicId) {
             entities.add(EntityId.of(topicId));
-        } else if (value instanceof GeneratedMessageV3 message) {
+        } else if (value instanceof GeneratedMessage message) {
             if (!includeTransfers && (value instanceof TransferList || value instanceof TokenTransferList)) {
                 return Collections.emptySet();
             }

@@ -87,7 +87,7 @@ const getSuccessfulTransactionConsensusTimestamp = async (transactionId, nonce, 
  */
 const getRCDFileInfoByConsensusTimestamp = async (consensusTimestamp) => {
   const upperBound = consensusTimestamp + config.query.maxRecordFileCloseIntervalNs;
-  const {rows} = await pool.queryQuietly(recordFileQuery, [consensusTimestamp, upperBound]);
+  const {rows} = await primaryPool.queryQuietly(recordFileQuery, [consensusTimestamp, upperBound]);
   if (_.isEmpty(rows)) {
     throw new NotFoundError(`No matching RCD file found with ${consensusTimestamp} in the range`);
   }
@@ -116,7 +116,7 @@ const getAddressBooksAndNodeAccountIdsByConsensusTimestamp = async (consensusTim
     sqlQuery += ` desc limit 1`;
   }
 
-  const {rows} = await pool.queryQuietly(sqlQuery, consensusTimestamp);
+  const {rows} = await primaryPool.queryQuietly(sqlQuery, consensusTimestamp);
   if (_.isEmpty(rows)) {
     throw new NotFoundError('No address book found');
   }

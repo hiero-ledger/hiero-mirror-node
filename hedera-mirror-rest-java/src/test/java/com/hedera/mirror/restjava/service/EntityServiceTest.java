@@ -29,14 +29,6 @@ class EntityServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void findByIdInvalidShard() {
-        var id = EntityId.of(1L, 2L, 3L);
-        assertThatThrownBy(() -> service.findById(id))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("ID " + id + " has an invalid shard. Shard must be 0");
-    }
-
-    @Test
     void findByIdNotFound() {
         var id = EntityId.of(3L);
         assertThatThrownBy(() -> service.findById(id)).isInstanceOf(EntityNotFoundException.class);
@@ -68,20 +60,5 @@ class EntityServiceTest extends RestJavaIntegrationTest {
     void lookupNotFound(String id) {
         var entityIdParameter = EntityIdParameter.valueOf(id);
         assertThatThrownBy(() -> service.lookup(entityIdParameter)).isInstanceOf(EntityNotFoundException.class);
-    }
-
-    @ParameterizedTest
-    @ValueSource(
-            strings = {
-                "0.1.5000",
-                "1.0.5000",
-                "0.1.000000000000000000000000000000000186Fb1b",
-                "1.0.000000000000000000000000000000000186Fb1b",
-                "0.1.AABBCC22",
-                "1.0.AABBCC22",
-            })
-    void lookupInvalidShardRealm(String id) {
-        var entityIdParameter = EntityIdParameter.valueOf(id);
-        assertThatThrownBy(() -> service.lookup(entityIdParameter)).isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -5,13 +5,15 @@ package com.hedera.mirror.web3.state.components;
 import static java.util.Objects.requireNonNull;
 
 import com.hedera.hapi.block.stream.output.StateChanges.Builder;
-import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.mirror.web3.state.MirrorNodeState;
+import com.hedera.node.app.config.ConfigProviderImpl;
+import com.hedera.node.app.metrics.StoreMetricsServiceImpl;
 import com.hedera.node.app.services.ServiceMigrator;
 import com.hedera.node.app.services.ServicesRegistry;
 import com.hedera.node.config.data.HederaConfig;
 import com.swirlds.config.api.Configuration;
 import com.swirlds.metrics.api.Metrics;
+import com.swirlds.platform.state.service.PlatformStateFacade;
 import com.swirlds.platform.system.SoftwareVersion;
 import com.swirlds.state.State;
 import com.swirlds.state.lifecycle.StartupNetworks;
@@ -38,7 +40,10 @@ public class ServiceMigratorImpl implements ServiceMigrator {
             @Nonnull Configuration platformConfig,
             @Nullable NetworkInfo genesisNetworkInfo,
             @Nonnull Metrics metrics,
-            @Nonnull StartupNetworks startupNetworks) {
+            @Nonnull StartupNetworks startupNetworks,
+            @Nonnull StoreMetricsServiceImpl storeMetricsService,
+            @Nonnull ConfigProviderImpl configProvider,
+            @Nonnull PlatformStateFacade platformStateFacade) {
         requireNonNull(state);
         requireNonNull(servicesRegistry);
         requireNonNull(currentVersion);
@@ -78,14 +83,5 @@ public class ServiceMigratorImpl implements ServiceMigrator {
                     startupNetworks);
         });
         return List.of();
-    }
-
-    @Nullable
-    @Override
-    public SemanticVersion creationVersionOf(@Nonnull State state) {
-        if (!(state instanceof MirrorNodeState)) {
-            throw new IllegalArgumentException("Can only be used with MirrorNodeState instances");
-        }
-        return null;
     }
 }

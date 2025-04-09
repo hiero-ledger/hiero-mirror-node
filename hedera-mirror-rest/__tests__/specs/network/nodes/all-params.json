@@ -169,6 +169,7 @@
     "nodes": [
       {
         "admin_key": null,
+        "decline_reward": false,
         "description": "description",
         "file_id": "0.0.102",
         "max_stake": null,

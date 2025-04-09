@@ -51,13 +51,13 @@ class NodeCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         assertThat(transaction.getTransactionBytes()).containsExactly(transactionBytes);
         assertThat(transaction.getTransactionRecordBytes()).containsExactly(transactionRecordBytes);
 
-        var adminKey =
-                recordItem.getTransactionBody().getNodeCreate().getAdminKey().toByteArray();
+        var nodeCreate = recordItem.getTransactionBody().getNodeCreate();
         verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
                 .isNotNull()
                 .returns(recordItem.getConsensusTimestamp(), Node::getCreatedTimestamp)
                 .returns(recordItem.getTransactionRecord().getReceipt().getNodeId(), Node::getNodeId)
-                .returns(adminKey, Node::getAdminKey)
+                .returns(nodeCreate.getAdminKey().toByteArray(), Node::getAdminKey)
+                .returns(nodeCreate.getDeclineReward(), Node::getDeclineReward)
                 .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
                 .returns(false, Node::isDeleted)));
     }

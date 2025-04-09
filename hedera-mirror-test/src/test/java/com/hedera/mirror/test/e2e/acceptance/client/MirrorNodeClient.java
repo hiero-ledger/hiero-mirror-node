@@ -36,6 +36,8 @@ import com.hedera.mirror.rest.model.TokenInfo;
 import com.hedera.mirror.rest.model.TokenRelationshipResponse;
 import com.hedera.mirror.rest.model.TokensResponse;
 import com.hedera.mirror.rest.model.Topic;
+import com.hedera.mirror.rest.model.TopicMessage;
+import com.hedera.mirror.rest.model.TopicMessagesResponse;
 import com.hedera.mirror.rest.model.TransactionByIdResponse;
 import com.hedera.mirror.rest.model.TransactionsResponse;
 import com.hedera.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
@@ -266,10 +268,8 @@ public class MirrorNodeClient {
     }
 
     public ContractCallResponse contractsCall(ContractCallRequest request) {
-        Map<String, String> headers = Collections.emptyMap();
-        if (web3Properties.isModularizedServices()) {
-            headers = Collections.singletonMap("Is-Modularized", "true");
-        }
+        Map<String, String> headers =
+                Collections.singletonMap("Is-Modularized", String.valueOf(web3Properties.isModularizedServices()));
         return callPostRestEndpoint("/contracts/call", ContractCallResponse.class, request, headers);
     }
 
@@ -335,6 +335,15 @@ public class MirrorNodeClient {
 
     public Topic getTopic(String topicId) {
         return callRestJavaEndpoint("/topics/{topicId}", Topic.class, topicId);
+    }
+
+    public TopicMessagesResponse getTopicMessage(String topicId) {
+        return callRestEndpoint("/topics/{topicId}/messages", TopicMessagesResponse.class, topicId);
+    }
+
+    public TopicMessage getTopicMessageBySequenceNumber(String topicId, String sequenceNumber) {
+        return callRestEndpoint(
+                "/topics/{topicId}/messages/{sequenceNumber}", TopicMessage.class, topicId, sequenceNumber);
     }
 
     public TransactionsResponse getTransactionInfoByTimestamp(String timestamp) {

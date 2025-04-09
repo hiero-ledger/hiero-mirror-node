@@ -538,8 +538,8 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             boolean freezeDefault,
             List<TokenKey> tokenKeys) {
         final var autoRenewAccount =
-                accountEntityWithEvmAddressPersist(); // the account that is going to be charged for token renewal upon
-        // expiration
+                accountEntityWithEvmAddressPersist(); // the account that is going to be charged for
+        // token renewal upon expiration
         final var tokenEntity = domainBuilder
                 .entity()
                 .customize(e -> e.type(EntityType.TOKEN).autoRenewAccountId(autoRenewAccount.getId()))

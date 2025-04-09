@@ -53,36 +53,6 @@ class WritableKVStateBaseTest {
     }
 
     @Test
-    void testGetForModifyFromModificationsCache() {
-        final var accountID = mock(AccountID.class);
-        final var account = mock(Account.class);
-        final WritableKVStateBase<AccountID, Account> writableKVStateBase =
-                new MapWritableKVState<>(AccountReadableKVState.KEY, readableKVStateBase);
-        ContractCallContext.get().getWriteCacheState(AccountReadableKVState.KEY).put(accountID, account);
-        assertThat(writableKVStateBase.getForModify(accountID)).isEqualTo(account);
-    }
-
-    @Test
-    void testGetForModifyFromReadCache() {
-        final var accountID = mock(AccountID.class);
-        final var account = mock(Account.class);
-        final WritableKVStateBase<AccountID, Account> writableKVStateBase =
-                new MapWritableKVState<>(AccountReadableKVState.KEY, readableKVStateBase);
-        ContractCallContext.get().getReadCacheState(AccountReadableKVState.KEY).put(accountID, account);
-        assertThat(writableKVStateBase.getForModify(accountID)).isEqualTo(account);
-    }
-
-    @Test
-    void testGetForModifyFromDataSource() {
-        final var accountID = mock(AccountID.class);
-        final var account = mock(Account.class);
-        final WritableKVStateBase<AccountID, Account> writableKVStateBase =
-                new MapWritableKVState<>(AccountReadableKVState.KEY, readableKVStateBase);
-        when(readableKVStateBase.get(accountID)).thenReturn(account);
-        assertThat(writableKVStateBase.getForModify(accountID)).isEqualTo(account);
-    }
-
-    @Test
     void testSizeWithRemovedEntry() {
         final var ctx = ContractCallContext.get();
         final var accountID = mock(AccountID.class);

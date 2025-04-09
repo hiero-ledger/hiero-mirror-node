@@ -12,8 +12,15 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder(toBuilder = true)
 public abstract class AbstractFee {
 
+    /**
+     * When true, fee collectors do not pay the fixed fee if they are involved in a transaction.
+     * When false, fee collectors must still pay the fixed fee, just like any other account.
+     */
     private boolean allCollectorsAreExempt;
 
+    /**
+     * The id of the account collecting the fee.
+     */
     private EntityId collectorAccountId;
 
     public abstract boolean isChargedInToken(EntityId tokenId);

@@ -28,18 +28,19 @@ class NodeCreateTransactionHandler extends AbstractNodeTransactionHandler {
     }
 
     public Node parseNode(RecordItem recordItem) {
-        if (recordItem.isSuccessful()) {
-            var nodeCreate = recordItem.getTransactionBody().getNodeCreate();
-            long consensusTimestamp = recordItem.getConsensusTimestamp();
-            return Node.builder()
-                    .adminKey(nodeCreate.getAdminKey().toByteArray())
-                    .createdTimestamp(consensusTimestamp)
-                    .deleted(false)
-                    .nodeId(recordItem.getTransactionRecord().getReceipt().getNodeId())
-                    .timestampRange(Range.atLeast(consensusTimestamp))
-                    .build();
+        if (!recordItem.isSuccessful()) {
+            return null;
         }
 
-        return null;
+        var nodeCreate = recordItem.getTransactionBody().getNodeCreate();
+        long consensusTimestamp = recordItem.getConsensusTimestamp();
+        return Node.builder()
+                .adminKey(nodeCreate.getAdminKey().toByteArray())
+                .createdTimestamp(consensusTimestamp)
+                .declineReward(nodeCreate.getDeclineReward())
+                .deleted(false)
+                .nodeId(recordItem.getTransactionRecord().getReceipt().getNodeId())
+                .timestampRange(Range.atLeast(consensusTimestamp))
+                .build();
     }
 }

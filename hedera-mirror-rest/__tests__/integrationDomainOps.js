@@ -1062,6 +1062,7 @@ const contractStateDefaults = {
 const nodeDefaults = {
   admin_key: 'OiG1sc5qQaLDwUfqfBg8urypfFGcwlesArZzBDsEgvyr0MQ',
   created_timestamp: 1664365660048674966,
+  decline_reward: false,
   deleted: false,
   node_id: 0,
   timestamp_range: '[0,)',

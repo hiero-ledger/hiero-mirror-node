@@ -11,9 +11,11 @@ import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.state.core.MapWritableStates;
 import com.hedera.mirror.web3.state.singleton.DefaultSingleton;
 import com.hedera.mirror.web3.state.singleton.SingletonState;
+import com.hedera.node.app.ids.AppEntityIdFactory;
 import com.hedera.node.app.state.merkle.SchemaApplications;
 import com.swirlds.config.api.Configuration;
 import com.swirlds.config.api.ConfigurationBuilder;
+import com.swirlds.state.lifecycle.EntityIdFactory;
 import com.swirlds.state.lifecycle.MigrationContext;
 import com.swirlds.state.lifecycle.Schema;
 import com.swirlds.state.lifecycle.SchemaRegistry;
@@ -23,6 +25,7 @@ import com.swirlds.state.spi.FilteredReadableStates;
 import com.swirlds.state.spi.FilteredWritableStates;
 import com.swirlds.state.spi.ReadableStates;
 import com.swirlds.state.spi.WritableStates;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.Collection;
@@ -122,7 +125,8 @@ public class SchemaRegistryImpl implements SchemaRegistry {
                     networkInfo,
                     nextEntityNum,
                     sharedValues,
-                    startupNetworks);
+                    startupNetworks,
+                    new AppEntityIdFactory(appConfig));
             if (applications.contains(MIGRATION)) {
                 schema.migrate(context);
             }
@@ -148,7 +152,8 @@ public class SchemaRegistryImpl implements SchemaRegistry {
             @Nonnull final NetworkInfo networkInfo,
             @Nonnull final AtomicLong nextEntityNum,
             @Nonnull final Map<String, Object> sharedValues,
-            @Nonnull final StartupNetworks startupNetworks) {
+            @Nonnull final StartupNetworks startupNetworks,
+            @Nonnull final EntityIdFactory entityIdFactory) {
         return new MigrationContext() {
             @Override
             public void copyAndReleaseOnDiskState(String stateKey) {
@@ -164,6 +169,12 @@ public class SchemaRegistryImpl implements SchemaRegistry {
             @Override
             public StartupNetworks startupNetworks() {
                 return startupNetworks;
+            }
+
+            @NonNull
+            @Override
+            public EntityIdFactory entityIdFactory() {
+                return entityIdFactory;
             }
 
             @Override

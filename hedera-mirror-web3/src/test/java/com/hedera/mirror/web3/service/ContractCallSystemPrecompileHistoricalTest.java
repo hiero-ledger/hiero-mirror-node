@@ -16,7 +16,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 public class ContractCallSystemPrecompileHistoricalTest extends AbstractContractCallServiceTest {
 
     @ParameterizedTest
-    @CsvSource({"200", "150", "100", "50", "49"})
+    @CsvSource({"250", "200", "150", "100", "50", "49"})
     void exchangeRatePrecompileTinycentsToTinybars(long blockNumber) throws Exception {
         // Given
         final var recordFile =
@@ -33,7 +33,7 @@ public class ContractCallSystemPrecompileHistoricalTest extends AbstractContract
     }
 
     @ParameterizedTest
-    @CsvSource({"200", "150", "100", "50", "49"})
+    @CsvSource({"250", "200", "150", "100", "50", "49"})
     void exchangeRatePrecompileTinybarsToTinycents(long blockNumber) throws Exception {
         // Given
         final var recordFile =
@@ -50,7 +50,7 @@ public class ContractCallSystemPrecompileHistoricalTest extends AbstractContract
     }
 
     @ParameterizedTest
-    @CsvSource({"200", "150", "100", "50", "49"})
+    @CsvSource({"250", "200", "150", "100", "50", "49"})
     void pseudoRandomGeneratorPrecompileFunctionsTestEthCallHistorical(long blockNumber) throws Exception {
         // Given
         final var recordFile =

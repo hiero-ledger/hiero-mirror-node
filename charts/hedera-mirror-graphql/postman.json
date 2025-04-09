@@ -36,7 +36,7 @@
             "body": {
               "mode": "graphql",
               "graphql": {
-                "query": "{\n  account(input: {\n    entityId: {\n    shard: 0, realm: 0, num: 12345}}) {\n    alais\n    autoRenewPeriod\n    autoRenewAccount {\n        alias\n        deleted\n        entityId {\n            shard\n            realm\n            num\n        }\n        createdTimestamp\n    }\n    \n  }\n}",
+                "query": "{\n  account(input: {\n    entityId: {\n    shard: {{shard}}, realm: {{realm}}, num: 12345}}) {\n    alais\n    autoRenewPeriod\n    autoRenewAccount {\n        alias\n        deleted\n        entityId {\n            shard\n            realm\n            num\n        }\n        createdTimestamp\n    }\n    \n  }\n}",
                 "variables": ""
               }
             },
@@ -96,7 +96,7 @@
         "body": {
           "mode": "graphql",
           "graphql": {
-            "query": "{\n  account(input: {\n    entityId: {\n    shard: 0, realm: 0, num: {{default_account}}}}) {\n    alias\n    autoRenewAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    autoRenewPeriod\n    balance\n    createdTimestamp\n    declineReward\n    deleted\n    entityId {\n            shard\n            realm\n            num\n        }\n    expirationTimestamp\n    id\n    key\n    maxAutomaticTokenAssociations\n    memo\n    nonce\n    obtainer {\n        entityId {\n                shard\n                realm\n                num\n        }\n    }\n    pendingReward\n    receiverSigRequired\n    stakedAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    stakePeriodStart\n    timestamp {\n        from\n        to\n    }\n    type\n  }\n}",
+            "query": "{\n  account(input: {\n    entityId: {\n    shard: {{shard}}, realm: {{realm}}, num: {{default_account}}}}) {\n    alias\n    autoRenewAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    autoRenewPeriod\n    balance\n    createdTimestamp\n    declineReward\n    deleted\n    entityId {\n            shard\n            realm\n            num\n        }\n    expirationTimestamp\n    id\n    key\n    maxAutomaticTokenAssociations\n    memo\n    nonce\n    obtainer {\n        entityId {\n                shard\n                realm\n                num\n        }\n    }\n    pendingReward\n    receiverSigRequired\n    stakedAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    stakePeriodStart\n    timestamp {\n        from\n        to\n    }\n    type\n  }\n}",
             "variables": ""
           }
         },
@@ -259,6 +259,14 @@
     {
       "key": "default_alias",
       "value": ""
+    },
+    {
+      "key": "shard",
+      "value": "0"
+    },
+    {
+      "key": "realm",
+      "value": "0"
     }
   ]
 }

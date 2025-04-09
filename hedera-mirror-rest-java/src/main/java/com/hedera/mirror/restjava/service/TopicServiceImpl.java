@@ -15,12 +15,9 @@ import lombok.RequiredArgsConstructor;
 public class TopicServiceImpl implements TopicService {
 
     private final TopicRepository topicRepository;
-    private final Validator validator;
 
     @Override
     public Topic findById(@Nonnull EntityId id) {
-        validator.validateShard(id, id.getShard());
-
         return topicRepository
                 .findById(id.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Entity not found: " + id));

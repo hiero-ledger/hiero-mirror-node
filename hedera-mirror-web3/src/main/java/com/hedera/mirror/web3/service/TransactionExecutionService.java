@@ -17,6 +17,7 @@ import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.web3.common.ContractCallContext;
@@ -49,6 +50,7 @@ public class TransactionExecutionService {
     private static final long CONTRACT_CREATE_TX_FEE = 100_000_000L;
 
     private final AliasesReadableKVState aliasesReadableKVState;
+    private final CommonProperties commonProperties;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
     private final OpcodeTracer opcodeTracer;
     private final MirrorOperationTracer mirrorOperationTracer;
@@ -164,6 +166,8 @@ public class TransactionExecutionService {
         return defaultTransactionBodyBuilder(params)
                 .contractCall(ContractCallTransactionBody.newBuilder()
                         .contractID(ContractID.newBuilder()
+                                .shardNum(commonProperties.getShard())
+                                .realmNum(commonProperties.getRealm())
                                 .evmAddress(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
                                         params.getReceiver().toArrayUnsafe()))
                                 .build())

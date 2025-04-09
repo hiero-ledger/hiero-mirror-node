@@ -38,7 +38,6 @@ public class BlockFileBuilder {
                 .blockHeader(BlockHeader.newBuilder()
                         .setFirstTransactionConsensusTime(firstConsensusTimestamp)
                         .setNumber(blockNumber)
-                        .setPreviousBlockHash(DomainUtils.fromBytes(previousHash))
                         .setHapiProtoVersion(SemanticVersion.newBuilder().setMinor(57))
                         .setSoftwareVersion(SemanticVersion.newBuilder().setMinor(57))
                         .build())

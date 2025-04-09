@@ -394,8 +394,8 @@ class AllowancesControllerTest extends ControllerTest {
         @ParameterizedTest
         @ValueSource(
                 strings = {
-                    "0.0x000000000000000000000000000000000186Fb1b",
-                    "0.0.0x000000000000000000000000000000000186Fb1b",
+                    "0.000000000000000000000000000000000186Fb1b",
+                    "0.0.000000000000000000000000000000000186Fb1b",
                     "0x000000000000000000000000000000000186Fb1b",
                     "0.0.AABBCC22",
                     "0.AABBCC22",

@@ -5,11 +5,8 @@ package com.hedera.mirror.web3.service;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.EMPTY_UNTRIMMED_ADDRESS;
-import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.NEW_ECDSA_KEY;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ZERO_VALUE;
-import static com.hedera.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
-import static com.hedera.mirror.web3.utils.ContractCallTestUtil.longValueOf;
 import static com.hedera.services.utils.EntityIdUtils.asHexedEvmAddress;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -38,7 +35,6 @@ import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TokenKey;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TokenTransferList;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TransferList;
-import com.hedera.mirror.web3.web3j.generated.PrecompileTestContract;
 import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
 import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
@@ -53,8 +49,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.web3j.protocol.core.RemoteFunctionCall;
-import org.web3j.tx.Contract;
 
 class ContractCallServicePrecompileModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
 
@@ -702,109 +696,6 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     }
 
     @Test
-    void updateCustomFeesForTokenWithFixedFee() throws Exception {
-        final var backupModularizedValue = mirrorNodeEvmProperties.isModularizedServices();
-        final var backupProperties = mirrorNodeEvmProperties.getProperties();
-
-        try {
-            activateModularizedFlagAndInitializeState();
-            final var collectorAccount = accountEntityWithEvmAddressPersist();
-            final var treasuryAccount = accountEntityWithEvmAddressPersist();
-            final var token = fungibleTokenPersistWithTreasuryAccount(treasuryAccount.toEntityId());
-            final var tokenId = token.getTokenId();
-
-            final var fixedFee = fixedFeePersist(token, collectorAccount, 100L);
-
-            tokenAllowancePersistCustomizable(ta -> ta.tokenId(tokenId)
-                    .spender(collectorAccount.getId())
-                    .amount(fixedFee.getAmount())
-                    .owner(treasuryAccount.getId()));
-
-            final var precompileTestContract = testWeb3jService.deploy(PrecompileTestContract::deploy);
-
-            final var getTokenCustomFeesFunctionCall = precompileTestContract.call_getCustomFeesForToken(
-                    toAddress(tokenId).toHexString());
-
-            final var expectedFee = new PrecompileTestContract.FixedFee(
-                    BigInteger.valueOf(100L),
-                    toAddress(tokenId).toHexString(),
-                    false,
-                    false,
-                    Address.fromHexString(
-                                    Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
-                            .toHexString());
-
-            var getTokenCustomFeesFunctionCallResult = getTokenCustomFeesFunctionCall.send();
-
-            assertThat(getTokenCustomFeesFunctionCallResult.component1().getFirst())
-                    .isEqualTo(expectedFee);
-
-            verifyEthCallAndEstimateGas(getTokenCustomFeesFunctionCall, precompileTestContract, ZERO_VALUE);
-
-            tokenAccountPersist(tokenId, collectorAccount.getId());
-
-            final var modificationPrecompileTestContract =
-                    testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
-
-            final var newFee = new ModificationPrecompileTestContract.FixedFee(
-                    BigInteger.valueOf(110L),
-                    toAddress(tokenId).toHexString(),
-                    false,
-                    false,
-                    Address.fromHexString(
-                                    Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
-                            .toHexString());
-
-            final var updateCustomFeeFunctionCall =
-                    modificationPrecompileTestContract.call_updateFungibleTokenCustomFeesAndGetExternal(
-                            toAddress(tokenId).toHexString(), List.of(newFee), List.of(), List.of());
-
-            var updateCustomFeeFunctionCallResult = updateCustomFeeFunctionCall.send();
-
-            assertThat(updateCustomFeeFunctionCallResult.component1().getFirst().amount)
-                    .isEqualTo(newFee.amount);
-            verifyEthCallAndEstimateGas(updateCustomFeeFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
-        } finally {
-            mirrorNodeEvmProperties.setModularizedServices(backupModularizedValue);
-            mirrorNodeEvmProperties.setProperties(backupProperties);
-        }
-    }
-
-    @Test
-    void createNonFungibleToken() throws Exception {
-        // Given
-        var value = 10000L * 100_000_000L;
-        final var sender = accountEntityPersist();
-
-        accountBalanceRecordsPersist(sender);
-
-        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
-
-        testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
-
-        final var treasuryAccount = accountEntityPersist();
-        final var token = populateHederaToken(
-                contract.getContractAddress(), TokenTypeEnum.NON_FUNGIBLE_UNIQUE, treasuryAccount.toEntityId());
-
-        // When
-        testWeb3jService.setValue(value);
-        final var functionCall = contract.call_createNonFungibleTokenExternal(token);
-        final var result = functionCall.send();
-
-        final var contractFunctionProvider = ContractFunctionProviderRecord.builder()
-                .contractAddress(Address.fromHexString(contract.getContractAddress()))
-                .sender(toAddress(sender.toEntityId()))
-                .value(value)
-                .build();
-
-        // Then
-        assertThat(result.component2()).isNotEqualTo(Address.ZERO.toHexString());
-
-        verifyEthCallAndEstimateGas(functionCall, contract, value);
-        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
-    }
-
-    @Test
     void createNonFungibleTokenWithCustomFees() throws Exception {
         // Given
         var value = 10000L * 100_000_000L;
@@ -851,6 +742,40 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 .sender(toAddress(sender.toEntityId()))
                 .value(value)
                 .build();
+        // Then
+        assertThat(result.component2()).isNotEqualTo(Address.ZERO.toHexString());
+
+        verifyEthCallAndEstimateGas(functionCall, contract, value);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
+    }
+
+    @Test
+    void createNonFungibleToken() throws Exception {
+        // Given
+        var value = 10000L * 100_000_000L;
+        final var sender = accountEntityPersist();
+
+        accountBalanceRecordsPersist(sender);
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
+
+        final var treasuryAccount = accountEntityPersist();
+        final var token = populateHederaToken(
+                contract.getContractAddress(), TokenTypeEnum.NON_FUNGIBLE_UNIQUE, treasuryAccount.toEntityId());
+
+        // When
+        testWeb3jService.setValue(value);
+        final var functionCall = contract.call_createNonFungibleTokenExternal(token);
+        final var result = functionCall.send();
+
+        final var contractFunctionProvider = ContractFunctionProviderRecord.builder()
+                .contractAddress(Address.fromHexString(contract.getContractAddress()))
+                .sender(toAddress(sender.toEntityId()))
+                .value(value)
+                .build();
+
         // Then
         assertThat(result.component2()).isNotEqualTo(Address.ZERO.toHexString());
 
@@ -1464,24 +1389,6 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
-    }
-
-    private void verifyEthCallAndEstimateGas(
-            final RemoteFunctionCall<?> functionCall, final Contract contract, final Long value) throws Exception {
-        // Given
-        testWeb3jService.setEstimateGas(true);
-        functionCall.send();
-
-        final var estimateGasUsedResult = longValueOf.applyAsLong(testWeb3jService.getEstimatedGas());
-
-        // When
-        final var actualGasUsed = gasUsedAfterExecution(getContractExecutionParameters(functionCall, contract, value));
-
-        // Then
-        assertThat(isWithinExpectedGasRange(estimateGasUsedResult, actualGasUsed))
-                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimateGasUsedResult, actualGasUsed)
-                .isTrue();
-        testWeb3jService.setEstimateGas(false);
     }
 
     private HederaToken populateHederaToken(
