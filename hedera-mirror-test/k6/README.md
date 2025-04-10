@@ -119,7 +119,7 @@ The following parameters can be used to configure a rosetta test:
 The following parameters can be used to configure a web3 test:
 
 | Name                                                      | Default | Description                                                                                                                                                                       |
-|-----------------------------------------------------------| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| --------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ACCOUNT_ADDRESS                                           |         | 64 character hex encoded account address without `0x` prefix                                                                                                                      |
 | AMOUNT                                                    |         | 64 character hex encoded amount without `0x` prefix                                                                                                                               |
 | ASSOCIATED_ACCOUNT                                        |         | 64 character hex encoded account evm address without `0x` prefix - associated to TOKEN_ADDRESS and NON_FUNGIBLE_TOKEN_ADDRESS                                                     |
