@@ -19,11 +19,11 @@ import org.junit.jupiter.api.Test;
 
 class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServiceTest {
 
-    public static final int TOKEN_REJECT_LIMIT = 11;
+    public static final int TOKEN_REJECT_FAILURE_THRESHOLD = 11;
 
     @Test
     @DisplayName("Reject fungible token")
-    void fungibleTokenRejectSystemContract() {
+    void tokenRejectSystemContractFungible() {
         // Given
         final var contract = testWeb3jService.deploy(TokenReject::deploy);
         final var sender = accountEntityPersist();
@@ -47,7 +47,7 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
 
     @Test
     @DisplayName("Reject non-fungible token")
-    void nonFungibleTokenRejectSystemContract() {
+    void tokenRejectSystemContractNonFungible() {
         // Given
         final var contract = testWeb3jService.deploy(TokenReject::deploy);
         final var sender = accountEntityPersist();
@@ -112,7 +112,7 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
         final var treasury = accountEntityPersist().toEntityId();
 
         var nonFungibleTokenAddresses = new ArrayList<String>();
-        for (int i = 0; i < TOKEN_REJECT_LIMIT; i++) {
+        for (int i = 0; i < TOKEN_REJECT_FAILURE_THRESHOLD; i++) {
 
             final var tokenId = nonFungibleTokenSetup(treasury, sender);
             final var tokenAddress = toAddress(tokenId).toHexString();
@@ -135,14 +135,14 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
 
     @Test
     @DisplayName("Fails to reject multiple fungible tokens if limit exceeds")
-    void tokenRejectSystemContractForMultipleTokensExceedsLimit() {
+    void tokenRejectSystemContractForMultipleFungibleTokensExceedsLimit() {
         // Given
         final var contract = testWeb3jService.deploy(TokenReject::deploy);
         final var sender = accountEntityPersist();
         final var treasury = accountEntityPersist().toEntityId();
 
         var fungibleTokenAddresses = new ArrayList<String>();
-        for (int i = 0; i < TOKEN_REJECT_LIMIT; i++) {
+        for (int i = 0; i < TOKEN_REJECT_FAILURE_THRESHOLD; i++) {
 
             final var tokenId = fungibleTokenSetup(treasury, sender);
 
@@ -166,7 +166,7 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
 
     @Test
     @DisplayName("Fails to reject token when no association with treasury")
-    void fungibleTokenRejectSystemContractNoAssociationTreasury() {
+    void tokenRejectSystemContractNoAssociationWithTreasury() {
         // Given
         final var contract = testWeb3jService.deploy(TokenReject::deploy);
         final var sender = accountEntityPersist();
@@ -193,7 +193,7 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
 
     @Test
     @DisplayName("Fails to reject token when no association with sender")
-    void fungibleTokenRejectSystemContractNoAssociationSender() {
+    void tokenRejectSystemContractNoAssociationWithSender() {
         // Given
         final var contract = testWeb3jService.deploy(TokenReject::deploy);
         final var sender = accountEntityPersist();
@@ -220,7 +220,7 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
 
     @Test
     @DisplayName("Fails to reject token when fungible token is invalid")
-    void fungibleTokenRejectSystemContractInvalidFungibleToken() {
+    void tokenRejectSystemContractInvalidFungibleToken() {
         // Given
         final var contract = testWeb3jService.deploy(TokenReject::deploy);
         final var sender = accountEntityPersist();
@@ -242,7 +242,7 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
 
     @Test
     @DisplayName("Fails to reject token when non-fungible token is invalid")
-    void fungibleTokenRejectSystemContractInvalidNonFungibleToken() {
+    void tokenRejectSystemContractInvalidNonFungibleToken() {
         // Given
         final var contract = testWeb3jService.deploy(TokenReject::deploy);
         final var sender = accountEntityPersist();
