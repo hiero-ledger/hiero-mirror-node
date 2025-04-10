@@ -1658,3 +1658,21 @@ describe('alterTimestampRange', () => {
     expect(contracts.alterTimestampRange(filters)).toEqual(expected);
   });
 });
+
+describe('hexEncodeSlotValues', () => {
+  test('should strip leading zeros from hex values', () => {
+    const input = [
+      Buffer.from('0028d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b', 'hex'),
+      Buffer.from('000000abc123', 'hex'),
+      Buffer.from('1234', 'hex'),
+    ];
+
+    const expected = ['28d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b', 'abc123', '1234'];
+
+    expect(contracts.hexEncodeSlotValues(input)).toEqual(expected);
+  });
+
+  test('should return empty array when input is empty', () => {
+    expect(contracts.hexEncodeSlotValues([])).toEqual([]);
+  });
+});
