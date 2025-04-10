@@ -48,10 +48,41 @@
         "slot": "03",
         "value_read": "0x0000000000000000000000000000000000000000000000000000000000000000",
         "value_written": "0x0000000000000000000000000000000000000000000000000000000000000003"
+      },
+      {
+        "consensus_timestamp": "1677575107848140649",
+        "contract_id": "5001",
+        "slot": "0x28d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b",
+        "value_read": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "value_written": "0x0000000000000000000000000000000000000000000000000000000000000006"
       }
     ]
   },
   "tests": [
+    {
+      "urls": [
+        "/api/v1/contracts/5001/state?timestamp=1677575107.848140649&slot=0x28d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b",
+        "/api/v1/contracts/5001/state?timestamp=1677575107.848140649&slot=28d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b",
+        "/api/v1/contracts/5001/state?slot=28d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b&timestamp=1677575107.848140649",
+        "/api/v1/contracts/5001/state?timestamp=1677575107.848140649&slot=0x028d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b",
+        "/api/v1/contracts/5001/state?timestamp=1677575107.848140649&slot=0x0028d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "state": [
+          {
+            "address": "0x0000000000000000000000000000000000001389",
+            "contract_id": "0.0.5001",
+            "timestamp": "1677575107.848140649",
+            "slot": "0x0028d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000006"
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
+    },
     {
       "urls": [
         "/api/v1/contracts/5001/state?timestamp=1677575107.848140636&slot=3",

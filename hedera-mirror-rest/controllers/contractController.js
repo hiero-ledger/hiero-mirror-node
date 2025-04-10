@@ -935,14 +935,7 @@ class ContractController extends BaseController {
     }
 
     if (slotInValues.length !== 0) {
-      const hexEncodedSlotInValues = slotInValues.map((slotVal) => slotVal.toString('hex').replace(/^0+/, ''));
-
-      conditions.push(
-        this.getFilterWhereCondition(`ltrim(encode(${ContractState.SLOT}, 'hex'), '0')`, {
-          operator: 'in',
-          value: hexEncodedSlotInValues,
-        })
-      );
+      conditions.push(this.getFilterWhereCondition(ContractState.SLOT, {operator: 'in', value: slotInValues}));
     }
 
     return {

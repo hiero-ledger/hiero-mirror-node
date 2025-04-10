@@ -1917,6 +1917,20 @@ describe('calculateExpiryTimestamp', () => {
 });
 
 describe('Utils formatSlot tests', () => {
+  test('Verify hex slot values are properly formatted when having 0 or more leading zeros', () => {
+    const FORMATTED_VALUE = '28d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b';
+
+    const testSlots = [
+      '0x28d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b',
+      '0x028d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b',
+      '0028d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b',
+      '0x00028d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b',
+    ];
+
+    testSlots.forEach((slot) => {
+      expect(utils.formatSlot(slot, false)).toEqual(Buffer.from(FORMATTED_VALUE, 'hex'));
+    });
+  });
   test('Verify valid contract_state_change table format slot', () => {
     const slot = '0x0000000000000000000000000000000000000000000000000000000000000003';
     const formattedSlot = '03';
