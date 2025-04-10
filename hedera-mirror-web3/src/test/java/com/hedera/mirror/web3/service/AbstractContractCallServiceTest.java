@@ -78,6 +78,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final int DEFAULT_DECIMALS = 12;
     protected static final long DEFAULT_TOKEN_SUPPLY = 1000L;
     protected static final long DEFAULT_AMOUNT_GRANTED = 10L;
+    protected static final BigInteger DEFAULT_TOKEN_AIRDROP_AMOUNT = BigInteger.TEN;
     protected static final BigInteger DEFAULT_FEE_AMOUNT = BigInteger.valueOf(100L);
     protected static final BigInteger DEFAULT_DENOMINATOR_VALUE = BigInteger.valueOf(100L);
     protected static final BigInteger DEFAULT_NUMERATOR_VALUE = BigInteger.valueOf(20L);
@@ -609,6 +610,26 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return Pair.of(tokenToUpdateEntity, autoRenewAccount);
     }
 
+    protected void persistAirdropForFungibleToken(final Token token, final Entity sender, final Entity receiver) {
+        domainBuilder
+                .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
+                .customize(t -> t.amount(DEFAULT_TOKEN_AIRDROP_AMOUNT.longValue())
+                        .tokenId(token.getTokenId())
+                        .receiverAccountId(receiver.getId())
+                        .senderAccountId(sender.getId()))
+                .persist();
+    }
+
+    protected void persistAirdropForNft(final Token token, final Entity sender, final Entity receiver) {
+        domainBuilder
+                .tokenAirdrop(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
+                .customize(t -> t.serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
+                        .tokenId(token.getTokenId())
+                        .receiverAccountId(receiver.getId())
+                        .senderAccountId(sender.getId()))
+                .persist();
+    }
+
     protected String getAddressFromEntity(final Entity entity) {
         return EvmTokenUtils.toAddress(entity.toEntityId()).toHexString();
     }
@@ -687,6 +708,23 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         propertiesMap.put("contracts.maxRefundPercentOfGasLimit", "100");
         propertiesMap.put("contracts.maxGasPerSec", "15000000");
         mirrorNodeEvmProperties.setProperties(propertiesMap);
+    }
+
+    protected void persistRewardAccounts() {
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(801L)
+                        .num(801L)
+                        .createdTimestamp(genesisRecordFile.getConsensusStart())
+                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
+                .persist();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(800L)
+                        .num(800L)
+                        .createdTimestamp(genesisRecordFile.getConsensusStart())
+                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
+                .persist();
     }
 
     public enum KeyType {

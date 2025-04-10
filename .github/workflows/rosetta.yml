@@ -65,6 +65,7 @@ jobs:
           buildkitd-config-inline: |
             [registry."docker.io"]
               mirrors = ["https://hub.mirror.docker.lat.ope.eng.hashgraph.io"]
+          version: latest
 
       - name: Build Image
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
@@ -73,6 +74,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           context: ./hedera-mirror-rosetta/container
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           load: true
           provenance: false
           push: false

@@ -115,7 +115,7 @@ describe('getRCDFileInfoByConsensusTimestamp', () => {
 
   test('with record file found', async () => {
     const fakeQuery = sinon.fake.resolves(validQueryResult);
-    global.pool = {queryQuietly: fakeQuery};
+    global.primaryPool = {queryQuietly: fakeQuery};
 
     const info = await getRCDFileInfoByConsensusTimestamp(consensusTimestamp);
     expect(info).toEqual(expectedRCDFileInfo);
@@ -124,7 +124,7 @@ describe('getRCDFileInfoByConsensusTimestamp', () => {
 
   test('with record file not found', async () => {
     const fakeQuery = sinon.fake.resolves(emptyQueryResult);
-    global.pool = {queryQuietly: fakeQuery};
+    global.primaryPool = {queryQuietly: fakeQuery};
 
     await expect(getRCDFileInfoByConsensusTimestamp(consensusTimestamp)).rejects.toThrow();
     verifyFakeCallCountAndLastCallParamsArg(fakeQuery, 1, [consensusTimestamp, upperBound]);
@@ -132,7 +132,7 @@ describe('getRCDFileInfoByConsensusTimestamp', () => {
 
   test('with db query error', async () => {
     const fakeQuery = sinon.fake.rejects(new Error('db runtime error'));
-    global.pool = {queryQuietly: fakeQuery};
+    global.primaryPool = {queryQuietly: fakeQuery};
 
     await expect(getRCDFileInfoByConsensusTimestamp(consensusTimestamp)).rejects.toThrow();
     verifyFakeCallCountAndLastCallParamsArg(fakeQuery, 1, [consensusTimestamp, upperBound]);
@@ -198,7 +198,7 @@ describe('getAddressBooksAndNodeAccountIdsByConsensusTimestamp', () => {
       queryResult = queryResultOrFakeQueryFunc;
       queryStub.returns(queryResultOrFakeQueryFunc);
     }
-    global.pool = {queryQuietly: queryStub};
+    global.primaryPool = {queryQuietly: queryStub};
 
     if (expectPass) {
       const result = await getAddressBooksAndNodeAccountIdsByConsensusTimestamp(transactionConsensusTimestamp);
