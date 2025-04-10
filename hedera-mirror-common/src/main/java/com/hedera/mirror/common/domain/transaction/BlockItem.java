@@ -115,9 +115,7 @@ public class BlockItem implements StreamItem {
 
     public static class BlockItemBuilder {
         public BlockItem build() {
-            if (transactionBody == null || signatureMap == null) {
-                parseBody();
-            }
+            parseBody();
             return new BlockItem(
                     transaction,
                     transactionResult,
@@ -130,17 +128,19 @@ public class BlockItem implements StreamItem {
 
         @SuppressWarnings("deprecation")
         private void parseBody() {
-            try {
-                if (transaction.getSignedTransactionBytes().isEmpty()) {
-                    this.transactionBody(TransactionBody.parseFrom(transaction.getBodyBytes()))
-                            .signatureMap(transaction.getSigMap());
-                } else {
-                    var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
-                    this.transactionBody(TransactionBody.parseFrom(signedTransaction.getBodyBytes()))
-                            .signatureMap(signedTransaction.getSigMap());
+            if (transactionBody == null || signatureMap == null) {
+                try {
+                    if (transaction.getSignedTransactionBytes().isEmpty()) {
+                        this.transactionBody(TransactionBody.parseFrom(transaction.getBodyBytes()))
+                                .signatureMap(transaction.getSigMap());
+                    } else {
+                        var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
+                        this.transactionBody(TransactionBody.parseFrom(signedTransaction.getBodyBytes()))
+                                .signatureMap(signedTransaction.getSigMap());
+                    }
+                } catch (InvalidProtocolBufferException e) {
+                    throw new ProtobufException("Error parsing transaction body from transaction", e);
                 }
-            } catch (InvalidProtocolBufferException e) {
-                throw new ProtobufException("Error parsing transaction body from transaction", e);
             }
         }
     }

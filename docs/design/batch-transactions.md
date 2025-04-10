@@ -44,7 +44,8 @@ public class Transaction {
       innerTransactions = new ArrayList<>();
     }
 
-    innerTransactions.add(transaction.getPayerAccountId().getId(), transaction.getValidStartNs());
+    innerTransactions.add(transaction.getPayerAccountId().getId());
+    innerTransactions.add(transaction.getValidStartNs());
   }
 }
 ```
