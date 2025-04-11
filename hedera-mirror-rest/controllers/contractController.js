@@ -935,14 +935,7 @@ class ContractController extends BaseController {
     }
 
     if (slotInValues.length !== 0) {
-      const hexEncodedSlotInValues = hexEncodeSlotValues(slotInValues);
-
-      conditions.push(
-        this.getFilterWhereCondition(`ltrim(encode(${ContractState.SLOT}, 'hex'), '0')`, {
-          operator: 'in',
-          value: hexEncodedSlotInValues,
-        })
-      );
+      conditions.push(this.getFilterWhereCondition(ContractState.SLOT, {operator: 'in', value: slotInValues}));
     }
 
     return {
@@ -1367,13 +1360,6 @@ const exportControllerMethods = (methods = []) => {
   }, {});
 };
 
-/**
- * encode bytea slot values from db to hex string and remove leading zeros
- * @param slotInValues
- * @returns {*}
- */
-const hexEncodeSlotValues = (slotInValues) => slotInValues.map((slotVal) => slotVal.toString('hex').replace(/^0+/, ''));
-
 const isContractTransaction = (transaction) =>
   transaction.type === contractCallType ||
   transaction.type === contractCreateType ||
@@ -1408,7 +1394,6 @@ if (utils.isTestEnv()) {
       validateContractIdAndConsensusTimestampParam,
       validateContractIdParam,
       alterTimestampRange,
-      hexEncodeSlotValues,
     }
   );
 }
