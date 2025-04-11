@@ -170,7 +170,7 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
         // given
         var entity = domainBuilder.entity().customize(c -> c.type(CONTRACT)).persist();
         domainBuilder.contract().customize(c -> c.id(entity.getId())).persist();
-        var contractId = ContractID.newBuilder().setContractNum(entity.getId()).build();
+        var contractId = entity.toEntityId().toContractID();
         RecordItem recordItem = recordItemBuilder
                 .contractCall(contractId)
                 .record(r -> r.clearContractCallResult()
@@ -640,11 +640,11 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
                 .setMigration(migration)
                 .setStateChanges(ContractStateChanges.newBuilder()
                         .addContractStateChanges(com.hedera.services.stream.proto.ContractStateChange.newBuilder()
-                                .setContractId(ContractID.newBuilder().setContractNum(1001L))
+                                .setContractId(domainBuilder.entityId(1001L).toContractID())
                                 .addStorageChanges(StorageChange.newBuilder()
                                         .setValueWritten(BytesValue.of(DomainUtils.fromBytes(new byte[] {1, 1})))))
                         .addContractStateChanges(com.hedera.services.stream.proto.ContractStateChange.newBuilder()
-                                .setContractId(ContractID.newBuilder().setContractNum(1002L))
+                                .setContractId(domainBuilder.entityId(1002L).toContractID())
                                 .addStorageChanges(StorageChange.newBuilder()
                                         .setValueWritten(BytesValue.of(DomainUtils.fromBytes(new byte[] {2, 2}))))))
                 .build();
@@ -652,30 +652,30 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
                 .setMigration(false)
                 .setStateChanges(ContractStateChanges.newBuilder()
                         .addContractStateChanges(com.hedera.services.stream.proto.ContractStateChange.newBuilder()
-                                .setContractId(ContractID.newBuilder().setContractNum(1003L))
+                                .setContractId(domainBuilder.entityId(1003L).toContractID())
                                 .addStorageChanges(StorageChange.newBuilder()
                                         .setValueWritten(BytesValue.of(DomainUtils.fromBytes(new byte[] {3, 3})))))
                         .addContractStateChanges(com.hedera.services.stream.proto.ContractStateChange.newBuilder()
-                                .setContractId(ContractID.newBuilder().setContractNum(1004L))
+                                .setContractId(domainBuilder.entityId(1004L).toContractID())
                                 .addStorageChanges(StorageChange.newBuilder()
                                         .setValueWritten(BytesValue.of(DomainUtils.fromBytes(new byte[] {4, 4}))))))
                 .build();
         var bytecodeRecord1 = TransactionSidecarRecord.newBuilder()
                 .setMigration(migration)
                 .setBytecode(ContractBytecode.newBuilder()
-                        .setContractId(ContractID.newBuilder().setContractNum(entity1.getId()))
+                        .setContractId(entity1.toEntityId().toContractID())
                         .setRuntimeBytecode(ByteString.copyFrom(new byte[] {1})))
                 .build();
         var bytecodeRecord2 = TransactionSidecarRecord.newBuilder()
                 .setMigration(migration)
                 .setBytecode(ContractBytecode.newBuilder()
-                        .setContractId(ContractID.newBuilder().setContractNum(entity2.getId()))
+                        .setContractId(entity2.toEntityId().toContractID())
                         .setRuntimeBytecode(ByteString.copyFrom(new byte[] {2})))
                 .build();
         var bytecodeRecord3 = TransactionSidecarRecord.newBuilder()
                 .setMigration(false)
                 .setBytecode(ContractBytecode.newBuilder()
-                        .setContractId(ContractID.newBuilder().setContractNum(entity3.getId()))
+                        .setContractId(entity3.toEntityId().toContractID())
                         .setRuntimeBytecode(ByteString.copyFrom(new byte[] {3})))
                 .build();
 
@@ -951,13 +951,14 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
             int callDepth) {
         return com.hedera.services.stream.proto.ContractAction.newBuilder()
                 .setCallDepth(callDepth)
-                .setCallingContract(ContractID.newBuilder().setContractNum(callingContractNum))
+                .setCallingContract(domainBuilder.entityId(callingContractNum).toContractID())
                 .setCallOperationType(callOperationType)
                 .setCallType(contractActionType)
                 .setGas(100)
                 .setGasUsed(50)
                 .setInput(bytes(100))
-                .setRecipientContract(ContractID.newBuilder().setContractNum(recipientContractNum))
+                .setRecipientContract(
+                        domainBuilder.entityId(recipientContractNum).toContractID())
                 .setOutput(bytes(256))
                 .setValue(20)
                 .build();

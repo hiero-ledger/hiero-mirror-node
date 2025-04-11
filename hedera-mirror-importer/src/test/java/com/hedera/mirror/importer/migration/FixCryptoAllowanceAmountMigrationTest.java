@@ -20,7 +20,6 @@ import com.hedera.mirror.importer.parser.record.RecordFileParser;
 import com.hedera.mirror.importer.parser.record.entity.EntityProperties;
 import com.hedera.mirror.importer.repository.CryptoAllowanceRepository;
 import com.hederahashgraph.api.proto.java.AccountAmount;
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransferList;
 import java.util.Collections;
@@ -176,12 +175,10 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
                         .sidecars(Collections.emptyList()))
                 .get();
         // Two crypto transfers using allowance
-        var owner1AccountId =
-                AccountID.newBuilder().setAccountNum(current1.getOwner()).build();
-        var spender1AccountId =
-                AccountID.newBuilder().setAccountNum(current1.getSpender()).build();
-        var receiverAccountId =
-                AccountID.newBuilder().setAccountNum(domainBuilder.id()).build();
+        var owner1AccountId = EntityId.of(current1.getOwner()).toAccountID();
+        var spender1AccountId = EntityId.of(current1.getSpender()).toAccountID();
+        var receiverAccountId = domainBuilder.entityId().toAccountID();
+
         var transactionId1 = TransactionID.newBuilder()
                 .setAccountID(spender1AccountId)
                 .setTransactionValidStart(TestUtils.toTimestamp(consensusStart - 10))
@@ -204,10 +201,8 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
                 .build();
         current1.setAmount(current1.getAmount() - 15);
 
-        var owner2AccountId =
-                AccountID.newBuilder().setAccountNum(current2.getOwner()).build();
-        var spender2AccountId =
-                AccountID.newBuilder().setAccountNum(current2.getSpender()).build();
+        var owner2AccountId = EntityId.of(current2.getOwner()).toAccountID();
+        var spender2AccountId = EntityId.of(current2.getSpender()).toAccountID();
         var transactionId2 = TransactionID.newBuilder()
                 .setAccountID(spender2AccountId)
                 .setTransactionValidStart(TestUtils.toTimestamp(consensusStart - 5))

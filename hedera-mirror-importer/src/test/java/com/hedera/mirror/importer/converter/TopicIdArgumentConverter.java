@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.importer.converter;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hederahashgraph.api.proto.java.TopicID;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.converter.ArgumentConversionException;
@@ -16,11 +17,10 @@ public final class TopicIdArgumentConverter implements ArgumentConverter {
         if (!(input instanceof String)) {
             throw new ArgumentConversionException(input + " is not a string");
         }
-        var parts = ((String) input).split("\\.");
         return TopicID.newBuilder()
-                .setShardNum(Long.parseLong(parts[0]))
-                .setRealmNum(Long.parseLong(parts[1]))
-                .setTopicNum(Long.parseLong(parts[2]))
+                .setShardNum(CommonProperties.getInstance().getShard())
+                .setRealmNum(CommonProperties.getInstance().getRealm())
+                .setTopicNum(Long.parseLong((String) input))
                 .build();
     }
 }
