@@ -88,6 +88,21 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
         validateGasEstimation(data, actualGasUsed, solidityAddress, Optional.empty());
     }
 
+    protected void validateGasEstimationNestedCalls(
+            String data, ContractMethodInterface actualGasUsed, String solidityAddress /*Optional<String> sender*/) {
+        var contractCallRequest = ModelBuilder.contractCallRequestNestedCalls(actualGasUsed.getActualGas())
+                .data(data)
+                .estimate(true)
+                .to(solidityAddress);
+
+        ContractCallResponse msgSenderResponse = mirrorClient.contractsCall(contractCallRequest);
+        int estimatedGas = Bytes.fromHexString(msgSenderResponse.getResult())
+                .toBigInteger()
+                .intValue();
+
+        assertWithinDeviation(actualGasUsed.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
+    }
+
     /**
      * Asserts that a specific contract call results in a "400 Bad Request" response.
      * <p>
