@@ -8,6 +8,7 @@ import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_3
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_38;
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_46;
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_50;
+import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.swirlds.common.utility.CommonUtils.unhex;
 import static com.swirlds.state.lifecycle.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
@@ -347,6 +348,9 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("hedera.realm", String.valueOf(commonProperties.getRealm()));
         props.put("hedera.shard", String.valueOf(commonProperties.getShard()));
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
+        props.put("nodes.gossipFqdnRestricted", "false");
+        props.put("tss.hintsEnabled", "false");
+        props.put("tss.historyEnabled", "false");
         props.putAll(properties); // Allow user defined properties to override the defaults
         return Collections.unmodifiableMap(props);
     }
@@ -381,6 +385,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
             evmVersionsMap.put(49117794L, EVM_VERSION_0_38);
             evmVersionsMap.put(60258042L, EVM_VERSION_0_46);
             evmVersionsMap.put(65435845L, EVM_VERSION_0_50);
+            evmVersionsMap.put(66602102L, EVM_VERSION_0_51);
 
             return Collections.unmodifiableNavigableMap(evmVersionsMap);
         }

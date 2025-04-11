@@ -1220,7 +1220,7 @@ const formatSlot = (slot, leftPad = false) => {
     return Buffer.from(stripHexPrefix(slot).padStart(64, 0), 'hex');
   }
 
-  let formattedSlot = stripHexPrefix(slot).replace(zeroPaddingRegex, '0');
+  let formattedSlot = stripHexPrefix(slot).padStart(64, 0).replace(zeroPaddingRegex, '0');
   if (formattedSlot === '0') {
     formattedSlot = '';
   } else if (formattedSlot.length % 2) {

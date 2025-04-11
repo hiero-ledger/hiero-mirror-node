@@ -6,7 +6,7 @@
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">=20 < 21"
+    "node": ">= 22"
   },
   "scripts": {
     "dev": "nodemon --import=extensionless/register server.js",
@@ -19,7 +19,7 @@
     "abort-controller": "^3.0.0",
     "compression": "^1.8.0",
     "cors": "^2.8.5",
-    "express": "^4.21.2",
+    "express": "^5.1.0",
     "extend": "^3.0.2",
     "extensionless": "^1.9.9",
     "lodash": "^4.17.21",

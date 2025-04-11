@@ -13,11 +13,10 @@ import com.hedera.node.app.services.ServicesRegistry;
 import com.hedera.node.config.data.HederaConfig;
 import com.swirlds.config.api.Configuration;
 import com.swirlds.metrics.api.Metrics;
+import com.swirlds.platform.state.MerkleNodeState;
 import com.swirlds.platform.state.service.PlatformStateFacade;
 import com.swirlds.platform.system.SoftwareVersion;
-import com.swirlds.state.State;
 import com.swirlds.state.lifecycle.StartupNetworks;
-import com.swirlds.state.lifecycle.info.NetworkInfo;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
@@ -32,13 +31,12 @@ public class ServiceMigratorImpl implements ServiceMigrator {
 
     @Override
     public List<Builder> doMigrations(
-            @Nonnull State state,
+            @Nonnull MerkleNodeState state,
             @Nonnull ServicesRegistry servicesRegistry,
             @Nullable SoftwareVersion previousVersion,
             @Nonnull SoftwareVersion currentVersion,
             @Nonnull Configuration appConfig,
             @Nonnull Configuration platformConfig,
-            @Nullable NetworkInfo genesisNetworkInfo,
             @Nonnull Metrics metrics,
             @Nonnull StartupNetworks startupNetworks,
             @Nonnull StoreMetricsServiceImpl storeMetricsService,
@@ -49,7 +47,6 @@ public class ServiceMigratorImpl implements ServiceMigrator {
         requireNonNull(currentVersion);
         requireNonNull(appConfig);
         requireNonNull(platformConfig);
-        requireNonNull(genesisNetworkInfo);
         requireNonNull(metrics);
 
         if (!(state instanceof MirrorNodeState mirrorNodeState)) {
@@ -75,11 +72,9 @@ public class ServiceMigratorImpl implements ServiceMigrator {
                     registration.serviceName(),
                     mirrorNodeState,
                     deserializedPbjVersion,
-                    genesisNetworkInfo,
                     appConfig,
                     platformConfig,
                     sharedValues,
-                    prevEntityNum,
                     startupNetworks);
         });
         return List.of();

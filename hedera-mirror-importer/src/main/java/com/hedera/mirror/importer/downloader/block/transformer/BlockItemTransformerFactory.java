@@ -2,13 +2,13 @@
 
 package com.hedera.mirror.importer.downloader.block.transformer;
 
-import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.mirror.common.domain.transaction.BlockItem;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hedera.mirror.common.exception.ProtobufException;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
+import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 import java.util.List;
@@ -29,7 +29,7 @@ public class BlockItemTransformerFactory {
     }
 
     public void transform(BlockItem blockItem, RecordItem.RecordItemBuilder builder) {
-        var transactionBody = parse(blockItem.getTransaction().getSignedTransactionBytes());
+        var transactionBody = parse(blockItem.getTransaction());
         var blockItemTransformer = get(transactionBody);
         // pass transactionBody for performance
         blockItemTransformer.transform(new BlockItemTransformation(blockItem, builder, transactionBody));
@@ -40,12 +40,16 @@ public class BlockItemTransformerFactory {
         return transformers.getOrDefault(transactionType, defaultTransformer);
     }
 
-    private TransactionBody parse(ByteString signedTransactionBytes) {
+    @SuppressWarnings("deprecation")
+    private TransactionBody parse(Transaction transaction) {
         try {
-            var signedTransaction = SignedTransaction.parseFrom(signedTransactionBytes);
-            return TransactionBody.parseFrom(signedTransaction.getBodyBytes());
+            var bodyBytes = transaction.getSignedTransactionBytes().isEmpty()
+                    ? transaction.getBodyBytes()
+                    : SignedTransaction.parseFrom(transaction.getSignedTransactionBytes())
+                            .getBodyBytes();
+            return TransactionBody.parseFrom(bodyBytes);
         } catch (InvalidProtocolBufferException e) {
-            throw new ProtobufException("Error parsing transaction body from signed transaction bytes", e);
+            throw new ProtobufException("Error parsing transaction body from transaction", e);
         }
     }
 }
