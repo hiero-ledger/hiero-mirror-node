@@ -21,6 +21,7 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
 
     @Test
     void cancelAirdrop() {
+        // Given
         final var contract = testWeb3jService.deploy(CancelAirdrop::deploy);
         final var sender = accountEntityPersist();
         final var receiver = persistCancelAirdropReceiver();
@@ -30,8 +31,10 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
 
         persistAirdropForFungibleToken(token, sender, receiver);
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
+        // When
         final var functionCall =
                 contract.send_cancelAirdrop(getAddressFromEntity(sender), getAddressFromEntity(receiver), tokenAddress);
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(functionCall, contract);
         } else {
@@ -41,6 +44,7 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
 
     @Test
     void cancelNFTAirdrop() {
+        // Given
         final var contract = testWeb3jService.deploy(CancelAirdrop::deploy);
         final var sender = accountEntityPersist();
         final var receiver = persistCancelAirdropReceiver();
@@ -55,9 +59,10 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
         persistAirdropForNft(token, sender, receiver);
 
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
-
+        // When
         final var functionCall = contract.send_cancelNFTAirdrop(
                 getAddressFromEntity(sender), getAddressFromEntity(receiver), tokenAddress, DEFAULT_SERIAL_NUMBER);
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(functionCall, contract);
         } else {
@@ -67,6 +72,7 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
 
     @Test
     void cancel10Airdrops() {
+        // Given
         final var contract = testWeb3jService.deploy(CancelAirdrop::deploy);
         final var sender = accountEntityPersist();
 
@@ -114,8 +120,9 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
             senders.add(getAddressFromEntity(sender));
             receivers.add(getAddressFromEntity(receiver));
         }
-
+        // When
         final var functionCall = contract.send_cancelAirdrops(senders, receivers, tokens, serials);
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(functionCall, contract);
         } else {
@@ -125,6 +132,7 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
 
     @Test
     void cancel11AirdropsFails() {
+        // Given
         final var contract = testWeb3jService.deploy(CancelAirdrop::deploy);
         final var sender = accountEntityPersist();
 
@@ -173,8 +181,9 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
             senders.add(getAddressFromEntity(sender));
             receivers.add(getAddressFromEntity(receiver));
         }
-
+        // When
         final var functionCall = contract.send_cancelAirdrops(senders, receivers, tokens, serials);
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -185,6 +194,7 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
 
     @Test
     void cancelAirdropFailsWithMissingAirdropRecord() {
+        // Given
         final var contract = testWeb3jService.deploy(CancelAirdrop::deploy);
         final var sender = accountEntityPersist();
         final var receiver = persistCancelAirdropReceiver();
@@ -192,9 +202,10 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
         final var token = fungibleTokenCustomizable(e -> e.kycKey(null));
         tokenAccountPersist(token.getTokenId(), sender.getId());
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
-
+        // When
         final var functionCall =
                 contract.send_cancelAirdrop(getAddressFromEntity(sender), getAddressFromEntity(receiver), tokenAddress);
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -205,14 +216,16 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
 
     @Test
     void cancelAirdropFailsWithInvalidTokenId() {
+        // Given
         final var contract = testWeb3jService.deploy(CancelAirdrop::deploy);
         final var sender = accountEntityPersist();
         final var receiver = persistCancelAirdropReceiver();
 
         final var token = accountEntityPersist();
-
+        // When
         final var functionCall = contract.send_cancelAirdrop(
                 getAddressFromEntity(sender), getAddressFromEntity(receiver), getAddressFromEntity(token));
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -223,6 +236,7 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
 
     @Test
     void cancelAirdropFailsWithInvalidSender() {
+        // Given
         final var contract = testWeb3jService.deploy(CancelAirdrop::deploy);
         final var receiver = persistCancelAirdropReceiver();
 
@@ -237,9 +251,10 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
                 .persist();
 
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
-
+        // When
         final var functionCall =
                 contract.send_cancelAirdrop(tokenAddress, getAddressFromEntity(receiver), tokenAddress);
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -250,6 +265,7 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
 
     @Test
     void cancelAirdropFailsWithInvalidReceiver() {
+        // Given
         final var contract = testWeb3jService.deploy(CancelAirdrop::deploy);
         final var sender = accountEntityPersist();
 
@@ -265,8 +281,9 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
                 .persist();
 
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
-
+        // When
         final var functionCall = contract.send_cancelAirdrop(getAddressFromEntity(sender), tokenAddress, tokenAddress);
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -277,6 +294,7 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
 
     @Test
     void cancelAirdropFailsWithInvalidNft() {
+        // Given
         final var contract = testWeb3jService.deploy(CancelAirdrop::deploy);
         final var sender = accountEntityPersist();
         final var receiver = persistCancelAirdropReceiver();
@@ -288,12 +306,13 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
                         .receiverAccountId(receiver.getId())
                         .senderAccountId(sender.getId()))
                 .persist();
-
+        // When
         final var functionCall = contract.send_cancelNFTAirdrop(
                 getAddressFromEntity(sender),
                 getAddressFromEntity(receiver),
                 getAddressFromEntity(receiver),
                 DEFAULT_SERIAL_NUMBER);
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -304,6 +323,7 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
 
     @Test
     void cancelNFTAirdropFailsWithInvalidSerialNumber() {
+        // Given
         final var contract = testWeb3jService.deploy(CancelAirdrop::deploy);
         final var sender = accountEntityPersist();
         final var receiver = persistCancelAirdropReceiver();
@@ -318,12 +338,13 @@ class ContractCallCancelAirdropSystemContractTest extends AbstractContractCallSe
         persistAirdropForNft(token, sender, receiver);
 
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
-
+        // When
         final var functionCall = contract.send_cancelNFTAirdrop(
                 getAddressFromEntity(sender),
                 getAddressFromEntity(receiver),
                 tokenAddress,
                 BigInteger.valueOf(DEFAULT_SERIAL_NUMBER.longValue() + 1));
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
