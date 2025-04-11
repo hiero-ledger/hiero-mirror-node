@@ -6,6 +6,7 @@ import static com.hedera.mirror.importer.TestUtils.getResource;
 
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Range;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.config.CommonIntegrationTest;
 import com.hedera.mirror.common.config.RedisTestConfiguration;
 import com.hedera.mirror.common.converter.EntityIdConverter;
@@ -60,6 +61,8 @@ import org.springframework.jdbc.core.RowMapper;
 public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
 
     private static final Map<Class<?>, String> DEFAULT_DOMAIN_CLASS_IDS = new ConcurrentHashMap<>();
+
+    protected static final CommonProperties commonProperties = CommonProperties.getInstance();
 
     @Resource
     protected Flyway flyway;
