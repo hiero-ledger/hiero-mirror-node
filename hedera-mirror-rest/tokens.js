@@ -7,6 +7,7 @@ import {getResponseLimit} from './config';
 import {
   EMPTY_STRING,
   entityTypes,
+  EvmAddressType,
   filterKeys,
   httpStatusCodes,
   orderFilterValues,
@@ -420,7 +421,12 @@ const getTokensRequest = async (req, res) => {
 };
 
 const getAndValidateTokenIdRequestPathParam = (req) => {
-  return EntityId.parse(req.params.tokenId, {allowEvmAddress: false, paramName: filterKeys.TOKENID}).getEncodedId();
+  const options = {
+    allowEvmAddress: true,
+    paramName: filterKeys.TOKENID,
+    evmAddressType: EvmAddressType.LONG_ZERO,
+  };
+  return EntityId.parseString(req.params.tokenId, options).getEncodedId();
 };
 
 /**

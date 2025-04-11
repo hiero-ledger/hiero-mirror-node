@@ -132,6 +132,9 @@ const isValidEvmAddress = (address, evmAddressType = constants.EvmAddressType.AN
   if (evmAddressType === constants.EvmAddressType.NO_SHARD_REALM) {
     return evmAddressRegex.test(address);
   }
+  if (evmAddressType === constants.EvmAddressType.LONG_ZERO) {
+    return (evmAddressRegex.test(address) || evmAddressShardRealmRegex.test(address)) && !isEvmAddressAlias(address);
+  }
   return evmAddressShardRealmRegex.test(address);
 };
 
@@ -222,7 +225,7 @@ const parseFromEncodedId = (id, error) => {
  */
 const parseFromEvmAddress = (evmAddress) => {
   // extract shard from index 0->8, realm from 8->23, num from 24->40 and parse from hex to decimal
-  const hexDigits = stripHexPrefix(_.last(evmAddress.split('.')));
+  const hexDigits = _.last(stripHexPrefix(evmAddress).split('.'));
   return [
     BigInt(constants.HEX_PREFIX + hexDigits.slice(0, 8)), // shard
     BigInt(constants.HEX_PREFIX + hexDigits.slice(8, 24)), // realm
@@ -242,7 +245,7 @@ const parseFromEvmAddress = (evmAddress) => {
  * @return {[BigInt|null, BigInt|null, BigInt|null, string|null]}
  */
 const parseFromString = (id, error) => {
-  const parts = id.split('.');
+  const parts = stripHexPrefix(id).split('.');
   const numOrEvmAddress = parts[parts.length - 1];
   const shard = parts.length === 3 ? BigInt(parts.shift()) : systemShard;
   const realm = parts.length === 2 ? BigInt(parts.shift()) : systemRealm;
@@ -252,11 +255,10 @@ const parseFromString = (id, error) => {
       throw error(`Invalid shard or realm for EVM address ${id}`);
     }
 
-    const evmAddress = stripHexPrefix(numOrEvmAddress);
     let [addressShard, addressRealm, num] = parseFromEvmAddress(numOrEvmAddress);
 
     if (addressShard !== systemShard || addressRealm !== systemRealm || num > maxNum) {
-      return [shard, realm, null, evmAddress]; // Opaque EVM address
+      return [shard, realm, null, numOrEvmAddress]; // Opaque EVM address
     } else {
       return [addressShard, addressRealm, num, null]; // Account num alias
     }

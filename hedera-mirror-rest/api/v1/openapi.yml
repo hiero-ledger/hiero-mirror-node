@@ -4387,6 +4387,15 @@ components:
       in: path
       required: true
       description: Token id
+      examples:
+        longZeroEvmAddress:
+          value: 0x000000000000000000000000000000000000046F
+        shardRealmLongZero:
+          value: 0.0.000000000000000000000000000000000000046F
+        accountNumOnly:
+          value: 1135
+        shardRealmAccountNum:
+          value: 0.0.1135
       schema:
         $ref: "#/components/schemas/EntityId"
     topicIdPathParam:

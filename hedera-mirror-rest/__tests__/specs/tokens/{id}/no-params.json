@@ -72,7 +72,10 @@
   "urls": [
     "/api/v1/tokens/0.0.1135",
     "/api/v1/tokens/0.1135",
-    "/api/v1/tokens/1135"
+    "/api/v1/tokens/1135",
+    "/api/v1/tokens/000000000000000000000000000000000000046F",
+    "/api/v1/tokens/0x000000000000000000000000000000000000046F",
+    "/api/v1/tokens/0.0.000000000000000000000000000000000000046F"
   ],
   "responseStatus": 200,
   "responseJson": {
