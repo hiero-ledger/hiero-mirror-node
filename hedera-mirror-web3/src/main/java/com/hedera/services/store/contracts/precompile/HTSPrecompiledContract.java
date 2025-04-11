@@ -494,7 +494,7 @@ public class HTSPrecompiledContract extends EvmHTSPrecompiledContract {
 
         if (result.getRight() == null) {
             throw new MirrorEvmTransactionException(
-                    INVALID_TOKEN_ID, "Invalid token id or unsupported operation.", StringUtils.EMPTY);
+                    INVALID_TOKEN_ID, "Invalid token id or unsupported operation.", StringUtils.EMPTY, false);
         }
 
         return result;
