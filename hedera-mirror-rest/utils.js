@@ -17,6 +17,7 @@ import config from './config';
 import ed25519 from './ed25519';
 import {DbError, InvalidArgumentError, InvalidClauseError} from './errors';
 import {Entity, FeeSchedule, TransactionResult, TransactionType} from './model';
+import {EvmAddressType} from './constants';
 
 const JSONBig = JSONBigFactory({useNativeBigInt: true});
 
@@ -337,7 +338,7 @@ const filterValidityChecks = (param, op, val) => {
       ret = isValidTimestampParam(val);
       break;
     case constants.filterKeys.TOKEN_ID:
-      ret = EntityId.isValidEntityId(val, false);
+      ret = EntityId.isValidEntityId(val, true, constants.EvmAddressType.LONG_ZERO);
       break;
     case constants.filterKeys.TOKEN_TYPE:
       ret = isValidValueIgnoreCase(val, Object.values(constants.tokenTypeFilter));
@@ -1311,7 +1312,10 @@ const formatComparator = (comparator) => {
         break;
       case constants.filterKeys.TOKEN_ID:
         // Accepted forms: shard.realm.num or num
-        comparator.value = EntityId.parseString(comparator.value).getEncodedId();
+        comparator.value = EntityId.parseString(comparator.value, {
+          allowEvmAddress: true,
+          evmAddressType: EvmAddressType.LONG_ZERO,
+        }).getEncodedId();
         break;
       case constants.filterKeys.TOKEN_TYPE:
         // db requires upper case matching for enum

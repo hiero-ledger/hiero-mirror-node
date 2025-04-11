@@ -4388,7 +4388,7 @@ components:
       required: true
       description: Token id
       examples:
-        longZeroEvmAddress:
+        longZero:
           value: 0x000000000000000000000000000000000000046F
         shardRealmLongZero:
           value: 0.0.000000000000000000000000000000000000046F
@@ -5012,6 +5012,9 @@ components:
         noValue:
           summary: --
           value: ""
+        longZero:
+          summary: Example of long address equals with no operator
+          value: 0000000000000000000000000000000000000064
         entityNumNoOperator:
           summary: Example of entityNum equals with no operator
           value: 100

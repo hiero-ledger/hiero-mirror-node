@@ -340,7 +340,7 @@ const validateTokenQueryFilter = (param, op, val) => {
       ret = utils.isPositiveLong(val);
       break;
     case filterKeys.TOKEN_ID:
-      ret = EntityId.isValidEntityId(val, false);
+      ret = EntityId.isValidEntityId(val, true, EvmAddressType.LONG_ZERO);
       break;
     case filterKeys.TOKEN_TYPE:
       ret = utils.isValidValueIgnoreCase(val, Object.values(tokenTypeFilter));
