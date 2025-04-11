@@ -112,6 +112,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
     @ParameterizedTest
     @CsvSource({"true, true", "false, false"})
     void contractCreate(boolean bytecodeSourceFileId, boolean hasAutoRenewAccount) {
+        var stakedAccountId = domainBuilder.entityId().toAccountID();
         var recordItem = recordItemBuilder
                 .contractCreate()
                 .recordItem(r -> r.hapiVersion(RecordFile.HAPI_VERSION_0_27_0))
@@ -125,9 +126,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                     b.clearAutoRenewAccountId()
                             .setDeclineReward(true)
                             .setMaxAutomaticTokenAssociations(-1)
-                            .setStakedAccountId(AccountID.newBuilder()
-                                    .setAccountNum(domainBuilder.id())
-                                    .build());
+                            .setStakedAccountId(stakedAccountId);
                 })
                 .build();
         var txnRecord = recordItem.getTransactionRecord();
@@ -202,7 +201,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
     @Test
     void contractCallChildNonce() {
         ContractID childContractID =
-                ContractID.newBuilder().setContractNum(1001L).build();
+                ContractID.newBuilder().setRealmNum(commonProperties.getRealm()).setShardNum(commonProperties.getShard()).setContractNum(1001L).build();
 
         var setupResult = setupContract(CONTRACT_ID, ContractIdType.PLAIN, true, true);
         var parentId = setupResult.entity.toEntityId();
@@ -1099,7 +1098,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
         EntityId entityId = transaction.getEntityId();
         Entity entity = getEntity(entityId);
         Long expectedAutoRenewAccountId = transactionBody.hasAutoRenewAccountId()
-                ? transactionBody.getAutoRenewAccountId().getAccountNum()
+                ? EntityId.of(transactionBody.getAutoRenewAccountId()).getId()
                 : null;
         EntityId expectedFileId = transactionBody.hasFileID() ? EntityId.of(transactionBody.getFileID()) : null;
         ContractBytecode sidecarBytecode = null;
@@ -1289,12 +1288,12 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                 .first()
                 .returns(transactionBody.getInitialBalance(), ContractResult::getAmount)
                 .returns(consensusTimestamp, ContractResult::getConsensusTimestamp)
-                .returns(receipt.getContractID().getContractNum(), ContractResult::getContractId)
+                .returns(EntityId.of(receipt.getContractID()).getId(), ContractResult::getContractId)
                 .returns(toBytes(transactionBody.getConstructorParameters()), ContractResult::getFunctionParameters)
                 .returns(transactionBody.getGas(), ContractResult::getGasLimit);
 
         if (receipt.getStatus() == ResponseCodeEnum.SUCCESS) {
-            contractResult.returns(receipt.getContractID().getContractNum(), ContractResult::getContractId);
+            contractResult.returns(EntityId.of(receipt.getContractID()).getId(), ContractResult::getContractId);
         }
 
         assertContractResult(consensusTimestamp, result, result.getLogInfoList(), contractResult);
@@ -1328,7 +1327,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
             List<ContractLoginfo> logInfoList,
             ObjectAssert<ContractResult> contractResult) {
         List<Long> createdContractIds = result.getCreatedContractIDsList().stream()
-                .map(ContractID::getContractNum)
+                .map(x -> EntityId.of(x).getId())
                 .toList();
 
         contractResult
@@ -1461,7 +1460,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                 .first()
                 .returns(transactionBody.getAmount(), ContractResult::getAmount)
                 .returns(consensusTimestamp, ContractResult::getConsensusTimestamp)
-                .returns(transactionBody.getContractID().getContractNum(), ContractResult::getContractId)
+                .returns(EntityId.of(transactionBody.getContractID()).getId(), ContractResult::getContractId)
                 .returns(toBytes(transactionBody.getFunctionParameters()), ContractResult::getFunctionParameters)
                 .returns(transactionBody.getGas(), ContractResult::getGasLimit);
 
