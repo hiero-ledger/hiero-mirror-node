@@ -363,7 +363,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .setAccountID(payerAccountId)
                                 .setAmount(-1000))
                         .addAccountAmounts(AccountAmount.newBuilder()
-                                .setAccountID(AccountID.newBuilder().setAlias(evmAddress))
+                                .setAccountID(AccountID.newBuilder().setShardNum(commonProperties.getShard()).setRealmNum(commonProperties.getRealm()).setAlias(evmAddress))
                                 .setAmount(1000))))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(r -> r.setTransactionID(transactionId)
@@ -399,7 +399,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .setAmount(-200))
                         .addAccountAmounts(AccountAmount.newBuilder()
                                 .setAccountID(
-                                        AccountID.newBuilder().setAlias(DomainUtils.fromBytes(ALIAS_ECDSA_SECP256K1)))
+                                        AccountID.newBuilder().setShardNum(commonProperties.getShard()).setRealmNum(commonProperties.getRealm()).setAlias(DomainUtils.fromBytes(ALIAS_ECDSA_SECP256K1)))
                                 .setAmount(200))))
                 .record(r -> r.setTransferList(TransferList.newBuilder()
                         .addAccountAmounts(AccountAmount.newBuilder()
@@ -465,14 +465,14 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         var tokenId2 = EntityId.of(recordItemBuilder.tokenId());
         List<NftRemoveAllowance> nftRemoveAllowances = List.of(
                 NftRemoveAllowance.newBuilder()
-                        .setOwner(AccountID.newBuilder().setAccountNum(ownerAccountId.getNum()))
-                        .setTokenId(TokenID.newBuilder().setTokenNum(tokenId1.getNum()))
+                        .setOwner(ownerAccountId.toAccountID())
+                        .setTokenId(tokenId1.toTokenID())
                         .addSerialNumbers(1L)
                         .addSerialNumbers(2L)
                         .build(),
                 NftRemoveAllowance.newBuilder()
-                        .setOwner(AccountID.newBuilder().setAccountNum(ownerAccountId.getNum()))
-                        .setTokenId(TokenID.newBuilder().setTokenNum(tokenId2.getNum()))
+                        .setOwner(ownerAccountId.toAccountID())
+                        .setTokenId(tokenId2.toTokenID())
                         .addSerialNumbers(1L)
                         .addSerialNumbers(2L)
                         .addSerialNumbers(2L)
@@ -800,7 +800,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 // (the results of overflows).
                 .setExpirationTime(Timestamp.newBuilder().setSeconds(seconds))
                 .setDeclineReward(BoolValue.of(true))
-                .setStakedAccountId(AccountID.newBuilder().setAccountNum(1L).build()));
+                .setStakedAccountId(domainBuilder.entityId(1L).toAccountID()));
         var transactionBody = getTransactionBody(updateTransaction);
 
         var txnRecord = transactionRecordSuccess(transactionBody);
@@ -865,7 +865,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 .persist();
         long newStakedNodeId = 5L;
         var protoAccountId =
-                AccountID.newBuilder().setAccountNum(account.getNum()).build();
+                account.toEntityId().toAccountID();
 
         // when
         var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
@@ -908,7 +908,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 .customize(e -> e.declineReward(false).stakedNodeId(1L).stakePeriodStart(1L))
                 .persist();
         var protoAccountId =
-                AccountID.newBuilder().setAccountNum(account.getNum()).build();
+                account.toEntityId().toAccountID();
 
         // when
         var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
@@ -951,7 +951,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 .customize(e -> e.declineReward(false).stakedNodeId(1L).stakePeriodStart(1L))
                 .persist();
         var protoAccountId =
-                AccountID.newBuilder().setAccountNum(account.getNum()).build();
+                account.toEntityId().toAccountID();
 
         // when
         var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
@@ -1249,7 +1249,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                         r.getTransferListBuilder().addAccountAmounts(accountAmount);
                     }
                     r.addTokenTransferLists(TokenTransferList.newBuilder()
-                            .setToken(TokenID.newBuilder().setTokenNum(tokenId.getNum()))
+                            .setToken(tokenId.toTokenID())
                             .addTransfers(AccountAmount.newBuilder()
                                     .setAccountID(accountId1.toAccountID())
                                     .setAmount(amount)));
@@ -1486,7 +1486,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                         .extracting(com.hedera.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
                         .asInstanceOf(InstanceOfAssertFactories.LIST)
                         .map(transfer ->
-                                ((ItemizedTransfer) transfer).getEntityId().getNum())
+                                ((ItemizedTransfer) transfer).getEntityId().getId())
                         .asInstanceOf(InstanceOfAssertFactories.LIST)
                         .containsExactly(EntityId.of(newAccount).getId(), entity.getId(), entity.getId()));
         System.setProperty(HALT_ON_ERROR_PROPERTY, haltOnError);
@@ -1683,9 +1683,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         assertThat(findHistory(Entity.class)).isEmpty();
 
         // when
-        var contractId = ContractID.newBuilder()
-                .setContractNum(EntityId.of(accountId).getId())
-                .build();
+        var contractId = EntityId.of(accountId).toContractID();
         var contractCreate = recordItemBuilder
                 .contractCreate()
                 .receipt(r -> r.setContractID(contractId))
@@ -1755,9 +1753,9 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         var consensusSubmitMessage1 = recordItemBuilder
                 .consensusSubmitMessage()
                 .record(r -> r.setConsensusTimestamp(Utility.instantToTimestamp(beforeNextMidnight))
-                        .addPaidStakingRewards(accountAmount(account.getNum(), 200))
+                        .addPaidStakingRewards(accountAmount(account.toEntityId().getId(), 200))
                         .setTransferList(TransferList.newBuilder()
-                                .addAccountAmounts(accountAmount(account.getNum(), 100))
+                                .addAccountAmounts(accountAmount(account.toEntityId().getId(), 100))
                                 .addAccountAmounts(accountAmount(2, 20))
                                 .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 80))
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200))))
@@ -1766,9 +1764,9 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         var consensusSubmitMessage2 = recordItemBuilder
                 .consensusSubmitMessage()
                 .record(r -> r.setConsensusTimestamp(Utility.instantToTimestamp(afterNextMidnight))
-                        .addPaidStakingRewards(accountAmount(account.getNum(), 60))
+                        .addPaidStakingRewards(accountAmount(account.toEntityId().getId(), 60))
                         .setTransferList(TransferList.newBuilder()
-                                .addAccountAmounts(accountAmount(account.getNum(), -40))
+                                .addAccountAmounts(accountAmount(account.toEntityId().getId(), -40))
                                 .addAccountAmounts(accountAmount(2, 20))
                                 .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 80))
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -60))))
