@@ -102,11 +102,11 @@ public interface BlockStreamReader {
 ```java
 abstract class AbstractBlockStreamPoller implements StreamPoller {
 
-    protected final long getNextBlockNumber() {}
+    protected final long getNextBlockNumber();
 
     protected final void onBlockStream(BlockStream blockStream) {
         read block stream;
-        veriy block stream;
+        verify block stream;
     }
 }
 ```
@@ -148,8 +148,7 @@ combine block items in the same block and only then calls `onBlockStream`.
 public class BlockNodePoller extends AbstractBlockStreamPoller {
 
     @Override
-    public void poll() {
-    }
+    public void poll();
 }
 ```
 
@@ -158,15 +157,14 @@ public class BlockNodePoller extends AbstractBlockStreamPoller {
 `CompositeBlockStreamPoller` delegates to either `BlockFilePoller` or `BlockNodePoller` to poll blocks, depending on
 the configuration and the delegates' health.
 
-When `sourceType` is `BOTH`, `CompositeBlockStreamPoller` will try `BlockNodePoller` first. When one poller is
-unhealthy, e.g., it fails to download one block 5 times consecutively, `CompositeBLockStreamPoller` will delegate to the
+When `sourceType` is `BOTH`, `CompositeBlockStreamPoller` will first use `BlockNodePoller`. When one poller is
+unhealthy, e.g., it fails to download one block 5 times consecutively, `CompositeBLockStreamPoller` will switch to the
 other poller.
 
 ```java
 public class CompositeBlockStreamPoller implements StreamPoller {
 
     @Override
-    public void poll() {
-    }
+    public void poll();
 }
 ```
