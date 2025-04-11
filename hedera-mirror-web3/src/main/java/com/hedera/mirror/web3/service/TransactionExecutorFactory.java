@@ -5,10 +5,10 @@ package com.hedera.mirror.web3.service;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.mirror.web3.evm.config.ModularizedOperation;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.node.app.workflows.standalone.TransactionExecutor;
 import com.hedera.node.app.workflows.standalone.TransactionExecutors;
 import com.hedera.node.app.workflows.standalone.TransactionExecutors.Properties;
-import com.swirlds.state.State;
 import com.swirlds.state.lifecycle.EntityIdFactory;
 import jakarta.inject.Named;
 import java.util.HashMap;
@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 public class TransactionExecutorFactory {
 
     private final Set<ModularizedOperation> customOperations;
-    private final State mirrorNodeState;
+    private final MirrorNodeState mirrorNodeState;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
     private final Map<SemanticVersion, TransactionExecutor> transactionExecutors = new ConcurrentHashMap<>();
     private final EntityIdFactory entityIdFactory;

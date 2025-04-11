@@ -27,7 +27,7 @@ public class ModularizedConfiguration {
 
     @Bean
     public ConfigProviderImpl configProvider() {
-        return new ConfigProviderImpl();
+        return new ConfigProviderImpl(false, null, mirrorNodeEvmProperties.getProperties());
     }
 
     @Bean

@@ -19,7 +19,7 @@ This document details how the mirror node will be updated to support it.
 ```postgresql
 alter table if exists transaction
   add column if not exists batch_key          bytea      default null,
-  add column if not exists inner_transactions bigint[][] default null;
+  add column if not exists inner_transactions bigint[] default null;
 ```
 
 ### Importer
@@ -28,7 +28,7 @@ Update
 
 ```java
 public enum TransactionType {
-    BATCH(NEW_BATCH_TYPE_PROTO_ID, EntityOperation.NONE)
+    ATOMIC_BATCH(74, EntityOperation.NONE)
 }
 ```
 
@@ -37,20 +37,16 @@ Update
 ```java
 public class Transaction {
   private byte[] batchKey;
-  private List<long[]> innerTransactions;
+  private List<Long> innerTransactions;
 
   public void addInnerTransaction(Transaction transaction) {
     if (innerTransactions == null) {
       innerTransactions = new ArrayList<>();
     }
 
-    innerTransactions.add(transaction.toInnerTransaction());
+    innerTransactions.add(transaction.getPayerAccountId().getId());
+    innerTransactions.add(transaction.getValidStartNs());
   }
-
-  private long[] toInnerTransaction() {
-    return new long []{payerAccountId, validStartNs};
-  }
-
 }
 ```
 
@@ -93,6 +89,25 @@ Update
 public class BlockItem {
   private final TransactionBody transactionBody;
   private final SignatureMap signatureMap;
+
+  public static class BlockItemBuilder {
+    public BlockItem build () {
+      if (transactionBody == null || signatureMap == null) {
+        parseBody();
+      }
+      return new BlockItem(
+              transaction,
+              transactionResult,
+              transactionOutputs,
+              stateChanges,
+              previous,
+              transactionBody,
+              signatureMap);
+    }
+    private void parseBody() {
+      // Move logic from BlockItemTransformerFactory.java parse
+    }
+  }
 }
 ```
 
@@ -130,24 +145,7 @@ Update
 public class ProtoBlockFileReader implements BlockFileReader {
     private void readEventTransactions(ReaderContext context) {
       While transaction = context.getApplicationTransaction != null)
-        Read transaction result
-        Read transaction outputs
-        Read State Changes
-        Build BlockItem
-          var signedTransaction = SignedTransaction.parseFrom(transaction.getTransactionBytes());
-          var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
-          var signatureMap = signedTransaction.getSigMap();
-          var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
-                  .transaction(transaction)
-                  .transactionBody(transactionBody)
-                  .signatureMap(signatureMap)
-                  .transactionResult(transactionResult)
-                  .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
-                  .stateChanges(Collections.unmodifiableList(stateChangesList))
-                  .previous(context.getLastBlockItem())
-                  .build();
-        context.getBlockFile().item(blockItem);
-        context.setLastBlockItem(blockItem);
+        CURRENT LOGIC
       End While
     }
 

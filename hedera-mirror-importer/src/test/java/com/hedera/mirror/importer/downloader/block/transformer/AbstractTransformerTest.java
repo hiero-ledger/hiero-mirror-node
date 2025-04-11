@@ -26,7 +26,7 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
     private static final Version HAPI_VERSION = new Version(0, 57, 0);
     private static final RecursiveComparisonConfiguration RECORD_ITEMS_COMPARISON_CONFIG =
             RecursiveComparisonConfiguration.builder()
-                    .withIgnoredFields("parent", "previous")
+                    .withIgnoredFields("parent", "previous", "transactionBody", "signatureMap")
                     .withEqualsForType(Object::equals, TransactionRecord.class)
                     .build();
 

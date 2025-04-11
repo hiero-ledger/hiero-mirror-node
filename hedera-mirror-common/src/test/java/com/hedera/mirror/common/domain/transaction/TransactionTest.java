@@ -4,10 +4,12 @@ package com.hedera.mirror.common.domain.transaction;
 
 import static com.hedera.mirror.common.converter.ObjectToStringSerializer.OBJECT_MAPPER;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.NftTransfer;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompareMode;
@@ -17,11 +19,13 @@ class TransactionTest {
     private static final String EXPECTED_JSON_TEMPLATE =
             """
                     {
+                      "batch_key": null,
                       "consensus_timestamp": 1684791152000000000,
                       "charged_tx_fee": 1,
                       "entity_id": 2,
                       "errata": "INSERT",
                       "index":4,
+                      "inner_transactions": null,
                       "initial_balance": 5,
                       "itemized_transfer": %s,
                       "max_custom_fees": %s,
@@ -88,6 +92,36 @@ class TransactionTest {
         var nftTransfer2 = domainBuilder.nftTransfer().get();
         transaction.addNftTransfer(nftTransfer2);
         assertThat(transaction.getNftTransfer()).containsExactly(nftTransfer1, nftTransfer2);
+    }
+
+    @Test
+    void addInnerTransaction() {
+        var domainBuilder = new DomainBuilder();
+
+        var batchTransaction = domainBuilder
+                .transaction()
+                .customize(builder -> builder.type(TransactionType.ATOMIC_BATCH.getProtoId()))
+                .get();
+        assertThat(batchTransaction.getInnerTransactions()).isNull();
+
+        var innerTransaction = domainBuilder.transaction().get();
+        batchTransaction.addInnerTransaction(innerTransaction);
+
+        var innerTransaction2 = domainBuilder.transaction().get();
+        batchTransaction.addInnerTransaction(innerTransaction2);
+
+        var expectedInnerTransactions = List.of(
+                innerTransaction.getPayerAccountId().getId(),
+                innerTransaction.getValidStartNs(),
+                innerTransaction2.getPayerAccountId().getId(),
+                innerTransaction2.getValidStartNs());
+
+        assertThat(batchTransaction.getInnerTransactions()).isEqualTo(expectedInnerTransactions);
+
+        var nonBatchTransaction = domainBuilder.transaction().get();
+        assertThatThrownBy(() -> nonBatchTransaction.addInnerTransaction(innerTransaction))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Inner transactions can only be added to atomic batch transaction");
     }
 
     @Test

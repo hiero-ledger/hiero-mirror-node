@@ -35,7 +35,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
@@ -571,6 +570,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var receiverEntity = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
         final var notExistingAccountAddress = toAddress(EntityId.of(4325));
+        persistRewardAccounts();
 
         final var serviceParameters =
                 getContractExecutionParametersWithValue(Bytes.EMPTY, notExistingAccountAddress, receiverAddress, 10L);
@@ -728,20 +728,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, senderAddress);
         final var actualGas = 175242L;
-        domainBuilder
-                .entity()
-                .customize(e -> e.id(801L)
-                        .num(801L)
-                        .createdTimestamp(genesisRecordFile.getConsensusStart())
-                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
-                .persist();
-        domainBuilder
-                .entity()
-                .customize(e -> e.id(800L)
-                        .num(800L)
-                        .createdTimestamp(genesisRecordFile.getConsensusStart())
-                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
-                .persist();
+        persistRewardAccounts();
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);

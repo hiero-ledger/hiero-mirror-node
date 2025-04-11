@@ -24,8 +24,16 @@ public class ParserContext {
     private final Map<Class<?>, DomainContext<?>> state = new ConcurrentSkipListMap<>(new DomainClassComparator());
 
     public <T> void add(@NonNull T object) {
+        add(object, null);
+    }
+
+    public <T> void add(@NonNull T object, Object key) {
         var domainContext = getDomainContext(object);
         domainContext.getInserts().add(object);
+
+        if (key != null) {
+            domainContext.getState().put(key, object);
+        }
     }
 
     public <T> void addAll(@NonNull Collection<T> objects) {

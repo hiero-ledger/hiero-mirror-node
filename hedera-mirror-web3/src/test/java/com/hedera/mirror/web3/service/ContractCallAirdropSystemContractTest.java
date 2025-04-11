@@ -7,7 +7,6 @@ import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
@@ -495,23 +494,6 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         } else {
             assertThrows(PrecompileNotSupportedException.class, functionCall::send);
         }
-    }
-
-    private void persistRewardAccounts() {
-        domainBuilder
-                .entity()
-                .customize(e -> e.id(801L)
-                        .num(801L)
-                        .createdTimestamp(genesisRecordFile.getConsensusStart())
-                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
-                .persist();
-        domainBuilder
-                .entity()
-                .customize(e -> e.id(800L)
-                        .num(800L)
-                        .createdTimestamp(genesisRecordFile.getConsensusStart())
-                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
-                .persist();
     }
 
     private Entity persistAirdropReceiver() {

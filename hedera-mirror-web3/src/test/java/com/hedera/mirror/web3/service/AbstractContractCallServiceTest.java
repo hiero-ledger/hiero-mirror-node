@@ -710,6 +710,23 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         mirrorNodeEvmProperties.setProperties(propertiesMap);
     }
 
+    protected void persistRewardAccounts() {
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(801L)
+                        .num(801L)
+                        .createdTimestamp(genesisRecordFile.getConsensusStart())
+                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
+                .persist();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(800L)
+                        .num(800L)
+                        .createdTimestamp(genesisRecordFile.getConsensusStart())
+                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
+                .persist();
+    }
+
     public enum KeyType {
         ADMIN_KEY(1),
         KYC_KEY(2),

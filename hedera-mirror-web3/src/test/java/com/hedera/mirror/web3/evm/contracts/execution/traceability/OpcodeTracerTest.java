@@ -42,13 +42,13 @@ import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.config.PrecompilesHolder;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.state.core.MapWritableStates;
 import com.hedera.mirror.web3.state.keyvalue.ContractStorageReadableKVState;
 import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractActionType;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import com.swirlds.state.State;
 import com.swirlds.state.spi.WritableKVState;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
@@ -134,7 +134,7 @@ class OpcodeTracerTest {
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Mock
-    private State mirrorNodeState;
+    private MirrorNodeState mirrorNodeState;
 
     // Transient test data
     private OpcodeTracer tracer;

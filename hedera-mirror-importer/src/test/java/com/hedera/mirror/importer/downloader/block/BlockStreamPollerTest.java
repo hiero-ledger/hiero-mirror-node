@@ -40,6 +40,8 @@ import com.hedera.mirror.importer.downloader.provider.StreamFileProvider;
 import com.hedera.mirror.importer.exception.InvalidStreamFileException;
 import com.hedera.mirror.importer.reader.block.ProtoBlockFileReader;
 import com.hedera.mirror.importer.repository.RecordFileRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -94,6 +96,7 @@ class BlockStreamPollerTest {
     private ImporterProperties importerProperties;
     private List<ConsensusNode> nodes;
     private BlockPollerProperties properties;
+    private MeterRegistry meterRegistry;
 
     @Mock
     private RecordFileRepository recordFileRepository;
@@ -116,6 +119,7 @@ class BlockStreamPollerTest {
         commonDownloaderProperties.setPathType(PathType.NODE_ID);
         properties = new BlockPollerProperties();
         properties.setEnabled(true);
+        meterRegistry = new SimpleMeterRegistry();
 
         nodes = List.of(
                 ConsensusNodeStub.builder().nodeId(0).build(),
@@ -144,15 +148,16 @@ class BlockStreamPollerTest {
                 })
                 .when(blockFileTransformer)
                 .transform(any(BlockFile.class));
-        blockStreamVerifier = spy(
-                new BlockStreamVerifier(blockFileTransformer, recordFileRepository, mock(StreamFileNotifier.class)));
+        blockStreamVerifier = spy(new BlockStreamVerifier(
+                blockFileTransformer, recordFileRepository, mock(StreamFileNotifier.class), meterRegistry));
         blockStreamPoller = new BlockStreamPoller(
                 new ProtoBlockFileReader(),
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 consensusNodeService,
                 properties,
-                streamFileProvider);
+                streamFileProvider,
+                meterRegistry);
 
         var fromPath = Path.of("data", "blockstreams");
         fileCopier = FileCopier.create(
@@ -190,6 +195,7 @@ class BlockStreamPollerTest {
                 .thenReturn(Optional.of(RecordFile.builder()
                         .index(blockFile(0).getIndex() - 1)
                         .hash(blockFile(0).getPreviousHash())
+                        .consensusStart(blockFile(0).getConsensusStart())
                         .build()));
 
         // when
@@ -325,7 +331,8 @@ class BlockStreamPollerTest {
                 commonDownloaderProperties,
                 consensusNodeService,
                 properties,
-                streamFileProvider);
+                streamFileProvider,
+                meterRegistry);
 
         // when
         poller.poll();
@@ -395,6 +402,7 @@ class BlockStreamPollerTest {
                 .thenReturn(Optional.of(RecordFile.builder()
                         .index(blockFile(0).getIndex() - 1)
                         .hash(blockFile(0).getPreviousHash())
+                        .consensusStart(blockFile(0).getConsensusStart())
                         .build()));
         fileCopier.filterFiles(filename).to("0").copy();
         fileCopier.filterFiles(filename).to("1").copy();

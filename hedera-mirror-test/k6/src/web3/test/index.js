@@ -34,7 +34,7 @@ import * as contractCallEstimateFungibleTokenCustomFees from './contractCallEsti
 import * as contractCallEstimateNftCustomFees from './contractCallEstimateNftCustomFees.js';
 import * as contractCallEstimateCreateNft from './contractCallEstimateCreateNft.js';
 import * as contractCallEstimateCreateFungibleToken from './contractCallEstimateCreateFungibleToken.js';
-import * as contractCallEstimateTokenDissociate from './contractCallEstimateTokenDissociate.js';
+import * as contractCallEstimateTokenDissociate from './contractCallEstimateDissociateToken.js';
 import * as contractCallEstimateApprove from './contractCallEstimateApprove.js';
 import * as contractCallEstimateApproveNft from './contractCallEstimateApproveNft.js';
 import * as contractCallEstimateAssociateTokens from './contractCallEstimateAssociateTokens.js';

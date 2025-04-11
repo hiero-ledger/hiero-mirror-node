@@ -4,6 +4,7 @@ package com.hedera.mirror.common.domain.transaction;
 
 import static com.hedera.mirror.common.domain.transaction.StateChangeContext.EMPTY_CONTEXT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
@@ -15,11 +16,16 @@ import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
+import com.hedera.mirror.common.domain.DomainBuilder;
+import com.hedera.mirror.common.exception.ProtobufException;
+import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.Transaction;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -27,6 +33,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 class BlockItemTest {
+    private final DomainBuilder domainBuilder = new DomainBuilder();
 
     @ParameterizedTest
     @EnumSource(
@@ -354,5 +361,38 @@ class BlockItemTest {
                 .contains(callContractOutput);
         assertThat(blockItem.getTransactionOutput(TransactionCase.CONTRACT_CREATE))
                 .isEmpty();
+    }
+
+    @Test
+    void corruptedTransactionBodyBytes() {
+        // given
+        var blockItem = BlockItem.builder()
+                .transaction(Transaction.newBuilder()
+                        .setSignedTransactionBytes(SignedTransaction.newBuilder()
+                                .setBodyBytes(DomainUtils.fromBytes(domainBuilder.bytes(512)))
+                                .build()
+                                .toByteString())
+                        .build())
+                .transactionResult(TransactionResult.newBuilder().build())
+                .transactionOutputs(Collections.emptyMap())
+                .stateChanges(Collections.emptyList());
+
+        // when, then
+        assertThatThrownBy(blockItem::build).isInstanceOf(ProtobufException.class);
+    }
+
+    @Test
+    void corruptedSignedTransactionBytes() {
+        // given
+        var blockItem = BlockItem.builder()
+                .transaction(Transaction.newBuilder()
+                        .setSignedTransactionBytes(DomainUtils.fromBytes(domainBuilder.bytes(256)))
+                        .build())
+                .transactionResult(TransactionResult.newBuilder().build())
+                .transactionOutputs(Collections.emptyMap())
+                .stateChanges(Collections.emptyList());
+
+        // when, then
+        assertThatThrownBy(blockItem::build).isInstanceOf(ProtobufException.class);
     }
 }
