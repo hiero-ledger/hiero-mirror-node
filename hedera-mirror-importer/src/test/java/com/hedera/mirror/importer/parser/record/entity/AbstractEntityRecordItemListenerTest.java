@@ -69,41 +69,43 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 public abstract class AbstractEntityRecordItemListenerTest extends ImporterIntegrationTest {
 
-    protected static final CommonProperties commonProperties = CommonProperties.getInstance();
+    protected static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     protected static final ContractID CONTRACT_ID = EntityId.of(
-                    commonProperties.getShard(), commonProperties.getRealm(), 901)
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 901)
             .toContractID();
     protected static final ContractID CREATED_CONTRACT_ID = EntityId.of(
-                    commonProperties.getShard(), commonProperties.getRealm(), 902)
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 902)
             .toContractID();
     protected static final SignatureMap DEFAULT_SIG_MAP = getDefaultSigMap();
     protected static final String KEY = "0a2212200aa8e21064c61eab86e2a9c164565b4e7a9a4146106e0a6cd03a8c395a110fff";
     protected static final String KEY2 = "0a3312200aa8e21064c61eab86e2a9c164565b4e7a9a4146106e0a6cd03a8c395a110e92";
-    protected static final AccountID PAYER = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 2002)
+    protected static final AccountID PAYER = EntityId.of(
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 2002)
             .toAccountID();
     protected static final AccountID PAYER2 = EntityId.of(
-                    commonProperties.getShard(), commonProperties.getRealm(), 2003)
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 2003)
             .toAccountID();
     protected static final AccountID PAYER3 = EntityId.of(
-                    commonProperties.getShard(), commonProperties.getRealm(), 2006)
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 2006)
             .toAccountID();
     protected static final AccountID RECEIVER = EntityId.of(
-                    commonProperties.getShard(), commonProperties.getRealm(), 2004)
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 2004)
             .toAccountID();
     protected static final AccountID SPENDER = EntityId.of(
-                    commonProperties.getShard(), commonProperties.getRealm(), 2005)
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 2005)
             .toAccountID();
     protected static final AccountID DEFAULT_ACCOUNT_ID = AccountID.getDefaultInstance();
-    protected static final AccountID NODE = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 3)
+    protected static final AccountID NODE = EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 3)
             .toAccountID();
-    protected static final AccountID PROXY = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1003)
+    protected static final AccountID PROXY = EntityId.of(
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 1003)
             .toAccountID();
     protected static final AccountID PROXY_UPDATE = EntityId.of(
-                    commonProperties.getShard(), commonProperties.getRealm(), 3000)
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 3000)
             .toAccountID();
-    protected static final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
-
     protected static final String TRANSACTION_MEMO = "transaction memo";
+
+    protected final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
 
     @Resource
     protected ContractRepository contractRepository;
@@ -195,8 +197,8 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
         body.setTransactionFee(100L);
         body.setMemo(TRANSACTION_MEMO);
         body.setNodeAccountID(AccountID.newBuilder()
-                .setShardNum(commonProperties.getShard())
-                .setRealmNum(commonProperties.getRealm())
+                .setShardNum(COMMON_PROPERTIES.getShard())
+                .setRealmNum(COMMON_PROPERTIES.getRealm())
                 .setAccountNum(3)
                 .build());
         body.setTransactionID(Utility.getTransactionId(PAYER));
@@ -403,8 +405,8 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
     protected AccountAmount.Builder accountAliasAmount(ByteString alias, long amount) {
         return AccountAmount.newBuilder()
                 .setAccountID(AccountID.newBuilder()
-                        .setShardNum(commonProperties.getShard())
-                        .setRealmNum(commonProperties.getRealm())
+                        .setShardNum(COMMON_PROPERTIES.getShard())
+                        .setRealmNum(COMMON_PROPERTIES.getRealm())
                         .setAlias(alias))
                 .setAmount(amount);
     }

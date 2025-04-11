@@ -60,14 +60,14 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListenerTest {
 
-    static final TopicID TOPIC_ID = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 200L)
+    static final TopicID TOPIC_ID = EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 200L)
             .toTopicID();
     static final String TRANSACTION_MEMO = "transaction memo";
     static final String NODE_ID = "0.0.3";
     static final String TRANSACTION_ID =
-            commonProperties.getShard() + "." + commonProperties.getRealm() + ".9999-123456789";
+            COMMON_PROPERTIES.getShard() + "." + COMMON_PROPERTIES.getRealm() + ".9999-123456789";
     static final EntityId PAYER_ACCOUNT_ID =
-            EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 9999);
+            EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 9999);
 
     @ParameterizedTest
     @CsvSource({

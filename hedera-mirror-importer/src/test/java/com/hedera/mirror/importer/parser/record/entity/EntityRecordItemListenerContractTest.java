@@ -200,8 +200,8 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
     @Test
     void contractCallChildNonce() {
         ContractID childContractID = ContractID.newBuilder()
-                .setRealmNum(commonProperties.getRealm())
-                .setShardNum(commonProperties.getShard())
+                .setRealmNum(COMMON_PROPERTIES.getRealm())
+                .setShardNum(COMMON_PROPERTIES.getShard())
                 .setContractNum(1001L)
                 .build();
 

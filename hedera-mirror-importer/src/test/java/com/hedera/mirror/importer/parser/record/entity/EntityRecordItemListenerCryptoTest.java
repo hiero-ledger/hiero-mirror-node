@@ -48,7 +48,6 @@ import com.hedera.mirror.importer.util.Utility;
 import com.hedera.mirror.importer.util.UtilityTest;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
-import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.CryptoAddLiveHashTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoUpdateTransactionBody;
@@ -61,7 +60,6 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.ShardID;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Timestamp;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -95,7 +93,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
 
     private static final long INITIAL_BALANCE = 1000L;
     private static final EntityId accountId1 =
-            EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1001);
+            EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 1001);
     private static final long[] additionalTransfers = {5000};
     private static final long[] additionalTransferAmounts = {1001, 1002};
     private static final ByteString ALIAS_KEY = DomainUtils.fromBytes(UtilityTest.ALIAS_ECDSA_SECP256K1);
@@ -363,7 +361,10 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .setAccountID(payerAccountId)
                                 .setAmount(-1000))
                         .addAccountAmounts(AccountAmount.newBuilder()
-                                .setAccountID(AccountID.newBuilder().setShardNum(commonProperties.getShard()).setRealmNum(commonProperties.getRealm()).setAlias(evmAddress))
+                                .setAccountID(AccountID.newBuilder()
+                                        .setShardNum(COMMON_PROPERTIES.getShard())
+                                        .setRealmNum(COMMON_PROPERTIES.getRealm())
+                                        .setAlias(evmAddress))
                                 .setAmount(1000))))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(r -> r.setTransactionID(transactionId)
@@ -398,8 +399,10 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .setAccountID(payerAccountId)
                                 .setAmount(-200))
                         .addAccountAmounts(AccountAmount.newBuilder()
-                                .setAccountID(
-                                        AccountID.newBuilder().setShardNum(commonProperties.getShard()).setRealmNum(commonProperties.getRealm()).setAlias(DomainUtils.fromBytes(ALIAS_ECDSA_SECP256K1)))
+                                .setAccountID(AccountID.newBuilder()
+                                        .setShardNum(COMMON_PROPERTIES.getShard())
+                                        .setRealmNum(COMMON_PROPERTIES.getRealm())
+                                        .setAlias(DomainUtils.fromBytes(ALIAS_ECDSA_SECP256K1)))
                                 .setAmount(200))))
                 .record(r -> r.setTransferList(TransferList.newBuilder()
                         .addAccountAmounts(AccountAmount.newBuilder()
@@ -864,8 +867,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 .customize(e -> e.declineReward(false).stakedNodeId(1L).stakePeriodStart(1L))
                 .persist();
         long newStakedNodeId = 5L;
-        var protoAccountId =
-                account.toEntityId().toAccountID();
+        var protoAccountId = account.toEntityId().toAccountID();
 
         // when
         var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
@@ -907,8 +909,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 .entity()
                 .customize(e -> e.declineReward(false).stakedNodeId(1L).stakePeriodStart(1L))
                 .persist();
-        var protoAccountId =
-                account.toEntityId().toAccountID();
+        var protoAccountId = account.toEntityId().toAccountID();
 
         // when
         var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
@@ -950,8 +951,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 .entity()
                 .customize(e -> e.declineReward(false).stakedNodeId(1L).stakePeriodStart(1L))
                 .persist();
-        var protoAccountId =
-                account.toEntityId().toAccountID();
+        var protoAccountId = account.toEntityId().toAccountID();
 
         // when
         var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
@@ -1753,9 +1753,11 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         var consensusSubmitMessage1 = recordItemBuilder
                 .consensusSubmitMessage()
                 .record(r -> r.setConsensusTimestamp(Utility.instantToTimestamp(beforeNextMidnight))
-                        .addPaidStakingRewards(accountAmount(account.toEntityId().getId(), 200))
+                        .addPaidStakingRewards(
+                                accountAmount(account.toEntityId().getId(), 200))
                         .setTransferList(TransferList.newBuilder()
-                                .addAccountAmounts(accountAmount(account.toEntityId().getId(), 100))
+                                .addAccountAmounts(
+                                        accountAmount(account.toEntityId().getId(), 100))
                                 .addAccountAmounts(accountAmount(2, 20))
                                 .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 80))
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200))))
@@ -1764,9 +1766,11 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         var consensusSubmitMessage2 = recordItemBuilder
                 .consensusSubmitMessage()
                 .record(r -> r.setConsensusTimestamp(Utility.instantToTimestamp(afterNextMidnight))
-                        .addPaidStakingRewards(accountAmount(account.toEntityId().getId(), 60))
+                        .addPaidStakingRewards(
+                                accountAmount(account.toEntityId().getId(), 60))
                         .setTransferList(TransferList.newBuilder()
-                                .addAccountAmounts(accountAmount(account.toEntityId().getId(), -40))
+                                .addAccountAmounts(
+                                        accountAmount(account.toEntityId().getId(), -40))
                                 .addAccountAmounts(accountAmount(2, 20))
                                 .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 80))
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -60))))

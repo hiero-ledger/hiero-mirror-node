@@ -957,7 +957,8 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
                 .setGas(100)
                 .setGasUsed(50)
                 .setInput(bytes(100))
-                .setRecipientContract(domainBuilder.entityId(recipientContractNum).toContractID())
+                .setRecipientContract(
+                        domainBuilder.entityId(recipientContractNum).toContractID())
                 .setOutput(bytes(256))
                 .setValue(20)
                 .build();
