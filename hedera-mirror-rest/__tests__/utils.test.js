@@ -1923,10 +1923,10 @@ describe('Utils formatSlot tests', () => {
     const slotThree = '0028d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b';
     const slotFour = '0x00028d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b';
 
-    expect(utils.formatSlot(slotOne)).toEqual(utils.formatSlot(slotTwo));
-    expect(utils.formatSlot(slotTwo)).toEqual(utils.formatSlot(slotThree));
+    expect(utils.formatSlot(slotOne, false)).toEqual(utils.formatSlot(slotTwo, false));
+    expect(utils.formatSlot(slotTwo, true)).toEqual(utils.formatSlot(slotThree, true));
     expect(utils.formatSlot(slotThree)).toEqual(utils.formatSlot(slotFour));
-    expect(utils.formatSlot(slotFour)).toEqual(
+    expect(utils.formatSlot(slotFour,false)).toEqual(
       Buffer.from('0028d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b', 'hex')
     );
   });
