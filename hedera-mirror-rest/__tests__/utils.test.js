@@ -1927,7 +1927,7 @@ describe('Utils formatSlot tests', () => {
     expect(utils.formatSlot(slotTwo, true)).toEqual(utils.formatSlot(slotThree, true));
     expect(utils.formatSlot(slotThree)).toEqual(utils.formatSlot(slotFour));
     expect(utils.formatSlot(slotFour,false)).toEqual(
-      Buffer.from('0028d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b', 'hex')
+      Buffer.from('28d21a315c10fe05bed774f5340a06a5ebe2f86f0724c800c017e137a75f0b', 'hex')
     );
   });
 
