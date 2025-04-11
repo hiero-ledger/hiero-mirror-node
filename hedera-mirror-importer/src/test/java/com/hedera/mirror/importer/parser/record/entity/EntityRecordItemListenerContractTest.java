@@ -42,7 +42,6 @@ import com.hedera.mirror.importer.repository.ContractStateRepository;
 import com.hedera.mirror.importer.util.Utility;
 import com.hedera.services.stream.proto.ContractBytecode;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
@@ -200,8 +199,11 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
 
     @Test
     void contractCallChildNonce() {
-        ContractID childContractID =
-                ContractID.newBuilder().setRealmNum(commonProperties.getRealm()).setShardNum(commonProperties.getShard()).setContractNum(1001L).build();
+        ContractID childContractID = ContractID.newBuilder()
+                .setRealmNum(commonProperties.getRealm())
+                .setShardNum(commonProperties.getShard())
+                .setContractNum(1001L)
+                .build();
 
         var setupResult = setupContract(CONTRACT_ID, ContractIdType.PLAIN, true, true);
         var parentId = setupResult.entity.toEntityId();

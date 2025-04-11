@@ -202,7 +202,7 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
         current1.setAmount(current1.getAmount() - 15);
 
         var owner2AccountId = EntityId.of(current2.getOwner()).toAccountID();
-        var spender2AccountId =  EntityId.of(current2.getSpender()).toAccountID();
+        var spender2AccountId = EntityId.of(current2.getSpender()).toAccountID();
         var transactionId2 = TransactionID.newBuilder()
                 .setAccountID(spender2AccountId)
                 .setTransactionValidStart(TestUtils.toTimestamp(consensusStart - 5))

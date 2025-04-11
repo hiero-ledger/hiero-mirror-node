@@ -53,7 +53,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class EntityRecordItemListenerFileTest extends AbstractEntityRecordItemListenerTest {
 
-    private static final FileID FILE_ID = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1001).toFileID();
+    private static final FileID FILE_ID = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1001)
+            .toFileID();
     private static final byte[] FILE_CONTENTS = {'a', 'b', 'c'};
     private static final int TEST_INITIAL_ADDRESS_BOOK_NODE_COUNT = 4;
 

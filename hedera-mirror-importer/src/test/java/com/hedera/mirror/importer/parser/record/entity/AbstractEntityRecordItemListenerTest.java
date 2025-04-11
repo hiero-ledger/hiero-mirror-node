@@ -70,24 +70,37 @@ import org.springframework.transaction.support.TransactionTemplate;
 public abstract class AbstractEntityRecordItemListenerTest extends ImporterIntegrationTest {
 
     protected static final CommonProperties commonProperties = CommonProperties.getInstance();
-    protected static final ContractID CONTRACT_ID =
-            EntityId.of(commonProperties.getShard(), commonProperties.getRealm(),901).toContractID();
-    protected static final ContractID CREATED_CONTRACT_ID =
-            EntityId.of(commonProperties.getShard(), commonProperties.getRealm(),902).toContractID();
+    protected static final ContractID CONTRACT_ID = EntityId.of(
+                    commonProperties.getShard(), commonProperties.getRealm(), 901)
+            .toContractID();
+    protected static final ContractID CREATED_CONTRACT_ID = EntityId.of(
+                    commonProperties.getShard(), commonProperties.getRealm(), 902)
+            .toContractID();
     protected static final SignatureMap DEFAULT_SIG_MAP = getDefaultSigMap();
     protected static final String KEY = "0a2212200aa8e21064c61eab86e2a9c164565b4e7a9a4146106e0a6cd03a8c395a110fff";
     protected static final String KEY2 = "0a3312200aa8e21064c61eab86e2a9c164565b4e7a9a4146106e0a6cd03a8c395a110e92";
-    protected static final AccountID PAYER =  EntityId.of(commonProperties.getShard(), commonProperties.getRealm(),2002).toAccountID();
-    protected static final AccountID PAYER2 = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(),2003).toAccountID();
-    protected static final AccountID PAYER3 = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(),2006).toAccountID();
-    protected static final AccountID RECEIVER = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(),2004).toAccountID();
-    protected static final AccountID SPENDER = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(),2005).toAccountID();
+    protected static final AccountID PAYER = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 2002)
+            .toAccountID();
+    protected static final AccountID PAYER2 = EntityId.of(
+                    commonProperties.getShard(), commonProperties.getRealm(), 2003)
+            .toAccountID();
+    protected static final AccountID PAYER3 = EntityId.of(
+                    commonProperties.getShard(), commonProperties.getRealm(), 2006)
+            .toAccountID();
+    protected static final AccountID RECEIVER = EntityId.of(
+                    commonProperties.getShard(), commonProperties.getRealm(), 2004)
+            .toAccountID();
+    protected static final AccountID SPENDER = EntityId.of(
+                    commonProperties.getShard(), commonProperties.getRealm(), 2005)
+            .toAccountID();
     protected static final AccountID DEFAULT_ACCOUNT_ID = AccountID.getDefaultInstance();
-    protected static final AccountID NODE = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(),3).toAccountID();
-    protected static final AccountID PROXY =
-            EntityId.of(commonProperties.getShard(), commonProperties.getRealm(),1003).toAccountID();
-    protected static final AccountID PROXY_UPDATE =
-            EntityId.of(commonProperties.getShard(), commonProperties.getRealm(),3000).toAccountID();
+    protected static final AccountID NODE = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 3)
+            .toAccountID();
+    protected static final AccountID PROXY = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1003)
+            .toAccountID();
+    protected static final AccountID PROXY_UPDATE = EntityId.of(
+                    commonProperties.getShard(), commonProperties.getRealm(), 3000)
+            .toAccountID();
     protected static final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
 
     protected static final String TRANSACTION_MEMO = "transaction memo";
