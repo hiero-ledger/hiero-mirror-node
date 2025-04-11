@@ -79,6 +79,8 @@ import org.springframework.data.util.Version;
 @ExtendWith(MockitoExtension.class)
 abstract class AbstractTransactionHandlerTest {
 
+
+    protected static final CommonProperties commonProperties = CommonProperties.getInstance();
     protected static final Duration DEFAULT_AUTO_RENEW_PERIOD =
             Duration.newBuilder().setSeconds(1).build();
     protected static final Long DEFAULT_ENTITY_NUM = 100L;
@@ -210,7 +212,7 @@ abstract class AbstractTransactionHandlerTest {
         EntityId expectedEntityId = null;
         var entityType = getExpectedEntityIdType();
         if (entityType != null) {
-            expectedEntityId = EntityId.of(0L, 0L, DEFAULT_ENTITY_NUM);
+            expectedEntityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), DEFAULT_ENTITY_NUM);
         }
         testGetEntityIdHelper(
                 getDefaultTransactionBody().build(),

@@ -1116,7 +1116,11 @@ public class DomainBuilder {
 
     public EntityId entityId() {
         long nextNum = number() + LAST_RESERVED_ID;
-        return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), nextNum);
+        return entityId(nextNum);
+    }
+
+    public EntityId entityId(long num) {
+        return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), num);
     }
 
     public byte[] evmAddress() {
