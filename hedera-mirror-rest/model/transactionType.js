@@ -57,6 +57,7 @@ const protoToName = {
   58: 'TOKENAIRDROP',
   59: 'TOKENCANCELAIRDROP',
   60: 'TOKENCLAIMAIRDROP',
+  74: 'ATOMICBATCH',
 };
 
 // Temporary extra mappings until we can update the hashgraph proto dependency with the latest types

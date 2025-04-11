@@ -231,7 +231,6 @@ public class RecordItem implements StreamItem {
         }
 
         private RecordItem parseParent() {
-            // set parent, parent-child items are assured to exist in sequential order of [Parent, Child1,..., ChildN]
             if (transactionRecord.hasParentConsensusTimestamp() && previous != null) {
                 var parentTimestamp = transactionRecord.getParentConsensusTimestamp();
                 if (parentTimestamp.equals(previous.transactionRecord.getConsensusTimestamp())) {
@@ -240,6 +239,12 @@ public class RecordItem implements StreamItem {
                         && parentTimestamp.equals(previous.parent.transactionRecord.getConsensusTimestamp())) {
                     // check older siblings parent, if child count is > 1 this prevents having to search to parent
                     return previous.parent;
+                } else if (previous.parent != null
+                        && parentTimestamp.equals(previous.parent.transactionRecord.getParentConsensusTimestamp())) {
+                    // batch transactions can have inner transactions with n children. The child's parent will be the
+                    // inner
+                    // transaction so following items in batch may need to look at the grandparent
+                    return previous.parent.parent;
                 }
             }
             return this.parent;

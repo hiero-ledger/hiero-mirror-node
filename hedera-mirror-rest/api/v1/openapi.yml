@@ -3802,6 +3802,8 @@ components:
     Transaction:
       type: object
       properties:
+        batch_key:
+          $ref: "#/components/schemas/Key"
         bytes:
           type: string
           format: byte

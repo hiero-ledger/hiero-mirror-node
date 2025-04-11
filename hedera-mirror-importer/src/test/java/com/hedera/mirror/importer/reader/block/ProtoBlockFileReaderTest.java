@@ -148,10 +148,12 @@ public class ProtoBlockFileReaderTest {
         var eventHeader = BlockItem.newBuilder().setEventHeader(EventHeader.getDefaultInstance());
         var now = Instant.now();
         var batchTransactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano());
-        var preBatchTransactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() - 1);
+        var preBatchTransactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() - 2);
+        var precedingChildTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() - 1);
         var innerTransactionTimestamp1 = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 1);
-        var innerTransactionTimestamp2 = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 2);
-        var postBatchTransactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 3);
+        var childTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 2);
+        var innerTransactionTimestamp2 = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 3);
+        var postBatchTransactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 4);
 
         var preBatchTransactionResult = TransactionResult.newBuilder()
                 .setConsensusTimestamp(preBatchTransactionTimestamp)
@@ -167,10 +169,21 @@ public class ProtoBlockFileReaderTest {
                 .setConsensusTimestamp(batchTransactionTimestamp)
                 .build();
 
+        var precedingChildTransactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(precedingChildTimestamp)
+                .setParentConsensusTimestamp(batchTransactionTimestamp)
+                .build();
+
         var innerTransactionResult1 = TransactionResult.newBuilder()
                 .setConsensusTimestamp(innerTransactionTimestamp1)
                 .setParentConsensusTimestamp(batchTransactionTimestamp)
                 .build();
+
+        var childTransactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(childTimestamp)
+                .setParentConsensusTimestamp(innerTransactionTimestamp1)
+                .build();
+
         var innerTransactionResult2 = TransactionResult.newBuilder()
                 .setConsensusTimestamp(innerTransactionTimestamp2)
                 .setParentConsensusTimestamp(batchTransactionTimestamp)
@@ -194,7 +207,11 @@ public class ProtoBlockFileReaderTest {
                 .addItems(batchEventTransaction())
                 .addItems(BlockItem.newBuilder().setTransactionResult(batchTransactionResult))
                 .addItems(BlockItem.newBuilder().setStateChanges(batchStateChanges))
+                .addItems(eventTransaction())
+                .addItems(BlockItem.newBuilder().setTransactionResult(precedingChildTransactionResult))
                 .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult1))
+                .addItems(eventTransaction())
+                .addItems(BlockItem.newBuilder().setTransactionResult(childTransactionResult))
                 .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult2))
                 .addItems(eventHeader)
                 .addItems(eventTransaction())
@@ -207,11 +224,14 @@ public class ProtoBlockFileReaderTest {
         var blockFile = reader.read(streamFileData);
         var items = blockFile.getItems();
         var batchParentItem = blockFile.getItems().get(1);
-        var innerTransaction1 = blockFile.getItems().get(2);
-        var innerTransaction2 = blockFile.getItems().get(3);
+        var precedingChild = blockFile.getItems().get(2);
+        var innerTransaction1 = blockFile.getItems().get(3);
+        var child = blockFile.getItems().get(4);
+        var innerTransaction2 = blockFile.getItems().get(5);
 
         var expectedParents = new ArrayList<com.hedera.mirror.common.domain.transaction.BlockItem>();
         var expectedPrevious = new ArrayList<>(items);
+
         expectedPrevious.addFirst(null);
         expectedPrevious.removeLast();
 
@@ -219,9 +239,11 @@ public class ProtoBlockFileReaderTest {
         expectedParents.add(null);
         expectedParents.add(batchParentItem);
         expectedParents.add(batchParentItem);
+        expectedParents.add(innerTransaction1);
+        expectedParents.add(batchParentItem);
         expectedParents.add(null);
 
-        assertThat(items).hasSize(5);
+        assertThat(items).hasSize(7);
         assertThat(TestUtils.toTimestamp(batchParentItem.getConsensusTimestamp()))
                 .isEqualTo(batchTransactionTimestamp);
         assertThat(items)
@@ -231,8 +253,12 @@ public class ProtoBlockFileReaderTest {
                 .map(com.hedera.mirror.common.domain.transaction.BlockItem::getPrevious)
                 .containsExactlyElementsOf(expectedPrevious);
         assertThat(batchParentItem.getStateChangeContext())
+                .isEqualTo(precedingChild.getStateChangeContext())
                 .isEqualTo(innerTransaction1.getStateChangeContext())
-                .isEqualTo(innerTransaction2.getStateChangeContext());
+                .isEqualTo(child.getStateChangeContext())
+                .isEqualTo(innerTransaction2.getStateChangeContext())
+                .isNotEqualTo(items.getFirst().getStateChangeContext())
+                .isNotEqualTo(items.getLast().getStateChangeContext());
     }
 
     @Test

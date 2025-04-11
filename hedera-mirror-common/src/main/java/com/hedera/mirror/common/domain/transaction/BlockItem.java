@@ -89,13 +89,17 @@ public class BlockItem implements StreamItem {
     }
 
     private BlockItem parseParent() {
-        // set parent, parent-child items are assured to exist in sequential order of [Parent, Child1,..., ChildN]
         if (parentConsensusTimestamp != null && previous != null) {
             if (parentConsensusTimestamp == previous.consensusTimestamp) {
                 return previous;
             } else if (previous.parent != null && parentConsensusTimestamp == previous.parent.consensusTimestamp) {
                 // check older siblings parent, if child count is > 1 this prevents having to search to parent
                 return previous.parent;
+            } else if (previous.parent != null
+                    && parentConsensusTimestamp.equals(previous.parent.parentConsensusTimestamp)) {
+                // batch transactions can have inner transactions with n children. The child's parent will be the inner
+                // transaction so following items in batch may need to look at the grandparent
+                return previous.parent.parent;
             }
         }
 
