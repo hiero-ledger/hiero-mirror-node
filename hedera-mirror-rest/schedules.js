@@ -114,7 +114,7 @@ const formatScheduleRow = (row) => {
 const getScheduleById = async (req, res) => {
   utils.validateReq(req);
   const parseOptions = {allowEvmAddress: false, paramName: constants.filterKeys.SCHEDULEID};
-  const scheduleId = EntityId.parse(req.params.scheduleId, parseOptions).getEncodedId();
+  const scheduleId = EntityId.parseString(req.params.scheduleId, parseOptions).getEncodedId();
 
   const {rows} = await pool.queryQuietly(getScheduleByIdQuery, scheduleId);
   if (rows.length !== 1) {

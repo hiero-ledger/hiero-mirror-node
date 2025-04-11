@@ -1279,7 +1279,7 @@ const formatComparator = (comparator) => {
       case constants.filterKeys.FROM:
         if (!EntityId.isValidEvmAddress(comparator.value)) {
           // Only parse non-evm addresses.
-          comparator.value = EntityId.parse(comparator.value, {
+          comparator.value = EntityId.parseString(comparator.value, {
             evmAddressType: constants.EvmAddressType.NO_SHARD_REALM,
             paramName: comparator.key,
           }).getEncodedId();
@@ -1300,18 +1300,18 @@ const formatComparator = (comparator) => {
         break;
       case constants.filterKeys.SCHEDULE_ID:
         // Accepted forms: shard.realm.num or num
-        comparator.value = EntityId.parse(comparator.value).getEncodedId();
+        comparator.value = EntityId.parseString(comparator.value).getEncodedId();
         break;
       case constants.filterKeys.SPENDER_ID:
         // Accepted forms: shard.realm.num or num
-        comparator.value = EntityId.parse(comparator.value).getEncodedId();
+        comparator.value = EntityId.parseString(comparator.value).getEncodedId();
         break;
       case constants.filterKeys.TIMESTAMP:
         comparator.value = parseTimestampParam(comparator.value);
         break;
       case constants.filterKeys.TOKEN_ID:
         // Accepted forms: shard.realm.num or num
-        comparator.value = EntityId.parse(comparator.value).getEncodedId();
+        comparator.value = EntityId.parseString(comparator.value).getEncodedId();
         break;
       case constants.filterKeys.TOKEN_TYPE:
         // db requires upper case matching for enum
