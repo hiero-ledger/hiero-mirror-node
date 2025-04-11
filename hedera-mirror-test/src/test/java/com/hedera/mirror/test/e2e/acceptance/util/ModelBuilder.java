@@ -18,7 +18,6 @@ public class ModelBuilder {
     private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED = 30;
     private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS = 100;
 
-
     public static ContractCallRequest contractCallRequest() {
         return new ContractCallRequest()
                 .block(DEFAULT_CONTRACT_CALL_BLOCK)
