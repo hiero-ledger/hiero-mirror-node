@@ -346,7 +346,21 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
     @Override
     public void onTransaction(Transaction transaction) throws ImporterException {
-        context.add(transaction);
+        var key = TransactionType.ATOMIC_BATCH.getProtoId() == transaction.getType()
+                ? transaction.getConsensusTimestamp()
+                : null;
+        context.add(transaction, key);
+
+        if (transaction.getBatchKey() != null && transaction.getNonce() == 0) {
+            Transaction batchParent = context.get(Transaction.class, transaction.getParentConsensusTimestamp());
+
+            if (batchParent == null) {
+                throw new ParserException(
+                        "Batch parent not found for transaction: " + transaction.getConsensusTimestamp());
+            }
+
+            batchParent.addInnerTransaction(transaction);
+        }
 
         if (entityProperties.getPersist().shouldPersistTransactionHash(TransactionType.of(transaction.getType()))) {
             context.add(transaction.toTransactionHash());

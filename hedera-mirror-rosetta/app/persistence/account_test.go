@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/domain/types"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/errors"
 	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/app/persistence/domain"
 	tdomain "github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/test/domain"
+	"github.com/hiero-ledger/hiero-mirror-node/hedera-mirror-rosetta/test/utils"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -50,11 +50,11 @@ var (
 	defaultContext        = context.Background()
 
 	// account3 has ecdsaSecp256k1 alias, account4 has ed25519 alias, account5 has invalid alias
-	account3Alias = hexutil.MustDecode("0x3a2103d9a822b91df7850274273a338c152e7bcfa2036b24cd9e3b29d07efd949b387a")
-	account4Alias = hexutil.MustDecode("0x12205a081255a92b7c262bc2ea3ab7114b8a815345b3cc40f800b2b40914afecc44e")
+	account3Alias = utils.MustDecode("0x3a2103d9a822b91df7850274273a338c152e7bcfa2036b24cd9e3b29d07efd949b387a")
+	account4Alias = utils.MustDecode("0x12205a081255a92b7c262bc2ea3ab7114b8a815345b3cc40f800b2b40914afecc44e")
 	account5Alias = randstr.Bytes(48)
 	// alias with invalid public key, the Key message is valid, but it's formed from an invalid 16-byte ED25519 pub key
-	account6Alias = hexutil.MustDecode("0x1210815345b3cc40f800b2b40914afecc44e")
+	account6Alias = utils.MustDecode("0x1210815345b3cc40f800b2b40914afecc44e")
 )
 
 // run the suite

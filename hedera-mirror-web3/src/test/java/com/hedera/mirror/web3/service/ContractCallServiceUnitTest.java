@@ -23,6 +23,7 @@ import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Optional;
 import org.hyperledger.besu.datatypes.Address;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -61,8 +62,11 @@ class ContractCallServiceUnitTest {
 
     private ContractCallService contractCallService;
 
+    private boolean isModularized;
+
     @BeforeEach
     void setup() {
+        isModularized = mirrorNodeEvmProperties.isModularizedServices();
         contractCallService = new ContractCallService(
                 mirrorEvmTxProcessor,
                 gasLimitBucket,
@@ -74,9 +78,14 @@ class ContractCallServiceUnitTest {
                 transactionExecutionService) {};
     }
 
+    @AfterEach
+    void after() {
+        mirrorNodeEvmProperties.setModularizedServices(isModularized);
+    }
+
     @Test
     void callContractShouldInitializeStackFramesPropertyFalse() throws MirrorEvmTransactionException {
-        when(mirrorNodeEvmProperties.isModularizedServices()).thenReturn(false);
+        mirrorNodeEvmProperties.setModularizedServices(false);
         when(params.getCallType()).thenReturn(CallType.ETH_CALL);
         when(recordFileService.findByBlockType(any())).thenReturn(Optional.of(new RecordFile()));
         final var successResult = HederaEvmTransactionProcessingResult.successful(null, 1000, 0, 0, null, Address.ZERO);
@@ -89,7 +98,7 @@ class ContractCallServiceUnitTest {
 
     @Test
     void callContractShouldInitializeStackFramesPropertyTrueTrafficFalse() throws MirrorEvmTransactionException {
-        when(mirrorNodeEvmProperties.isModularizedServices()).thenReturn(true);
+        mirrorNodeEvmProperties.setModularizedServices(true);
         when(params.isModularized()).thenReturn(false);
         when(params.getCallType()).thenReturn(CallType.ETH_CALL);
         when(recordFileService.findByBlockType(any())).thenReturn(Optional.of(new RecordFile()));
@@ -103,12 +112,12 @@ class ContractCallServiceUnitTest {
 
     @Test
     void callContractShouldInitializeStackFramesPropertyTrueTrafficTrue() throws MirrorEvmTransactionException {
-        when(mirrorNodeEvmProperties.isModularizedServices()).thenReturn(true);
+        mirrorNodeEvmProperties.setModularizedServices(true);
         when(params.isModularized()).thenReturn(true);
         when(params.getCallType()).thenReturn(CallType.ETH_CALL);
         when(recordFileService.findByBlockType(any())).thenReturn(Optional.of(new RecordFile()));
         final var successResult = HederaEvmTransactionProcessingResult.successful(null, 1000, 0, 0, null, Address.ZERO);
-        when(transactionExecutionService.execute(any(), anyLong(), any())).thenReturn(successResult);
+        when(transactionExecutionService.execute(any(), anyLong())).thenReturn(successResult);
 
         contractCallService.callContract(params, ctx);
         verify(ctx, never()).initializeStackFrames(any());

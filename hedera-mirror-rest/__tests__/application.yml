@@ -7,3 +7,4 @@ hedera:
         enabled: false
       redis:
         enabled: false
+        maxRetriesPerRequest: 10

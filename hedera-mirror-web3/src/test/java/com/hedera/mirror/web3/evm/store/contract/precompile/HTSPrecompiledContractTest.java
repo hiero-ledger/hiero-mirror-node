@@ -16,6 +16,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import com.esaulpaugh.headlong.util.Integers;
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.web3.ContextExtension;
 import com.hedera.mirror.web3.common.PrecompileContext;
 import com.hedera.mirror.web3.evm.exception.PrecompileNotSupportedException;
@@ -58,8 +60,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(ContextExtension.class)
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({ContextExtension.class, MockitoExtension.class})
 class HTSPrecompiledContractTest {
 
     private static final Bytes MOCK_PRECOMPILE_FUNCTION_HASH = Bytes.fromHexString("0x00000000");
@@ -123,7 +124,6 @@ class HTSPrecompiledContractTest {
 
     private PrecompileMapper precompileMapper;
 
-    @InjectMocks
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @BeforeEach
@@ -138,6 +138,9 @@ class HTSPrecompiledContractTest {
         messageFrameStack.push(lastFrame);
         messageFrameStack.push(messageFrame);
 
+        var commonProperties = new CommonProperties();
+        var systemEntity = new SystemEntity(commonProperties);
+        mirrorNodeEvmProperties = new MirrorNodeEvmProperties(commonProperties, systemEntity);
         precompileMapper = new PrecompileMapper(Set.of(mockPrecompile));
         subject = new HTSPrecompiledContract(
                 evmInfrastructureFactory,

@@ -8,7 +8,6 @@ import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
 import static com.hedera.mirror.web3.service.ContractCallService.GAS_LIMIT_METRIC;
 import static com.hedera.mirror.web3.service.ContractCallService.GAS_USED_METRIC;
-import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ERROR;
 import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
@@ -36,7 +35,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
@@ -53,6 +51,7 @@ import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.mirror.web3.web3j.generated.ERCTestContract;
 import com.hedera.mirror.web3.web3j.generated.EthCall;
 import com.hedera.mirror.web3.web3j.generated.State;
+import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
 import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
@@ -121,10 +120,8 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         List<Long> gasLimits = List.of(15_000_000L, 34_000L);
         List<Integer> gasUnits = List.of(1, 2);
 
-        return Arrays.stream(CallType.values())
-                .filter(callType -> !callType.equals(ERROR))
-                .flatMap(callType -> gasLimits.stream().flatMap(gasLimit -> gasUnits.stream()
-                        .map(gasUnit -> Arguments.of(callType, gasLimit, gasUnit))));
+        return Arrays.stream(CallType.values()).flatMap(callType -> gasLimits.stream()
+                .flatMap(gasLimit -> gasUnits.stream().map(gasUnit -> Arguments.of(callType, gasLimit, gasUnit))));
     }
 
     private static String toHexWith64LeadingZeros(final Long value) {
@@ -316,12 +313,12 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
 
     /**
      * If we make a contract call with the zero address (0x0) set as the recipient in the contractExecutionParameters,
-     * Hedera treats this as a contract creation request rather than a function call.
-     * The contract is then initialized using the contractCallData, which should contain the compiled bytecode of the
-     * contract. If contractCallData is empty (0x0), the contract will be deployed without any functions(no fallback
-     * function as well, which is called when the contract is called without specifying a function or when non-existent
-     * function is specified.) in its bytecode. Respectively, any call to the contract will fail with
-     * CONTRACT_BYTECODE_EMPTY, indicating that the contract exists, but does not have any executable logic.
+     * Hedera treats this as a contract creation request rather than a function call. The contract is then initialized
+     * using the contractCallData, which should contain the compiled bytecode of the contract. If contractCallData is
+     * empty (0x0), the contract will be deployed without any functions(no fallback function as well, which is called
+     * when the contract is called without specifying a function or when non-existent function is specified.) in its
+     * bytecode. Respectively, any call to the contract will fail with CONTRACT_BYTECODE_EMPTY, indicating that the
+     * contract exists, but does not have any executable logic.
      */
     @Test
     void estimateGasWithoutReceiver() {
@@ -573,6 +570,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var receiverEntity = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
         final var notExistingAccountAddress = toAddress(EntityId.of(4325));
+        persistRewardAccounts();
 
         final var serviceParameters =
                 getContractExecutionParametersWithValue(Bytes.EMPTY, notExistingAccountAddress, receiverAddress, 10L);
@@ -592,7 +590,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     @Test
     void invalidFunctionSig() {
         // Given
-        final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ERROR);
+        final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         meterRegistry.clear();
 
@@ -607,7 +605,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 .hasFieldOrPropertyWithValue("data", HEX_PREFIX);
 
         assertGasLimit(serviceParameters);
-        assertGasUsedIsPositive(gasUsedBeforeExecution, ERROR);
+        assertGasUsedIsPositive(gasUsedBeforeExecution, ETH_CALL);
     }
 
     @Test
@@ -676,8 +674,8 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     }
 
     /**
-     * Testing that sending HBAR to a randomly generated 20-byte EVM address, that
-     * is not mapped to an existing accountId will result in hollow account creation.
+     * Testing that sending HBAR to a randomly generated 20-byte EVM address, that is not mapped to an existing
+     * accountId will result in hollow account creation.
      */
     @Test
     void hollowAccountCreationWorks() {
@@ -730,20 +728,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, senderAddress);
         final var actualGas = 175242L;
-        domainBuilder
-                .entity()
-                .customize(e -> e.id(801L)
-                        .num(801L)
-                        .createdTimestamp(genesisRecordFile.getConsensusStart())
-                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
-                .persist();
-        domainBuilder
-                .entity()
-                .customize(e -> e.id(800L)
-                        .num(800L)
-                        .createdTimestamp(genesisRecordFile.getConsensusStart())
-                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
-                .persist();
+        persistRewardAccounts();
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -1180,6 +1165,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
 
         @Test
         void shouldCallTransactionExecutionService() throws MirrorEvmTransactionException {
+            final long estimatedGas = 1000L;
             MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
             TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
             MirrorEvmTxProcessor mirrorEvmTxProcessor = mock(MirrorEvmTxProcessor.class);
@@ -1189,14 +1175,16 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
 
             when(spyEvmProperties.isModularizedServices()).thenReturn(true);
             when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(1.0);
-
-            CallServiceParameters params = ContractExecutionParameters.builder()
+            var params = ContractExecutionParameters.builder()
                     .isModularized(spyEvmProperties.directTrafficThroughTransactionExecutionService())
                     .build();
+            when(txnExecutionService.execute(params, estimatedGas))
+                    .thenReturn(HederaEvmTransactionProcessingResult.successful(
+                            List.of(), 100, 0, 0, Bytes.EMPTY, Address.ZERO));
 
-            contractCallService.doProcessCall(params, 1000L, false);
+            contractCallService.doProcessCall(params, estimatedGas, true);
 
-            verify(txnExecutionService, times(1)).execute(any(), anyLong(), any());
+            verify(txnExecutionService, times(1)).execute(any(), anyLong());
             verify(mirrorEvmTxProcessor, never()).execute(any(), anyLong());
         }
 
@@ -1204,6 +1192,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         @CsvSource({"true, 0.0", "false, 1.0", "false, 0.0"})
         void shouldNotCallTransactionExecutionService(boolean isModularizedServices, double trafficShare)
                 throws MirrorEvmTransactionException {
+            final long estimatedGas = 1000L;
             MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
             TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
             MirrorEvmTxProcessor mirrorEvmTxProcessor = mock(MirrorEvmTxProcessor.class);
@@ -1214,10 +1203,17 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
 
             when(spyEvmProperties.isModularizedServices()).thenReturn(isModularizedServices);
             when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(trafficShare);
+            var result =
+                    HederaEvmTransactionProcessingResult.successful(List.of(), 100, 0, 0, Bytes.EMPTY, Address.ZERO);
+            if (isModularizedServices && trafficShare == 1.0) {
+                when(txnExecutionService.execute(params, estimatedGas)).thenReturn(result);
+            } else {
+                when(mirrorEvmTxProcessor.execute(params, estimatedGas)).thenReturn(result);
+            }
 
-            contractCallService.doProcessCall(params, 1000L, false);
+            contractCallService.doProcessCall(params, estimatedGas, true);
 
-            verify(txnExecutionService, never()).execute(any(), anyLong(), any());
+            verify(txnExecutionService, never()).execute(any(), anyLong());
             verify(mirrorEvmTxProcessor, times(1)).execute(any(), anyLong());
         }
     }

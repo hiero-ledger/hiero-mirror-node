@@ -6,7 +6,7 @@ import {PrecompileModificationTestTemplate} from '../commonPrecompileModificatio
 const contract = __ENV.ESTIMATE_PRECOMPILE_CONTRACT;
 const selector = '0xa6218810'; //cryptoTransferExternal
 const sender = __ENV.ACCOUNT_ADDRESS;
-const receiver = __ENV.RECEIVER_ADDRESS;
+const receiver = __ENV.ASSOCIATED_ACCOUNT;
 const token = __ENV.TOKEN_ADDRESS;
 const runMode = __ENV.RUN_WITH_VARIABLES;
 //ABI encoded parameters used for crypto transfer token

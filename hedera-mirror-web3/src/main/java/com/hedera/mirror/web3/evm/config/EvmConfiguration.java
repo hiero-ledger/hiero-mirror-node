@@ -83,6 +83,7 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_RECORD_FILE_INDEX = "recordFileIndex";
     public static final String CACHE_MANAGER_RECORD_FILE_TIMESTAMP = "recordFileTimestamp";
     public static final String CACHE_MANAGER_SYSTEM_FILE = "systemFile";
+    public static final String CACHE_MANAGER_SYSTEM_FILE_MODULARIZED = "systemFileModularized";
     public static final String CACHE_MANAGER_TOKEN = "token";
     public static final String CACHE_MANAGER_TOKEN_TYPE = "tokenType";
     public static final String CACHE_NAME = "default";
@@ -91,6 +92,7 @@ public class EvmConfiguration {
     public static final String CACHE_NAME_ALIAS = "alias";
     public static final String CACHE_NAME_EXCHANGE_RATE = "exchangeRate";
     public static final String CACHE_NAME_FEE_SCHEDULE = "feeSchedule";
+    public static final String CACHE_NAME_MODULARIZED = "cacheModularized";
     public static final String CACHE_NAME_NFT = "nft";
     public static final String CACHE_NAME_NFT_ALLOWANCE = "nftAllowance";
     public static final String CACHE_NAME_RECORD_FILE_LATEST = "latest";
@@ -105,7 +107,8 @@ public class EvmConfiguration {
     public static final SemanticVersion EVM_VERSION_0_38 = new SemanticVersion(0, 38, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_46 = new SemanticVersion(0, 46, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_50 = new SemanticVersion(0, 50, 0, "", "");
-    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_50;
+    public static final SemanticVersion EVM_VERSION_0_51 = new SemanticVersion(0, 51, 0, "", "");
+    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_51;
     private final CacheProperties cacheProperties;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
     private final GasCalculatorHederaV22 gasCalculator;
@@ -169,6 +172,14 @@ public class EvmConfiguration {
     CacheManager cacheManagerSystemFile() {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_EXCHANGE_RATE, CACHE_NAME_FEE_SCHEDULE));
+        caffeineCacheManager.setCacheSpecification(cacheProperties.getFee());
+        return caffeineCacheManager;
+    }
+
+    @Bean(CACHE_MANAGER_SYSTEM_FILE_MODULARIZED)
+    CacheManager cacheManagerSystemFileModularized() {
+        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_MODULARIZED));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getFee());
         return caffeineCacheManager;
     }
@@ -241,6 +252,7 @@ public class EvmConfiguration {
         processorsMap.put(EVM_VERSION_0_38, () -> contractCreationProcessor38);
         processorsMap.put(EVM_VERSION_0_46, () -> contractCreationProcessor46);
         processorsMap.put(EVM_VERSION_0_50, () -> contractCreationProcessor50);
+        processorsMap.put(EVM_VERSION_0_51, () -> contractCreationProcessor50);
         return processorsMap;
     }
 
@@ -257,6 +269,7 @@ public class EvmConfiguration {
         processorsMap.put(EVM_VERSION_0_38, () -> mirrorEvmMessageCallProcessor38);
         processorsMap.put(EVM_VERSION_0_46, () -> mirrorEvmMessageCallProcessor46);
         processorsMap.put(EVM_VERSION_0_50, () -> mirrorEvmMessageCallProcessor50);
+        processorsMap.put(EVM_VERSION_0_51, () -> mirrorEvmMessageCallProcessor50);
         return processorsMap;
     }
 

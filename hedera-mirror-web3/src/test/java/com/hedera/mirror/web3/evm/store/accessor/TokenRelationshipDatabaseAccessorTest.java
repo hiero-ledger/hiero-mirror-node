@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
-import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -10,6 +9,8 @@ import static org.mockito.Mockito.when;
 
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
+import com.hedera.mirror.common.domain.SystemEntity;
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
 import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
 import com.hedera.mirror.web3.evm.store.accessor.model.TokenRelationshipKey;
@@ -29,13 +30,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mock.Strictness;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class TokenRelationshipDatabaseAccessorTest {
 
-    @Mock
-    private CommonProperties commonProperties;
+    private static final Optional<Long> timestamp = Optional.of(1234L);
+    private static final Address TOKEN_ADDRESS = Address.ALTBN128_ADD;
+    private static final Address ACCOUNT_ADDRESS = Address.ALTBN128_MUL;
+    private final DomainBuilder domainBuilder = new DomainBuilder();
 
     @InjectMocks
     TokenRelationshipDatabaseAccessor tokenRelationshipDatabaseAccessor;
@@ -52,23 +56,24 @@ class TokenRelationshipDatabaseAccessorTest {
     @Mock
     private TokenBalanceRepository tokenBalanceRepository;
 
+    @Mock(strictness = Strictness.LENIENT)
+    private SystemEntity systemEntity;
+
     @Mock
     private NftRepository nftRepository;
 
-    private final DomainBuilder domainBuilder = new DomainBuilder();
-
-    private static final Optional<Long> timestamp = Optional.of(1234L);
     private Account account;
     private Token token;
-    private static final Address TOKEN_ADDRESS = Address.ALTBN128_ADD;
-    private static final Address ACCOUNT_ADDRESS = Address.ALTBN128_MUL;
+    private EntityId treasuryAccountId;
 
     @BeforeEach
     void setup() {
+        treasuryAccountId = new SystemEntity(CommonProperties.getInstance()).treasuryAccount();
         account = mock(Account.class);
         when(account.getId()).thenReturn(new Id(1, 2, 3));
         token = mock(Token.class);
         when(token.getId()).thenReturn(new Id(4, 5, 6));
+        when(this.systemEntity.treasuryAccount()).thenReturn(treasuryAccountId);
     }
 
     @Test
@@ -206,7 +211,7 @@ class TokenRelationshipDatabaseAccessorTest {
                         tokenAccount.getTokenId(),
                         tokenAccount.getAccountId(),
                         timestamp.get(),
-                        DEFAULT_TREASURY_ACCOUNT.getId()))
+                        treasuryAccountId.getId()))
                 .thenReturn(Optional.of(balance));
         when(token.getType()).thenReturn(TokenType.FUNGIBLE_COMMON);
 

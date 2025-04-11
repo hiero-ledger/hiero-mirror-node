@@ -6,6 +6,7 @@ import static com.hedera.mirror.test.e2e.acceptance.config.AcceptanceTestPropert
 import static org.awaitility.Awaitility.await;
 
 import com.google.common.base.Stopwatch;
+import com.google.protobuf.ByteString;
 import com.hedera.hashgraph.sdk.AccountBalanceQuery;
 import com.hedera.hashgraph.sdk.AccountCreateTransaction;
 import com.hedera.hashgraph.sdk.AccountDeleteTransaction;
@@ -15,10 +16,15 @@ import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.TopicDeleteTransaction;
 import com.hedera.hashgraph.sdk.TopicId;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
+import com.hedera.hashgraph.sdk.proto.AccountID;
+import com.hedera.hashgraph.sdk.proto.NodeAddress;
+import com.hedera.hashgraph.sdk.proto.NodeAddressBook;
+import com.hedera.hashgraph.sdk.proto.ServiceEndpoint;
 import com.hedera.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import com.hedera.mirror.test.e2e.acceptance.config.SdkProperties;
 import com.hedera.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import com.hedera.mirror.test.e2e.acceptance.props.NodeProperties;
+import com.hedera.mirror.test.e2e.acceptance.util.TestUtil;
 import jakarta.inject.Named;
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -26,15 +32,14 @@ import java.math.RoundingMode;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
 import org.awaitility.Durations;
@@ -71,10 +76,6 @@ public class SDKClient implements Cleanable {
         this.acceptanceTestProperties = acceptanceTestProperties;
         this.sdkProperties = sdkProperties;
         this.client = createClient();
-        client.setGrpcDeadline(sdkProperties.getGrpcDeadline())
-                .setMaxAttempts(sdkProperties.getMaxAttempts())
-                .setMaxNodeReadmitTime(Duration.ofSeconds(60L))
-                .setMaxNodesPerTransaction(sdkProperties.getMaxNodesPerTransaction());
         var receipt = startupProbe.validateEnvironment(client);
         this.topicId = receipt != null ? receipt.topicId : null;
         validateClient();
@@ -131,7 +132,7 @@ public class SDKClient implements Cleanable {
         return LOWEST_PRECEDENCE;
     }
 
-    private Client createClient() throws InterruptedException {
+    private Client createClient() {
         var customNodes = acceptanceTestProperties.getNodes();
         var network = acceptanceTestProperties.getNetwork();
 
@@ -147,7 +148,7 @@ public class SDKClient implements Cleanable {
                         .atMost(acceptanceTestProperties.getStartupTimeout())
                         .pollDelay(Duration.ofMillis(100))
                         .pollInterval(Durations.FIVE_SECONDS)
-                        .until(this::getAddressBook, ab -> !ab.isEmpty());
+                        .until(this::getAddressBook, ab -> ab.getNodeAddressCount() > 0);
                 return toClient(addressBook);
             } catch (Exception e) {
                 log.warn("Error retrieving address book", e);
@@ -158,12 +159,12 @@ public class SDKClient implements Cleanable {
             throw new IllegalArgumentException("nodes must not be empty when network is OTHER");
         }
 
-        return withDefaultOperator(Client.forName(network.toString().toLowerCase()));
+        return configureClient(Client.forName(network.toString().toLowerCase()));
     }
 
-    private Map<String, AccountId> getNetworkMap(Set<NodeProperties> nodes) {
-        return nodes.stream()
-                .collect(Collectors.toMap(NodeProperties::getEndpoint, p -> AccountId.fromString(p.getAccountId())));
+    private NodeAddressBook getNetworkMap(Set<NodeProperties> nodes) {
+        var nodeAddresses = nodes.stream().map(NodeProperties::toNodeAddress).toList();
+        return NodeAddressBook.newBuilder().addAllNodeAddress(nodeAddresses).build();
     }
 
     private double getExchangeRate(TransactionReceipt receipt) {
@@ -219,7 +220,7 @@ public class SDKClient implements Cleanable {
             var endpoint = nodeEntry.getKey();
             var nodeAccountId = nodeEntry.getValue();
 
-            if (validateNode(endpoint, nodeAccountId)) {
+            if (validateNode(nodeAccountId)) {
                 validNodes.putIfAbsent(endpoint, nodeAccountId);
                 log.trace("Added node {} at endpoint {} to list of valid nodes", nodeAccountId, endpoint);
             }
@@ -238,54 +239,80 @@ public class SDKClient implements Cleanable {
         log.info("Validated client with nodes: {}", validNodes);
     }
 
-    private Client toClient(Map<String, AccountId> network) throws InterruptedException {
-        return withDefaultOperator(Client.forNetwork(network))
-                .setMirrorNetwork(List.of(acceptanceTestProperties.getMirrorNodeAddress()));
+    @SneakyThrows
+    private Client toClient(NodeAddressBook addressBook) {
+        var client = Client.forNetwork(Map.of());
+        client.setNetworkFromAddressBook(
+                com.hedera.hashgraph.sdk.NodeAddressBook.fromBytes(addressBook.toByteString()));
+        return configureClient(client).setMirrorNetwork(List.of(acceptanceTestProperties.getMirrorNodeAddress()));
     }
 
-    private boolean validateNode(String endpoint, AccountId nodeAccountId) {
-        boolean valid = false;
+    private boolean validateNode(AccountId nodeAccountId) {
         var stopwatch = Stopwatch.createStarted();
 
-        try (Client networkClient = toClient(Map.of(endpoint, nodeAccountId))) {
+        try {
             new AccountBalanceQuery()
                     .setAccountId(nodeAccountId)
                     .setGrpcDeadline(sdkProperties.getGrpcDeadline())
                     .setNodeAccountIds(List.of(nodeAccountId))
                     .setMaxAttempts(3)
                     .setMaxBackoff(Duration.ofSeconds(2))
-                    .execute(networkClient, Duration.ofSeconds(10L));
+                    .execute(client, Duration.ofSeconds(10L));
             log.info("Validated node {} in {}", nodeAccountId, stopwatch);
-            valid = true;
+            return true;
         } catch (Exception e) {
             log.warn("Unable to validate node {} after {}: {}", nodeAccountId, stopwatch, e.getMessage());
         }
 
-        return valid;
+        return false;
     }
 
-    private Client withDefaultOperator(Client client) {
+    private Client configureClient(Client client) {
         var maxTransactionFee = Hbar.fromTinybars(acceptanceTestProperties.getMaxTinyBarTransactionFee());
-        return client.setOperator(defaultOperator.getAccountId(), defaultOperator.getPrivateKey())
-                .setDefaultMaxTransactionFee(maxTransactionFee);
+        return client.setDefaultMaxTransactionFee(maxTransactionFee)
+                .setGrpcDeadline(sdkProperties.getGrpcDeadline())
+                .setMaxAttempts(sdkProperties.getMaxAttempts())
+                .setMaxNodeReadmitTime(Duration.ofSeconds(60L))
+                .setMaxNodesPerTransaction(sdkProperties.getMaxNodesPerTransaction())
+                .setOperator(defaultOperator.getAccountId(), defaultOperator.getPrivateKey());
     }
 
-    private Map<String, AccountId> getAddressBook() {
-        Map<String, AccountId> networkMap = new HashMap<>();
+    private NodeAddressBook getAddressBook() {
+        var nodeAddressBook = NodeAddressBook.newBuilder();
         var nodes = mirrorNodeClient.getNetworkNodes();
+        int endpoints = 0;
 
         for (var node : nodes) {
             var accountId = AccountId.fromString(node.getNodeAccountId());
+            var nodeAddress = NodeAddress.newBuilder()
+                    .setDescription(node.getDescription())
+                    .setNodeAccountId(AccountID.newBuilder()
+                            .setShardNum(accountId.shard)
+                            .setRealmNum(accountId.realm)
+                            .setAccountNum(accountId.num))
+                    .setNodeCertHash(ByteString.copyFromUtf8(StringUtils.remove(node.getNodeCertHash(), "0x")))
+                    .setRSAPubKey(node.getPublicKey())
+                    .setNodeId(node.getNodeId());
+
             for (var serviceEndpoint : node.getServiceEndpoints()) {
                 var ip = serviceEndpoint.getIpAddressV4();
-                var port = serviceEndpoint.getPort();
-                if (port == 50211 && StringUtils.isNotBlank(ip) && !RESET_IP.equals(ip)) {
-                    networkMap.putIfAbsent(ip + ":" + port, accountId);
+                if (!RESET_IP.equals(ip)) {
+                    try {
+                        nodeAddress.addServiceEndpoint(ServiceEndpoint.newBuilder()
+                                .setDomainName(serviceEndpoint.getDomainName())
+                                .setIpAddressV4(TestUtil.toIpAddressV4(serviceEndpoint.getIpAddressV4()))
+                                .setPort(serviceEndpoint.getPort()));
+                        ++endpoints;
+                    } catch (Exception e) {
+                        log.warn("Unable to convert service endpoint {}: {}", serviceEndpoint, e.getMessage());
+                    }
                 }
             }
+
+            nodeAddressBook.addNodeAddress(nodeAddress);
         }
 
-        log.info("Obtained address book with {} nodes and {} endpoints", nodes.size(), networkMap.size());
-        return networkMap;
+        log.info("Obtained address book with {} nodes and {} endpoints", nodes.size(), endpoints);
+        return nodeAddressBook.build();
     }
 }

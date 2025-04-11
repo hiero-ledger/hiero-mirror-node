@@ -2,7 +2,9 @@
 
 package com.hedera.mirror.common.config;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
+import com.hedera.mirror.common.domain.SystemEntity;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.Resource;
 import java.util.Collection;
@@ -25,10 +27,16 @@ public abstract class CommonIntegrationTest {
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
     @Resource
+    protected CommonProperties commonProperties;
+
+    @Resource
     protected DomainBuilder domainBuilder;
 
     @Autowired(required = false)
     protected MeterRegistry meterRegistry;
+
+    @Resource
+    protected SystemEntity systemEntity;
 
     @Autowired(required = false)
     private Collection<CacheManager> cacheManagers;
@@ -40,6 +48,9 @@ public abstract class CommonIntegrationTest {
     }
 
     protected void reset() {
+        commonProperties.setRealm(0L);
+        commonProperties.setShard(0L);
+
         if (cacheManagers != null) {
             cacheManagers.forEach(this::resetCacheManager);
         }

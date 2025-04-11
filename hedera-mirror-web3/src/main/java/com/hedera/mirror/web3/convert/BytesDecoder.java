@@ -54,7 +54,7 @@ public class BytesDecoder {
         }
         String revertReasonPlain = new String(revertReason.toArray());
         return Bytes.concatenate(
-                ERROR_FUNCTION_SELECTOR, Bytes.wrapByteBuffer(STRING_DECODER.encode(Tuple.of(revertReasonPlain))));
+                ERROR_FUNCTION_SELECTOR, Bytes.wrapByteBuffer(STRING_DECODER.encode(Tuple.from(revertReasonPlain))));
     }
 
     private static boolean isAbiEncodedErrorString(final Bytes revertReason) {

@@ -2,10 +2,8 @@
 
 package com.hedera.mirror.importer.parser.record.entity.staking;
 
-import static com.hedera.mirror.common.util.CommonUtils.DEFAULT_TREASURY_ACCOUNT;
 import static com.hedera.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 import static com.hedera.mirror.importer.domain.StreamFilename.FileType.DATA;
-import static com.hedera.mirror.importer.parser.domain.RecordItemBuilder.STAKING_REWARD_ACCOUNT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -14,7 +12,6 @@ import com.hedera.mirror.common.domain.DomainWrapper;
 import com.hedera.mirror.common.domain.StreamType;
 import com.hedera.mirror.common.domain.balance.AccountBalance.Id;
 import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityStake;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.util.DomainUtils;
@@ -74,7 +71,7 @@ class EntityStakeCalculatorIntegrationTest extends ImporterIntegrationTest {
         // the lower timestamp is the consensus timestamp of the previous NodeStakeUpdateTransaction
         long entityStakeLowerTimestamp = DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay - 1)) + 20L;
         var account800 = domainBuilder
-                .entity(STAKING_REWARD_ACCOUNT, domainBuilder.timestamp())
+                .entity(systemEntity.stakingRewardAccount(), domainBuilder.timestamp())
                 .persist();
         var entityStake800 = fromEntity(account800)
                 .customize(es -> es.endStakePeriod(epochDay - 1)
@@ -83,7 +80,7 @@ class EntityStakeCalculatorIntegrationTest extends ImporterIntegrationTest {
                         .timestampRange(Range.atLeast(entityStakeLowerTimestamp)))
                 .persist();
         var treasury = domainBuilder
-                .entity(DEFAULT_TREASURY_ACCOUNT, domainBuilder.timestamp())
+                .entity(systemEntity.treasuryAccount(), domainBuilder.timestamp())
                 .persist();
 
         // account1 was created two staking periods ago, there should be a row in entity_stake
@@ -286,38 +283,40 @@ class EntityStakeCalculatorIntegrationTest extends ImporterIntegrationTest {
         // entity stake calculation done for two periods, epochDay - 1 and epochDay
         long balanceTimestamp = secondLastNodeStakeTimestamp - 2000;
         long previousBalanceTimestamp = balanceTimestamp - 1000;
-        domainBuilder.entity(STAKING_REWARD_ACCOUNT, balanceTimestamp - 5000).persist();
+        domainBuilder
+                .entity(systemEntity.stakingRewardAccount(), balanceTimestamp - 5000)
+                .persist();
         var entityStake800 = domainBuilder
                 .entityStake()
                 .customize(e -> e.endStakePeriod(epochDay - 2)
-                        .id(STAKING_REWARD_ACCOUNT)
+                        .id(systemEntity.stakingRewardAccount().getId())
                         .timestampRange(Range.atLeast(secondLastNodeStakeTimestamp)))
                 .persist();
         var treasury = domainBuilder
                 .entity()
                 .customize(e -> e.createdTimestamp(balanceTimestamp - 6000)
-                        .id(DEFAULT_TREASURY_ACCOUNT.getId())
+                        .id(systemEntity.treasuryAccount().getId())
                         .stakedNodeId(1L)
                         .timestampRange(Range.atLeast(secondLastNodeStakeTimestamp)))
                 .persist();
         var entityStakeTreasury = domainBuilder
                 .entityStake()
                 .customize(e -> e.endStakePeriod(epochDay - 2)
-                        .id(DEFAULT_TREASURY_ACCOUNT.getId())
+                        .id(systemEntity.treasuryAccount().getId())
                         .timestampRange(Range.atLeast(secondLastNodeStakeTimestamp)))
                 .persist();
         // account balance
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new Id(balanceTimestamp, DEFAULT_TREASURY_ACCOUNT)))
+                .customize(ab -> ab.id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new Id(previousBalanceTimestamp, DEFAULT_TREASURY_ACCOUNT)))
+                .customize(ab -> ab.id(new Id(previousBalanceTimestamp, systemEntity.treasuryAccount())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new Id(previousBalanceTimestamp, EntityId.of(STAKING_REWARD_ACCOUNT))))
+                .customize(ab -> ab.id(new Id(previousBalanceTimestamp, systemEntity.stakingRewardAccount())))
                 .persist();
         domainBuilder
                 .nodeStake()

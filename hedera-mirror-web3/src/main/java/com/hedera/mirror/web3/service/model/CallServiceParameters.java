@@ -31,10 +31,9 @@ public interface CallServiceParameters {
 
     boolean isStatic();
 
-    public enum CallType {
+    enum CallType {
         ETH_CALL,
         ETH_DEBUG_TRACE_TRANSACTION,
-        ETH_ESTIMATE_GAS,
-        ERROR
+        ETH_ESTIMATE_GAS
     }
 }

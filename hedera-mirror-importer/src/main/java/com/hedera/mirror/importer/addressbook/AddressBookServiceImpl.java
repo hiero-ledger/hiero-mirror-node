@@ -6,6 +6,7 @@ import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_ADDRESS
 import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 
 import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import com.hedera.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -17,7 +18,6 @@ import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.importer.ImporterProperties;
 import com.hedera.mirror.importer.ImporterProperties.ConsensusMode;
 import com.hedera.mirror.importer.exception.InvalidDatasetException;
-import com.hedera.mirror.importer.parser.record.entity.EntityProperties;
 import com.hedera.mirror.importer.repository.AddressBookRepository;
 import com.hedera.mirror.importer.repository.FileDataRepository;
 import com.hedera.mirror.importer.repository.NodeStakeRepository;
@@ -62,16 +62,14 @@ import org.springframework.util.CollectionUtils;
 @RequiredArgsConstructor
 public class AddressBookServiceImpl implements AddressBookService {
 
-    public static final EntityId FILE_101 = EntityId.of(0, 0, 101);
-    public static final EntityId FILE_102 = EntityId.of(0, 0, 102);
     public static final int INITIAL_NODE_ID_ACCOUNT_ID_OFFSET = 3;
 
     private final AddressBookRepository addressBookRepository;
     private final CommonProperties commonProperties;
-    private final EntityProperties entityProperties;
     private final FileDataRepository fileDataRepository;
     private final ImporterProperties importerProperties;
     private final NodeStakeRepository nodeStakeRepository;
+    private final SystemEntity systemEntity;
     private final TransactionTemplate transactionTemplate;
 
     @Override
@@ -111,11 +109,10 @@ public class AddressBookServiceImpl implements AddressBookService {
     @Override
     public AddressBook getCurrent() {
         long consensusTimestamp = DomainUtils.convertToNanosMax(Instant.now());
+        long fileId = systemEntity.addressBookFile102().getId();
 
         // retrieve latest address book. If address_book is empty parse initial and historic address book files
-        return addressBookRepository
-                .findLatest(consensusTimestamp, FILE_102.getId())
-                .orElseGet(this::migrate);
+        return addressBookRepository.findLatest(consensusTimestamp, fileId).orElseGet(this::migrate);
     }
 
     @Cacheable
@@ -184,7 +181,8 @@ public class AddressBookServiceImpl implements AddressBookService {
      */
     @Override
     public boolean isAddressBook(EntityId entityId) {
-        return FILE_101.equals(entityId) || FILE_102.equals(entityId);
+        return systemEntity.addressBookFile101().equals(entityId)
+                || systemEntity.addressBookFile102().equals(entityId);
     }
 
     /**
@@ -234,9 +232,9 @@ public class AddressBookServiceImpl implements AddressBookService {
     @Override
     public synchronized AddressBook migrate() {
         long consensusTimestamp = DomainUtils.convertToNanosMax(Instant.now());
-        var currentAddressBook = addressBookRepository
-                .findLatest(consensusTimestamp, FILE_102.getId())
-                .orElse(null);
+        long fileId = systemEntity.addressBookFile102().getId();
+        var currentAddressBook =
+                addressBookRepository.findLatest(consensusTimestamp, fileId).orElse(null);
 
         if (currentAddressBook != null) {
             // verify no file_data 102 entries exists after current addressBook
@@ -552,7 +550,7 @@ public class AddressBookServiceImpl implements AddressBookService {
         }
 
         return new FileData(
-                0L, addressBookBytes, AddressBookServiceImpl.FILE_102, TransactionType.FILECREATE.getProtoId());
+                0L, addressBookBytes, systemEntity.addressBookFile102(), TransactionType.FILECREATE.getProtoId());
     }
 
     /**

@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.service;
 
+import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
@@ -20,7 +21,6 @@ import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.entity.NftAllowance;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
-import com.hedera.mirror.common.domain.token.FixedFee;
 import com.hedera.mirror.common.domain.token.Nft;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.common.domain.token.TokenAccount;
@@ -78,8 +78,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final int DEFAULT_DECIMALS = 12;
     protected static final long DEFAULT_TOKEN_SUPPLY = 1000L;
     protected static final long DEFAULT_AMOUNT_GRANTED = 10L;
+    protected static final BigInteger DEFAULT_TOKEN_AIRDROP_AMOUNT = BigInteger.TEN;
     protected static final BigInteger DEFAULT_FEE_AMOUNT = BigInteger.valueOf(100L);
-    protected static final BigInteger DEFAULT_DENOMINATOR_VALUE = BigInteger.valueOf(10L);
+    protected static final BigInteger DEFAULT_DENOMINATOR_VALUE = BigInteger.valueOf(100L);
     protected static final BigInteger DEFAULT_NUMERATOR_VALUE = BigInteger.valueOf(20L);
     protected static final BigInteger DEFAULT_FEE_MIN_VALUE = BigInteger.valueOf(1L);
     protected static final BigInteger DEFAULT_FEE_MAX_VALUE = BigInteger.valueOf(1000L);
@@ -296,23 +297,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return fungibleTokenCustomizable(t -> t.treasuryAccountId(treasuryEntityId));
     }
 
-    protected FixedFee fixedFeePersist(Token token, Entity collectorAccount, Long amount) {
-        final var fixedFee = FixedFee.builder()
-                .amount(amount)
-                .collectorAccountId(collectorAccount.toEntityId())
-                .denominatingTokenId(EntityId.of(token.getTokenId()))
-                .build();
-
-        domainBuilder
-                .customFee()
-                .customize(f -> f.entityId(token.getTokenId())
-                        .fixedFees(List.of(fixedFee))
-                        .fractionalFees(List.of())
-                        .royaltyFees(List.of()))
-                .persist();
-        return fixedFee;
-    }
-
     /**
      * Method used to persist Token with token entity id and additional customization
      * provided in the customizer
@@ -434,9 +418,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Method used to persist TokenAllowance object with specific customization
-     * provided in the customizer object
-     *
+     * Persists token allowance which allows an account(spender) to spend a specific amount
+     * of tokens on behalf of another account(owner)
      * @param customizer the consumer used to customize the TokenAllowance
      * @return TokenAllowance object that is persisted in the database
      */
@@ -627,8 +610,32 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return Pair.of(tokenToUpdateEntity, autoRenewAccount);
     }
 
+    protected void persistAirdropForFungibleToken(final Token token, final Entity sender, final Entity receiver) {
+        domainBuilder
+                .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
+                .customize(t -> t.amount(DEFAULT_TOKEN_AIRDROP_AMOUNT.longValue())
+                        .tokenId(token.getTokenId())
+                        .receiverAccountId(receiver.getId())
+                        .senderAccountId(sender.getId()))
+                .persist();
+    }
+
+    protected void persistAirdropForNft(final Token token, final Entity sender, final Entity receiver) {
+        domainBuilder
+                .tokenAirdrop(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
+                .customize(t -> t.serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
+                        .tokenId(token.getTokenId())
+                        .receiverAccountId(receiver.getId())
+                        .senderAccountId(sender.getId()))
+                .persist();
+    }
+
     protected String getAddressFromEntity(final Entity entity) {
         return EvmTokenUtils.toAddress(entity.toEntityId()).toHexString();
+    }
+
+    protected String getTokenAddress(Token token) {
+        return toAddress(token.getTokenId()).toHexString();
     }
 
     protected String getAliasFromEntity(final Entity entity) {
@@ -701,6 +708,23 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         propertiesMap.put("contracts.maxRefundPercentOfGasLimit", "100");
         propertiesMap.put("contracts.maxGasPerSec", "15000000");
         mirrorNodeEvmProperties.setProperties(propertiesMap);
+    }
+
+    protected void persistRewardAccounts() {
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(801L)
+                        .num(801L)
+                        .createdTimestamp(genesisRecordFile.getConsensusStart())
+                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
+                .persist();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(800L)
+                        .num(800L)
+                        .createdTimestamp(genesisRecordFile.getConsensusStart())
+                        .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
+                .persist();
     }
 
     public enum KeyType {

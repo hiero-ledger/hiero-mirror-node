@@ -16,6 +16,7 @@ import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.convert.BytesDecoder;
 import com.hedera.mirror.web3.evm.config.PrecompiledContractProvider;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.state.core.MapWritableStates;
 import com.hedera.mirror.web3.state.keyvalue.ContractStorageReadableKVState;
 import com.hedera.node.app.service.contract.ContractService;
@@ -24,7 +25,6 @@ import com.hedera.node.app.service.mono.contracts.execution.traceability.HederaO
 import com.hedera.services.stream.proto.ContractActionType;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import com.swirlds.state.State;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -53,12 +53,12 @@ public class OpcodeTracer implements HederaOperationTracer {
 
     private final Map<Address, PrecompiledContract> hederaPrecompiles;
     private final MirrorNodeEvmProperties evmProperties;
-    private final State mirrorNodeState;
+    private final MirrorNodeState mirrorNodeState;
 
     public OpcodeTracer(
             final PrecompiledContractProvider precompiledContractProvider,
-            MirrorNodeEvmProperties evmProperties,
-            State mirrorNodeState) {
+            final MirrorNodeEvmProperties evmProperties,
+            final MirrorNodeState mirrorNodeState) {
         this.hederaPrecompiles = precompiledContractProvider.getHederaPrecompiles().entrySet().stream()
                 .collect(Collectors.toMap(e -> Address.fromHexString(e.getKey()), Map.Entry::getValue));
         this.evmProperties = evmProperties;
@@ -178,7 +178,7 @@ public class OpcodeTracer implements HederaOperationTracer {
                 return Collections.emptyMap();
             }
 
-            if (evmProperties.isModularizedServices()) {
+            if (options.modularized) {
                 return getModularizedUpdatedStorage(address);
             }
 

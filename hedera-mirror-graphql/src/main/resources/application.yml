@@ -83,6 +83,7 @@ spring:
     path: /graphql/alpha
   jpa:
     database: PostgreSQL
+    open-in-view: false
     properties:
       hibernate.criteria.literal_handling_mode: BIND # Ensure Criteria API queries use bind parameters and not literals
       hibernate.generate_statistics: true
@@ -90,3 +91,6 @@ spring:
       hibernate.type.json_format_mapper: com.hedera.mirror.common.converter.CustomJsonFormatMapper
   lifecycle:
     timeout-per-shutdown-phase: 20s
+  threads:
+    virtual:
+      enabled: true

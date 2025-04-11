@@ -13,7 +13,6 @@ import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hedera.mirror.importer.ImporterIntegrationTest;
-import com.hedera.mirror.importer.addressbook.AddressBookServiceImpl;
 import com.hedera.mirror.importer.repository.AddressBookRepository;
 import com.hedera.mirror.importer.repository.AddressBookServiceEndpointRepository;
 import com.hedera.mirror.importer.repository.FileDataRepository;
@@ -87,10 +86,10 @@ class MissingAddressBooksMigrationTest extends ImporterIntegrationTest {
     @Transactional
     void verifyAddressBookMigrationWithNewFileDataAfterCurrentAddressBook() {
         // store initial address books
-        addressBookRepository.save(addressBook(ab -> ab.fileId(AddressBookServiceImpl.FILE_101), 1, 4));
-        addressBookRepository.save(addressBook(ab -> ab.fileId(AddressBookServiceImpl.FILE_102), 2, 4));
-        addressBookRepository.save(addressBook(ab -> ab.fileId(AddressBookServiceImpl.FILE_101), 11, 8));
-        addressBookRepository.save(addressBook(ab -> ab.fileId(AddressBookServiceImpl.FILE_102), 12, 8));
+        addressBookRepository.save(addressBook(ab -> ab.fileId(systemEntity.addressBookFile101()), 1, 4));
+        addressBookRepository.save(addressBook(ab -> ab.fileId(systemEntity.addressBookFile102()), 2, 4));
+        addressBookRepository.save(addressBook(ab -> ab.fileId(systemEntity.addressBookFile101()), 11, 8));
+        addressBookRepository.save(addressBook(ab -> ab.fileId(systemEntity.addressBookFile102()), 12, 8));
         assertEquals(4, addressBookRepository.count());
 
         // un-parsed file_data
@@ -115,7 +114,7 @@ class MissingAddressBooksMigrationTest extends ImporterIntegrationTest {
         missingAddressBooksMigration.doMigrate();
         assertEquals(6, addressBookRepository.count());
         AddressBook newAddressBook = addressBookRepository
-                .findLatest(205, AddressBookServiceImpl.FILE_102.getId())
+                .findLatest(205, systemEntity.addressBookFile102().getId())
                 .get();
         assertThat(newAddressBook.getStartConsensusTimestamp()).isEqualTo(203L);
         assertAddressBook(newAddressBook, FINAL);
@@ -155,7 +154,7 @@ class MissingAddressBooksMigrationTest extends ImporterIntegrationTest {
                 .startConsensusTimestamp(startConsensusTimestamp)
                 .fileData("address book memo".getBytes())
                 .nodeCount(nodeCount)
-                .fileId(AddressBookServiceImpl.FILE_102)
+                .fileId(systemEntity.addressBookFile102())
                 .entries(addressBookEntryList);
 
         if (addressBookCustomizer != null) {
@@ -186,7 +185,7 @@ class MissingAddressBooksMigrationTest extends ImporterIntegrationTest {
 
     private FileData createAndStoreFileData(
             byte[] contents, long consensusTimeStamp, boolean is102, TransactionType transactionType) {
-        EntityId entityId = is102 ? AddressBookServiceImpl.FILE_102 : AddressBookServiceImpl.FILE_101;
+        EntityId entityId = is102 ? systemEntity.addressBookFile102() : systemEntity.addressBookFile101();
         FileData fileData = new FileData(consensusTimeStamp, contents, entityId, transactionType.getProtoId());
         return fileDataRepository.save(fileData);
     }

@@ -663,7 +663,7 @@
         "type": "prometheus",
         "uid": "${prometheus}"
       },
-      "description": "The total number of all API requests by path",
+      "description": "The total number of all API requests by code",
       "fieldConfig": {
         "defaults": {
           "color": {

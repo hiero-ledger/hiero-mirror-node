@@ -8,7 +8,7 @@ import static org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1.SECP256K1_EC
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.TextFormat;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.importer.exception.ParserException;
@@ -103,8 +103,8 @@ public class Utility {
      * @param message
      * @return
      */
-    public static String printProtoMessage(GeneratedMessageV3 message) {
-        return TextFormat.shortDebugString(message);
+    public static String printProtoMessage(GeneratedMessage message) {
+        return TextFormat.printer().printToString(message);
     }
 
     public static void archiveFile(String filename, byte[] contents, Path destinationRoot) {

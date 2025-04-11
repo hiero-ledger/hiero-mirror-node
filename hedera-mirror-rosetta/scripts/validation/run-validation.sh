@@ -23,7 +23,9 @@ if (./rosetta-cli 2>&1 | grep 'CLI for the Rosetta API' > /dev/null); then
     echo "Rosetta CLI already installed. Skipping installation"
 else
     echo "Installing Rosetta CLI"
-    curl -sSfL https://raw.githubusercontent.com/coinbase/rosetta-cli/master/scripts/install.sh | \
+    # rosetta-cli repo has been renamed to mesh-cli, however the install script didn't change the repo accordingly
+    curl -sSfL https://raw.githubusercontent.com/coinbase/mesh-cli/master/scripts/install.sh | \
+      sed -e 's/^REPO=.*/REPO=mesh-cli/' | \
       sh -s -- -b . "${ROSETTA_CLI_VERSION}"
 fi
 

@@ -2,8 +2,6 @@
 
 package com.hedera.mirror.importer.repository;
 
-import static com.hedera.mirror.importer.addressbook.AddressBookServiceImpl.FILE_101;
-import static com.hedera.mirror.importer.addressbook.AddressBookServiceImpl.FILE_102;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
@@ -40,10 +38,14 @@ class AddressBookRepositoryTest extends ImporterIntegrationTest {
     void findLatest() {
         domainBuilder.addressBook().persist();
         var addressBook2 = domainBuilder.addressBook().persist();
-        var addressBook3 =
-                domainBuilder.addressBook().customize(a -> a.fileId(FILE_101)).persist();
+        var addressBook3 = domainBuilder
+                .addressBook()
+                .customize(a -> a.fileId(systemEntity.addressBookFile101()))
+                .persist();
 
-        assertThat(addressBookRepository.findLatest(addressBook3.getStartConsensusTimestamp(), FILE_102.getId()))
+        assertThat(addressBookRepository.findLatest(
+                        addressBook3.getStartConsensusTimestamp(),
+                        systemEntity.addressBookFile102().getId()))
                 .get()
                 .isEqualTo(addressBook2);
     }

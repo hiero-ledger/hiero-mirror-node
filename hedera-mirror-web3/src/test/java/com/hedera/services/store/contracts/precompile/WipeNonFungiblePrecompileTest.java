@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.web3.common.PrecompileContext;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.store.Store;
@@ -79,6 +80,9 @@ class WipeNonFungiblePrecompileTest {
 
     @InjectMocks
     private MirrorNodeEvmProperties evmProperties;
+
+    @Mock
+    private CommonProperties commonProperties;
 
     @Mock
     private MessageFrame frame;

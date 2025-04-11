@@ -17,20 +17,19 @@ import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
+import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.contracts.execution.traceability.MirrorOperationTracer;
 import com.hedera.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.service.model.CallServiceParameters;
-import com.hedera.mirror.web3.service.model.CallServiceParameters.CallType;
 import com.hedera.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
-import com.hedera.node.app.service.token.TokenService;
 import com.hedera.node.config.data.EntitiesConfig;
-import com.swirlds.state.State;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Meter.MeterProvider;
+import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.List;
@@ -47,19 +46,18 @@ import org.hyperledger.besu.evm.tracing.OperationTracer;
 @RequiredArgsConstructor
 public class TransactionExecutionService {
 
-    private static final AccountID TREASURY_ACCOUNT_ID =
-            AccountID.newBuilder().accountNum(2).build();
     private static final Duration TRANSACTION_DURATION = new Duration(15);
     private static final long CONTRACT_CREATE_TX_FEE = 100_000_000L;
 
-    private final State mirrorNodeState;
+    private final AliasesReadableKVState aliasesReadableKVState;
+    private final CommonProperties commonProperties;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
     private final OpcodeTracer opcodeTracer;
     private final MirrorOperationTracer mirrorOperationTracer;
+    private final SystemEntity systemEntity;
     private final TransactionExecutorFactory transactionExecutorFactory;
 
-    public HederaEvmTransactionProcessingResult execute(
-            final CallServiceParameters params, final long estimatedGas, final MeterProvider<Counter> gasUsedCounter) {
+    public HederaEvmTransactionProcessingResult execute(final CallServiceParameters params, final long estimatedGas) {
         final var isContractCreate = params.getReceiver().isZero();
         final var configuration = mirrorNodeEvmProperties.getVersionedConfiguration();
         final var maxLifetime =
@@ -79,18 +77,9 @@ public class TransactionExecutionService {
         if (transactionRecord.receiptOrThrow().status() == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS) {
             result = buildSuccessResult(isContractCreate, transactionRecord, params);
         } else {
-            result = handleFailedResult(transactionRecord, isContractCreate, gasUsedCounter);
+            result = handleFailedResult(transactionRecord, isContractCreate);
         }
         return result;
-    }
-
-    // Duplicated code as in ContractCallService class - it will be removed from there when switch to the modularized
-    // implementation entirely.
-    private void updateErrorGasUsedMetric(
-            final MeterProvider<Counter> gasUsedCounter, final long gasUsed, final int iterations) {
-        gasUsedCounter
-                .withTags("type", CallType.ERROR.toString(), "iteration", String.valueOf(iterations))
-                .increment(gasUsed);
     }
 
     private ContractFunctionResult getTransactionResult(
@@ -116,29 +105,23 @@ public class TransactionExecutionService {
     }
 
     private HederaEvmTransactionProcessingResult handleFailedResult(
-            final TransactionRecord transactionRecord,
-            final boolean isContractCreate,
-            final MeterProvider<Counter> gasUsedCounter)
+            final TransactionRecord transactionRecord, final boolean isContractCreate)
             throws MirrorEvmTransactionException {
         var result =
                 isContractCreate ? transactionRecord.contractCreateResult() : transactionRecord.contractCallResult();
-        var status = transactionRecord.receiptOrThrow().status();
+        var status = transactionRecord.receiptOrThrow().status().protoName();
         if (result == null) {
             // No result - the call did not reach the EVM and probably failed at pre-checks. No metric to update in this
             // case.
-            throw new MirrorEvmTransactionException(status.protoName(), StringUtils.EMPTY, StringUtils.EMPTY, true);
+            throw new MirrorEvmTransactionException(status, StringUtils.EMPTY, StringUtils.EMPTY, true);
         } else {
             var errorMessage = getErrorMessage(result).orElse(Bytes.EMPTY);
             var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessage);
-            updateErrorGasUsedMetric(gasUsedCounter, result.gasUsed(), 1);
             if (ContractCallContext.get().getOpcodeTracerOptions() == null) {
+                var processingResult = HederaEvmTransactionProcessingResult.failed(
+                        result.gasUsed(), 0L, 0L, Optional.of(errorMessage), Optional.empty());
                 throw new MirrorEvmTransactionException(
-                        status.protoName(),
-                        detail,
-                        errorMessage.toHexString(),
-                        HederaEvmTransactionProcessingResult.failed(
-                                result.gasUsed(), 0L, 0L, Optional.of(errorMessage), Optional.empty()),
-                        true);
+                        status, detail, errorMessage.toHexString(), processingResult, true);
             } else {
                 // If we are in an opcode trace scenario, we need to return a failed result in order to get the
                 // opcode list from the ContractCallContext. If we throw an exception instead of returning a result,
@@ -161,7 +144,7 @@ public class TransactionExecutionService {
                         .transactionValidStart(new Timestamp(Instant.now().getEpochSecond(), 0))
                         .accountID(getSenderAccountID(params))
                         .build())
-                .nodeAccountID(TREASURY_ACCOUNT_ID) // We don't really need another account here.
+                .nodeAccountID(EntityIdUtils.toAccountId(systemEntity.treasuryAccount()))
                 .transactionValidDuration(TRANSACTION_DURATION);
     }
 
@@ -183,6 +166,8 @@ public class TransactionExecutionService {
         return defaultTransactionBodyBuilder(params)
                 .contractCall(ContractCallTransactionBody.newBuilder()
                         .contractID(ContractID.newBuilder()
+                                .shardNum(commonProperties.getShard())
+                                .realmNum(commonProperties.getRealm())
                                 .evmAddress(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
                                         params.getReceiver().toArrayUnsafe()))
                                 .build())
@@ -201,21 +186,18 @@ public class TransactionExecutionService {
     }
 
     private AccountID getSenderAccountID(final CallServiceParameters params) {
+        // Set a default account to keep the sender parameter optional.
         if (params.getSender().canonicalAddress().isZero() && params.getValue() == 0L) {
-            // Set a default account to keep the sender parameter optional.
-            return TREASURY_ACCOUNT_ID;
+            return EntityIdUtils.toAccountId(systemEntity.treasuryAccount());
         }
 
         final var senderAddress = params.getSender().canonicalAddress();
         if (isMirror(senderAddress)) {
-            return AccountID.newBuilder()
-                    .accountNum(senderAddress.trimLeadingZeros().toLong())
-                    .build();
+            var entityId = DomainUtils.fromEvmAddress(senderAddress.toArrayUnsafe());
+            return EntityIdUtils.toAccountId(entityId);
         }
-        return (AccountID) mirrorNodeState
-                .getReadableStates(TokenService.NAME)
-                .get(AliasesReadableKVState.KEY)
-                .get(convertAddressToProtoBytes(senderAddress));
+
+        return aliasesReadableKVState.get(convertAddressToProtoBytes(senderAddress));
     }
 
     private OperationTracer[] getOperationTracers() {

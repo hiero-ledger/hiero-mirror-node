@@ -230,7 +230,7 @@ class EncodingFacadeTest {
         dataItems.add(BigInteger.valueOf(9));
         dataItems.add(true);
         dataItems.add(false);
-        final var tuple = Tuple.of(dataItems.toArray());
+        final var tuple = Tuple.from(dataItems.toArray());
 
         final List<LogTopic> topics = new ArrayList<>();
         topics.add(LogTopic.wrap(

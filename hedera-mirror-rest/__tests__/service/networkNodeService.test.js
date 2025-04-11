@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import _ from 'lodash';
-import config from '../../config';
-import entityId from '../../entityId';
 import {NetworkNodeService} from '../../service';
 import {assertSqlQueryEqual} from '../testutils';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
 import * as utils from '../../utils';
+import EntityId from '../../entityId';
 
 setupIntegrationTest();
 
@@ -30,7 +29,7 @@ describe('NetworkNodeService.getNetworkNodesWithFiltersQuery tests', () => {
                                          staking_period
                                   from node_stake
                                   where consensus_timestamp = (select max(consensus_timestamp) from node_stake)),
-                           n as (select admin_key, node_id
+                           n as (select admin_key, decline_reward, node_id
                                  from node)
                       select abe.description,
                              abe.memo,
@@ -42,6 +41,7 @@ describe('NetworkNodeService.getNetworkNodesWithFiltersQuery tests', () => {
                              adb.start_consensus_timestamp,
                              adb.end_consensus_timestamp,
                              n.admin_key,
+                             n.decline_reward,
                              ns.max_stake,
                              ns.min_stake,
                              ns.reward_rate,
@@ -86,7 +86,7 @@ describe('NetworkNodeService.getNetworkNodesWithFiltersQuery tests', () => {
                                          staking_period
                                   from node_stake
                                   where consensus_timestamp = (select max(consensus_timestamp) from node_stake)),
-                           n as (select admin_key, node_id
+                           n as (select admin_key, decline_reward, node_id
                                  from node)
                       select abe.description,
                              abe.memo,
@@ -98,6 +98,7 @@ describe('NetworkNodeService.getNetworkNodesWithFiltersQuery tests', () => {
                              adb.start_consensus_timestamp,
                              adb.end_consensus_timestamp,
                              n.admin_key,
+                             n.decline_reward,
                              ns.max_stake,
                              ns.min_stake,
                              ns.reward_rate,
@@ -624,9 +625,9 @@ describe(`NetworkNodeService.getSupply`, () => {
   test('Without timestamp', async () => {
     const accounts = [];
     const timestamp = utils.nowInNs();
-    config.network.unreleasedSupplyAccounts.forEach((range) => {
-      const from = entityId.parse(range.from).getEncodedId();
-      const to = entityId.parse(range.to).getEncodedId();
+    EntityId.systemEntity.unreleasedSupplyAccounts.forEach((range) => {
+      const from = range.from.getEncodedId();
+      const to = range.to.getEncodedId();
       _.range(from, to + 1).forEach((id) => {
         accounts.push({balance: 1n, balance_timestamp: timestamp, num: id});
       });
@@ -640,9 +641,9 @@ describe(`NetworkNodeService.getSupply`, () => {
   test('With timestamp', async () => {
     const balances = [];
     const timestamp = utils.nowInNs();
-    config.network.unreleasedSupplyAccounts.forEach((range) => {
-      const from = entityId.parse(range.from).getEncodedId();
-      const to = entityId.parse(range.to).getEncodedId();
+    EntityId.systemEntity.unreleasedSupplyAccounts.forEach((range) => {
+      const from = range.from.getEncodedId();
+      const to = range.to.getEncodedId();
       _.range(from, to + 1).forEach((id) => {
         balances.push({balance: 1n, timestamp: timestamp, id: id});
       });

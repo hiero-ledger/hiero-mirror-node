@@ -23,6 +23,7 @@ import com.hedera.hapi.node.base.AccountAmount;
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.HederaFunctionality;
 import com.hedera.hapi.node.base.NftTransfer;
+import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.base.TransferList;
 import com.hedera.hapi.node.token.CryptoTransferTransactionBody;
@@ -30,8 +31,8 @@ import com.hedera.hapi.node.token.TokenMintTransactionBody;
 import com.hedera.hapi.node.transaction.Query;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
 import com.hedera.hapi.node.transaction.TransactionBody;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.node.app.hapi.utils.ethereum.EthTxData;
-import com.hedera.node.app.hapi.utils.sysfiles.domain.throttling.ThrottleBucket;
 import com.hedera.node.app.hapi.utils.sysfiles.domain.throttling.ThrottleGroup;
 import com.hedera.node.app.hapi.utils.throttles.DeterministicThrottle;
 import com.hedera.node.app.hapi.utils.throttles.GasLimitDeterministicThrottle;
@@ -47,21 +48,21 @@ import com.hedera.node.config.data.LazyCreationConfig;
 import com.hedera.node.config.data.TokensConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.config.api.Configuration;
+import com.swirlds.platform.system.SoftwareVersion;
 import com.swirlds.state.State;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.math.BigInteger;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -84,6 +85,10 @@ public class ThrottleAccumulator {
     @Nullable
     private final ThrottleMetrics throttleMetrics;
 
+    private final CommonProperties commonProperties = CommonProperties.getInstance();
+
+    private final Function<SemanticVersion, SoftwareVersion> softwareVersionFactory;
+
     private final Supplier<Configuration> configSupplier;
     private final IntSupplier capacitySplitSource;
     private final ThrottleType throttleType;
@@ -100,8 +105,9 @@ public class ThrottleAccumulator {
     public ThrottleAccumulator(
             @NonNull final Supplier<Configuration> configSupplier,
             @NonNull final IntSupplier capacitySplitSource,
-            @NonNull final ThrottleType throttleType) {
-        this(capacitySplitSource, configSupplier, throttleType, null, Verbose.NO);
+            @NonNull final ThrottleType throttleType,
+            @NonNull Function<SemanticVersion, SoftwareVersion> softwareVersionFactory) {
+        this(capacitySplitSource, configSupplier, throttleType, null, Verbose.NO, softwareVersionFactory);
     }
 
     public ThrottleAccumulator(
@@ -109,12 +115,14 @@ public class ThrottleAccumulator {
             @NonNull final Supplier<Configuration> configSupplier,
             @NonNull final ThrottleType throttleType,
             @Nullable final ThrottleMetrics throttleMetrics,
-            @NonNull final Verbose verbose) {
+            @NonNull final Verbose verbose,
+            @NonNull Function<SemanticVersion, SoftwareVersion> softwareVersionFactory) {
         this.configSupplier = requireNonNull(configSupplier, "configProvider must not be null");
         this.capacitySplitSource = requireNonNull(capacitySplitSource, "capacitySplitSource must not be null");
         this.throttleType = requireNonNull(throttleType, "throttleType must not be null");
         this.verbose = requireNonNull(verbose);
         this.throttleMetrics = throttleMetrics;
+        this.softwareVersionFactory = softwareVersionFactory;
     }
 
     // For testing purposes, in practice the gas throttle is
@@ -126,11 +134,13 @@ public class ThrottleAccumulator {
             @NonNull final Supplier<Configuration> configSupplier,
             @NonNull final ThrottleType throttleType,
             @NonNull final ThrottleMetrics throttleMetrics,
-            @NonNull final GasLimitDeterministicThrottle gasThrottle) {
+            @NonNull final GasLimitDeterministicThrottle gasThrottle,
+            @NonNull Function<SemanticVersion, SoftwareVersion> softwareVersionFactory) {
         this.configSupplier = requireNonNull(configSupplier, "configProvider must not be null");
         this.capacitySplitSource = requireNonNull(capacitySplitSource, "capacitySplitSource must not be null");
         this.throttleType = requireNonNull(throttleType, "throttleType must not be null");
         this.gasThrottle = requireNonNull(gasThrottle, "gasThrottle must not be null");
+        this.softwareVersionFactory = softwareVersionFactory;
 
         this.throttleMetrics = throttleMetrics;
         this.throttleMetrics.setupGasThrottleMetric(gasThrottle, configSupplier.get());
@@ -405,7 +415,8 @@ public class ThrottleAccumulator {
                 return UNKNOWN_NUM_IMPLICIT_CREATIONS;
             }
             final var config = configSupplier.get().getConfigData(HederaConfig.class);
-            final boolean doesNotExist = !accountStore.containsAlias(Bytes.wrap(ethTxData.to()));
+            final boolean doesNotExist = !accountStore.containsAlias(
+                    commonProperties.getShard(), commonProperties.getRealm(), Bytes.wrap(ethTxData.to()));
             if (doesNotExist && ethTxData.value().compareTo(BigInteger.ZERO) > 0) {
                 implicitCreationsCount++;
             }
@@ -522,10 +533,10 @@ public class ThrottleAccumulator {
             @NonNull final AccountID idOrAlias, @NonNull final ReadableAccountStore accountStore) {
         if (isAlias(idOrAlias)) {
             final var alias = idOrAlias.aliasOrElse(Bytes.EMPTY);
-            if (isOfEvmAddressSize(alias) && isEntityNumAlias(alias)) {
+            if (isOfEvmAddressSize(alias) && isEntityNumAlias(alias, idOrAlias.shardNum(), idOrAlias.realmNum())) {
                 return false;
             }
-            return accountStore.getAccountIDByAlias(alias) == null;
+            return accountStore.getAccountIDByAlias(idOrAlias.shardNum(), idOrAlias.realmNum(), alias) == null;
         }
         return false;
     }
@@ -583,42 +594,7 @@ public class ThrottleAccumulator {
      * @param defs the throttle definitions to rebuild the throttle requirements based on
      */
     public void rebuildFor(@NonNull final ThrottleDefinitions defs) {
-        List<DeterministicThrottle> newActiveThrottles = new ArrayList<>();
-        EnumMap<HederaFunctionality, List<Pair<DeterministicThrottle, Integer>>> reqLists =
-                new EnumMap<>(HederaFunctionality.class);
-
-        for (var bucket : defs.throttleBuckets()) {
-            try {
-                final var utilThrottleBucket = new ThrottleBucket<>(
-                        bucket.burstPeriodMs(),
-                        bucket.name(),
-                        bucket.throttleGroups().stream()
-                                .map(this::hapiGroupFromPbj)
-                                .toList());
-                var mapping = utilThrottleBucket.asThrottleMapping(capacitySplitSource.getAsInt());
-                var throttle = mapping.getLeft();
-                var reqs = mapping.getRight();
-                for (var req : reqs) {
-                    reqLists.computeIfAbsent(req.getLeft(), ignore -> new ArrayList<>())
-                            .add(Pair.of(throttle, req.getRight()));
-                }
-                newActiveThrottles.add(throttle);
-            } catch (IllegalStateException badBucket) {
-                log.error("When constructing bucket '{}' from state: {}", bucket.name(), badBucket.getMessage());
-            }
-        }
-        EnumMap<HederaFunctionality, ThrottleReqsManager> newFunctionReqs = new EnumMap<>(HederaFunctionality.class);
-        reqLists.forEach((function, reqs) -> newFunctionReqs.put(function, new ThrottleReqsManager(reqs)));
-
-        functionReqs = newFunctionReqs;
-        activeThrottles = newActiveThrottles;
-
-        if (throttleMetrics != null) {
-            final var configuration = configSupplier.get();
-            throttleMetrics.setupThrottleMetrics(activeThrottles, configuration);
-        }
-
-        logResolvedDefinitions(capacitySplitSource.getAsInt());
+        // No-op
     }
 
     /**

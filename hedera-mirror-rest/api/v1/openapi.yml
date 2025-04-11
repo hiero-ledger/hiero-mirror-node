@@ -1399,7 +1399,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Hedera Mirror Node REST API
-  version: 0.127.0-SNAPSHOT
+  version: 0.128.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -2792,6 +2792,7 @@ components:
       type: object
       required:
         - admin_key
+        - decline_reward
         - description
         - file_id
         - max_stake
@@ -2811,6 +2812,10 @@ components:
       properties:
         admin_key:
           $ref: "#/components/schemas/Key"
+        decline_reward:
+          description: Whether the node wants to receive staking rewards or not.
+          nullable: true
+          type: boolean
         description:
           description: a memo associated with the address book
           nullable: true
@@ -2882,6 +2887,7 @@ components:
         admin_key:
           _type: "ED25519"
           key: "15706b229b3ba33d4a5a41ff54ce1cfe0a3d308672a33ff382f81583e02bd743"
+        decline_reward: false
         description: "address book 1"
         file_id: "0.0.102"
         max_stake: 50000

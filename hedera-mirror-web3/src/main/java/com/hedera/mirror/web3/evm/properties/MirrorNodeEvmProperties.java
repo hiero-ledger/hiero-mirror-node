@@ -8,11 +8,15 @@ import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_3
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_38;
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_46;
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_50;
+import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51;
+import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.swirlds.common.utility.CommonUtils.unhex;
 import static com.swirlds.state.lifecycle.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
 
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.SemanticVersion;
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.node.app.config.ConfigProviderImpl;
@@ -22,7 +26,6 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.time.Duration;
@@ -44,6 +47,7 @@ import org.apache.tuweni.bytes.Bytes32;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.EvmSpecVersion;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.convert.DataSizeUnit;
 import org.springframework.util.CollectionUtils;
@@ -51,6 +55,7 @@ import org.springframework.util.unit.DataSize;
 import org.springframework.util.unit.DataUnit;
 import org.springframework.validation.annotation.Validated;
 
+@RequiredArgsConstructor(onConstructor_ = {@Autowired})
 @Setter
 @Validated
 @ConfigurationProperties(prefix = "hedera.mirror.web3.evm")
@@ -58,6 +63,9 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
+
+    private final CommonProperties commonProperties;
+    private final SystemEntity systemEntity;
 
     @Getter
     private boolean allowTreasuryToOwnNfts = true;
@@ -89,8 +97,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @DurationMin(seconds = 1)
     private Duration expirationCacheTime = Duration.ofMinutes(10L);
 
-    @NotBlank
-    private String fundingAccount = "0x0000000000000000000000000000000000000062";
+    private String fundingAccount;
 
     @Getter
     private long htsDefaultGasCost = 10000;
@@ -263,6 +270,9 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     @Override
     public Address fundingAccountAddress() {
+        if (fundingAccount == null) {
+            fundingAccount = toAddress(systemEntity.feeCollectorAccount()).toHexString();
+        }
         return Address.fromHexString(fundingAccount);
     }
 
@@ -335,7 +345,12 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         // max signed transaction size. We put 1 KB more here to have a buffer because the transaction has other
         // fields (apart from the data) that will increase the transaction size.
         props.put("executor.maxSignedTxnSize", String.valueOf(maxDataSize.toBytes() + 1024));
+        props.put("hedera.realm", String.valueOf(commonProperties.getRealm()));
+        props.put("hedera.shard", String.valueOf(commonProperties.getShard()));
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
+        props.put("nodes.gossipFqdnRestricted", "false");
+        props.put("tss.hintsEnabled", "false");
+        props.put("tss.historyEnabled", "false");
         props.putAll(properties); // Allow user defined properties to override the defaults
         return Collections.unmodifiableMap(props);
     }
@@ -370,6 +385,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
             evmVersionsMap.put(49117794L, EVM_VERSION_0_38);
             evmVersionsMap.put(60258042L, EVM_VERSION_0_46);
             evmVersionsMap.put(65435845L, EVM_VERSION_0_50);
+            evmVersionsMap.put(66602102L, EVM_VERSION_0_51);
 
             return Collections.unmodifiableNavigableMap(evmVersionsMap);
         }

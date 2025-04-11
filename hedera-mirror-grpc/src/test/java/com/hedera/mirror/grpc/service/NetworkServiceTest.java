@@ -6,12 +6,10 @@ import static com.hedera.mirror.grpc.service.NetworkServiceImpl.INVALID_FILE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.grpc.GrpcIntegrationTest;
 import com.hedera.mirror.grpc.domain.AddressBookFilter;
 import com.hedera.mirror.grpc.exception.EntityNotFoundException;
@@ -36,7 +34,6 @@ class NetworkServiceTest extends GrpcIntegrationTest {
 
     private final AddressBookEntryRepository addressBookEntryRepository;
     private final AddressBookProperties addressBookProperties;
-    private final CommonProperties commonProperties;
     private final DomainBuilder domainBuilder;
     private final NetworkService networkService;
     private final NodeStakeRepository nodeStakeRepository;
@@ -66,7 +63,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     @Test
     void addressBookNotFound() {
         var filter = AddressBookFilter.builder()
-                .fileId(SystemEntity.ADDRESS_BOOK_102.getScopedEntityId(commonProperties))
+                .fileId(systemEntity.addressBookFile102())
                 .build();
 
         assertThatThrownBy(() -> networkService.getNodes(filter))

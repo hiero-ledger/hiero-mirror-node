@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.web3.evm.token;
 
-import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -14,6 +13,7 @@ import static org.mockito.Mockito.when;
 import com.google.protobuf.ByteString;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.DomainBuilder;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
@@ -66,12 +66,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(ContextExtension.class)
 @ExtendWith(MockitoExtension.class)
 class TokenAccessorImplTest {
-
-    private static final String HEX_TOKEN = "0x00000000000000000000000000000000000004e4";
-    private static final String HEX_ACCOUNT = "0x00000000000000000000000000000000000004e5";
-    private static final Address TOKEN = Address.fromHexString(HEX_TOKEN);
-    private static final Long ENTITY_ID = entityIdFromEvmAddress(TOKEN).getId();
-    private static final Address ACCOUNT = Address.fromHexString(HEX_ACCOUNT);
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private static final EntityId TOKEN_ENTITY_ID =
+            EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 1252);
+    private static final Address TOKEN_ADDRESS = toAddress(TOKEN_ENTITY_ID);
+    private static final EntityId ACCOUNT_ENTITY_ID =
+            EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 1253);
+    private static final Address ACCOUNT_ADDRESS = toAddress(ACCOUNT_ENTITY_ID);
     private final long serialNo = 0L;
     private final DomainBuilder domainBuilder = new DomainBuilder();
     public TokenAccessorImpl tokenAccessor;
@@ -126,32 +127,32 @@ class TokenAccessorImplTest {
 
     @BeforeEach
     void setUp() {
-        final var commonProperties = new CommonProperties();
-        final var entityAccessor = new EntityDatabaseAccessor(entityRepository);
+        final var entityAccessor = new EntityDatabaseAccessor(entityRepository, COMMON_PROPERTIES);
         final var customFeeAccessor = new CustomFeeDatabaseAccessor(customFeeRepository, entityAccessor);
+        final var systemEntity = new SystemEntity(COMMON_PROPERTIES);
         final var tokenDatabaseAccessor = new TokenDatabaseAccessor(
-                commonProperties, tokenRepository, entityAccessor, entityRepository, customFeeAccessor, nftRepository);
+                tokenRepository, entityAccessor, entityRepository, customFeeAccessor, nftRepository, systemEntity);
         final var accountDatabaseAccessor = new AccountDatabaseAccessor(
-                commonProperties,
                 entityAccessor,
                 nftAllowanceRepository,
                 nftRepository,
                 tokenAllowanceRepository,
                 cryptoAllowanceRepository,
                 tokenAccountRepository,
-                accountBalanceRepository);
+                accountBalanceRepository,
+                systemEntity);
         accessors = List.of(
                 entityAccessor,
                 customFeeAccessor,
                 accountDatabaseAccessor,
                 tokenDatabaseAccessor,
                 new TokenRelationshipDatabaseAccessor(
-                        commonProperties,
                         tokenDatabaseAccessor,
                         accountDatabaseAccessor,
                         tokenAccountRepository,
                         tokenBalanceRepository,
-                        nftRepository),
+                        nftRepository,
+                        systemEntity),
                 new UniqueTokenDatabaseAccessor(nftRepository));
         final var stackedStateFrames = new StackedStateFrames(accessors);
         store = new StoreImpl(stackedStateFrames, validator);
@@ -166,11 +167,11 @@ class TokenAccessorImplTest {
                 .nft()
                 .customize(n -> n.createdTimestamp(createdTimestampSecs * 1_000_000_000 + createdTimestampNanos))
                 .get();
-        when(nftRepository.findActiveById(ENTITY_ID, serialNo)).thenReturn(Optional.of(nft));
+        when(nftRepository.findActiveById(TOKEN_ENTITY_ID.getId(), serialNo)).thenReturn(Optional.of(nft));
 
         final var expected = new EvmNftInfo(
                 serialNo, toAddress(nft.getAccountId()), createdTimestampSecs, nft.getMetadata(), Address.ZERO, null);
-        final var result = tokenAccessor.evmNftInfo(TOKEN, serialNo);
+        final var result = tokenAccessor.evmNftInfo(TOKEN_ADDRESS, serialNo);
         assertThat(result).isNotEmpty();
         assertEquals(expected.getSerialNumber(), result.get().getSerialNumber());
         assertEquals(expected.getSpender(), result.get().getSpender());
@@ -189,11 +190,11 @@ class TokenAccessorImplTest {
                     n.accountId(EntityId.EMPTY);
                 })
                 .get();
-        when(nftRepository.findActiveById(ENTITY_ID, serialNo)).thenReturn(Optional.of(nft));
+        when(nftRepository.findActiveById(TOKEN_ENTITY_ID.getId(), serialNo)).thenReturn(Optional.of(nft));
 
         final var expected =
                 new EvmNftInfo(serialNo, Address.ZERO, createdTimestampSecs, nft.getMetadata(), Address.ZERO, null);
-        final var result = tokenAccessor.evmNftInfo(TOKEN, serialNo);
+        final var result = tokenAccessor.evmNftInfo(TOKEN_ADDRESS, serialNo);
         assertThat(result).isNotEmpty();
         assertEquals(expected.getSerialNumber(), result.get().getSerialNumber());
         assertEquals(expected.getSpender(), result.get().getSpender());
@@ -202,13 +203,14 @@ class TokenAccessorImplTest {
 
     @Test
     void isTokenAddress() {
-        when(entityRepository.findByIdAndDeletedIsFalse(ENTITY_ID)).thenReturn(Optional.of(entity));
+        when(entityRepository.findByIdAndDeletedIsFalse(TOKEN_ENTITY_ID.getId()))
+                .thenReturn(Optional.of(entity));
         when(entity.getId()).thenReturn(0L);
         when(entity.getType()).thenReturn(EntityType.TOKEN);
         when(tokenRepository.findById(0L)).thenReturn(Optional.of(token));
         when(token.getType()).thenReturn(TokenTypeEnum.NON_FUNGIBLE_UNIQUE);
         when(token.getSupplyType()).thenReturn(TokenSupplyTypeEnum.FINITE);
-        assertTrue(tokenAccessor.isTokenAddress(TOKEN));
+        assertTrue(tokenAccessor.isTokenAddress(TOKEN_ADDRESS));
     }
 
     @Test
@@ -222,7 +224,7 @@ class TokenAccessorImplTest {
         when(token.getSupplyType()).thenReturn(TokenSupplyTypeEnum.FINITE);
         when(entityRepository.findByIdAndDeletedIsFalse(any())).thenReturn(Optional.of(entity));
         when(entity.getType()).thenReturn(EntityType.ACCOUNT, EntityType.TOKEN);
-        assertTrue(tokenAccessor.isFrozen(ACCOUNT, TOKEN));
+        assertTrue(tokenAccessor.isFrozen(ACCOUNT_ADDRESS, TOKEN_ADDRESS));
     }
 
     @Test
@@ -236,7 +238,7 @@ class TokenAccessorImplTest {
         when(token.getSupplyType()).thenReturn(TokenSupplyTypeEnum.FINITE);
         when(entityRepository.findByIdAndDeletedIsFalse(any())).thenReturn(Optional.of(entity));
         when(entity.getType()).thenReturn(EntityType.ACCOUNT, EntityType.TOKEN);
-        assertTrue(tokenAccessor.isKyc(ACCOUNT, TOKEN));
+        assertTrue(tokenAccessor.isKyc(ACCOUNT_ADDRESS, TOKEN_ADDRESS));
     }
 
     @Test
@@ -252,11 +254,11 @@ class TokenAccessorImplTest {
         when(entityRepository.findByIdAndDeletedIsFalse(any())).thenReturn(Optional.of(entity));
         when(entity.getType()).thenReturn(EntityType.TOKEN);
         when(customFeeRepository.findById(any())).thenReturn(Optional.of(customFee));
-        assertThat(tokenAccessor.infoForTokenCustomFees(TOKEN)).isNotEmpty();
+        assertThat(tokenAccessor.infoForTokenCustomFees(TOKEN_ADDRESS)).isNotEmpty();
         assertEquals(
                 toAddress(collectorId),
                 tokenAccessor
-                        .infoForTokenCustomFees(TOKEN)
+                        .infoForTokenCustomFees(TOKEN_ADDRESS)
                         .get()
                         .get(0)
                         .getFixedFee()
@@ -276,7 +278,7 @@ class TokenAccessorImplTest {
         when(token.getWipeKey()).thenReturn(key.toByteArray());
         when(token.getType()).thenReturn(TokenTypeEnum.NON_FUNGIBLE_UNIQUE);
         when(token.getSupplyType()).thenReturn(TokenSupplyTypeEnum.FINITE);
-        final var result = tokenAccessor.keyOf(TOKEN, TokenKeyType.WIPE_KEY);
+        final var result = tokenAccessor.keyOf(TOKEN_ADDRESS, TokenKeyType.WIPE_KEY);
         assertThat(result).isNotNull();
         assertArrayEquals(key.getECDSASecp256K1().toByteArray(), result.getECDSASecp256K1());
     }
@@ -288,7 +290,7 @@ class TokenAccessorImplTest {
         when(entity.getType()).thenReturn(EntityType.TOKEN);
         when(token.getType()).thenReturn(TokenTypeEnum.NON_FUNGIBLE_UNIQUE);
         when(token.getSupplyType()).thenReturn(TokenSupplyTypeEnum.FINITE);
-        final var result = tokenAccessor.symbolOf(TOKEN);
+        final var result = tokenAccessor.symbolOf(TOKEN_ADDRESS);
         assertEquals("", result);
     }
 
@@ -300,7 +302,7 @@ class TokenAccessorImplTest {
         when(token.getType()).thenReturn(TokenTypeEnum.NON_FUNGIBLE_UNIQUE);
         when(token.getSupplyType()).thenReturn(TokenSupplyTypeEnum.FINITE);
         when(token.getSymbol()).thenReturn("symbol");
-        final var result = tokenAccessor.symbolOf(TOKEN);
+        final var result = tokenAccessor.symbolOf(TOKEN_ADDRESS);
         assertEquals("symbol", result);
     }
 
@@ -311,7 +313,7 @@ class TokenAccessorImplTest {
         when(entity.getType()).thenReturn(EntityType.TOKEN);
         when(token.getType()).thenReturn(TokenTypeEnum.NON_FUNGIBLE_UNIQUE);
         when(token.getSupplyType()).thenReturn(TokenSupplyTypeEnum.FINITE);
-        final var result = tokenAccessor.nameOf(TOKEN);
+        final var result = tokenAccessor.nameOf(TOKEN_ADDRESS);
         assertEquals("", result);
     }
 
@@ -323,7 +325,7 @@ class TokenAccessorImplTest {
         when(token.getType()).thenReturn(TokenTypeEnum.NON_FUNGIBLE_UNIQUE);
         when(token.getSupplyType()).thenReturn(TokenSupplyTypeEnum.FINITE);
         when(token.getName()).thenReturn("name");
-        final var result = tokenAccessor.nameOf(TOKEN);
+        final var result = tokenAccessor.nameOf(TOKEN_ADDRESS);
         assertEquals("name", result);
     }
 }

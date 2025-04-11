@@ -9,13 +9,18 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.repository.EntityRepository;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -29,6 +34,7 @@ class EntityDatabaseAccessorTest {
 
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final Entity mockEntity = mock(Entity.class);
+    private static final long NUM = 1252;
 
     @InjectMocks
     private EntityDatabaseAccessor entityDatabaseAccessor;
@@ -36,37 +42,53 @@ class EntityDatabaseAccessorTest {
     @Mock
     private EntityRepository entityRepository;
 
+    @Mock
+    private CommonProperties commonProperties;
+
     @Test
     void getEntityByAddress() {
-        when(entityRepository.findByIdAndDeletedIsFalse(entityIdNumFromEvmAddress(ADDRESS)))
+        var commonProperties = CommonProperties.getInstance();
+        var entityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), NUM);
+        var address = toAddress(entityId);
+        when(entityRepository.findByIdAndDeletedIsFalse(entityIdNumFromEvmAddress(address)))
                 .thenReturn(Optional.of(mockEntity));
-
-        assertThat(entityDatabaseAccessor.get(ADDRESS, Optional.empty()))
+        assertThat(entityDatabaseAccessor.get(address, Optional.empty()))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
     @Test
     void getEntityByAddressHistorical() {
-        when(entityRepository.findActiveByIdAndTimestamp(entityIdNumFromEvmAddress(ADDRESS), timestamp.get()))
+        var commonProperties = CommonProperties.getInstance();
+        var entityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), NUM);
+        var address = toAddress(entityId);
+        when(entityRepository.findActiveByIdAndTimestamp(entityIdNumFromEvmAddress(address), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
-        assertThat(entityDatabaseAccessor.get(ADDRESS, timestamp))
+        assertThat(entityDatabaseAccessor.get(address, timestamp))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @Test
-    void getEntityByAlias() {
-        when(entityRepository.findByEvmAddressAndDeletedIsFalse(ALIAS_ADDRESS.toArrayUnsafe()))
+    @ParameterizedTest
+    @MethodSource("shardAndRealmData")
+    void getEntityByAlias(long shard, long realm) {
+        when(entityRepository.findByShardAndRealmAndEvmAddressAndDeletedIsFalse(
+                        shard, realm, ALIAS_ADDRESS.toArrayUnsafe()))
                 .thenReturn(Optional.of(mockEntity));
+        when(commonProperties.getShard()).thenReturn(shard);
+        when(commonProperties.getRealm()).thenReturn(realm);
 
         assertThat(entityDatabaseAccessor.get(ALIAS_ADDRESS, Optional.empty()))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @Test
-    void getEntityByAliasHistorical() {
-        when(entityRepository.findActiveByEvmAddressAndTimestamp(ALIAS_ADDRESS.toArrayUnsafe(), timestamp.get()))
+    @ParameterizedTest
+    @MethodSource("shardAndRealmData")
+    void getEntityByAliasHistorical(long shard, long realm) {
+        when(entityRepository.findActiveByShardAndRealmAndEvmAddressAndTimestamp(
+                        shard, realm, ALIAS_ADDRESS.toArrayUnsafe(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
+        when(commonProperties.getShard()).thenReturn(shard);
+        when(commonProperties.getRealm()).thenReturn(realm);
 
         assertThat(entityDatabaseAccessor.get(ALIAS_ADDRESS, timestamp))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
@@ -126,25 +148,32 @@ class EntityDatabaseAccessorTest {
                 .isEqualTo(ALIAS_ADDRESS);
     }
 
-    @Test
-    void evmAddressFromIdReturnToAddressByDefault() {
+    @ParameterizedTest
+    @MethodSource("shardAndRealmData")
+    void evmAddressFromIdReturnToAddressByDefault(long shard, long realm) {
         when(entityRepository.findByIdAndDeletedIsFalse(anyLong())).thenReturn(Optional.of(mockEntity));
         when(mockEntity.getEvmAddress()).thenReturn(null);
         when(mockEntity.getAlias()).thenReturn(null);
 
-        final var entityId = EntityId.of(1L, 2L, 3L);
+        final var entityId = EntityId.of(shard, realm, 3L);
         assertThat(entityDatabaseAccessor.evmAddressFromId(entityId, Optional.empty()))
                 .isEqualTo(toAddress(entityId));
     }
 
-    @Test
-    void evmAddressFromIdReturnToAddressByDefaultHistorical() {
-        final var entityId = EntityId.of(1L, 2L, 3L);
+    @ParameterizedTest
+    @MethodSource("shardAndRealmData")
+    void evmAddressFromIdReturnToAddressByDefaultHistorical(long shard, long realm) {
+        final var entityId = EntityId.of(shard, realm, 3L);
         when(entityRepository.findActiveByIdAndTimestamp(entityId.getId(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
         when(mockEntity.getEvmAddress()).thenReturn(null);
         when(mockEntity.getAlias()).thenReturn(null);
 
         assertThat(entityDatabaseAccessor.evmAddressFromId(entityId, timestamp)).isEqualTo(toAddress(entityId));
+    }
+
+    // Method that provides the test data
+    private static Stream<Arguments> shardAndRealmData() {
+        return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 2L));
     }
 }

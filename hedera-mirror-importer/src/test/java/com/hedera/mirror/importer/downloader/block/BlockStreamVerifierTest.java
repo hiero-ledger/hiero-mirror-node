@@ -21,6 +21,7 @@ import com.hedera.mirror.importer.downloader.StreamFileNotifier;
 import com.hedera.mirror.importer.exception.HashMismatchException;
 import com.hedera.mirror.importer.exception.InvalidStreamFileException;
 import com.hedera.mirror.importer.repository.RecordFileRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +47,9 @@ class BlockStreamVerifierTest {
 
     @BeforeEach
     void setup() {
-        verifier = new BlockStreamVerifier(blockFileTransformer, recordFileRepository, streamFileNotifier);
+        var meterRegistry = new SimpleMeterRegistry();
+        verifier =
+                new BlockStreamVerifier(blockFileTransformer, recordFileRepository, streamFileNotifier, meterRegistry);
         expectedRecordFile = RecordFile.builder().build();
         when(blockFileTransformer.transform(any())).thenReturn(expectedRecordFile);
     }
@@ -158,11 +161,13 @@ class BlockStreamVerifierTest {
     private BlockFile getBlockFile(StreamFile<?> previous) {
         long blockNumber = previous != null ? previous.getIndex() + 1 : DomainUtils.convertToNanosMax(Instant.now());
         String previousHash = previous != null ? previous.getHash() : sha384Hash();
+        long consensusStart = DomainUtils.convertToNanosMax(Instant.now());
         return BlockFile.builder()
                 .hash(sha384Hash())
                 .index(blockNumber)
                 .name(BlockFile.getBlockStreamFilename(blockNumber))
                 .previousHash(previousHash)
+                .consensusStart(consensusStart)
                 .build();
     }
 
@@ -200,7 +205,12 @@ class BlockStreamVerifierTest {
 
     private RecordFile getRecordFile() {
         long index = DomainUtils.convertToNanosMax(Instant.now());
-        return RecordFile.builder().hash(sha384Hash()).index(index).build();
+        long consensusStart = DomainUtils.convertToNanosMax(Instant.now());
+        return RecordFile.builder()
+                .hash(sha384Hash())
+                .index(index)
+                .consensusStart(consensusStart)
+                .build();
     }
 
     private String sha384Hash() {

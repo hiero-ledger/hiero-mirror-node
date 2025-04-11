@@ -4,7 +4,10 @@ package com.hedera.mirror.web3.service;
 
 import static com.hedera.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
+import static com.hedera.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
+import static com.hedera.mirror.web3.utils.ContractCallTestUtil.longValueOf;
 import static com.hedera.mirror.web3.utils.OpcodeTracerUtil.OPTIONS;
 import static com.hedera.mirror.web3.utils.OpcodeTracerUtil.gasComparator;
 import static com.hedera.mirror.web3.utils.OpcodeTracerUtil.toHumanReadableMessage;
@@ -25,8 +28,6 @@ import com.hedera.mirror.web3.repository.EntityRepository;
 import com.hedera.mirror.web3.service.model.ContractDebugParameters;
 import com.hedera.mirror.web3.utils.ContractFunctionProviderRecord;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Meter.MeterProvider;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +40,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.tx.Contract;
 
 abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContractCallServiceHistoricalTest {
@@ -49,6 +51,9 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     @MockitoSpyBean
     protected TransactionExecutionService transactionExecutionService;
 
+    @Resource
+    protected EntityRepository entityRepository;
+
     @Captor
     private ArgumentCaptor<ContractDebugParameters> paramsCaptor;
 
@@ -58,14 +63,8 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     private HederaEvmTransactionProcessingResult resultCaptor;
     private ContractCallContext contextCaptor;
 
-    @Captor
-    private ArgumentCaptor<MeterProvider<Counter>> gasUsedCounter;
-
     @Resource
     private EntityDatabaseAccessor entityDatabaseAccessor;
-
-    @Resource
-    protected EntityRepository entityRepository;
 
     @BeforeEach
     void setUpArgumentCaptors() {
@@ -90,7 +89,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                         return transactionProcessingResult;
                     })
                     .when(transactionExecutionService)
-                    .execute(paramsCaptor.capture(), gasCaptor.capture(), gasUsedCounter.capture());
+                    .execute(paramsCaptor.capture(), gasCaptor.capture());
         }
     }
 
@@ -246,13 +245,13 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     }
 
     /**
-     * Persists a record in the account_balance table (consensus_timestamp, balance, account_id).
-     * Each record represents the HBAR balance of an account at a particular point in time(consensus timestamp).
-     * Lack of sufficient account balance will result in INSUFFICIENT_PAYER_BALANCE exception,
-     * when trying to pay for transaction execution.
+     * Persists a record in the account_balance table (consensus_timestamp, balance, account_id). Each record represents
+     * the HBAR balance of an account at a particular point in time(consensus timestamp). Lack of sufficient account
+     * balance will result in INSUFFICIENT_PAYER_BALANCE exception, when trying to pay for transaction execution.
+     *
      * @param accountId the account's id whose balance is being recorded
      * @param timestamp the point in time at which the account had the given balance
-     * @param balance the account's balance at the given timestamp
+     * @param balance   the account's balance at the given timestamp
      */
     protected void accountBalanceRecordsPersist(EntityId accountId, Long timestamp, Long balance) {
         domainBuilder
@@ -270,5 +269,27 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
 
     protected Entity getEntity(EntityId entityId) {
         return entityRepository.findById(entityId.getId()).get();
+    }
+
+    protected String getAccountEvmAddress(Entity account) {
+        return Bytes.wrap(account.getEvmAddress()).toHexString();
+    }
+
+    protected void verifyEthCallAndEstimateGas(
+            final RemoteFunctionCall<?> functionCall, final Contract contract, final Long value) throws Exception {
+        // Given
+        testWeb3jService.setEstimateGas(true);
+        functionCall.send();
+
+        final var estimateGasUsedResult = longValueOf.applyAsLong(testWeb3jService.getEstimatedGas());
+
+        // When
+        final var actualGasUsed = gasUsedAfterExecution(getContractExecutionParameters(functionCall, contract, value));
+
+        // Then
+        assertThat(isWithinExpectedGasRange(estimateGasUsedResult, actualGasUsed))
+                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimateGasUsedResult, actualGasUsed)
+                .isTrue();
+        testWeb3jService.setEstimateGas(false);
     }
 }

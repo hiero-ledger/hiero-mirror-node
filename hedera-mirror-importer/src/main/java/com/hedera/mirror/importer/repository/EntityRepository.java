@@ -12,11 +12,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public interface EntityRepository extends CrudRepository<Entity, Long> {
 
-    @Query(value = "select id from entity where alias = ?1 and deleted <> true", nativeQuery = true)
-    Optional<Long> findByAlias(byte[] alias);
+    @Query(
+            value = "select id from entity where shard = ?1 and realm = ?2 and alias = ?3 and deleted <> true",
+            nativeQuery = true)
+    Optional<Long> findByAlias(long shard, long realm, byte[] alias);
 
-    @Query(value = "select id from entity where evm_address = ?1 and deleted <> true", nativeQuery = true)
-    Optional<Long> findByEvmAddress(byte[] evmAddress);
+    @Query(
+            value = "select id from entity where shard = ?1 and realm = ?2 and evm_address = ?3 and deleted <> true",
+            nativeQuery = true)
+    Optional<Long> findByEvmAddress(long shard, long realm, byte[] evmAddress);
 
     @Modifying
     @Query(value = "update entity set type = 'CONTRACT' where id in (:ids) and type <> 'CONTRACT'", nativeQuery = true)

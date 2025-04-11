@@ -3,6 +3,9 @@
 package com.hedera.mirror.test.e2e.acceptance.client;
 
 import com.google.common.primitives.Longs;
+import com.hedera.hashgraph.sdk.CustomFeeLimit;
+import com.hedera.hashgraph.sdk.CustomFixedFee;
+import com.hedera.hashgraph.sdk.Key;
 import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.PublicKey;
 import com.hedera.hashgraph.sdk.TopicCreateTransaction;
@@ -68,6 +71,35 @@ public class TopicClient extends AbstractNetworkClient {
         return response;
     }
 
+    public NetworkTransactionResponse createTopicWithCustomFees(
+            ExpandedAccountId adminAccount,
+            Key submitKey,
+            Key feeScheduleKey,
+            List<CustomFixedFee> customFixedFeeList,
+            List<Key> feeExemptKeys) {
+        String memo = getMemo("Create Topic With Custom Fees");
+        TopicCreateTransaction consensusTopicCreateTransaction = new TopicCreateTransaction()
+                .setAdminKey(adminAccount.getPublicKey())
+                .setAutoRenewAccountId(sdkClient.getExpandedOperatorAccountId().getAccountId())
+                .setTopicMemo(memo)
+                .setTransactionMemo(memo)
+                .setCustomFees(customFixedFeeList)
+                .setFeeScheduleKey(feeScheduleKey)
+                .setFeeExemptKeys(feeExemptKeys)
+                .setAutoRenewPeriod(autoRenewPeriod);
+
+        if (submitKey != null) {
+            consensusTopicCreateTransaction.setSubmitKey(submitKey);
+        }
+
+        var keyList = KeyList.of(adminAccount.getPrivateKey());
+        var response = executeTransactionAndRetrieveReceipt(consensusTopicCreateTransaction, keyList);
+        var topicId = response.getReceipt().topicId;
+        log.info("Created new topic {} with memo '{}' via {}", topicId, memo, response.getTransactionId());
+        topicIds.add(topicId);
+        return response;
+    }
+
     public NetworkTransactionResponse updateTopic(TopicId topicId) {
         String memo = getMemo("Update Topic");
         TopicUpdateTransaction consensusTopicUpdateTransaction = new TopicUpdateTransaction()
@@ -90,6 +122,21 @@ public class TopicClient extends AbstractNetworkClient {
         log.info("Deleted topic {} via {}", topicId, response.getTransactionId());
         topicIds.remove(topicId);
         return response;
+    }
+
+    public NetworkTransactionResponse publishMessageToTopicWithFixedFee(
+            TopicId topicId, String message, KeyList submitKeys, ExpandedAccountId payer, CustomFeeLimit feeLimit) {
+        TopicMessageSubmitTransaction consensusMessageSubmitTransaction = new TopicMessageSubmitTransaction()
+                .setTopicId(topicId)
+                .setMessage(message)
+                .setTransactionMemo(getMemo("Publish topic message to topic with fixed fee"));
+        if (feeLimit != null) {
+            consensusMessageSubmitTransaction.addCustomFeeLimit(feeLimit);
+        }
+
+        return payer == null
+                ? executeTransactionAndRetrieveReceipt(consensusMessageSubmitTransaction, submitKeys)
+                : executeTransactionAndRetrieveReceipt(consensusMessageSubmitTransaction, submitKeys, payer);
     }
 
     public List<TransactionReceipt> publishMessagesToTopic(

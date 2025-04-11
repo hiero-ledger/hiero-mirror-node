@@ -5,7 +5,6 @@ package com.hedera.mirror.importer.parser.record.entity;
 import static com.hedera.mirror.importer.TestUtils.toEntityTransaction;
 import static com.hedera.mirror.importer.TestUtils.toEntityTransactions;
 import static com.hedera.mirror.importer.config.CacheConfiguration.CACHE_ALIAS;
-import static com.hedera.mirror.importer.parser.domain.RecordItemBuilder.STAKING_REWARD_ACCOUNT;
 import static com.hedera.mirror.importer.util.Utility.HALT_ON_ERROR_PROPERTY;
 import static com.hedera.mirror.importer.util.UtilityTest.ALIAS_ECDSA_SECP256K1;
 import static com.hedera.mirror.importer.util.UtilityTest.EVM_ADDRESS;
@@ -325,7 +324,8 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertCryptoEntity(cryptoCreateTransactionBody, 0L, txnRecord.getConsensusTimestamp()),
                 () -> assertEquals(cryptoCreateTransactionBody.getInitialBalance(), dbTransaction.getInitialBalance()),
                 () -> assertThat(initialBalanceTransfer).isEmpty(),
-                () -> assertThat(entityRepository.findByAlias(ALIAS_KEY.toByteArray()))
+                () -> assertThat(entityRepository.findByAlias(
+                                accountEntityId.getShard(), accountEntityId.getRealm(), ALIAS_KEY.toByteArray()))
                         .get()
                         .isEqualTo(accountEntityId.getId()));
     }
@@ -449,7 +449,9 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertEquals(3, transactionRepository.count()),
                 () -> assertEntities(hollowAccount),
                 () -> assertCryptoTransfers(8),
-                () -> assertThat(entityRepository.findByAlias(EVM_ADDRESS)).hasValue(hollowAccount.getId()),
+                () -> assertThat(entityRepository.findByAlias(
+                                payerAccount.getShard(), payerAccount.getRealm(), EVM_ADDRESS))
+                        .hasValue(hollowAccount.getId()),
                 () -> assertThat(transactionRepository.findAll())
                         .map(com.hedera.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
                         .containsExactlyInAnyOrderElementsOf(expectedItemizedTransfers));
@@ -621,7 +623,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                             .addAccountAmounts(accountAmount(sender.getId(), -15L))
                             .addAccountAmounts(accountAmount(receiver1.getId(), 9L))
                             .addAccountAmounts(accountAmount(receiver2.getId(), 15L))
-                            .addAccountAmounts(accountAmount(STAKING_REWARD_ACCOUNT, -9L));
+                            .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -9L));
                     r.addAllPaidStakingRewards(paidStakingRewards);
                 })
                 .build();
@@ -687,7 +689,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(accountAmount(payer.getId(), -2800L))
                                 .addAccountAmounts(accountAmount(NODE.getAccountNum(), 1000L))
                                 .addAccountAmounts(accountAmount(TREASURY.getAccountNum(), 2000L))
-                                .addAccountAmounts(accountAmount(STAKING_REWARD_ACCOUNT, -200L)))
+                                .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L)))
                         .addPaidStakingRewards(accountAmount(payer.getId(), 200L))
                         .getReceiptBuilder()
                         .setStatus(ResponseCodeEnum.INSUFFICIENT_ACCOUNT_BALANCE))
@@ -880,7 +882,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 .record(r -> r.addPaidStakingRewards(accountAmount(account.getId(), 200L))
                         .setTransactionID(transactionId)
                         .setTransferList(TransferList.newBuilder()
-                                .addAccountAmounts(accountAmount(STAKING_REWARD_ACCOUNT, -200L))
+                                .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L))
                                 .addAccountAmounts(accountAmount(account.getId(), 180L))
                                 .addAccountAmounts(accountAmount(NODE.getAccountNum(), 5L))
                                 .addAccountAmounts(accountAmount(TREASURY.getAccountNum(), 15L))))
@@ -924,7 +926,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 .record(r -> r.addPaidStakingRewards(accountAmount(account.getId(), 200L))
                         .setTransactionID(transactionId)
                         .setTransferList(TransferList.newBuilder()
-                                .addAccountAmounts(accountAmount(STAKING_REWARD_ACCOUNT, -200L))
+                                .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L))
                                 .addAccountAmounts(accountAmount(account.getId(), 180L))
                                 .addAccountAmounts(accountAmount(NODE.getAccountNum(), 5L))
                                 .addAccountAmounts(accountAmount(TREASURY.getAccountNum(), 15L))))
@@ -963,7 +965,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 .record(r -> r.addPaidStakingRewards(accountAmount(account.getId(), 200L))
                         .setTransactionID(transactionId)
                         .setTransferList(TransferList.newBuilder()
-                                .addAccountAmounts(accountAmount(STAKING_REWARD_ACCOUNT, -200L))
+                                .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L))
                                 .addAccountAmounts(accountAmount(account.getId(), 180L))
                                 .addAccountAmounts(accountAmount(NODE.getAccountNum(), 5L))
                                 .addAccountAmounts(accountAmount(TREASURY.getAccountNum(), 15L))))
@@ -1431,8 +1433,11 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         Entity entity = domainBuilder.entity().persist();
         var newAccount =
                 AccountID.newBuilder().setAccountNum(domainBuilder.id()).build();
-        assertThat(entityRepository.findByAlias(entity.getAlias())).get().isEqualTo(entity.getId());
-        assertThat(entityRepository.findByAlias(ALIAS_KEY.toByteArray())).isNotPresent();
+        assertThat(entityRepository.findByAlias(entity.getShard(), entity.getRealm(), entity.getAlias()))
+                .get()
+                .isEqualTo(entity.getId());
+        assertThat(entityRepository.findByAlias(entity.getShard(), entity.getRealm(), ALIAS_KEY.toByteArray()))
+                .isNotPresent();
 
         // Crypto create alias account
         Transaction accountCreateTransaction = cryptoCreateTransaction();
@@ -1492,7 +1497,9 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     @Test
     void cryptoTransferWithEvmAddressAlias() {
         Entity contract = domainBuilder.entity().persist();
-        assertThat(entityRepository.findByEvmAddress(contract.getEvmAddress())).isPresent();
+        assertThat(entityRepository.findByEvmAddress(
+                        contract.getShard(), contract.getRealm(), contract.getEvmAddress()))
+                .isPresent();
 
         entityProperties.getPersist().setItemizedTransfers(true);
 
@@ -1757,7 +1764,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(accountAmount(account.getNum(), 100))
                                 .addAccountAmounts(accountAmount(2, 20))
                                 .addAccountAmounts(accountAmount(TREASURY, 80))
-                                .addAccountAmounts(accountAmount(STAKING_REWARD_ACCOUNT, -200))))
+                                .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200))))
                 .build();
         var afterNextMidnight = TestUtils.asStartOfEpochDay(currentDay + 1).plusNanos(5);
         var consensusSubmitMessage2 = recordItemBuilder
@@ -1768,7 +1775,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(accountAmount(account.getNum(), -40))
                                 .addAccountAmounts(accountAmount(2, 20))
                                 .addAccountAmounts(accountAmount(TREASURY, 80))
-                                .addAccountAmounts(accountAmount(STAKING_REWARD_ACCOUNT, -60))))
+                                .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -60))))
                 .build();
         parseRecordItemsAndCommit(List.of(consensusSubmitMessage1, consensusSubmitMessage2));
 

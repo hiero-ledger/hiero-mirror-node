@@ -7,7 +7,6 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.ByteString;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.importer.parser.domain.RecordItemBuilder;
 import com.hedera.mirror.importer.parser.domain.RecordItemBuilder.TransferType;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.List;
@@ -19,6 +18,14 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class CryptoTransformerTest extends AbstractTransformerTest {
+
+    private static Stream<Arguments> provideAliasAndExpectedEvmAddress() {
+        var randomAlias = recordItemBuilder.bytes(20);
+        return Stream.of(
+                arguments(ByteString.EMPTY, ByteString.EMPTY),
+                arguments(recordItemBuilder.key().toByteString(), ByteString.EMPTY),
+                arguments(randomAlias, randomAlias));
+    }
 
     @ParameterizedTest
     @MethodSource("provideAliasAndExpectedEvmAddress")
@@ -85,12 +92,21 @@ class CryptoTransformerTest extends AbstractTransformerTest {
         });
     }
 
-    private static Stream<Arguments> provideAliasAndExpectedEvmAddress() {
-        RecordItemBuilder recordItemBuilder1 = new RecordItemBuilder();
-        var randomAlias = recordItemBuilder1.bytes(20);
-        return Stream.of(
-                arguments(ByteString.EMPTY, ByteString.EMPTY),
-                arguments(recordItemBuilder1.key().toByteString(), ByteString.EMPTY),
-                arguments(randomAlias, randomAlias));
+    @Test
+    void cryptoTransferLegacyTransaction() {
+        // given
+        var expectedRecordItem = recordItemBuilder
+                .cryptoTransfer()
+                .useTransactionBodyBytesAndSigMap(true)
+                .customize(this::finalize)
+                .build();
+        var blockItem = blockItemBuilder.cryptoTransfer(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 }

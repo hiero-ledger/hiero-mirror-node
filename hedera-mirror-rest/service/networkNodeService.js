@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import BaseService from './baseService';
-import config from '../config';
 import {
   AddressBook,
   AddressBookEntry,
@@ -12,7 +11,7 @@ import {
   NodeStake,
 } from '../model';
 import {OrderSpec} from '../sql';
-import entityId from '../entityId';
+import EntityId from '../entityId';
 
 /**
  * Network node business model
@@ -33,7 +32,7 @@ class NetworkNodeService extends BaseService {
         (select max(${NodeStake.CONSENSUS_TIMESTAMP}) from ${NodeStake.tableName})
     ),
     ${Node.tableAlias} as (
-      select ${Node.ADMIN_KEY}, ${Node.NODE_ID}
+      select ${Node.ADMIN_KEY}, ${Node.DECLINE_REWARD}, ${Node.NODE_ID}
       from ${Node.tableName}
     )
     select ${AddressBookEntry.getFullName(AddressBookEntry.DESCRIPTION)},
@@ -46,6 +45,7 @@ class NetworkNodeService extends BaseService {
       ${AddressBook.getFullName(AddressBook.START_CONSENSUS_TIMESTAMP)},
       ${AddressBook.getFullName(AddressBook.END_CONSENSUS_TIMESTAMP)},
       ${Node.getFullName(Node.ADMIN_KEY)},
+      ${Node.getFullName(Node.DECLINE_REWARD)},
       ${NodeStake.getFullName(NodeStake.MAX_STAKE)},
       ${NodeStake.getFullName(NodeStake.MIN_STAKE)},
       ${NodeStake.getFullName(NodeStake.REWARD_RATE)},
@@ -94,10 +94,10 @@ class NetworkNodeService extends BaseService {
             (select max(${NetworkStake.CONSENSUS_TIMESTAMP}) from ${NetworkStake.tableName})`;
 
   static unreleasedSupplyAccounts = (column) =>
-    config.network.unreleasedSupplyAccounts
+    EntityId.systemEntity.unreleasedSupplyAccounts
       .map((range) => {
-        const from = entityId.parse(range.from).getEncodedId();
-        const to = entityId.parse(range.to).getEncodedId();
+        const from = range.from.getEncodedId();
+        const to = range.to.getEncodedId();
 
         if (from === to) {
           return `${column} = ${from}`;

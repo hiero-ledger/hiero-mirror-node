@@ -2,8 +2,9 @@
 
 package com.hedera.mirror.web3.state;
 
-import static com.hedera.node.app.workflows.handle.metric.UnavailableMetrics.UNAVAILABLE_METRICS;
-import static com.hedera.node.app.workflows.standalone.TransactionExecutors.DEFAULT_NODE_INFO;
+import static com.hedera.node.app.service.token.impl.handlers.BaseCryptoHandler.asAccount;
+import static com.hedera.node.app.spi.fees.NoopFeeCharging.NOOP_FEE_CHARGING;
+import static com.swirlds.platform.state.service.PlatformStateFacade.DEFAULT_PLATFORM_STATE_FACADE;
 import static com.swirlds.state.StateChangeListener.StateType.MAP;
 import static com.swirlds.state.StateChangeListener.StateType.QUEUE;
 import static com.swirlds.state.StateChangeListener.StateType.SINGLETON;
@@ -13,10 +14,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.repository.RecordFileRepository;
+import com.hedera.mirror.web3.state.components.NoOpMetrics;
 import com.hedera.mirror.web3.state.core.ListReadableQueueState;
 import com.hedera.mirror.web3.state.core.ListWritableQueueState;
 import com.hedera.mirror.web3.state.core.MapReadableKVState;
@@ -24,8 +27,12 @@ import com.hedera.mirror.web3.state.core.MapReadableStates;
 import com.hedera.mirror.web3.state.core.MapWritableKVState;
 import com.hedera.mirror.web3.state.core.MapWritableStates;
 import com.hedera.mirror.web3.state.singleton.SingletonState;
+import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.fees.FeeService;
+import com.hedera.node.app.ids.AppEntityIdFactory;
 import com.hedera.node.app.ids.EntityIdService;
+import com.hedera.node.app.info.NodeInfoImpl;
+import com.hedera.node.app.metrics.StoreMetricsServiceImpl;
 import com.hedera.node.app.records.BlockRecordService;
 import com.hedera.node.app.service.contract.impl.ContractServiceImpl;
 import com.hedera.node.app.service.file.impl.FileServiceImpl;
@@ -43,10 +50,17 @@ import com.hedera.node.app.throttle.ThrottleAccumulator;
 import com.hedera.node.app.version.ServicesSoftwareVersion;
 import com.hedera.node.app.workflows.handle.metric.UnavailableMetrics;
 import com.hedera.node.config.data.VersionConfig;
-import com.swirlds.state.State;
+import com.hedera.pbj.runtime.io.buffer.Bytes;
+import com.swirlds.base.time.Time;
+import com.swirlds.common.crypto.Hash;
+import com.swirlds.common.merkle.MerkleNode;
+import com.swirlds.common.merkle.crypto.MerkleCryptography;
+import com.swirlds.metrics.api.Metrics;
+import com.swirlds.platform.state.MerkleNodeState;
 import com.swirlds.state.StateChangeListener;
 import com.swirlds.state.lifecycle.StartupNetworks;
-import com.swirlds.state.lifecycle.info.NetworkInfo;
+import com.swirlds.state.lifecycle.StateMetadata;
+import com.swirlds.state.lifecycle.info.NodeInfo;
 import com.swirlds.state.spi.EmptyWritableStates;
 import com.swirlds.state.spi.KVChangeListener;
 import com.swirlds.state.spi.QueueChangeListener;
@@ -72,13 +86,16 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 @Named
 @RequiredArgsConstructor
-public class MirrorNodeState implements State {
+public class MirrorNodeState implements MerkleNodeState {
 
     private final Map<String, ReadableStates> readableStates = new ConcurrentHashMap<>();
     private final Map<String, WritableStates> writableStates = new ConcurrentHashMap<>();
@@ -91,10 +108,22 @@ public class MirrorNodeState implements State {
 
     private final ServicesRegistry servicesRegistry;
     private final ServiceMigrator serviceMigrator;
-    private final NetworkInfo networkInfo;
     private final StartupNetworks startupNetworks;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
     private final RecordFileRepository recordFileRepository;
+    private final StoreMetricsServiceImpl storeMetricsService;
+    private final ConfigProviderImpl configProvider;
+
+    private static final CommonProperties commonProperties = CommonProperties.getInstance();
+    private static final NodeInfo DEFAULT_NODE_INFO = new NodeInfoImpl(
+            0L,
+            asAccount(commonProperties.getShard(), commonProperties.getRealm(), 3L),
+            10L,
+            List.of(),
+            Bytes.EMPTY,
+            List.of(),
+            true);
+    private static final Metrics NO_OP_METRICS = new NoOpMetrics();
 
     @PostConstruct
     private void init() {
@@ -119,11 +148,18 @@ public class MirrorNodeState implements State {
                     currentVersion,
                     mirrorNodeEvmProperties.getVersionedConfiguration(),
                     mirrorNodeEvmProperties.getVersionedConfiguration(),
-                    networkInfo,
                     UnavailableMetrics.UNAVAILABLE_METRICS,
-                    startupNetworks);
+                    startupNetworks,
+                    storeMetricsService,
+                    configProvider,
+                    DEFAULT_PLATFORM_STATE_FACADE);
             return ctx;
         });
+    }
+
+    @Override
+    public void init(Time time, Metrics metrics, MerkleCryptography merkleCryptography, LongSupplier roundSupplier) {
+        // No-op
     }
 
     public MirrorNodeState addService(@Nonnull final String serviceName, @Nonnull final Map<String, ?> dataSources) {
@@ -140,6 +176,19 @@ public class MirrorNodeState implements State {
         writableStates.remove(serviceName);
         return this;
     }
+
+    @Nonnull
+    @Override
+    public MerkleNodeState copy() {
+        return this;
+    }
+
+    @Override
+    public <T extends MerkleNode> void putServiceStateIfAbsent(
+            @Nonnull StateMetadata<?, ?> md, @Nonnull Supplier<T> nodeSupplier, @Nonnull Consumer<T> nodeInitializer) {}
+
+    @Override
+    public void unregisterService(@Nonnull String serviceName) {}
 
     /**
      * Removes the state with the given key for the service with the given name.
@@ -351,29 +400,32 @@ public class MirrorNodeState implements State {
 
     private void registerServices(ServicesRegistry servicesRegistry) {
         // Register all service schema RuntimeConstructable factories before platform init
-
+        final var config = mirrorNodeEvmProperties.getVersionedConfiguration();
         final var appContext = new AppContextImpl(
                 InstantSource.system(),
                 signatureVerifier(),
                 Gossip.UNAVAILABLE_GOSSIP,
-                () -> mirrorNodeEvmProperties.getVersionedConfiguration(),
+                () -> config,
                 () -> DEFAULT_NODE_INFO,
-                () -> UNAVAILABLE_METRICS,
+                () -> NO_OP_METRICS,
                 new AppThrottleFactory(
-                        () -> mirrorNodeEvmProperties.getVersionedConfiguration(),
+                        () -> config,
                         () -> this,
                         () -> ThrottleDefinitions.DEFAULT,
-                        ThrottleAccumulator::new));
+                        ThrottleAccumulator::new,
+                        v -> new ServicesSoftwareVersion()),
+                () -> NOOP_FEE_CHARGING,
+                new AppEntityIdFactory(config));
         Set.of(
                         new EntityIdService(),
-                        new TokenServiceImpl(),
+                        new TokenServiceImpl(appContext),
                         new FileServiceImpl(),
-                        new ContractServiceImpl(appContext, UNAVAILABLE_METRICS),
+                        new ContractServiceImpl(appContext, NO_OP_METRICS),
                         new BlockRecordService(),
                         new FeeService(),
                         new CongestionThrottleService(),
                         new RecordCacheService(),
-                        new ScheduleServiceImpl())
+                        new ScheduleServiceImpl(appContext))
                 .forEach(servicesRegistry::register);
     }
 
@@ -395,4 +447,7 @@ public class MirrorNodeState implements State {
             }
         };
     }
+
+    @Override
+    public void setHash(Hash hash) {}
 }

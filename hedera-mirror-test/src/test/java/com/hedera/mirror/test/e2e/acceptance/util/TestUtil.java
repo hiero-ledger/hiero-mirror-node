@@ -7,6 +7,7 @@ import com.esaulpaugh.headlong.abi.Tuple;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Range;
 import com.google.common.io.BaseEncoding;
+import com.google.common.net.InetAddresses;
 import com.google.protobuf.ByteString;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractId;
@@ -18,6 +19,8 @@ import com.hedera.mirror.test.e2e.acceptance.client.TokenClient;
 import com.hedera.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
 import com.hedera.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Arrays;
@@ -168,6 +171,15 @@ public class TestUtil {
         } else {
             return "Not found";
         }
+    }
+
+    public static ByteString toIpAddressV4(String host) throws UnknownHostException {
+        if (!InetAddresses.isInetAddress(host)) {
+            return ByteString.EMPTY;
+        }
+
+        var address = InetAddress.getByName(host).getAddress();
+        return ByteString.copyFrom(address);
     }
 
     @SneakyThrows

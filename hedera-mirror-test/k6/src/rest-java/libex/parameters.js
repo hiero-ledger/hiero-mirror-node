@@ -8,6 +8,7 @@ const setupTestParameters = (requiredParameters) => {
     DEFAULT_ACCOUNT_ID_AIRDROP_SENDER: __ENV['DEFAULT_ACCOUNT_ID_AIRDROP_SENDER'],
     DEFAULT_ACCOUNT_ID_AIRDROP_RECEIVER: __ENV['DEFAULT_ACCOUNT_ID_AIRDROP_RECEIVER'],
     DEFAULT_TOPIC_ID: __ENV['DEFAULT_TOPIC_ID'],
+    DEFAULT_TOPIC_WITH_FEE_ID: __ENV['DEFAULT_TOPIC_WITH_FEE_ID'],
     DEFAULT_LIMIT: __ENV['DEFAULT_LIMIT'],
   };
   console.info(`Test parameters - ${JSON.stringify(testParameters, null, '\t')}`);

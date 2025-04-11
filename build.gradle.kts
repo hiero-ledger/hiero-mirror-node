@@ -16,13 +16,13 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("grpcVersion", "1.70.0")
+    set("grpcVersion", "1.71.0")
     set("jooq.version", "3.20.2") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
-    set("nodeJsVersion", "18.20.7")
-    set("protobufVersion", "3.25.5")
+    set("nodeJsVersion", "22.14.0")
+    set("protobufVersion", "4.30.2")
     set("reactorGrpcVersion", "1.2.4")
-    set("vertxVersion", "4.5.13")
+    set("vertxVersion", "4.5.14")
     set("tuweniVersion", "2.3.1")
 }
 
@@ -44,24 +44,24 @@ dependencies {
         api("org.bouncycastle:bcprov-jdk18on:1.80")
         api("com.bucket4j:bucket4j-core:8.10.1")
         api("com.google.cloud:spring-cloud-gcp-dependencies:5.8.0")
-        api("com.google.guava:guava:33.4.0-jre")
+        api("com.google.guava:guava:33.4.6-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
         api("com.graphql-java-generator:graphql-java-client-runtime:2.9")
         api("com.graphql-java:graphql-java-extended-scalars:22.0")
         api("com.graphql-java:graphql-java-extended-validation:22.0")
-        api("com.hedera.hashgraph:app:0.59.3")
+        api("com.hedera.hashgraph:app:0.61.2")
         api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.59.1")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.61.1")
         api("com.hedera.hashgraph:sdk:2.50.0")
         api("com.ongres.scram:client:2.1")
         api("com.playtika.testcontainers:embedded-google-pubsub:3.1.11")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.10.1")
         api("commons-io:commons-io:2.18.0")
-        api("io.cucumber:cucumber-bom:7.21.1")
+        api("io.cucumber:cucumber-bom:7.22.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-63:3.9.3")
+        api("io.hypersistence:hypersistence-utils-hibernate-63:3.9.9")
         api("io.projectreactor:reactor-core-micrometer:1.2.4")
         api("io.swagger:swagger-annotations:1.6.15")
         api("io.vertx:vertx-pg-client:$vertxVersion")
@@ -88,11 +88,10 @@ dependencies {
         api("org.springframework.cloud:spring-cloud-dependencies:2024.0.0")
         api("org.testcontainers:junit-jupiter:1.20.6")
         api("org.mockito:mockito-inline:5.2.0")
-        api("software.amazon.awssdk:bom:2.30.31")
-        api("uk.org.webcompere:system-stubs-jupiter:2.1.7")
+        api("software.amazon.awssdk:bom:2.31.16")
+        api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
         api("org.web3j:core:4.12.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
-        api("com.hedera.cryptography:hedera-cryptography-bls:0.1.1-SNAPSHOT")
     }
 }
 

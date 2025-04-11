@@ -6,9 +6,11 @@ import static com.hedera.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.input.protoc.EventHeader;
 import com.hedera.hapi.block.stream.input.protoc.RoundHeader;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
+import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.Block;
@@ -22,6 +24,7 @@ import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.importer.TestUtils;
 import com.hedera.mirror.importer.domain.StreamFileData;
 import com.hedera.mirror.importer.exception.InvalidStreamFileException;
+import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Timestamp;
@@ -42,33 +45,33 @@ public class ProtoBlockFileReaderTest {
 
     public static final List<BlockFile> TEST_BLOCK_FILES = List.of(
             BlockFile.builder()
-                    .consensusStart(1738953031945593129L)
-                    .consensusEnd(1738953032202698150L)
-                    .count(7L)
+                    .consensusStart(1743543388185101630L)
+                    .consensusEnd(1743543388372187000L)
+                    .count(5L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "847ec86e6da4d279e0445a983f198ccf1883a2c32a7f8c8f87361e1311417b2b8d7531211aa52454a7de2aa06c162bf4")
-                    .index(981L)
-                    .name(BlockFile.getBlockStreamFilename(981))
+                            "449e750e4da69fecb92234a8dede0ac3e7b53141aecc1a30cba050ec44a729c9b5e5a06607ac6ac8a17110fb99c202ef")
+                    .index(2301160L)
+                    .name(BlockFile.getBlockStreamFilename(2301160))
                     .previousHash(
-                            "2b223b895e1a847579150a85a86e32e4aa42de0cc17a9f4e73f7f330e231515ece0fbf1818c29160a5f46da0268138d3")
-                    .roundStart(982L)
-                    .roundEnd(982L)
+                            "aeb9db588e53e6b3d1d39f1a75dbf7123e95c18cea102380989bdda89079809e2217bfb230eda982e37e36f40e87988a")
+                    .roundStart(2301161L)
+                    .roundEnd(2301161L)
                     .version(ProtoBlockFileReader.VERSION)
                     .build(),
             BlockFile.builder()
-                    .consensusStart(1738953032298721606L)
-                    .consensusEnd(1738953032428026822L)
-                    .count(6L)
+                    .consensusStart(1743543388490143524L)
+                    .consensusEnd(1743543388704490000L)
+                    .count(4L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "df7c5f12ca2ee96bd42c4f08c52450bb5ee334092fdab4fc2b632b03bca9b6aebeabe77ff93b08685d4df20f99af13d6")
-                    .index(982L)
-                    .name(BlockFile.getBlockStreamFilename(982))
+                            "0d2523cc3f44a0ffebd9bcd1950c685deb932e53b7af3e8cd202397ae2d110c3452797eb0ff05cca1ffe9780e31bec34")
+                    .index(2301161L)
+                    .name(BlockFile.getBlockStreamFilename(2301161))
                     .previousHash(
-                            "847ec86e6da4d279e0445a983f198ccf1883a2c32a7f8c8f87361e1311417b2b8d7531211aa52454a7de2aa06c162bf4")
-                    .roundStart(983L)
-                    .roundEnd(983L)
+                            "449e750e4da69fecb92234a8dede0ac3e7b53141aecc1a30cba050ec44a729c9b5e5a06607ac6ac8a17110fb99c202ef")
+                    .roundStart(2301162L)
+                    .roundEnd(2301162L)
                     .version(ProtoBlockFileReader.VERSION)
                     .build(),
             BlockFile.builder()
@@ -77,7 +80,7 @@ public class ProtoBlockFileReaderTest {
                     .count(0L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "61d19c07b316211e82a8f0602df493b0376f4911095095541b2934736495cf6d21a2f9c9d58ce64cfd51bfb8b1eb815a")
+                            "40ecba4f4134cf9e7a6fb643b54cda852ed4dcacee7d339a120165a6552169b52568dcdd921913df69b18074d6fd6cf0")
                     .index(0L)
                     .name(BlockFile.getBlockStreamFilename(0))
                     .previousHash(
@@ -137,6 +140,177 @@ public class ProtoBlockFileReaderTest {
 
         // then
         assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void readBatchTransactions() {
+        var roundHeader = BlockItem.newBuilder().setRoundHeader(RoundHeader.getDefaultInstance());
+        var eventHeader = BlockItem.newBuilder().setEventHeader(EventHeader.getDefaultInstance());
+        var now = Instant.now();
+        var batchTransactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano());
+        var preBatchTransactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() - 1);
+        var innerTransactionTimestamp1 = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 1);
+        var innerTransactionTimestamp2 = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 2);
+        var postBatchTransactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 3);
+
+        var preBatchTransactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(preBatchTransactionTimestamp)
+                .build();
+        var preBatchStateChanges = StateChanges.newBuilder()
+                .setConsensusTimestamp(preBatchTransactionTimestamp)
+                .build();
+
+        var batchTransactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(batchTransactionTimestamp)
+                .build();
+        var batchStateChanges = StateChanges.newBuilder()
+                .setConsensusTimestamp(batchTransactionTimestamp)
+                .build();
+
+        var innerTransactionResult1 = TransactionResult.newBuilder()
+                .setConsensusTimestamp(innerTransactionTimestamp1)
+                .setParentConsensusTimestamp(batchTransactionTimestamp)
+                .build();
+        var innerTransactionResult2 = TransactionResult.newBuilder()
+                .setConsensusTimestamp(innerTransactionTimestamp2)
+                .setParentConsensusTimestamp(batchTransactionTimestamp)
+                .build();
+
+        var postBatchTransactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(postBatchTransactionTimestamp)
+                .build();
+        var postBatchStateChanges = StateChanges.newBuilder()
+                .setConsensusTimestamp(postBatchTransactionTimestamp)
+                .build();
+
+        var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(roundHeader)
+                .addItems(eventHeader)
+                .addItems(eventTransaction())
+                .addItems(BlockItem.newBuilder().setTransactionResult(preBatchTransactionResult))
+                .addItems(BlockItem.newBuilder().setStateChanges(preBatchStateChanges))
+                .addItems(eventHeader)
+                .addItems(batchEventTransaction())
+                .addItems(BlockItem.newBuilder().setTransactionResult(batchTransactionResult))
+                .addItems(BlockItem.newBuilder().setStateChanges(batchStateChanges))
+                .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult1))
+                .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult2))
+                .addItems(eventHeader)
+                .addItems(eventTransaction())
+                .addItems(BlockItem.newBuilder().setTransactionResult(postBatchTransactionResult))
+                .addItems(BlockItem.newBuilder().setStateChanges(postBatchStateChanges))
+                .addItems(blockProof())
+                .build();
+        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(1), gzip(block));
+
+        var blockFile = reader.read(streamFileData);
+        var items = blockFile.getItems();
+        var batchParentItem = blockFile.getItems().get(1);
+        var innerTransaction1 = blockFile.getItems().get(2);
+        var innerTransaction2 = blockFile.getItems().get(3);
+
+        var expectedParents = new ArrayList<com.hedera.mirror.common.domain.transaction.BlockItem>();
+        var expectedPrevious = new ArrayList<>(items);
+        expectedPrevious.addFirst(null);
+        expectedPrevious.removeLast();
+
+        expectedParents.add(null);
+        expectedParents.add(null);
+        expectedParents.add(batchParentItem);
+        expectedParents.add(batchParentItem);
+        expectedParents.add(null);
+
+        assertThat(items).hasSize(5);
+        assertThat(TestUtils.toTimestamp(batchParentItem.getConsensusTimestamp()))
+                .isEqualTo(batchTransactionTimestamp);
+        assertThat(items)
+                .map(com.hedera.mirror.common.domain.transaction.BlockItem::getParent)
+                .containsExactlyElementsOf(expectedParents);
+        assertThat(items)
+                .map(com.hedera.mirror.common.domain.transaction.BlockItem::getPrevious)
+                .containsExactlyElementsOf(expectedPrevious);
+        assertThat(batchParentItem.getStateChangeContext())
+                .isEqualTo(innerTransaction1.getStateChangeContext())
+                .isEqualTo(innerTransaction2.getStateChangeContext());
+    }
+
+    @Test
+    void readBatchTransactionsMissingInnerTransactionResult() {
+        var roundHeader = BlockItem.newBuilder().setRoundHeader(RoundHeader.getDefaultInstance());
+        var eventHeader = BlockItem.newBuilder().setEventHeader(EventHeader.getDefaultInstance());
+        var now = Instant.now();
+        var batchTransactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano());
+        var innerTransactionTimestamp1 = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 1);
+
+        var batchTransactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(batchTransactionTimestamp)
+                .build();
+        var batchStateChanges = StateChanges.newBuilder()
+                .setConsensusTimestamp(batchTransactionTimestamp)
+                .addStateChanges(StateChange.newBuilder())
+                .build();
+
+        var innerTransactionResult1 = TransactionResult.newBuilder()
+                .setConsensusTimestamp(innerTransactionTimestamp1)
+                .setParentConsensusTimestamp(batchTransactionTimestamp)
+                .build();
+
+        var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(roundHeader)
+                .addItems(eventHeader)
+                .addItems(batchEventTransaction())
+                .addItems(BlockItem.newBuilder().setTransactionResult(batchTransactionResult))
+                .addItems(BlockItem.newBuilder().setStateChanges(batchStateChanges))
+                .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult1))
+                .addItems(blockProof())
+                .build();
+        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(1), gzip(block));
+
+        assertThatThrownBy(() -> reader.read(streamFileData))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage("Missing transaction result in block file 000000000000000000000000000000000001.blk.gz");
+    }
+
+    @Test
+    void readBatchTransactionsMissingInnerTransaction() {
+        var roundHeader = BlockItem.newBuilder().setRoundHeader(RoundHeader.getDefaultInstance());
+        var eventHeader = BlockItem.newBuilder().setEventHeader(EventHeader.getDefaultInstance());
+        var now = Instant.now();
+        var batchTransactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano());
+        var innerTransactionTimestamp1 = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 1);
+
+        var batchTransactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(batchTransactionTimestamp)
+                .build();
+        var batchStateChanges = StateChanges.newBuilder()
+                .setConsensusTimestamp(batchTransactionTimestamp)
+                .addStateChanges(StateChange.newBuilder())
+                .build();
+
+        var innerTransactionResult1 = TransactionResult.newBuilder()
+                .setConsensusTimestamp(innerTransactionTimestamp1)
+                .setParentConsensusTimestamp(batchTransactionTimestamp)
+                .build();
+
+        var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(roundHeader)
+                .addItems(eventHeader)
+                .addItems(batchEventTransaction(
+                        List.of(Transaction.newBuilder().build().toByteString())))
+                .addItems(BlockItem.newBuilder().setTransactionResult(batchTransactionResult))
+                .addItems(BlockItem.newBuilder().setStateChanges(batchStateChanges))
+                .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult1))
+                .addItems(blockProof())
+                .build();
+        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(1), gzip(block));
+
+        assertThatThrownBy(() -> reader.read(streamFileData))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage(
+                        "Failed to parse inner transaction from atomic batch in block file 000000000000000000000000000000000001.blk.gz");
     }
 
     @Test
@@ -266,8 +440,7 @@ public class ProtoBlockFileReaderTest {
     private BlockItem blockHeader() {
         return BlockItem.newBuilder()
                 .setBlockHeader(BlockHeader.newBuilder()
-                        .setFirstTransactionConsensusTime(Timestamp.newBuilder().setSeconds(TIMESTAMP))
-                        .setPreviousBlockHash(DomainUtils.fromBytes(TestUtils.generateRandomByteArray(48))))
+                        .setFirstTransactionConsensusTime(Timestamp.newBuilder().setSeconds(TIMESTAMP)))
                 .build();
     }
 
@@ -280,12 +453,15 @@ public class ProtoBlockFileReaderTest {
     }
 
     private BlockItem eventTransaction() {
+        return eventTransaction(TransactionBody.newBuilder()
+                .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
+                .build());
+    }
+
+    private BlockItem eventTransaction(TransactionBody transactionBody) {
         var transaction = Transaction.newBuilder()
                 .setSignedTransactionBytes(SignedTransaction.newBuilder()
-                        .setBodyBytes(TransactionBody.newBuilder()
-                                .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
-                                .build()
-                                .toByteString())
+                        .setBodyBytes(transactionBody.toByteString())
                         .build()
                         .toByteString())
                 .build()
@@ -295,6 +471,39 @@ public class ProtoBlockFileReaderTest {
                         .setApplicationTransaction(transaction)
                         .build())
                 .build();
+    }
+
+    private BlockItem batchEventTransaction() {
+        var cryptoTransfer = Transaction.newBuilder()
+                .setSignedTransactionBytes(SignedTransaction.newBuilder()
+                        .setBodyBytes(TransactionBody.newBuilder()
+                                .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
+                                .build()
+                                .toByteString())
+                        .build()
+                        .toByteString())
+                .build()
+                .toByteString();
+        var cryptoTransfer2 = Transaction.newBuilder()
+                .setSignedTransactionBytes(SignedTransaction.newBuilder()
+                        .setBodyBytes(TransactionBody.newBuilder()
+                                .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
+                                .build()
+                                .toByteString())
+                        .build()
+                        .toByteString())
+                .build()
+                .toByteString();
+        return batchEventTransaction(List.of(cryptoTransfer, cryptoTransfer2));
+    }
+
+    private BlockItem batchEventTransaction(List<ByteString> innerTransactions) {
+        var transaction = TransactionBody.newBuilder()
+                .setAtomicBatch(AtomicBatchTransactionBody.newBuilder()
+                        .addAllTransactions(innerTransactions)
+                        .build())
+                .build();
+        return eventTransaction(transaction);
     }
 
     private byte[] gzip(Block block) {

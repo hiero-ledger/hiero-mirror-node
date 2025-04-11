@@ -149,12 +149,14 @@ describe('EntityService.isValidAccount tests', () => {
 
 describe('EntityService.getEncodedId tests', () => {
   test('EntityService.getEncodedId - No match', async () => {
-    await expect(EntityService.getEncodedId(defaultInputEntity[0].id)).resolves.toBe(defaultExpectedEntity.id);
+    await expect(EntityService.getEncodedId(defaultInputEntity[0].id + '')).resolves.toBe(defaultExpectedEntity.id);
   });
 
   test('EntityService.getEncodedId - Matching id', async () => {
-    await expect(EntityService.getEncodedId(defaultInputEntity[0].id)).resolves.toBe(defaultExpectedEntity.id);
-    await expect(EntityService.getEncodedId(defaultInputContract[0].id)).resolves.toBe(defaultExpectedContractId.id);
+    await expect(EntityService.getEncodedId(defaultInputEntity[0].id + '')).resolves.toBe(defaultExpectedEntity.id);
+    await expect(EntityService.getEncodedId(defaultInputContract[0].id + '')).resolves.toBe(
+      defaultExpectedContractId.id
+    );
   });
 
   test('EntityService.getEncodedId - Matching alias', async () => {

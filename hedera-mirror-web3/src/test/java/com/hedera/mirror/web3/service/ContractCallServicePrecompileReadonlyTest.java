@@ -5,14 +5,11 @@ package com.hedera.mirror.web3.service;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ECDSA_KEY;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ED25519_KEY;
-import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.KEY_WITH_ECDSA_TYPE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.KEY_WITH_ED_25519_TYPE;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.LEDGER_ID;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ZERO_VALUE;
-import static com.hedera.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
-import static com.hedera.mirror.web3.utils.ContractCallTestUtil.longValueOf;
 import static com.hedera.mirror.web3.web3j.generated.PrecompileTestContract.Expiry;
 import static com.hedera.mirror.web3.web3j.generated.PrecompileTestContract.HederaToken;
 import static com.hedera.mirror.web3.web3j.generated.PrecompileTestContract.TokenKey;
@@ -878,24 +875,6 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
 
         // Then
         assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
-    }
-
-    private void verifyEthCallAndEstimateGas(
-            final RemoteFunctionCall<?> functionCall, final Contract contract, final Long value) throws Exception {
-        // Given
-        testWeb3jService.setEstimateGas(true);
-        functionCall.send();
-
-        final var estimateGasUsedResult = longValueOf.applyAsLong(testWeb3jService.getEstimatedGas());
-
-        // When
-        final var actualGasUsed = gasUsedAfterExecution(getContractExecutionParameters(functionCall, contract, value));
-
-        // Then
-        assertThat(isWithinExpectedGasRange(estimateGasUsedResult, actualGasUsed))
-                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimateGasUsedResult, actualGasUsed)
-                .isTrue();
-        testWeb3jService.setEstimateGas(false);
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(

@@ -11,13 +11,15 @@ import static org.mockito.Mockito.when;
 import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.node.app.config.BootstrapConfigProviderImpl;
 import com.hedera.node.app.config.ConfigProviderImpl;
+import com.hedera.node.app.metrics.StoreMetricsServiceImpl;
 import com.hedera.node.app.services.ServicesRegistry;
 import com.hedera.node.app.services.ServicesRegistry.Registration;
 import com.hedera.node.app.version.ServicesSoftwareVersion;
 import com.hedera.node.config.VersionedConfiguration;
 import com.hedera.node.config.data.VersionConfig;
 import com.swirlds.metrics.api.Metrics;
-import com.swirlds.state.State;
+import com.swirlds.platform.state.MerkleNodeState;
+import com.swirlds.platform.state.service.PlatformStateFacade;
 import com.swirlds.state.lifecycle.SchemaRegistry;
 import com.swirlds.state.lifecycle.Service;
 import com.swirlds.state.lifecycle.StartupNetworks;
@@ -57,7 +59,16 @@ class ServiceMigratorImplTest {
     private StartupNetworks startupNetworks;
 
     @Mock
-    private State mockState;
+    private StoreMetricsServiceImpl storeMetricsService;
+
+    @Mock
+    private ConfigProviderImpl configProvider;
+
+    @Mock
+    private PlatformStateFacade platformStateFacade;
+
+    @Mock
+    private MerkleNodeState mockState;
 
     private VersionedConfiguration bootstrapConfig;
 
@@ -67,16 +78,6 @@ class ServiceMigratorImplTest {
     void initialize() {
         serviceMigrator = new ServiceMigratorImpl();
         bootstrapConfig = new BootstrapConfigProviderImpl().getConfiguration();
-    }
-
-    @Test
-    void testCreationVersionOfWithMirrorNodeState() {
-        assertDoesNotThrow(() -> serviceMigrator.creationVersionOf(mirrorNodeState));
-    }
-
-    @Test
-    void testCreationVersionOfWithInvalidState() {
-        assertThrows(IllegalArgumentException.class, () -> serviceMigrator.creationVersionOf(mockState));
     }
 
     @Test
@@ -93,9 +94,11 @@ class ServiceMigratorImplTest {
                         bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion()),
                 new ConfigProviderImpl().getConfiguration(),
                 new ConfigProviderImpl().getConfiguration(),
-                networkInfo,
                 metrics,
-                startupNetworks));
+                startupNetworks,
+                storeMetricsService,
+                configProvider,
+                platformStateFacade));
     }
 
     @Test
@@ -118,9 +121,11 @@ class ServiceMigratorImplTest {
                         bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion()),
                 new ConfigProviderImpl().getConfiguration(),
                 new ConfigProviderImpl().getConfiguration(),
-                networkInfo,
                 metrics,
-                startupNetworks));
+                startupNetworks,
+                storeMetricsService,
+                configProvider,
+                platformStateFacade));
     }
 
     @Test
@@ -149,9 +154,11 @@ class ServiceMigratorImplTest {
                     servicesSoftwareVersion,
                     configuration,
                     configuration,
-                    networkInfo,
                     metrics,
-                    startupNetworks);
+                    startupNetworks,
+                    storeMetricsService,
+                    configProvider,
+                    platformStateFacade);
         });
 
         assertThat(exception.getMessage()).isEqualTo("Can only be used with SchemaRegistryImpl instances");
@@ -171,9 +178,11 @@ class ServiceMigratorImplTest {
                     servicesSoftwareVersion,
                     configuration,
                     configuration,
-                    networkInfo,
                     metrics,
-                    startupNetworks);
+                    startupNetworks,
+                    storeMetricsService,
+                    configProvider,
+                    platformStateFacade);
         });
 
         assertThat(exception.getMessage()).isEqualTo("Can only be used with MirrorNodeState instances");
@@ -193,9 +202,11 @@ class ServiceMigratorImplTest {
                     servicesSoftwareVersion,
                     configuration,
                     configuration,
-                    networkInfo,
                     metrics,
-                    startupNetworks);
+                    startupNetworks,
+                    storeMetricsService,
+                    configProvider,
+                    platformStateFacade);
         });
 
         assertThat(exception.getMessage()).isEqualTo("Can only be used with ServicesRegistryImpl instances");
@@ -219,9 +230,11 @@ class ServiceMigratorImplTest {
                     servicesSoftwareVersion,
                     configuration,
                     configuration,
-                    networkInfo,
                     metrics,
-                    startupNetworks);
+                    startupNetworks,
+                    storeMetricsService,
+                    configProvider,
+                    platformStateFacade);
         });
 
         assertThat(exception.getMessage()).isEqualTo("Can only be used with SchemaRegistryImpl instances");

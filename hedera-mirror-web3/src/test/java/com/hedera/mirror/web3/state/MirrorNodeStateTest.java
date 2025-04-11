@@ -23,7 +23,9 @@ import com.hedera.mirror.web3.state.keyvalue.NftReadableKVState;
 import com.hedera.mirror.web3.state.keyvalue.TokenReadableKVState;
 import com.hedera.mirror.web3.state.keyvalue.TokenRelationshipReadableKVState;
 import com.hedera.mirror.web3.state.singleton.DefaultSingleton;
+import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.ids.EntityIdService;
+import com.hedera.node.app.metrics.StoreMetricsServiceImpl;
 import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.node.app.service.file.FileService;
 import com.hedera.node.app.service.token.TokenService;
@@ -32,7 +34,6 @@ import com.hedera.node.app.services.ServicesRegistry;
 import com.swirlds.state.StateChangeListener;
 import com.swirlds.state.StateChangeListener.StateType;
 import com.swirlds.state.lifecycle.StartupNetworks;
-import com.swirlds.state.lifecycle.info.NetworkInfo;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.WritableStates;
 import java.util.HashMap;
@@ -93,9 +94,6 @@ class MirrorNodeStateTest {
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Mock
-    private NetworkInfo networkInfo;
-
-    @Mock
     private StartupNetworks startupNetworks;
 
     @Mock
@@ -103,6 +101,12 @@ class MirrorNodeStateTest {
 
     @Mock
     private RecordFileRepository recordFileRepository;
+
+    @Mock
+    private StoreMetricsServiceImpl storeMetricsService;
+
+    @Mock
+    private ConfigProviderImpl configProvider;
 
     private List<ReadableKVState> readableKVStates;
 
@@ -496,9 +500,10 @@ class MirrorNodeStateTest {
                 readableKVStates,
                 servicesRegistry,
                 serviceMigrator,
-                networkInfo,
                 startupNetworks,
                 mirrorNodeEvmProperties,
-                recordFileRepository);
+                recordFileRepository,
+                storeMetricsService,
+                configProvider);
     }
 }

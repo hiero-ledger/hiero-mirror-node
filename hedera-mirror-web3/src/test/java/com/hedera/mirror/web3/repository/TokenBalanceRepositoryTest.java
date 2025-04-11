@@ -4,16 +4,12 @@ package com.hedera.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.AccountBalance.Id;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.SystemEntity;
 import com.hedera.mirror.common.domain.token.TokenTransfer;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import lombok.RequiredArgsConstructor;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -25,13 +21,6 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
     private static final long TRANSFER_INCREMENT = 1L;
 
     private final TokenBalanceRepository tokenBalanceRepository;
-
-    private CommonProperties commonProperties;
-
-    @BeforeEach
-    void setup() {
-        commonProperties = new CommonProperties();
-    }
 
     @Test
     void findHistoricalByIdAndTimestampLessThanBlockTimestamp() {
@@ -76,7 +65,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
     void shouldNotIncludeBalanceBeforeConsensusTimestamp(long shard, long realm) {
         commonProperties.setShard(shard);
         commonProperties.setRealm(realm);
-        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasuryAccountId = systemEntity.treasuryAccount();
         var accountBalance = domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.id(new AccountBalance.Id(domainBuilder.timestamp(), treasuryAccountId)))
@@ -86,7 +75,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
                 .customize(tb -> tb.id(new TokenBalance.Id(
                         accountBalance.getId().getConsensusTimestamp(),
                         accountBalance.getId().getAccountId(),
-                        EntityId.of(shard, realm, domainBuilder.id()))))
+                        domainBuilder.entityId())))
                 .persist();
         long consensusTimestamp = tokenBalance1.getId().getConsensusTimestamp();
 
@@ -102,7 +91,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void shouldIncludeBalanceDuringValidTimestampRange() {
-        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasuryAccountId = systemEntity.treasuryAccount();
         var accountBalance = domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.id(new AccountBalance.Id(domainBuilder.timestamp(), treasuryAccountId)))
@@ -131,7 +120,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void shouldNotIncludeBalanceAfterTimestampFilter() {
-        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasuryAccountId = systemEntity.treasuryAccount();
         var accountBalance = domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.id(new AccountBalance.Id(domainBuilder.timestamp(), treasuryAccountId)))
@@ -165,7 +154,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
         // usually the account_balance/token_balance gets persisted ~8 mins after the account creation
 
         // not persisted
-        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasuryAccountId = systemEntity.treasuryAccount();
         var tokenBalance1 = domainBuilder
                 .tokenBalance()
                 .customize(tb -> tb.id(
@@ -190,7 +179,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
     void findHistoricalTokenBalanceUpToTimestampMissingTokenBalance() {
         var accountId = domainBuilder.entityId();
         var tokenId = domainBuilder.entityId();
-        var treasuryAccountId = SystemEntity.TREASURY_ACCOUNT.getScopedEntityId(commonProperties);
+        var treasuryAccountId = systemEntity.treasuryAccount();
         long snapshotTimestamp = domainBuilder.timestamp();
         domainBuilder
                 .accountBalance()

@@ -2,6 +2,8 @@
 
 package com.hedera.mirror.web3.evm.config;
 
+import static com.hedera.mirror.common.util.DomainUtils.fromEvmAddress;
+
 import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.mirror.web3.evm.account.MirrorEvmContractAliases;
 import com.hedera.mirror.web3.evm.pricing.RatesAndFeesLoader;
@@ -130,16 +132,20 @@ public class ServicesConfiguration {
     static Predicate<Address> systemAccountDetector() {
         // all addresses between 0-750 (inclusive) are treated as system accounts
         // from the perspective of the EVM when executing Call, Balance, and SelfDestruct operations
-        return address -> address.numberOfLeadingZeroBytes() >= 18
-                && Integer.compareUnsigned(address.getInt(16), SYSTEM_ACCOUNT_BOUNDARY) <= 0;
+        return address -> {
+            var entityId = fromEvmAddress(address.toArray());
+            return entityId != null && entityId.getNum() <= SYSTEM_ACCOUNT_BOUNDARY;
+        };
     }
 
     @Bean
     static Predicate<Address> strictSystemAccountDetector() {
         // all addresses between 0-999 (inclusive) are treated as system accounts
         // from the perspective of the EVM when executing ExtCode operations
-        return address -> address.numberOfLeadingZeroBytes() >= 18
-                && Integer.compareUnsigned(address.getInt(16), STRICT_SYSTEM_ACCOUNT_BOUNDARY) <= 0;
+        return address -> {
+            var entityId = fromEvmAddress(address.toArray());
+            return entityId != null && entityId.getNum() <= STRICT_SYSTEM_ACCOUNT_BOUNDARY;
+        };
     }
 
     @Bean
