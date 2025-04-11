@@ -51,7 +51,10 @@
     "transactions": [],
     "cryptotransfers": []
   },
-  "urls": ["/api/v1/tokens/abc", "/api/v1/tokens/0.0.0x000000000000000000000000000000000000046F"],
+  "urls": [
+    "/api/v1/tokens/abc",
+    "/api/v1/tokens/0.0.0x000000000000000000000000000000000000046F"
+  ],
   "responseStatus": 400,
   "responseJson": {
     "_status": {
