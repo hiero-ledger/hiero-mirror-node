@@ -89,7 +89,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
     }
 
     protected void validateGasEstimationNestedCalls(
-            String data, ContractMethodInterface actualGasUsed, String solidityAddress /*Optional<String> sender*/) {
+            String data, ContractMethodInterface actualGasUsed, String solidityAddress) {
         var contractCallRequest = ModelBuilder.contractCallRequestNestedCalls(actualGasUsed.getActualGas())
                 .data(data)
                 .estimate(true)

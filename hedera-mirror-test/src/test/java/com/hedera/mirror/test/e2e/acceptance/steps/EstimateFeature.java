@@ -277,10 +277,10 @@ public class EstimateFeature extends AbstractEstimateFeature {
         assertContractCallReturnsBadRequest("3ec4de35" + wrongEncodedAddress, contractSolidityAddress);
     }
 
-    //Cannot send request without from with modularized EVM
+    // Cannot send request without from with modularized EVM
     @Then("I call estimateGas with non-existing from address in the request body")
     public void wrongFromParameterEstimateCall() {
-        if(!web3Properties.isModularizedServices()){
+        if (!web3Properties.isModularizedServices()) {
             var data = encodeData(ESTIMATE_GAS, MESSAGE_SIGNER);
             var contractCallRequest = ModelBuilder.contractCallRequest(MESSAGE_SIGNER.actualGas)
                     .data(data)
@@ -460,7 +460,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     // from services team
     @Then("I call estimateGas with IERC20 token transfer using long zero address as receiver")
     public void ierc20TransferWithLongZeroAddressForReceiver() {
-        if(!web3Properties.isModularizedServices()){
+        if (!web3Properties.isModularizedServices()) {
             var data = encodeData(
                     ERC,
                     IERC20_TOKEN_TRANSFER,
@@ -479,7 +479,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 IERC20_TOKEN_TRANSFER,
                 asAddress(fungibleTokenId),
                 asAddress(accountInfo.getEvmAddress().replace("0x", "")),
-                new BigInteger("1"));
+                BigInteger.ONE);
         validateGasEstimation(data, IERC20_TOKEN_TRANSFER, ercSolidityAddress);
     }
 
@@ -491,7 +491,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 IERC20_TOKEN_APPROVE,
                 asAddress(fungibleTokenId),
                 asAddress(accountInfo.getEvmAddress().replace("0x", "")),
-                new BigInteger("1"));
+                BigInteger.ONE);
         validateGasEstimation(data, IERC20_TOKEN_APPROVE, ercSolidityAddress);
     }
 
