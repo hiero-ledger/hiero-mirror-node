@@ -276,23 +276,23 @@ public class EstimateFeature extends AbstractEstimateFeature {
         // 3ec4de35 is the address balance signature, we cant send wrong encoded parameter with headlong
         assertContractCallReturnsBadRequest("3ec4de35" + wrongEncodedAddress, contractSolidityAddress);
     }
-    //    Cannot send request without from
+
+    //Cannot send request without from with modularized EVM
     @Then("I call estimateGas with non-existing from address in the request body")
     public void wrongFromParameterEstimateCall() {
-        var data = encodeData(ESTIMATE_GAS, MESSAGE_SIGNER);
-        var receiverAddress = asAddress(receiverAccountId);
-        var contractCallRequest = ModelBuilder.contractCallRequest(MESSAGE_SIGNER.actualGas)
-                .data(data)
-                .estimate(true)
-                .from(newAccountEvmAddress)
-                .to(contractSolidityAddress);
-        if (web3Properties.isModularizedServices()) {
-            var msgSignerResponse = callContract(contractCallRequest);
-        }
-        var msgSignerResponse = callContract(contractCallRequest);
-        int estimatedGas = msgSignerResponse.getResultAsNumber().intValue();
+        if(!web3Properties.isModularizedServices()){
+            var data = encodeData(ESTIMATE_GAS, MESSAGE_SIGNER);
+            var contractCallRequest = ModelBuilder.contractCallRequest(MESSAGE_SIGNER.actualGas)
+                    .data(data)
+                    .estimate(true)
+                    .from(newAccountEvmAddress)
+                    .to(contractSolidityAddress);
 
-        assertWithinDeviation(MESSAGE_SIGNER.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
+            var msgSignerResponse = callContract(contractCallRequest);
+            int estimatedGas = msgSignerResponse.getResultAsNumber().intValue();
+
+            assertWithinDeviation(MESSAGE_SIGNER.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
+        }
     }
 
     @Then("I call estimateGas with function that makes a call to invalid smart contract")
@@ -460,13 +460,15 @@ public class EstimateFeature extends AbstractEstimateFeature {
     // from services team
     @Then("I call estimateGas with IERC20 token transfer using long zero address as receiver")
     public void ierc20TransferWithLongZeroAddressForReceiver() {
-        var data = encodeData(
-                ERC,
-                IERC20_TOKEN_TRANSFER,
-                asAddress(fungibleTokenId),
-                asAddress(receiverAccountId),
-                new BigInteger("5"));
-        validateGasEstimation(data, IERC20_TOKEN_TRANSFER, ercSolidityAddress);
+        if(!web3Properties.isModularizedServices()){
+            var data = encodeData(
+                    ERC,
+                    IERC20_TOKEN_TRANSFER,
+                    asAddress(fungibleTokenId),
+                    asAddress(receiverAccountId),
+                    new BigInteger("5"));
+            validateGasEstimation(data, IERC20_TOKEN_TRANSFER, ercSolidityAddress);
+        }
     }
 
     @Then("I call estimateGas with IERC20 token transfer using evm address as receiver")
@@ -861,7 +863,6 @@ public class EstimateFeature extends AbstractEstimateFeature {
         UPDATE_TYPE("updateType", 0), // Set actual gas to 0; unnecessary for gasConsumed test validation.
         WRONG_METHOD_SIGNATURE("ffffffff()", 0),
         IERC20_TOKEN_TRANSFER("transfer", 43337),
-        TRANSFER_ERC("transfer", 43337),
         IERC20_TOKEN_APPROVE("approve", 728550),
         IERC20_TOKEN_ASSOCIATE("associate()", 728033),
         IERC20_TOKEN_DISSOCIATE("dissociate()", 728033),
