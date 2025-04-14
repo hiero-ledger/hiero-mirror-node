@@ -84,14 +84,10 @@ public abstract class AbstractNetworkClient implements Cleanable {
 
     @SneakyThrows
     public TransactionId executeTransaction(Transaction<?> transaction, KeyList keyList, ExpandedAccountId payer) {
-        int numSignatures = 0;
-
         if (payer != null) {
             transaction.setTransactionId(TransactionId.generate(payer.getAccountId()));
-
             transaction.freezeWith(client);
             transaction.sign(payer.getPrivateKey());
-            numSignatures++;
         }
 
         if (keyList != null) {
@@ -99,15 +95,11 @@ public abstract class AbstractNetworkClient implements Cleanable {
             for (Key k : keyList) {
                 transaction.sign((PrivateKey) k);
             }
-            log.debug("{} additional signatures added to transaction", keyList.size());
-            numSignatures += keyList.size();
         }
 
+        log.debug("Executing transaction: {}", transaction);
         var transactionResponse = retryTemplate.execute(x -> transaction.execute(client));
-        var transactionId = transactionResponse.transactionId;
-        log.debug("Executed transaction {} with {} signatures.", transactionId, numSignatures);
-
-        return transactionId;
+        return transactionResponse.transactionId;
     }
 
     public TransactionId executeTransaction(Transaction<?> transaction, KeyList keyList) {
@@ -140,10 +132,7 @@ public abstract class AbstractNetworkClient implements Cleanable {
     public TransactionReceipt getTransactionReceipt(TransactionId transactionId) {
         var query = new TransactionReceiptQuery().setTransactionId(transactionId);
         var receipt = executeQuery(() -> query);
-
-        if (log.isDebugEnabled()) {
-            log.debug("Transaction receipt: {}", receipt);
-        }
+        log.debug("Transaction receipt: {}", receipt);
 
         if (receipt.status != Status.SUCCESS) {
             throw new NetworkException("Transaction was unsuccessful: " + receipt);

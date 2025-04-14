@@ -24,6 +24,7 @@ import com.hedera.mirror.common.domain.transaction.BlockFile;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.importer.domain.StreamFileData;
 import com.hedera.mirror.importer.exception.InvalidStreamFileException;
+import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
 import com.hederahashgraph.api.proto.java.Transaction;
 import jakarta.inject.Named;
@@ -140,13 +141,9 @@ public class ProtoBlockFileReader implements BlockFileReader {
 
     private void readEventTransactions(ReaderContext context) {
         BlockItem protoBlockItem;
-        while ((protoBlockItem = context.readBlockItemFor(EVENT_TRANSACTION)) != null) {
-            try {
-                var eventTransaction = protoBlockItem.getEventTransaction();
-                var transaction = eventTransaction.hasApplicationTransaction()
-                        ? Transaction.parseFrom(eventTransaction.getApplicationTransaction())
-                        : null;
-
+        Transaction transaction;
+        try {
+            while ((transaction = context.getApplicationTransaction()) != null) {
                 var transactionResultProtoBlockItem = context.readBlockItemFor(TRANSACTION_RESULT);
                 if (transactionResultProtoBlockItem == null) {
                     throw new InvalidStreamFileException(
@@ -173,21 +170,19 @@ public class ProtoBlockFileReader implements BlockFileReader {
                     stateChangesList.add(stateChanges);
                 }
 
-                if (transaction != null) {
-                    var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
-                            .transaction(transaction)
-                            .transactionResult(transactionResult)
-                            .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
-                            .stateChanges(Collections.unmodifiableList(stateChangesList))
-                            .previous(context.getLastBlockItem())
-                            .build();
-                    context.getBlockFile().item(blockItem);
-                    context.setLastBlockItem(blockItem);
-                }
-            } catch (InvalidProtocolBufferException e) {
-                throw new InvalidStreamFileException(
-                        "Failed to deserialize Transaction from block file " + context.getFilename(), e);
+                var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
+                        .previous(context.getLastBlockItem())
+                        .stateChanges(Collections.unmodifiableList(stateChangesList))
+                        .transaction(transaction)
+                        .transactionResult(transactionResult)
+                        .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
+                        .build();
+                context.getBlockFile().item(blockItem);
+                context.setLastBlockItem(blockItem);
             }
+        } catch (InvalidProtocolBufferException e) {
+            throw new InvalidStreamFileException(
+                    "Failed to deserialize Transaction from block file " + context.getFilename(), e);
         }
     }
 
@@ -224,10 +219,15 @@ public class ProtoBlockFileReader implements BlockFileReader {
         private String filename;
 
         @NonFinal
+        private int batchIndex;
+
+        @NonFinal
+        private AtomicBatchTransactionBody batchBody;
+
+        @NonFinal
         private int index;
 
         @NonFinal
-        @Setter
         private com.hedera.mirror.common.domain.transaction.BlockItem lastBlockItem;
 
         @NonFinal
@@ -239,6 +239,34 @@ public class ProtoBlockFileReader implements BlockFileReader {
             this.blockItems = blockItems;
             this.blockRootHashDigest = new BlockRootHashDigest();
             this.filename = filename;
+        }
+
+        public void setLastBlockItem(com.hedera.mirror.common.domain.transaction.BlockItem lastBlockItem) {
+            this.lastBlockItem = lastBlockItem;
+            if (lastBlockItem != null && lastBlockItem.getTransactionBody().hasAtomicBatch()) {
+                this.batchIndex = 0;
+                this.batchBody = lastBlockItem.getTransactionBody().getAtomicBatch();
+            }
+        }
+
+        public Transaction getApplicationTransaction() throws InvalidProtocolBufferException {
+            var blockItemProto = readBlockItemFor(EVENT_TRANSACTION);
+
+            if (blockItemProto != null && blockItemProto.hasEventTransaction()) {
+                return Transaction.parseFrom(
+                        blockItemProto.getEventTransaction().getApplicationTransaction());
+            }
+
+            if (batchBody != null && batchIndex < batchBody.getTransactionsCount()) {
+                var innerTransaction = Transaction.parseFrom(batchBody.getTransactions(batchIndex++));
+                if (innerTransaction == null || Transaction.getDefaultInstance().equals(innerTransaction)) {
+                    throw new InvalidStreamFileException(
+                            "Failed to parse inner transaction from atomic batch in block file " + filename);
+                }
+                return innerTransaction;
+            }
+
+            return null;
         }
 
         /**

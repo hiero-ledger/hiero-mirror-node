@@ -4,6 +4,7 @@ package com.hedera.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.hedera.mirror.common.converter.ListToStringSerializer;
 import com.hedera.mirror.common.converter.ObjectToStringSerializer;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.NftTransfer;
@@ -31,6 +32,9 @@ import org.springframework.data.domain.Persistable;
 @NoArgsConstructor
 public class Transaction implements Persistable<Long> {
 
+    @ToString.Exclude
+    private byte[] batchKey;
+
     @Id
     private Long consensusTimestamp;
 
@@ -43,6 +47,10 @@ public class Transaction implements Persistable<Long> {
     private ErrataType errata;
 
     private Integer index;
+
+    // Repeated sequence of payer_account_id, valid_start_ns
+    @JsonSerialize(using = ListToStringSerializer.class)
+    private List<Long> innerTransactions;
 
     private Long initialBalance;
 
@@ -115,6 +123,19 @@ public class Transaction implements Persistable<Long> {
     @Override
     public boolean isNew() {
         return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+    }
+
+    public void addInnerTransaction(Transaction transaction) {
+        if (this.type != TransactionType.ATOMIC_BATCH.getProtoId()) {
+            throw new IllegalStateException("Inner transactions can only be added to atomic batch transaction");
+        }
+
+        if (innerTransactions == null) {
+            innerTransactions = new ArrayList<>();
+        }
+
+        innerTransactions.add(transaction.getPayerAccountId().getId());
+        innerTransactions.add(transaction.getValidStartNs());
     }
 
     public TransactionHash toTransactionHash() {

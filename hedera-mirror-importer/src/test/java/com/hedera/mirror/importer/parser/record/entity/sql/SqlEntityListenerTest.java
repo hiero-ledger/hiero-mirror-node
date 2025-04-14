@@ -1391,6 +1391,32 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         assertThat(transactionHashRepository.findAll()).containsExactlyInAnyOrderElementsOf(expectedTransactionHashes);
     }
 
+    @Test
+    void onTransactionWithBatchParent() {
+        var batchParent = domainBuilder
+                .transaction()
+                .customize(builder -> builder.type(TransactionType.ATOMIC_BATCH.getProtoId()))
+                .get();
+        var firstInner = domainBuilder
+                .transaction()
+                .customize(builder -> builder.batchKey(domainBuilder.key())
+                        .parentConsensusTimestamp(batchParent.getConsensusTimestamp()))
+                .get();
+        var secondInner = domainBuilder
+                .transaction()
+                .customize(builder -> builder.batchKey(domainBuilder.key())
+                        .parentConsensusTimestamp(batchParent.getConsensusTimestamp()))
+                .get();
+
+        sqlEntityListener.onTransaction(batchParent);
+        sqlEntityListener.onTransaction(firstInner);
+        sqlEntityListener.onTransaction(secondInner);
+
+        completeFileAndCommit();
+
+        assertThat(transactionRepository.findAll()).containsExactlyInAnyOrder(batchParent, firstInner, secondInner);
+    }
+
     @ParameterizedTest
     @EnumSource(
             value = TransactionType.class,
