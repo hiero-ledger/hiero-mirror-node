@@ -21,6 +21,7 @@
     "balances": [],
     "transactions": [
       {
+        "batch_key": null,
         "charged_tx_fee": 7,
         "payerAccountId": "0.0.10",
         "nodeAccountId": "0.0.3",
@@ -50,6 +51,7 @@
   "responseJson": {
     "transactions": [
       {
+        "batch_key": null,
         "bytes": "Ynl0ZXM=",
         "consensus_timestamp": "1234567890.000000002",
         "entity_id": "0.0.1000",

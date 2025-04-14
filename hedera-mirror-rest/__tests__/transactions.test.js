@@ -406,7 +406,7 @@ const getTransactionIdQuery = (extraConditions, entityKeys, isTransactionHash = 
       payerParams.push(`$${++paramsCount}`);
       transactionConditionsArray.push(`(payer_account_id = $${paramsCount} and ${field} = $${++paramsCount})`);
     } else {
-      transactionConditionsArray.push(`(${field} = $${++paramsCount})`);
+      transactionConditionsArray.push(`${field} = $${++paramsCount}`);
     }
   }
 
@@ -633,20 +633,44 @@ describe('getTransactionsByTransactionIdsSql', () => {
       201n,
       123456789987654322n,
       123456789987654321n,
-      123458889987654321n,
+      123458889987654322n,
     ]);
 
-    const transactionKeys = [200n, 123456789987654321n, 201n, 123456789987654322n];
+    const defaultTransactionKeys = [200n, 123456789987654321n, 201n, 123456789987654322n];
 
+    const nullPayerParams = addTimestampIndices([
+      123456789987654321n,
+      201n,
+      123456789987654322n,
+      123456789987654321n,
+      123456789987654322n,
+    ]);
+
+    const nullPayerTransactionKeys = [null, 123456789987654321n, 201n, 123456789987654322n];
     const testSpecs = [
+      {
+        name: 'nullPayerConsensusTimestamp',
+        input: {
+          transactionIdOrHash: defaultTransactionIdStr,
+          filters: [],
+          transactionKeys: nullPayerTransactionKeys,
+        },
+        expected: {
+          query: getTransactionIdQuery(null, nullPayerTransactionKeys, true),
+          params: nullPayerParams,
+          scheduled: undefined,
+          isTransactionHash: true,
+        },
+      },
       {
         name: 'emptyFilter',
         input: {
           transactionIdOrHash: defaultTransactionIdStr,
           filters: [],
+          transactionKeys: defaultTransactionKeys,
         },
         expected: {
-          query: getTransactionIdQuery(null, transactionKeys),
+          query: getTransactionIdQuery(null, defaultTransactionKeys),
           params: defaultParams,
           scheduled: undefined,
           isTransactionHash: false,
@@ -657,9 +681,10 @@ describe('getTransactionsByTransactionIdsSql', () => {
         input: {
           transactionIdOrHash: defaultTransactionIdStr,
           filters: [{key: constants.filterKeys.NONCE, op: 'eq', value: 1}],
+          transactionKeys: defaultTransactionKeys,
         },
         expected: {
-          query: getTransactionIdQuery('nonce = $7', transactionKeys),
+          query: getTransactionIdQuery('nonce = $7', defaultTransactionKeys),
           params: addTimestampIndices([...defaultParams, 1], 4, 5),
           scheduled: undefined,
           isTransactionHash: false,
@@ -673,9 +698,10 @@ describe('getTransactionsByTransactionIdsSql', () => {
             {key: constants.filterKeys.NONCE, op: 'eq', value: 1},
             {key: constants.filterKeys.NONCE, op: 'eq', value: 2},
           ],
+          transactionKeys: defaultTransactionKeys,
         },
         expected: {
-          query: getTransactionIdQuery('nonce = $7', transactionKeys),
+          query: getTransactionIdQuery('nonce = $7', defaultTransactionKeys),
           params: addTimestampIndices([...defaultParams, 2], 4, 5),
           scheduled: undefined,
           isTransactionHash: false,
@@ -686,9 +712,10 @@ describe('getTransactionsByTransactionIdsSql', () => {
         input: {
           transactionIdOrHash: defaultTransactionIdStr,
           filters: [{key: constants.filterKeys.SCHEDULED, op: 'eq', value: true}],
+          transactionKeys: defaultTransactionKeys,
         },
         expected: {
-          query: getTransactionIdQuery('scheduled = $7', transactionKeys),
+          query: getTransactionIdQuery('scheduled = $7', defaultTransactionKeys),
           params: addTimestampIndices([...defaultParams, true], 4, 5),
           scheduled: true,
           isTransactionHash: false,
@@ -702,9 +729,10 @@ describe('getTransactionsByTransactionIdsSql', () => {
             {key: constants.filterKeys.SCHEDULED, op: 'eq', value: true},
             {key: constants.filterKeys.SCHEDULED, op: 'eq', value: false},
           ],
+          transactionKeys: defaultTransactionKeys,
         },
         expected: {
-          query: getTransactionIdQuery('scheduled = $7', transactionKeys),
+          query: getTransactionIdQuery('scheduled = $7', defaultTransactionKeys),
           params: addTimestampIndices([...defaultParams, false], 4, 5),
           scheduled: false,
           isTransactionHash: false,
@@ -718,12 +746,31 @@ describe('getTransactionsByTransactionIdsSql', () => {
             {key: constants.filterKeys.NONCE, op: 'eq', value: 1},
             {key: constants.filterKeys.SCHEDULED, op: 'eq', value: true},
           ],
+          transactionKeys: defaultTransactionKeys,
         },
         expected: {
-          query: getTransactionIdQuery('nonce = $7 and scheduled = $8', transactionKeys),
+          query: getTransactionIdQuery('nonce = $7 and scheduled = $8', defaultTransactionKeys),
           params: addTimestampIndices([...defaultParams, 1, true], 4, 5),
           scheduled: true,
           isTransactionHash: false,
+        },
+      },
+      {
+        name: 'nonceAndScheduledFiltersNullPayer',
+        input: {
+          transactionIdOrHash: defaultTransactionIdStr,
+          filters: [
+            {key: constants.filterKeys.NONCE, op: 'eq', value: 1},
+            {key: constants.filterKeys.SCHEDULED, op: 'eq', value: true},
+          ],
+          transactionKeys: nullPayerTransactionKeys,
+        },
+        expected: {
+          query: getTransactionIdQuery('nonce = $6 and scheduled = $7', nullPayerTransactionKeys, true),
+          params: addTimestampIndices([...nullPayerParams, 1, true], 3, 4),
+          scheduled: true,
+          isTransactionHash: true,
+          transactionKeys: defaultTransactionKeys,
         },
       },
       {
@@ -738,9 +785,10 @@ describe('getTransactionsByTransactionIdsSql', () => {
             {key: constants.filterKeys.NONCE, op: 'eq', value: 3},
             {key: constants.filterKeys.SCHEDULED, op: 'eq', value: false},
           ],
+          transactionKeys: defaultTransactionKeys,
         },
         expected: {
-          query: getTransactionIdQuery('nonce = $7 and scheduled = $8', transactionKeys),
+          query: getTransactionIdQuery('nonce = $7 and scheduled = $8', defaultTransactionKeys),
           params: addTimestampIndices([...defaultParams, 3, false], 4, 5),
           scheduled: false,
           isTransactionHash: false,
@@ -751,9 +799,9 @@ describe('getTransactionsByTransactionIdsSql', () => {
     for (const testSpec of testSpecs) {
       test(testSpec.name, async () => {
         const actual = await getTransactionsByTransactionIdsSql(
-          transactionKeys,
+          testSpec.input.transactionKeys,
           testSpec.input.filters,
-          Transaction.VALID_START_NS
+          testSpec.expected.isTransactionHash ? Transaction.CONSENSUS_TIMESTAMP : Transaction.VALID_START_NS
         );
 
         testutils.assertSqlQueryEqual(actual.query, testSpec.expected.query);
@@ -761,6 +809,12 @@ describe('getTransactionsByTransactionIdsSql', () => {
         expect(actual.scheduled).toEqual(testSpec.expected.scheduled);
       });
     }
+  });
+
+  test('null payer with valid start', () => {
+    expect(() =>
+      getTransactionsByTransactionIdsSql([null, 12345], [], Transaction.VALID_START_NS)
+    ).toThrowErrorMatchingSnapshot();
   });
 });
 

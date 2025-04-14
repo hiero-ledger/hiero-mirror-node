@@ -164,6 +164,7 @@
       "responseJson": {
         "transactions": [
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927005",
@@ -219,6 +220,7 @@
             "valid_start_timestamp": "1565779444.711927004"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927004",
@@ -258,6 +260,7 @@
             "valid_start_timestamp": "1565779444.711927003"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927003",
@@ -337,6 +340,7 @@
             "valid_start_timestamp": "1565779444.711927000"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779400.711927001",
@@ -381,6 +385,7 @@
             "valid_start_timestamp": "1565779400.711927000"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779333.711927001",
@@ -420,6 +425,7 @@
             "valid_start_timestamp": "1565779333.711927000"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779209.711927001",
@@ -474,6 +480,7 @@
       "responseJson": {
         "transactions": [
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779500.711927001",
@@ -518,6 +525,7 @@
             "valid_start_timestamp": "1565779500.711927000"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927005",
@@ -573,6 +581,7 @@
             "valid_start_timestamp": "1565779444.711927004"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927004",
@@ -612,6 +621,7 @@
             "valid_start_timestamp": "1565779444.711927003"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927003",
@@ -691,6 +701,7 @@
             "valid_start_timestamp": "1565779444.711927000"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779400.711927001",
@@ -735,6 +746,7 @@
             "valid_start_timestamp": "1565779400.711927000"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779333.711927001",
@@ -774,6 +786,7 @@
             "valid_start_timestamp": "1565779333.711927000"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779209.711927001",
@@ -813,6 +826,7 @@
             "valid_start_timestamp": "1565779209.711927000"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779111.711927001",

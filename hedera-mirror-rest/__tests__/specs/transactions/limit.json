@@ -105,6 +105,7 @@
       "responseJson": {
         "transactions": [
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779666.711927001",
@@ -144,6 +145,7 @@
             "valid_start_timestamp": "1565779666.711927000"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779600.711927001",
@@ -194,6 +196,7 @@
       "responseJson": {
         "transactions": [
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779666.711927001",
@@ -233,6 +236,7 @@
             "valid_start_timestamp": "1565779666.711927000"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779600.711927001",
@@ -272,6 +276,7 @@
             "valid_start_timestamp": "1565779600.711927000"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779555.711927001",
@@ -330,6 +335,7 @@
             "valid_start_timestamp": "1565779555.711927000"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779333.711927001",

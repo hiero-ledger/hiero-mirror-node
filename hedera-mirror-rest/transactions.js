@@ -190,8 +190,9 @@ const formatTransactionRows = async (rows) => {
     const validStartTimestamp = row.valid_start_ns;
     const payerAccountId = EntityId.parse(row.payer_account_id).toString();
 
-    const formatted = {
+    return {
       assessed_custom_fees: createAssessedCustomFeeList(row.assessed_custom_fees),
+      batch_key: row.batch_key && utils.toHexString(row.batch_key, true),
       bytes: utils.encodeBase64(row.transaction_bytes),
       charged_tx_fee: row.charged_tx_fee,
       consensus_timestamp: utils.nsToSecNs(row.consensus_timestamp),
@@ -214,12 +215,6 @@ const formatTransactionRows = async (rows) => {
       valid_duration_seconds: utils.getNullableNumber(row.valid_duration_seconds),
       valid_start_timestamp: utils.nsToSecNs(validStartTimestamp),
     };
-
-    if (row.batch_key) {
-      formatted.batch_key = utils.toHexString(row.batch_key, true);
-    }
-
-    return formatted;
   });
 };
 
@@ -799,12 +794,12 @@ const getTransactionsByTransactionIdsSql = (transactionKeys, filters, timestampF
   let payerAccountParams = [];
   let params = [];
 
-  let minTimestamp = 0;
+  let minTimestamp = constants.MAX_LONG;
+  let maxTimestamp = -1;
   let idConditions = [];
-  let includePayer = false;
 
   if (transactionKeys.length % 2 !== 0) {
-    throw new InvalidArgumentError('transaction keys must be in sequenced pairs of [payer,timestamp,payer,timestamp]');
+    throw new InvalidArgumentError('transaction keys must be in sequenced pairs of [payer,timestamp]');
   }
 
   for (let index = 0; index < transactionKeys.length; index += 2) {
@@ -817,20 +812,25 @@ const getTransactionsByTransactionIdsSql = (transactionKeys, filters, timestampF
       idConditions.push(`(${Transaction.PAYER_ACCOUNT_ID} = $${paramIndex} and 
                                ${timestampField} = $${++paramIndex})`);
       params.push(payer);
-      includePayer = transactionKeys;
+    } else if (timestampField === Transaction.VALID_START_NS) {
+      throw new InvalidArgumentError('payer is required when timestamp is valid_start_ns');
     } else {
       idConditions.push(`${timestampField} = $${++paramIndex}`);
     }
     params.push(timestamp);
 
-    if (!minTimestamp || timestamp < minTimestamp) {
+    if (timestamp < minTimestamp) {
       minTimestamp = timestamp;
     }
+    if (timestamp > maxTimestamp) {
+      maxTimestamp = timestamp;
+    }
   }
+
   const maxConsensusTimestamp =
     timestampField === Transaction.CONSENSUS_TIMESTAMP
       ? transactionKeys[transactionKeys.length - 1]
-      : minTimestamp + maxTransactionConsensusTimestampRangeNs;
+      : maxTimestamp + maxTransactionConsensusTimestampRangeNs;
   const commonConditions = [
     `${Transaction.CONSENSUS_TIMESTAMP} >= $${params.length + 1}`,
     `${Transaction.CONSENSUS_TIMESTAMP} <= $${params.length + 2}`,
