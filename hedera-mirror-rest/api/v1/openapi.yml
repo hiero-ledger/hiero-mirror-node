@@ -3640,6 +3640,7 @@ components:
     TransactionTypes:
       type: string
       enum:
+        - ATOMICBATCH
         - CONSENSUSCREATETOPIC
         - CONSENSUSDELETETOPIC
         - CONSENSUSSUBMITMESSAGE

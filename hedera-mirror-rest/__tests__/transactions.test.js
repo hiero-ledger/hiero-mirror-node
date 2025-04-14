@@ -797,8 +797,8 @@ describe('getTransactionsByTransactionIdsSql', () => {
     ];
 
     for (const testSpec of testSpecs) {
-      test(testSpec.name, async () => {
-        const actual = await getTransactionsByTransactionIdsSql(
+      test(testSpec.name, () => {
+        const actual = getTransactionsByTransactionIdsSql(
           testSpec.input.transactionKeys,
           testSpec.input.filters,
           testSpec.expected.isTransactionHash ? Transaction.CONSENSUS_TIMESTAMP : Transaction.VALID_START_NS
