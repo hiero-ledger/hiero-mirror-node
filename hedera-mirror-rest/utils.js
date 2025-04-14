@@ -1221,9 +1221,7 @@ const formatSlot = (slot, leftPad = false) => {
   }
 
   let formattedSlot = stripHexPrefix(slot).replace(zeroPaddingRegex, '');
-  if (formattedSlot === '0') {
-    formattedSlot = '';
-  } else if (formattedSlot.length % 2) {
+  if (formattedSlot.length % 2) {
     // An odd length will result in truncation when passed to Buffer, so pad to an even value
     formattedSlot = '0' + formattedSlot;
   }
