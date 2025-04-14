@@ -62,7 +62,7 @@
     "rewire": "^7.0.0",
     "sinon": "^18.0.1",
     "supertest": "^7.1.0",
-    "@testcontainers/redis": "^10.24.0"
+    "@testcontainers/redis": "^10.24.2"
   },
   "jest-junit": {
     "outputDirectory": "build/test-results/test",
