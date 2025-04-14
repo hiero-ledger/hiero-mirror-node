@@ -41,7 +41,7 @@ dependencies {
     implementation("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:6.1.0.5360")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:3.4.4")
     implementation("org.testcontainers:postgresql:1.20.6")
-    implementation("org.web3j:web3j-gradle-plugin:4.13.0")
+    implementation("org.web3j:web3j-gradle-plugin:4.14.0")
 }
 
 val gitHook =
