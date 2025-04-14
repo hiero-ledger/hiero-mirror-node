@@ -30,7 +30,7 @@
     "express-openapi-validator": "^5.4.9",
     "extend": "^3.0.2",
     "extensionless": "^1.9.9",
-    "ioredis": "^5.6.0",
+    "ioredis": "^5.6.1",
     "ip-anonymize": "^0.1.0",
     "js-yaml": "^4.1.0",
     "json-bigint": "^1.0.0",
