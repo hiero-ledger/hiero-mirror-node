@@ -125,8 +125,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         } else {
             mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
         }
-        treasuryAddress =
-                toAddress(systemEntity.treasuryAccount().getId()).toHexString();
+        treasuryAddress = toAddress(systemEntity.treasuryAccount().getId()).toHexString();
         genesisRecordFile =
                 domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         treasuryEntity = domainBuilder
