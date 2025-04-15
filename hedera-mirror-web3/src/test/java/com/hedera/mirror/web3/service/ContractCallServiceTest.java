@@ -569,7 +569,8 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     void ethCallWithValueAndNotExistingSenderAddress() {
         final var receiverEntity = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
-        final var notExistingAccountAddress = toAddress(EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 4325));
+        final var notExistingAccountAddress =
+                toAddress(EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 4325));
         persistRewardAccounts();
 
         final var serviceParameters =

@@ -101,7 +101,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected double modularizedTrafficPercent;
     protected String treasuryAddress;
 
-
     public static Key getKeyWithDelegatableContractId(final Contract contract) {
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
 
@@ -126,7 +125,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         } else {
             mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
         }
-        treasuryAddress = EvmTokenUtils.toAddress(systemEntity.treasuryAccount().getId()).toHexString();
+        treasuryAddress =
+                toAddress(systemEntity.treasuryAccount().getId()).toHexString();
         genesisRecordFile =
                 domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         treasuryEntity = domainBuilder
