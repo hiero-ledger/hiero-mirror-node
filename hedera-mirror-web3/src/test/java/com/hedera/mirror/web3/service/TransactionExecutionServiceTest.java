@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.transaction.TransactionBody;
@@ -25,6 +26,7 @@ import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.service.model.CallServiceParameters;
 import com.hedera.mirror.web3.service.model.CallServiceParameters.CallType;
 import com.hedera.mirror.web3.service.model.ContractExecutionParameters;
+import com.hedera.mirror.web3.state.keyvalue.AccountReadableKVState;
 import com.hedera.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.mirror.web3.web3j.generated.NestedCalls;
@@ -47,10 +49,15 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 @ExtendWith({ContextExtension.class, MockitoExtension.class})
 class TransactionExecutionServiceTest {
     private static final Long DEFAULT_GAS = 50000L;
+
+    @Mock
+    private AccountReadableKVState accountReadableKVState;
 
     @Mock
     private AliasesReadableKVState aliasesReadableKVState;
@@ -80,6 +87,7 @@ class TransactionExecutionServiceTest {
         var commonProperties = new CommonProperties();
         var systemEntity = new SystemEntity(commonProperties);
         transactionExecutionService = new TransactionExecutionService(
+                accountReadableKVState,
                 aliasesReadableKVState,
                 commonProperties,
                 new MirrorNodeEvmProperties(commonProperties, systemEntity),
@@ -90,6 +98,7 @@ class TransactionExecutionServiceTest {
         when(transactionExecutorFactory.get()).thenReturn(transactionExecutor);
     }
 
+    @MockitoSettings(strictness = Strictness.LENIENT)
     @ParameterizedTest
     @ValueSource(
             strings = {
@@ -99,6 +108,8 @@ class TransactionExecutionServiceTest {
             })
     void testExecuteContractCallSuccess(String senderAddressHex) {
         // Given
+        when(accountReadableKVState.contains(any(AccountID.class))).thenReturn(true);
+
         ContractCallContext.get().setOpcodeTracerOptions(new OpcodeTracerOptions());
 
         // Mock the SingleTransactionRecord and TransactionRecord

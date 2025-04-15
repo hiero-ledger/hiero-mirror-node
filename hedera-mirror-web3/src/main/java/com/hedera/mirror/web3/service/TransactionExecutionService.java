@@ -5,6 +5,7 @@ package com.hedera.mirror.web3.service;
 import static com.hedera.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
 import static com.hedera.mirror.web3.state.Utils.isMirror;
 import static com.hedera.mirror.web3.validation.HexValidator.HEX_PREFIX;
+import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ContractID;
@@ -26,10 +27,12 @@ import com.hedera.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.service.model.CallServiceParameters;
+import com.hedera.mirror.web3.state.keyvalue.AccountReadableKVState;
 import com.hedera.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
 import com.hedera.node.config.data.EntitiesConfig;
 import com.hedera.services.utils.EntityIdUtils;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.List;
@@ -49,6 +52,7 @@ public class TransactionExecutionService {
     private static final Duration TRANSACTION_DURATION = new Duration(15);
     private static final long CONTRACT_CREATE_TX_FEE = 100_000_000L;
 
+    private final AccountReadableKVState accountReadableKVState;
     private final AliasesReadableKVState aliasesReadableKVState;
     private final CommonProperties commonProperties;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
@@ -192,6 +196,19 @@ public class TransactionExecutionService {
         }
 
         final var senderAddress = params.getSender().canonicalAddress();
+        final var accountID = accountIdFromEvmAddress(senderAddress);
+        if (!accountReadableKVState.contains(AccountID.newBuilder()
+                .accountNum(accountID.getAccountNum())
+                .shardNum(accountID.getShardNum())
+                .realmNum(accountID.getRealmNum())
+                .build())) {
+            throw new MirrorEvmTransactionException(
+                    ResponseCodeEnum.INVALID_ACCOUNT_ID,
+                    "Sender account not found",
+                    StringUtils.EMPTY,
+                    params.isModularized());
+        }
+
         if (isMirror(senderAddress)) {
             var entityId = DomainUtils.fromEvmAddress(senderAddress.toArrayUnsafe());
             return EntityIdUtils.toAccountId(entityId);
