@@ -217,6 +217,7 @@ describe('Accounts deduplicate timestamp lte tests', () => {
       expected: {
         transactions: [
           {
+            batch_key: null,
             bytes: 'Ynl0ZXM=',
             charged_tx_fee: 7,
             consensus_timestamp: `${utils.nsToSecNs(consensusTimestamp3)}`,
@@ -269,6 +270,7 @@ describe('Accounts deduplicate timestamp lte tests', () => {
             valid_start_timestamp: `${utils.nsToSecNs(consensusTimestamp3 - 1n)}`,
           },
           {
+            batch_key: null,
             bytes: 'Ynl0ZXM=',
             charged_tx_fee: 7,
             consensus_timestamp: `${utils.nsToSecNs(consensusTimestamp4)}`,

@@ -24,6 +24,7 @@
     ],
     "transactions": [
       {
+        "batch_key": "4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
         "payerAccountId": "0.0.8",
         "nodeAccountId": null,
         "consensus_timestamp": "1234567800000000009",
@@ -96,6 +97,7 @@
   "responseJson": {
     "transactions": [
       {
+        "batch_key": null,
         "bytes": "Ynl0ZXM=",
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000005",
@@ -135,6 +137,7 @@
         ]
       },
       {
+        "batch_key": null,
         "bytes": "Ynl0ZXM=",
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000004",
@@ -187,6 +190,7 @@
         ]
       },
       {
+        "batch_key": null,
         "bytes": "Ynl0ZXM=",
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000003",
@@ -226,6 +230,7 @@
         ]
       },
       {
+        "batch_key": null,
         "bytes": "Ynl0ZXM=",
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000002",
@@ -265,6 +270,7 @@
         ]
       },
       {
+        "batch_key": null,
         "bytes": "Ynl0ZXM=",
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000001",
@@ -304,6 +310,7 @@
         ]
       },
       {
+        "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567800.000000009",
         "entity_id": "0.0.10",

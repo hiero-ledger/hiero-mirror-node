@@ -6,7 +6,7 @@ import {Cache} from './cache';
 import config from './config';
 import * as constants from './constants';
 import EntityId from './entityId';
-import {NotFoundError} from './errors';
+import {InvalidArgumentError, NotFoundError} from './errors';
 import {bindTimestampRange} from './timestampRange';
 import {getTransactionHash, isValidTransactionHash} from './transactionHash';
 import TransactionId from './transactionId';
@@ -45,9 +45,11 @@ const scheduleCreateProtoId = 42;
 const SHORTER_CACHE_CONTROL_HEADER = {'cache-control': `public, max-age=5`};
 
 const transactionFields = [
+  Transaction.BATCH_KEY,
   Transaction.CHARGED_TX_FEE,
   Transaction.CONSENSUS_TIMESTAMP,
   Transaction.ENTITY_ID,
+  Transaction.INNER_TRANSACTIONS,
   Transaction.MAX_CUSTOM_FEES,
   Transaction.MAX_FEE,
   Transaction.MEMO,
@@ -187,8 +189,10 @@ const formatTransactionRows = async (rows) => {
   return rows.map((row) => {
     const validStartTimestamp = row.valid_start_ns;
     const payerAccountId = EntityId.parse(row.payer_account_id).toString();
+
     return {
       assessed_custom_fees: createAssessedCustomFeeList(row.assessed_custom_fees),
+      batch_key: row.batch_key && utils.toHexString(row.batch_key, true),
       bytes: utils.encodeBase64(row.transaction_bytes),
       charged_tx_fee: row.charged_tx_fee,
       consensus_timestamp: utils.nsToSecNs(row.consensus_timestamp),
@@ -697,14 +701,17 @@ const getTransactionQuery = (mainCondition, subQueryCondition) => {
              (select ${cryptoTransferJsonAgg}
               from ${CryptoTransfer.tableName}
               where ${CryptoTransfer.CONSENSUS_TIMESTAMP} = t.consensus_timestamp
+                and ${CryptoTransfer.PAYER_ACCOUNT_ID} = t.payer_account_id
                 and ${subQueryCondition}) as crypto_transfer_list,
              (select ${tokenTransferJsonAgg}
               from ${TokenTransfer.tableName}
               where ${TokenTransfer.CONSENSUS_TIMESTAMP} = t.consensus_timestamp
+                and ${TokenTransfer.PAYER_ACCOUNT_ID} = t.payer_account_id
                 and ${subQueryCondition}) as token_transfer_list,
              (select ${assessedCustomFeeJsonAgg}
               from ${AssessedCustomFee.tableName}
               where ${AssessedCustomFee.CONSENSUS_TIMESTAMP} = t.consensus_timestamp
+                and ${AssessedCustomFee.PAYER_ACCOUNT_ID} = t.payer_account_id
                 and ${subQueryCondition}) as assessed_custom_fees
       from ${Transaction.tableName} ${Transaction.tableAlias}
       where ${mainCondition}
@@ -719,9 +726,6 @@ const getTransactionQuery = (mainCondition, subQueryCondition) => {
  * @return {{query: string, params: *[]}}
  */
 const extractSqlFromTransactionsByIdOrHashRequest = async (transactionIdOrHash, filters) => {
-  const mainConditions = [];
-  const commonConditions = [];
-  const params = [];
   const isTransactionHash = isValidTransactionHash(transactionIdOrHash);
 
   if (isTransactionHash) {
@@ -735,39 +739,28 @@ const extractSqlFromTransactionsByIdOrHashRequest = async (transactionIdOrHash, 
       throw new NotFoundError();
     }
 
-    if (rows[0].payer_account_id !== null) {
-      params.push(rows[0].payer_account_id); // all rows should have the same payer account id
-      commonConditions.push(`${Transaction.PAYER_ACCOUNT_ID} = $1`);
-    }
+    const payerAccountId = rows[0].payer_account_id;
+    const lookupKeys = rows.map((row) => [payerAccountId, row.consensus_timestamp]).flat();
 
-    const minTimestampPosition = params.length + 1;
-    const timestampPositions = rows
-      .map((row) => params.push(row.consensus_timestamp))
-      .map((pos) => `$${pos}`)
-      .join(',');
-    mainConditions.push(`${Transaction.CONSENSUS_TIMESTAMP} in (${timestampPositions})`);
-    // timestamp range condition
-    commonConditions.push(
-      `${Transaction.CONSENSUS_TIMESTAMP} >= $${minTimestampPosition}`,
-      `${Transaction.CONSENSUS_TIMESTAMP} <= $${params.length}`
-    );
+    return {
+      ...getTransactionsByTransactionIdsSql(lookupKeys, filters, Transaction.CONSENSUS_TIMESTAMP),
+      isTransactionHash,
+    };
   } else {
     // try to parse it as a transaction id
     const transactionId = TransactionId.fromString(transactionIdOrHash);
+    const payerAccountId = BigInt(transactionId.getEntityId().getEncodedId());
     const validStartTimestamp = BigInt(transactionId.getValidStartNs());
-    const maxConsensusTimestamp = validStartTimestamp + maxTransactionConsensusTimestampRangeNs;
-    params.push(transactionId.getEntityId().getEncodedId(), validStartTimestamp, maxConsensusTimestamp);
-    params.lowerConsensusTimestampIndex = 1;
-    params.upperConsensusTimestampIndex = 2;
-    commonConditions.push(
-      `${Transaction.PAYER_ACCOUNT_ID} = $1`,
-      // timestamp range conditions
-      `${Transaction.CONSENSUS_TIMESTAMP} >= $2`,
-      `${Transaction.CONSENSUS_TIMESTAMP} <= $3`
-    );
-    mainConditions.push(`${Transaction.VALID_START_NS} = $2`);
-  }
 
+    return {
+      ...getTransactionsByTransactionIdsSql([payerAccountId, validStartTimestamp], filters, Transaction.VALID_START_NS),
+      isTransactionHash,
+    };
+  }
+};
+
+const getTransactionByIdQueryParamConditions = (filters, params) => {
+  const conditions = [];
   // only parse nonce and scheduled query filters if the path parameter is transaction id or hash
   let nonce;
   let scheduled;
@@ -786,18 +779,75 @@ const extractSqlFromTransactionsByIdOrHashRequest = async (transactionIdOrHash, 
 
   if (nonce !== undefined) {
     params.push(nonce);
-    mainConditions.push(`${Transaction.NONCE} = $${params.length}`);
+    conditions.push(`${Transaction.NONCE} = $${params.length}`);
   }
 
   if (scheduled !== undefined) {
     params.push(scheduled);
-    mainConditions.push(`${Transaction.SCHEDULED} = $${params.length}`);
+    conditions.push(`${Transaction.SCHEDULED} = $${params.length}`);
   }
-  mainConditions.unshift(...commonConditions);
+
+  return {conditions, scheduled, nonce};
+};
+
+const getTransactionsByTransactionIdsSql = (transactionKeys, filters, timestampField) => {
+  let payerAccountParams = [];
+  let params = [];
+
+  let minTimestamp = constants.MAX_LONG;
+  let maxTimestamp = -1;
+  let idConditions = [];
+
+  if (transactionKeys.length % 2 !== 0) {
+    throw new InvalidArgumentError('transaction keys must be in sequenced pairs of [payer,timestamp]');
+  }
+
+  for (let index = 0; index < transactionKeys.length; index += 2) {
+    let paramIndex = params.length;
+    const payer = transactionKeys[index];
+    const timestamp = BigInt(transactionKeys[index + 1]);
+
+    if (payer) {
+      payerAccountParams.push(`$${++paramIndex}`);
+      idConditions.push(`(${Transaction.PAYER_ACCOUNT_ID} = $${paramIndex} and 
+                               ${timestampField} = $${++paramIndex})`);
+      params.push(payer);
+    } else if (timestampField === Transaction.VALID_START_NS) {
+      throw new InvalidArgumentError('payer is required when timestamp is valid_start_ns');
+    } else {
+      idConditions.push(`${timestampField} = $${++paramIndex}`);
+    }
+    params.push(timestamp);
+
+    if (timestamp < minTimestamp) {
+      minTimestamp = timestamp;
+    }
+    if (timestamp > maxTimestamp) {
+      maxTimestamp = timestamp;
+    }
+  }
+
+  const maxConsensusTimestamp =
+    timestampField === Transaction.CONSENSUS_TIMESTAMP
+      ? transactionKeys[transactionKeys.length - 1]
+      : maxTimestamp + maxTransactionConsensusTimestampRangeNs;
+  const commonConditions = [
+    `${Transaction.CONSENSUS_TIMESTAMP} >= $${params.length + 1}`,
+    `${Transaction.CONSENSUS_TIMESTAMP} <= $${params.length + 2}`,
+  ];
+  params.lowerConsensusTimestampIndex = params.length;
+  params.push(minTimestamp);
+  params.upperConsensusTimestampIndex = params.length;
+  params.push(maxConsensusTimestamp);
+
+  const {conditions: filterConditions, scheduled} = getTransactionByIdQueryParamConditions(filters, params);
+  const mainConditions = [...commonConditions, `(${idConditions.join(' or ')})`, ...filterConditions].join(' and ');
+  const subqueryConditions = payerAccountParams.length
+    ? [...commonConditions, `${Transaction.PAYER_ACCOUNT_ID} in (${payerAccountParams.join(',')})`].join(' and ')
+    : commonConditions.join(' and ');
 
   return {
-    isTransactionHash,
-    query: getTransactionQuery(mainConditions.join(' and '), commonConditions.join(' and ')),
+    query: getTransactionQuery(mainConditions, subqueryConditions),
     params,
     scheduled,
   };
@@ -850,6 +900,22 @@ const getTransactionsByIdOrHash = async (req, res) => {
 
   if (rows.length === 0) {
     throw new NotFoundError();
+  }
+
+  const innerTransactions = rows
+    .map((row) => row.inner_transactions)
+    .filter((innerTransactions) => innerTransactions)
+    .flat();
+
+  if (!isTransactionHash && innerTransactions.length > 0) {
+    const {query: innerTransactionQuery, params} = getTransactionsByTransactionIdsSql(
+      innerTransactions,
+      filters,
+      Transaction.VALID_START_NS
+    );
+    const {rows: innerTransactionRows} = await pool.queryQuietly(innerTransactionQuery, params);
+
+    rows.push(...innerTransactionRows);
   }
 
   const transactions = await formatTransactionRows(rows);
@@ -922,6 +988,7 @@ if (utils.isTestEnv()) {
     formatTransactionRows,
     getStakingRewardTimestamps,
     getTransactionsByIdOrHashCacheControlHeader,
+    getTransactionsByTransactionIdsSql,
     isValidTransactionHash,
     mayMissLongTermScheduledTransaction,
   });

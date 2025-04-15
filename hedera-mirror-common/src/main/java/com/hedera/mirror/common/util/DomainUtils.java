@@ -44,8 +44,14 @@ public class DomainUtils {
     private static final char NULL_REPLACEMENT = '�'; // Standard replacement character 0xFFFD
 
     static {
-        // Ensure it's eagerly instantiated since it is used for the conversion of JSONB data into domain objects.
-        ObjectToStringSerializer.init();
+        try {
+            // Ensure it's eagerly instantiated since it is used for the conversion of JSONB data into domain objects.
+            ObjectToStringSerializer.init();
+        } catch (NoClassDefFoundError e) {
+            log.warn(
+                    "Unable to initialize ObjectToStringSerializer possibly due to lack of Hibernate dependencies: {}",
+                    e.getMessage());
+        }
     }
 
     /**

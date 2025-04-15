@@ -55,6 +55,7 @@ import com.hedera.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import com.hedera.mirror.test.e2e.acceptance.client.TokenClient;
 import com.hedera.mirror.test.e2e.acceptance.config.Web3Properties;
 import com.hedera.mirror.test.e2e.acceptance.props.ExpandedAccountId;
+import com.hedera.mirror.test.e2e.acceptance.util.TestUtil;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
@@ -210,7 +211,7 @@ public class CallFeature extends AbstractFeature {
         networkTransactionResponse = tokenClient.transferNonFungibleToken(
                 nonFungibleTokenId,
                 receiverAccountId,
-                AccountId.fromString(precompileContractAddress),
+                TestUtil.fromSolidityAddress(precompileContractAddress),
                 List.of(1L),
                 null,
                 null,
