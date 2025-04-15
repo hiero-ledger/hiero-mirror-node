@@ -78,6 +78,7 @@
   "responseJson": {
     "transactions": [
       {
+        "batch_key": null,
         "bytes": "Ynl0ZXM=",
         "charged_tx_fee": 7,
         "consensus_timestamp": "1565779604.000000002",
@@ -117,6 +118,7 @@
         "valid_start_timestamp": "1565779604.000000001"
       },
       {
+        "batch_key": null,
         "bytes": "Ynl0ZXM=",
         "charged_tx_fee": 7,
         "consensus_timestamp": "1565779603.000000002",

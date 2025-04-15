@@ -18,6 +18,7 @@
     "balances": [],
     "transactions": [
       {
+        "batch_key": null,
         "charged_tx_fee": 7,
         "payerAccountId": "0.0.10",
         "nodeAccountId": "0.0.4",
@@ -38,6 +39,7 @@
         ]
       },
       {
+        "batch_key": null,
         "charged_tx_fee": 8,
         "payerAccountId": "0.0.10",
         "nodeAccountId": "0.0.4",
@@ -58,6 +60,7 @@
         ]
       },
       {
+        "batch_key": null,
         "charged_tx_fee": 9,
         "payerAccountId": "0.0.10",
         "nodeAccountId": "0.0.4",

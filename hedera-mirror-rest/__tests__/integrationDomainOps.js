@@ -852,9 +852,11 @@ const setAccountBalance = async (balance) => {
 };
 
 const defaultTransaction = {
+  batch_key: null,
   charged_tx_fee: NODE_FEE + NETWORK_FEE + SERVICE_FEE,
   consensus_timestamp: null,
   entity_id: null,
+  inner_transactions: null,
   max_custom_fees: [],
   max_fee: 33,
   nft_transfer: null,
@@ -897,6 +899,12 @@ const addTransaction = async (transaction) => {
     });
     // use JSONStringify to handle BigInt values
     transaction.nft_transfer = JSONStringify(transaction.nft_transfer);
+  }
+
+  if (typeof transaction.batch_key === 'string') {
+    transaction.batch_key = Buffer.from(transaction.batch_key, 'hex');
+  } else if (transaction.batch_key != null) {
+    transaction.batch_key = Buffer.from(transaction.batch_key);
   }
   transaction.transaction_hash = valueToBuffer(transaction.transaction_hash);
 

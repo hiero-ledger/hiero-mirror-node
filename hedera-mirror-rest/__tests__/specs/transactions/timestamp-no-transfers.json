@@ -57,6 +57,7 @@
   "responseJson": {
     "transactions": [
       {
+        "batch_key": null,
         "bytes": "Ynl0ZXM=",
         "charged_tx_fee": 0,
         "consensus_timestamp": "1565779209.711927001",
