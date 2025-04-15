@@ -699,8 +699,8 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
 
     private void fungibleTokenAllowancePersistHistorical(final long tokenId, final Entity owner, final Entity spender) {
         tokenAllowancePersistCustomizable(ta -> ta.tokenId(tokenId)
-                .owner(owner.getNum())
-                .spender(spender.getNum())
+                .owner(owner.getId())
+                .spender(spender.getId())
                 .amount(DEFAULT_AMOUNT_GRANTED)
                 .amountGranted(DEFAULT_AMOUNT_GRANTED)
                 .timestampRange(historicalRange));

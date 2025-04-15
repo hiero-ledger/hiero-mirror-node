@@ -9,6 +9,7 @@ import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.time.Instant;
+import java.util.Arrays;
 import lombok.experimental.UtilityClass;
 import org.hyperledger.besu.datatypes.Address;
 
@@ -48,6 +49,10 @@ public class Utils {
     public static boolean isMirror(final byte[] address) {
         if (address == null || address.length != EVM_ADDRESS_LEN) {
             return false;
+        }
+
+        if (Arrays.equals(address, Address.ZERO.toArray())) {
+            return true;
         }
 
         var entityId = DomainUtils.fromEvmAddress(address);

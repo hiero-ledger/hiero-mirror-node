@@ -20,6 +20,7 @@ import static org.mockito.Mockito.doAnswer;
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.viewmodel.BlockType;
@@ -235,8 +236,8 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     @Test
     void testNonSystemAccountCodeHash() throws Exception {
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
-        final var address = toAddress(1078);
-        final var autoRenewEntityId = entityIdFromEvmAddress(address);
+        final var autoRenewEntityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1078);
+        final var address = toAddress(autoRenewEntityId);
         domainBuilder
                 .entity()
                 .customize(e -> e.id(autoRenewEntityId.getId())
@@ -254,12 +255,11 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     @Test
     void selfDestructCall() throws Exception {
         // Given
-        final var senderAddress = toAddress(1043);
+        final var senderEntityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1078);
         final var senderAlias = Bytes.wrap(recoverAddressFromPubKey(ByteString.copyFrom(
                         Hex.decode("3a2103af80b90d25145da28c583359beb47b21796b2fe1a23c1511e443e7a64dfdb27d"))
                 .substring(2)
                 .toByteArray()));
-        final var senderEntityId = entityIdFromEvmAddress(senderAddress);
         final var senderPublicKey = ByteString.copyFrom(
                 Hex.decode("3a2103af80b90d25145da28c583359beb47b21796b2fe1a23c1511e443e7a64dfdb27d"));
         domainBuilder

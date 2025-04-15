@@ -516,8 +516,8 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var tokenId = token.getTokenId();
 
         tokenAllowancePersistCustomizable(a -> a.tokenId(tokenId)
-                .owner(owner.getNum())
-                .spender(spender.getNum())
+                .owner(owner.getId())
+                .spender(spender.getId())
                 .amount(DEFAULT_AMOUNT_GRANTED)
                 .amountGranted(DEFAULT_AMOUNT_GRANTED)
                 .timestampRange(historicalRange));
@@ -543,8 +543,8 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var tokenId = token.getTokenId();
 
         nftAllowancePersistCustomizable(a -> a.tokenId(tokenId)
-                .owner(owner.getNum())
-                .spender(spender.getNum())
+                .owner(owner.getId())
+                .spender(spender.getId())
                 .timestampRange(historicalRange)
                 .approvedForAll(true));
 

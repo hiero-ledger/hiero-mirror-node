@@ -4,6 +4,7 @@ package com.hedera.node.app.service.evm.accounts;
 
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.util.DomainUtils;
+import java.util.Arrays;
 import org.hyperledger.besu.datatypes.Address;
 
 public abstract class HederaEvmContractAliases {
@@ -19,6 +20,10 @@ public abstract class HederaEvmContractAliases {
     public static boolean isMirror(final byte[] address) {
         if (address.length != EVM_ADDRESS_LEN) {
             return false;
+        }
+
+        if (Arrays.equals(address, Address.ZERO.toArray())) {
+            return true;
         }
 
         var entityId = DomainUtils.fromEvmAddress(address);

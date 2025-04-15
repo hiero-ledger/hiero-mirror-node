@@ -193,9 +193,6 @@ class TokenRepositoryTest extends Web3IntegrationTest {
         assertThat(tokenRepository.findFungibleTotalSupplyByTokenIdAndTimestamp(
                         tokenId.getId(), blockTimestamp, treasuryAccountId.getId()))
                 .isEqualTo(expectedTotalSupply);
-
-        commonProperties.setShard(shardOriginalValue);
-        commonProperties.setRealm(realmOriginalValue);
     }
 
     @Test

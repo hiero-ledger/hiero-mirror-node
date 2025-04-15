@@ -880,8 +880,9 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(entity.getCreatedTimestamp(), EntityId.of(2)))
-                        .balance(entity.getBalance()))
+                .customize(
+                        ab -> ab.id(new AccountBalance.Id(entity.getCreatedTimestamp(), systemEntity.treasuryAccount()))
+                                .balance(entity.getBalance()))
                 .persist();
         domainBuilder
                 .accountBalance()

@@ -11,20 +11,30 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_REVER
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.web3j.generated.InternalCaller;
 import org.apache.tuweni.bytes.Bytes;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class InternalCallsTest extends AbstractContractCallServiceTest {
 
-    private static final String NON_EXISTING_ADDRESS = toAddress(123456789L).toHexString();
+    private String nonExistingAddress;
+
+    @BeforeAll
+    void configure() {
+        var nonExistingEntityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 123456789);
+        this.nonExistingAddress = toAddress(nonExistingEntityId).toHexString();
+    }
 
     @Test
     void callToNonExistingContract() throws Exception {
         final var contract = testWeb3jService.deploy(InternalCaller::deploy);
         meterRegistry.clear();
-        final var result = contract.call_callNonExisting(NON_EXISTING_ADDRESS).send();
+        final var result = contract.call_callNonExisting(nonExistingAddress).send();
 
         assertThat(Bytes.wrap(result.component2())).isEqualTo(Bytes.EMPTY);
         assertGasLimit(TRANSACTION_GAS_LIMIT);
@@ -56,7 +66,7 @@ public class InternalCallsTest extends AbstractContractCallServiceTest {
     void sendToNonExistingAccount() throws Exception {
         final var contract = testWeb3jService.deploy(InternalCaller::deploy);
         meterRegistry.clear();
-        final var result = contract.call_sendTo(NON_EXISTING_ADDRESS).send();
+        final var result = contract.call_sendTo(nonExistingAddress).send();
 
         if (!mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result).isEqualTo(Boolean.TRUE);
@@ -71,7 +81,7 @@ public class InternalCallsTest extends AbstractContractCallServiceTest {
     void transferToNonExistingAccount() throws Exception {
         final var contract = testWeb3jService.deploy(InternalCaller::deploy);
         meterRegistry.clear();
-        final var functionCall = contract.send_transferTo(NON_EXISTING_ADDRESS);
+        final var functionCall = contract.send_transferTo(nonExistingAddress);
         if (!mirrorNodeEvmProperties.isModularizedServices()) {
             functionCall.send();
             assertThat(testWeb3jService.getTransactionResult()).isEqualTo(HEX_PREFIX);
