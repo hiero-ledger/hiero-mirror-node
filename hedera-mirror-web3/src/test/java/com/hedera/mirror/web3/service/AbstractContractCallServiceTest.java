@@ -69,7 +69,6 @@ import org.web3j.tx.Contract;
 @Import(Web3jTestConfiguration.class)
 public abstract class AbstractContractCallServiceTest extends Web3IntegrationTest {
 
-    protected static final String TREASURY_ADDRESS = EvmTokenUtils.toAddress(2).toHexString();
     protected static final long DEFAULT_ACCOUNT_BALANCE = 100_000_000_000_000_000L;
     protected static final long DEFAULT_TOKEN_BALANCE = 100;
     protected static final BigInteger DEFAULT_SERIAL_NUMBER = BigInteger.ONE;
@@ -100,6 +99,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected RecordFile genesisRecordFile;
     protected Entity treasuryEntity;
     protected double modularizedTrafficPercent;
+    protected String treasuryAddress;
+
 
     public static Key getKeyWithDelegatableContractId(final Contract contract) {
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
@@ -125,13 +126,13 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         } else {
             mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
         }
-
+        treasuryAddress = EvmTokenUtils.toAddress(systemEntity.treasuryAccount().getId()).toHexString();
         genesisRecordFile =
                 domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         treasuryEntity = domainBuilder
                 .entity()
-                .customize(e -> e.id(2L)
-                        .num(2L)
+                .customize(e -> e.id(systemEntity.treasuryAccount().getId())
+                        .num(systemEntity.treasuryAccount().getNum())
                         // The balance should not be set to max value 5000000000000000000L, because if we use it as a
                         // node operator it would not be able to receive rewards and can cause failures
                         .balance(1000000000000000000L)
@@ -140,8 +141,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .persist();
         domainBuilder
                 .entity()
-                .customize(e -> e.id(98L)
-                        .num(98L)
+                .customize(e -> e.id(systemEntity.feeCollectorAccount().getId())
+                        .num(systemEntity.feeCollectorAccount().getNum())
                         .createdTimestamp(genesisRecordFile.getConsensusStart())
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
@@ -713,15 +714,15 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected void persistRewardAccounts() {
         domainBuilder
                 .entity()
-                .customize(e -> e.id(801L)
-                        .num(801L)
+                .customize(e -> e.id(systemEntity.nodeRewardAccount().getId())
+                        .num(systemEntity.nodeRewardAccount().getNum())
                         .createdTimestamp(genesisRecordFile.getConsensusStart())
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
         domainBuilder
                 .entity()
-                .customize(e -> e.id(800L)
-                        .num(800L)
+                .customize(e -> e.id(systemEntity.stakingRewardAccount().getId())
+                        .num(systemEntity.stakingRewardAccount().getNum())
                         .createdTimestamp(genesisRecordFile.getConsensusStart())
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();

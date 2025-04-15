@@ -20,7 +20,7 @@ public class RevertTest extends AbstractContractCallServiceTest {
     void testRevertPayable() {
         final var contract = testWeb3jService.deploy(Reverter::deploy);
         meterRegistry.clear();
-        testWeb3jService.setSender(TREASURY_ADDRESS);
+        testWeb3jService.setSender(treasuryAddress);
 
         final var functionCall = contract.send_revertPayable(BigInteger.ONE);
         assertThatThrownBy(functionCall::send)

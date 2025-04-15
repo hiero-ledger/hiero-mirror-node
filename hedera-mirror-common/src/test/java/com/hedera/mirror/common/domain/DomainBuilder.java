@@ -415,7 +415,7 @@ public class DomainBuilder {
     public DomainWrapper<Entity, Entity.EntityBuilder<?, ?>> entity(EntityId entityId, long createdTimestamp) {
         var builder = Entity.builder()
                 .alias(key())
-                .autoRenewAccountId(id())
+                .autoRenewAccountId(entityId().getNum())
                 .autoRenewPeriod(8_000_000L)
                 .balance(tinybar())
                 .balanceTimestamp(createdTimestamp)
