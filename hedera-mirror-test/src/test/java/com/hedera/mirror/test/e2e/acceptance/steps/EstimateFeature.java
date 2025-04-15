@@ -63,6 +63,7 @@ import com.hedera.mirror.test.e2e.acceptance.config.Web3Properties;
 import com.hedera.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
 import com.hedera.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import com.hedera.mirror.test.e2e.acceptance.util.ModelBuilder;
+import com.hedera.mirror.test.e2e.acceptance.util.TestUtil;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
@@ -425,7 +426,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
 
     @And("I approve the contract to use FT")
     public void approveFungibleWithERCContract() {
-        final var ercTestContractId = AccountId.fromSolidityAddress(ercSolidityAddress);
+        final var ercTestContractId = TestUtil.fromSolidityAddress(ercSolidityAddress);
         networkTransactionResponse = accountClient.approveToken(fungibleTokenId, ercTestContractId, 10);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
     }
