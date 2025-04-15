@@ -15,7 +15,8 @@ import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -62,7 +63,7 @@ import java.util.function.Supplier;
  *                         account has a valid auto-renew account, and is not deleted upon expiration.
  *                         If this is not provided in an allowed range on account creation, the transaction will fail with INVALID_AUTO_RENEWAL_PERIOD.
  *                         The default values for the minimum period and maximum period are 30 days and 90 days, respectively.,
- * @param contractKvPairsNumber <b>(27)</b> If this account is a smart-contract, number of key-value pairs stored on the contract.
+ * @param contractKvPairsNumberSupplier <b>(27)</b> If this account is a smart-contract, number of key-value pairs stored on the contract in a supplier.
  *                              This is used to determine the storage rent for the contract.,
  * @param cryptoAllowancesSupplier <b>(28)</b> (Optional) List of crypto allowances approved by the account in a supplier.
  *  *                         It contains account number for which the allowance is approved to and
@@ -117,7 +118,7 @@ public record Account(
         long stakeAtStartOfLastRewardedPeriod,
         @Nullable AccountID autoRenewAccountId,
         long autoRenewSeconds,
-        int contractKvPairsNumber,
+        Supplier<Integer> contractKvPairsNumberSupplier,
         @Nonnull Supplier<List<AccountCryptoAllowance>> cryptoAllowancesSupplier,
         @Nonnull Supplier<List<AccountApprovalForAllAllowance>> approveForAllNftAllowancesSupplier,
         @Nonnull Supplier<List<AccountFungibleTokenAllowance>> tokenAllowancesSupplier,
@@ -198,7 +199,7 @@ public record Account(
                 stakeAtStartOfLastRewardedPeriod,
                 autoRenewAccountId,
                 autoRenewSeconds,
-                contractKvPairsNumber,
+                () -> contractKvPairsNumber,
                 () -> cryptoAllowances,
                 () -> approveForAllNftAllowances,
                 () -> tokenAllowances,
@@ -308,8 +309,10 @@ public record Account(
         if (autoRenewSeconds != DEFAULT.autoRenewSeconds) {
             result = 31 * result + Long.hashCode(autoRenewSeconds);
         }
-        if (contractKvPairsNumber != DEFAULT.contractKvPairsNumber) {
-            result = 31 * result + Integer.hashCode(contractKvPairsNumber);
+        if (contractKvPairsNumberSupplier != null
+                && DEFAULT.contractKvPairsNumberSupplier != null
+                && !contractKvPairsNumberSupplier.get().equals(DEFAULT.contractKvPairsNumberSupplier.get())) {
+            result = 31 * result + Integer.hashCode(contractKvPairsNumberSupplier.get());
         }
 
         for (Object o : cryptoAllowancesSupplier.get()) {
@@ -493,7 +496,15 @@ public record Account(
         if (autoRenewSeconds != thatObj.autoRenewSeconds) {
             return false;
         }
-        if (contractKvPairsNumber != thatObj.contractKvPairsNumber) {
+
+        if (contractKvPairsNumberSupplier == null && thatObj.contractKvPairsNumberSupplier != null) {
+            return false;
+        }
+        if (contractKvPairsNumberSupplier != null && thatObj.contractKvPairsNumberSupplier == null) {
+            return false;
+        }
+        if (contractKvPairsNumberSupplier != null
+                && !contractKvPairsNumberSupplier.get().equals(thatObj.contractKvPairsNumberSupplier.get())) {
             return false;
         }
         if (!cryptoAllowancesSupplier.get().equals(thatObj.cryptoAllowancesSupplier.get())) {
@@ -891,7 +902,7 @@ public record Account(
                 stakeAtStartOfLastRewardedPeriod,
                 autoRenewAccountId,
                 autoRenewSeconds,
-                contractKvPairsNumber,
+                contractKvPairsNumberSupplier,
                 cryptoAllowancesSupplier,
                 approveForAllNftAllowancesSupplier,
                 tokenAllowancesSupplier,
@@ -916,6 +927,10 @@ public record Account(
 
     public long numberOwnedNfts() {
         return numberOwnedNftsSupplier.get();
+    }
+
+    public int contractKvPairsNumber() {
+        return contractKvPairsNumberSupplier.get();
     }
 
     public List<AccountCryptoAllowance> cryptoAllowances() {
@@ -1066,7 +1081,7 @@ public record Account(
         private AccountID autoRenewAccountId = null;
 
         private long autoRenewSeconds = 0;
-        private int contractKvPairsNumber = 0;
+        private Supplier<Integer> contractKvPairsNumberSupplier = DEFAULT_INTEGER_SUPPLIER;
 
         @Nonnull
         private Supplier<List<AccountCryptoAllowance>> cryptoAllowancesSupplier = Collections::emptyList;
@@ -1132,7 +1147,7 @@ public record Account(
          *                         account has a valid auto-renew account, and is not deleted upon expiration.
          *                         If this is not provided in an allowed range on account creation, the transaction will fail with INVALID_AUTO_RENEWAL_PERIOD.
          *                         The default values for the minimum period and maximum period are 30 days and 90 days, respectively.,
-         * @param contractKvPairsNumber <b>(27)</b> If this account is a smart-contract, number of key-value pairs stored on the contract.
+         * @param contractKvPairsNumberSupplier <b>(27)</b> If this account is a smart-contract, number of key-value pairs stored on the contract in a supplier.
          *                              This is used to determine the storage rent for the contract.,
          * @param cryptoAllowancesSupplier <b>(28)</b> (Optional) List of crypto allowances approved by the account in a supplier.
          *  *                         It contains account number for which the allowance is approved to and
@@ -1190,7 +1205,7 @@ public record Account(
                 long stakeAtStartOfLastRewardedPeriod,
                 AccountID autoRenewAccountId,
                 long autoRenewSeconds,
-                int contractKvPairsNumber,
+                Supplier<Integer> contractKvPairsNumberSupplier,
                 Supplier<List<AccountCryptoAllowance>> cryptoAllowancesSupplier,
                 Supplier<List<AccountApprovalForAllAllowance>> approveForAllNftAllowancesSupplier,
                 Supplier<List<AccountFungibleTokenAllowance>> tokenAllowancesSupplier,
@@ -1224,7 +1239,7 @@ public record Account(
             this.stakeAtStartOfLastRewardedPeriod = stakeAtStartOfLastRewardedPeriod;
             this.autoRenewAccountId = autoRenewAccountId;
             this.autoRenewSeconds = autoRenewSeconds;
-            this.contractKvPairsNumber = contractKvPairsNumber;
+            this.contractKvPairsNumberSupplier = contractKvPairsNumberSupplier;
             this.cryptoAllowancesSupplier =
                     cryptoAllowancesSupplier == null ? Collections::emptyList : cryptoAllowancesSupplier;
             this.approveForAllNftAllowancesSupplier = approveForAllNftAllowancesSupplier == null
@@ -1271,7 +1286,7 @@ public record Account(
                     stakeAtStartOfLastRewardedPeriod,
                     autoRenewAccountId,
                     autoRenewSeconds,
-                    contractKvPairsNumber,
+                    contractKvPairsNumberSupplier,
                     cryptoAllowancesSupplier,
                     approveForAllNftAllowancesSupplier,
                     tokenAllowancesSupplier,
@@ -1701,11 +1716,23 @@ public record Account(
          * <b>(26)</b> If this account is a smart-contract, number of key-value pairs stored on the contract.
          * This is used to determine the storage rent for the contract.
          *
+         * @param contractKvPairsNumberSupplier value to set
+         * @return builder to continue building with
+         */
+        public Builder contractKvPairsNumber(Supplier<Integer> contractKvPairsNumberSupplier) {
+            this.contractKvPairsNumberSupplier = contractKvPairsNumberSupplier;
+            return this;
+        }
+
+        /**
+         * <b>(26)</b> If this account is a smart-contract, number of key-value pairs stored on the contract.
+         * This is used to determine the storage rent for the contract.
+         *
          * @param contractKvPairsNumber value to set
          * @return builder to continue building with
          */
         public Builder contractKvPairsNumber(int contractKvPairsNumber) {
-            this.contractKvPairsNumber = contractKvPairsNumber;
+            this.contractKvPairsNumberSupplier = () -> contractKvPairsNumber;
             return this;
         }
 

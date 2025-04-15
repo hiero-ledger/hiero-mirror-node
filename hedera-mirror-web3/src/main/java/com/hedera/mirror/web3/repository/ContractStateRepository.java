@@ -45,4 +45,25 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
             """,
             nativeQuery = true)
     Optional<byte[]> findStorageByBlockTimestamp(long id, byte[] slot, long blockTimestamp);
+
+    @Query(
+            value =
+                    """
+            select count(*)
+            from contract_state
+            where contract_id = ?1
+            """,
+            nativeQuery = true)
+    int countSlotsByContractId(long contractId);
+
+    @Query(
+            value =
+                    """
+            select count(distinct slot)
+            from contract_state_change
+            where contract_id = ?1
+            and consensus_timestamp <= ?2
+            """,
+            nativeQuery = true)
+    int countDistinctSlotsByContractIdAndTimestamp(long contractId, long blockTimestamp);
 }

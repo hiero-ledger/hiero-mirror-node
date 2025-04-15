@@ -21,6 +21,7 @@ import com.hedera.mirror.common.domain.entity.NftAllowance;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.repository.AccountBalanceRepository;
+import com.hedera.mirror.web3.repository.ContractStateRepository;
 import com.hedera.mirror.web3.repository.CryptoAllowanceRepository;
 import com.hedera.mirror.web3.repository.NftAllowanceRepository;
 import com.hedera.mirror.web3.repository.NftRepository;
@@ -57,6 +58,7 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
     private final SystemEntity systemEntity;
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenAllowanceRepository tokenAllowanceRepository;
+    private final ContractStateRepository contractStateRepository;
 
     public AccountReadableKVState(
             CommonEntityAccessor commonEntityAccessor,
@@ -66,7 +68,8 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
             TokenAllowanceRepository tokenAllowanceRepository,
             CryptoAllowanceRepository cryptoAllowanceRepository,
             TokenAccountRepository tokenAccountRepository,
-            AccountBalanceRepository accountBalanceRepository) {
+            AccountBalanceRepository accountBalanceRepository,
+            ContractStateRepository contractStateRepository) {
         super(KEY);
         this.commonEntityAccessor = commonEntityAccessor;
         this.accountBalanceRepository = accountBalanceRepository;
@@ -76,6 +79,7 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
         this.systemEntity = systemEntity;
         this.tokenAccountRepository = tokenAccountRepository;
         this.tokenAllowanceRepository = tokenAllowanceRepository;
+        this.contractStateRepository = contractStateRepository;
     }
 
     @Override
@@ -103,6 +107,7 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
                 .approveForAllNftAllowances(getApproveForAllNfts(entity.getId(), timestamp))
                 .autoRenewAccountId(toAccountId(entity.getAutoRenewAccountId()))
                 .autoRenewSeconds(Objects.requireNonNullElse(entity.getAutoRenewPeriod(), DEFAULT_AUTO_RENEW_PERIOD))
+                .contractKvPairsNumber(getStorageKVPairs(entity, timestamp))
                 .cryptoAllowances(getCryptoAllowances(entity.getId(), timestamp))
                 .deleted(Objects.requireNonNullElse(entity.getDeleted(), false))
                 .ethereumNonce(Objects.requireNonNullElse(entity.getEthereumNonce(), 0L))
@@ -191,6 +196,16 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
                         () -> tokenAccountRepository.countByAccountIdAndAssociatedGroupedByBalanceIsPositive(accountId))
                 .stream()
                 .toList()));
+    }
+
+    private Supplier<Integer> getStorageKVPairs(final Entity entity, final Optional<Long> timestamp) {
+        if (!CONTRACT.equals(entity.getType())) {
+            return Suppliers.memoize(() -> 0);
+        }
+        final var contractId = entity.toEntityId().getId();
+        return Suppliers.memoize(() -> timestamp
+                .map(t -> contractStateRepository.countDistinctSlotsByContractIdAndTimestamp(contractId, t))
+                .orElseGet(() -> contractStateRepository.countSlotsByContractId(contractId)));
     }
 
     private TokenAccountBalances getTokenAccountBalances(final List<TokenAccountAssociationsCount> counts) {
