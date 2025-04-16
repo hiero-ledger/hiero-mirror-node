@@ -74,12 +74,8 @@ class StorageContractTest extends AbstractContractCallServiceHistoricalTest {
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
         final var evmAddress = toEvmAddress(contractEntityId);
         final var entity = domainBuilder
-                .entity()
-                .customize(e -> e.id(contractEntityId.getId())
-                        .num(contractEntityId.getNum())
-                        .evmAddress(evmAddress)
-                        .type(CONTRACT)
-                        .balance(1500L))
+                .entity(contractEntityId)
+                .customize(e -> e.evmAddress(evmAddress).type(CONTRACT).balance(1500L))
                 .persist();
         domainBuilder
                 .contract()
@@ -94,10 +90,8 @@ class StorageContractTest extends AbstractContractCallServiceHistoricalTest {
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
         final var evmAddress = toEvmAddress(contractEntityId);
         final var entity = domainBuilder
-                .entity()
-                .customize(e -> e.id(contractEntityId.getId())
-                        .num(contractEntityId.getNum())
-                        .evmAddress(evmAddress)
+                .entity(contractEntityId)
+                .customize(e -> e.evmAddress(evmAddress)
                         .type(CONTRACT)
                         .createdTimestamp(historicalRange.lowerEndpoint())
                         .timestampRange(historicalRange)
