@@ -312,7 +312,7 @@ public class HTSPrecompiledContract extends EvmHTSPrecompiledContract {
                 final var nestedFunctionSelector = target.descriptor();
 
                 switch (nestedFunctionSelector) {
-                        // cases will be added with the addition of precompiles using redirect operations
+                    // cases will be added with the addition of precompiles using redirect operations
                     case AbiConstants.ABI_ID_ERC_APPROVE -> {
                         final var isFungibleToken =
                                 /* For implicit redirect call scenarios, at this point in the logic it has already been

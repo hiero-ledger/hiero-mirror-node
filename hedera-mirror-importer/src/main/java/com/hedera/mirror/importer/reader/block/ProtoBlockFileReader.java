@@ -288,8 +288,8 @@ public class ProtoBlockFileReader implements BlockFileReader {
             index++;
             switch (itemCase) {
                 case EVENT_HEADER, EVENT_TRANSACTION, ROUND_HEADER -> blockRootHashDigest.addInputBlockItem(blockItem);
-                case BLOCK_HEADER, STATE_CHANGES, TRANSACTION_OUTPUT, TRANSACTION_RESULT -> blockRootHashDigest
-                        .addOutputBlockItem(blockItem);
+                case BLOCK_HEADER, STATE_CHANGES, TRANSACTION_OUTPUT, TRANSACTION_RESULT ->
+                    blockRootHashDigest.addOutputBlockItem(blockItem);
                 default -> {
                     // other block items aren't considered input / output
                 }

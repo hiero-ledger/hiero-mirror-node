@@ -71,13 +71,16 @@ public abstract class AbstractTokenUpdatePrecompile extends AbstractWritePrecomp
         switch (functionId) {
             case AbiConstants.ABI_ID_UPDATE_TOKEN_INFO,
                     AbiConstants.ABI_ID_UPDATE_TOKEN_INFO_V2,
-                    AbiConstants.ABI_ID_UPDATE_TOKEN_INFO_V3 -> tokenUpdateLogic.updateToken(
-                    transactionBody.getTokenUpdate(), frame.getBlockValues().getTimestamp(), store, hederaTokenStore);
-            case AbiConstants.ABI_ID_UPDATE_TOKEN_EXPIRY_INFO,
-                    AbiConstants.ABI_ID_UPDATE_TOKEN_EXPIRY_INFO_V2 -> tokenUpdateLogic.updateTokenExpiryInfo(
-                    transactionBody.getTokenUpdate(), store, hederaTokenStore);
-            case AbiConstants.ABI_ID_UPDATE_TOKEN_KEYS -> tokenUpdateLogic.updateTokenKeys(
-                    transactionBody.getTokenUpdate(), 0L, hederaTokenStore);
+                    AbiConstants.ABI_ID_UPDATE_TOKEN_INFO_V3 ->
+                tokenUpdateLogic.updateToken(
+                        transactionBody.getTokenUpdate(),
+                        frame.getBlockValues().getTimestamp(),
+                        store,
+                        hederaTokenStore);
+            case AbiConstants.ABI_ID_UPDATE_TOKEN_EXPIRY_INFO, AbiConstants.ABI_ID_UPDATE_TOKEN_EXPIRY_INFO_V2 ->
+                tokenUpdateLogic.updateTokenExpiryInfo(transactionBody.getTokenUpdate(), store, hederaTokenStore);
+            case AbiConstants.ABI_ID_UPDATE_TOKEN_KEYS ->
+                tokenUpdateLogic.updateTokenKeys(transactionBody.getTokenUpdate(), 0L, hederaTokenStore);
         }
 
         return new EmptyRunResult();

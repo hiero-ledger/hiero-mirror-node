@@ -79,7 +79,7 @@ public class UpdatableReferenceCache<K> {
                     throw new UpdatableCacheUsageException("Trying to update a value with exact same reference - "
                             + "probably indicates an error where the value was modified");
                 }
-                // fallthrough
+            // fallthrough
             case NOT_YET_FETCHED, MISSING, UPDATED, DELETED:
                 current.put(key, value);
                 break;
@@ -96,10 +96,10 @@ public class UpdatableReferenceCache<K> {
         switch (getCacheLineState(key).state()) {
             case PRESENT -> current.put(key, null);
             case UPDATED -> current.remove(key);
-            case NOT_YET_FETCHED -> throw new UpdatableCacheUsageException(
-                    "Trying to delete a value that hasn't been fetched");
-            case MISSING, DELETED -> throw new UpdatableCacheUsageException(
-                    "Trying to delete a missing/already deleted value");
+            case NOT_YET_FETCHED ->
+                throw new UpdatableCacheUsageException("Trying to delete a value that hasn't been fetched");
+            case MISSING, DELETED ->
+                throw new UpdatableCacheUsageException("Trying to delete a missing/already deleted value");
             case INVALID -> throw new IllegalStateException(INVALID_STATE_MESSAGE);
         }
     }
