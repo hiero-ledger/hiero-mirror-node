@@ -20,7 +20,7 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
     @Test
     void isValidAliasStandardAccount() throws Exception {
         // Given
-        var account = accountEntityPersist();
+        final var account = accountEntityPersist();
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
         final var result = contract.call_isValidAliasCall(getAddressFromEntity(account));
@@ -37,7 +37,7 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
     @Test
     void isValidAliasWithAliasAccount() throws Exception {
         // Given
-        var accountWithEvmAddress = accountEntityWithEvmAddressPersist();
+        final var accountWithEvmAddress = accountEntityWithEvmAddressPersist();
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
         final var result = contract.call_isValidAliasCall(getAddressFromEntity(accountWithEvmAddress));
@@ -86,8 +86,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
     @Test
     void getAliasWithLongZeroAddress() throws Exception {
         // Given
-        var accountEntity = accountEntityWithEvmAddressPersist();
-        var addressAlias = getAliasAddressFromEntity(accountEntity);
+        final var accountEntity = accountEntityWithEvmAddressPersist();
+        final var addressAlias = getAliasAddressFromEntity(accountEntity);
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
         final var functionCall = contract.send_getEvmAddressAliasCall(getAddressFromEntity(accountEntity));
@@ -128,9 +128,9 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
     @Test
     void getAccountAddressWithAlias() throws Exception {
         // Given
-        var accountEntity = accountEntityWithEvmAddressPersist();
-        var addressAlias = getAliasAddressFromEntity(accountEntity);
-        var accountLongZeroAddress = getAddressFromEntity(accountEntity);
+        final var accountEntity = accountEntityWithEvmAddressPersist();
+        final var addressAlias = getAliasAddressFromEntity(accountEntity);
+        final var accountLongZeroAddress = getAddressFromEntity(accountEntity);
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
 
