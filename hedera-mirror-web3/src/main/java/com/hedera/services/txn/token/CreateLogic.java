@@ -137,8 +137,8 @@ public class CreateLogic {
                 validateTrue(token.isNonFungibleUnique(), CUSTOM_ROYALTY_FEE_ONLY_ALLOWED_FOR_NON_FUNGIBLE_UNIQUE);
                 validateAndFinalizeRoyaltyFeeWith(token, collector, store, customFee);
             }
-            case FRACTIONAL_FEE -> validateTrue(
-                    token.isFungibleCommon(), CUSTOM_FRACTIONAL_FEE_ONLY_ALLOWED_FOR_FUNGIBLE_COMMON);
+            case FRACTIONAL_FEE ->
+                validateTrue(token.isFungibleCommon(), CUSTOM_FRACTIONAL_FEE_ONLY_ALLOWED_FOR_FUNGIBLE_COMMON);
         }
     }
 

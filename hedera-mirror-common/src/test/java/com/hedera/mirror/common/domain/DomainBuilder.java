@@ -1172,12 +1172,12 @@ public class DomainBuilder {
 
     public Key protobufKey(KeyCase keyCase) {
         return switch (keyCase) {
-            case ECDSA_SECP256K1 -> Key.newBuilder()
-                    .setECDSASecp256K1(generateSecp256k1Key())
-                    .build();
-            case ED25519 -> Key.newBuilder()
-                    .setEd25519(ByteString.copyFrom(bytes(KEY_LENGTH_ED25519)))
-                    .build();
+            case ECDSA_SECP256K1 ->
+                Key.newBuilder().setECDSASecp256K1(generateSecp256k1Key()).build();
+            case ED25519 ->
+                Key.newBuilder()
+                        .setEd25519(ByteString.copyFrom(bytes(KEY_LENGTH_ED25519)))
+                        .build();
             default -> throw new UnsupportedOperationException("Key type not supported");
         };
     }

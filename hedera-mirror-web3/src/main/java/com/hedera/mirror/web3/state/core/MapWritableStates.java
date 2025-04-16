@@ -100,8 +100,9 @@ public class MapWritableStates extends AbstractMapReadableState implements Writa
                 case WritableKVStateBase kv -> kv.commit();
                 case WritableSingletonStateBase singleton -> singleton.commit();
                 case WritableQueueStateBase queue -> queue.commit();
-                default -> throw new IllegalStateException(
-                        "Unknown state type " + state.getClass().getName());
+                default ->
+                    throw new IllegalStateException(
+                            "Unknown state type " + state.getClass().getName());
             }
         });
         if (onCommit != null) {

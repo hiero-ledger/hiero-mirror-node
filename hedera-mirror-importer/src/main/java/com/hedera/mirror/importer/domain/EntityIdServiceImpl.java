@@ -88,13 +88,14 @@ public class EntityIdServiceImpl implements EntityIdService {
 
         return switch (contractId.getContractCase()) {
             case CONTRACTNUM -> Optional.ofNullable(EntityId.of(contractId));
-            case EVM_ADDRESS -> cacheLookup(
-                    contractId.getEvmAddress(),
-                    () -> findByEvmAddress(
-                            toBytes(contractId.getEvmAddress()),
-                            contractId.getShardNum(),
-                            contractId.getRealmNum(),
-                            throwRecoverableError));
+            case EVM_ADDRESS ->
+                cacheLookup(
+                        contractId.getEvmAddress(),
+                        () -> findByEvmAddress(
+                                toBytes(contractId.getEvmAddress()),
+                                contractId.getShardNum(),
+                                contractId.getRealmNum(),
+                                throwRecoverableError));
             default -> {
                 Utility.handleRecoverableError("Invalid ContractID: {}", contractId);
                 yield Optional.empty();

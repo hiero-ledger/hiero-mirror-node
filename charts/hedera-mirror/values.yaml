@@ -262,6 +262,13 @@ redis:
     create: true
 
 rest:
+  config:
+    hedera:
+      mirror:
+        rest:
+          cache:
+            response:
+              enabled: true
   db:
     password: ""  # Randomly generated if left blank
     username: mirror_rest

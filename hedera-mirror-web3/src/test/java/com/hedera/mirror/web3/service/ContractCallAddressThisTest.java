@@ -134,7 +134,7 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
         final var request = new ContractCallRequest();
         request.setBlock(BlockType.LATEST);
         request.setData(contract.getContractBinary());
-        request.setFrom(TREASURY_ADDRESS);
+        request.setFrom(treasuryAddress);
         request.setValue(1000);
         // When
         contractCall(request)

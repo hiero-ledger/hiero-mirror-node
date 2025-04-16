@@ -118,8 +118,8 @@ public class ERCTransferPrecompile extends TransferPrecompile {
             final var exists = transferParams.exists();
             final var transferOp =
                     switch (transferParams.functionId()) {
-                        case AbiConstants.ABI_ID_ERC_TRANSFER -> decodeERCTransfer(
-                                input, tokenID, senderAddress, aliasResolver);
+                        case AbiConstants.ABI_ID_ERC_TRANSFER ->
+                            decodeERCTransfer(input, tokenID, senderAddress, aliasResolver);
                         case AbiConstants.ABI_ID_ERC_TRANSFER_FROM,
                                 AbiConstants.ABI_ID_TRANSFER_FROM,
                                 AbiConstants.ABI_ID_TRANSFER_FROM_NFT -> {

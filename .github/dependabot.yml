@@ -14,6 +14,12 @@ updates:
     schedule:
       interval: "weekly"
 
+  - directory: "/charts"
+    open-pull-requests-limit: 10
+    package-ecosystem: "helm"
+    schedule:
+      interval: "weekly"
+
   - directory: "/hedera-mirror-rest"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"

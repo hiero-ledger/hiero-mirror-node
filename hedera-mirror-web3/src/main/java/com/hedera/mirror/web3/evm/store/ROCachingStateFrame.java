@@ -20,16 +20,17 @@ public class ROCachingStateFrame<K> extends CachingStateFrame<K> {
             @NonNull final Class<?> klass, @NonNull final UpdatableReferenceCache<K> cache, @NonNull final K key) {
         final var entry = cache.get(key);
         return switch (entry.state()) {
-            case NOT_YET_FETCHED -> upstreamFrame.flatMap(upstreamFrame -> {
-                final var upstreamAccessor = upstreamFrame.getAccessor(klass);
-                try {
-                    final var upstreamValue = upstreamAccessor.get(key);
-                    cache.fill(key, upstreamValue.orElse(null));
-                    return upstreamValue;
-                } catch (final WrongTypeException e) {
-                    throw new CacheAccessIncorrectTypeException(e.getMessage());
-                }
-            });
+            case NOT_YET_FETCHED ->
+                upstreamFrame.flatMap(upstreamFrame -> {
+                    final var upstreamAccessor = upstreamFrame.getAccessor(klass);
+                    try {
+                        final var upstreamValue = upstreamAccessor.get(key);
+                        cache.fill(key, upstreamValue.orElse(null));
+                        return upstreamValue;
+                    } catch (final WrongTypeException e) {
+                        throw new CacheAccessIncorrectTypeException(e.getMessage());
+                    }
+                });
             case PRESENT, UPDATED -> Optional.of(entry.value());
             case MISSING, DELETED -> Optional.empty();
             case INVALID -> throw new IllegalArgumentException("Trying to get value when state is invalid");

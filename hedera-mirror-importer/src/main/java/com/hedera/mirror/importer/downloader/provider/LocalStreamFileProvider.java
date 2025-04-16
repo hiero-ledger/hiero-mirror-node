@@ -91,15 +91,16 @@ public class LocalStreamFileProvider extends AbstractStreamFileProvider {
                 .map(basePath -> {
                     var prefix =
                             switch (pathType) {
-                                case ACCOUNT_ID, AUTO -> Path.of(
-                                        streamType.getPath(), streamType.getNodePrefix() + node.getNodeAccountId());
-                                case NODE_ID -> Path.of(
-                                        downloaderProperties
-                                                .getImporterProperties()
-                                                .getNetwork(),
-                                        String.valueOf(commonProperties.getShard()),
-                                        String.valueOf(node.getNodeId()),
-                                        streamType.getNodeIdBasedSuffix());
+                                case ACCOUNT_ID, AUTO ->
+                                    Path.of(streamType.getPath(), streamType.getNodePrefix() + node.getNodeAccountId());
+                                case NODE_ID ->
+                                    Path.of(
+                                            downloaderProperties
+                                                    .getImporterProperties()
+                                                    .getNetwork(),
+                                            String.valueOf(commonProperties.getShard()),
+                                            String.valueOf(node.getNodeId()),
+                                            streamType.getNodeIdBasedSuffix());
                             };
 
                     return basePath.resolve(prefix).toFile();

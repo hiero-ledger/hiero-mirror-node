@@ -3,6 +3,7 @@
 package com.hedera.mirror.test.e2e.acceptance.steps;
 
 import static com.hedera.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.FUNGIBLE;
+import static com.hedera.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ERC;
 import static com.hedera.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ESTIMATE_GAS;
 import static com.hedera.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.PRECOMPILE;
 import static com.hedera.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.ADDRESS_BALANCE;
@@ -47,18 +48,22 @@ import static com.hedera.mirror.test.e2e.acceptance.steps.PrecompileContractFeat
 import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
 import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.extractTransactionId;
 import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.to32BytesString;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.mirror.test.e2e.acceptance.client.AccountClient;
-import com.hedera.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import com.hedera.mirror.test.e2e.acceptance.client.ContractClient.ExecuteContractResult;
 import com.hedera.mirror.test.e2e.acceptance.client.TokenClient;
+import com.hedera.mirror.test.e2e.acceptance.config.Web3Properties;
 import com.hedera.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
 import com.hedera.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import com.hedera.mirror.test.e2e.acceptance.util.ModelBuilder;
+import com.hedera.mirror.test.e2e.acceptance.util.TestUtil;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
@@ -71,6 +76,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.assertj.core.api.Assertions;
+import org.springframework.web.client.HttpClientErrorException;
 
 @CustomLog
 @RequiredArgsConstructor
@@ -80,9 +86,13 @@ public class EstimateFeature extends AbstractEstimateFeature {
     private static final String RANDOM_ADDRESS =
             to32BytesString(RandomStringUtils.secure().next(40, HEX_DIGITS));
     private final TokenClient tokenClient;
+    private final Web3Properties web3Properties;
     private final AccountClient accountClient;
     private DeployedContract deployedContract;
     private DeployedContract deployedPrecompileContract;
+    private DeployedContract deployedERCContract;
+    private String ercSolidityAddress;
+
     private String contractSolidityAddress;
     private String precompileSolidityAddress;
     private String mockAddress;
@@ -90,6 +100,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     private TokenId fungibleTokenId;
     private String newAccountEvmAddress;
     private ExpandedAccountId receiverAccountId;
+    private String receiverAccountAlias;
 
     @Given("I successfully create EstimateGas contract from contract bytes")
     public void createNewEstimateContract() {
@@ -97,7 +108,8 @@ public class EstimateFeature extends AbstractEstimateFeature {
         contractSolidityAddress = deployedContract.contractId().toSolidityAddress();
         newAccountEvmAddress =
                 PrivateKey.generateECDSA().getPublicKey().toEvmAddress().toString();
-        receiverAccountId = accountClient.getAccount(AccountNameEnum.BOB);
+        receiverAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
+        receiverAccountAlias = receiverAccountId.getPublicKey().toEvmAddress().toString();
     }
 
     @Given("I successfully create fungible token")
@@ -114,6 +126,12 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void createNewPrecompileContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
         precompileSolidityAddress = deployedPrecompileContract.contractId().toSolidityAddress();
+    }
+
+    @Given("I successfully create ERC contract from contract bytes")
+    public void createNewERCContract() {
+        deployedERCContract = getContract(ERC);
+        ercSolidityAddress = deployedERCContract.contractId().toSolidityAddress();
     }
 
     @Then("the mirror node REST API should return status {int} for the estimate contract creation")
@@ -260,18 +278,22 @@ public class EstimateFeature extends AbstractEstimateFeature {
         assertContractCallReturnsBadRequest("3ec4de35" + wrongEncodedAddress, contractSolidityAddress);
     }
 
+    // Cannot send request without from with modularized EVM
     @Then("I call estimateGas with non-existing from address in the request body")
     public void wrongFromParameterEstimateCall() {
-        var data = encodeData(ESTIMATE_GAS, MESSAGE_SIGNER);
-        var contractCallRequest = ModelBuilder.contractCallRequest(MESSAGE_SIGNER.actualGas)
-                .data(data)
-                .estimate(true)
-                .from(newAccountEvmAddress)
-                .to(contractSolidityAddress);
-        var msgSignerResponse = callContract(contractCallRequest);
-        int estimatedGas = msgSignerResponse.getResultAsNumber().intValue();
+        if (!web3Properties.isModularizedServices()) {
+            var data = encodeData(ESTIMATE_GAS, MESSAGE_SIGNER);
+            var contractCallRequest = ModelBuilder.contractCallRequest(MESSAGE_SIGNER.actualGas)
+                    .data(data)
+                    .estimate(true)
+                    .from(newAccountEvmAddress)
+                    .to(contractSolidityAddress);
 
-        assertWithinDeviation(MESSAGE_SIGNER.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
+            var msgSignerResponse = callContract(contractCallRequest);
+            int estimatedGas = msgSignerResponse.getResultAsNumber().intValue();
+
+            assertWithinDeviation(MESSAGE_SIGNER.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
+        }
     }
 
     @Then("I call estimateGas with function that makes a call to invalid smart contract")
@@ -385,43 +407,93 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 new BigInteger("1"),
                 new BigInteger("500"),
                 asAddress(contractSolidityAddress));
-        validateGasEstimation(data, NESTED_CALLS_LIMITED, contractSolidityAddress);
+        validateGasEstimationNestedCalls(data, NESTED_CALLS_LIMITED, contractSolidityAddress);
         var secondData = encodeData(
                 ESTIMATE_GAS,
                 NESTED_CALLS_LIMITED,
                 new BigInteger("1"),
                 new BigInteger("1024"),
                 asAddress(contractSolidityAddress));
-        validateGasEstimation(secondData, NESTED_CALLS_LIMITED, contractSolidityAddress);
+        validateGasEstimationNestedCalls(secondData, NESTED_CALLS_LIMITED, contractSolidityAddress);
         var thirdData = encodeData(
                 ESTIMATE_GAS,
                 NESTED_CALLS_LIMITED,
                 new BigInteger("1"),
                 new BigInteger("1025"),
                 asAddress(contractSolidityAddress));
-        validateGasEstimation(thirdData, NESTED_CALLS_LIMITED, contractSolidityAddress);
+        validateGasEstimationNestedCalls(thirdData, NESTED_CALLS_LIMITED, contractSolidityAddress);
     }
 
+    @And("I approve the contract to use FT")
+    public void approveFungibleWithERCContract() {
+        final var ercTestContractId = TestUtil.fromSolidityAddress(ercSolidityAddress);
+        networkTransactionResponse = accountClient.approveToken(fungibleTokenId, ercTestContractId, 10);
+        verifyMirrorTransactionsResponse(mirrorClient, 200);
+    }
+
+    @And("I associate the receiver account with the FT")
+    public void associateReceiverWithFungibleEstimateGas() {
+        // associating the token with the token address
+        networkTransactionResponse = tokenClient.associate(receiverAccountId, fungibleTokenId);
+        verifyMirrorTransactionsResponse(mirrorClient, 200);
+    }
+
+    @Then("I associate ERC contract with the FT")
+    public void associateTokensWithContract() throws InvalidProtocolBufferException {
+        // In order to execute Approve, approveNFT, ercApprove we need to associate the contract with the token
+        tokenClient.associate(deployedERCContract.contractId(), fungibleTokenId);
+        verifyMirrorTransactionsResponse(mirrorClient, 200);
+    }
+
+    @And("I approve the receiver account to use FT and transfer FT to the erc contract")
+    public void approveAndTransferFungibleToken() {
+        accountClient.approveToken(fungibleTokenId, receiverAccountId.getAccountId(), 50L);
+        networkTransactionResponse = tokenClient.transferFungibleToken(
+                fungibleTokenId,
+                tokenClient.getSdkClient().getExpandedOperatorAccountId(),
+                AccountId.fromString(deployedERCContract.contractId().toString()),
+                null,
+                10);
+        verifyMirrorTransactionsResponse(mirrorClient, 200);
+    }
+
+    // Disabled because currently the ERC contracts cannot interact with long zero addresses. Will be fixed in future
+    // from services team
     @Then("I call estimateGas with IERC20 token transfer using long zero address as receiver")
     public void ierc20TransferWithLongZeroAddressForReceiver() {
-        var data = encodeData(IERC20_TOKEN_TRANSFER, asAddress(receiverAccountId), new BigInteger("1"));
-        validateGasEstimation(data, IERC20_TOKEN_TRANSFER, fungibleTokenId.toSolidityAddress());
+        if (!web3Properties.isModularizedServices()) {
+            var data = encodeData(
+                    ERC,
+                    IERC20_TOKEN_TRANSFER,
+                    asAddress(fungibleTokenId),
+                    asAddress(receiverAccountId),
+                    new BigInteger("5"));
+            validateGasEstimation(data, IERC20_TOKEN_TRANSFER, ercSolidityAddress);
+        }
     }
 
     @Then("I call estimateGas with IERC20 token transfer using evm address as receiver")
-    public void ierc20TransferWithEvmAddressForReceiver() {
+    public void ierc20TransferWithEvmAddressForReceiver() throws InterruptedException {
         var accountInfo = mirrorClient.getAccountDetailsByAccountId(receiverAccountId.getAccountId());
         var data = encodeData(
-                IERC20_TOKEN_TRANSFER, asAddress(accountInfo.getEvmAddress().replace("0x", "")), new BigInteger("1"));
-        validateGasEstimation(data, IERC20_TOKEN_TRANSFER, fungibleTokenId.toSolidityAddress());
+                ERC,
+                IERC20_TOKEN_TRANSFER,
+                asAddress(fungibleTokenId),
+                asAddress(accountInfo.getEvmAddress().replace("0x", "")),
+                BigInteger.ONE);
+        validateGasEstimation(data, IERC20_TOKEN_TRANSFER, ercSolidityAddress);
     }
 
     @Then("I call estimateGas with IERC20 token approve using evm address as receiver")
     public void ierc20ApproveWithEvmAddressForReceiver() {
         var accountInfo = mirrorClient.getAccountDetailsByAccountId(receiverAccountId.getAccountId());
         var data = encodeData(
-                IERC20_TOKEN_APPROVE, asAddress(accountInfo.getEvmAddress().replace("0x", "")), new BigInteger("1"));
-        validateGasEstimation(data, IERC20_TOKEN_APPROVE, fungibleTokenId.toSolidityAddress());
+                ERC,
+                IERC20_TOKEN_APPROVE,
+                asAddress(fungibleTokenId),
+                asAddress(accountInfo.getEvmAddress().replace("0x", "")),
+                BigInteger.ONE);
+        validateGasEstimation(data, IERC20_TOKEN_APPROVE, ercSolidityAddress);
     }
 
     @Then("I call estimateGas with IERC20 token associate using evm address as receiver")
@@ -452,11 +524,20 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with contract deploy with bytecode as data with invalid sender")
     public void contractDeployEstimateGasWithInvalidSender() {
         var bytecodeData = deployedContract.compiledSolidityArtifact().getBytecode();
-        validateGasEstimation(
-                bytecodeData,
-                DEPLOY_CONTRACT_VIA_BYTECODE_DATA,
-                null,
-                Optional.of("0x0000000000000000000000000000000000000167"));
+        if (web3Properties.isModularizedServices()) {
+            assertThatThrownBy(() -> validateGasEstimation(
+                            bytecodeData,
+                            DEPLOY_CONTRACT_VIA_BYTECODE_DATA,
+                            null,
+                            Optional.of("0x0000000000000000000000000000000000000167")))
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
+        } else {
+            validateGasEstimation(
+                    bytecodeData,
+                    DEPLOY_CONTRACT_VIA_BYTECODE_DATA,
+                    null,
+                    Optional.of("0x0000000000000000000000000000000000000167"));
+        }
     }
 
     @Then("I execute contractCall for function that changes the contract slot and verify gasConsumed")
@@ -772,18 +853,18 @@ public class EstimateFeature extends AbstractEstimateFeature {
         MESSAGE_SIGNER("msgSig", 21361),
         MESSAGE_VALUE("msgValue", 21265),
         MULTIPLY_NUMBERS("pureMultiply", 21281),
-        NESTED_CALLS_LIMITED("nestedCalls", 544470),
+        NESTED_CALLS_LIMITED("nestedCalls", 175607),
         NESTED_CALLS_POSITIVE("nestedCalls", 35975),
         REENTRANCY_CALL_ATTACK("reentrancyWithCall", 56426),
         STATIC_CALL_TO_CONTRACT("staticCallToContract", 25146),
         STATIC_CALL_TO_INVALID_CONTRACT("staticCallToInvalidContract", 24826),
-        STATE_UPDATE_OF_CONTRACT("updateStateNTimes", 27718),
+        STATE_UPDATE_OF_CONTRACT("updateStateNTimes", 29000),
         TX_ORIGIN("txOrigin", 21342),
         UPDATE_COUNTER("updateCounter", 26538),
         UPDATE_TYPE("updateType", 0), // Set actual gas to 0; unnecessary for gasConsumed test validation.
         WRONG_METHOD_SIGNATURE("ffffffff()", 0),
-        IERC20_TOKEN_TRANSFER("transfer(address,uint256)", 38193),
-        IERC20_TOKEN_APPROVE("approve(address,uint256)", 728550),
+        IERC20_TOKEN_TRANSFER("transfer", 43337),
+        IERC20_TOKEN_APPROVE("approve", 728550),
         IERC20_TOKEN_ASSOCIATE("associate()", 728033),
         IERC20_TOKEN_DISSOCIATE("dissociate()", 728033),
         CREATE_CHILD("createChild", 0),

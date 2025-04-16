@@ -39,7 +39,7 @@ class ContractCallSystemPrecompileTest extends AbstractContractCallServiceTest {
     @Test
     void exchangeRatePrecompileTinycentsToTinybarsTestEthCallAndEstimateWithValueRevertExecution() {
         final var contract = testWeb3jService.deploy(ExchangeRatePrecompile::deploy);
-        testWeb3jService.setSender(TREASURY_ADDRESS);
+        testWeb3jService.setSender(treasuryAddress);
         final var functionCall = contract.send_tinycentsToTinybars(BigInteger.valueOf(100L), BigInteger.valueOf(100L));
         String expectedErrorMessage = mirrorNodeEvmProperties.isModularizedServices()
                 ? INVALID_CONTRACT_ID.name()
@@ -53,7 +53,7 @@ class ContractCallSystemPrecompileTest extends AbstractContractCallServiceTest {
     @Test
     void exchangeRatePrecompileTinybarsToTinycentsTestEthCallAndEstimateWithValueRevertExecution() {
         final var contract = testWeb3jService.deploy(ExchangeRatePrecompile::deploy);
-        testWeb3jService.setSender(TREASURY_ADDRESS);
+        testWeb3jService.setSender(treasuryAddress);
         final var functionCall = contract.send_tinybarsToTinycents(BigInteger.valueOf(100L), BigInteger.valueOf(100L));
         String expectedErrorMessage = mirrorNodeEvmProperties.isModularizedServices()
                 ? INVALID_CONTRACT_ID.name()
@@ -74,7 +74,7 @@ class ContractCallSystemPrecompileTest extends AbstractContractCallServiceTest {
     @Test
     void pseudoRandomGeneratorPrecompileFunctionsTestEthEstimateGasWithValueRevertExecution() {
         final var contract = testWeb3jService.deploy(PrngSystemContract::deploy);
-        testWeb3jService.setSender(TREASURY_ADDRESS);
+        testWeb3jService.setSender(treasuryAddress);
         final var functionCall = contract.send_getPseudorandomSeed(BigInteger.valueOf(100));
         String expectedErrorMessage = mirrorNodeEvmProperties.isModularizedServices()
                 ? INVALID_CONTRACT_ID.name()
@@ -92,7 +92,7 @@ class ContractCallSystemPrecompileTest extends AbstractContractCallServiceTest {
     @Test
     void pseudoRandomGeneratorPrecompileFunctionsTestEthCallWithValueRevertExecution() {
         final var contract = testWeb3jService.deploy(PrngSystemContract::deploy);
-        testWeb3jService.setSender(TREASURY_ADDRESS);
+        testWeb3jService.setSender(treasuryAddress);
         final var functionCall = contract.send_getPseudorandomSeed(BigInteger.valueOf(100));
         String expectedErrorMessage = mirrorNodeEvmProperties.isModularizedServices()
                 ? INVALID_CONTRACT_ID.name()

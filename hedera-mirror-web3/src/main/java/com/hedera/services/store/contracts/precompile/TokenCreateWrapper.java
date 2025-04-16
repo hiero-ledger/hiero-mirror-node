@@ -207,16 +207,16 @@ public class TokenCreateWrapper {
         private FixedFee.Builder asBuilder() {
             return switch (fixedFeePayment) {
                 case USE_HBAR -> FixedFee.newBuilder().setAmount(amount);
-                case USE_EXISTING_FUNGIBLE_TOKEN -> FixedFee.newBuilder()
-                        .setAmount(amount)
-                        .setDenominatingTokenId(tokenID);
-                case USE_CURRENTLY_CREATED_TOKEN -> FixedFee.newBuilder()
-                        .setAmount(amount)
-                        .setDenominatingTokenId(TokenID.newBuilder()
-                                .setShardNum(0L)
-                                .setRealmNum(0L)
-                                .setTokenNum(0L)
-                                .build());
+                case USE_EXISTING_FUNGIBLE_TOKEN ->
+                    FixedFee.newBuilder().setAmount(amount).setDenominatingTokenId(tokenID);
+                case USE_CURRENTLY_CREATED_TOKEN ->
+                    FixedFee.newBuilder()
+                            .setAmount(amount)
+                            .setDenominatingTokenId(TokenID.newBuilder()
+                                    .setShardNum(0L)
+                                    .setRealmNum(0L)
+                                    .setTokenNum(0L)
+                                    .build());
                 default -> throw new InvalidTransactionException(ResponseCodeEnum.FAIL_INVALID);
             };
         }

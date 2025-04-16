@@ -1227,8 +1227,9 @@ public class RecordItemBuilder {
             case ContractID contractId -> contractCreate().receipt(r -> r.setContractID(contractId));
             case FileID fileId -> fileCreate().receipt(r -> r.setFileID(fileId));
             case ScheduleID scheduleId -> scheduleCreate().receipt(r -> r.setScheduleID(scheduleId));
-            case TokenAssociation ta -> tokenAssociate()
-                    .transactionBody(b -> b.setAccount(ta.getAccountId()).addTokens(ta.getTokenId()));
+            case TokenAssociation ta ->
+                tokenAssociate()
+                        .transactionBody(b -> b.setAccount(ta.getAccountId()).addTokens(ta.getTokenId()));
             case TokenID tokenId -> tokenCreate().receipt(r -> r.setTokenID(tokenId));
             case TopicID topicId -> consensusCreateTopic().receipt(r -> r.setTopicID(topicId));
             default -> throw new UnsupportedOperationException("ID not supported: " + id);

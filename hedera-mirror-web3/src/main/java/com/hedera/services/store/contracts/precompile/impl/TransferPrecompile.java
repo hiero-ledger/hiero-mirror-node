@@ -357,10 +357,10 @@ public class TransferPrecompile extends AbstractWritePrecompile {
         if (bodyParams instanceof TransferParams transferParams) {
             final var transferOp =
                     switch (transferParams.functionId()) {
-                        case ABI_ID_CRYPTO_TRANSFER -> decodeCryptoTransfer(
-                                input, aliasResolver, transferParams.exists());
-                        case ABI_ID_CRYPTO_TRANSFER_V2 -> decodeCryptoTransferV2(
-                                input, aliasResolver, transferParams.exists());
+                        case ABI_ID_CRYPTO_TRANSFER ->
+                            decodeCryptoTransfer(input, aliasResolver, transferParams.exists());
+                        case ABI_ID_CRYPTO_TRANSFER_V2 ->
+                            decodeCryptoTransferV2(input, aliasResolver, transferParams.exists());
                         case ABI_ID_TRANSFER_TOKENS -> decodeTransferTokens(input, aliasResolver);
                         case ABI_ID_TRANSFER_TOKEN -> decodeTransferToken(input, aliasResolver);
                         case ABI_ID_TRANSFER_NFTS -> decodeTransferNFTs(input, aliasResolver);
