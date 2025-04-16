@@ -13,10 +13,10 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.math.BigInteger;
 import org.junit.jupiter.api.Test;
 
-public class ContractCallAliasTests extends AbstractContractCallServiceTest {
+class ContractCallAliasTests extends AbstractContractCallServiceTest {
 
-    Address nonExistingLongZeroAddress = Address.wrap("0x0000000000000000000000000000000000000000");
-    Address nonExistingEvmAddress = Address.wrap("0x0123456789012345678901234567890123456789");
+    private final Address nonExistingLongZeroAddress = Address.wrap("0x0000000000000000000000000000000000000000");
+    private final Address nonExistingEvmAddress = Address.wrap("0x0123456789012345678901234567890123456789");
 
     @Test
     void isValidAliasStandardAccount() throws Exception {
@@ -105,7 +105,7 @@ public class ContractCallAliasTests extends AbstractContractCallServiceTest {
     }
 
     @Test
-    void getAliasWithNonExistingEvmAddress() throws Exception {
+    void getAliasWithNonExistingEvmAddress() {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
@@ -116,7 +116,7 @@ public class ContractCallAliasTests extends AbstractContractCallServiceTest {
     }
 
     @Test
-    void getAliasWithNonExistingLongZeroAddress() throws Exception {
+    void getAliasWithNonExistingLongZeroAddress()  {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
@@ -149,7 +149,7 @@ public class ContractCallAliasTests extends AbstractContractCallServiceTest {
     }
 
     @Test
-    void getAccountAddressWithNonExistingEvmAddress() throws Exception {
+    void getAccountAddressWithNonExistingEvmAddress() {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
@@ -160,7 +160,7 @@ public class ContractCallAliasTests extends AbstractContractCallServiceTest {
     }
 
     @Test
-    void getAccountAddressWithNonExistingLongZeroAddress() throws Exception {
+    void getAccountAddressWithNonExistingLongZeroAddress() {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
