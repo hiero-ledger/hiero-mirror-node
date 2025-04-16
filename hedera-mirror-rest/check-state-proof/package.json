@@ -1,5 +1,5 @@
 {
-  "name": "@hashgraph/check-state-proof",
+  "name": "@hiero-ledger/check-state-proof",
   "version": "0.129.0-SNAPSHOT",
   "description": "An example implementation of a state proof flow for a transaction utilizing the mirror node.",
   "engines": {

@@ -304,12 +304,12 @@ tasks.register("release") {
         replaceVersion("gradle.properties", "(?<=^version=).+")
         replaceVersion(
             "hedera-mirror-rest/**/package*.json",
-            "(?<=\"@hashgraph/(check-state-proof|mirror-rest|mirror-monitor)\",\\s{3,7}\"version\": \")[^\"]+",
+            "(?<=\"@hiero-ledger/(check-state-proof|mirror-rest|mirror-monitor)\",\\s{3,7}\"version\": \")[^\"]+",
         )
         replaceVersion("hedera-mirror-rest/**/openapi.yml", "(?<=^  version: ).+")
         replaceVersion(
             "tools/traffic-replay/log-downloader/package*.json",
-            "(?<=\"@hashgraph/mirror-log-downloader\",\\s{3,7}\"version\": \")[^\"]+",
+            "(?<=\"@hiero-ledger/mirror-log-downloader\",\\s{3,7}\"version\": \")[^\"]+",
         )
     }
 }

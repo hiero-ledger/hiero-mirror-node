@@ -1,5 +1,5 @@
 {
-  "name": "@hashgraph/mirror-monitor",
+  "name": "@hiero-ledger/mirror-monitor",
   "version": "0.129.0-SNAPSHOT",
   "description": "Hedera Mirror Node Monitor",
   "type": "module",

@@ -1,5 +1,5 @@
 {
-  "name": "@hashgraph/mirror-rest",
+  "name": "@hiero-ledger/mirror-rest",
   "version": "0.129.0-SNAPSHOT",
   "description": "Hedera Mirror Node REST API",
   "type": "module",
