@@ -11,7 +11,6 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_REVER
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.web3j.generated.InternalCaller;
 import org.apache.tuweni.bytes.Bytes;
@@ -26,7 +25,7 @@ public class InternalCallsTest extends AbstractContractCallServiceTest {
 
     @BeforeAll
     void configure() {
-        var nonExistingEntityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 123456789);
+        var nonExistingEntityId = domainBuilder.entityId();
         this.nonExistingAddress = toAddress(nonExistingEntityId).toHexString();
     }
 

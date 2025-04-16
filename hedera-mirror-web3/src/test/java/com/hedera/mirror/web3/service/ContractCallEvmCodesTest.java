@@ -20,7 +20,6 @@ import static org.mockito.Mockito.doAnswer;
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.viewmodel.BlockType;
@@ -236,14 +235,11 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     @Test
     void testNonSystemAccountCodeHash() throws Exception {
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
-        final var autoRenewEntityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1078);
+        final var autoRenewEntityId = domainBuilder.entityId();
         final var address = toAddress(autoRenewEntityId);
         domainBuilder
-                .entity()
-                .customize(e -> e.id(autoRenewEntityId.getId())
-                        .num(autoRenewEntityId.getNum())
-                        .evmAddress(null)
-                        .alias(toEvmAddress(autoRenewEntityId)))
+                .entity(autoRenewEntityId)
+                .customize(e -> e.evmAddress(null).alias(toEvmAddress(autoRenewEntityId)))
                 .persist();
 
         final var result = contract.call_getCodeHash(address.toString()).send();
@@ -255,7 +251,7 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     @Test
     void selfDestructCall() throws Exception {
         // Given
-        final var senderEntityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1078);
+        final var senderEntityId = domainBuilder.entityId();
         final var senderAlias = Bytes.wrap(recoverAddressFromPubKey(ByteString.copyFrom(
                         Hex.decode("3a2103af80b90d25145da28c583359beb47b21796b2fe1a23c1511e443e7a64dfdb27d"))
                 .substring(2)
@@ -263,10 +259,8 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
         final var senderPublicKey = ByteString.copyFrom(
                 Hex.decode("3a2103af80b90d25145da28c583359beb47b21796b2fe1a23c1511e443e7a64dfdb27d"));
         domainBuilder
-                .entity()
-                .customize(e -> e.id(senderEntityId.getId())
-                        .num(senderEntityId.getNum())
-                        .evmAddress(senderAlias.toArray())
+                .entity(senderEntityId)
+                .customize(e -> e.evmAddress(senderAlias.toArray())
                         .deleted(false)
                         .alias(senderPublicKey.toByteArray())
                         .balance(10000 * 100_000_000L))
