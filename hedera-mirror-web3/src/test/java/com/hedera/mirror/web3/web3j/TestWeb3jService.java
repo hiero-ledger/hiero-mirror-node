@@ -345,10 +345,8 @@ public class TestWeb3jService implements Web3jService {
     private void contractPersist(String binary, EntityId entityId) {
         final var contractBytes = Hex.decode(binary.replace(HEX_PREFIX, ""));
         final var entity = domainBuilder
-                .entity()
+                .entity(entityId)
                 .customize(e -> e.type(CONTRACT)
-                        .id(entityId.getId())
-                        .num(entityId.getNum())
                         .alias(null)
                         .evmAddress(null)
                         .key(domainBuilder.key(KeyCase.ED25519))
@@ -369,12 +367,9 @@ public class TestWeb3jService implements Web3jService {
     private void historicalContractPersist(String binary, EntityId entityId, final Address contractAddress) {
         final var contractBytes = Hex.decode(binary.replace(HEX_PREFIX, ""));
         final var entity = domainBuilder
-                .entity()
-                .customize(e -> e.type(CONTRACT)
-                        .id(entityId.getId())
-                        .num(entityId.getNum())
-                        .evmAddress(contractAddress.toArray())
-                        .timestampRange(historicalRange))
+                .entity(entityId)
+                .customize(e ->
+                        e.type(CONTRACT).evmAddress(contractAddress.toArray()).timestampRange(historicalRange))
                 .persist();
 
         domainBuilder
