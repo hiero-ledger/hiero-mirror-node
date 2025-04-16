@@ -24,11 +24,15 @@ public class ContractCallAliasTests extends AbstractContractCallServiceTest {
         var account = accountEntityPersist();
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
-        final var functionCallResult = contract.call_isValidAliasCall(getAddressFromEntity(account))
-                .send();
+        final var result = contract.call_isValidAliasCall(getAddressFromEntity(account));
+        final var functionCall = contract.send_isValidAliasCall(getAddressFromEntity(account));
         // Then
-        assertThat(functionCallResult).isTrue();
-
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            assertThat(result.send()).isTrue();
+            verifyEthCallAndEstimateGas(functionCall, contract);
+        } else {
+            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        }
     }
 
     @Test
@@ -37,10 +41,15 @@ public class ContractCallAliasTests extends AbstractContractCallServiceTest {
         var accountWithEvmAddress = accountEntityWithEvmAddressPersist();
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
-        final var functionCallResult = contract.call_isValidAliasCall(getAddressFromEntity(accountWithEvmAddress))
-                .send();
+        final var result = contract.call_isValidAliasCall(getAddressFromEntity(accountWithEvmAddress));
+        final var functionCall = contract.send_isValidAliasCall(getAddressFromEntity(accountWithEvmAddress));
         // Then
-        assertThat(functionCallResult).isTrue();
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            assertThat(result.send()).isTrue();
+            verifyEthCallAndEstimateGas(functionCall, contract);
+        } else {
+            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        }
     }
 
     @Test
@@ -48,10 +57,15 @@ public class ContractCallAliasTests extends AbstractContractCallServiceTest {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
-        final var functionCallResult =
-                contract.call_isValidAliasCall(nonExistingLongZeroAddress.toString()).send();
+        final var result = contract.call_isValidAliasCall(nonExistingLongZeroAddress.toString());
+        final var functionCall = contract.send_isValidAliasCall(nonExistingLongZeroAddress.toString());
         // Then
-        assertThat(functionCallResult).isFalse();
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            assertThat(result.send()).isFalse();
+            verifyEthCallAndEstimateGas(functionCall, contract);
+        } else {
+            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        }
     }
 
     @Test
@@ -59,10 +73,15 @@ public class ContractCallAliasTests extends AbstractContractCallServiceTest {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
-        final var functionCallResult =
-                contract.call_isValidAliasCall(nonExistingEvmAddress.toString()).send();
+        final var result = contract.call_isValidAliasCall(nonExistingEvmAddress.toString());
+        final var functionCall = contract.send_isValidAliasCall(nonExistingLongZeroAddress.toString());
         // Then
-        assertThat(functionCallResult).isFalse();
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            assertThat(result.send()).isFalse();
+            verifyEthCallAndEstimateGas(functionCall, contract);
+        } else {
+            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        }
     }
 
     @Test
@@ -72,11 +91,17 @@ public class ContractCallAliasTests extends AbstractContractCallServiceTest {
         var addressAlias = getAliasAddressFromEntity(accountEntity);
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
-        final var functionCallResult = contract.call_getEvmAddressAliasCall(getAddressFromEntity(accountEntity))
-                .send();
+        final var functionCall = contract.send_getEvmAddressAliasCall(getAddressFromEntity(accountEntity));
         // Then
-        assertThat(functionCallResult.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-        assertThat(functionCallResult.component2()).isEqualTo(addressAlias.toHexString());
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            final var result = contract.call_getEvmAddressAliasCall(getAddressFromEntity(accountEntity))
+                    .send();
+            assertThat(result.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+            assertThat(result.component2()).isEqualTo(addressAlias.toHexString());
+            verifyEthCallAndEstimateGas(functionCall, contract);
+        } else {
+            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        }
     }
 
     @Test
@@ -84,11 +109,10 @@ public class ContractCallAliasTests extends AbstractContractCallServiceTest {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
-        final var functionCall = contract.call_getEvmAddressAliasCall(nonExistingEvmAddress.toString());
-        final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        final var result = contract.call_getEvmAddressAliasCall(nonExistingEvmAddress.toString());
+        final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
         // Then
         assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-
     }
 
     @Test
@@ -110,10 +134,18 @@ public class ContractCallAliasTests extends AbstractContractCallServiceTest {
         var accountLongZeroAddress = getAddressFromEntity(accountEntity);
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
-        final var functionCall = contract.call_getHederaAccountNumAliasCall(addressAlias.toString()).send();
+
+        final var functionCall = contract.send_getHederaAccountNumAliasCall(addressAlias.toString());
         // Then
-        assertThat(functionCall.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-        assertThat(functionCall.component2()).isEqualTo(accountLongZeroAddress);
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            final var result = contract.call_getHederaAccountNumAliasCall(addressAlias.toString())
+                    .send();
+            assertThat(result.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+            assertThat(result.component2()).isEqualTo(accountLongZeroAddress);
+            verifyEthCallAndEstimateGas(functionCall, contract);
+        } else {
+            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        }
     }
 
     @Test
