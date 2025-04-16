@@ -2,13 +2,13 @@
 
 package com.hedera.mirror.web3.service;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.INVALID_ACCOUNT_ID;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.transaction.TransactionBody;
@@ -98,18 +98,10 @@ class TransactionExecutionServiceTest {
         when(transactionExecutorFactory.get()).thenReturn(transactionExecutor);
     }
 
-    @MockitoSettings(strictness = Strictness.LENIENT)
     @ParameterizedTest
-    @ValueSource(
-            strings = {
-                "0x0000000000000000000000000000000000000000",
-                "0x1234",
-                "0x627306090abab3a6e1400e9345bc60c78a8bef57"
-            })
+    @ValueSource(strings = "0x0000000000000000000000000000000000000000")
     void testExecuteContractCallSuccess(String senderAddressHex) {
         // Given
-        when(accountReadableKVState.contains(any(AccountID.class))).thenReturn(true);
-
         ContractCallContext.get().setOpcodeTracerOptions(new OpcodeTracerOptions());
 
         // Mock the SingleTransactionRecord and TransactionRecord
@@ -143,6 +135,43 @@ class TransactionExecutionServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.getGasUsed()).isEqualTo(DEFAULT_GAS);
         assertThat(result.getRevertReason()).isNotPresent();
+    }
+
+    @MockitoSettings(strictness = Strictness.LENIENT)
+    @ParameterizedTest
+    @ValueSource(strings = {"0x1234", "0x627306090abab3a6e1400e9345bc60c78a8bef57"})
+    void testExecuteContractCallInvalidSender(String senderAddressHex) {
+        // Given
+        ContractCallContext.get().setOpcodeTracerOptions(new OpcodeTracerOptions());
+
+        // Mock the SingleTransactionRecord and TransactionRecord
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+
+        // Simulate SUCCESS status in the receipt
+        when(transactionReceipt.status()).thenReturn(ResponseCodeEnum.SUCCESS);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+        when(contractFunctionResult.gasUsed()).thenReturn(DEFAULT_GAS);
+        when(contractFunctionResult.contractCallResult()).thenReturn(Bytes.EMPTY);
+
+        // Mock the transactionRecord to return the contract call result
+        when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
+
+        final var senderAddress = Address.fromHexString(senderAddressHex);
+        // Mock the executor to return a List with the mocked SingleTransactionRecord
+        when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord));
+
+        var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, senderAddress);
+
+        // Then
+        assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
+                .isInstanceOf(MirrorEvmTransactionException.class)
+                .hasMessage(INVALID_ACCOUNT_ID.name());
     }
 
     @ParameterizedTest

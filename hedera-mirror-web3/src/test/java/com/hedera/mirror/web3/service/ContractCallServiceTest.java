@@ -2,7 +2,7 @@
 
 package com.hedera.mirror.web3.service;
 
-import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.INVALID_ACCOUNT_ID;
 import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
@@ -578,7 +578,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
                     .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
+                    .hasMessage(INVALID_ACCOUNT_ID.name());
         } else {
             final var result = contractExecutionService.processCall(serviceParameters);
             assertThat(result).isEqualTo(HEX_PREFIX);

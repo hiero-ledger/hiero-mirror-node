@@ -51,6 +51,7 @@ public class TransactionExecutionService {
 
     private static final Duration TRANSACTION_DURATION = new Duration(15);
     private static final long CONTRACT_CREATE_TX_FEE = 100_000_000L;
+    private static final String SENDER_NOT_FOUND = "Sender account not found";
 
     private final AccountReadableKVState accountReadableKVState;
     private final AliasesReadableKVState aliasesReadableKVState;
@@ -196,25 +197,31 @@ public class TransactionExecutionService {
         }
 
         final var senderAddress = params.getSender().canonicalAddress();
-        final var accountID = accountIdFromEvmAddress(senderAddress);
-        if (!accountReadableKVState.contains(AccountID.newBuilder()
-                .accountNum(accountID.getAccountNum())
-                .shardNum(accountID.getShardNum())
-                .realmNum(accountID.getRealmNum())
-                .build())) {
-            throw new MirrorEvmTransactionException(
-                    ResponseCodeEnum.INVALID_ACCOUNT_ID,
-                    "Sender account not found",
-                    StringUtils.EMPTY,
-                    params.isModularized());
-        }
 
         if (isMirror(senderAddress)) {
+            final var accountID = accountIdFromEvmAddress(senderAddress);
+            if (!accountReadableKVState.contains(AccountID.newBuilder()
+                    .accountNum(accountID.getAccountNum())
+                    .shardNum(accountID.getShardNum())
+                    .realmNum(accountID.getRealmNum())
+                    .build())) {
+                throwInvalidAccountIdException(SENDER_NOT_FOUND);
+            }
+
             var entityId = DomainUtils.fromEvmAddress(senderAddress.toArrayUnsafe());
             return EntityIdUtils.toAccountId(entityId);
         }
 
-        return aliasesReadableKVState.get(convertAddressToProtoBytes(senderAddress));
+        final var address = aliasesReadableKVState.get(convertAddressToProtoBytes(senderAddress));
+        if (address == null) {
+            throwInvalidAccountIdException(SENDER_NOT_FOUND);
+        }
+
+        return address;
+    }
+
+    private void throwInvalidAccountIdException(final String message) {
+        throw new MirrorEvmTransactionException(ResponseCodeEnum.INVALID_ACCOUNT_ID, message, StringUtils.EMPTY, true);
     }
 
     private OperationTracer[] getOperationTracers() {
