@@ -21,10 +21,6 @@ import org.junit.jupiter.params.provider.CsvSource;
 class TokenRepositoryTest extends Web3IntegrationTest {
 
     private final CommonProperties commonProperties = CommonProperties.getInstance();
-
-    private final long shardOriginalValue = commonProperties.getShard();
-    private final long realmOriginalValue = commonProperties.getRealm();
-
     private final TokenRepository tokenRepository;
 
     @Test
