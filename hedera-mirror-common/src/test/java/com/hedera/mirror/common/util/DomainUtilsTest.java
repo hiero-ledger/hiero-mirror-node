@@ -118,7 +118,7 @@ class DomainUtilsTest {
     @Test
     void getPublicKeyWhenDefaultInstance() {
         var keyBytes = Key.getDefaultInstance().toByteArray();
-        assertThat(DomainUtils.getPublicKey(keyBytes)).isEmpty();
+        assertThat(DomainUtils.getPublicKey(keyBytes)).isNull();
     }
 
     @Test

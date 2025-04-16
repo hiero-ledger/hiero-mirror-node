@@ -142,7 +142,12 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
         if (StringUtils.isEmpty(table)) {
             table = CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, historyClass.getSimpleName());
         }
-        return findEntity(historyClass, ids, String.format("%s_history", table));
+
+        if (!table.endsWith("_history")) {
+            table += "_history";
+        }
+
+        return findEntity(historyClass, ids, table);
     }
 
     protected void reset() {

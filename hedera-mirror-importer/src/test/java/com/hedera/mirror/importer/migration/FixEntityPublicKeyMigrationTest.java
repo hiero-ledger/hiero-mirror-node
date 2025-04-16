@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package com.hedera.mirror.importer.migration;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.hedera.mirror.common.domain.entity.EntityHistory;
+import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.util.DomainUtils;
+import com.hedera.mirror.importer.DisableRepeatableSqlMigration;
+import com.hedera.mirror.importer.ImporterIntegrationTest;
+import com.hedera.mirror.importer.TestUtils;
+import com.hedera.mirror.importer.repository.EntityRepository;
+import java.nio.charset.StandardCharsets;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import org.apache.commons.io.FileUtils;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.util.TestPropertyValues;
+import org.springframework.context.ApplicationContextInitializer;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.Profiles;
+import org.springframework.test.context.ContextConfiguration;
+
+@ContextConfiguration(initializers = FixEntityPublicKeyMigrationTest.Initializer.class)
+@DisablePartitionMaintenance
+@DisableRepeatableSqlMigration
+@RequiredArgsConstructor
+@Tag("migration")
+class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
+
+    private final EntityRepository entityRepository;
+
+    @Test
+    void empty() {
+        runMigration();
+        assertThat(entityRepository.findAll()).isEmpty();
+        assertThat(findHistory(EntityHistory.class)).isEmpty();
+    }
+
+    @Test
+    void migrate() {
+        // given
+        var entity1 = domainBuilder.entity().persist();
+        // entity created with 1/2 threshold key so in database public key is already null
+        var entity2 = domainBuilder
+                .entity()
+                .customize(e -> e.key(domainBuilder.thresholdKey(2, 1)).publicKey(null))
+                .persist();
+        // old public key stays after key gets changed to 1/2 threshold key
+        var entity3 = domainBuilder
+                .entity()
+                .customize(e -> e.key(domainBuilder.thresholdKey(2, 1))
+                        // must call after key() to override the side effect
+                        .publicKey(domainBuilder.text(12))
+                        .type(EntityType.CONTRACT))
+                .persist();
+        // entity should have a valid public key however it's null in db
+        var entity4 = domainBuilder.entity().customize(e -> e.publicKey(null)).persist();
+        // history table
+        var entityHistory1 = domainBuilder.entityHistory().persist();
+        // history of an entity created with 1/2 threshold key so in database public key is already null
+        var entityHistory2 = domainBuilder
+                .entityHistory()
+                .customize(e -> e.key(domainBuilder.thresholdKey(2, 1)).publicKey(null))
+                .persist();
+        var entityHistory3 = domainBuilder
+                .entityHistory()
+                .customize(e -> e.key(domainBuilder.thresholdKey(2, 1))
+                        // must call after key() to override the side effect
+                        .publicKey(domainBuilder.text(12))
+                        .type(EntityType.CONTRACT))
+                .persist();
+        var entityHistory4 =
+                domainBuilder.entityHistory().customize(e -> e.publicKey(null)).persist();
+
+        // when
+        runMigration();
+
+        // then
+        entity3.setPublicKey(null);
+        entity4.setPublicKey(DomainUtils.getPublicKey(entity4.getKey()));
+        entityHistory3.setPublicKey(null);
+        entityHistory4.setPublicKey(DomainUtils.getPublicKey(entityHistory4.getKey()));
+
+        assertThat(entityRepository.findAll()).containsExactlyInAnyOrder(entity1, entity2, entity3, entity4);
+        assertThat(findHistory(EntityHistory.class))
+                .containsExactlyInAnyOrder(entityHistory1, entityHistory2, entityHistory3, entityHistory4);
+        // also assert entity4 and entityHistory4 have non-null public keys
+        assertThat(entity4.getPublicKey()).isNotNull();
+        assertThat(entityHistory4.getPublicKey()).isNotNull();
+    }
+
+    @SneakyThrows
+    private void runMigration() {
+        String migrationFilepath =
+                isV1() ? "v1/V1.106.0__fix_entity_public_key.sql" : "v2/V2.11.0__fix_entity_public_key.sql";
+        var file = TestUtils.getResource("db/migration/" + migrationFilepath);
+        jdbcOperations.execute(FileUtils.readFileToString(file, StandardCharsets.UTF_8));
+    }
+
+    static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+
+        @Override
+        public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
+            var environment = configurableApplicationContext.getEnvironment();
+            String version = environment.acceptsProfiles(Profiles.of("v2")) ? "2.10.1" : "1.105.1";
+            TestPropertyValues.of("spring.flyway.target=" + version).applyTo(environment);
+        }
+    }
+}
