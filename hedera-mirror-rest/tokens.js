@@ -340,7 +340,7 @@ const validateTokenQueryFilter = (param, op, val) => {
       ret = utils.isPositiveLong(val);
       break;
     case filterKeys.TOKEN_ID:
-      ret = EntityId.isValidEntityId(val, true, EvmAddressType.LONG_ZERO);
+      ret = EntityId.isValidEntityId(val, true, EvmAddressType.NUM_ALIAS);
       break;
     case filterKeys.TOKEN_TYPE:
       ret = utils.isValidValueIgnoreCase(val, Object.values(tokenTypeFilter));
@@ -424,7 +424,7 @@ const getAndValidateTokenIdRequestPathParam = (req) => {
   const options = {
     allowEvmAddress: true,
     paramName: filterKeys.TOKENID,
-    evmAddressType: EvmAddressType.LONG_ZERO,
+    evmAddressType: EvmAddressType.NUM_ALIAS,
   };
   return EntityId.parseString(req.params.tokenId, options).getEncodedId();
 };

@@ -338,7 +338,7 @@ const filterValidityChecks = (param, op, val) => {
       ret = isValidTimestampParam(val);
       break;
     case constants.filterKeys.TOKEN_ID:
-      ret = EntityId.isValidEntityId(val, true, constants.EvmAddressType.LONG_ZERO);
+      ret = EntityId.isValidEntityId(val, true, constants.EvmAddressType.NUM_ALIAS);
       break;
     case constants.filterKeys.TOKEN_TYPE:
       ret = isValidValueIgnoreCase(val, Object.values(constants.tokenTypeFilter));
@@ -1314,7 +1314,7 @@ const formatComparator = (comparator) => {
         // Accepted forms: shard.realm.num or num
         comparator.value = EntityId.parseString(comparator.value, {
           allowEvmAddress: true,
-          evmAddressType: EvmAddressType.LONG_ZERO,
+          evmAddressType: EvmAddressType.NUM_ALIAS,
         }).getEncodedId();
         break;
       case constants.filterKeys.TOKEN_TYPE:

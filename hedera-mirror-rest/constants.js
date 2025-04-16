@@ -82,7 +82,7 @@ const EvmAddressType = {
   // can be either a NO_SHARD_REALM or OPTIONAL_SHARD_REALM
   ANY: 2,
   // long zero hedera account id
-  LONG_ZERO: 3,
+  NUM_ALIAS: 3,
 };
 
 const keyTypes = {

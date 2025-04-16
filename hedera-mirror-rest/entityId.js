@@ -132,7 +132,7 @@ const isValidEvmAddress = (address, evmAddressType = constants.EvmAddressType.AN
   if (evmAddressType === constants.EvmAddressType.NO_SHARD_REALM) {
     return evmAddressRegex.test(address);
   }
-  if (evmAddressType === constants.EvmAddressType.LONG_ZERO) {
+  if (evmAddressType === constants.EvmAddressType.NUM_ALIAS) {
     return (evmAddressRegex.test(address) || evmAddressShardRealmRegex.test(address)) && !isEvmAddressAlias(address);
   }
   return evmAddressShardRealmRegex.test(address);

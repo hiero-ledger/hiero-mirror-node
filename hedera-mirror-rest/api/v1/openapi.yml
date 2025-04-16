@@ -4388,13 +4388,13 @@ components:
       required: true
       description: Token id
       examples:
-        longZero:
+        tokenNumAlias:
           value: 0x000000000000000000000000000000000000046F
-        shardRealmLongZero:
+        shardRealmTokenNumAlias:
           value: 0.0.000000000000000000000000000000000000046F
-        accountNumOnly:
+        tokenNum:
           value: 1135
-        shardRealmAccountNum:
+        shardRealmTokenNum:
           value: 0.0.1135
       schema:
         $ref: "#/components/schemas/EntityId"
@@ -5012,8 +5012,8 @@ components:
         noValue:
           summary: --
           value: ""
-        longZero:
-          summary: Example of long address equals with no operator
+        tokenNumAlias:
+          summary: Example of token num alias equals with no operator
           value: 0000000000000000000000000000000000000064
         entityNumNoOperator:
           summary: Example of entityNum equals with no operator
