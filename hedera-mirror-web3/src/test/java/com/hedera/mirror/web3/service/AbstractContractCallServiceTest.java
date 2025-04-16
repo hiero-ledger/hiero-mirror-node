@@ -129,9 +129,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         genesisRecordFile =
                 domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         treasuryEntity = domainBuilder
-                .entity()
-                .customize(e -> e.id(systemEntity.treasuryAccount().getId())
-                        .num(systemEntity.treasuryAccount().getNum())
+                .entity(systemEntity.treasuryAccount())
+                .customize(e -> e
                         // The balance should not be set to max value 5000000000000000000L, because if we use it as a
                         // node operator it would not be able to receive rewards and can cause failures
                         .balance(1000000000000000000L)
@@ -139,10 +138,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
         domainBuilder
-                .entity()
-                .customize(e -> e.id(systemEntity.feeCollectorAccount().getId())
-                        .num(systemEntity.feeCollectorAccount().getNum())
-                        .createdTimestamp(genesisRecordFile.getConsensusStart())
+                .entity(systemEntity.feeCollectorAccount())
+                .customize(e -> e.createdTimestamp(genesisRecordFile.getConsensusStart())
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
         domainBuilder
@@ -712,17 +709,13 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected void persistRewardAccounts() {
         domainBuilder
-                .entity()
-                .customize(e -> e.id(systemEntity.nodeRewardAccount().getId())
-                        .num(systemEntity.nodeRewardAccount().getNum())
-                        .createdTimestamp(genesisRecordFile.getConsensusStart())
+                .entity(systemEntity.nodeRewardAccount())
+                .customize(e -> e.createdTimestamp(genesisRecordFile.getConsensusStart())
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
         domainBuilder
-                .entity()
-                .customize(e -> e.id(systemEntity.stakingRewardAccount().getId())
-                        .num(systemEntity.stakingRewardAccount().getNum())
-                        .createdTimestamp(genesisRecordFile.getConsensusStart())
+                .entity(systemEntity.stakingRewardAccount())
+                .customize(e -> e.createdTimestamp(genesisRecordFile.getConsensusStart())
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
     }
