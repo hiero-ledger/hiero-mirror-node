@@ -22,7 +22,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 class StorageContractTest extends AbstractContractCallServiceHistoricalTest {
 
     @Test
-    void testUpdateSlot0() {
+    void testRemoveSlot0() {
         final var contract = testWeb3jService.deployWithoutPersist(StorageContract::deploy);
         final var entity = persistContract(
                 testWeb3jService.getContractRuntime(), Address.fromHexString(contract.getContractAddress()));
@@ -37,6 +37,15 @@ class StorageContractTest extends AbstractContractCallServiceHistoricalTest {
                         .value(UInt256.fromBytes(Bytes.wrap(oneValue)).toArray()))
                 .persist();
         final var functionCall = contract.send_setSlot0(BigInteger.ZERO);
+        assertDoesNotThrow(functionCall::send);
+    }
+
+    @Test
+    void testUpdateSlot0() {
+        final var contract = testWeb3jService.deployWithoutPersist(StorageContract::deploy);
+        persistContract(testWeb3jService.getContractRuntime(), Address.fromHexString(contract.getContractAddress()));
+
+        final var functionCall = contract.send_updateStorage(BigInteger.ONE, BigInteger.valueOf(10));
         assertDoesNotThrow(functionCall::send);
     }
 

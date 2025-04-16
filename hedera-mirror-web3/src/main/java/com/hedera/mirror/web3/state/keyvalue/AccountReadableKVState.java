@@ -20,8 +20,8 @@ import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.NftAllowance;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.web3.common.ContractCallContext;
+import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.repository.AccountBalanceRepository;
-import com.hedera.mirror.web3.repository.ContractStateRepository;
 import com.hedera.mirror.web3.repository.CryptoAllowanceRepository;
 import com.hedera.mirror.web3.repository.NftAllowanceRepository;
 import com.hedera.mirror.web3.repository.NftRepository;
@@ -30,6 +30,7 @@ import com.hedera.mirror.web3.repository.TokenAllowanceRepository;
 import com.hedera.mirror.web3.repository.projections.TokenAccountAssociationsCount;
 import com.hedera.mirror.web3.state.CommonEntityAccessor;
 import com.hedera.mirror.web3.utils.Suppliers;
+import com.hedera.node.config.data.ContractsConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.Nonnull;
@@ -58,7 +59,7 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
     private final SystemEntity systemEntity;
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenAllowanceRepository tokenAllowanceRepository;
-    private final ContractStateRepository contractStateRepository;
+    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     public AccountReadableKVState(
             CommonEntityAccessor commonEntityAccessor,
@@ -69,7 +70,7 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
             CryptoAllowanceRepository cryptoAllowanceRepository,
             TokenAccountRepository tokenAccountRepository,
             AccountBalanceRepository accountBalanceRepository,
-            ContractStateRepository contractStateRepository) {
+            MirrorNodeEvmProperties mirrorNodeEvmProperties) {
         super(KEY);
         this.commonEntityAccessor = commonEntityAccessor;
         this.accountBalanceRepository = accountBalanceRepository;
@@ -79,7 +80,7 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
         this.systemEntity = systemEntity;
         this.tokenAccountRepository = tokenAccountRepository;
         this.tokenAllowanceRepository = tokenAllowanceRepository;
-        this.contractStateRepository = contractStateRepository;
+        this.mirrorNodeEvmProperties = mirrorNodeEvmProperties;
     }
 
     @Override
@@ -107,7 +108,7 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
                 .approveForAllNftAllowances(getApproveForAllNfts(entity.getId(), timestamp))
                 .autoRenewAccountId(toAccountId(entity.getAutoRenewAccountId()))
                 .autoRenewSeconds(Objects.requireNonNullElse(entity.getAutoRenewPeriod(), DEFAULT_AUTO_RENEW_PERIOD))
-                .contractKvPairsNumber(getStorageKVPairs(entity, timestamp))
+                .contractKvPairsNumber(getStorageKVPairs(entity))
                 .cryptoAllowances(getCryptoAllowances(entity.getId(), timestamp))
                 .deleted(Objects.requireNonNullElse(entity.getDeleted(), false))
                 .ethereumNonce(Objects.requireNonNullElse(entity.getEthereumNonce(), 0L))
@@ -198,14 +199,12 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
                 .toList()));
     }
 
-    private Supplier<Integer> getStorageKVPairs(final Entity entity, final Optional<Long> timestamp) {
+    private int getStorageKVPairs(final Entity entity) {
         if (!CONTRACT.equals(entity.getType())) {
-            return Suppliers.memoize(() -> 0);
+            return 0;
         }
-        final var contractId = entity.toEntityId().getId();
-        return Suppliers.memoize(() -> timestamp
-                .map(t -> contractStateRepository.countDistinctSlotsByContractIdAndTimestamp(contractId, t))
-                .orElseGet(() -> contractStateRepository.countSlotsByContractId(contractId)));
+        final var configuration = mirrorNodeEvmProperties.getVersionedConfiguration();
+        return configuration.getConfigData(ContractsConfig.class).maxKvPairsIndividual() / 2;
     }
 
     private TokenAccountBalances getTokenAccountBalances(final List<TokenAccountAssociationsCount> counts) {
