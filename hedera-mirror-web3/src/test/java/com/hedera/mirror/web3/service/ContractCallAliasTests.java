@@ -6,17 +6,16 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTE
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.esaulpaugh.headlong.abi.Address;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.web3j.generated.HRC632Contract;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.math.BigInteger;
+import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 
 class ContractCallAliasTests extends AbstractContractCallServiceTest {
 
-    private final Address nonExistingLongZeroAddress = Address.wrap("0x0000000000000000000000000000000000000000");
-    private final Address nonExistingEvmAddress = Address.wrap("0x0123456789012345678901234567890123456789");
+    private final Address nonExistingEvmAddress = Address.fromHexString("0x0123456789012345678901234567890123456789");
 
     @Test
     void isValidAliasStandardAccount() throws Exception {
@@ -57,8 +56,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
-        final var result = contract.call_isValidAliasCall(nonExistingLongZeroAddress.toString());
-        final var functionCall = contract.send_isValidAliasCall(nonExistingLongZeroAddress.toString());
+        final var result = contract.call_isValidAliasCall(Address.ZERO.toHexString());
+        final var functionCall = contract.send_isValidAliasCall(Address.ZERO.toHexString());
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isFalse();
@@ -74,7 +73,7 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
         final var result = contract.call_isValidAliasCall(nonExistingEvmAddress.toString());
-        final var functionCall = contract.send_isValidAliasCall(nonExistingLongZeroAddress.toString());
+        final var functionCall = contract.send_isValidAliasCall(nonExistingEvmAddress.toString());
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isFalse();
@@ -116,11 +115,11 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
     }
 
     @Test
-    void getAliasWithNonExistingLongZeroAddress()  {
+    void getAliasWithNonExistingLongZeroAddress() {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
-        final var functionCall = contract.call_getEvmAddressAliasCall(nonExistingLongZeroAddress.toString());
+        final var functionCall = contract.call_getEvmAddressAliasCall(Address.ZERO.toString());
         final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         // Then
         assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -164,7 +163,7 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         // When
-        final var functionCall = contract.call_getHederaAccountNumAliasCall(nonExistingLongZeroAddress.toString());
+        final var functionCall = contract.call_getHederaAccountNumAliasCall(Address.ZERO.toString());
         final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         // Then
         assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
