@@ -1053,15 +1053,15 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
     @ValueSource(ints = {1, 2, 3})
     void onEntityHistory(int commitIndex) {
         // given
-        Entity entityCreate = domainBuilder.entity().get();
+        var entityCreate = domainBuilder.entity().get();
 
-        Entity entityUpdate = entityCreate.toEntityId().toEntity();
+        var entityUpdate = entityCreate.toEntityId().toEntity();
         entityUpdate.setAlias(entityCreate.getAlias());
         entityUpdate.setAutoRenewAccountId(101L);
         entityUpdate.setAutoRenewPeriod(30L);
         entityUpdate.setDeclineReward(true);
         entityUpdate.setExpirationTimestamp(500L);
-        entityUpdate.setKey(domainBuilder.key());
+        entityUpdate.setKey(domainBuilder.thresholdKey(2, 1));
         entityUpdate.setMaxAutomaticTokenAssociations(40);
         entityUpdate.setMemo("updated");
         entityUpdate.setTimestampLower(entityCreate.getTimestampLower() + 1);
@@ -1072,17 +1072,19 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         entityUpdate.setStakePeriodStart(domainBuilder.number());
         entityUpdate.setType(ACCOUNT);
 
-        Entity entityDelete = entityCreate.toEntityId().toEntity();
+        var entityDelete = entityCreate.toEntityId().toEntity();
         entityDelete.setAlias(entityCreate.getAlias());
         entityDelete.setDeleted(true);
         entityDelete.setTimestampLower(entityCreate.getTimestampLower() + 2);
         entityDelete.setType(ACCOUNT);
 
         // Expected merged objects
-        Entity mergedCreate = TestUtils.clone(entityCreate);
-        Entity mergedUpdate = TestUtils.merge(entityCreate, entityUpdate);
-        Entity mergedDelete = TestUtils.merge(mergedUpdate, entityDelete);
+        var mergedCreate = TestUtils.clone(entityCreate);
+        var mergedUpdate = TestUtils.merge(entityCreate, entityUpdate);
+        var mergedDelete = TestUtils.merge(mergedUpdate, entityDelete);
         mergedCreate.setTimestampUpper(entityUpdate.getTimestampLower());
+        mergedUpdate.setPublicKey(null); // workaround the sentinel public key side effect
+        mergedDelete.setPublicKey(null); // workaround the sentinel public key side effect
 
         // when
         sqlEntityListener.onEntity(entityCreate);

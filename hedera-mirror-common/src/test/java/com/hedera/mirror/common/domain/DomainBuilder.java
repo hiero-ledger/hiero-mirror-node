@@ -93,8 +93,10 @@ import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
 import com.hederahashgraph.api.proto.java.FreezeType;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
+import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignaturePair;
+import com.hederahashgraph.api.proto.java.ThresholdKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import jakarta.persistence.EntityManager;
@@ -1150,6 +1152,16 @@ public class DomainBuilder {
         return num.get() % 2 == 0 ? key(KeyCase.ECDSA_SECP256K1) : key(KeyCase.ED25519);
     }
 
+    public byte[] keyList(int count) {
+        var keyList = KeyList.newBuilder();
+        for (int i = 0; i < count; i++) {
+            var keyCase = number() % 2 == 0 ? KeyCase.ECDSA_SECP256K1 : KeyCase.ED25519;
+            keyList.addKeys(protobufKey(keyCase));
+        }
+
+        return Key.newBuilder().setKeyList(keyList).build().toByteArray();
+    }
+
     public byte[] key(KeyCase keyCase) {
         return protobufKey(keyCase).toByteArray();
     }
@@ -1199,6 +1211,18 @@ public class DomainBuilder {
 
     public String text(int characters) {
         return RandomStringUtils.secure().nextAlphanumeric(characters);
+    }
+
+    public byte[] thresholdKey(int count, int threshold) {
+        var keyList = KeyList.newBuilder();
+        for (int i = 0; i < count; i++) {
+            keyList.addKeys(protobufKey(i % 2 == 0 ? KeyCase.ECDSA_SECP256K1 : KeyCase.ED25519));
+        }
+        var thresholdKey = ThresholdKey.newBuilder()
+                .setKeys(keyList)
+                .setThreshold(threshold)
+                .build();
+        return Key.newBuilder().setThresholdKey(thresholdKey).build().toByteArray();
     }
 
     public long timestamp() {

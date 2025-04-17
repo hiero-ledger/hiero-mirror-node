@@ -11,6 +11,7 @@ import com.hedera.mirror.importer.ImporterIntegrationTest;
 import com.hederahashgraph.api.proto.java.Key;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -30,29 +31,25 @@ class EntityRepositoryTest extends ImporterIntegrationTest {
 
     @Test
     void publicKeyUpdates() {
-        Entity entity = domainBuilder.entity().customize(b -> b.key(null)).persist();
+        var entity = domainBuilder.entity().customize(b -> b.key(null)).persist();
 
         // unset key should result in null public key
-        assertThat(entityRepository.findById(entity.getId()))
-                .get()
-                .extracting(Entity::getPublicKey)
-                .isNull();
+        assertThat(entityRepository.findById(entity.getId())).get().returns(null, Entity::getPublicKey);
 
         // default proto key of single byte should result in empty public key
         entity.setKey(Key.getDefaultInstance().toByteArray());
         entityRepository.save(entity);
-        assertThat(entityRepository.findById(entity.getId()))
-                .get()
-                .extracting(Entity::getPublicKey)
-                .isEqualTo("");
+        assertThat(entityRepository.findById(entity.getId())).get().returns(StringUtils.EMPTY, Entity::getPublicKey);
 
-        // invalid key should be null
+        // invalid key should set public key to the sentinel value
         entity.setKey("123".getBytes());
         entityRepository.save(entity);
-        assertThat(entityRepository.findById(entity.getId()))
-                .get()
-                .extracting(Entity::getPublicKey)
-                .isNull();
+        assertThat(entityRepository.findById(entity.getId())).get().returns(StringUtils.EMPTY, Entity::getPublicKey);
+
+        // 1 out of 2 threshold key should set public key to the sentinel value
+        entity.setKey(domainBuilder.thresholdKey(2, 1));
+        entityRepository.save(entity);
+        assertThat(entityRepository.findById(entity.getId())).get().returns(StringUtils.EMPTY, Entity::getPublicKey);
 
         // valid key should not be null
         entity.setKey(Key.newBuilder()

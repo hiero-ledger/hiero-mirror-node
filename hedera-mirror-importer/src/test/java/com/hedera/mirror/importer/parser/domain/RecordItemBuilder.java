@@ -113,6 +113,7 @@ import com.hederahashgraph.api.proto.java.SignaturePair;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.SystemDeleteTransactionBody;
 import com.hederahashgraph.api.proto.java.SystemUndeleteTransactionBody;
+import com.hederahashgraph.api.proto.java.ThresholdKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import com.hederahashgraph.api.proto.java.TokenAirdropTransactionBody;
@@ -1337,11 +1338,20 @@ public class RecordItemBuilder {
     }
 
     public Key key() {
-        if (id.get() % 2 == 0) {
+        if (id() % 2 == 0) {
             return Key.newBuilder().setECDSASecp256K1(bytes(KEY_LENGTH_ECDSA)).build();
         } else {
             return Key.newBuilder().setEd25519(bytes(KEY_LENGTH_ED25519)).build();
         }
+    }
+
+    public Key thresholdKey(int count, int threshold) {
+        var keyList = KeyList.newBuilder();
+        for (int i = 0; i < count; i++) {
+            keyList.addKeys(key());
+        }
+        var thresholdKey = ThresholdKey.newBuilder().setKeys(keyList).setThreshold(threshold);
+        return Key.newBuilder().setThresholdKey(thresholdKey).build();
     }
 
     public NodeStake.Builder nodeStake() {
