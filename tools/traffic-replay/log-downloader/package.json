@@ -1,6 +1,6 @@
 {
   "name": "@hashgraph/mirror-log-downloader",
-  "version": "0.128.0-SNAPSHOT",
+  "version": "0.129.0-SNAPSHOT",
   "description": "Bulk download rest API logs from google cloud logging",
   "main": "index.js",
   "private": true,

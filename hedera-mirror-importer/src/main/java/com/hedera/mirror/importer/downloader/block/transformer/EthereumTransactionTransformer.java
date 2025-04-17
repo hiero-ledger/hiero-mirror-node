@@ -36,10 +36,11 @@ final class EthereumTransactionTransformer extends AbstractBlockItemTransformer 
                             recordBuilder.setContractCreateResult(result);
                             setReceipt(result, receiptBuilder);
                         }
-                        default -> log.warn(
-                                "Unhandled eth_result case {} for transaction at {}",
-                                ethereumCall.getEthResultCase(),
-                                blockItem.getConsensusTimestamp());
+                        default ->
+                            log.warn(
+                                    "Unhandled eth_result case {} for transaction at {}",
+                                    ethereumCall.getEthResultCase(),
+                                    blockItem.getConsensusTimestamp());
                     }
                 });
     }

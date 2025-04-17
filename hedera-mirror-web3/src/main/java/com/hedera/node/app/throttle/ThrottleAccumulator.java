@@ -327,15 +327,16 @@ public class ThrottleAccumulator {
             @NonNull final TransactionBody txnBody, @NonNull final HederaFunctionality function) {
         final long nominalGas =
                 switch (function) {
-                    case CONTRACT_CREATE -> txnBody.contractCreateInstanceOrThrow()
-                            .gas();
+                    case CONTRACT_CREATE ->
+                        txnBody.contractCreateInstanceOrThrow().gas();
                     case CONTRACT_CALL -> txnBody.contractCallOrThrow().gas();
-                    case ETHEREUM_TRANSACTION -> Optional.of(txnBody.ethereumTransactionOrThrow()
-                                    .ethereumData()
-                                    .toByteArray())
-                            .map(EthTxData::populateEthTxData)
-                            .map(EthTxData::gasLimit)
-                            .orElse(0L);
+                    case ETHEREUM_TRANSACTION ->
+                        Optional.of(txnBody.ethereumTransactionOrThrow()
+                                        .ethereumData()
+                                        .toByteArray())
+                                .map(EthTxData::populateEthTxData)
+                                .map(EthTxData::gasLimit)
+                                .orElse(0L);
                     default -> 0L;
                 };
         // Interpret negative gas as overflow

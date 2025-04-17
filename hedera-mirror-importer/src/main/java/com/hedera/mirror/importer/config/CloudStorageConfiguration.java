@@ -58,10 +58,10 @@ class CloudStorageConfiguration {
         for (var source : commonDownloaderProperties.getSources()) {
             var provider =
                     switch (source.getType()) {
-                        case LOCAL -> new LocalStreamFileProvider(
-                                commonProperties, commonDownloaderProperties, localProperties);
-                        case GCP, S3 -> new S3StreamFileProvider(
-                                commonProperties, commonDownloaderProperties, s3Client(source));
+                        case LOCAL ->
+                            new LocalStreamFileProvider(commonProperties, commonDownloaderProperties, localProperties);
+                        case GCP, S3 ->
+                            new S3StreamFileProvider(commonProperties, commonDownloaderProperties, s3Client(source));
                     };
 
             providers.add(provider);

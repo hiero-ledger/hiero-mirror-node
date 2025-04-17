@@ -171,7 +171,8 @@ public class EncodingFacade {
                 case HAPI_ALLOWANCE -> hapiAllowanceOfType;
                 case HAPI_APPROVE, HAPI_IS_APPROVED_FOR_ALL -> INT_BOOL_TUPLE;
                 case HAPI_APPROVE_NFT -> intTuple;
-                default -> NOT_SPECIFIED_TYPE;};
+                default -> NOT_SPECIFIED_TYPE;
+            };
 
             this.functionType = functionType;
             return this;

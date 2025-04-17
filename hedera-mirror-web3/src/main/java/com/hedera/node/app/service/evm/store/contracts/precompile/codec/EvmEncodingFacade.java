@@ -305,7 +305,8 @@ public class EvmEncodingFacade {
                 case HAPI_GET_TOKEN_CUSTOM_FEES -> GET_TOKEN_CUSTOM_FEES_TYPE;
                 case HAPI_GET_TOKEN_EXPIRY_INFO -> GET_TOKEN_EXPIRY_INFO_TYPE;
                 case HAPI_GET_TOKEN_KEY -> GET_TOKEN_KEY_TYPE;
-                default -> NOT_SPECIFIED_TYPE;};
+                default -> NOT_SPECIFIED_TYPE;
+            };
             this.functionType = functionType;
             return this;
         }

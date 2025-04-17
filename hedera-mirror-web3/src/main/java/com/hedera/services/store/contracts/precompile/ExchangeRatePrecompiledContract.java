@@ -77,10 +77,10 @@ public class ExchangeRatePrecompiledContract extends AbstractPrecompiledContract
             final var amount = biValueFrom(input);
             final var activeRate = exchange.activeRate(consensusNow);
             return switch (selector) {
-                case TO_TINYBARS_SELECTOR -> padded(
-                        fromAToB(amount, activeRate.getHbarEquiv(), activeRate.getCentEquiv()));
-                case TO_TINYCENTS_SELECTOR -> padded(
-                        fromAToB(amount, activeRate.getCentEquiv(), activeRate.getHbarEquiv()));
+                case TO_TINYBARS_SELECTOR ->
+                    padded(fromAToB(amount, activeRate.getHbarEquiv(), activeRate.getCentEquiv()));
+                case TO_TINYCENTS_SELECTOR ->
+                    padded(fromAToB(amount, activeRate.getCentEquiv(), activeRate.getHbarEquiv()));
                 default -> PrecompileContractResult.halt(null, Optional.of(ExceptionalHaltReason.NONE));
             };
         } catch (Exception ignore) {

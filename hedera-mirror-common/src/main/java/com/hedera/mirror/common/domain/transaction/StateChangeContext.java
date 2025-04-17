@@ -58,8 +58,8 @@ public final class StateChangeContext {
                 var mapUpdate = stateChange.getMapUpdate();
                 switch (stateChange.getStateId()) {
                     case StateIdentifier.STATE_ID_ACCOUNTS_VALUE -> processAccountStateChange(mapUpdate);
-                    case StateIdentifier.STATE_ID_FILES_VALUE -> fileIds.add(
-                            mapUpdate.getKey().getFileIdKey());
+                    case StateIdentifier.STATE_ID_FILES_VALUE ->
+                        fileIds.add(mapUpdate.getKey().getFileIdKey());
                     case StateIdentifier.STATE_ID_NODES_VALUE -> processNodeStateChange(mapUpdate);
                     case StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE -> processPendingAirdropStateChange(mapUpdate);
                     case StateIdentifier.STATE_ID_TOKENS_VALUE -> processTokenStateChange(mapUpdate);

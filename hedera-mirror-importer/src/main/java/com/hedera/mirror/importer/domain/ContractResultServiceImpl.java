@@ -141,8 +141,9 @@ public class ContractResultServiceImpl implements ContractResultService {
                     contractAction.setCallerType(EntityType.ACCOUNT);
                     contractAction.setCaller(EntityId.of(action.getCallingAccount()));
                 }
-                default -> Utility.handleRecoverableError(
-                        "Invalid caller for contract action at {}: {}", consensusTimestamp, action.getCallerCase());
+                default ->
+                    Utility.handleRecoverableError(
+                            "Invalid caller for contract action at {}: {}", consensusTimestamp, action.getCallerCase());
             }
         } catch (InvalidEntityException e) {
             Utility.handleRecoverableError("Invalid caller for contract action at {}: {}", consensusTimestamp, action);
@@ -151,10 +152,10 @@ public class ContractResultServiceImpl implements ContractResultService {
         try {
             switch (action.getRecipientCase()) {
                 case RECIPIENT_ACCOUNT -> contractAction.setRecipientAccount(EntityId.of(action.getRecipientAccount()));
-                case RECIPIENT_CONTRACT -> contractAction.setRecipientContract(
-                        EntityId.of(action.getRecipientContract()));
-                case TARGETED_ADDRESS -> contractAction.setRecipientAddress(
-                        DomainUtils.toBytes(action.getTargetedAddress()));
+                case RECIPIENT_CONTRACT ->
+                    contractAction.setRecipientContract(EntityId.of(action.getRecipientContract()));
+                case TARGETED_ADDRESS ->
+                    contractAction.setRecipientAddress(DomainUtils.toBytes(action.getTargetedAddress()));
                 default -> {
                     // ContractCreate transaction has no recipient
                 }
@@ -169,10 +170,11 @@ public class ContractResultServiceImpl implements ContractResultService {
             case ERROR -> contractAction.setResultData(DomainUtils.toBytes(action.getError()));
             case REVERT_REASON -> contractAction.setResultData(DomainUtils.toBytes(action.getRevertReason()));
             case OUTPUT -> contractAction.setResultData(DomainUtils.toBytes(action.getOutput()));
-            default -> Utility.handleRecoverableError(
-                    "Invalid result data for contract action at {}: {}",
-                    consensusTimestamp,
-                    action.getResultDataCase());
+            default ->
+                Utility.handleRecoverableError(
+                        "Invalid result data for contract action at {}: {}",
+                        consensusTimestamp,
+                        action.getResultDataCase());
         }
 
         contractAction.setCallDepth(action.getCallDepth());

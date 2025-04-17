@@ -640,20 +640,27 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
     private KeyValue getKeyValueForType(final KeyValueType keyValueType, String contractAddress) {
         return switch (keyValueType) {
-            case INHERIT_ACCOUNT_KEY -> new KeyValue(
-                    Boolean.TRUE, Address.ZERO.toHexString(), new byte[0], new byte[0], Address.ZERO.toHexString());
-            case CONTRACT_ID -> new KeyValue(
-                    Boolean.FALSE, contractAddress, new byte[0], new byte[0], Address.ZERO.toHexString());
-            case ED25519 -> new KeyValue(
-                    Boolean.FALSE,
-                    Address.ZERO.toHexString(),
-                    NEW_ED25519_KEY,
-                    new byte[0],
-                    Address.ZERO.toHexString());
-            case ECDSA_SECPK256K1 -> new KeyValue(
-                    Boolean.FALSE, Address.ZERO.toHexString(), new byte[0], NEW_ECDSA_KEY, Address.ZERO.toHexString());
-            case DELEGATABLE_CONTRACT_ID -> new KeyValue(
-                    Boolean.FALSE, Address.ZERO.toHexString(), new byte[0], new byte[0], contractAddress);
+            case INHERIT_ACCOUNT_KEY ->
+                new KeyValue(
+                        Boolean.TRUE, Address.ZERO.toHexString(), new byte[0], new byte[0], Address.ZERO.toHexString());
+            case CONTRACT_ID ->
+                new KeyValue(Boolean.FALSE, contractAddress, new byte[0], new byte[0], Address.ZERO.toHexString());
+            case ED25519 ->
+                new KeyValue(
+                        Boolean.FALSE,
+                        Address.ZERO.toHexString(),
+                        NEW_ED25519_KEY,
+                        new byte[0],
+                        Address.ZERO.toHexString());
+            case ECDSA_SECPK256K1 ->
+                new KeyValue(
+                        Boolean.FALSE,
+                        Address.ZERO.toHexString(),
+                        new byte[0],
+                        NEW_ECDSA_KEY,
+                        Address.ZERO.toHexString());
+            case DELEGATABLE_CONTRACT_ID ->
+                new KeyValue(Boolean.FALSE, Address.ZERO.toHexString(), new byte[0], new byte[0], contractAddress);
             default -> throw new RuntimeException("Unsupported key type: " + keyValueType.name());
         };
     }

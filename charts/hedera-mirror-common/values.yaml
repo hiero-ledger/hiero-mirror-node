@@ -166,14 +166,6 @@ loki:
   serviceMonitor:
     enabled: true
   singleBinary:
-    extraVolumeMounts:
-      - mountPath: /rules
-        name: rules
-    extraVolumes:
-      - name: rules
-        configMap:
-          defaultMode: 420
-          name: mirror-log-alerts
     persistence:
       enableStatefulSetAutoDeletePVC: true
       size: 250Gi
@@ -490,7 +482,7 @@ testkube:
     image:
       registry: docker.io
       repository: grafana/k6
-      tag: 0.53.0
+      tag: 0.58.0
   namespace: testkube
   test:
     config:
