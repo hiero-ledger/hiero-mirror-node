@@ -51,7 +51,8 @@ public class Utils {
             return false;
         }
 
-        if (Arrays.equals(address, Address.ZERO.toArray())) {
+
+        if (Arrays.equals(address, Address.ZERO.toArrayUnsafe())) {
             return true;
         }
 
