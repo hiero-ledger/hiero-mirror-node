@@ -10,10 +10,13 @@ import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
 
 import com.hedera.hapi.node.base.AccountID;
+import com.hedera.hapi.node.base.ContractID;
+import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.state.token.AccountApprovalForAllAllowance;
 import com.hedera.hapi.node.state.token.AccountCryptoAllowance;
 import com.hedera.hapi.node.state.token.AccountFungibleTokenAllowance;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.CryptoAllowance;
 import com.hedera.mirror.common.domain.entity.Entity;
@@ -60,6 +63,7 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenAllowanceRepository tokenAllowanceRepository;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final CommonProperties commonProperties = CommonProperties.getInstance();
 
     public AccountReadableKVState(
             CommonEntityAccessor commonEntityAccessor,
@@ -101,6 +105,7 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
         } else if (entity.getAlias() != null && entity.getAlias().length > 0) {
             alias = entity.getAlias();
         }
+        final boolean isSmartContract = CONTRACT.equals(entity.getType());
 
         return Account.newBuilder()
                 .accountId(EntityIdUtils.toAccountId(entity.toEntityId()))
@@ -114,17 +119,31 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
                 .ethereumNonce(Objects.requireNonNullElse(entity.getEthereumNonce(), 0L))
                 .expirationSecond(TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS))
                 .expiredAndPendingRemoval(false)
-                .key(parseKey(entity.getKey()))
+                .key(getKey(entity, isSmartContract))
                 .maxAutoAssociations(Objects.requireNonNullElse(entity.getMaxAutomaticTokenAssociations(), 0))
                 .memo(entity.getMemo())
                 .numberAssociations(() -> tokenAccountBalances.get().all())
                 .numberOwnedNfts(getOwnedNfts(entity.getId(), timestamp))
                 .numberPositiveBalances(() -> tokenAccountBalances.get().positive())
                 .receiverSigRequired(entity.getReceiverSigRequired() != null && entity.getReceiverSigRequired())
-                .smartContract(CONTRACT.equals(entity.getType()))
+                .smartContract(isSmartContract)
                 .tinybarBalance(getAccountBalance(entity, timestamp))
                 .tokenAllowances(getFungibleTokenAllowances(entity.getId(), timestamp))
                 .build();
+    }
+
+    private Key getKey(final Entity entity, final boolean isSmartContract) {
+        final var key = parseKey(entity.getKey());
+        if (key == null && isSmartContract) {
+            return Key.newBuilder()
+                    .contractID(ContractID.newBuilder()
+                            .shardNum(commonProperties.getShard())
+                            .realmNum(commonProperties.getRealm())
+                            .contractNum(entity.getNum())
+                            .build())
+                    .build();
+        }
+        return key;
     }
 
     private Supplier<Long> getOwnedNfts(Long accountId, final Optional<Long> timestamp) {
