@@ -69,6 +69,10 @@ spec:
       env:
         HEDERA_MIRROR_REST_STATEPROOF_ENABLED: "true"
         HEDERA_MIRROR_REST_STATEPROOF_STREAMS_NETWORK: MAINNET
+      monitor:
+        config:
+          contract:
+            contractId: "0.0.2283226"
     restjava:
       ingress:
         enabled: true
