@@ -2,12 +2,16 @@
 
 package com.hedera.mirror.web3.service;
 
+import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.EMPTY_UNTRIMMED_ADDRESS;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.NEW_ECDSA_KEY;
 import static com.hedera.mirror.web3.utils.ContractCallTestUtil.ZERO_VALUE;
+import static com.hedera.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static com.hedera.services.utils.EntityIdUtils.asHexedEvmAddress;
+import static com.hedera.services.utils.EntityIdUtils.entityIdFromContractId;
+import static com.hedera.services.utils.EntityIdUtils.toContractID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -22,6 +26,7 @@ import com.hedera.mirror.common.domain.token.TokenSupplyTypeEnum;
 import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.mirror.web3.evm.utils.EvmTokenUtils;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
+import com.hedera.mirror.web3.utils.BytecodeUtils;
 import com.hedera.mirror.web3.utils.ContractFunctionProviderRecord;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.AccountAmount;
@@ -44,6 +49,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.tuweni.bytes.Bytes;
+import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -319,6 +325,34 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
+        // When
+        final var functionCall = contract.call_mintTokenExternal(
+                getAddressFromEntity(tokenEntity), BigInteger.ZERO, List.of(domainBuilder.nonZeroBytes(12)));
+
+        final var result = functionCall.send();
+
+        // Then
+        assertThat(result.component3().getFirst()).isEqualTo(BigInteger.ONE);
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
+    @Test
+    void mintNFTWithContractWithoutKey() throws Exception {
+        // Given
+        final var treasury = accountEntityPersist();
+        final var tokenEntity = tokenEntityPersist();
+
+        nonFungibleTokenPersist(tokenEntity, treasury);
+
+        tokenAccountPersist(tokenEntity.getId(), treasury.getId());
+
+        final var contract = testWeb3jService.deployWithoutPersist(ModificationPrecompileTestContract::deploy);
+        final var contractAddress = contract.getContractAddress();
+        final var contractID = toContractID(Address.fromHexString(contractAddress));
+        final var contractEntityId = entityIdFromContractId(contractID);
+        contractPersistWithNoKey(
+                BytecodeUtils.extractRuntimeBytecode(ModificationPrecompileTestContract.BINARY), contractEntityId);
         // When
         final var functionCall = contract.call_mintTokenExternal(
                 getAddressFromEntity(tokenEntity), BigInteger.ZERO, List.of(domainBuilder.nonZeroBytes(12)));
@@ -1496,5 +1530,23 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                         BigInteger.valueOf(entity.getEffectiveExpiration()),
                         toAddress(entityRenewAccountId).toHexString(),
                         BigInteger.valueOf(entity.getEffectiveExpiration())));
+    }
+
+    private void contractPersistWithNoKey(final String binary, final EntityId entityId) {
+        final var contractBytes = Hex.decode(binary.replace(HEX_PREFIX, ""));
+        final var entity = domainBuilder
+                .entity(entityId)
+                .customize(e -> e.type(CONTRACT).alias(null).evmAddress(null).key(null))
+                .persist();
+
+        domainBuilder
+                .contract()
+                .customize(c -> c.id(entity.getId()).runtimeBytecode(contractBytes))
+                .persist();
+
+        domainBuilder
+                .contractState()
+                .customize(c -> c.contractId(entity.getId()))
+                .persist();
     }
 }
