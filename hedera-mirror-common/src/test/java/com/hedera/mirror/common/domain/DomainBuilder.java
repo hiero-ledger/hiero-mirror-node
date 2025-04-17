@@ -1152,6 +1152,16 @@ public class DomainBuilder {
         return num.get() % 2 == 0 ? key(KeyCase.ECDSA_SECP256K1) : key(KeyCase.ED25519);
     }
 
+    public byte[] keyList(int count) {
+        var keyList = KeyList.newBuilder();
+        for (int i = 0; i < count; i++) {
+            var keyCase = number() % 2 == 0 ? KeyCase.ECDSA_SECP256K1 : KeyCase.ED25519;
+            keyList.addKeys(protobufKey(keyCase));
+        }
+
+        return Key.newBuilder().setKeyList(keyList).build().toByteArray();
+    }
+
     public byte[] key(KeyCase keyCase) {
         return protobufKey(keyCase).toByteArray();
     }

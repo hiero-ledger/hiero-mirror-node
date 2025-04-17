@@ -4,6 +4,7 @@ package com.hedera.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hedera.mirror.common.domain.entity.AbstractEntity;
 import com.hedera.mirror.common.domain.entity.EntityHistory;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.util.DomainUtils;
@@ -12,6 +13,7 @@ import com.hedera.mirror.importer.ImporterIntegrationTest;
 import com.hedera.mirror.importer.TestUtils;
 import com.hedera.mirror.importer.repository.EntityRepository;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
@@ -56,8 +58,14 @@ class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
                         .publicKey(domainBuilder.text(12))
                         .type(EntityType.CONTRACT))
                 .persist();
-        // entity should have a valid public key however it's null in db
+        // entities should have a valid public key however it's null in db - one with primitive key, the other with
+        // a key list of one primitive key
         var entity4 = domainBuilder.entity().customize(e -> e.publicKey(null)).persist();
+        var entity5 = domainBuilder
+                .entity()
+                .customize(e -> e.key(domainBuilder.keyList(1)).publicKey(null))
+                .persist();
+
         // history table
         var entityHistory1 = domainBuilder.entityHistory().persist();
         // history of an entity created with 1/2 threshold key so in database public key is already null
@@ -74,6 +82,17 @@ class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
                 .persist();
         var entityHistory4 =
                 domainBuilder.entityHistory().customize(e -> e.publicKey(null)).persist();
+        var entityHistory5 = domainBuilder
+                .entityHistory()
+                .customize(e -> e.key(domainBuilder.keyList(1)).publicKey(null))
+                .persist();
+        // sanity check to make sure data doesn't change accidentally
+        assertThat(List.of(entity2, entity4, entity5, entityHistory2, entityHistory4, entityHistory5))
+                .map(AbstractEntity::getPublicKey)
+                .containsOnlyNulls();
+        assertThat(List.of(entity3, entityHistory3))
+                .map(AbstractEntity::getPublicKey)
+                .doesNotContainNull();
 
         // when
         runMigration();
@@ -81,15 +100,19 @@ class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
         // then
         entity3.setPublicKey(null);
         entity4.setPublicKey(DomainUtils.getPublicKey(entity4.getKey()));
+        entity5.setPublicKey(DomainUtils.getPublicKey(entity5.getKey()));
         entityHistory3.setPublicKey(null);
         entityHistory4.setPublicKey(DomainUtils.getPublicKey(entityHistory4.getKey()));
+        entityHistory5.setPublicKey(DomainUtils.getPublicKey(entityHistory5.getKey()));
 
-        assertThat(entityRepository.findAll()).containsExactlyInAnyOrder(entity1, entity2, entity3, entity4);
+        assertThat(entityRepository.findAll()).containsExactlyInAnyOrder(entity1, entity2, entity3, entity4, entity5);
         assertThat(findHistory(EntityHistory.class))
-                .containsExactlyInAnyOrder(entityHistory1, entityHistory2, entityHistory3, entityHistory4);
-        // also assert entity4 and entityHistory4 have non-null public keys
-        assertThat(entity4.getPublicKey()).isNotNull();
-        assertThat(entityHistory4.getPublicKey()).isNotNull();
+                .containsExactlyInAnyOrder(
+                        entityHistory1, entityHistory2, entityHistory3, entityHistory4, entityHistory5);
+        // also assert the following 4 entities have non-null public key
+        assertThat(List.of(entity4, entity5, entityHistory4, entityHistory5))
+                .map(AbstractEntity::getPublicKey)
+                .doesNotContainNull();
     }
 
     @SneakyThrows
