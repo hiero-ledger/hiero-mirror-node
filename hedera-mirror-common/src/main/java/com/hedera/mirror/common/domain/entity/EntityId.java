@@ -75,10 +75,10 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
      * operations too. That's because JavaScript's support for bitwise operations is very limited (truncates numbers to
      * 32 bits internally before bitwise operation).
      * <p/>
-     * Format: <br/> First bit (sign bit) is left 0. <br/> Next 15 bits are for shard, followed by 16 bits for realm,
-     * and then 32 bits for entity num. <br/> This encoding will support following ranges: <br/> shard: 0 - 32767 <br/>
-     * realm: 0 - 65535 <br/> num: 0 - 4294967295 <br/> Placing entity num in the end has the advantage that encoded ids
-     * <= 4294967295 will also be human-readable.
+     * Format: <br/> First bit (sign bit) is left 0. <br/> Next 10 bits are for shard, followed by 16 bits for realm,
+     * and then 38 bits for entity num. <br/> This encoding will support following ranges: <br/> shard: 0 - 1023 <br/>
+     * realm: 0 - 65535 <br/> num: 0 - 274877906943 <br/> Placing entity num in the end has the advantage that encoded ids
+     * <= 274877906943 will also be human-readable.
      */
     private static long encode(long shard, long realm, long num) {
         if (shard > SHARD_MASK || shard < 0 || realm > REALM_MASK || realm < 0 || num > NUM_MASK || num < 0) {
