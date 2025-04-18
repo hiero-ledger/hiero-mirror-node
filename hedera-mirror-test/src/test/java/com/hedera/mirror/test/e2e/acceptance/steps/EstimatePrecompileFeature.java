@@ -117,9 +117,9 @@ import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
 import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.asAddressArray;
 import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.asByteArray;
 import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.asLongArray;
+import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.generateRandomEvmAddress;
 import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
 import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.nftAmount;
-import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.to32BytesString;
 
 import com.esaulpaugh.headlong.abi.Tuple;
 import com.esaulpaugh.headlong.util.Strings;
@@ -159,17 +159,13 @@ import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.tuweni.bytes.Bytes;
 
 @CustomLog
 @RequiredArgsConstructor
 public class EstimatePrecompileFeature extends AbstractEstimateFeature {
-    private static final String HEX_DIGITS = "0123456789abcdef";
     private static final Tuple[] EMPTY_TUPLE_ARRAY = new Tuple[] {};
-
-    private static final String RANDOM_ADDRESS =
-            to32BytesString(RandomStringUtils.secure().next(40, HEX_DIGITS));
+    private static final String RANDOM_ADDRESS = generateRandomEvmAddress();
     private static final long FIRST_NFT_SERIAL_NUMBER = 1;
     private final TokenClient tokenClient;
     private final AccountClient accountClient;
