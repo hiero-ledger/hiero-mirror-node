@@ -239,6 +239,42 @@ public class TestUtil {
         return Instant.ofEpochSecond(seconds, nanos);
     }
 
+    /**
+     * Generate random long-zero address (evm-compatible address that can be converted to a validly formatted Entity ID)
+     *
+     * @return long-zero address
+     */
+    public static String generateRandomLongZeroAddress() {
+        SecureRandom random = new SecureRandom();
+        byte[] explicit = new byte[20];
+
+        // Generate valid shard (10-bit, max 1023)
+        int shard = random.nextInt(1 << 10);
+        explicit[2] = (byte) ((shard >>> 8) & 0xFF);
+        explicit[3] = (byte) (shard & 0xFF);
+
+        // Generate valid realm (16-bit, max 65535)
+        int realm = random.nextInt(1 << 16);
+        explicit[10] = (byte) ((realm >>> 8) & 0xFF);
+        explicit[11] = (byte) (realm & 0xFF);
+
+        // Generate valid num (38-bit max)
+        long num = random.nextLong() & ((1L << 38) - 1);
+        explicit[15] = (byte) ((num >>> 32) & 0xFF);
+        explicit[16] = (byte) ((num >>> 24) & 0xFF);
+        explicit[17] = (byte) ((num >>> 16) & 0xFF);
+        explicit[18] = (byte) ((num >>> 8) & 0xFF);
+        explicit[19] = (byte) (num & 0xFF);
+
+        // Convert to hex string
+        StringBuilder hex = new StringBuilder();
+        for (byte b : explicit) {
+            hex.append(String.format("%02x", b));
+        }
+
+        return hex.toString();
+    }
+
     public static class TokenTransferListBuilder {
         private Tuple tokenTransferList;
         private Address token;
