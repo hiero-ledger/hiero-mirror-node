@@ -32,6 +32,8 @@ services:
     configs:
       - source: app-config
         target: /usr/etc/hedera/application.yml
+        uid: "1000"
+        gid: "1000"
     deploy:
       replicas: 0
     environment:
@@ -48,6 +50,8 @@ services:
     configs:
       - source: app-config
         target: /usr/etc/hedera/application.yml
+        uid: "1000"
+        gid: "1000"
     environment:
       HEDERA_MIRROR_GRPC_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
@@ -63,6 +67,8 @@ services:
     configs:
       - source: app-config
         target: /usr/etc/hedera/application.yml
+        uid: "1000"
+        gid: "1000"
     environment:
       HEDERA_MIRROR_IMPORTER_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
@@ -76,6 +82,8 @@ services:
     configs:
       - source: app-config
         target: /usr/etc/hedera/application.yml
+        uid: "1000"
+        gid: "1000"
     deploy:
       replicas: 0
     environment:
@@ -97,6 +105,8 @@ services:
     configs:
       - source: app-config
         target: /usr/etc/hedera/application.yml
+        uid: "1000"
+        gid: "1000"
     environment:
       CONFIG_PATH: /usr/etc/hedera/
       HEDERA_MIRROR_REST_DB_HOST: db
@@ -112,6 +122,8 @@ services:
     configs:
       - source: app-config
         target: /usr/etc/hedera/application.yml
+        uid: "1000"
+        gid: "1000"
     environment:
       HEDERA_MIRROR_RESTJAVA_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
@@ -126,6 +138,8 @@ services:
     configs:
       - source: app-config
         target: /usr/etc/hedera/application.yml
+        uid: "1000"
+        gid: "1000"
     deploy:
       replicas: 0
     environment:
@@ -142,6 +156,8 @@ services:
     configs:
       - source: app-config
         target: /usr/etc/hedera/application.yml
+        uid: "1000"
+        gid: "1000"
     environment:
       HEDERA_MIRROR_WEB3_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
