@@ -9,7 +9,7 @@ require (
 	github.com/cucumber/godog v0.15.0
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/hellofresh/health-go/v4 v4.7.0
-	github.com/hiero-ledger/hiero-sdk-go/v2 v2.59.0
+	github.com/hiero-ledger/hiero-sdk-go/v2 v2.60.0
 	github.com/jackc/pgtype v1.14.4
 	github.com/lib/pq v1.10.9
 	github.com/mitchellh/mapstructure v1.5.0
