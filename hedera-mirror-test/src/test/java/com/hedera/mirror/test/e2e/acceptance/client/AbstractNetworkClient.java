@@ -6,12 +6,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.hashgraph.sdk.AccountBalanceQuery;
 import com.hedera.hashgraph.sdk.AccountId;
-import com.hedera.hashgraph.sdk.AccountInfo;
-import com.hedera.hashgraph.sdk.AccountInfoQuery;
 import com.hedera.hashgraph.sdk.Client;
-import com.hedera.hashgraph.sdk.Key;
 import com.hedera.hashgraph.sdk.KeyList;
+import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import com.hedera.hashgraph.sdk.PrivateKey;
+import com.hedera.hashgraph.sdk.PublicKey;
 import com.hedera.hashgraph.sdk.Query;
 import com.hedera.hashgraph.sdk.Status;
 import com.hedera.hashgraph.sdk.Transaction;
@@ -24,6 +23,7 @@ import com.hedera.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import com.hedera.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -70,6 +70,8 @@ public abstract class AbstractNetworkClient implements Cleanable {
                     .toList();
 
             executorService.invokeAll(futures);
+            executorService.shutdown();
+            executorService.awaitTermination(30, java.util.concurrent.TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("Unable to delete IDs: {}", ids, e);
         } finally {
@@ -92,14 +94,37 @@ public abstract class AbstractNetworkClient implements Cleanable {
 
         if (keyList != null) {
             transaction.freezeWith(client); // Signing requires transaction to be frozen
-            for (Key k : keyList) {
-                transaction.sign((PrivateKey) k);
+            for (var k : keyList) {
+                if (k instanceof PrivateKey privateKey) {
+                    transaction.sign(privateKey);
+                }
             }
         }
 
-        log.debug("Executing transaction: {}", transaction);
-        var transactionResponse = retryTemplate.execute(x -> transaction.execute(client));
-        return transactionResponse.transactionId;
+        try {
+            var transactionResponse = retryTemplate.execute(x -> transaction.execute(client));
+            var transactionId = transactionResponse.transactionId;
+
+            if (log.isDebugEnabled()) {
+                var publicKeys = getSignatures(transaction);
+                log.debug("Executed transaction {} with signatures: {}", transaction, publicKeys);
+            }
+            return transactionId;
+        } catch (PrecheckStatusException e) {
+            if (e.status == Status.INVALID_SIGNATURE) {
+                var publicKeys = getSignatures(transaction);
+                log.error("Invalid signature for transaction {} signed with: {}", transaction, publicKeys);
+            }
+            throw e;
+        }
+    }
+
+    private Map<AccountId, Map<PublicKey, byte[]>> getSignatures(Transaction<?> transaction) {
+        try {
+            return transaction.getSignatures();
+        } catch (Exception e) {
+            return Map.of();
+        }
     }
 
     public TransactionId executeTransaction(Transaction<?> transaction, KeyList keyList) {
@@ -161,24 +186,15 @@ public abstract class AbstractNetworkClient implements Cleanable {
     }
 
     public long getBalance(ExpandedAccountId accountId) {
-        // AccountBalanceQuery is free
         var query = new AccountBalanceQuery().setAccountId(accountId.getAccountId());
         var balance = executeQuery(() -> query).hbars;
         log.debug("Account {} balance is {}", accountId, balance);
         return balance.toTinybars();
     }
 
-    public AccountInfo getAccountInfo(AccountId accountId) {
-        AccountInfoQuery query = new AccountInfoQuery().setAccountId(accountId);
-        AccountInfo accountInfo = executeQuery(() -> query);
-        log.debug("Executed AccountInfoQuery for account {}", accountId);
-        return accountInfo;
-    }
-
     protected String getMemo(String message) {
         String memo = String.format("Mirror Node acceptance test: %s %s", Instant.now(), message);
-        // Memos are capped at 100 bytes
-        return StringUtils.truncate(memo, MEMO_BYTES_MAX_LENGTH);
+        return StringUtils.truncate(memo, MEMO_BYTES_MAX_LENGTH); // Memos are capped at 100 bytes
     }
 
     public void validateAddress(final String actualAddress) {
