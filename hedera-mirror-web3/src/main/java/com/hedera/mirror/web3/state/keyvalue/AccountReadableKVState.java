@@ -16,7 +16,6 @@ import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.state.token.AccountApprovalForAllAllowance;
 import com.hedera.hapi.node.state.token.AccountCryptoAllowance;
 import com.hedera.hapi.node.state.token.AccountFungibleTokenAllowance;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.CryptoAllowance;
 import com.hedera.mirror.common.domain.entity.Entity;
@@ -63,7 +62,6 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenAllowanceRepository tokenAllowanceRepository;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
-    private final CommonProperties commonProperties = CommonProperties.getInstance();
 
     public AccountReadableKVState(
             CommonEntityAccessor commonEntityAccessor,
@@ -137,8 +135,8 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
         if (key == null && isSmartContract) {
             return Key.newBuilder()
                     .contractID(ContractID.newBuilder()
-                            .shardNum(commonProperties.getShard())
-                            .realmNum(commonProperties.getRealm())
+                            .shardNum(entity.getShard())
+                            .realmNum(entity.getRealm())
                             .contractNum(entity.getNum())
                             .build())
                     .build();
