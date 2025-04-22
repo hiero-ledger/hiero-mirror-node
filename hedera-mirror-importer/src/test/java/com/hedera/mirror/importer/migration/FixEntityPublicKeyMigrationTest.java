@@ -42,7 +42,7 @@ class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
     }
 
     @Test
-    void migrate() {
+    void noChange() {
         // given
         var entity1 = domainBuilder.entity().persist();
         // entity created with 1/2 threshold key so in database public key is already null
@@ -50,22 +50,6 @@ class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
                 .entity()
                 .customize(e -> e.key(domainBuilder.thresholdKey(2, 1)).publicKey(null))
                 .persist();
-        // old public key stays after key gets changed to 1/2 threshold key
-        var entity3 = domainBuilder
-                .entity()
-                .customize(e -> e.key(domainBuilder.thresholdKey(2, 1))
-                        // must call after key() to override the side effect
-                        .publicKey(domainBuilder.text(12))
-                        .type(EntityType.CONTRACT))
-                .persist();
-        // entities should have a valid public key however it's null in db - one with primitive key, the other with
-        // a key list of one primitive key
-        var entity4 = domainBuilder.entity().customize(e -> e.publicKey(null)).persist();
-        var entity5 = domainBuilder
-                .entity()
-                .customize(e -> e.key(domainBuilder.keyList(1)).publicKey(null))
-                .persist();
-
         // history table
         var entityHistory1 = domainBuilder.entityHistory().persist();
         // history of an entity created with 1/2 threshold key so in database public key is already null
@@ -73,46 +57,70 @@ class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
                 .entityHistory()
                 .customize(e -> e.key(domainBuilder.thresholdKey(2, 1)).publicKey(null))
                 .persist();
-        var entityHistory3 = domainBuilder
+
+        // when
+        runMigration();
+
+        // then
+        assertThat(entityRepository.findAll()).containsExactlyInAnyOrder(entity1, entity2);
+        assertThat(findHistory(EntityHistory.class)).containsExactlyInAnyOrder(entityHistory1, entityHistory2);
+    }
+
+
+    @Test
+    void shouldClearOldKey() {
+        // given old public key stays after key gets changed to 1/2 threshold key
+        var entity = domainBuilder
+                .entity()
+                .customize(e -> e.key(domainBuilder.thresholdKey(2, 1))
+                        // must call after key() to override the side effect
+                        .publicKey(domainBuilder.text(12))
+                        .type(EntityType.CONTRACT))
+                .persist();
+        var entityHistory = domainBuilder
                 .entityHistory()
                 .customize(e -> e.key(domainBuilder.thresholdKey(2, 1))
                         // must call after key() to override the side effect
                         .publicKey(domainBuilder.text(12))
                         .type(EntityType.CONTRACT))
                 .persist();
-        var entityHistory4 =
-                domainBuilder.entityHistory().customize(e -> e.publicKey(null)).persist();
-        var entityHistory5 = domainBuilder
-                .entityHistory()
-                .customize(e -> e.key(domainBuilder.keyList(1)).publicKey(null))
-                .persist();
-        // sanity check to make sure data doesn't change accidentally
-        assertThat(List.of(entity2, entity4, entity5, entityHistory2, entityHistory4, entityHistory5))
-                .map(AbstractEntity::getPublicKey)
-                .containsOnlyNulls();
-        assertThat(List.of(entity3, entityHistory3))
-                .map(AbstractEntity::getPublicKey)
-                .doesNotContainNull();
 
         // when
         runMigration();
 
         // then
-        entity3.setPublicKey(null);
-        entity4.setPublicKey(DomainUtils.getPublicKey(entity4.getKey()));
-        entity5.setPublicKey(DomainUtils.getPublicKey(entity5.getKey()));
-        entityHistory3.setPublicKey(null);
-        entityHistory4.setPublicKey(DomainUtils.getPublicKey(entityHistory4.getKey()));
-        entityHistory5.setPublicKey(DomainUtils.getPublicKey(entityHistory5.getKey()));
+        entity.setPublicKey(null);
+        entityHistory.setPublicKey(null);
+        assertThat(entityRepository.findAll()).containsExactly(entity);
+        assertThat(findHistory(EntityHistory.class)).containsExactly(entityHistory);
+    }
 
-        assertThat(entityRepository.findAll()).containsExactlyInAnyOrder(entity1, entity2, entity3, entity4, entity5);
-        assertThat(findHistory(EntityHistory.class))
-                .containsExactlyInAnyOrder(
-                        entityHistory1, entityHistory2, entityHistory3, entityHistory4, entityHistory5);
-        // also assert the following 4 entities have non-null public key
-        assertThat(List.of(entity4, entity5, entityHistory4, entityHistory5))
-                .map(AbstractEntity::getPublicKey)
-                .doesNotContainNull();
+    @Test
+    void shouldHaveNonNullPublicKey() {
+        // given entities should have a non-null public key however it's null in db - one with primitive key, the other
+        // with a key list of one primitive key
+        var entity1 = domainBuilder.entity().customize(e -> e.publicKey(null)).persist();
+        var entity2 = domainBuilder
+                .entity()
+                .customize(e -> e.key(domainBuilder.keyList(1)).publicKey(null))
+                .persist();
+        var entityHistory1 =
+                domainBuilder.entityHistory().customize(e -> e.publicKey(null)).persist();
+        var entityHistory2 = domainBuilder
+                .entityHistory()
+                .customize(e -> e.key(domainBuilder.keyList(1)).publicKey(null))
+                .persist();
+
+        // when
+        runMigration();
+
+        // then
+        var entities = List.of(entity1, entity2, entityHistory1, entityHistory2);
+        entities.forEach(e -> e.setPublicKey(DomainUtils.getPublicKey(e.getKey())));
+        // sanity check
+        assertThat(entities).map(AbstractEntity::getPublicKey).doesNotContainNull();
+        assertThat(entityRepository.findAll()).containsExactlyInAnyOrder(entity1, entity2);
+        assertThat(findHistory(EntityHistory.class)).containsExactlyInAnyOrder(entityHistory1, entityHistory2);
     }
 
     @SneakyThrows
