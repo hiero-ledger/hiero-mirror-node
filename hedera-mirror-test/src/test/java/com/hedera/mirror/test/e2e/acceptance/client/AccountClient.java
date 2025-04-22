@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.test.e2e.acceptance.client;
 
-import com.google.common.base.Suppliers;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hashgraph.sdk.AccountAllowanceApproveTransaction;
 import com.hedera.hashgraph.sdk.AccountCreateTransaction;
@@ -29,7 +28,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.springframework.retry.support.RetryTemplate;
@@ -43,8 +41,6 @@ public class AccountClient extends AbstractNetworkClient {
     private final Map<AccountNameEnum, ExpandedAccountId> accountMap = new ConcurrentHashMap<>();
     private final Collection<ExpandedAccountId> accountIds = new CopyOnWriteArrayList<>();
     private final long initialBalance;
-    private final Supplier<ExpandedAccountId> tokenTreasuryAccount =
-            Suppliers.memoize(() -> createNewAccount(DEFAULT_INITIAL_BALANCE));
 
     public AccountClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
         super(sdkClient, retryTemplate);
@@ -59,6 +55,19 @@ public class AccountClient extends AbstractNetworkClient {
 
         var cost = initialBalance - getBalance();
         log.warn("Tests cost {} to run", Hbar.fromTinybars(cost));
+
+        var operatorId = sdkClient.getDefaultOperator();
+        var tempOperatorId = sdkClient.getExpandedOperatorAccountId();
+
+        if (!operatorId.equals(tempOperatorId)) {
+            try {
+                delete(tempOperatorId);
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+
+        client.setOperator(operatorId.getAccountId(), operatorId.getPrivateKey());
     }
 
     @Override
@@ -66,21 +75,34 @@ public class AccountClient extends AbstractNetworkClient {
         return 1; // Run cleanup last so it prints cost
     }
 
-    public ExpandedAccountId getTokenTreasuryAccount() {
-        return tokenTreasuryAccount.get();
-    }
-
     public NetworkTransactionResponse delete(ExpandedAccountId accountId) {
-        var accountDeleteTransaction = new AccountDeleteTransaction()
-                .setAccountId(accountId.getAccountId())
-                .setTransferAccountId(client.getOperatorAccountId())
-                .freezeWith(client)
-                .sign(accountId.getPrivateKey());
-        var response = executeTransactionAndRetrieveReceipt(accountDeleteTransaction);
-        log.info("Deleted account {} via {}", accountId, response.getTransactionId());
-        accountIds.remove(accountId);
-        accountMap.values().remove(accountId);
-        return response;
+        var operatorId = sdkClient.getDefaultOperator().getAccountId();
+
+        try {
+            var accountDeleteTransaction = new AccountDeleteTransaction()
+                    .setAccountId(accountId.getAccountId())
+                    .setTransferAccountId(operatorId)
+                    .freezeWith(client)
+                    .sign(accountId.getPrivateKey());
+            var response = executeTransactionAndRetrieveReceipt(accountDeleteTransaction);
+            log.info("Deleted account {} via {}", accountId, response.getTransactionId());
+            return response;
+        } catch (Exception e) {
+            try {
+                log.warn(
+                        "Unable to delete account {}. Manually transferring remaining funds to operator: {}",
+                        accountId,
+                        e.getMessage());
+                var amount = Hbar.fromTinybars(getBalance(accountId) - 100_000L);
+                sendCryptoTransfer(accountId, operatorId, amount, accountId.getPrivateKey());
+            } catch (Exception fallbackException) {
+                log.error("Fallback transfer failed: ", fallbackException);
+            }
+            throw e;
+        } finally {
+            accountIds.remove(accountId);
+            accountMap.values().remove(accountId);
+        }
     }
 
     public ExpandedAccountId getAccount(AccountNameEnum accountNameEnum) {
@@ -202,8 +224,8 @@ public class AccountClient extends AbstractNetworkClient {
                 receiverSigRequired,
                 memo == null ? "" : memo,
                 isED25519 ? null : privateKey.getPublicKey().toEvmAddress());
-        response =
-                executeTransactionAndRetrieveReceipt(transaction, receiverSigRequired ? KeyList.of(privateKey) : null);
+        var keys = receiverSigRequired || keyType == KeyCase.ECDSA_SECP256K1 ? KeyList.of(privateKey) : null;
+        response = executeTransactionAndRetrieveReceipt(transaction, keys);
         TransactionReceipt receipt = response.getReceipt();
         newAccountId = receipt.accountId;
         if (receipt.accountId == null) {
@@ -213,7 +235,8 @@ public class AccountClient extends AbstractNetworkClient {
 
         var accountName = AccountNameEnum.of(memo).map(a -> a + " ").orElse("");
         log.info(
-                "Created new account {}{} with {} via {}",
+                "Created new {} account {}{} with {} via {}",
+                keyType,
                 accountName,
                 newAccountId,
                 initialBalance,
@@ -310,7 +333,8 @@ public class AccountClient extends AbstractNetworkClient {
         CAROL(false, Key.KeyCase.ED25519),
         DAVE(false, Key.KeyCase.ED25519),
         DELETABLE(false, KeyCase.ED25519),
-        OPERATOR(false, Key.KeyCase.ED25519); // These may not be accurate for operator
+        OPERATOR(false, Key.KeyCase.ED25519), // These may not be accurate for operator
+        TOKEN_TREASURY(false, Key.KeyCase.ED25519);
 
         private final boolean receiverSigRequired;
         private final Key.KeyCase keyType;

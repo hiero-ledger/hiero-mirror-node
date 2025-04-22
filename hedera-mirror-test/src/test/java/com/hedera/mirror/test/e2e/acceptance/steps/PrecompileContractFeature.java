@@ -48,6 +48,7 @@ import com.hedera.mirror.rest.model.AccountInfo;
 import com.hedera.mirror.rest.model.Nft;
 import com.hedera.mirror.rest.model.TransactionByIdResponse;
 import com.hedera.mirror.test.e2e.acceptance.client.AccountClient;
+import com.hedera.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import com.hedera.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import com.hedera.mirror.test.e2e.acceptance.client.TokenClient;
 import com.hedera.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum;
@@ -239,7 +240,10 @@ public class PrecompileContractFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 IS_TOKEN_SELECTOR,
-                asAddress(accountClient.getTokenTreasuryAccount().getAccountId().toSolidityAddress()));
+                asAddress(accountClient
+                        .getAccount(AccountNameEnum.TOKEN_TREASURY)
+                        .getAccountId()
+                        .toSolidityAddress()));
         if (web3Properties.isModularizedServices()) {
             var result = callContract(data, precompileTestContractSolidityAddress);
             assertFalse(result.getResultAsBoolean());
