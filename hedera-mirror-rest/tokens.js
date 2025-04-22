@@ -7,6 +7,7 @@ import {getResponseLimit} from './config';
 import {
   EMPTY_STRING,
   entityTypes,
+  EvmAddressType,
   filterKeys,
   httpStatusCodes,
   orderFilterValues,
@@ -339,7 +340,7 @@ const validateTokenQueryFilter = (param, op, val) => {
       ret = utils.isPositiveLong(val);
       break;
     case filterKeys.TOKEN_ID:
-      ret = EntityId.isValidEntityId(val, false);
+      ret = EntityId.isValidEntityId(val, true, EvmAddressType.NUM_ALIAS);
       break;
     case filterKeys.TOKEN_TYPE:
       ret = utils.isValidValueIgnoreCase(val, Object.values(tokenTypeFilter));
@@ -420,7 +421,12 @@ const getTokensRequest = async (req, res) => {
 };
 
 const getAndValidateTokenIdRequestPathParam = (req) => {
-  return EntityId.parse(req.params.tokenId, {allowEvmAddress: false, paramName: filterKeys.TOKENID}).getEncodedId();
+  const options = {
+    allowEvmAddress: true,
+    paramName: filterKeys.TOKENID,
+    evmAddressType: EvmAddressType.NUM_ALIAS,
+  };
+  return EntityId.parseString(req.params.tokenId, options).getEncodedId();
 };
 
 /**

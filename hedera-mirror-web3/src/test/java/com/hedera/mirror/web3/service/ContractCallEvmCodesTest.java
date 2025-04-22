@@ -235,14 +235,11 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     @Test
     void testNonSystemAccountCodeHash() throws Exception {
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
-        final var address = toAddress(1078);
-        final var autoRenewEntityId = entityIdFromEvmAddress(address);
+        final var autoRenewEntityId = domainBuilder.entityId();
+        final var address = toAddress(autoRenewEntityId);
         domainBuilder
-                .entity()
-                .customize(e -> e.id(autoRenewEntityId.getId())
-                        .num(autoRenewEntityId.getNum())
-                        .evmAddress(null)
-                        .alias(toEvmAddress(autoRenewEntityId)))
+                .entity(autoRenewEntityId)
+                .customize(e -> e.evmAddress(null).alias(toEvmAddress(autoRenewEntityId)))
                 .persist();
 
         final var result = contract.call_getCodeHash(address.toString()).send();
@@ -254,19 +251,16 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     @Test
     void selfDestructCall() throws Exception {
         // Given
-        final var senderAddress = toAddress(1043);
+        final var senderEntityId = domainBuilder.entityId();
         final var senderAlias = Bytes.wrap(recoverAddressFromPubKey(ByteString.copyFrom(
                         Hex.decode("3a2103af80b90d25145da28c583359beb47b21796b2fe1a23c1511e443e7a64dfdb27d"))
                 .substring(2)
                 .toByteArray()));
-        final var senderEntityId = entityIdFromEvmAddress(senderAddress);
         final var senderPublicKey = ByteString.copyFrom(
                 Hex.decode("3a2103af80b90d25145da28c583359beb47b21796b2fe1a23c1511e443e7a64dfdb27d"));
         domainBuilder
-                .entity()
-                .customize(e -> e.id(senderEntityId.getId())
-                        .num(senderEntityId.getNum())
-                        .evmAddress(senderAlias.toArray())
+                .entity(senderEntityId)
+                .customize(e -> e.evmAddress(senderAlias.toArray())
                         .deleted(false)
                         .alias(senderPublicKey.toByteArray())
                         .balance(10000 * 100_000_000L))

@@ -82,7 +82,6 @@ The following parameters can be used to configure a REST test:
 | DEFAULT_TOPIC_ID                   |         |                                    |
 | DEFAULT_TOPIC_SEQUENCE             |         |                                    |
 | DEFAULT_TOPIC_TIMESTAMP            |         |                                    |
-| DEFAULT_TOPIC_WITH_FEE_ID          |         | Topic with custom fee id           |
 | DEFAULT_TRANSACTION_HASH           |         |                                    |
 | DEFAULT_TRANSACTION_ID             |         |                                    |
 | REST_TEST_EXCLUDE                  | ^$      | The rest test scenarios to exclude |
@@ -98,6 +97,7 @@ The following parameters can be used to configure a rest-java test:
 | DEFAULT_ACCOUNT_ID_AIRDROP_SENDER         |         | The account to be used for outstanding airdrops |
 | DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_OWNER   |         |                                                 |
 | DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_SPENDER |         |                                                 |
+| DEFAULT_TOPIC_WITH_FEE_ID                 |         | Topic with custom fee id                        |
 | RESTJAVA_TEST_EXCLUDE                     | ^$      | The rest-java test scenarios to exclude         |
 | RESTJAVA_TEST_INCLUDE                     | .\*     | The rest-java test scenarios to include         |
 

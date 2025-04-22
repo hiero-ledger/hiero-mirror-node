@@ -226,9 +226,9 @@ class MirrorEntityAccessTest {
 
     @Test
     void getStorageHistorical() {
+        byte[] trimmedKey = ADDRESS.trimLeadingZeros().toArrayUnsafe();
         when(store.getHistoricalTimestamp()).thenReturn(timestamp);
-        when(contractStateRepository.findStorageByBlockTimestamp(
-                        ENTITY_ID, new byte[] {(byte) 0x04, (byte) 0xE4}, timestamp.get()))
+        when(contractStateRepository.findStorageByBlockTimestamp(ENTITY_ID, trimmedKey, timestamp.get()))
                 .thenReturn(Optional.of(DATA));
         final var result = UInt256.fromBytes(mirrorEntityAccess.getStorage(ADDRESS, BYTES));
         assertThat(result).isEqualTo(UInt256.fromHexString(HEX));

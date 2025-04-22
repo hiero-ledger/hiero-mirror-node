@@ -11,16 +11,19 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.ContextExtension;
 import com.hedera.mirror.web3.evm.store.Store;
 import com.hedera.mirror.web3.evm.store.Store.OnMissing;
+import com.hedera.mirror.web3.evm.utils.EvmTokenUtils;
 import com.hedera.node.app.service.evm.utils.EthSigsUtils;
 import com.hedera.services.jproto.JKey;
 import com.hedera.services.store.models.Account;
 import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.Key;
 import java.security.InvalidKeyException;
+import java.util.stream.Stream;
 import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.besu.datatypes.Address;
@@ -28,6 +31,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
@@ -47,11 +52,18 @@ class MirrorEvmContractAliasesTest {
     private static final EntityId entityId = EntityId.of(0L, 0L, 1252L);
     private static final Id id = new Id(0L, 0L, 1252L);
 
+    // Method that provides the test data
+    public static Stream<Arguments> shardAndRealmData() {
+        return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 2L));
+    }
+
     @Mock
     private Store store;
 
     @Mock
     private Account account;
+
+    private final CommonProperties commonProperties = CommonProperties.getInstance();
 
     private MirrorEvmContractAliases mirrorEvmContractAliases;
 
@@ -60,9 +72,15 @@ class MirrorEvmContractAliasesTest {
         mirrorEvmContractAliases = new MirrorEvmContractAliases(store);
     }
 
-    @Test
-    void resolveForEvmShouldReturnInputWhenItIsMirrorAddress() {
-        assertThat(mirrorEvmContractAliases.resolveForEvm(ADDRESS)).isEqualTo(ADDRESS);
+    @ParameterizedTest
+    @MethodSource("shardAndRealmData")
+    void resolveForEvmShouldReturnInputWhenItIsMirrorAddress(final long shard, final long realm) {
+        final var entityId = EntityId.of(shard, realm, 1252L);
+        final var address = EvmTokenUtils.toAddress(entityId);
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
+
+        assertThat(mirrorEvmContractAliases.resolveForEvm(address)).isEqualTo(address);
     }
 
     @Test

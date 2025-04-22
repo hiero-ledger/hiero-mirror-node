@@ -58,7 +58,9 @@
   "tests": [
     {
       "urls": [
-        "/api/v1/tokens?account.id=lte:0.1.2.3&token.id=abc&limit=-2&publickey=-2&order=any&block.number=3"
+        "/api/v1/tokens?account.id=lte:0.1.2.3&token.id=abc&limit=-2&publickey=-2&order=any&block.number=3",
+        "/api/v1/tokens?account.id=lte:0.1.2.3&token.id=0.0.0x0000000000000000000000000000000000000012&limit=-2&publickey=-2&order=any&block.number=3",
+        "/api/v1/tokens?account.id=lte:0.1.2.3&token.id=06bd279138d5918402fc8ad500526cb2ee0eb985&limit=-2&publickey=-2&order=any&block.number=3"
       ],
       "responseStatus": 400,
       "responseJson": {
