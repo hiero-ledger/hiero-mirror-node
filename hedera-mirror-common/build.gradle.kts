@@ -25,6 +25,7 @@ dependencies {
     testImplementation("org.testcontainers:postgresql")
     testImplementation("io.micrometer:micrometer-core")
     testImplementation("org.junit.platform:junit-platform-launcher")
+    testImplementation("org.hyperledger.besu:secp256k1")
     testClasses(sourceSets["test"].output)
 }
 
