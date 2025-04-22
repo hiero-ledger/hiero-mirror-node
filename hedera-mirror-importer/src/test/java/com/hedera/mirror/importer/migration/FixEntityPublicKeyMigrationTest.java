@@ -66,7 +66,6 @@ class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
         assertThat(findHistory(EntityHistory.class)).containsExactlyInAnyOrder(entityHistory1, entityHistory2);
     }
 
-
     @Test
     void shouldClearOldKey() {
         // given old public key stays after key gets changed to 1/2 threshold key
