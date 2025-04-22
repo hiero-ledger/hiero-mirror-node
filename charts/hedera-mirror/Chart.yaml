@@ -30,11 +30,11 @@ dependencies:
   - alias: postgresql
     condition: postgresql.enabled
     name: postgresql-ha
-    repository: https://charts.bitnami.com/bitnami
+    repository: oci://registry-1.docker.io/bitnamicharts
     version: 15.3.12
   - condition: redis.enabled
     name: redis
-    repository: https://charts.bitnami.com/bitnami
+    repository: oci://registry-1.docker.io/bitnamicharts
     version: 20.11.5
   - alias: rest
     condition: rest.enabled

@@ -6,7 +6,7 @@ dependencies:
   - alias: minio
     condition: minio.enabled
     name: minio
-    repository: https://charts.bitnami.com/bitnami
+    repository: oci://registry-1.docker.io/bitnamicharts
     version: 16.0.7
   - name: loki
     condition: loki.enabled
