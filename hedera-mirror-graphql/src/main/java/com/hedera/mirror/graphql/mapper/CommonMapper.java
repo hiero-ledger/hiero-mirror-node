@@ -102,9 +102,10 @@ public interface CommonMapper {
             case ED25519 -> Map.of(keyCase.toString(), encodeBase64String(toBytes(key.getEd25519())));
             case KEYLIST -> Map.of(KEYS, mapKeyList(key.getKeyList()));
             case RSA_3072 -> Map.of(keyCase.toString(), encodeBase64String(toBytes(key.getRSA3072())));
-            case THRESHOLDKEY -> Map.of(
-                    THRESHOLD, key.getThresholdKey().getThreshold(),
-                    KEYS, mapKeyList(key.getThresholdKey().getKeys()));
+            case THRESHOLDKEY ->
+                Map.of(
+                        THRESHOLD, key.getThresholdKey().getThreshold(),
+                        KEYS, mapKeyList(key.getThresholdKey().getKeys()));
             default -> null;
         };
     }

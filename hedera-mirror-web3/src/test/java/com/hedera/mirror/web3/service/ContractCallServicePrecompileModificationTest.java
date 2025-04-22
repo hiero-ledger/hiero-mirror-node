@@ -1434,14 +1434,20 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 Bytes.wrap(domainBuilder.key(KeyCase.ED25519)).slice(2).toArray();
 
         return switch (keyValueType) {
-            case CONTRACT_ID -> new KeyValue(
-                    Boolean.FALSE, contractAddress, new byte[0], new byte[0], Address.ZERO.toHexString());
-            case ED25519 -> new KeyValue(
-                    Boolean.FALSE, Address.ZERO.toHexString(), ed25519Key, new byte[0], Address.ZERO.toHexString());
-            case ECDSA_SECPK256K1 -> new KeyValue(
-                    Boolean.FALSE, Address.ZERO.toHexString(), new byte[0], NEW_ECDSA_KEY, Address.ZERO.toHexString());
-            case DELEGATABLE_CONTRACT_ID -> new KeyValue(
-                    Boolean.FALSE, Address.ZERO.toHexString(), new byte[0], new byte[0], contractAddress);
+            case CONTRACT_ID ->
+                new KeyValue(Boolean.FALSE, contractAddress, new byte[0], new byte[0], Address.ZERO.toHexString());
+            case ED25519 ->
+                new KeyValue(
+                        Boolean.FALSE, Address.ZERO.toHexString(), ed25519Key, new byte[0], Address.ZERO.toHexString());
+            case ECDSA_SECPK256K1 ->
+                new KeyValue(
+                        Boolean.FALSE,
+                        Address.ZERO.toHexString(),
+                        new byte[0],
+                        NEW_ECDSA_KEY,
+                        Address.ZERO.toHexString());
+            case DELEGATABLE_CONTRACT_ID ->
+                new KeyValue(Boolean.FALSE, Address.ZERO.toHexString(), new byte[0], new byte[0], contractAddress);
             default -> throw new RuntimeException("Unsupported key type: " + keyValueType.name());
         };
     }
@@ -1467,7 +1473,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 keys,
                 new Expiry(
                         BigInteger.valueOf(tokenEntity.getEffectiveExpiration()),
-                        asHexedEvmAddress(new Id(0, 0, entityRenewAccountId)),
+                        toAddress(entityRenewAccountId).toHexString(),
                         BigInteger.valueOf(tokenEntity.getEffectiveExpiration())));
     }
 
@@ -1488,7 +1494,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 keys,
                 new Expiry(
                         BigInteger.valueOf(entity.getEffectiveExpiration()),
-                        asHexedEvmAddress(new Id(0, 0, entityRenewAccountId)),
+                        toAddress(entityRenewAccountId).toHexString(),
                         BigInteger.valueOf(entity.getEffectiveExpiration())));
     }
 }

@@ -52,8 +52,8 @@ final class BatchStreamFileNotifier implements StreamFileNotifier, Closeable {
                 switch (streamFile.getType()) {
                     case BALANCE -> balanceStreamFileSubscriber;
                     case RECORD -> recordStreamFileSubscriber;
-                    default -> throw new IllegalArgumentException(
-                            "Unsupported stream file type: " + streamFile.getType());
+                    default ->
+                        throw new IllegalArgumentException("Unsupported stream file type: " + streamFile.getType());
                 };
         streamFileSubscriber.notify(streamFile);
         log.debug("Published {}", streamFile);

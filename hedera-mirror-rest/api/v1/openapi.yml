@@ -1399,7 +1399,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Hedera Mirror Node REST API
-  version: 0.128.0-SNAPSHOT
+  version: 0.129.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -3640,6 +3640,7 @@ components:
     TransactionTypes:
       type: string
       enum:
+        - ATOMICBATCH
         - CONSENSUSCREATETOPIC
         - CONSENSUSDELETETOPIC
         - CONSENSUSSUBMITMESSAGE
@@ -3802,6 +3803,8 @@ components:
     Transaction:
       type: object
       properties:
+        batch_key:
+          $ref: "#/components/schemas/Key"
         bytes:
           type: string
           format: byte
@@ -3904,6 +3907,7 @@ components:
         valid_start_timestamp:
           $ref: "#/components/schemas/Timestamp"
       example:
+        batch_key: "0xae8bebf1c9fa0f309356e48057f6047af7cde63037d0509d16ddc3b20e085158bfdf14d15345c1b18b199b72fed4dead"
         bytes: null
         charged_tx_fee: 7
         consensus_timestamp: "1234567890.000000007"
@@ -4387,6 +4391,15 @@ components:
       in: path
       required: true
       description: Token id
+      examples:
+        tokenNumAlias:
+          value: 0x000000000000000000000000000000000000046F
+        shardRealmTokenNumAlias:
+          value: 0.0.000000000000000000000000000000000000046F
+        tokenNum:
+          value: 1135
+        shardRealmTokenNum:
+          value: 0.0.1135
       schema:
         $ref: "#/components/schemas/EntityId"
     topicIdPathParam:
@@ -5003,6 +5016,9 @@ components:
         noValue:
           summary: --
           value: ""
+        tokenNumAlias:
+          summary: Example of token num alias equals with no operator
+          value: 0000000000000000000000000000000000000064
         entityNumNoOperator:
           summary: Example of entityNum equals with no operator
           value: 100

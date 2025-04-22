@@ -27,7 +27,7 @@
   ],
   "license": "Apache-2.0",
   "main": "index.js",
-  "name": "@hashgraph/mirror-report",
+  "name": "@hiero-ledger/mirror-report",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hiero-ledger/hiero-mirror-node.git"

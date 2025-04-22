@@ -276,6 +276,7 @@
         "staked_node_id": 1,
         "transactions": [
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1685598500.000000001",
@@ -328,6 +329,7 @@
             "valid_start_timestamp": "1685598500.000000000"
           },
           {
+            "batch_key": null,
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1685578500.000000001",

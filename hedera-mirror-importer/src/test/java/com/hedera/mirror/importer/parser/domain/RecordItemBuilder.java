@@ -42,6 +42,7 @@ import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AssessedCustomFee;
+import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusDeleteTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusMessageChunkInfo;
@@ -232,6 +233,24 @@ public class RecordItemBuilder {
     public Builder<ConsensusDeleteTopicTransactionBody.Builder> unknown() {
         var transactionBody = ConsensusDeleteTopicTransactionBody.newBuilder().setTopicID(topicId());
         return new Builder<>(TransactionType.UNKNOWN, transactionBody);
+    }
+
+    public Builder<AtomicBatchTransactionBody.Builder> atomicBatch() {
+        var cryptoTransfer = cryptoTransfer().build().getTransaction();
+        var contractCreate = contractCreate().build().getTransaction();
+        var cryptoCreate = cryptoCreate().build().getTransaction();
+
+        return atomicBatch(List.of(cryptoCreate, cryptoTransfer, contractCreate));
+    }
+
+    public Builder<AtomicBatchTransactionBody.Builder> atomicBatch(List<Transaction> transactions) {
+
+        return new Builder<>(
+                TransactionType.ATOMIC_BATCH,
+                AtomicBatchTransactionBody.newBuilder()
+                        .addAllTransactions(transactions.stream()
+                                .map(Transaction::toByteString)
+                                .toList()));
     }
 
     public Builder<ConsensusCreateTopicTransactionBody.Builder> consensusCreateTopic() {
@@ -1207,8 +1226,9 @@ public class RecordItemBuilder {
             case ContractID contractId -> contractCreate().receipt(r -> r.setContractID(contractId));
             case FileID fileId -> fileCreate().receipt(r -> r.setFileID(fileId));
             case ScheduleID scheduleId -> scheduleCreate().receipt(r -> r.setScheduleID(scheduleId));
-            case TokenAssociation ta -> tokenAssociate()
-                    .transactionBody(b -> b.setAccount(ta.getAccountId()).addTokens(ta.getTokenId()));
+            case TokenAssociation ta ->
+                tokenAssociate()
+                        .transactionBody(b -> b.setAccount(ta.getAccountId()).addTokens(ta.getTokenId()));
             case TokenID tokenId -> tokenCreate().receipt(r -> r.setTokenID(tokenId));
             case TopicID topicId -> consensusCreateTopic().receipt(r -> r.setTopicID(topicId));
             default -> throw new UnsupportedOperationException("ID not supported: " + id);

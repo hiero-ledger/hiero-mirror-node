@@ -159,6 +159,7 @@
   "responseJson": {
     "transactions": [
       {
+        "batch_key": null,
         "bytes": "Ynl0ZXM=",
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567891.000000017",
@@ -203,6 +204,7 @@
         "valid_start_timestamp": "1234567891.000000016"
       },
       {
+        "batch_key": null,
         "bytes": "Ynl0ZXM=",
         "charged_tx_fee": 0,
         "consensus_timestamp": "1234567891.000000007",
@@ -237,6 +239,7 @@
         "valid_start_timestamp": "1234567891.000000006"
       },
       {
+        "batch_key": null,
         "bytes": "Ynl0ZXM=",
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000018",
@@ -281,6 +284,7 @@
         "valid_start_timestamp": "1234567890.000000017"
       },
       {
+        "batch_key": null,
         "bytes": "Ynl0ZXM=",
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000007",

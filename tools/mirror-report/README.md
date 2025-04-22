@@ -14,7 +14,7 @@ Open the Terminal app and run the following commands:
 ```shell
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 nvm install 22
-npm install -g @hashgraph/mirror-report
+npm install -g @hiero-ledger/mirror-report
 ```
 
 ### Windows
@@ -24,7 +24,7 @@ Follow the prompts to complete the installation with the default options. Open t
 the following:
 
 ```shell
-npm install -g @hashgraph/mirror-report
+npm install -g @hiero-ledger/mirror-report
 ```
 
 ## Upgrading
@@ -32,7 +32,7 @@ npm install -g @hashgraph/mirror-report
 To upgrade the version of the report tool, re-run the NPM install command to grab the latest version:
 
 ```shell
-npm install -g @hashgraph/mirror-report
+npm install -g @hiero-ledger/mirror-report
 ```
 
 ## Running

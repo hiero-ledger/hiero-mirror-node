@@ -336,13 +336,13 @@ public class TestWeb3jService implements Web3jService {
     }
 
     public Address deployInternal(String binary, boolean persistContract) {
-        final var id = domainBuilder.id();
-        final var contractAddress = toAddress(EntityId.of(id));
+        final var entityId = domainBuilder.entityId();
+        final var contractAddress = toAddress(entityId);
         if (persistContract) {
             if (blockType != BlockType.LATEST) {
-                historicalContractPersist(binary, id, contractAddress);
+                historicalContractPersist(binary, entityId, contractAddress);
             } else {
-                contractPersist(binary, id);
+                contractPersist(binary, entityId);
             }
         } else {
             contractRuntime = Hex.decode(binary.replace(HEX_PREFIX, ""));
@@ -350,13 +350,11 @@ public class TestWeb3jService implements Web3jService {
         return contractAddress;
     }
 
-    private void contractPersist(String binary, long entityId) {
+    private void contractPersist(String binary, EntityId entityId) {
         final var contractBytes = Hex.decode(binary.replace(HEX_PREFIX, ""));
         final var entity = domainBuilder
-                .entity()
+                .entity(entityId)
                 .customize(e -> e.type(CONTRACT)
-                        .id(entityId)
-                        .num(entityId)
                         .alias(null)
                         .evmAddress(null)
                         .key(domainBuilder.key(KeyCase.ED25519))
@@ -375,15 +373,12 @@ public class TestWeb3jService implements Web3jService {
                 .persist();
     }
 
-    private void historicalContractPersist(String binary, long entityId, final Address contractAddress) {
+    private void historicalContractPersist(String binary, EntityId entityId, final Address contractAddress) {
         final var contractBytes = Hex.decode(binary.replace(HEX_PREFIX, ""));
         final var entity = domainBuilder
-                .entity()
-                .customize(e -> e.type(CONTRACT)
-                        .id(entityId)
-                        .num(entityId)
-                        .evmAddress(contractAddress.toArray())
-                        .timestampRange(historicalRange))
+                .entity(entityId)
+                .customize(e ->
+                        e.type(CONTRACT).evmAddress(contractAddress.toArray()).timestampRange(historicalRange))
                 .persist();
 
         domainBuilder

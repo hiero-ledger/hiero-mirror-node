@@ -516,8 +516,8 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var tokenId = token.getTokenId();
 
         tokenAllowancePersistCustomizable(a -> a.tokenId(tokenId)
-                .owner(owner.getNum())
-                .spender(spender.getNum())
+                .owner(owner.getId())
+                .spender(spender.getId())
                 .amount(DEFAULT_AMOUNT_GRANTED)
                 .amountGranted(DEFAULT_AMOUNT_GRANTED)
                 .timestampRange(historicalRange));
@@ -543,8 +543,8 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var tokenId = token.getTokenId();
 
         nftAllowancePersistCustomizable(a -> a.tokenId(tokenId)
-                .owner(owner.getNum())
-                .spender(spender.getNum())
+                .owner(owner.getId())
+                .spender(spender.getId())
                 .timestampRange(historicalRange)
                 .approvedForAll(true));
 
@@ -937,14 +937,20 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
 
     private KeyValue getKeyValueForType(final KeyValueType keyValueType, final String contractAddress) {
         return switch (keyValueType) {
-            case CONTRACT_ID -> new KeyValue(
-                    Boolean.FALSE, contractAddress, new byte[0], new byte[0], Address.ZERO.toHexString());
-            case ED25519 -> new KeyValue(
-                    Boolean.FALSE, Address.ZERO.toHexString(), ED25519_KEY, new byte[0], Address.ZERO.toHexString());
-            case ECDSA_SECPK256K1 -> new KeyValue(
-                    Boolean.FALSE, Address.ZERO.toHexString(), new byte[0], ECDSA_KEY, Address.ZERO.toHexString());
-            case DELEGATABLE_CONTRACT_ID -> new KeyValue(
-                    Boolean.FALSE, Address.ZERO.toHexString(), new byte[0], new byte[0], contractAddress);
+            case CONTRACT_ID ->
+                new KeyValue(Boolean.FALSE, contractAddress, new byte[0], new byte[0], Address.ZERO.toHexString());
+            case ED25519 ->
+                new KeyValue(
+                        Boolean.FALSE,
+                        Address.ZERO.toHexString(),
+                        ED25519_KEY,
+                        new byte[0],
+                        Address.ZERO.toHexString());
+            case ECDSA_SECPK256K1 ->
+                new KeyValue(
+                        Boolean.FALSE, Address.ZERO.toHexString(), new byte[0], ECDSA_KEY, Address.ZERO.toHexString());
+            case DELEGATABLE_CONTRACT_ID ->
+                new KeyValue(Boolean.FALSE, Address.ZERO.toHexString(), new byte[0], new byte[0], contractAddress);
             default -> throw new RuntimeException("Unsupported key type: " + keyValueType.name());
         };
     }

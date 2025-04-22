@@ -1,5 +1,5 @@
 {
-  "name": "@hashgraph/mirror-smart-contracts",
+  "name": "@hiero-ledger/mirror-smart-contracts",
   "version": "1.0.0",
   "description": "A collection of smart contracts used for E2E Hedera network and mirror node testing",
   "main": "index.js",

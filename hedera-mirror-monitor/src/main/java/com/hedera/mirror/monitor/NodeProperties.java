@@ -75,7 +75,7 @@ public class NodeProperties {
         return NodeAddress.newBuilder()
                 .setNodeCertHash(certHash != null ? ByteString.copyFromUtf8(certHash) : ByteString.EMPTY)
                 .setNodeAccountId(AccountID.parseFrom(nodeAccountId.toBytes()))
-                .setNodeId(nodeId)
+                .setNodeId(getNodeId())
                 .addServiceEndpoint(ServiceEndpoint.newBuilder()
                         .setDomainName(ipAddressV4.isEmpty() ? host : "")
                         .setIpAddressV4(ipAddressV4)

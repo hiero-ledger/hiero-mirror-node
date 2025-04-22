@@ -202,6 +202,10 @@ public class EntityRecordItemListener implements RecordItemListener {
                     DomainUtils.timestampInNanosMax(txRecord.getParentConsensusTimestamp()));
         }
 
+        if (body.hasBatchKey()) {
+            transaction.setBatchKey(body.getBatchKey().toByteArray());
+        }
+
         return transaction;
     }
 

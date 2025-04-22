@@ -231,7 +231,6 @@ public class RecordItem implements StreamItem {
         }
 
         private RecordItem parseParent() {
-            // set parent, parent-child items are assured to exist in sequential order of [Parent, Child1,..., ChildN]
             if (transactionRecord.hasParentConsensusTimestamp() && previous != null) {
                 var parentTimestamp = transactionRecord.getParentConsensusTimestamp();
                 if (parentTimestamp.equals(previous.transactionRecord.getConsensusTimestamp())) {
@@ -240,6 +239,12 @@ public class RecordItem implements StreamItem {
                         && parentTimestamp.equals(previous.parent.transactionRecord.getConsensusTimestamp())) {
                     // check older siblings parent, if child count is > 1 this prevents having to search to parent
                     return previous.parent;
+                } else if (previous.parent != null
+                        && parentTimestamp.equals(previous.parent.transactionRecord.getParentConsensusTimestamp())) {
+                    // batch transactions can have inner transactions with n children. The child's parent will be the
+                    // inner
+                    // transaction so following items in batch may need to look at the grandparent
+                    return previous.parent.parent;
                 }
             }
             return this.parent;
@@ -270,24 +275,26 @@ public class RecordItem implements StreamItem {
          */
         @SuppressWarnings("deprecation")
         private void parseTransaction() {
-            try {
-                if (!transaction.getSignedTransactionBytes().equals(ByteString.EMPTY)) {
-                    var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
-                    this.transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
-                    this.signatureMap = signedTransaction.getSigMap();
-                } else if (!transaction.getBodyBytes().equals(ByteString.EMPTY)) {
-                    this.transactionBody = TransactionBody.parseFrom(transaction.getBodyBytes());
-                    this.signatureMap = transaction.getSigMap();
-                } else if (transaction.hasBody()) {
-                    this.transactionBody = transaction.getBody();
-                    this.signatureMap = transaction.getSigMap();
+            if (transactionBody == null || signatureMap == null) {
+                try {
+                    if (!transaction.getSignedTransactionBytes().equals(ByteString.EMPTY)) {
+                        var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
+                        this.transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
+                        this.signatureMap = signedTransaction.getSigMap();
+                    } else if (!transaction.getBodyBytes().equals(ByteString.EMPTY)) {
+                        this.transactionBody = TransactionBody.parseFrom(transaction.getBodyBytes());
+                        this.signatureMap = transaction.getSigMap();
+                    } else if (transaction.hasBody()) {
+                        this.transactionBody = transaction.getBody();
+                        this.signatureMap = transaction.getSigMap();
+                    }
+                } catch (InvalidProtocolBufferException e) {
+                    throw new ProtobufException(BAD_TRANSACTION_BODY_BYTES_MESSAGE, e);
                 }
+            }
 
-                if (transactionBody == null || signatureMap == null) {
-                    throw new ProtobufException(BAD_TRANSACTION_BODY_BYTES_MESSAGE);
-                }
-            } catch (InvalidProtocolBufferException e) {
-                throw new ProtobufException(BAD_TRANSACTION_BODY_BYTES_MESSAGE, e);
+            if (transactionBody == null || signatureMap == null) {
+                throw new ProtobufException(BAD_TRANSACTION_BODY_BYTES_MESSAGE);
             }
         }
 

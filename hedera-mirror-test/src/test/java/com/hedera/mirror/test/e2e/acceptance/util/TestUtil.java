@@ -7,17 +7,22 @@ import com.esaulpaugh.headlong.abi.Tuple;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Range;
 import com.google.common.io.BaseEncoding;
+import com.google.common.net.InetAddresses;
 import com.google.protobuf.ByteString;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.PublicKey;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.proto.Key;
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.test.e2e.acceptance.client.ContractClient;
 import com.hedera.mirror.test.e2e.acceptance.client.TokenClient;
 import com.hedera.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
 import com.hedera.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Arrays;
@@ -35,10 +40,10 @@ import org.apache.tuweni.bytes.Bytes32;
 
 @UtilityClass
 public class TestUtil {
+    public static final String ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
     private static final BaseEncoding BASE32_ENCODER = BaseEncoding.base32().omitPadding();
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final SecureRandom RANDOM = new SecureRandom();
-    public static final String ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
     private static final Pattern extractTransactionIdPattern = Pattern.compile("(\\d+\\.\\d+\\.\\d+)@(\\d+)\\.(\\d+)");
 
     public static String getAliasFromPublicKey(@NonNull PublicKey key) {
@@ -59,10 +64,6 @@ public class TestUtil {
 
     public static String to32BytesString(String data) {
         return StringUtils.leftPad(data.replace("0x", ""), 64, '0');
-    }
-
-    public static String to32BytesStringRightPad(String data) {
-        return StringUtils.rightPad(data.replace("0x", ""), 64, '0');
     }
 
     public static String hexToAscii(String hexStr) {
@@ -170,6 +171,15 @@ public class TestUtil {
         }
     }
 
+    public static ByteString toIpAddressV4(String host) throws UnknownHostException {
+        if (!InetAddresses.isInetAddress(host)) {
+            return ByteString.EMPTY;
+        }
+
+        var address = InetAddress.getByName(host).getAddress();
+        return ByteString.copyFrom(address);
+    }
+
     @SneakyThrows
     private static String toJson(Object object) {
         return OBJECT_MAPPER.writeValueAsString(object);
@@ -183,6 +193,19 @@ public class TestUtil {
         var bytes = new byte[length];
         RANDOM.nextBytes(bytes);
         return bytes;
+    }
+
+    public static AccountId fromSolidityAddress(String address) {
+        var entityId = DomainUtils.fromEvmAddress(Bytes.fromHexString(address).toArrayUnsafe());
+        var commonProperties = CommonProperties.getInstance();
+
+        if (entityId != null
+                && entityId.getShard() == commonProperties.getShard()
+                && entityId.getRealm() == commonProperties.getRealm()) {
+            return new AccountId(entityId.getShard(), entityId.getRealm(), entityId.getNum());
+        } else {
+            return AccountId.fromEvmAddress(address, commonProperties.getShard(), commonProperties.getRealm());
+        }
     }
 
     public static Range<Instant> convertRange(com.hedera.mirror.rest.model.TimestampRange timestampRange) {
@@ -222,11 +245,6 @@ public class TestUtil {
 
         public TokenTransferListBuilder forToken(final String token) {
             this.token = asAddress(token);
-            return this;
-        }
-
-        public TokenTransferListBuilder forTokenAddress(final Address token) {
-            this.token = token;
             return this;
         }
 

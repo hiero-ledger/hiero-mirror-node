@@ -17,6 +17,7 @@ import config from './config';
 import ed25519 from './ed25519';
 import {DbError, InvalidArgumentError, InvalidClauseError} from './errors';
 import {Entity, FeeSchedule, TransactionResult, TransactionType} from './model';
+import {EvmAddressType} from './constants';
 
 const JSONBig = JSONBigFactory({useNativeBigInt: true});
 
@@ -337,7 +338,7 @@ const filterValidityChecks = (param, op, val) => {
       ret = isValidTimestampParam(val);
       break;
     case constants.filterKeys.TOKEN_ID:
-      ret = EntityId.isValidEntityId(val, false);
+      ret = EntityId.isValidEntityId(val, true, constants.EvmAddressType.NUM_ALIAS);
       break;
     case constants.filterKeys.TOKEN_TYPE:
       ret = isValidValueIgnoreCase(val, Object.values(constants.tokenTypeFilter));
@@ -1209,7 +1210,7 @@ const formatFilters = (filters) => {
   }
 };
 
-const zeroPaddingRegex = /^0+(?=\d)0/;
+const zeroPaddingRegex = /^0+/;
 
 /**
  * Update slot format to be persistence query compatible
@@ -1220,10 +1221,8 @@ const formatSlot = (slot, leftPad = false) => {
     return Buffer.from(stripHexPrefix(slot).padStart(64, 0), 'hex');
   }
 
-  let formattedSlot = stripHexPrefix(slot).replace(zeroPaddingRegex, '0');
-  if (formattedSlot === '0') {
-    formattedSlot = '';
-  } else if (formattedSlot.length % 2) {
+  let formattedSlot = stripHexPrefix(slot).replace(zeroPaddingRegex, '');
+  if (formattedSlot.length % 2) {
     // An odd length will result in truncation when passed to Buffer, so pad to an even value
     formattedSlot = '0' + formattedSlot;
   }
@@ -1279,7 +1278,7 @@ const formatComparator = (comparator) => {
       case constants.filterKeys.FROM:
         if (!EntityId.isValidEvmAddress(comparator.value)) {
           // Only parse non-evm addresses.
-          comparator.value = EntityId.parse(comparator.value, {
+          comparator.value = EntityId.parseString(comparator.value, {
             evmAddressType: constants.EvmAddressType.NO_SHARD_REALM,
             paramName: comparator.key,
           }).getEncodedId();
@@ -1300,18 +1299,21 @@ const formatComparator = (comparator) => {
         break;
       case constants.filterKeys.SCHEDULE_ID:
         // Accepted forms: shard.realm.num or num
-        comparator.value = EntityId.parse(comparator.value).getEncodedId();
+        comparator.value = EntityId.parseString(comparator.value).getEncodedId();
         break;
       case constants.filterKeys.SPENDER_ID:
         // Accepted forms: shard.realm.num or num
-        comparator.value = EntityId.parse(comparator.value).getEncodedId();
+        comparator.value = EntityId.parseString(comparator.value).getEncodedId();
         break;
       case constants.filterKeys.TIMESTAMP:
         comparator.value = parseTimestampParam(comparator.value);
         break;
       case constants.filterKeys.TOKEN_ID:
         // Accepted forms: shard.realm.num or num
-        comparator.value = EntityId.parse(comparator.value).getEncodedId();
+        comparator.value = EntityId.parseString(comparator.value, {
+          allowEvmAddress: true,
+          evmAddressType: EvmAddressType.NUM_ALIAS,
+        }).getEncodedId();
         break;
       case constants.filterKeys.TOKEN_TYPE:
         // db requires upper case matching for enum

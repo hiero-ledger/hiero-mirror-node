@@ -262,6 +262,13 @@ redis:
     create: true
 
 rest:
+  config:
+    hedera:
+      mirror:
+        rest:
+          cache:
+            response:
+              enabled: true
   db:
     password: ""  # Randomly generated if left blank
     username: mirror_rest
@@ -351,6 +358,8 @@ stackgres:
   postgresVersion: "16.2"
   priorityClassName: ""
   replication:
+    initialization:
+      mode: FromReplica
     mode: sync-all
   worker:
     config:

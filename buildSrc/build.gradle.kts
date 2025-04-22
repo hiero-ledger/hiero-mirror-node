@@ -9,15 +9,15 @@ repositories {
 
 dependencies {
     val dockerJavaVersion = "3.5.0"
-    val flywayVersion = "11.4.0"
-    val jooqVersion = "3.20.2"
+    val flywayVersion = "11.7.2"
+    val jooqVersion = "3.20.3"
 
     // Add docker-java dependencies before gradle-docker-plugin to avoid the docker-java jars
     // embedded in the plugin being used by testcontainers-postgresql
     implementation("com.github.docker-java:docker-java-api:$dockerJavaVersion")
     implementation("com.github.docker-java:docker-java-core:$dockerJavaVersion")
     implementation("com.bmuschko:gradle-docker-plugin:9.4.0")
-    implementation("com.diffplug.spotless:spotless-plugin-gradle:7.0.2")
+    implementation("com.diffplug.spotless:spotless-plugin-gradle:7.0.3")
     implementation("com.gradleup.shadow:shadow-gradle-plugin:8.3.6")
     implementation("com.github.node-gradle:gradle-node-plugin:7.1.0")
     implementation("com.google.protobuf:protobuf-gradle-plugin:0.9.5")
@@ -41,7 +41,7 @@ dependencies {
     implementation("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:6.1.0.5360")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:3.4.4")
     implementation("org.testcontainers:postgresql:1.20.6")
-    implementation("org.web3j:web3j-gradle-plugin:4.13.0")
+    implementation("org.web3j:web3j-gradle-plugin:4.14.0")
 }
 
 val gitHook =

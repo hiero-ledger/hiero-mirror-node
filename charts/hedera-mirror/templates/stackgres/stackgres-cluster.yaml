@@ -57,6 +57,8 @@ spec:
       enabled: false  # Disable SSL to work around issue 9143
     version: {{ .Values.stackgres.postgresVersion | quote }}
   replication:
+    initialization:
+      mode: {{ .Values.stackgres.replication.initialization.mode }}
     mode: {{ .Values.stackgres.replication.mode }}
   shards:
     clusters: {{ .Values.stackgres.worker.instances }}

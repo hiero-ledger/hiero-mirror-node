@@ -134,7 +134,7 @@ public class MirrorEvmTxProcessorImpl extends HederaEvmTxProcessor implements Mi
                     && !payload.isEmpty()
                     && isNotCallingNativePrecompile) {
                 throw new MirrorEvmTransactionException(
-                        ResponseCodeEnum.INVALID_TRANSACTION, StringUtils.EMPTY, StringUtils.EMPTY);
+                        ResponseCodeEnum.INVALID_TRANSACTION, StringUtils.EMPTY, StringUtils.EMPTY, false);
             }
 
             return baseInitialFrame

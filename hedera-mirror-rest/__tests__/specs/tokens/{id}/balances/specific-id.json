@@ -65,7 +65,10 @@
   "urls": [
     "/api/v1/tokens/0.0.2007/balances?account.id=0.0.8",
     "/api/v1/tokens/0.2007/balances?account.id=0.8",
-    "/api/v1/tokens/2007/balances?account.id=8"
+    "/api/v1/tokens/2007/balances?account.id=8",
+    "/api/v1/tokens/00000000000000000000000000000000000007D7/balances?account.id=8",
+    "/api/v1/tokens/0x00000000000000000000000000000000000007D7/balances?account.id=8",
+    "/api/v1/tokens/0.0.00000000000000000000000000000000000007D7/balances?account.id=8"
   ],
   "responseStatus": 200,
   "responseJson": {

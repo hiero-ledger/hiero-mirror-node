@@ -26,8 +26,9 @@ public record EntityIdRangeParameter(RangeOperator operator, Long value) impleme
         return switch (splitVal.length) {
             case 1 -> new EntityIdRangeParameter(RangeOperator.EQ, getEntityId(splitVal[0]));
             case 2 -> new EntityIdRangeParameter(RangeOperator.of(splitVal[0]), getEntityId(splitVal[1]));
-            default -> throw new IllegalArgumentException(
-                    "Invalid range operator %s. Should have format rangeOperator:Id".formatted(entityIdRangeParam));
+            default ->
+                throw new IllegalArgumentException(
+                        "Invalid range operator %s. Should have format rangeOperator:Id".formatted(entityIdRangeParam));
         };
     }
 

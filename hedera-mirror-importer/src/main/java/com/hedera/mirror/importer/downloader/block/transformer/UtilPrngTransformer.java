@@ -27,10 +27,11 @@ final class UtilPrngTransformer extends AbstractBlockItemTransformer {
         switch (utilPrng.getEntropyCase()) {
             case PRNG_NUMBER -> recordBuilder.setPrngNumber(utilPrng.getPrngNumber());
             case PRNG_BYTES -> recordBuilder.setPrngBytes(utilPrng.getPrngBytes());
-            default -> log.warn(
-                    "Unhandled entropy case {} for transaction at {}",
-                    utilPrng.getEntropyCase(),
-                    blockItem.getConsensusTimestamp());
+            default ->
+                log.warn(
+                        "Unhandled entropy case {} for transaction at {}",
+                        utilPrng.getEntropyCase(),
+                        blockItem.getConsensusTimestamp());
         }
     }
 

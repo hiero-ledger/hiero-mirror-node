@@ -228,11 +228,11 @@ class OpcodesControllerTest {
             final TransactionIdOrHashParameter parameter, final OpcodeTracerOptions options) {
         final String transactionIdOrHash =
                 switch (parameter) {
-                    case TransactionHashParameter hashParameter -> hashParameter
-                            .hash()
-                            .toHexString();
-                    case TransactionIdParameter transactionIdParameter -> Builder.transactionIdString(
-                            transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
+                    case TransactionHashParameter hashParameter ->
+                        hashParameter.hash().toHexString();
+                    case TransactionIdParameter transactionIdParameter ->
+                        Builder.transactionIdString(
+                                transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
                 };
 
         return opcodesRequest(transactionIdOrHash)
@@ -560,11 +560,11 @@ class OpcodesControllerTest {
 
         final String param =
                 switch (transactionIdOrHash) {
-                    case TransactionHashParameter hashParameter -> hashParameter
-                            .hash()
-                            .toHexString();
-                    case TransactionIdParameter transactionIdParameter -> Builder.transactionIdString(
-                            transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
+                    case TransactionHashParameter hashParameter ->
+                        hashParameter.hash().toHexString();
+                    case TransactionIdParameter transactionIdParameter ->
+                        Builder.transactionIdString(
+                                transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
                 };
 
         mockMvc.perform(options(OPCODES_URI, param)
