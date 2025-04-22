@@ -72,37 +72,140 @@
       }
     ]
   },
-  "urls": [
-    "/api/v1/tokens/1500/nfts?serialnumber=gt:1&account.id=1001&order=desc&limit=2"
-  ],
-  "responseStatus": 200,
-  "responseJson": {
-    "nfts": [
-      {
-        "account_id": "0.0.1001",
-        "created_timestamp": "1234567890.000000009",
-        "delegating_spender": null,
-        "deleted": false,
-        "metadata": "bTQ=",
-        "modified_timestamp": "1234567890.000000009",
-        "serial_number": 4,
-        "spender": null,
-        "token_id": "0.0.1500"
-      },
-      {
-        "account_id": "0.0.1001",
-        "created_timestamp": "1234567890.000000008",
-        "delegating_spender": null,
-        "deleted": false,
-        "metadata": "bTM=",
-        "modified_timestamp": "1234567890.000000008",
-        "serial_number": 3,
-        "spender": null,
-        "token_id": "0.0.1500"
+  "tests": [
+    {
+      "urls": [
+        "/api/v1/tokens/1500/nfts?serialnumber=gt:1&account.id=1001&order=desc&limit=2"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "nfts": [
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000009",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTQ=",
+            "modified_timestamp": "1234567890.000000009",
+            "serial_number": 4,
+            "spender": null,
+            "token_id": "0.0.1500"
+          },
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000008",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTM=",
+            "modified_timestamp": "1234567890.000000008",
+            "serial_number": 3,
+            "spender": null,
+            "token_id": "0.0.1500"
+          }
+        ],
+        "links": {
+          "next": "/api/v1/tokens/1500/nfts?serialnumber=gt:1&serialnumber=lt:3&account.id=1001&order=desc&limit=2"
+        }
       }
-    ],
-    "links": {
-      "next": "/api/v1/tokens/1500/nfts?serialnumber=gt:1&serialnumber=lt:3&account.id=1001&order=desc&limit=2"
+    },
+    {
+      "url": "/api/v1/tokens/00000000000000000000000000000000000005DC/nfts?serialnumber=gt:1&account.id=1001&order=desc&limit=2",
+      "responseStatus": 200,
+      "responseJson": {
+        "nfts": [
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000009",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTQ=",
+            "modified_timestamp": "1234567890.000000009",
+            "serial_number": 4,
+            "spender": null,
+            "token_id": "0.0.1500"
+          },
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000008",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTM=",
+            "modified_timestamp": "1234567890.000000008",
+            "serial_number": 3,
+            "spender": null,
+            "token_id": "0.0.1500"
+          }
+        ],
+        "links": {
+          "next": "/api/v1/tokens/00000000000000000000000000000000000005DC/nfts?serialnumber=gt:1&serialnumber=lt:3&account.id=1001&order=desc&limit=2"
+        }
+      }
+    },
+    {
+      "url": "/api/v1/tokens/0.0.00000000000000000000000000000000000005DC/nfts?serialnumber=gt:1&account.id=1001&order=desc&limit=2",
+      "responseStatus": 200,
+      "responseJson": {
+        "nfts": [
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000009",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTQ=",
+            "modified_timestamp": "1234567890.000000009",
+            "serial_number": 4,
+            "spender": null,
+            "token_id": "0.0.1500"
+          },
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000008",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTM=",
+            "modified_timestamp": "1234567890.000000008",
+            "serial_number": 3,
+            "spender": null,
+            "token_id": "0.0.1500"
+          }
+        ],
+        "links": {
+          "next": "/api/v1/tokens/0.0.00000000000000000000000000000000000005DC/nfts?serialnumber=gt:1&serialnumber=lt:3&account.id=1001&order=desc&limit=2"
+        }
+      }
+    },
+    {
+      "url": "/api/v1/tokens/0x00000000000000000000000000000000000005DC/nfts?serialnumber=gt:1&account.id=1001&order=desc&limit=2",
+      "responseStatus": 200,
+      "responseJson": {
+        "nfts": [
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000009",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTQ=",
+            "modified_timestamp": "1234567890.000000009",
+            "serial_number": 4,
+            "spender": null,
+            "token_id": "0.0.1500"
+          },
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000008",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTM=",
+            "modified_timestamp": "1234567890.000000008",
+            "serial_number": 3,
+            "spender": null,
+            "token_id": "0.0.1500"
+          }
+        ],
+        "links": {
+          "next": "/api/v1/tokens/0x00000000000000000000000000000000000005DC/nfts?serialnumber=gt:1&serialnumber=lt:3&account.id=1001&order=desc&limit=2"
+        }
+      }
     }
-  }
+  ]
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@hashgraph/mirror-rest",
+  "name": "@hiero-ledger/mirror-rest",
   "version": "0.129.0-SNAPSHOT",
   "description": "Hedera Mirror Node REST API",
   "type": "module",
@@ -26,7 +26,7 @@
     "compression": "^1.8.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "express-http-context": "^2.0.0",
+    "express-http-context": "^2.0.1",
     "express-openapi-validator": "^5.4.9",
     "extend": "^3.0.2",
     "extensionless": "^1.9.9",
@@ -36,7 +36,7 @@
     "json-bigint": "^1.0.0",
     "lodash": "^4.17.21",
     "log4js": "^6.9.1",
-    "long": "^5.3.1",
+    "long": "^5.3.2",
     "mathjs": "^14.4.0",
     "parse-duration": "^2.1.4",
     "pg": "~8.14.1",
@@ -45,7 +45,7 @@
     "qs": "^6.14.0",
     "quick-lru": "^7.0.1",
     "rfc4648": "^1.5.4",
-    "sql-formatter": "^15.5.2",
+    "sql-formatter": "^15.6.0",
     "swagger-stats": "^0.99.7",
     "swagger-ui-express": "^5.0.1",
     "word-wrap": "npm:@aashutoshrathi/word-wrap@^1.2.6"

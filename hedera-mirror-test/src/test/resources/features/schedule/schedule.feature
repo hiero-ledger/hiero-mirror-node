@@ -19,13 +19,13 @@ Feature: Schedule Base Coverage Feature
     When the scheduled transaction is signed by treasuryAccount
     And the mirror node REST API should return status <httpStatusCode> for the schedule transaction
     And the mirror node REST API should verify the "EXECUTED" schedule entity with expiration time "60s" and wait for expiry "false"
-    Given I successfully schedule a HBAR transfer from treasury to ALICE with expiration time "16s" and wait for expiry "true"
+    Given I successfully schedule a HBAR transfer from treasury to ALICE with expiration time "25s" and wait for expiry "true"
     Then the mirror node REST API should return status <httpStatusCode> for the schedule transaction
-    And the mirror node REST API should verify the "NON_EXECUTED" schedule entity with expiration time "16s" and wait for expiry "true"
+    And the mirror node REST API should verify the "NON_EXECUTED" schedule entity with expiration time "25s" and wait for expiry "true"
     When the scheduled transaction is signed by treasuryAccount
     And the mirror node REST API should return status <httpStatusCode> for the schedule transaction
     Then I wait until the schedule's expiration time
-    And the mirror node REST API should verify the "EXECUTED" schedule entity with expiration time "16s" and wait for expiry "true"
+    And the mirror node REST API should verify the "EXECUTED" schedule entity with expiration time "25s" and wait for expiry "true"
 
     Examples:
       | httpStatusCode |

@@ -4391,6 +4391,15 @@ components:
       in: path
       required: true
       description: Token id
+      examples:
+        tokenNumAlias:
+          value: 0x000000000000000000000000000000000000046F
+        shardRealmTokenNumAlias:
+          value: 0.0.000000000000000000000000000000000000046F
+        tokenNum:
+          value: 1135
+        shardRealmTokenNum:
+          value: 0.0.1135
       schema:
         $ref: "#/components/schemas/EntityId"
     topicIdPathParam:
@@ -5007,6 +5016,9 @@ components:
         noValue:
           summary: --
           value: ""
+        tokenNumAlias:
+          summary: Example of token num alias equals with no operator
+          value: 0000000000000000000000000000000000000064
         entityNumNoOperator:
           summary: Example of entityNum equals with no operator
           value: 100

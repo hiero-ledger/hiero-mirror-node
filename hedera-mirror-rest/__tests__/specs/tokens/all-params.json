@@ -86,37 +86,181 @@
       }
     ]
   },
-  "url": "/api/v1/tokens?account.id=2&token.id=gte:0.0.18&token.id=lt:0.30000.0&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc",
-  "responseStatus": 200,
-  "responseJson": {
-    "tokens": [
-      {
-        "token_id": "0.23.45678",
-        "symbol": "HEDERACOIN",
-        "admin_key": {
-          "_type": "ProtobufEncoded",
-          "key": "040404"
-        },
-        "decimals": 4,
-        "metadata": "AQE=",
-        "name": "Hedera",
-        "type": "FUNGIBLE_COMMON"
-      },
-      {
-        "token_id": "0.7.25301",
-        "symbol": "MIRRORTOKEN",
-        "admin_key": {
-          "_type": "ProtobufEncoded",
-          "key": "030303"
-        },
-        "decimals": 3,
-        "metadata": "",
-        "name": "Mirror",
-        "type": "FUNGIBLE_COMMON"
+  "tests": [
+    {
+      "url": "/api/v1/tokens?account.id=2&token.id=gte:0.0.18&token.id=lt:0.30000.0&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc",
+      "responseStatus": 200,
+      "responseJson": {
+        "tokens": [
+          {
+            "token_id": "0.23.45678",
+            "symbol": "HEDERACOIN",
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "040404"
+            },
+            "decimals": 4,
+            "metadata": "AQE=",
+            "name": "Hedera",
+            "type": "FUNGIBLE_COMMON"
+          },
+          {
+            "token_id": "0.7.25301",
+            "symbol": "MIRRORTOKEN",
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "030303"
+            },
+            "decimals": 3,
+            "metadata": "",
+            "name": "Mirror",
+            "type": "FUNGIBLE_COMMON"
+          }
+        ],
+        "links": {
+          "next": "/api/v1/tokens?account.id=2&token.id=gte:0.0.18&token.id=lt:0.7.25301&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc"
+        }
       }
-    ],
-    "links": {
-      "next": "/api/v1/tokens?account.id=2&token.id=gte:0.0.18&token.id=lt:0.7.25301&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc"
+    },
+    {
+      "url": "/api/v1/tokens?account.id=2&token.id=gte:0000000000000000000000000000000000000012&token.id=lt:0.30000.0&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc",
+      "responseStatus": 200,
+      "responseJson": {
+        "tokens": [
+          {
+            "token_id": "0.23.45678",
+            "symbol": "HEDERACOIN",
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "040404"
+            },
+            "decimals": 4,
+            "metadata": "AQE=",
+            "name": "Hedera",
+            "type": "FUNGIBLE_COMMON"
+          },
+          {
+            "token_id": "0.7.25301",
+            "symbol": "MIRRORTOKEN",
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "030303"
+            },
+            "decimals": 3,
+            "metadata": "",
+            "name": "Mirror",
+            "type": "FUNGIBLE_COMMON"
+          }
+        ],
+        "links": {
+          "next": "/api/v1/tokens?account.id=2&token.id=gte:0000000000000000000000000000000000000012&token.id=lt:0.7.25301&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc"
+        }
+      }
+    },
+    {
+      "url": "/api/v1/tokens?account.id=2&token.id=gte:0x0000000000000000000000000000000000000012&token.id=lt:0.30000.0&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc",
+      "responseStatus": 200,
+      "responseJson": {
+        "tokens": [
+          {
+            "token_id": "0.23.45678",
+            "symbol": "HEDERACOIN",
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "040404"
+            },
+            "decimals": 4,
+            "metadata": "AQE=",
+            "name": "Hedera",
+            "type": "FUNGIBLE_COMMON"
+          },
+          {
+            "token_id": "0.7.25301",
+            "symbol": "MIRRORTOKEN",
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "030303"
+            },
+            "decimals": 3,
+            "metadata": "",
+            "name": "Mirror",
+            "type": "FUNGIBLE_COMMON"
+          }
+        ],
+        "links": {
+          "next": "/api/v1/tokens?account.id=2&token.id=gte:0x0000000000000000000000000000000000000012&token.id=lt:0.7.25301&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc"
+        }
+      }
+    },
+    {
+      "url": "/api/v1/tokens?account.id=2&token.id=gte:0.0.0000000000000000000000000000000000000012&token.id=lt:0.30000.0&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc",
+      "responseStatus": 200,
+      "responseJson": {
+        "tokens": [
+          {
+            "token_id": "0.23.45678",
+            "symbol": "HEDERACOIN",
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "040404"
+            },
+            "decimals": 4,
+            "metadata": "AQE=",
+            "name": "Hedera",
+            "type": "FUNGIBLE_COMMON"
+          },
+          {
+            "token_id": "0.7.25301",
+            "symbol": "MIRRORTOKEN",
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "030303"
+            },
+            "decimals": 3,
+            "metadata": "",
+            "name": "Mirror",
+            "type": "FUNGIBLE_COMMON"
+          }
+        ],
+        "links": {
+          "next": "/api/v1/tokens?account.id=2&token.id=gte:0.0.0000000000000000000000000000000000000012&token.id=lt:0.7.25301&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc"
+        }
+      }
+    },
+    {
+      "url": "/api/v1/tokens?account.id=2&token.id=gte:0.0.0000000000000000000000000000000000000012&token.id=lt:0.30000.0&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=asc",
+      "responseStatus": 200,
+      "responseJson": {
+        "tokens": [
+          {
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "030303"
+            },
+            "decimals": 3,
+            "metadata": "",
+            "name": "Mirror",
+            "symbol": "MIRRORTOKEN",
+            "token_id": "0.7.25301",
+            "type": "FUNGIBLE_COMMON"
+          },
+          {
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "040404"
+            },
+            "decimals": 4,
+            "metadata": "AQE=",
+            "name": "Hedera",
+            "symbol": "HEDERACOIN",
+            "token_id": "0.23.45678",
+            "type": "FUNGIBLE_COMMON"
+          }
+        ],
+        "links": {
+          "next": "/api/v1/tokens?account.id=2&token.id=lt:0.30000.0&token.id=gt:0.23.45678&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=asc"
+        }
+      }
     }
-  }
+  ]
 }

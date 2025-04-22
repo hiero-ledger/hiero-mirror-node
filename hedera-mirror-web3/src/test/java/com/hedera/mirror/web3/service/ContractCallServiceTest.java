@@ -1090,7 +1090,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     }
 
     private Entity systemAccountEntityWithEvmAddressPersist() {
-        final var systemAccountEntityId = EntityId.of(700);
+        final var systemAccountEntityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 700);
 
         return domainBuilder
                 .entity()

@@ -819,7 +819,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
 
     private TokenAllowance tokenAllowancePersist(final long tokenId, final EntityId owner, final EntityId spender) {
         return tokenAllowancePersistCustomizable(
-                a -> a.tokenId(tokenId).owner(owner.getNum()).spender(spender.getNum()));
+                a -> a.tokenId(tokenId).owner(owner.getId()).spender(spender.getId()));
     }
 
     private EntityId accountPersist() {

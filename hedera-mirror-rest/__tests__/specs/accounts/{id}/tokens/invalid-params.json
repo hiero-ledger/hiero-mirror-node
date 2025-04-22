@@ -67,7 +67,8 @@
     {
       "urls": [
         "/api/v1/accounts/0.0.1001/tokens?token.id=ebb9a1be370150759408cd7af48e9eda2b8ead57",
-        "/api/v1/accounts/0.0.1001/tokens?token.id=fbb9a1be370150759408cd7af48e9eda2b8ead57"
+        "/api/v1/accounts/0.0.1001/tokens?token.id=fbb9a1be370150759408cd7af48e9eda2b8ead57",
+        "/api/v1/accounts/0.0.1001/tokens?token.id=0.0.0x000000000000000000000000000000000000046F"
       ],
       "responseStatus": 400,
       "responseJson": {
