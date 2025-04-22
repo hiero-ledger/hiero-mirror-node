@@ -14,17 +14,17 @@ dependencies:
     repository: https://grafana.github.io/helm-charts
   - condition: prometheus-adapter.enabled
     name: prometheus-adapter
-    repository: https://prometheus-community.github.io/helm-charts
+    repository: oci://ghcr.io/prometheus-community/charts
     version: 4.14.1
   - alias: prometheus
     condition: prometheus.enabled
     name: kube-prometheus-stack
-    repository: https://prometheus-community.github.io/helm-charts
+    repository: oci://ghcr.io/prometheus-community/charts
     version: 70.4.2
   - name: promtail
     condition: promtail.enabled
     version: 6.16.6
-    repository: https://grafana.github.io/helm-charts
+    repository: oci://ghcr.io/grafana/helm-charts
   - alias: stackgres
     condition: stackgres.enabled
     name: stackgres-operator
@@ -32,7 +32,7 @@ dependencies:
     version: 1.15.0
   - condition: traefik.enabled
     name: traefik
-    repository: https://helm.traefik.io/traefik
+    repository: oci://ghcr.io/traefik/helm
     version: 35.0.0
   - alias: zfs
     condition: zfs.enabled
