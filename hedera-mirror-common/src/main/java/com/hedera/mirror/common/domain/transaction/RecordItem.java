@@ -37,6 +37,7 @@ import lombok.CustomLog;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 import org.apache.commons.codec.binary.Hex;
@@ -45,6 +46,7 @@ import org.springframework.data.util.Version;
 @Builder(buildMethodName = "buildInternal")
 @AllArgsConstructor(access = PRIVATE)
 @CustomLog
+@ToString(onlyExplicitlyIncluded = true)
 @Value
 public class RecordItem implements StreamItem {
 
@@ -56,7 +58,9 @@ public class RecordItem implements StreamItem {
     @Builder.Default
     private final Version hapiVersion = RecordFile.HAPI_VERSION_NOT_SET;
 
+    @ToString.Include
     private final long consensusTimestamp;
+
     private final RecordItem parent;
     private final EntityId payerAccountId;
     private final RecordItem previous;

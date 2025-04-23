@@ -275,7 +275,9 @@ class GenericUpsertQueryGeneratorTest extends ImporterIntegrationTest {
                           coalesce(obtainer_id, e_obtainer_id, null),
                           coalesce(permanent_removal, e_permanent_removal, null),
                           coalesce(proxy_account_id, e_proxy_account_id, null),
-                          coalesce(public_key, e_public_key, null),
+                          case when public_key is not null and length(public_key) = 0 then null
+                            else coalesce(public_key, e_public_key, null)
+                          end,
                           coalesce(realm, e_realm, null),
                           coalesce(
                             receiver_sig_required,
@@ -486,7 +488,9 @@ class GenericUpsertQueryGeneratorTest extends ImporterIntegrationTest {
                             coalesce(obtainer_id, e_obtainer_id, null),
                             coalesce(permanent_removal, e_permanent_removal, null),
                             coalesce(proxy_account_id, e_proxy_account_id, null),
-                            coalesce(public_key, e_public_key, null),
+                            case when public_key is not null and length(public_key) = 0 then null
+                              else coalesce(public_key, e_public_key, null)
+                            end,
                             coalesce(e_realm, realm, null),
                             coalesce(
                               receiver_sig_required,
@@ -569,7 +573,9 @@ class GenericUpsertQueryGeneratorTest extends ImporterIntegrationTest {
                           coalesce(obtainer_id, e_obtainer_id, null),
                           coalesce(permanent_removal, e_permanent_removal, null),
                           coalesce(proxy_account_id, e_proxy_account_id, null),
-                          coalesce(public_key, e_public_key, null),
+                          case when public_key is not null and length(public_key) = 0 then null
+                            else coalesce(public_key, e_public_key, null)
+                          end,
                           coalesce(realm, e_realm, null),
                           coalesce(
                             receiver_sig_required,

@@ -8,6 +8,7 @@ import com.hedera.mirror.common.domain.History;
 import com.hedera.mirror.common.domain.UpsertColumn;
 import com.hedera.mirror.common.domain.Upsertable;
 import com.hedera.mirror.common.util.DomainUtils;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.Column;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -19,6 +20,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import org.apache.commons.lang3.StringUtils;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -33,6 +35,8 @@ public abstract class AbstractEntity implements History {
     public static final long DEFAULT_EXPIRY_TIMESTAMP =
             TimeUnit.MILLISECONDS.toNanos(Date.valueOf("2100-1-1").getTime());
     public static final long NODE_ID_CLEARED = -1L;
+
+    private static final String CLEAR_PUBLIC_KEY = StringUtils.EMPTY;
 
     @Column(updatable = false)
     @ToString.Exclude
@@ -92,6 +96,13 @@ public abstract class AbstractEntity implements History {
 
     private EntityId proxyAccountId;
 
+    @ToString.Exclude
+    @UpsertColumn(
+            coalesce =
+                    """
+                            case when {0} is not null and length({0}) = 0 then null
+                                 else coalesce({0}, e_{0}, null)
+                            end""")
     private String publicKey;
 
     @Column(updatable = false)
@@ -126,9 +137,17 @@ public abstract class AbstractEntity implements History {
         }
     }
 
+    /**
+     * Sets the entity's key. Note publicKey is extracted from the key as a side effect. A null key indicates there
+     * is no key / public key change and publicKey is set to null as well. For an empty key or unparsable key, publicKey
+     * is set to the sentinel value, an empty string, and the upsert SQL will clear the public_key column by setting it
+     * to null.
+     *
+     * @param key - The protobuf key bytes
+     */
     public void setKey(byte[] key) {
         this.key = key;
-        publicKey = DomainUtils.getPublicKey(key);
+        publicKey = getPublicKey(key);
     }
 
     public void setMemo(String memo) {
@@ -152,13 +171,22 @@ public abstract class AbstractEntity implements History {
         return DEFAULT_EXPIRY_TIMESTAMP;
     }
 
+    private static String getPublicKey(@Nullable byte[] protobufKey) {
+        if (protobufKey == null) {
+            return null;
+        }
+
+        var publicKey = DomainUtils.getPublicKey(protobufKey);
+        return publicKey != null ? publicKey : CLEAR_PUBLIC_KEY;
+    }
+
     @SuppressWarnings("java:S1610")
     // Necessary since Lombok doesn't use our setters for builders
     public abstract static class AbstractEntityBuilder<
             C extends AbstractEntity, B extends AbstractEntityBuilder<C, B>> {
         public B key(byte[] key) {
             this.key = key;
-            this.publicKey = DomainUtils.getPublicKey(key);
+            this.publicKey = getPublicKey(key);
             return self();
         }
 
