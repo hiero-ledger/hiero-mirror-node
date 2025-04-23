@@ -38,7 +38,7 @@ public class InitializeEntityBalanceMigration extends AbstractTimestampInfoMigra
                 full outer join change on account_id = entity_id
             )
             insert into entity (balance, balance_timestamp, deleted, id, num, realm, shard, timestamp_range)
-            select s.balance, s.balance_timestamp, s.deleted, s.account_id, (s.account_id & 4294967295), ((s.account_id >> 32) & 65535), (s.account_id  >> 48), '[0,)'
+            select s.balance, s.balance_timestamp, s.deleted, s.account_id, (s.account_id & 274877906943), ((s.account_id >> 38) & 65535), ((s.account_id  >> 54) & 1023), '[0,)'
             from state s
             on conflict (id) do update
             set balance = excluded.balance,
