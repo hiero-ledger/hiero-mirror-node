@@ -117,7 +117,6 @@ import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
 import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.asAddressArray;
 import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.asByteArray;
 import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.asLongArray;
-import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.generateRandomEvmAddress;
 import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
 import static com.hedera.mirror.test.e2e.acceptance.util.TestUtil.nftAmount;
 
@@ -132,6 +131,7 @@ import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import com.hedera.hashgraph.sdk.ReceiptStatusException;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.TokenUpdateTransaction;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.rest.model.ContractCallResponse;
 import com.hedera.mirror.test.e2e.acceptance.client.AccountClient;
 import com.hedera.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
@@ -149,6 +149,7 @@ import io.cucumber.java.en.Then;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -160,13 +161,14 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
+import org.bouncycastle.util.encoders.Hex;
 
 @CustomLog
 @RequiredArgsConstructor
 public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     private static final Tuple[] EMPTY_TUPLE_ARRAY = new Tuple[] {};
-    private static final String RANDOM_ADDRESS = generateRandomEvmAddress();
     private static final long FIRST_NFT_SERIAL_NUMBER = 1;
+    private final CommonProperties commonProperties;
     private final TokenClient tokenClient;
     private final AccountClient accountClient;
     private final Web3Properties web3Properties;
@@ -979,7 +981,13 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with delete function for invalid token address")
     public void deleteTokenRandomAddressEstimateGas() {
-        var data = encodeData(ESTIMATE_PRECOMPILE, DELETE_TOKEN, asAddress(RANDOM_ADDRESS));
+        String address = Hex.toHexString(ByteBuffer.allocate(20)
+                .putInt((int) commonProperties.getShard())
+                .putLong(commonProperties.getRealm())
+                .putLong(new SecureRandom().nextLong(2345, 1234567))
+                .array());
+
+        var data = encodeData(ESTIMATE_PRECOMPILE, DELETE_TOKEN, asAddress(address));
 
         assertContractCallReturnsBadRequest(data, DELETE_TOKEN.actualGas, estimatePrecompileContractSolidityAddress);
     }
