@@ -324,17 +324,12 @@ class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest {
     private void setupForFirstAccountBalanceFile() {
         // account2 not in db, its balance information is deduped and its account balance timestamp is before
         // accountBalanceFile1
-        long id = domainBuilder.id();
-        account2 = Entity.builder()
+        account2 = systemEntity.treasuryAccount().toEntity().toBuilder()
                 .balance(2L)
                 .declineReward(false)
                 .deleted(false)
                 .ethereumNonce(0L)
-                .id(id)
                 .memo("")
-                .num(id)
-                .realm(0L)
-                .shard(0L)
                 .stakedNodeId(-1L)
                 .stakePeriodStart(-1L)
                 .timestampRange(Range.atLeast(0L))
