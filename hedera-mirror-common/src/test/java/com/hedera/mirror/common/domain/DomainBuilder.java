@@ -6,6 +6,8 @@ import static com.hedera.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static com.hedera.mirror.common.domain.entity.EntityType.TOPIC;
 import static com.hedera.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
+import static org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1.CONTEXT;
+import static org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1.SECP256K1_EC_UNCOMPRESSED;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
@@ -21,6 +23,9 @@ import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.contract.Contract;
 import com.hedera.mirror.common.domain.contract.ContractAction;
+import org.apache.tuweni.bytes.Bytes;
+import org.bouncycastle.jcajce.provider.digest.Keccak;
+import org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1;
 import com.hedera.mirror.common.domain.contract.ContractLog;
 import com.hedera.mirror.common.domain.contract.ContractResult;
 import com.hedera.mirror.common.domain.contract.ContractState;
@@ -97,9 +102,11 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignaturePair;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionID;
+import com.sun.jna.ptr.LongByReference;
 import jakarta.persistence.EntityManager;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -118,6 +125,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -570,6 +578,31 @@ public class DomainBuilder {
     public DomainWrapper<LiveHash, LiveHash.LiveHashBuilder> liveHash() {
         var builder = LiveHash.builder().consensusTimestamp(timestamp()).livehash(bytes(64));
         return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public static byte[] recoverAddressFromPubKey(byte[] pubKeyBytes) {
+        LibSecp256k1.secp256k1_pubkey pubKey = new LibSecp256k1.secp256k1_pubkey();
+        var parseResult = LibSecp256k1.secp256k1_ec_pubkey_parse(CONTEXT, pubKey, pubKeyBytes, pubKeyBytes.length);
+        if (parseResult == 1) {
+            return recoverAddressFromPubKey(pubKey);
+        } else {
+            return new byte[0];
+        }
+    }
+
+    public static byte[] recoverAddressFromPubKey(LibSecp256k1.secp256k1_pubkey pubKey) {
+        final ByteBuffer recoveredFullKey = ByteBuffer.allocate(65);
+        final LongByReference fullKeySize = new LongByReference(recoveredFullKey.limit());
+        LibSecp256k1.secp256k1_ec_pubkey_serialize(
+                CONTEXT, recoveredFullKey, fullKeySize, pubKey, SECP256K1_EC_UNCOMPRESSED);
+
+        recoveredFullKey.get(); // read and discard - recoveryId is not part of the account hash
+        var preHash = new byte[64];
+        recoveredFullKey.get(preHash, 0, 64);
+        var keyHash = new Keccak.Digest256().digest(preHash);
+        var address = new byte[20];
+        System.arraycopy(keyHash, 12, address, 0, 20);
+        return address;
     }
 
     public DomainWrapper<NetworkFreeze, NetworkFreeze.NetworkFreezeBuilder<?, ?>> networkFreeze() {
