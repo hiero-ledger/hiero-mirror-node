@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./HederaTokenService.sol";
 import "./HederaResponseCodes.sol";
 
-contract AssociateContract is HederaTokenService{
+contract AssociateContract is HederaTokenService {
 
     function associateTokenToThisContract(address token) external {
         int contractAssociated = HederaTokenService.associateToken(
