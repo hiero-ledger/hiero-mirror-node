@@ -3,6 +3,7 @@
 package com.hedera.mirror.web3.state;
 
 import com.hedera.hapi.node.base.Key;
+import com.hedera.hapi.node.base.KeyList;
 import com.hedera.hapi.node.base.Timestamp;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.util.DomainUtils;
@@ -17,6 +18,8 @@ public class Utils {
 
     public static final long DEFAULT_AUTO_RENEW_PERIOD = 7776000L;
     public static final int EVM_ADDRESS_LEN = 20;
+    public static final Key EMPTY_KEY_LIST =
+            Key.newBuilder().keyList(KeyList.DEFAULT).build();
 
     public static Key parseKey(final byte[] keyBytes) {
         try {
