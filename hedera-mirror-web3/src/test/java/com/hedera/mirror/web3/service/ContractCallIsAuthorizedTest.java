@@ -7,6 +7,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1.CONTEXT;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.esaulpaugh.headlong.abi.Address;
 import com.google.protobuf.ByteString;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityType;
@@ -40,23 +41,17 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
     void isAuthorizedRawECDSA() throws Exception {
         final var messageString = "message";
         final var messageHash = new Keccak.Digest256().digest(messageString.getBytes());
-
         var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         var privateKey = keyPair.getPrivateKey().toByteArray();
         final var signedMessage = signMessageECDSA(messageHash, privateKey);
 
-        final var evmAddress = Bytes.wrap(EthSigsUtils.recoverAddressFromPubKey(
-                        ByteString.copyFrom(publicKey).substring(2).toByteArray()))
-                .toArray();
-
-        var accountEntity = persistAccountWithEvmAddressAndPublicKey(evmAddress, publicKey);
+        final var addressBytes = EthSigsUtils.recoverAddressFromPrivateKey(privateKey);
+        persistAccountWithEvmAddressAndPublicKey(addressBytes, publicKey);
 
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
-        final var result = contract.call_isAuthorizedRawCall(
-                getAddressFromEvmAddress(accountEntity.getEvmAddress()), messageHash, signedMessage);
-        final var functionCall = contract.send_isAuthorizedRawCall(
-                getAddressFromEvmAddress(accountEntity.getEvmAddress()), messageHash, signedMessage);
+        final var result = contract.call_isAuthorizedRawCall(asHeadlongAddress(addressBytes).toString(), messageHash, signedMessage);
+        final var functionCall = contract.send_isAuthorizedRawCall(asHeadlongAddress(addressBytes).toString(), messageHash, signedMessage);
 
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isTrue();
@@ -75,15 +70,13 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         var privateKey = keyPair.getPrivateKey().toByteArray();
         final var signedMessage = signMessageECDSA(messageHash, privateKey);
-        final var evmAddress = Bytes.wrap(EthSigsUtils.recoverAddressFromPubKey(
-                        ByteString.copyFrom(publicKey).substring(2).toByteArray()))
-                .toArray();
 
-        var accountEntity = persistAccountWithEvmAddressAndPublicKey(evmAddress, publicKey);
+        final var addressBytes = EthSigsUtils.recoverAddressFromPrivateKey(privateKey);
+        persistAccountWithEvmAddressAndPublicKey(addressBytes, publicKey);
 
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var result = contract.call_isAuthorizedRawCall(
-                getAddressFromEvmAddress(accountEntity.getEvmAddress()), differentHash, signedMessage);
+                asHeadlongAddress(addressBytes).toString(), differentHash, signedMessage);
 
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isFalse();
@@ -102,20 +95,16 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         var privateKey = keyPair.getPrivateKey().toByteArray();
         // Sign the message hash with the private key
         final var signedMessage = signMessageECDSA(messageHash, privateKey);
-        // Get the EVM address from the public key
-        final var evmAddress = Bytes.wrap(EthSigsUtils.recoverAddressFromPubKey(
-                        ByteString.copyFrom(publicKey).substring(2).toByteArray()))
-                .toArray();
-
-        // Persist account entity with specific EVM address and public key
-        var accountEntity = persistAccountWithEvmAddressAndPublicKey(evmAddress, publicKey);
+        // Get the EVM address from the private key
+        final var addressBytes = EthSigsUtils.recoverAddressFromPrivateKey(privateKey);
+        persistAccountWithEvmAddressAndPublicKey(addressBytes, publicKey);
 
         // Set the last byte of the signed message to an invalid value
         signedMessage[signedMessage.length - 1] = (byte) 2;
         // When
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var result = contract.call_isAuthorizedRawCall(
-                getAddressFromEvmAddress(accountEntity.getEvmAddress()), messageHash, signedMessage);
+                asHeadlongAddress(addressBytes).toString(), messageHash, signedMessage);
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isFalse();
@@ -133,16 +122,13 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         // Get the EVM address from the public key
-        final var evmAddress = Bytes.wrap(EthSigsUtils.recoverAddressFromPubKey(
-                        ByteString.copyFrom(publicKey).substring(2).toByteArray()))
-                .toArray();
+        final var addressBytes = EthSigsUtils.recoverAddressFromPubKey(publicKey);
         // Persist account entity with specific EVM address and public key
-        var accountEntity = persistAccountWithEvmAddressAndPublicKey(evmAddress, publicKey);
-
+        persistAccountWithEvmAddressAndPublicKey(addressBytes, publicKey);
         // When
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var result =
-                contract.call_isAuthorizedRawCall(getAddressFromEvmAddress(evmAddress), messageHash, invalidSignature);
+                contract.call_isAuthorizedRawCall(asHeadlongAddress(addressBytes).toString(), messageHash, invalidSignature);
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
@@ -318,5 +304,11 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         signature.initSign(privateKey);
         signature.update(msg);
         return signature.sign();
+    }
+
+    public static Address asHeadlongAddress(final byte[] address) {
+        final var addressBytes = Bytes.wrap(address);
+        final var addressAsInteger = addressBytes.toUnsignedBigInteger();
+        return Address.wrap(Address.toChecksumAddress(addressAsInteger));
     }
 }
