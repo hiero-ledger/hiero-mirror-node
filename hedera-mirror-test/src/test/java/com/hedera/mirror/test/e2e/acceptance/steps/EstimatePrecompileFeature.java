@@ -168,6 +168,7 @@ import org.bouncycastle.util.encoders.Hex;
 public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     private static final Tuple[] EMPTY_TUPLE_ARRAY = new Tuple[] {};
     private static final long FIRST_NFT_SERIAL_NUMBER = 1;
+    private static final long NUM_MAX_SIZE = 274877906943L;
     private final CommonProperties commonProperties;
     private final TokenClient tokenClient;
     private final AccountClient accountClient;
@@ -980,11 +981,11 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with delete function for invalid token address")
-    public void deleteTokenRandomAddressEstimateGas() {
+    public void deleteTokenInvalidAddressEstimateGas() {
         String address = Hex.toHexString(ByteBuffer.allocate(20)
                 .putInt((int) commonProperties.getShard())
                 .putLong(commonProperties.getRealm())
-                .putLong(new SecureRandom().nextLong(2345, 1234567))
+                .putLong(new SecureRandom().nextLong(NUM_MAX_SIZE / 100, NUM_MAX_SIZE))
                 .array());
 
         var data = encodeData(ESTIMATE_PRECOMPILE, DELETE_TOKEN, asAddress(address));
