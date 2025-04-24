@@ -11,8 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.regex.Pattern;
 import lombok.CustomLog;
 import lombok.NonNull;
 import lombok.Setter;
@@ -31,8 +29,6 @@ public class FileCopier {
 
     private static final FileFilter ALL_FILTER = f -> true;
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
-    private static final Predicate<String> ACCOUNT_ID_RECORD_FOLDER_MATCHER =
-            Pattern.compile("^record0\\.0\\.\\d+$").asPredicate();
 
     private final Path from;
     private final Path to;
@@ -109,8 +105,6 @@ public class FileCopier {
                 return;
             }
 
-            // move any folder named record0.0.\d+ under the destination directory to a folder with correct non-zero
-            // shard / realm
             var visitor = AccumulatorPathVisitor.builder().get();
             Files.walkFileTree(to, visitor);
             var dirs = visitor.getDirList();
@@ -120,7 +114,7 @@ public class FileCopier {
                     continue;
                 }
 
-                log.info("Moving {} to {}", dir, newDir);
+                log.debug("Moving {} to {}", dir, newDir);
                 FileUtils.moveDirectory(dir.toFile(), newDir);
             }
         } catch (Exception e) {
