@@ -22,6 +22,9 @@ public class ByteArrayFromStringConverter implements Converter<String, byte[]> {
         }
 
         if (HEX_STRING_PATTERN.matcher(source).matches()) {
+            if (source.length() % 2 != 0) {
+                source = "0" + source;
+            }
             return HexFormat.of().parseHex(source.replace("0x", ""));
         }
 

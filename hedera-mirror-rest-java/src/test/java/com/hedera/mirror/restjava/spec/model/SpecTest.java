@@ -15,7 +15,8 @@ public record SpecTest(
         @JsonDeserialize(using = JsonAsStringDeserializer.class) String responseJson,
         int responseStatus,
         String url,
-        List<String> urls) {
+        List<String> urls,
+        Map<String, Object> responseJsonMatrix) {
 
     public List<String> getNormalizedUrls() {
         return Stream.concat(Stream.ofNullable(url), Stream.ofNullable(urls).flatMap(List::stream))

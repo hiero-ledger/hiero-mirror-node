@@ -16,6 +16,7 @@ public record SpecSetup(
         @JsonProperty("cryptotransfers") List<Map<String, Object>> cryptoTransfers,
         List<Map<String, Object>> entities,
         List<Map<String, Object>> entityStakes,
+        List<Map<String, Object>> ethereumtransactions,
         Map<String, String> features,
         @JsonProperty("filedata") List<Map<String, Object>> fileData,
         @JsonProperty("networkstakes") List<Map<String, Object>> networkStakes,

@@ -31,6 +31,9 @@ import org.springframework.util.CollectionUtils;
 @CustomLog
 abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
     private static final Base32 BASE32 = new Base32();
+
+    protected static final HexFormat HEX_FORMAT = HexFormat.of();
+
     protected static final long DEFAULT_PAYER_ACCOUNT_ID = 102;
     protected static final long DEFAULT_SENDER_ID = 101;
 
@@ -47,10 +50,10 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
                         var cleanValueStr = valueStr.replace("0x", "");
 
                         if (cleanValueStr.length() % 2 != 0) {
-                            return HexFormat.of().parseHex(cleanValueStr.substring(0, cleanValueStr.length() - 1));
+                            return HEX_FORMAT.parseHex(cleanValueStr.substring(0, cleanValueStr.length() - 1));
                         }
 
-                        return HexFormat.of().parseHex(cleanValueStr);
+                        return HEX_FORMAT.parseHex(cleanValueStr);
                     }
                     return Base64.getDecoder().decode(valueStr);
                 }

@@ -38,7 +38,8 @@ public record RestSpecNormalized(
                     restSpec.responseJson(),
                     restSpec.responseStatus(),
                     restSpec.url(),
-                    restSpec.urls());
+                    restSpec.urls(),
+                    restSpec.responseJsonMatrix());
             normalizedTests = List.of(SpecTestNormalized.from(specTest));
         } else {
             normalizedTests = SpecTestNormalized.allFrom(restSpec.tests());
