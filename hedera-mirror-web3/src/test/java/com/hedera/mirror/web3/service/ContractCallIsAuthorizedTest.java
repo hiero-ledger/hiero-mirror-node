@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package com.hedera.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
-import static com.hedera.mirror.common.domain.DomainBuilder.recoverAddressFromPubKey;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1.CONTEXT;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -11,6 +12,7 @@ import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.web3j.generated.HRC632Contract;
+import com.hedera.node.app.service.evm.utils.EthSigsUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import com.sun.jna.ptr.IntByReference;
 import java.math.BigInteger;
@@ -36,23 +38,25 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
 
     @Test
     void isAuthorizedRawECDSA() throws Exception {
-          final var messageString = "message";
-          final var messageHash = new Keccak.Digest256().digest(messageString.getBytes());
+        final var messageString = "message";
+        final var messageHash = new Keccak.Digest256().digest(messageString.getBytes());
 
         var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         var privateKey = keyPair.getPrivateKey().toByteArray();
         final var signedMessage = signMessageECDSA(messageHash, privateKey);
 
-        final var evmAddress =
-                Bytes.wrap(recoverAddressFromPubKey(ByteString.copyFrom(publicKey).substring(2).toByteArray()))
-                        .toArray();
+        final var evmAddress = Bytes.wrap(EthSigsUtils.recoverAddressFromPubKey(
+                        ByteString.copyFrom(publicKey).substring(2).toByteArray()))
+                .toArray();
 
         var accountEntity = persistAccountWithEvmAddressAndPublicKey(evmAddress, publicKey);
 
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
-        final var result = contract.call_isAuthorizedRawCall(getAddressFromEvmAddress(accountEntity.getEvmAddress()), messageHash, signedMessage);
-        final var functionCall = contract.send_isAuthorizedRawCall(getAddressFromEvmAddress(accountEntity.getEvmAddress()), messageHash, signedMessage);
+        final var result = contract.call_isAuthorizedRawCall(
+                getAddressFromEvmAddress(accountEntity.getEvmAddress()), messageHash, signedMessage);
+        final var functionCall = contract.send_isAuthorizedRawCall(
+                getAddressFromEvmAddress(accountEntity.getEvmAddress()), messageHash, signedMessage);
 
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isTrue();
@@ -71,14 +75,15 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         var privateKey = keyPair.getPrivateKey().toByteArray();
         final var signedMessage = signMessageECDSA(messageHash, privateKey);
-        final var evmAddress =
-                Bytes.wrap(recoverAddressFromPubKey(ByteString.copyFrom(publicKey).substring(2).toByteArray()))
-                        .toArray();
+        final var evmAddress = Bytes.wrap(EthSigsUtils.recoverAddressFromPubKey(
+                        ByteString.copyFrom(publicKey).substring(2).toByteArray()))
+                .toArray();
 
         var accountEntity = persistAccountWithEvmAddressAndPublicKey(evmAddress, publicKey);
 
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
-        final var result = contract.call_isAuthorizedRawCall(getAddressFromEvmAddress(accountEntity.getEvmAddress()), differentHash, signedMessage);
+        final var result = contract.call_isAuthorizedRawCall(
+                getAddressFromEvmAddress(accountEntity.getEvmAddress()), differentHash, signedMessage);
 
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isFalse();
@@ -98,18 +103,19 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         // Sign the message hash with the private key
         final var signedMessage = signMessageECDSA(messageHash, privateKey);
         // Get the EVM address from the public key
-        final var evmAddress =
-                Bytes.wrap(recoverAddressFromPubKey(ByteString.copyFrom(publicKey).substring(2).toByteArray()))
-                        .toArray();
+        final var evmAddress = Bytes.wrap(EthSigsUtils.recoverAddressFromPubKey(
+                        ByteString.copyFrom(publicKey).substring(2).toByteArray()))
+                .toArray();
 
-        //Persist account entity with specific EVM address and public key
+        // Persist account entity with specific EVM address and public key
         var accountEntity = persistAccountWithEvmAddressAndPublicKey(evmAddress, publicKey);
 
         // Set the last byte of the signed message to an invalid value
-        signedMessage[signedMessage.length -1] = (byte) 2;
+        signedMessage[signedMessage.length - 1] = (byte) 2;
         // When
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
-        final var result = contract.call_isAuthorizedRawCall(getAddressFromEvmAddress(accountEntity.getEvmAddress()), messageHash, signedMessage);
+        final var result = contract.call_isAuthorizedRawCall(
+                getAddressFromEvmAddress(accountEntity.getEvmAddress()), messageHash, signedMessage);
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isFalse();
@@ -127,15 +133,16 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         // Get the EVM address from the public key
-        final var evmAddress =
-                Bytes.wrap(recoverAddressFromPubKey(ByteString.copyFrom(publicKey).substring(2).toByteArray()))
-                        .toArray();
-        //Persist account entity with specific EVM address and public key
+        final var evmAddress = Bytes.wrap(EthSigsUtils.recoverAddressFromPubKey(
+                        ByteString.copyFrom(publicKey).substring(2).toByteArray()))
+                .toArray();
+        // Persist account entity with specific EVM address and public key
         var accountEntity = persistAccountWithEvmAddressAndPublicKey(evmAddress, publicKey);
 
         // When
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
-        final var result = contract.call_isAuthorizedRawCall(getAddressFromEvmAddress(evmAddress), messageHash, invalidSignature);
+        final var result =
+                contract.call_isAuthorizedRawCall(getAddressFromEvmAddress(evmAddress), messageHash, invalidSignature);
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
@@ -162,8 +169,10 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         var accountEntity = persistAccountWithEvmAddressAndPublicKey(null, publicProtoKey);
 
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
-        final var result = contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), messageHash, signedBytes);
-        final var functionCall = contract.send_isAuthorizedRawCall(getAddressFromEntity(accountEntity), messageHash, signedBytes);
+        final var result =
+                contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), messageHash, signedBytes);
+        final var functionCall =
+                contract.send_isAuthorizedRawCall(getAddressFromEntity(accountEntity), messageHash, signedBytes);
 
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isTrue();
@@ -190,8 +199,10 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         var accountEntity = persistAccountWithEvmAddressAndPublicKey(null, publicProtoKey);
 
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
-        final var result = contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), differentHash, signedBytes);
-        final var functionCall = contract.send_isAuthorizedRawCall(getAddressFromEntity(accountEntity), differentHash, signedBytes);
+        final var result =
+                contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), differentHash, signedBytes);
+        final var functionCall =
+                contract.send_isAuthorizedRawCall(getAddressFromEntity(accountEntity), differentHash, signedBytes);
 
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isFalse();
@@ -213,7 +224,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         var accountEntity = persistAccountWithEvmAddressAndPublicKey(null, publicProtoKey);
 
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
-        final var result = contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), messageHash, new byte[65]);
+        final var result =
+                contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), messageHash, new byte[65]);
 
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
@@ -234,14 +246,15 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         var privateKey = keyPair.getPrivateKey().toByteArray();
         final var signedMessage = signMessageECDSA(messageHash, privateKey);
 
-        final var evmAddress =
-                Bytes.wrap(recoverAddressFromPubKey(ByteString.copyFrom(publicKey).substring(2).toByteArray()))
-                        .toArray();
+        final var evmAddress = Bytes.wrap(EthSigsUtils.recoverAddressFromPubKey(
+                        ByteString.copyFrom(publicKey).substring(2).toByteArray()))
+                .toArray();
 
         var accountEntity = persistAccountWithEvmAddressAndPublicKey(evmAddress, publicKey);
 
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
-        final var result = contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), messageHash, signedMessage);
+        final var result =
+                contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), messageHash, signedMessage);
 
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
@@ -258,10 +271,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         var rawEd25519 = info.getPublicKeyData().getOctets();
         // wrap in Proto
         ByteString keyByteString = ByteString.copyFrom(rawEd25519);
-        return Key.newBuilder()
-                        .setEd25519(keyByteString)
-                        .build()
-                        .toByteArray();
+        return Key.newBuilder().setEd25519(keyByteString).build().toByteArray();
     }
 
     private byte[] getProtobufKeyECDSA(BigInteger publicKey) {
@@ -277,8 +287,11 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
     }
 
     private Entity persistAccountWithEvmAddressAndPublicKey(byte[] evmAddress, byte[] publicKey) {
-        return accountEntityPersistCustomizable(
-                e -> e.alias(evmAddress).evmAddress(evmAddress).key(publicKey).type(EntityType.ACCOUNT).balance(DEFAULT_ACCOUNT_BALANCE));
+        return accountEntityPersistCustomizable(e -> e.alias(evmAddress)
+                .evmAddress(evmAddress)
+                .key(publicKey)
+                .type(EntityType.ACCOUNT)
+                .balance(DEFAULT_ACCOUNT_BALANCE));
     }
 
     public static byte[] signMessageECDSA(final byte[] messageHash, byte[] privateKey) {
@@ -300,10 +313,36 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
     }
 
     public static byte[] signBytesED25519(final byte[] msg, final PrivateKey privateKey)
-            throws InvalidKeyException, SignatureException, NoSuchAlgorithmException
-    {
+            throws InvalidKeyException, SignatureException, NoSuchAlgorithmException {
         Signature signature = Signature.getInstance("Ed25519");
         signature.initSign(privateKey);
         signature.update(msg);
         return signature.sign();
-    }}
+    }
+
+    //    public static byte[] recoverAddressFromPubKey(byte[] pubKeyBytes) {
+    //        LibSecp256k1.secp256k1_pubkey pubKey = new LibSecp256k1.secp256k1_pubkey();
+    //        var parseResult = LibSecp256k1.secp256k1_ec_pubkey_parse(CONTEXT, pubKey, pubKeyBytes,
+    // pubKeyBytes.length);
+    //        if (parseResult == 1) {
+    //            return recoverAddressFromPubKey(pubKey);
+    //        } else {
+    //            return new byte[0];
+    //        }
+    //    }
+    //
+    //    public static byte[] recoverAddressFromPubKey(LibSecp256k1.secp256k1_pubkey pubKey) {
+    //        final ByteBuffer recoveredFullKey = ByteBuffer.allocate(65);
+    //        final LongByReference fullKeySize = new LongByReference(recoveredFullKey.limit());
+    //        LibSecp256k1.secp256k1_ec_pubkey_serialize(
+    //                CONTEXT, recoveredFullKey, fullKeySize, pubKey, SECP256K1_EC_UNCOMPRESSED);
+    //
+    //        recoveredFullKey.get(); // read and discard - recoveryId is not part of the account hash
+    //        var preHash = new byte[64];
+    //        recoveredFullKey.get(preHash, 0, 64);
+    //        var keyHash = new Keccak.Digest256().digest(preHash);
+    //        var address = new byte[20];
+    //        System.arraycopy(keyHash, 12, address, 0, 20);
+    //        return address;
+    //    }
+}
