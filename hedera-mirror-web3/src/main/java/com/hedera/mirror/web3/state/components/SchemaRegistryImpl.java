@@ -9,6 +9,7 @@ import static com.hedera.node.app.state.merkle.SchemaApplicationType.STATE_DEFIN
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.state.core.MapWritableStates;
+import com.hedera.mirror.web3.state.keyvalue.StateKeyRegistry;
 import com.hedera.mirror.web3.state.singleton.DefaultSingleton;
 import com.hedera.mirror.web3.state.singleton.SingletonState;
 import com.hedera.node.app.state.merkle.SchemaApplications;
@@ -208,9 +209,17 @@ public class SchemaRegistryImpl implements SchemaRegistry {
                 var singleton = singletonMap.computeIfAbsent(def.stateKey(), DefaultSingleton::new);
                 stateDataSources.put(singleton.getKey(), singleton);
             } else if (def.queue()) {
-                stateDataSources.put(def.stateKey(), new ConcurrentLinkedDeque<>());
+                if (StateKeyRegistry.contains(def.stateKey())) {
+                    stateDataSources.put(def.stateKey(), new ConcurrentLinkedDeque<>());
+                } else {
+                    throw new UnsupportedOperationException("Unsupported state key for queue: " + def.stateKey());
+                }
             } else {
-                stateDataSources.put(def.stateKey(), new ConcurrentHashMap<>());
+                if (StateKeyRegistry.contains(def.stateKey())) {
+                    stateDataSources.put(def.stateKey(), new ConcurrentHashMap<>());
+                } else {
+                    throw new UnsupportedOperationException("Unsupported state key: " + def.stateKey());
+                }
             }
         });
 
