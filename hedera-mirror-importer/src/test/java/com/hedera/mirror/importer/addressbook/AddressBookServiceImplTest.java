@@ -28,7 +28,6 @@ import com.hedera.mirror.importer.repository.AddressBookEntryRepository;
 import com.hedera.mirror.importer.repository.AddressBookRepository;
 import com.hedera.mirror.importer.repository.AddressBookServiceEndpointRepository;
 import com.hedera.mirror.importer.repository.FileDataRepository;
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.NodeAddressBook;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
@@ -40,11 +39,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.BeforeAll;
@@ -90,15 +89,16 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
 
     @SuppressWarnings("deprecation")
     private static NodeAddressBook addressBook(int size, int endPointSize) {
-        NodeAddressBook.Builder builder = NodeAddressBook.newBuilder();
+        var builder = NodeAddressBook.newBuilder();
+        var nodeAccountIdPrefix = String.format("%d.%d.", COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm());
         for (int i = 0; i < size; ++i) {
             long nodeId = 3 + i;
             NodeAddress.Builder nodeAddressBuilder = NodeAddress.newBuilder()
                     .setIpAddress(ByteString.copyFromUtf8("127.0.0." + nodeId))
                     .setPortno((int) nodeId)
                     .setNodeId(nodeId)
-                    .setMemo(ByteString.copyFromUtf8("0.0." + nodeId))
-                    .setNodeAccountId(AccountID.newBuilder().setAccountNum(nodeId))
+                    .setMemo(ByteString.copyFromUtf8(nodeAccountIdPrefix + nodeId))
+                    .setNodeAccountId(entityId(nodeId).toAccountID())
                     .setNodeCertHash(ByteString.copyFromUtf8("nodeCertHash"))
                     .setRSAPubKey("rsa+public/key");
 
@@ -280,19 +280,14 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertEquals(TEST_INITIAL_ADDRESS_BOOK_NODE_COUNT, addressBookEntryRepository.count());
     }
 
-    @Test
-    void isAddressBook() {
-        EntityId fileID = EntityId.of(0, 0, 234);
-        boolean isAddressBook = addressBookService.isAddressBook(fileID);
-        assertThat(isAddressBook).isFalse();
-
-        fileID = EntityId.of(0, 0, 101);
-        isAddressBook = addressBookService.isAddressBook(fileID);
-        assertThat(isAddressBook).isTrue();
-
-        fileID = EntityId.of(0, 0, 102);
-        isAddressBook = addressBookService.isAddressBook(fileID);
-        assertThat(isAddressBook).isTrue();
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            234, false
+            101, true
+            102, true
+            """)
+    void isAddressBook(long fileNum, boolean expected) {
+        assertThat(addressBookService.isAddressBook(entityId(fileNum))).isEqualTo(expected);
     }
 
     @Test
@@ -511,28 +506,25 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     @Test
     @Transactional
     void verifyAddressBookEntriesWithNodeIdAndPortNotSet() {
-        Map<String, Integer> memoToNodeIdMap = Map.of(
-                "0.0.3", 0,
-                "0.0.4", 1);
-
-        String[] accountIds = memoToNodeIdMap.keySet().stream().sorted().toArray(String[]::new);
+        var nodeAccountId1 = entityId(3);
+        var nodeAccountId2 = entityId(4);
 
         // nodeId 0, port 0
-        NodeAddress nodeAddress1 = NodeAddress.newBuilder()
+        var nodeAddress1 = NodeAddress.newBuilder()
                 .setIpAddress(ByteString.copyFromUtf8("127.0.0.1"))
-                .setMemo(ByteString.copyFromUtf8(accountIds[0]))
-                .setNodeAccountId(AccountID.newBuilder().setAccountNum(3))
+                .setMemo(ByteString.copyFromUtf8(nodeAccountId1.toString()))
+                .setNodeAccountId(nodeAccountId1.toAccountID())
                 .setNodeCertHash(ByteString.copyFromUtf8("nodeCertHash"))
                 .setRSAPubKey("rsa+public/key")
                 .build();
         // nodeId 0, port 50211
-        NodeAddress nodeAddress2 = NodeAddress.newBuilder(nodeAddress1)
+        var nodeAddress2 = NodeAddress.newBuilder(nodeAddress1)
                 .setIpAddress(ByteString.copyFromUtf8("127.0.0.2"))
-                .setMemo(ByteString.copyFromUtf8(accountIds[1]))
-                .setNodeAccountId(AccountID.newBuilder().setAccountNum(4))
+                .setMemo(ByteString.copyFromUtf8(nodeAccountId2.toString()))
+                .setNodeAccountId(nodeAccountId2.toAccountID())
                 .setPortno(50211)
                 .build();
-        NodeAddressBook nodeAddressBook = NodeAddressBook.newBuilder()
+        var nodeAddressBook = NodeAddressBook.newBuilder()
                 .addAllNodeAddress(List.of(nodeAddress1, nodeAddress2))
                 .build();
 
@@ -541,11 +533,11 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         update(addressBookBytes, addressBookConsensusTimeStamp, true);
 
         assertAddressBookData(addressBookBytes, addressBookConsensusTimeStamp + 1);
-        AddressBook addressBook = addressBookService.getCurrent();
-        ListAssert<AddressBookEntry> listAssert =
-                assertThat(addressBook.getEntries()).hasSize(nodeAddressBook.getNodeAddressCount());
-        for (NodeAddress nodeAddress : nodeAddressBook.getNodeAddressList()) {
-            int expectedNodeId = memoToNodeIdMap.get(nodeAddress.getMemo().toStringUtf8());
+        var addressBook = addressBookService.getCurrent();
+        var listAssert = assertThat(addressBook.getEntries()).hasSize(nodeAddressBook.getNodeAddressCount());
+        for (var nodeAddress : nodeAddressBook.getNodeAddressList()) {
+            long expectedNodeId =
+                    EntityId.of(nodeAddress.getMemo().toStringUtf8()).getNum() - 3;
             listAssert.anySatisfy(abe -> {
                 assertThat(abe.getMemo()).isEqualTo(nodeAddress.getMemo().toStringUtf8());
                 assertThat(abe.getNodeAccountId()).isEqualTo(EntityId.of(nodeAddress.getNodeAccountId()));
@@ -706,9 +698,9 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertEquals(addressBookEntries * numEndpointsPerNode, addressBookServiceEndpointRepository.count());
     }
 
+    @SneakyThrows
     @Test
-    void verifyAddressBookWithDeprecatedIpAndServiceEndpoints() throws UnknownHostException {
-
+    void verifyAddressBookWithDeprecatedIpAndServiceEndpoints() {
         List<NodeAddress> nodeAddressList = new ArrayList<>();
         int nodeAccountStart = 3;
         int addressBookEntries = 5;
@@ -739,8 +731,9 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertEquals(addressBookEntries * numEndpointsPerNode, addressBookServiceEndpointRepository.count());
     }
 
+    @SneakyThrows
     @Test
-    void verifyAddressBookWitDomainName() throws Exception {
+    void verifyAddressBookWitDomainName() {
         var domainName = "localhost";
         var nodeAddressBook = NodeAddressBook.newBuilder()
                 .addNodeAddress(NodeAddress.newBuilder()
@@ -748,7 +741,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                                 .setDomainName(domainName)
                                 .setPort(BASE_PORT))
                         .setNodeId(0L)
-                        .setNodeAccountId(AccountID.newBuilder().setAccountNum(3)))
+                        .setNodeAccountId(entityId(3).toAccountID()))
                 .build();
 
         var path = dataPath.resolve("addressbook.bin");
@@ -1093,8 +1086,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
             throws UnknownHostException {
         NodeAddress.Builder nodeAddressBuilder = NodeAddress.newBuilder()
                 .setDescription("NodeAddressWithServiceEndpoint")
-                .setNodeAccountId(
-                        AccountID.newBuilder().setAccountNum(accountNum).build())
+                .setNodeAccountId(entityId(accountNum).toAccountID())
                 .setNodeCertHash(ByteString.copyFromUtf8(accountNum + "NodeCertHash"))
                 .setNodeId(accountNum - AddressBookServiceImpl.INITIAL_NODE_ID_ACCOUNT_ID_OFFSET)
                 .setRSAPubKey(accountNum + "RSAPubKey")

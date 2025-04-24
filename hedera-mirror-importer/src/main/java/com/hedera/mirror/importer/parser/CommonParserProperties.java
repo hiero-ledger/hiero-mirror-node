@@ -74,7 +74,7 @@ public class CommonParserProperties {
 
     @Data
     @Validated
-    static class TransactionFilter {
+    public static class TransactionFilter {
 
         private static final StandardEvaluationContext evaluationContext = new StandardEvaluationContext();
 

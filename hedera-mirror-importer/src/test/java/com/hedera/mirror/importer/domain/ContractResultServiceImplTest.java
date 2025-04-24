@@ -48,6 +48,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class ContractResultServiceImplTest {
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     private static final String RECOVERABLE_ERROR_LOG_PREFIX = "Recoverable error. ";
 
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
@@ -84,6 +85,8 @@ class ContractResultServiceImplTest {
                         .build();
 
         var contractIdWithEvm = ContractID.newBuilder()
+                .setShardNum(COMMON_PROPERTIES.getShard())
+                .setRealmNum(COMMON_PROPERTIES.getRealm())
                 .setEvmAddress(ByteString.copyFromUtf8("1234"))
                 .build();
 
@@ -114,7 +117,8 @@ class ContractResultServiceImplTest {
                 Arguments.of(withDefaultContractId, EntityId.EMPTY),
                 Arguments.of(contractCreate, EntityId.EMPTY),
                 Arguments.of(contractCreate, null),
-                Arguments.of(contractCreate, EntityId.of(0, 0, 5)),
+                Arguments.of(
+                        contractCreate, EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 5)),
                 Arguments.of(withInactiveEvmFunctionOnly, null),
                 Arguments.of(withInactiveEvmFunctionOnly, EntityId.EMPTY),
                 Arguments.of(withInactiveEvmReceipt, null),
@@ -150,11 +154,10 @@ class ContractResultServiceImplTest {
     }
 
     private void verifyContractTransactions(RecordItem recordItem, Transaction transaction, EntityId entityId) {
-
         var ids = new HashSet<Long>();
         for (var sidecarRecord : recordItem.getSidecarRecords()) {
             for (var stateChange : sidecarRecord.getStateChanges().getContractStateChangesList()) {
-                ids.add(stateChange.getContractId().getContractNum());
+                ids.add(EntityId.of(stateChange.getContractId()).getId());
             }
         }
 
@@ -163,18 +166,15 @@ class ContractResultServiceImplTest {
                 : recordItem.getTransactionRecord().getContractCallResult();
         for (int index = 0; index < functionResult.getLogInfoCount(); ++index) {
             var contractLoginfo = functionResult.getLogInfo(index);
-            ids.add(contractLoginfo.getContractID().getContractNum());
+            ids.add(EntityId.of(contractLoginfo.getContractID()).getId());
         }
 
         var isContractCreateOrCall = recordItem.getTransactionBody().hasContractCall()
                 || recordItem.getTransactionBody().hasContractCreateInstance();
         var rootId = isContractCreateOrCall ? transaction.getEntityId() : entityId;
         ids.add(Objects.requireNonNullElse(rootId, EntityId.EMPTY).getId());
-        ids.add(recordItem
-                .getTransactionBody()
-                .getTransactionID()
-                .getAccountID()
-                .getAccountNum());
+        ids.add(EntityId.of(recordItem.getTransactionBody().getTransactionID().getAccountID())
+                .getId());
 
         var idsList = new ArrayList<>(ids);
         idsList.sort(Long::compareTo);

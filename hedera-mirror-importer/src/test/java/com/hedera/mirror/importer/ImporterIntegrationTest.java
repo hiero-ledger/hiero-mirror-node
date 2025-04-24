@@ -6,6 +6,7 @@ import static com.hedera.mirror.importer.TestUtils.getResource;
 
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Range;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.config.CommonIntegrationTest;
 import com.hedera.mirror.common.config.RedisTestConfiguration;
 import com.hedera.mirror.common.converter.EntityIdConverter;
@@ -59,6 +60,8 @@ import org.springframework.jdbc.core.RowMapper;
 @Import(RedisTestConfiguration.class)
 public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
 
+    protected static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+
     private static final Map<Class<?>, String> DEFAULT_DOMAIN_CLASS_IDS = new ConcurrentHashMap<>();
 
     @Resource
@@ -97,6 +100,10 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
 
     protected List<String> getRequiredRepeatableMigrations() {
         return Collections.emptyList();
+    }
+
+    protected static EntityId entityId(long num) {
+        return EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), num);
     }
 
     protected static <T> RowMapper<T> rowMapper(Class<T> entityClass) {

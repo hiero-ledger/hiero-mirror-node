@@ -67,32 +67,20 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 public abstract class AbstractEntityRecordItemListenerTest extends ImporterIntegrationTest {
 
-    protected static final ContractID CONTRACT_ID =
-            ContractID.newBuilder().setContractNum(901).build();
-    protected static final ContractID CREATED_CONTRACT_ID =
-            ContractID.newBuilder().setContractNum(902).build();
+    protected static final ContractID CONTRACT_ID = entityId(901).toContractID();
+    protected static final ContractID CREATED_CONTRACT_ID = entityId(902).toContractID();
     protected static final SignatureMap DEFAULT_SIG_MAP = getDefaultSigMap();
     protected static final String KEY = "0a2212200aa8e21064c61eab86e2a9c164565b4e7a9a4146106e0a6cd03a8c395a110fff";
     protected static final String KEY2 = "0a3312200aa8e21064c61eab86e2a9c164565b4e7a9a4146106e0a6cd03a8c395a110e92";
-    protected static final AccountID PAYER =
-            AccountID.newBuilder().setAccountNum(2002).build();
-    protected static final AccountID PAYER2 =
-            AccountID.newBuilder().setAccountNum(2003).build();
-    protected static final AccountID PAYER3 =
-            AccountID.newBuilder().setAccountNum(2006).build();
-    protected static final AccountID RECEIVER =
-            AccountID.newBuilder().setAccountNum(2004).build();
-    protected static final AccountID SPENDER =
-            AccountID.newBuilder().setAccountNum(2005).build();
+    protected static final AccountID PAYER = entityId(2002).toAccountID();
+    protected static final AccountID PAYER2 = entityId(2003).toAccountID();
+    protected static final AccountID PAYER3 = entityId(2006).toAccountID();
+    protected static final AccountID RECEIVER = entityId(2004).toAccountID();
+    protected static final AccountID SPENDER = entityId(2005).toAccountID();
     protected static final AccountID DEFAULT_ACCOUNT_ID = AccountID.getDefaultInstance();
-    protected static final AccountID NODE =
-            AccountID.newBuilder().setAccountNum(3).build();
-    protected static final AccountID TREASURY =
-            AccountID.newBuilder().setAccountNum(98).build();
-    protected static final AccountID PROXY =
-            AccountID.newBuilder().setAccountNum(1003).build();
-    protected static final AccountID PROXY_UPDATE =
-            AccountID.newBuilder().setAccountNum(3000).build();
+    protected static final AccountID NODE = entityId(3).toAccountID();
+    protected static final AccountID PROXY = entityId(1003).toAccountID();
+    protected static final AccountID PROXY_UPDATE = entityId(3000).toAccountID();
     protected static final String TRANSACTION_MEMO = "transaction memo";
 
     @Resource
@@ -184,11 +172,7 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
         TransactionBody.Builder body = TransactionBody.newBuilder();
         body.setTransactionFee(100L);
         body.setMemo(TRANSACTION_MEMO);
-        body.setNodeAccountID(AccountID.newBuilder()
-                .setShardNum(0)
-                .setRealmNum(0)
-                .setAccountNum(3)
-                .build());
+        body.setNodeAccountID(NODE);
         body.setTransactionID(Utility.getTransactionId(PAYER));
         body.setTransactionValidDuration(Duration.newBuilder().setSeconds(120).build());
         return body;
@@ -335,13 +319,16 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
         recordBuilder.getReceiptBuilder().setStatusValue(status);
 
         // Give from payer to treasury and node
-        long[] transferAccounts = {PAYER.getAccountNum(), TREASURY.getAccountNum(), NODE.getAccountNum()};
-        long[] transferAmounts = {-2000, 1000, 1000};
         TransferList.Builder transferList = recordBuilder.getTransferListBuilder();
-        for (int i = 0; i < transferAccounts.length; i++) {
-            // Irrespective of transaction success, node and network fees are present.
-            transferList.addAccountAmounts(accountAmount(transferAccounts[i], transferAmounts[i]));
-        }
+        // Irrespective of transaction success, node and network fees are present.
+        transferList.addAccountAmounts(
+                AccountAmount.newBuilder().setAccountID(PAYER).setAmount(-2000).build());
+        transferList.addAccountAmounts(AccountAmount.newBuilder()
+                .setAccountID(systemEntity.feeCollectorAccount().toAccountID())
+                .setAmount(1000)
+                .build());
+        transferList.addAccountAmounts(
+                AccountAmount.newBuilder().setAccountID(NODE).setAmount(1000).build());
 
         if (transactionBody.hasCryptoTransfer() && status == ResponseCodeEnum.SUCCESS.getNumber()) {
             for (var aa : transactionBody.getCryptoTransfer().getTransfers().getAccountAmountsList()) {
@@ -390,15 +377,16 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
     protected AccountAmount.Builder accountAliasAmount(ByteString alias, long amount) {
         return AccountAmount.newBuilder()
                 .setAccountID(AccountID.newBuilder()
-                        .setShardNum(commonProperties.getShard())
-                        .setRealmNum(commonProperties.getRealm())
+                        .setShardNum(COMMON_PROPERTIES.getShard())
+                        .setRealmNum(COMMON_PROPERTIES.getRealm())
                         .setAlias(alias))
                 .setAmount(amount);
     }
 
     protected boolean isAccountAmountReceiverAccountAmount(CryptoTransfer cryptoTransfer, AccountAmount receiver) {
-        CryptoTransfer.Id cryptoTransferId = cryptoTransfer.getId();
-        return cryptoTransferId.getEntityId() == receiver.getAccountID().getAccountNum()
+        var cryptoTransferId = cryptoTransfer.getId();
+        return cryptoTransferId.getEntityId()
+                        == EntityId.of(receiver.getAccountID()).getId()
                 && cryptoTransferId.getAmount() == receiver.getAmount();
     }
 
@@ -462,8 +450,6 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
 
     protected void assertEntities(EntityId... entityIds) {
         assertThat(entityRepository.findAll())
-                .hasSize(entityIds.length)
-                .allMatch(entity -> entity.getId() > 0)
                 .allMatch(entity -> entity.getType() != null)
                 .extracting(AbstractEntity::toEntityId)
                 .containsExactlyInAnyOrder(entityIds);

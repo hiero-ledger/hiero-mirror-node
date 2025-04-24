@@ -42,6 +42,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,8 +54,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class EntityRecordItemListenerFileTest extends AbstractEntityRecordItemListenerTest {
 
-    private static final FileID FILE_ID =
-            FileID.newBuilder().setShardNum(0).setRealmNum(0).setFileNum(1001).build();
+    private static final FileID FILE_ID = entityId(1001).toFileID();
     private static final byte[] FILE_CONTENTS = {'a', 'b', 'c'};
     private static final int TEST_INITIAL_ADDRESS_BOOK_NODE_COUNT = 4;
 
@@ -139,11 +139,7 @@ class EntityRecordItemListenerFileTest extends AbstractEntityRecordItemListenerT
         entityProperties.getPersist().setFiles(false);
         Transaction transaction = fileCreateTransaction();
         TransactionBody transactionBody = getTransactionBody(transaction);
-        FileID fileID = FileID.newBuilder()
-                .setShardNum(0)
-                .setRealmNum(0)
-                .setFileNum(2000)
-                .build();
+        FileID fileID = domainBuilder.entityId().toFileID();
         TransactionRecord txnRecord = transactionRecord(transactionBody, fileID);
 
         parseRecordItemAndCommit(RecordItem.builder()
@@ -198,8 +194,7 @@ class EntityRecordItemListenerFileTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void fileAppendToSystemFile() {
-        FileID fileID =
-                FileID.newBuilder().setShardNum(0).setRealmNum(0).setFileNum(10).build();
+        FileID fileID = domainBuilder.entityId().toFileID();
         Transaction transaction = fileAppendTransaction(fileID, FILE_CONTENTS);
         TransactionBody transactionBody = getTransactionBody(transaction);
         TransactionRecord txnRecord = transactionRecord(transactionBody, fileID);
@@ -330,9 +325,9 @@ class EntityRecordItemListenerFileTest extends AbstractEntityRecordItemListenerT
                 );
     }
 
+    @SneakyThrows
     @Test
-    @Transactional
-    void fileAppendToAddressBookInSingleRecordFile() throws IOException {
+    void fileAppendToAddressBookInSingleRecordFile() {
         entityProperties.getPersist().setFiles(true);
         entityProperties.getPersist().setSystemFiles(true);
         byte[] addressBookCreate = Arrays.copyOf(FileUtils.readFileToByteArray(addressBookSmall), 6144);

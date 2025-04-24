@@ -15,8 +15,6 @@ import com.hedera.mirror.common.domain.topic.TopicMessageLookup;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionHash;
 import com.hedera.mirror.common.util.DomainUtils;
-import com.hedera.mirror.importer.addressbook.ConsensusNode;
-import com.hedera.mirror.importer.domain.ConsensusNodeStub;
 import com.hedera.mirror.importer.util.Utility;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -307,13 +305,5 @@ public class TestUtils {
         byte[] hashBytes = new byte[size];
         RANDOM.nextBytes(hashBytes);
         return hashBytes;
-    }
-
-    public static ConsensusNode nodeFromAccountId(String nodeAccountId) {
-        var entityId = EntityId.of(nodeAccountId);
-        return ConsensusNodeStub.builder()
-                .nodeAccountId(entityId)
-                .nodeId(entityId.getNum() - 3)
-                .build();
     }
 }

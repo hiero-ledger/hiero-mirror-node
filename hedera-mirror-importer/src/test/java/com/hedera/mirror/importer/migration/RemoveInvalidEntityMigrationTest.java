@@ -182,7 +182,7 @@ class RemoveInvalidEntityMigrationTest extends ImporterIntegrationTest {
                         .isEqualTo(EntityType.TOKEN));
     }
 
-    private EntityId entityId(long num) {
+    private EntityId getEntityId(long num) {
         return EntityId.of(0, 1, num);
     }
 
@@ -191,11 +191,11 @@ class RemoveInvalidEntityMigrationTest extends ImporterIntegrationTest {
         Transaction transaction = new Transaction();
         transaction.setChargedTxFee(100L);
         transaction.setConsensusTimestamp(consensusNs);
-        transaction.setEntityId(entityId(num));
+        transaction.setEntityId(getEntityId(num));
         transaction.setInitialBalance(1000L);
         transaction.setMemo("transaction memo".getBytes());
-        transaction.setNodeAccountId(entityId(3));
-        transaction.setPayerAccountId(entityId(98));
+        transaction.setNodeAccountId(getEntityId(3));
+        transaction.setPayerAccountId(getEntityId(98));
         transaction.setResult(result.getNumber());
         transaction.setType(transactionType.getProtoId());
         transaction.setValidStartNs(20L);
@@ -243,7 +243,7 @@ class RemoveInvalidEntityMigrationTest extends ImporterIntegrationTest {
      * @param type EntityType
      */
     private MigrationEntity insertEntity(long num, EntityType type) {
-        var entityId = entityId(num);
+        var entityId = getEntityId(num);
         var entity = MigrationEntity.builder()
                 .autoRenewAccountId(EntityId.of("1.2.3").getId())
                 .id(entityId.getId())

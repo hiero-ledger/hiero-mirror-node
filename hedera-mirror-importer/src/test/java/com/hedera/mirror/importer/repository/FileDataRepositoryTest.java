@@ -13,30 +13,36 @@ import com.hedera.mirror.importer.ImporterIntegrationTest;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class FileDataRepositoryTest extends ImporterIntegrationTest {
 
-    private static final EntityId ADDRESS_BOOK_101 = EntityId.of("0.0.101");
-    private static final EntityId ADDRESS_BOOK_102 = EntityId.of("0.0.102");
-
     @Resource
     private FileDataRepository fileDataRepository;
+
+    private long addressBook101;
+    private long addressBook102;
+
+    @BeforeEach
+    void setup() {
+        addressBook101 = systemEntity.addressBookFile101().getId();
+        addressBook102 = systemEntity.addressBookFile102().getId();
+    }
 
     @Test
     void findFilesInRange() {
         List<FileData> fileDataList = new ArrayList<>();
         fileDataList.add(fileData(1, 123, TransactionType.FILECREATE.getProtoId()));
-        fileDataList.add(fileData(2, ADDRESS_BOOK_102.getId(), TransactionType.FILECREATE.getProtoId()));
-        fileDataList.add(fileData(3, ADDRESS_BOOK_102.getId(), TransactionType.FILEAPPEND.getProtoId()));
-        fileDataList.add(fileData(4, ADDRESS_BOOK_102.getId(), TransactionType.FILEAPPEND.getProtoId()));
-        fileDataList.add(fileData(5, ADDRESS_BOOK_102.getId(), TransactionType.FILEAPPEND.getProtoId()));
+        fileDataList.add(fileData(2, addressBook102, TransactionType.FILECREATE.getProtoId()));
+        fileDataList.add(fileData(3, addressBook102, TransactionType.FILEAPPEND.getProtoId()));
+        fileDataList.add(fileData(4, addressBook102, TransactionType.FILEAPPEND.getProtoId()));
+        fileDataList.add(fileData(5, addressBook102, TransactionType.FILEAPPEND.getProtoId()));
         fileDataList.add(fileData(6, 123, TransactionType.FILEUPDATE.getProtoId()));
         fileDataList.add(fileData(7, 123, TransactionType.FILEAPPEND.getProtoId()));
         fileDataRepository.saveAll(fileDataList);
 
-        assertThat(fileDataRepository.findFilesInRange(
-                        2, 7, ADDRESS_BOOK_102.getId(), TransactionType.FILEAPPEND.getProtoId()))
+        assertThat(fileDataRepository.findFilesInRange(2, 7, addressBook102, TransactionType.FILEAPPEND.getProtoId()))
                 .isNotNull()
                 .hasSize(3)
                 .extracting(FileData::getConsensusTimestamp)
@@ -47,35 +53,35 @@ class FileDataRepositoryTest extends ImporterIntegrationTest {
     void findFilesOfTransactionTypesInRange() {
         List<FileData> fileDataList = new ArrayList<>();
         fileDataList.add(fileData(1, 123, TransactionType.FILECREATE.getProtoId()));
-        FileData fileData = fileData(2, ADDRESS_BOOK_102.getId(), TransactionType.FILEUPDATE.getProtoId());
+        FileData fileData = fileData(2, addressBook102, TransactionType.FILEUPDATE.getProtoId());
         fileDataList.add(fileData);
-        fileDataList.add(fileData(3, ADDRESS_BOOK_102.getId(), TransactionType.FILEAPPEND.getProtoId()));
-        fileDataList.add(fileData(4, ADDRESS_BOOK_102.getId(), TransactionType.FILEAPPEND.getProtoId()));
-        fileDataList.add(fileData(5, ADDRESS_BOOK_102.getId(), TransactionType.FILEAPPEND.getProtoId()));
+        fileDataList.add(fileData(3, addressBook102, TransactionType.FILEAPPEND.getProtoId()));
+        fileDataList.add(fileData(4, addressBook102, TransactionType.FILEAPPEND.getProtoId()));
+        fileDataList.add(fileData(5, addressBook102, TransactionType.FILEAPPEND.getProtoId()));
         fileDataList.add(fileData(6, 123, TransactionType.FILEUPDATE.getProtoId()));
         fileDataList.add(fileData(7, 123, TransactionType.FILEAPPEND.getProtoId()));
         fileDataRepository.saveAll(fileDataList);
 
         List<Integer> transactionTypes =
                 List.of(TransactionType.FILECREATE.getProtoId(), TransactionType.FILEUPDATE.getProtoId());
-        assertThat(fileDataRepository.findLatestMatchingFile(5, ADDRESS_BOOK_102.getId(), transactionTypes))
+        assertThat(fileDataRepository.findLatestMatchingFile(5, addressBook102, transactionTypes))
                 .contains(fileData);
     }
 
     @Test
     void findAddressBookFilesInRange() {
         List<FileData> fileDataList = new ArrayList<>();
-        fileDataList.add(fileData(1, ADDRESS_BOOK_101.getId(), TransactionType.FILECREATE.getProtoId()));
-        fileDataList.add(fileData(2, ADDRESS_BOOK_102.getId(), TransactionType.FILECREATE.getProtoId()));
-        fileDataList.add(fileData(3, ADDRESS_BOOK_101.getId(), TransactionType.FILEUPDATE.getProtoId()));
-        fileDataList.add(fileData(4, ADDRESS_BOOK_101.getId(), TransactionType.FILEAPPEND.getProtoId()));
-        fileDataList.add(fileData(5, ADDRESS_BOOK_102.getId(), TransactionType.FILEUPDATE.getProtoId()));
-        fileDataList.add(fileData(6, ADDRESS_BOOK_102.getId(), TransactionType.FILEAPPEND.getProtoId()));
-        fileDataList.add(fileData(7, ADDRESS_BOOK_101.getId(), TransactionType.FILEUPDATE.getProtoId()));
-        fileDataList.add(fileData(8, ADDRESS_BOOK_102.getId(), TransactionType.FILEUPDATE.getProtoId()));
+        fileDataList.add(fileData(1, addressBook101, TransactionType.FILECREATE.getProtoId()));
+        fileDataList.add(fileData(2, addressBook102, TransactionType.FILECREATE.getProtoId()));
+        fileDataList.add(fileData(3, addressBook101, TransactionType.FILEUPDATE.getProtoId()));
+        fileDataList.add(fileData(4, addressBook101, TransactionType.FILEAPPEND.getProtoId()));
+        fileDataList.add(fileData(5, addressBook102, TransactionType.FILEUPDATE.getProtoId()));
+        fileDataList.add(fileData(6, addressBook102, TransactionType.FILEAPPEND.getProtoId()));
+        fileDataList.add(fileData(7, addressBook101, TransactionType.FILEUPDATE.getProtoId()));
+        fileDataList.add(fileData(8, addressBook102, TransactionType.FILEUPDATE.getProtoId()));
         fileDataRepository.saveAll(fileDataList);
 
-        assertThat(fileDataRepository.findAddressBooksBetween(2, 5, 10))
+        assertThat(fileDataRepository.findAddressBooksBetween(2, 5, List.of(addressBook101, addressBook102), 10))
                 .isNotNull()
                 .hasSize(2)
                 .extracting(FileData::getConsensusTimestamp)
@@ -85,17 +91,17 @@ class FileDataRepositoryTest extends ImporterIntegrationTest {
     @Test
     void findAddressBookFilesWithLimit() {
         List<FileData> fileDataList = new ArrayList<>();
-        fileDataList.add(fileData(1, ADDRESS_BOOK_101.getId(), TransactionType.FILECREATE.getProtoId()));
-        fileDataList.add(fileData(2, ADDRESS_BOOK_102.getId(), TransactionType.FILECREATE.getProtoId()));
-        fileDataList.add(fileData(3, ADDRESS_BOOK_101.getId(), TransactionType.FILEUPDATE.getProtoId()));
-        fileDataList.add(fileData(4, ADDRESS_BOOK_101.getId(), TransactionType.FILEAPPEND.getProtoId()));
-        fileDataList.add(fileData(5, ADDRESS_BOOK_102.getId(), TransactionType.FILEUPDATE.getProtoId()));
-        fileDataList.add(fileData(6, ADDRESS_BOOK_102.getId(), TransactionType.FILEAPPEND.getProtoId()));
-        fileDataList.add(fileData(7, ADDRESS_BOOK_101.getId(), TransactionType.FILEUPDATE.getProtoId()));
-        fileDataList.add(fileData(8, ADDRESS_BOOK_102.getId(), TransactionType.FILEUPDATE.getProtoId()));
+        fileDataList.add(fileData(1, addressBook101, TransactionType.FILECREATE.getProtoId()));
+        fileDataList.add(fileData(2, addressBook102, TransactionType.FILECREATE.getProtoId()));
+        fileDataList.add(fileData(3, addressBook101, TransactionType.FILEUPDATE.getProtoId()));
+        fileDataList.add(fileData(4, addressBook101, TransactionType.FILEAPPEND.getProtoId()));
+        fileDataList.add(fileData(5, addressBook102, TransactionType.FILEUPDATE.getProtoId()));
+        fileDataList.add(fileData(6, addressBook102, TransactionType.FILEAPPEND.getProtoId()));
+        fileDataList.add(fileData(7, addressBook101, TransactionType.FILEUPDATE.getProtoId()));
+        fileDataList.add(fileData(8, addressBook102, TransactionType.FILEUPDATE.getProtoId()));
         fileDataRepository.saveAll(fileDataList);
 
-        assertThat(fileDataRepository.findAddressBooksBetween(2, 10, 5))
+        assertThat(fileDataRepository.findAddressBooksBetween(2, 10, List.of(addressBook101, addressBook102), 5))
                 .isNotNull()
                 .hasSize(5)
                 .extracting(FileData::getConsensusTimestamp)
@@ -156,10 +162,10 @@ class FileDataRepositoryTest extends ImporterIntegrationTest {
     }
 
     private FileData fileData(long consensusTimestamp, long fileId, int transactionType) {
-        FileData fileData = new FileData();
+        var fileData = new FileData();
         fileData.setConsensusTimestamp(consensusTimestamp);
         fileData.setFileData("some file data".getBytes());
-        fileData.setEntityId(EntityId.of(0, 0, fileId));
+        fileData.setEntityId(EntityId.of(fileId));
         fileData.setTransactionType(transactionType);
         return fileData;
     }

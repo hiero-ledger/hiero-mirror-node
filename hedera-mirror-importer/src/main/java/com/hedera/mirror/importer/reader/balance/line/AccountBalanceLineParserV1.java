@@ -3,22 +3,17 @@
 package com.hedera.mirror.importer.reader.balance.line;
 
 import com.google.common.base.Splitter;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.importer.exception.InvalidDatasetException;
 import jakarta.inject.Named;
 import java.util.Collections;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
 
 @Named
-@RequiredArgsConstructor
 public class AccountBalanceLineParserV1 implements AccountBalanceLineParser {
 
     private static final Splitter SPLITTER = Splitter.on(',').trimResults().omitEmptyStrings();
-
-    private final CommonProperties commonProperties;
 
     /**
      * Parses an account balance line to extract shard, realm, account, and balance. If the shard matches
@@ -49,10 +44,9 @@ public class AccountBalanceLineParserV1 implements AccountBalanceLineParser {
                 throw new InvalidDatasetException(INVALID_BALANCE + line);
             }
 
-            if (shardNum != commonProperties.getShard()) {
+            if (shardNum != 0) {
                 throw new InvalidDatasetException(String.format(
-                        "Invalid account balance line: %s. Expect " + "shard (%d), got shard (%d)",
-                        line, commonProperties.getShard(), shardNum));
+                        "Invalid account balance line: %s. Expect shard (0), got shard (%d)", line, shardNum));
             }
 
             return new AccountBalance(
