@@ -39,20 +39,25 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
 
     @Test
     void isAuthorizedRawECDSA() throws Exception {
+        // Given
         final var messageString = "message";
         final var messageHash = new Keccak.Digest256().digest(messageString.getBytes());
+        // Generate new key pair
         var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         var privateKey = keyPair.getPrivateKey().toByteArray();
+        // Sign the message hash with the private key
         final var signedMessage = signMessageECDSA(messageHash, privateKey);
-
+        // Recover the EVM address from the private key and persist account with that address and public key
         final var addressBytes = EthSigsUtils.recoverAddressFromPrivateKey(privateKey);
         persistAccountWithEvmAddressAndPublicKey(addressBytes, publicKey);
-
+        // When
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
-        final var result = contract.call_isAuthorizedRawCall(asHeadlongAddress(addressBytes).toString(), messageHash, signedMessage);
-        final var functionCall = contract.send_isAuthorizedRawCall(asHeadlongAddress(addressBytes).toString(), messageHash, signedMessage);
-
+        final var result = contract.call_isAuthorizedRawCall(
+                asHeadlongAddress(addressBytes).toString(), messageHash, signedMessage);
+        final var functionCall = contract.send_isAuthorizedRawCall(
+                asHeadlongAddress(addressBytes).toString(), messageHash, signedMessage);
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isTrue();
             verifyEthCallAndEstimateGas(functionCall, contract);
@@ -63,21 +68,23 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
 
     @Test
     void isAuthorizedRawECDSADifferentHash() throws Exception {
+        // Given
         final var messageHash = new Keccak.Digest256().digest("messageString".getBytes());
         final var differentHash = new Keccak.Digest256().digest("messageString1".getBytes());
-
+        // Generate new key pair
         var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         var privateKey = keyPair.getPrivateKey().toByteArray();
+        // Sign the message hash with the private key
         final var signedMessage = signMessageECDSA(messageHash, privateKey);
-
+        // Recover the EVM address from the private key and persist account with that address and public key
         final var addressBytes = EthSigsUtils.recoverAddressFromPrivateKey(privateKey);
         persistAccountWithEvmAddressAndPublicKey(addressBytes, publicKey);
-
+        // When
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var result = contract.call_isAuthorizedRawCall(
                 asHeadlongAddress(addressBytes).toString(), differentHash, signedMessage);
-
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isFalse();
         } else {
@@ -121,14 +128,13 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         // Generate new key pair
         var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
-        // Get the EVM address from the public key
+        // Recover the EVM address from the private key and persist account with that address and public key
         final var addressBytes = EthSigsUtils.recoverAddressFromPubKey(publicKey);
-        // Persist account entity with specific EVM address and public key
         persistAccountWithEvmAddressAndPublicKey(addressBytes, publicKey);
         // When
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
-        final var result =
-                contract.call_isAuthorizedRawCall(asHeadlongAddress(addressBytes).toString(), messageHash, invalidSignature);
+        final var result = contract.call_isAuthorizedRawCall(
+                asHeadlongAddress(addressBytes).toString(), messageHash, invalidSignature);
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
@@ -141,25 +147,27 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
 
     @Test
     void isAuthorizedRawED25519() throws Exception {
+        // Given
         final var messageString = "message";
         final var messageHash = new Keccak.Digest256().digest(messageString.getBytes());
-
+        // Generate new key pair
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("Ed25519");
         KeyPair keyPair = keyPairGenerator.generateKeyPair();
-
         var publicKey = keyPair.getPublic();
         var publicProtoKey = getProtobufKeyEd25519(publicKey);
         var privateKey = keyPair.getPrivate();
-
+        // Sign the message hash with the private key
         final var signedBytes = signBytesED25519(messageHash, privateKey);
+        // Persist account with private key and no EVM address. This is needed in order to perform a contract call using
+        // the long zero address.
         var accountEntity = persistAccountWithEvmAddressAndPublicKey(null, publicProtoKey);
-
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
+        // When
         final var result =
                 contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), messageHash, signedBytes);
         final var functionCall =
                 contract.send_isAuthorizedRawCall(getAddressFromEntity(accountEntity), messageHash, signedBytes);
-
+        // then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isTrue();
             verifyEthCallAndEstimateGas(functionCall, contract);
@@ -170,26 +178,29 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
 
     @Test
     void isAuthorizedRawED25519DifferentHash() throws Exception {
+        // Given
         final var messageHash = new Keccak.Digest256().digest("message".getBytes());
         final var differentHash = new Digest().digest("message1".getBytes());
-
+        // Generate new key pair
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("Ed25519");
         KeyPair keyPair = keyPairGenerator.generateKeyPair();
 
         var publicKey = keyPair.getPublic();
         var publicProtoKey = getProtobufKeyEd25519(publicKey);
         var privateKey = keyPair.getPrivate();
-
+        // Sign the message hash with the private key
         final var signedBytes = signBytesED25519(messageHash, privateKey);
+        // Persist account with private key and no EVM address. This is needed in order to perform a contract call using
+        // the long zero address.
 
         var accountEntity = persistAccountWithEvmAddressAndPublicKey(null, publicProtoKey);
-
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
+        // When
         final var result =
                 contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), differentHash, signedBytes);
         final var functionCall =
                 contract.send_isAuthorizedRawCall(getAddressFromEntity(accountEntity), differentHash, signedBytes);
-
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isFalse();
         } else {
@@ -199,23 +210,23 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
 
     @Test
     void isAuthorizedRawED25519InvalidSignedValue() throws Exception {
+        // Given
         final var messageHash = new Keccak.Digest256().digest("message".getBytes());
-
+        // Generate new key pair
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("Ed25519");
         KeyPair keyPair = keyPairGenerator.generateKeyPair();
-
         var publicKey = keyPair.getPublic();
         var publicProtoKey = getProtobufKeyEd25519(publicKey);
-
+        // Persist account with private key and no EVM address. This is needed in order to perform a contract call using
+        // the long zero address.
         var accountEntity = persistAccountWithEvmAddressAndPublicKey(null, publicProtoKey);
-
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
+        // When
         final var result =
                 contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), messageHash, new byte[65]);
-
+        // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
-            // Then
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
         } else {
             assertThrows(MirrorEvmTransactionException.class, result::send);
@@ -224,19 +235,18 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
 
     @Test
     void isAuthorizedRawECDSAKeyWighLongZero() throws Exception {
+        // Given
         final var messageString = "message";
         final var messageHash = new Keccak.Digest256().digest(messageString.getBytes());
-
+        // Generate new key pair
         var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         var privateKey = keyPair.getPrivateKey().toByteArray();
+        // Sign the message hash with the private key
         final var signedMessage = signMessageECDSA(messageHash, privateKey);
 
-        final var evmAddress = Bytes.wrap(EthSigsUtils.recoverAddressFromPubKey(
-                        ByteString.copyFrom(publicKey).substring(2).toByteArray()))
-                .toArray();
-
-        var accountEntity = persistAccountWithEvmAddressAndPublicKey(evmAddress, publicKey);
+        final var addressBytes = EthSigsUtils.recoverAddressFromPrivateKey(privateKey);
+        var accountEntity = persistAccountWithEvmAddressAndPublicKey(addressBytes, publicKey);
 
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var result =
