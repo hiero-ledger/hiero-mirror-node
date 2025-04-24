@@ -5,6 +5,7 @@ package com.hedera.mirror.web3.state.keyvalue;
 import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
 import static com.hedera.mirror.web3.state.Utils.DEFAULT_AUTO_RENEW_PERIOD;
+import static com.hedera.mirror.web3.state.Utils.EMPTY_KEY_LIST;
 import static com.hedera.mirror.web3.state.Utils.parseKey;
 import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
@@ -132,14 +133,21 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
 
     private Key getKey(final Entity entity, final boolean isSmartContract) {
         final var key = parseKey(entity.getKey());
-        if (key == null && isSmartContract) {
-            return Key.newBuilder()
-                    .contractID(ContractID.newBuilder()
-                            .shardNum(entity.getShard())
-                            .realmNum(entity.getRealm())
-                            .contractNum(entity.getNum())
-                            .build())
-                    .build();
+        if (key == null) {
+            if (isSmartContract) {
+                return Key.newBuilder()
+                        .contractID(ContractID.newBuilder()
+                                .shardNum(entity.getShard())
+                                .realmNum(entity.getRealm())
+                                .contractNum(entity.getNum())
+                                .build())
+                        .build();
+            } else {
+                // In hedera.app there isn't a case in which an account does not have a key set in the state - it is
+                // either valid, or it is an empty KeyList as the one below. This key is added in the account state in
+                // the mirror node for consistency as well as to prevent from potential NullPointerException.
+                return EMPTY_KEY_LIST;
+            }
         }
         return key;
     }

@@ -2,9 +2,11 @@
 
 package com.hedera.mirror.web3.state.keyvalue;
 
+import static com.hedera.mirror.web3.state.Utils.EMPTY_KEY_LIST;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -13,6 +15,8 @@ import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.AccountID.AccountOneOfType;
+import com.hedera.hapi.node.base.ContractID;
+import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.state.token.AccountApprovalForAllAllowance;
@@ -28,6 +32,7 @@ import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.entity.NftAllowance;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.web3.common.ContractCallContext;
+import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.store.accessor.AccountDatabaseAccessor;
 import com.hedera.mirror.web3.repository.AccountBalanceRepository;
 import com.hedera.mirror.web3.repository.CryptoAllowanceRepository;
@@ -37,6 +42,8 @@ import com.hedera.mirror.web3.repository.TokenAccountRepository;
 import com.hedera.mirror.web3.repository.TokenAllowanceRepository;
 import com.hedera.mirror.web3.repository.projections.TokenAccountAssociationsCount;
 import com.hedera.mirror.web3.state.CommonEntityAccessor;
+import com.hedera.node.config.VersionedConfiguration;
+import com.hedera.node.config.data.ContractsConfig;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
@@ -131,6 +138,9 @@ class AccountReadableKVStateTest {
     @Mock
     private TokenAccountRepository tokenAccountRepository;
 
+    @Mock
+    private MirrorNodeEvmProperties mirrorNodeEvmProperties;
+
     @Spy
     private ContractCallContext contractCallContext;
 
@@ -185,6 +195,48 @@ class AccountReadableKVStateTest {
                 .returns(entity.getBalance(), Account::tinybarBalance)
                 .returns(entity.getAutoRenewPeriod(), Account::autoRenewSeconds)
                 .returns(entity.getMaxAutomaticTokenAssociations(), Account::maxAutoAssociations));
+    }
+
+    @Test
+    void missingAccountKeyMatchesDefaultValues() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
+                .returns(
+                        new AccountID(
+                                entity.getShard(),
+                                entity.getRealm(),
+                                new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
+                        com.hedera.hapi.node.state.token.Account::accountId)
+                .returns(EMPTY_KEY_LIST, Account::key));
+    }
+
+    @Test
+    void missingContractKeyMatchesDefaultValues() {
+        final var contractEntity = entity.toBuilder().type(EntityType.CONTRACT).build();
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(contractEntity));
+        final var mockedConfiguration = mock(VersionedConfiguration.class);
+        final var mockedContractsConfig = mock(ContractsConfig.class);
+        when(mirrorNodeEvmProperties.getVersionedConfiguration()).thenReturn(mockedConfiguration);
+        when(mockedConfiguration.getConfigData(ContractsConfig.class)).thenReturn(mockedContractsConfig);
+        when(mockedContractsConfig.maxKvPairsIndividual()).thenReturn(1);
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
+                .returns(
+                        new AccountID(
+                                contractEntity.getShard(),
+                                contractEntity.getRealm(),
+                                new OneOf<>(AccountOneOfType.ACCOUNT_NUM, contractEntity.getNum())),
+                        com.hedera.hapi.node.state.token.Account::accountId)
+                .returns(
+                        Key.newBuilder()
+                                .contractID(ContractID.newBuilder()
+                                        .shardNum(contractEntity.getShard())
+                                        .realmNum(contractEntity.getRealm())
+                                        .contractNum(contractEntity.getNum())
+                                        .build())
+                                .build(),
+                        Account::key));
     }
 
     @Test
