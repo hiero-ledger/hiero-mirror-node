@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -48,11 +49,9 @@ import org.testcontainers.containers.GenericContainer;
         properties = {"spring.main.allow-bean-definition-overriding=true"})
 class RestSpecTest extends RestJavaIntegrationTest {
 
-    private static final List<String> EXCLUDED_SPEC_FILES = Stream.of(Path.of("accounts", "all-params.json"))
-            .map(Path::toString)
-            .toList();
+    private static final List<String> EXCLUDED_SPEC_FILES = Collections.emptyList();
     private static final Pattern INCLUDED_SPEC_DIRS = Pattern.compile(
-            "^(accounts|accounts/\\{id}/allowances.*|accounts/\\{id}/rewards.*|blocks.*|contracts|network/exchangerate.*|network/fees.*|network/stake.*)$");
+            "^(accounts|accounts/\\{id}/allowances.*|accounts/\\{id}/rewards.*|balances.*|blocks.*|contracts|contracts/\\{id}|contracts/\\{id}/results|contracts/results|network/exchangerate.*|network/fees.*|network/stake.*)$");
     private static final String RESPONSE_HEADER_FILE = "responseHeaders.json";
     private static final int JS_REST_API_CONTAINER_PORT = 5551;
     private static final Path REST_BASE_PATH = Path.of("..", "hedera-mirror-rest", "__tests__", "specs");
@@ -64,6 +63,7 @@ class RestSpecTest extends RestJavaIntegrationTest {
             var dirName = directory.getPath().replace(REST_BASE_PATH + "/", "");
             return INCLUDED_SPEC_DIRS.matcher(dirName).matches()
                     && !RESPONSE_HEADER_FILE.equals(file.getName())
+                    //                    && file.getName().endsWith("internal-false-foo.json")
                     && EXCLUDED_SPEC_FILES.stream()
                             .noneMatch(path -> file.getPath().endsWith(path));
         }
@@ -122,6 +122,15 @@ class RestSpecTest extends RestJavaIntegrationTest {
             // Skip tests that require rest application config
             if (normalizedSpec.setup().config() != null) {
                 log.info("Skipping spec file: {} (setup not yet supported)", specFilePath);
+                continue;
+            }
+
+            // Skip tests that require unimplmented features
+            if (normalizedSpec.setup().features() != null) {
+                log.info(
+                        "Skipping spec file: {} (features {} not yet supported)",
+                        specFilePath,
+                        normalizedSpec.setup().features());
                 continue;
             }
 

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -30,40 +31,43 @@ import org.springframework.util.CollectionUtils;
 @CustomLog
 abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
     private static final Base32 BASE32 = new Base32();
+    protected static final long DEFAULT_PAYER_ACCOUNT_ID = 102;
+    protected static final long DEFAULT_SENDER_ID = 101;
 
     /*
      * Common handy spec attribute value converter functions to be used by subclasses.
      */
-    protected static final Function<Object, Object> BASE32_CONVERTER =
-            value -> value == null ? null : BASE32.decode(value.toString());
+    protected static final BiFunction<Object, SpecBuilderContext, Object> BASE32_CONVERTER =
+            (value, builderContext) -> value == null ? null : BASE32.decode(value.toString());
     private static final Pattern HEX_STRING_PATTERN = Pattern.compile("^(0x)?[0-9A-Fa-f]+$");
-    protected static final Function<Object, Object> HEX_OR_BASE64_CONVERTER = value -> {
-        if (value instanceof String valueStr) {
-            if (HEX_STRING_PATTERN.matcher(valueStr).matches()) {
-                var cleanValueStr = valueStr.replace("0x", "");
+    protected static final BiFunction<Object, SpecBuilderContext, Object> HEX_OR_BASE64_CONVERTER =
+            (value, builderContext) -> {
+                if (value instanceof String valueStr) {
+                    if (HEX_STRING_PATTERN.matcher(valueStr).matches()) {
+                        var cleanValueStr = valueStr.replace("0x", "");
 
-                if (cleanValueStr.length() % 2 != 0) {
-                    return HexFormat.of().parseHex(cleanValueStr.substring(0, cleanValueStr.length() - 1));
+                        if (cleanValueStr.length() % 2 != 0) {
+                            return HexFormat.of().parseHex(cleanValueStr.substring(0, cleanValueStr.length() - 1));
+                        }
+
+                        return HexFormat.of().parseHex(cleanValueStr);
+                    }
+                    return Base64.getDecoder().decode(valueStr);
                 }
 
-                return HexFormat.of().parseHex(cleanValueStr);
-            }
-            return Base64.getDecoder().decode(valueStr);
-        }
+                if (value instanceof Collection<?> valueCollection) {
+                    return ArrayUtils.toPrimitive(valueCollection.stream()
+                            .map(item -> ((Integer) item).byteValue())
+                            .toArray(Byte[]::new));
+                }
 
-        if (value instanceof Collection<?> valueCollection) {
-            return ArrayUtils.toPrimitive(valueCollection.stream()
-                    .map(item -> ((Integer) item).byteValue())
-                    .toArray(Byte[]::new));
-        }
-
-        return value;
-    };
+                return value;
+            };
     private static final Map<Class<?>, Map<String, Method>> methodCache = new ConcurrentHashMap<>();
     // Map a synthetic spec attribute name to another attribute name convertable to a builder method name
     protected final Map<String, String> attributeNameMap;
     // Map a builder method by name to a specific attribute value converter function
-    protected final Map<String, Function<Object, Object>> methodParameterConverters;
+    protected final Map<String, BiFunction<Object, SpecBuilderContext, Object>> methodParameterConverters;
 
     @Resource
     protected ConversionService conversionService;
@@ -78,12 +82,14 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
         this(Map.of());
     }
 
-    protected AbstractEntityBuilder(Map<String, Function<Object, Object>> methodParameterConverters) {
+    protected AbstractEntityBuilder(
+            Map<String, BiFunction<Object, SpecBuilderContext, Object>> methodParameterConverters) {
         this(methodParameterConverters, Map.of());
     }
 
     protected AbstractEntityBuilder(
-            Map<String, Function<Object, Object>> methodParameterConverters, Map<String, String> attributeNameMap) {
+            Map<String, BiFunction<Object, SpecBuilderContext, Object>> methodParameterConverters,
+            Map<String, String> attributeNameMap) {
         this.methodParameterConverters = methodParameterConverters;
         this.attributeNameMap = attributeNameMap;
     }
@@ -125,15 +131,19 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
         var specEntities = getSpecEntitiesSupplier(specSetup).get();
         if (!CollectionUtils.isEmpty(specEntities)) {
             specEntities.forEach(specEntity -> transactionOperations.executeWithoutResult(t -> {
-                var entityBuilder = getEntityBuilder(new SpecBuilderContext(isHistory(specEntity)));
-                customizeWithSpec(entityBuilder, specEntity);
+                var builderContext = new SpecBuilderContext(
+                        isHistory(specEntity),
+                        specEntity); // TODO dont pass isHistory. Make it calculate dynamically based on data. Add
+                // helper to context
+                var entityBuilder = getEntityBuilder(builderContext);
+                customizeWithSpec(entityBuilder, specEntity, builderContext);
                 var entity = getFinalEntity(entityBuilder, specEntity);
                 entityManager.persist(entity);
             }));
         }
     }
 
-    private void customizeWithSpec(B builder, Map<String, Object> customizations) {
+    private void customizeWithSpec(B builder, Map<String, Object> customizations, SpecBuilderContext builderContext) {
         var builderClass = builder.getClass();
         var builderMethods = methodCache.computeIfAbsent(builderClass, clazz -> Arrays.stream(clazz.getMethods())
                 .collect(Collectors.toMap(Method::getName, Function.identity(), (v1, v2) -> v2)));
@@ -144,8 +154,8 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
             if (method != null) {
                 try {
                     var expectedParameterType = method.getParameterTypes()[0];
-                    var mappedBuilderParameter =
-                            mapBuilderParameter(methodName, expectedParameterType, customization.getValue());
+                    var mappedBuilderParameter = mapBuilderParameter(
+                            methodName, expectedParameterType, customization.getValue(), builderContext);
                     method.invoke(builder, mappedBuilderParameter);
                 } catch (IllegalAccessException | InvocationTargetException e) {
                     log.warn(
@@ -161,10 +171,11 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
         }
     }
 
-    private Object mapBuilderParameter(String methodName, Class<?> expectedType, Object specParameterValue) {
+    private Object mapBuilderParameter(
+            String methodName, Class<?> expectedType, Object specParameterValue, SpecBuilderContext builderContext) {
         var typeMapper = methodParameterConverters.get(methodName);
         if (typeMapper != null) {
-            return typeMapper.apply(specParameterValue);
+            return typeMapper.apply(specParameterValue, builderContext);
         }
         return conversionService.convert(specParameterValue, expectedType);
     }

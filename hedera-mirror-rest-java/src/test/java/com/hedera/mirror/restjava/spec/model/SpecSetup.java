@@ -11,6 +11,7 @@ public record SpecSetup(
         List<Map<String, Object>> accounts,
         List<Map<String, Object>> balances,
         List<Map<String, Object>> contracts,
+        List<Map<String, Object>> contractresults,
         List<Map<String, Object>> cryptoAllowances,
         @JsonProperty("cryptotransfers") List<Map<String, Object>> cryptoTransfers,
         List<Map<String, Object>> entities,

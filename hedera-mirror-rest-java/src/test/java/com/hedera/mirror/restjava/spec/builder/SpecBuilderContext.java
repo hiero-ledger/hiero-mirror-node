@@ -2,4 +2,6 @@
 
 package com.hedera.mirror.restjava.spec.builder;
 
-public record SpecBuilderContext(boolean isHistory) {}
+import java.util.Map;
+
+public record SpecBuilderContext(boolean isHistory, Map<String, Object> specEntity) {}
