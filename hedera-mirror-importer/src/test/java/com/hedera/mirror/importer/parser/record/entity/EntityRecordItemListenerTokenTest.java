@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Streams;
+import com.google.common.primitives.Longs;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.StringValue;
 import com.hedera.mirror.common.domain.contract.ContractLog;
@@ -88,6 +89,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -1706,9 +1710,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(EntityId.of(PAYER2).getId()).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(0).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(-amount).toArray(), from(ContractLog::getData));
+                .returns(toTrimmedBytes(EntityId.of(PAYER2)), from(ContractLog::getTopic1))
+                .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(-amount), from(ContractLog::getData));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(burnTimestamp))
@@ -1822,9 +1826,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(PAYER_ACCOUNT_ID.getId()).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(0).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(SERIAL_NUMBER_1).toArray(), from(ContractLog::getTopic3));
+                .returns(toTrimmedBytes(PAYER_ACCOUNT_ID), from(ContractLog::getTopic1))
+                .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(SERIAL_NUMBER_1), from(ContractLog::getTopic3));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(burnTimestamp))
@@ -1955,9 +1959,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(0).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(EntityId.of(PAYER2).getId()).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(amount).toArray(), from(ContractLog::getData));
+                .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic1))
+                .returns(toTrimmedBytes(EntityId.of(PAYER2)), from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(amount), from(ContractLog::getData));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(mintTimestamp))
@@ -2088,9 +2092,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(0).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(PAYER_ACCOUNT_ID.getId()).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(SERIAL_NUMBER_1).toArray(), from(ContractLog::getTopic3));
+                .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic1))
+                .returns(toTrimmedBytes(PAYER_ACCOUNT_ID), from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(SERIAL_NUMBER_1), from(ContractLog::getTopic3));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(mintTimestamp))
@@ -2727,9 +2731,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(PAYER_ACCOUNT_ID.getId()).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(EntityId.of(RECEIVER).getId()).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(SERIAL_NUMBER_1).toArray(), from(ContractLog::getTopic3));
+                .returns(toTrimmedBytes(PAYER_ACCOUNT_ID), from(ContractLog::getTopic1))
+                .returns(toTrimmedBytes(EntityId.of(RECEIVER)), from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(SERIAL_NUMBER_1), from(ContractLog::getTopic3));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(transferTimestamp))
@@ -3156,9 +3160,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(EntityId.of(PAYER2).getId()).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(0).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(-transferAmount).toArray(), from(ContractLog::getData));
+                .returns(toTrimmedBytes(EntityId.of(PAYER2)), from(ContractLog::getTopic1))
+                .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(-transferAmount), from(ContractLog::getData));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(wipeTimestamp))
@@ -3267,9 +3271,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(EntityId.of(PAYER2).getId()).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(0).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(SERIAL_NUMBER_1).toArray(), from(ContractLog::getTopic3));
+                .returns(toTrimmedBytes(EntityId.of(PAYER2)), from(ContractLog::getTopic1))
+                .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(SERIAL_NUMBER_1), from(ContractLog::getTopic3));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(wipeTimestamp))
@@ -4776,6 +4780,23 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         }
 
         return protoCustomFees;
+    }
+
+    private byte[] toTrimmedBytes(EntityId entityId) {
+        if (EntityId.isEmpty(entityId)) {
+            return ArrayUtils.EMPTY_BYTE_ARRAY;
+        }
+
+        return trim(DomainUtils.toEvmAddress(entityId));
+    }
+
+    private byte[] toTrimmedBytes(long value) {
+        return trim(Longs.toByteArray(value));
+    }
+
+    @SneakyThrows
+    private byte[] trim(byte[] data) {
+        return Hex.decodeHex(Hex.encodeHexString(data).replaceFirst("^(00)+", ""));
     }
 
     @Builder
