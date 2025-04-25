@@ -167,7 +167,7 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
                     .customize(n -> n.accountId(spenderEntityId)
                             .createdTimestamp(historicalBlock.lowerEndpoint() - 1)
                             .serialNumber(finalI + 1)
-                            .spender(spenderEntityId)
+                            .spender(spenderEntityId.getId())
                             .accountId(ownerEntity)
                             .tokenId(nftEntity.getId())
                             .deleted(false)

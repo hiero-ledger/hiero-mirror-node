@@ -876,7 +876,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var token = nonFungibleTokenCustomizable(
                 n -> n.treasuryAccountId(treasuryEntityId).kycKey(null));
         nftPersistCustomizable(
-                n -> n.accountId(treasuryEntityId).tokenId(token.getTokenId()).spender(treasuryEntityId));
+                n -> n.accountId(treasuryEntityId).tokenId(token.getTokenId()).spender(treasuryEntityId.getId()));
         return token;
     }
 
