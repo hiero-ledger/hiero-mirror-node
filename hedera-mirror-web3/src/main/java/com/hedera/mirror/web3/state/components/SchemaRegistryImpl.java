@@ -13,7 +13,6 @@ import com.hedera.mirror.web3.state.singleton.DefaultSingleton;
 import com.hedera.mirror.web3.state.singleton.SingletonState;
 import com.hedera.node.app.state.merkle.SchemaApplications;
 import com.swirlds.config.api.Configuration;
-import com.swirlds.config.api.ConfigurationBuilder;
 import com.swirlds.state.lifecycle.MigrationContext;
 import com.swirlds.state.lifecycle.Schema;
 import com.swirlds.state.lifecycle.SchemaRegistry;
@@ -40,8 +39,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SchemaRegistryImpl implements SchemaRegistry {
 
-    public static final SemanticVersion CURRENT_VERSION = new SemanticVersion(0, 47, 0, "SNAPSHOT", "");
-
     private final Collection<SingletonState<?>> singletons;
     private final SchemaApplications schemaApplications;
 
@@ -56,15 +53,6 @@ public class SchemaRegistryImpl implements SchemaRegistry {
         schemas.remove(schema);
         schemas.add(schema);
         return this;
-    }
-
-    @SuppressWarnings("rawtypes")
-    public void migrate(
-            @Nonnull final String serviceName,
-            @Nonnull final MirrorNodeState state,
-            @Nonnull final StartupNetworks startupNetworks) {
-        final var config = ConfigurationBuilder.create().build();
-        migrate(serviceName, state, CURRENT_VERSION, config, config, new HashMap<>(), startupNetworks);
     }
 
     @SuppressWarnings("java:S107")
