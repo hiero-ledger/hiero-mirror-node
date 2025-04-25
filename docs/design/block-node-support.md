@@ -23,7 +23,7 @@ This design document concerns the support of streaming blocks from block nodes i
 ### Database
 
 Since block nodes don't have a node id, the `not null` constraint of the `node_id` column in `record_file` table needs
-to be dropped.
+to be dropped. Note the column can be dropped after sunsetting stateproof alpha API. 
 
 ```sql
 alter table if exists record_file alter column node_id drop not null;
@@ -37,11 +37,11 @@ Note: The diagram amends the block streams data flow with block node support
 
 ## Importer
 
-- Add new configuration properties to `BlockStreamSourceProperties` to support block nodes
+- Add new configuration properties to `BlockStreamProperties` to support block nodes
 - Replace interface `StreamPoller` with `BlockStreamSource`
 - Add an abstract class `AbstractBlockStreamSource`
 - Move block file downloading in `BlockStreamPoller` to a new class `BlockFileSource`
-- Add new class `BlockStreamSubscriber` to support streaming blocks from block nodes
+- Add new class `BlockNodeSubscriber` to support streaming blocks from block nodes
 - Rename `BlockFileReader` to `BlockStreamReader`, and `ProtoBlockFileReader` to `ProtoBlockStreamReader`
 
 ### Interfaces and Classes
@@ -67,7 +67,7 @@ public enum BlockSourceType {
 
 See [`CompositeBlockStreamSource`](#CompositeBlockStreamSource) for how `AUTO` works.
 
-### BlockStreamSourceProperties
+### BlockStreamProperties
 
 ```java
 public class BlockStreamProperties {
@@ -185,7 +185,7 @@ streaming and fail fast if none of the block nodes have the next block.
 It's possible that a streaming response from a block node only contains part of a block, `BlockNodeSubscriber` needs to
 combine block items in the same block and only then calls `onBlockStream`. Note that a streaming response from the block
 node would never have block items from two blocks mixed, i.e., to determine if the block items in the response completes
-a block, simply check if the last block item is a `BlockPoof`.
+a block, simply check if the last block item is a `BlockProof`.
 
 ### CompositeBlockStreamSource
 
