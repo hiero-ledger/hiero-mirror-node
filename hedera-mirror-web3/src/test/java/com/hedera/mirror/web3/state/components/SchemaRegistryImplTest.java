@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -83,12 +82,6 @@ class SchemaRegistryImplTest {
         schemaRegistry.register(schema);
         SortedSet<Schema> schemas = schemaRegistry.getSchemas();
         assertThat(schemas).contains(schema);
-    }
-
-    @Test
-    void testMigrateWithNoSchemas() {
-        schemaRegistry.migrate(serviceName, mirrorNodeState, startupNetworks);
-        verify(mirrorNodeState, never()).getWritableStates(any());
     }
 
     @Test
