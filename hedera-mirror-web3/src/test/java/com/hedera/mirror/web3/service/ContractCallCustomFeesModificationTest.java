@@ -10,6 +10,7 @@ import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.FixedFee;
 import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.FractionalFee;
+import com.hedera.mirror.web3.web3j.generated.ModificationPrecompileTestContract.RoyaltyFee;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.List;
@@ -23,6 +24,13 @@ import org.junit.jupiter.api.Test;
  * Tests system contact functions for custom token fees(fixed, fractional, royalty) modification.
  * HTS functions are exposed to smart contract calls via IHederaTokenService.sol
  * Target functions are updateFungibleTokenCustomFees and updateNonFungibleTokenCustomFees
+ * Fixed fee - a flat fee charged regardless of the transferred amount
+ * Fractional fee - a percentage of the transferred amount
+ * Royalty fee - a custom fee you can attach to a nft, allowing the original creator to earn from future
+ *      transfers. Each time a nft is transferred a royalty fee is payed to the creator. The royalty fee is a
+ *      fraction of the value exchanged for the nft or fixed amount in case the nft is exchanged for free.
+ *      The fee is payed in HBARs or in a custom fungible token.The royalty fee is not applied when the nft is
+ *      transferred from or to the treasury account.
  */
 class ContractCallCustomFeesModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
 
@@ -48,6 +56,10 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         mirrorNodeEvmProperties.setProperties(evmProperties);
     }
 
+    /**
+     * Verifies already existing fixed fee of a fungible token can be updated
+     * @throws Exception
+     */
     @Test
     void updateFungibleTokenFixedFeeInHbarAlreadyExists() throws Exception {
         // Given I create token with fixed fee in HBAR
@@ -57,14 +69,12 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         fixedFeeInHbarPersist(token, collector, FIXED_FEE_AMOUNT);
 
         // When I update the token fees
-        final var modificationPrecompileTestContract =
-                testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
         final var newCollector = accountEntityWithEvmAddressPersist();
         final var newFee = createFixedFeeInHBAR(newCollector);
-        final var updateFeesFunctionCall =
-                modificationPrecompileTestContract.call_updateFungibleTokenCustomFeesAndGetExternal(
-                        getTokenAddress(token), List.of(newFee), List.of(), List.of());
+        final var updateFeesFunctionCall = contract.call_updateFungibleTokenCustomFeesAndGetExternal(
+                getTokenAddress(token), List.of(newFee), List.of(), List.of());
 
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
 
@@ -77,37 +87,39 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(updatedFixedFee.tokenId).isEqualTo(newFee.tokenId);
         assertThat(updatedFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
 
-        verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
+        verifyEthCallAndEstimateGas(updateFeesFunctionCall, contract, ZERO_VALUE);
     }
 
+    /**
+     * Verifies fixed fee can be applied to a fungible token that does not have a previously set fixed fee
+     * @throws Exception
+     */
     @Test
-    void updateFungibleTokenFixedFeeNotExisting() throws Exception {
+    void updateFungibleTokenFixedFeeInHbarNotExisting() throws Exception {
         // Given I create token with no fixed fee set
         final var token = fungibleTokenPersistWithTreasuryAccount(
                 accountEntityWithEvmAddressPersist().toEntityId());
 
         // When I update the token fees
-        final var modificationPrecompileTestContract =
-                testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
-        final var newCollector = accountEntityWithEvmAddressPersist();
-        final var newFee = createFixedFeeInHBAR(newCollector);
-        final var updateFeesFunctionCall =
-                modificationPrecompileTestContract.call_updateFungibleTokenCustomFeesAndGetExternal(
-                        getTokenAddress(token), List.of(newFee), List.of(), List.of());
+        final var collector = accountEntityWithEvmAddressPersist();
+        final var fixedFee = createFixedFeeInHBAR(collector);
+        final var updateFeesFunctionCall = contract.call_updateFungibleTokenCustomFeesAndGetExternal(
+                getTokenAddress(token), List.of(fixedFee), List.of(), List.of());
 
-        final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
+        final var functionCallResult = updateFeesFunctionCall.send();
 
         // Then I verify the token fixed fees are updated as expected
-        final var updatedFixedFee = updateFeesFunctionCallResult.component1().getFirst();
+        final var actualFixedFee = functionCallResult.component1().getFirst();
 
-        assertThat(updatedFixedFee.amount).isEqualTo(newFee.amount);
-        assertThat(updatedFixedFee.useCurrentTokenForPayment).isEqualTo(newFee.useCurrentTokenForPayment);
-        assertThat(updatedFixedFee.useHbarsForPayment).isEqualTo(newFee.useHbarsForPayment);
-        assertThat(updatedFixedFee.tokenId).isEqualTo(newFee.tokenId);
-        assertThat(updatedFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
+        assertThat(actualFixedFee.amount).isEqualTo(fixedFee.amount);
+        assertThat(actualFixedFee.useCurrentTokenForPayment).isEqualTo(fixedFee.useCurrentTokenForPayment);
+        assertThat(actualFixedFee.useHbarsForPayment).isEqualTo(fixedFee.useHbarsForPayment);
+        assertThat(actualFixedFee.tokenId).isEqualTo(fixedFee.tokenId);
+        assertThat(actualFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(collector.toEntityId()));
 
-        verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
+        verifyEthCallAndEstimateGas(updateFeesFunctionCall, contract, ZERO_VALUE);
     }
 
     @Test
@@ -171,7 +183,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
     }
 
     @Test
-    void updateFungibleTokenFixedAndFractionalFeeCombination() throws Exception {
+    void updateFungibleTokenFixedAndFractionalFee() throws Exception {
         // Given
         final var token = fungibleTokenPersistWithTreasuryAccount(
                 accountEntityWithEvmAddressPersist().toEntityId());
@@ -209,11 +221,18 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(actualFractionalFees.maximumAmount).isEqualTo(newFractionalFee.maximumAmount);
     }
 
+    /**
+     * Verifies fixed fee can be applied to a nft that has fixed fee already set
+     * @throws Exception
+     */
     @Test
-    void updateNonFungibleTokenFixedFeeInHBAR() throws Exception {
+    void updateNonFungibleTokenFixedFeeInHbarAlreadyExisting() throws Exception {
         // Given
         final var nft = nonFungibleTokenPersistWithTreasury(
                 accountEntityWithEvmAddressPersist().toEntityId());
+
+        final var collector = accountEntityWithEvmAddressPersist();
+        fixedFeeInHbarPersist(nft, collector, FIXED_FEE_AMOUNT);
 
         // When
         final var modificationPrecompileTestContract =
@@ -225,7 +244,6 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
                 modificationPrecompileTestContract.call_updateNonFungibleTokenCustomFeesAndGetExternal(
                         getTokenAddress(nft), List.of(newFee), List.of(), List.of());
 
-        tokenAccountPersist(nft.getTokenId(), newCollector.getId());
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
 
         // Then
@@ -236,6 +254,41 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(actualFixedFee.useHbarsForPayment).isEqualTo(newFee.useHbarsForPayment);
         assertThat(actualFixedFee.tokenId).isEqualTo(newFee.tokenId);
         assertThat(actualFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
+
+        verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
+    }
+
+    /**
+     * Verifies fixed fee can be applied to a nft that does not have a previously set fixed fee
+     * @throws Exception
+     */
+    @Test
+    void updateNonFungibleTokenFixedFeeInHBAR() throws Exception {
+        // Given
+        final var nft = nonFungibleTokenPersistWithTreasury(
+                accountEntityWithEvmAddressPersist().toEntityId());
+
+        // When
+        final var modificationPrecompileTestContract =
+                testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        final var collector = accountEntityWithEvmAddressPersist();
+        final var fee = createFixedFeeInHBAR(collector);
+        final var updateFeesFunctionCall =
+                modificationPrecompileTestContract.call_updateNonFungibleTokenCustomFeesAndGetExternal(
+                        getTokenAddress(nft), List.of(fee), List.of(), List.of());
+
+        tokenAccountPersist(nft.getTokenId(), collector.getId());
+        final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
+
+        // Then
+        final var actualFixedFee = updateFeesFunctionCallResult.component1().getFirst();
+
+        assertThat(actualFixedFee.amount).isEqualTo(fee.amount);
+        assertThat(actualFixedFee.useCurrentTokenForPayment).isEqualTo(fee.useCurrentTokenForPayment);
+        assertThat(actualFixedFee.useHbarsForPayment).isEqualTo(fee.useHbarsForPayment);
+        assertThat(actualFixedFee.tokenId).isEqualTo(fee.tokenId);
+        assertThat(actualFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(collector.toEntityId()));
 
         verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
     }
@@ -272,11 +325,132 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
     }
 
+    @Test
+    void updateNonFungibleTokenRoyaltyFeeInCustomToken() throws Exception {
+        // Given
+        final var nft = nonFungibleTokenPersistWithTreasury(
+                accountEntityWithEvmAddressPersist().toEntityId());
+        final var tokenForPayment = fungibleTokenPersistWithTreasuryAccount(
+                accountEntityWithEvmAddressPersist().toEntityId());
+
+        // When
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        final var collector = accountEntityWithEvmAddressPersist();
+        final var royaltyFee = createRoyaltyFeeInCustomToken(tokenForPayment, collector);
+
+        final var updateFeesFunctionCall = contract.call_updateNonFungibleTokenCustomFeesAndGetExternal(
+                getTokenAddress(nft), List.of(), List.of(), List.of(royaltyFee));
+
+        tokenAccountPersist(tokenForPayment.getTokenId(), collector.getId());
+
+        final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
+
+        // Then
+        final var actualRoyaltyFee = updateFeesFunctionCallResult.component3().getFirst();
+
+        assertThat(actualRoyaltyFee.amount).isEqualTo(royaltyFee.amount);
+        assertThat(actualRoyaltyFee.useHbarsForPayment).isEqualTo(false);
+        assertThat(actualRoyaltyFee.tokenId).isEqualTo(getTokenAddress(tokenForPayment));
+        assertThat(actualRoyaltyFee.feeCollector).isEqualTo(getAddressFromEntityId(collector.toEntityId()));
+
+        verifyEthCallAndEstimateGas(updateFeesFunctionCall, contract, ZERO_VALUE);
+    }
+
+    @Test
+    void updateNonFungibleTokenRoyaltyFeeInHBAR() throws Exception {
+        // Given
+        final var nft = nonFungibleTokenPersistWithTreasury(
+                accountEntityWithEvmAddressPersist().toEntityId());
+
+        // When
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        final var collector = accountEntityWithEvmAddressPersist();
+        final var royaltyFee = createRoyaltyFeeInHBAR(collector);
+
+        final var updateFeesFunctionCall = contract.call_updateNonFungibleTokenCustomFeesAndGetExternal(
+                getTokenAddress(nft), List.of(), List.of(), List.of(royaltyFee));
+
+        final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
+
+        // Then
+        final var actualRoyaltyFee = updateFeesFunctionCallResult.component3().getFirst();
+
+        assertThat(actualRoyaltyFee.amount).isEqualTo(royaltyFee.amount);
+        assertThat(actualRoyaltyFee.useHbarsForPayment).isEqualTo(true);
+        assertThat(actualRoyaltyFee.tokenId).isEqualTo(Address.ZERO.toHexString());
+        assertThat(actualRoyaltyFee.feeCollector).isEqualTo(getAddressFromEntityId(collector.toEntityId()));
+
+        verifyEthCallAndEstimateGas(updateFeesFunctionCall, contract, ZERO_VALUE);
+    }
+
+    @Test
+    void updateNonFungibleTokenFixedFeeAndRoyaltyFeeInHBAR() throws Exception {
+        // Given
+        final var nft = nonFungibleTokenPersistWithTreasury(
+                accountEntityWithEvmAddressPersist().toEntityId());
+
+        // When
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        final var collector = accountEntityWithEvmAddressPersist();
+        final var fixedFee = createFixedFeeInHBAR(collector);
+        final var royaltyFee = createRoyaltyFeeInHBAR(collector);
+
+        final var updateFeesFunctionCall = contract.call_updateNonFungibleTokenCustomFeesAndGetExternal(
+                getTokenAddress(nft), List.of(fixedFee), List.of(), List.of(royaltyFee));
+
+        final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
+
+        // Then
+        final var actualFixedFee = updateFeesFunctionCallResult.component1().getFirst();
+        final var actualRoyaltyFee = updateFeesFunctionCallResult.component3().getFirst();
+
+        assertThat(actualFixedFee.amount).isEqualTo(fixedFee.amount);
+        assertThat(actualFixedFee.useCurrentTokenForPayment).isEqualTo(fixedFee.useCurrentTokenForPayment);
+        assertThat(actualFixedFee.useHbarsForPayment).isEqualTo(true);
+        assertThat(actualFixedFee.tokenId).isEqualTo(fixedFee.tokenId);
+        assertThat(actualFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(collector.toEntityId()));
+
+        assertThat(actualRoyaltyFee.amount).isEqualTo(royaltyFee.amount);
+        assertThat(actualRoyaltyFee.useHbarsForPayment).isEqualTo(true);
+        assertThat(actualRoyaltyFee.tokenId).isEqualTo(Address.ZERO.toHexString());
+        assertThat(actualRoyaltyFee.feeCollector).isEqualTo(getAddressFromEntityId(collector.toEntityId()));
+
+        verifyEthCallAndEstimateGas(updateFeesFunctionCall, contract, ZERO_VALUE);
+    }
+
     private FixedFee createFixedFeeInHBAR(Entity collectorAccount) {
         return new FixedFee(
                 BigInteger.valueOf(FIXED_FEE_AMOUNT + 10),
                 Address.ZERO.toHexString(),
                 true,
+                false,
+                getAccountEvmAddress(collectorAccount));
+    }
+
+    /**
+     * When the royalty fee is set to be payed in HBARs, the ZERO address should be set for the denominating token.
+     * @param collectorAccount
+     * @return
+     */
+    private RoyaltyFee createRoyaltyFeeInHBAR(Entity collectorAccount) {
+        return new RoyaltyFee(
+                BigInteger.valueOf(NUMERATOR),
+                BigInteger.valueOf(DENOMINATOR),
+                BigInteger.valueOf(FIXED_FEE_AMOUNT),
+                Address.ZERO.toHexString(),
+                true,
+                getAccountEvmAddress(collectorAccount));
+    }
+
+    private RoyaltyFee createRoyaltyFeeInCustomToken(Token token, Entity collectorAccount) {
+        return new RoyaltyFee(
+                BigInteger.valueOf(NUMERATOR),
+                BigInteger.valueOf(DENOMINATOR),
+                BigInteger.valueOf(FIXED_FEE_AMOUNT),
+                getTokenAddress(token),
                 false,
                 getAccountEvmAddress(collectorAccount));
     }
