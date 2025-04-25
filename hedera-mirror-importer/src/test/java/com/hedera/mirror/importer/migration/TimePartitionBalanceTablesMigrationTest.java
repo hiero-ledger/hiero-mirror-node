@@ -66,15 +66,10 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
 
     private final TokenBalanceRepository tokenBalanceRepository;
 
-    private long realm;
-    private long shard;
-
     @BeforeEach
     void setup() {
         // The migration dedups account balance using treasury account 0.0.2 as the sentinel account. It should only
         // apply to past network with shard=0 and realm=0
-        realm = commonProperties.getRealm();
-        shard = commonProperties.getShard();
         commonProperties.setRealm(0);
         commonProperties.setShard(0);
     }
@@ -82,8 +77,6 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
     @AfterEach
     void cleanup() {
         ownerJdbcTemplate.execute(CLEANUP_SQL);
-        commonProperties.setRealm(realm);
-        commonProperties.setShard(shard);
     }
 
     @ParameterizedTest

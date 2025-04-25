@@ -65,17 +65,12 @@ class BackfillAndDeduplicateBalanceMigrationTest
 
     private final TokenBalanceRepository tokenBalanceRepository;
 
-    private long realm;
-    private long shard;
-
     @BeforeEach
     void setup() {
         migration.migrationProperties.setEnabled(true);
 
         // The migration dedups account balance using treasury account 0.0.2 as the sentinel account. It should only
         // apply to past network with shard=0 and realm=0
-        realm = commonProperties.getRealm();
-        shard = commonProperties.getShard();
         commonProperties.setRealm(0);
         commonProperties.setShard(0);
     }
@@ -86,8 +81,6 @@ class BackfillAndDeduplicateBalanceMigrationTest
         ownerJdbcTemplate.execute(REVERT_DDL);
         migration.migrationProperties.setEnabled(false);
         migration.migrationProperties.getParams().clear();
-        commonProperties.setRealm(realm);
-        commonProperties.setShard(shard);
     }
 
     @Test
