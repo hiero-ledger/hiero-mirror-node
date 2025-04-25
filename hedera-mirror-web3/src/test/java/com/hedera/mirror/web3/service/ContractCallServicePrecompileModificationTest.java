@@ -338,6 +338,30 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     }
 
     @Test
+    void mintNFTWithAliasedAccount() throws Exception {
+        // Given
+        final var treasury = accountEntityWithEvmAddressPersist();
+        final var tokenEntity = tokenEntityPersist();
+
+        nonFungibleTokenPersist(tokenEntity, treasury);
+
+        tokenAccountPersist(tokenEntity.getId(), treasury.getId());
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        // When
+        final var functionCall = contract.call_mintTokenExternal(
+                getAddressFromEntity(tokenEntity), BigInteger.ZERO, List.of(domainBuilder.nonZeroBytes(12)));
+
+        final var result = functionCall.send();
+
+        // Then
+        assertThat(result.component3().getFirst()).isEqualTo(BigInteger.ONE);
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
+    @Test
     void mintNFTWithContractWithoutKey() throws Exception {
         // Given
         final var treasury = accountEntityPersist();
