@@ -100,7 +100,7 @@ public class TopicClient extends AbstractNetworkClient {
         return response;
     }
 
-    public NetworkTransactionResponse updateTopic(TopicId topicId, Key FeeSchedulekey) {
+    public NetworkTransactionResponse updateTopic(TopicId topicId, Key feeSchedulekey) {
         String memo = getMemo("Update Topic");
         TopicUpdateTransaction consensusTopicUpdateTransaction = new TopicUpdateTransaction()
                 .setTopicId(topicId)
@@ -112,7 +112,7 @@ public class TopicClient extends AbstractNetworkClient {
                 .clearFeeExemptKeys()
                 .clearCustomFees();
 
-        var keyList = KeyList.of(FeeSchedulekey);
+        var keyList = KeyList.of(feeSchedulekey);
         var response = executeTransactionAndRetrieveReceipt(consensusTopicUpdateTransaction, keyList);
         log.info("Updated topic {} with memo '{}' via {}", topicId, memo, response.getTransactionId());
         return response;
