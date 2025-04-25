@@ -19,7 +19,6 @@ import com.sun.jna.ptr.IntByReference;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
-import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -37,12 +36,13 @@ import org.web3j.utils.Numeric;
 class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
     private static final byte[] MESSAGE_HASH = new Keccak.Digest256().digest("messageString".getBytes());
     private static final byte[] DIFFERENT_HASH = new Keccak.Digest256().digest("differentMessage".getBytes());
+    private static final String ED_25519 = "Ed25519";
 
     @Test
     void isAuthorizedRawECDSA() throws Exception {
         // Given
         // Generate new key pair
-        var keyPair = Keys.createEcKeyPair();
+        final var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         var privateKey = keyPair.getPrivateKey().toByteArray();
         // Sign the message hash with the private key
@@ -69,7 +69,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
     void isAuthorizedRawECDSADifferentHash() throws Exception {
         // Given
         // Generate new key pair
-        var keyPair = Keys.createEcKeyPair();
+        final var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         var privateKey = keyPair.getPrivateKey().toByteArray();
         // Sign the message hash with the private key
@@ -93,7 +93,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
     void isAuthorizedRawECDSAInvalidSignedValue() throws Exception {
         // Given
         // Generate new key pair
-        var keyPair = Keys.createEcKeyPair();
+        final var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         var privateKey = keyPair.getPrivateKey().toByteArray();
         // Sign the message hash with the private key
@@ -121,7 +121,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         // Given
         final byte[] invalidSignature = new byte[64];
         // Generate new key pair
-        var keyPair = Keys.createEcKeyPair();
+        final var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         // Recover the EVM address from the private key and persist account with that address and public key
         final var addressBytes = EthSigsUtils.recoverAddressFromPubKey(publicKey);
@@ -144,8 +144,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
     void isAuthorizedRawED25519() throws Exception {
         // Given
         // Generate new key pair
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("Ed25519");
-        KeyPair keyPair = keyPairGenerator.generateKeyPair();
+        final var keyPairGenerator = KeyPairGenerator.getInstance(ED_25519);
+        final var keyPair = keyPairGenerator.generateKeyPair();
         var publicKey = keyPair.getPublic();
         var publicProtoKey = getProtobufKeyEd25519(publicKey);
         var privateKey = keyPair.getPrivate();
@@ -173,8 +173,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
     void isAuthorizedRawED25519DifferentHash() throws Exception {
         // Given
         // Generate new key pair
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("Ed25519");
-        KeyPair keyPair = keyPairGenerator.generateKeyPair();
+        final var keyPairGenerator = KeyPairGenerator.getInstance(ED_25519);
+        final var keyPair = keyPairGenerator.generateKeyPair();
 
         var publicKey = keyPair.getPublic();
         var publicProtoKey = getProtobufKeyEd25519(publicKey);
@@ -203,8 +203,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
     void isAuthorizedRawED25519InvalidSignedValue() throws Exception {
         // Given
         // Generate new key pair
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("Ed25519");
-        KeyPair keyPair = keyPairGenerator.generateKeyPair();
+        final var keyPairGenerator = KeyPairGenerator.getInstance(ED_25519);
+        final var keyPair = keyPairGenerator.generateKeyPair();
         var publicKey = keyPair.getPublic();
         var publicProtoKey = getProtobufKeyEd25519(publicKey);
         // Persist account with private key and no EVM address. This is needed in order to perform a contract call using
@@ -227,7 +227,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
     void isAuthorizedRawECDSAKeyWighLongZero() throws Exception {
         // Given
         // Generate new key pair
-        var keyPair = Keys.createEcKeyPair();
+        final var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         var privateKey = keyPair.getPrivateKey().toByteArray();
         // Sign the message hash with the private key
@@ -300,7 +300,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
 
     public static byte[] signBytesED25519(final byte[] msg, final PrivateKey privateKey)
             throws InvalidKeyException, SignatureException, NoSuchAlgorithmException {
-        Signature signature = Signature.getInstance("Ed25519");
+        Signature signature = Signature.getInstance(ED_25519);
         signature.initSign(privateKey);
         signature.update(msg);
         return signature.sign();
