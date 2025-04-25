@@ -45,6 +45,7 @@ public class SchemaRegistryImpl implements SchemaRegistry {
 
     private final Collection<SingletonState<?>> singletons;
     private final SchemaApplications schemaApplications;
+    private final StateKeyRegistry stateKeyRegistry;
 
     /**
      * The ordered set of all schemas registered by the service
@@ -209,13 +210,13 @@ public class SchemaRegistryImpl implements SchemaRegistry {
                 var singleton = singletonMap.computeIfAbsent(def.stateKey(), DefaultSingleton::new);
                 stateDataSources.put(singleton.getKey(), singleton);
             } else if (def.queue()) {
-                if (StateKeyRegistry.contains(def.stateKey())) {
+                if (stateKeyRegistry.contains(def.stateKey())) {
                     stateDataSources.put(def.stateKey(), new ConcurrentLinkedDeque<>());
                 } else {
                     throw new UnsupportedOperationException("Unsupported state key for queue: " + def.stateKey());
                 }
             } else {
-                if (StateKeyRegistry.contains(def.stateKey())) {
+                if (stateKeyRegistry.contains(def.stateKey())) {
                     stateDataSources.put(def.stateKey(), new ConcurrentHashMap<>());
                 } else {
                     throw new UnsupportedOperationException("Unsupported state key: " + def.stateKey());

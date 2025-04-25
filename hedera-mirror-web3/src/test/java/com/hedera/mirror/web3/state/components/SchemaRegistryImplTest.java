@@ -16,6 +16,7 @@ import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.state.core.MapWritableStates;
 import com.hedera.mirror.web3.state.keyvalue.AccountReadableKVState;
+import com.hedera.mirror.web3.state.keyvalue.StateKeyRegistry;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema;
 import com.hedera.node.app.state.merkle.SchemaApplicationType;
@@ -65,12 +66,15 @@ class SchemaRegistryImplTest {
     @Mock
     private Codec<String> mockCodec;
 
+    @Mock
+    private StateKeyRegistry stateKeyRegistry;
+
     private Configuration config;
     private SchemaRegistryImpl schemaRegistry;
 
     @BeforeEach
     void initialize() {
-        schemaRegistry = new SchemaRegistryImpl(List.of(), schemaApplications);
+        schemaRegistry = new SchemaRegistryImpl(List.of(), schemaApplications, stateKeyRegistry);
         config = new ConfigProviderImpl().getConfiguration();
     }
 
@@ -133,6 +137,8 @@ class SchemaRegistryImplTest {
 
         when(schema.statesToCreate(config))
                 .thenReturn(Set.of(stateDefinitionSingleton, stateDefinitionQueue, stateDefinition));
+        when(stateKeyRegistry.contains(V0490TokenSchema.STAKING_INFO_KEY)).thenReturn(true);
+        when(stateKeyRegistry.contains(AccountReadableKVState.KEY)).thenReturn(true);
 
         schemaRegistry.register(schema);
         schemaRegistry.migrate(
