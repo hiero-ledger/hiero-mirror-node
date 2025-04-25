@@ -28,7 +28,6 @@ import java.security.Signature;
 import java.security.SignatureException;
 import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
-import org.bouncycastle.jcajce.provider.digest.SHA384.Digest;
 import org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.shaded.org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
