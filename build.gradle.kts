@@ -244,7 +244,7 @@ spotless {
         endWithNewline()
         leadingTabsToSpaces(4)
         licenseHeader(licenseHeader, "(package|syntax)")
-        target("hedera-mirror-protobuf/**/*.proto")
+        target("protobuf/**/*.proto")
         targetExclude("**/build/**")
         trimTrailingWhitespace()
     }

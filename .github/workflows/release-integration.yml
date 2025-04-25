@@ -52,6 +52,10 @@ jobs:
         if: matrix.project == 'rest-monitor'
         run: echo "CONTEXT=hedera-mirror-rest/monitoring" >> $GITHUB_ENV
 
+      - name: Custom context
+        if: contains(fromJSON('["graphql", "grpc"]'), matrix.project)
+        run: echo "CONTEXT=${{ matrix.project }}" >> $GITHUB_ENV
+
       - name: Install JDK
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:

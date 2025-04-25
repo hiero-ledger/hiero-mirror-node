@@ -8,13 +8,13 @@ include(":hedera-mirror-common")
 
 include(":graphql")
 
-include(":hedera-mirror-grpc")
+include(":grpc")
 
 include(":hedera-mirror-importer")
 
 include(":hedera-mirror-monitor")
 
-include(":hedera-mirror-protobuf")
+include(":protobuf")
 
 include(":hedera-mirror-rest")
 
