@@ -5,7 +5,6 @@ package com.hedera.mirror.common.domain.entity;
 import static com.hedera.mirror.common.domain.entity.EntityId.NUM_BITS;
 import static com.hedera.mirror.common.domain.entity.EntityId.REALM_BITS;
 import static com.hedera.mirror.common.domain.entity.EntityId.SHARD_BITS;
-import static com.hedera.mirror.common.domain.entity.EntityId.UNSET;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -77,12 +76,6 @@ class EntityIdTest {
     void ofStringPositive() {
         assertThat(EntityId.of("0.0.1")).isEqualTo(EntityId.of(0, 0, 1));
         assertThat(EntityId.of("0.0.0")).isEqualTo(EntityId.EMPTY);
-    }
-
-    @Test
-    void isUnset() {
-        assertThat(EntityId.isUnset(UNSET)).isTrue();
-        assertThat(EntityId.isUnset(EntityId.of(UNSET.getId()))).isFalse();
     }
 
     @Test

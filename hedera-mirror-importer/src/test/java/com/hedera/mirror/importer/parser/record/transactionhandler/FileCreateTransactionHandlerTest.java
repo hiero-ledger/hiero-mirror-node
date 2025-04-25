@@ -14,7 +14,6 @@ import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.importer.addressbook.AddressBookService;
 import com.hederahashgraph.api.proto.java.FileCreateTransactionBody;
-import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
@@ -40,9 +39,7 @@ class FileCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionReceipt.Builder getTransactionReceipt(ResponseCodeEnum responseCodeEnum) {
-        return TransactionReceipt.newBuilder()
-                .setStatus(responseCodeEnum)
-                .setFileID(FileID.newBuilder().setFileNum(DEFAULT_ENTITY_NUM).build());
+        return TransactionReceipt.newBuilder().setStatus(responseCodeEnum).setFileID(defaultEntityId.toFileID());
     }
 
     @Override

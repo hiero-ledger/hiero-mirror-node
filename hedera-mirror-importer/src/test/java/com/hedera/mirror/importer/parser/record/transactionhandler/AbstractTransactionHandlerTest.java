@@ -104,8 +104,8 @@ abstract class AbstractTransactionHandlerTest {
     protected final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
-    protected final ContractID contractId =
-            ContractID.newBuilder().setContractNum(DEFAULT_ENTITY_NUM).build();
+    protected final EntityId defaultEntityId = domainBuilder.entityId(DEFAULT_ENTITY_NUM);
+    protected final ContractID contractId = defaultEntityId.toContractID();
     protected final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
     protected final EntityProperties entityProperties = new EntityProperties(systemEntity);
 
@@ -210,7 +210,7 @@ abstract class AbstractTransactionHandlerTest {
         EntityId expectedEntityId = null;
         var entityType = getExpectedEntityIdType();
         if (entityType != null) {
-            expectedEntityId = EntityId.of(0L, 0L, DEFAULT_ENTITY_NUM);
+            expectedEntityId = defaultEntityId;
         }
         testGetEntityIdHelper(
                 getDefaultTransactionBody().build(),
@@ -306,7 +306,7 @@ abstract class AbstractTransactionHandlerTest {
     }
 
     protected Entity getEntity() {
-        EntityId entityId = EntityId.of(0L, 0L, DEFAULT_ENTITY_NUM);
+        var entityId = domainBuilder.entityId(DEFAULT_ENTITY_NUM);
         var entity = entityId.toEntity();
         entity.setType(getExpectedEntityIdType());
         return entity;

@@ -28,10 +28,6 @@ public class GlobalTestSetup implements LauncherSessionListener {
                 commonTestSetup.testPlanExecutionStarted(testPlan);
 
                 var commonProperties = CommonProperties.getInstance();
-                if (commonProperties.getRealm() == 0 && commonProperties.getShard() == 0) {
-                    return;
-                }
-
                 updateAddressBook(commonProperties, "mainnet");
                 updateAddressBook(commonProperties, "testnet");
                 updateAddressBook(commonProperties, "test-v1");
@@ -52,8 +48,8 @@ public class GlobalTestSetup implements LauncherSessionListener {
 
         for (var nodeAddress : addressBook.getNodeAddressList()) {
             var accountStr = nodeAddress.getMemo().toStringUtf8();
-            accountStr = accountStr.replace(
-                    "0.0.", String.format("%d.%d.", commonProperties.getShard(), commonProperties.getRealm()));
+            accountStr = accountStr.replaceFirst(
+                    "^\\d+.\\d+.", String.format("%d.%d.", commonProperties.getShard(), commonProperties.getRealm()));
             var nodeAddressBuilder = nodeAddress.toBuilder().setMemo(ByteString.copyFromUtf8(accountStr));
             if (nodeAddressBuilder.hasNodeAccountId()) {
                 nodeAddressBuilder.setNodeAccountId(EntityId.of(accountStr).toAccountID());

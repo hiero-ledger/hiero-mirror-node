@@ -18,7 +18,6 @@ import com.hedera.mirror.common.domain.token.CustomFee;
 import com.hedera.mirror.common.domain.token.FixedFee;
 import com.hedera.mirror.common.domain.token.FractionalFee;
 import com.hedera.mirror.common.domain.token.RoyaltyFee;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -35,8 +34,7 @@ class TokenFeeScheduleUpdateTransactionHandlerTest extends AbstractTransactionHa
     protected TransactionBody.Builder getDefaultTransactionBody() {
         var recordItem = recordItemBuilder
                 .tokenFeeScheduleUpdate()
-                .transactionBody(b -> b.setTokenId(
-                        TokenID.newBuilder().setTokenNum(DEFAULT_ENTITY_NUM).build()))
+                .transactionBody(b -> b.setTokenId(defaultEntityId.toTokenID()))
                 .build();
         return TransactionBody.newBuilder()
                 .setTokenFeeScheduleUpdate(recordItem.getTransactionBody().getTokenFeeScheduleUpdate());
@@ -194,11 +192,12 @@ class TokenFeeScheduleUpdateTransactionHandlerTest extends AbstractTransactionHa
         listAssert
                 .extracting(RoyaltyFee::getDenominator)
                 .containsOnly(royaltyFee.getExchangeValueFraction().getDenominator());
-        var capturedFallbackFee = capturedCustomFee.getRoyaltyFees().get(0).getFallbackFee();
+        var capturedFallbackFee = capturedCustomFee.getRoyaltyFees().getFirst().getFallbackFee();
         assertThat(capturedFallbackFee.getAmount())
                 .isEqualTo(royaltyFee.getFallbackFee().getAmount());
         assertThat(capturedFallbackFee.getDenominatingTokenId().getId())
-                .isEqualTo(royaltyFee.getFallbackFee().getDenominatingTokenId().getTokenNum());
+                .isEqualTo(EntityId.of(royaltyFee.getFallbackFee().getDenominatingTokenId())
+                        .getId());
 
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(

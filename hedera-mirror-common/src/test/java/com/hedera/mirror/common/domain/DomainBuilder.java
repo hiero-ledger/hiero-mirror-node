@@ -458,22 +458,20 @@ public class DomainBuilder {
         return entity(entityId(), timestamp());
     }
 
-    public DomainWrapper<EntityHistory, EntityHistory.EntityHistoryBuilder<?, ?>> entityHistory() {
-        var entityId = entityId();
-        long timestamp = timestamp();
-
+    public DomainWrapper<EntityHistory, EntityHistory.EntityHistoryBuilder<?, ?>> entityHistory(
+            EntityId entityId, long createdTimestamp) {
         var builder = EntityHistory.builder()
                 .alias(key())
                 .autoRenewAccountId(id())
                 .autoRenewPeriod(8_000_000L)
                 .balance(number())
-                .balanceTimestamp(timestamp)
-                .createdTimestamp(timestamp)
+                .balanceTimestamp(createdTimestamp)
+                .createdTimestamp(createdTimestamp)
                 .declineReward(false)
                 .deleted(false)
                 .ethereumNonce(1L)
                 .evmAddress(evmAddress())
-                .expirationTimestamp(timestamp + 30_000_000L)
+                .expirationTimestamp(createdTimestamp + 30_000_000L)
                 .id(entityId.getId())
                 .key(key())
                 .maxAutomaticTokenAssociations(1)
@@ -487,10 +485,17 @@ public class DomainBuilder {
                 .shard(entityId.getShard())
                 .stakedNodeId(-1L)
                 .stakePeriodStart(-1L)
-                .timestampRange(Range.closedOpen(timestamp, timestamp + 10))
+                .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10))
                 .type(ACCOUNT);
-
         return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<EntityHistory, EntityHistory.EntityHistoryBuilder<?, ?>> entityHistory(EntityId entityId) {
+        return entityHistory(entityId, timestamp());
+    }
+
+    public DomainWrapper<EntityHistory, EntityHistory.EntityHistoryBuilder<?, ?>> entityHistory() {
+        return entityHistory(entityId(), timestamp());
     }
 
     public DomainWrapper<EntityStake, EntityStake.EntityStakeBuilder<?, ?>> entityStake() {

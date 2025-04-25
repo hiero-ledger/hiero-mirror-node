@@ -16,7 +16,6 @@ import com.hedera.mirror.importer.ImporterIntegrationTest;
 import com.hedera.mirror.importer.repository.AddressBookRepository;
 import com.hedera.mirror.importer.repository.AddressBookServiceEndpointRepository;
 import com.hedera.mirror.importer.repository.FileDataRepository;
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.NodeAddressBook;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
@@ -48,15 +47,16 @@ class MissingAddressBooksMigrationTest extends ImporterIntegrationTest {
 
     @SuppressWarnings("deprecation")
     private static NodeAddressBook addressBook(int size, int endPointSize) {
-        NodeAddressBook.Builder builder = NodeAddressBook.newBuilder();
+        var builder = NodeAddressBook.newBuilder();
         for (int i = 0; i < size; ++i) {
             long nodeId = 3 + i;
-            NodeAddress.Builder nodeAddressBuilder = NodeAddress.newBuilder()
+            var nodeAccountId = entityId(nodeId);
+            var nodeAddressBuilder = NodeAddress.newBuilder()
                     .setIpAddress(ByteString.copyFromUtf8("127.0.0." + nodeId))
                     .setPortno((int) nodeId)
                     .setNodeId(nodeId)
-                    .setMemo(ByteString.copyFromUtf8("0.0." + nodeId))
-                    .setNodeAccountId(AccountID.newBuilder().setAccountNum(nodeId))
+                    .setMemo(ByteString.copyFromUtf8(nodeAccountId.toString()))
+                    .setNodeAccountId(nodeAccountId.toAccountID())
                     .setNodeCertHash(ByteString.copyFromUtf8("nodeCertHash"))
                     .setRSAPubKey("rsa+public/key");
 

@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.importer.parser.record.transactionhandler;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
@@ -33,7 +32,7 @@ class SystemUndeleteTransactionHandlerTest extends AbstractDeleteOrUndeleteTrans
 
     @BeforeEach
     void beforeEach() {
-        when(entityIdService.lookup(contractId)).thenReturn(Optional.of(EntityId.of(DEFAULT_ENTITY_NUM)));
+        when(entityIdService.lookup(contractId)).thenReturn(Optional.of(defaultEntityId));
     }
 
     @Override
@@ -44,10 +43,7 @@ class SystemUndeleteTransactionHandlerTest extends AbstractDeleteOrUndeleteTrans
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setSystemUndelete(SystemUndeleteTransactionBody.newBuilder()
-                        .setFileID(FileID.newBuilder()
-                                .setFileNum(DEFAULT_ENTITY_NUM)
-                                .build()));
+                .setSystemUndelete(SystemUndeleteTransactionBody.newBuilder().setFileID(defaultEntityId.toFileID()));
     }
 
     @Override
@@ -60,24 +56,19 @@ class SystemUndeleteTransactionHandlerTest extends AbstractDeleteOrUndeleteTrans
     @Test
     void testSystemUndeleteForContract() {
         TransactionBody transactionBody = TransactionBody.newBuilder()
-                .setSystemUndelete(SystemUndeleteTransactionBody.newBuilder()
-                        .setContractID(ContractID.newBuilder()
-                                .setContractNum(DEFAULT_ENTITY_NUM)
-                                .build()))
+                .setSystemUndelete(
+                        SystemUndeleteTransactionBody.newBuilder().setContractID(defaultEntityId.toContractID()))
                 .build();
 
-        testGetEntityIdHelper(
-                transactionBody, getDefaultTransactionRecord().build(), EntityId.of(0L, 0L, DEFAULT_ENTITY_NUM));
+        testGetEntityIdHelper(transactionBody, getDefaultTransactionRecord().build(), defaultEntityId);
     }
 
     @ParameterizedTest
     @MethodSource("provideEntities")
     void undeleteEmptyEntityIds(EntityId entityId) {
         TransactionBody transactionBody = TransactionBody.newBuilder()
-                .setSystemUndelete(SystemUndeleteTransactionBody.newBuilder()
-                        .setContractID(ContractID.newBuilder()
-                                .setContractNum(DEFAULT_ENTITY_NUM)
-                                .build()))
+                .setSystemUndelete(
+                        SystemUndeleteTransactionBody.newBuilder().setContractID(defaultEntityId.toContractID()))
                 .build();
 
         when(entityIdService.lookup(contractId)).thenReturn(Optional.ofNullable(entityId));

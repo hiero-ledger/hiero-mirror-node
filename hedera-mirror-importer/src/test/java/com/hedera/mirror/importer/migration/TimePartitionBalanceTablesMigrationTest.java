@@ -30,6 +30,7 @@ import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -65,9 +66,24 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
 
     private final TokenBalanceRepository tokenBalanceRepository;
 
+    private long realm;
+    private long shard;
+
+    @BeforeEach
+    void setup() {
+        // The migration dedups account balance using treasury account 0.0.2 as the sentinel account. It should only
+        // apply to past network with shard=0 and realm=0
+        realm = commonProperties.getRealm();
+        shard = commonProperties.getShard();
+        commonProperties.setRealm(0);
+        commonProperties.setShard(0);
+    }
+
     @AfterEach
     void cleanup() {
         ownerJdbcTemplate.execute(CLEANUP_SQL);
+        commonProperties.setRealm(realm);
+        commonProperties.setShard(shard);
     }
 
     @ParameterizedTest
@@ -101,7 +117,7 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
     @Test
     void migrate() {
         // given
-        var treasury = systemEntity.treasuryAccount();
+        var treasury = domainBuilder.entityId(2);
         var account2 = domainBuilder.entityId();
         var account3 = domainBuilder.entityId();
         var account4 = domainBuilder.entityId();

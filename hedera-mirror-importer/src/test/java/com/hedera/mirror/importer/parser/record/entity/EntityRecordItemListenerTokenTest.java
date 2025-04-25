@@ -1770,7 +1770,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .createdTimestamp(mintTimestamp)
                 .deleted(false)
                 .metadata(METADATA)
-                .spender(EntityId.of(SPENDER))
+                .spender(EntityId.of(SPENDER).getId())
                 .serialNumber(SERIAL_NUMBER_1)
                 .timestampRange(Range.atLeast(approveAllowanceTimestamp))
                 .tokenId(DOMAIN_TOKEN_ID.getId())
@@ -2378,7 +2378,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         // with spender
         var nftHistory1 = nft.toBuilder()
                 .accountId(PAYER_ACCOUNT_ID)
-                .spender(EntityId.of(PAYER2))
+                .spender(EntityId.of(PAYER2).getId())
                 .timestampRange(Range.closedOpen(approveAllowanceTimestamp, transferTimestamp))
                 .build();
         // when mint
@@ -2663,7 +2663,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .deleted(false)
                 .metadata(METADATA)
                 .serialNumber(SERIAL_NUMBER_1)
-                .spender(EntityId.of(SPENDER))
+                .spender(EntityId.of(SPENDER).getId())
                 .timestampRange(Range.atLeast(approveAllowanceTimestamp))
                 .tokenId(DOMAIN_TOKEN_ID.getId())
                 .build();
@@ -3219,7 +3219,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .deleted(false)
                 .metadata(METADATA)
                 .serialNumber(SERIAL_NUMBER_1)
-                .spender(EntityId.of(SPENDER))
+                .spender(EntityId.of(SPENDER).getId())
                 .timestampRange(Range.atLeast(approveAllowanceTimestamp))
                 .tokenId(DOMAIN_TOKEN_ID.getId())
                 .build();
@@ -3420,8 +3420,8 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .get()
                 .returns(mintTimestamp, Nft::getCreatedTimestamp)
                 .returns(DomainUtils.toBytes(newMetadata.getValue()), Nft::getMetadata)
-                .returns(EntityId.of(PAYER3), Nft::getDelegatingSpender)
-                .returns(EntityId.of(PAYER2), Nft::getSpender);
+                .returns(EntityId.of(PAYER3).getId(), Nft::getDelegatingSpender)
+                .returns(EntityId.of(PAYER2).getId(), Nft::getSpender);
 
         var nftHistory = findHistory(Nft.class);
         assertThat(nftHistory)
@@ -3434,8 +3434,8 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                         // Second history row written when NFT metadata was updated. Allowance set spender columns must
                         // be indicated.
                         n -> assertThat(n)
-                                .returns(EntityId.of(PAYER3), Nft::getDelegatingSpender)
-                                .returns(EntityId.of(PAYER2), Nft::getSpender));
+                                .returns(EntityId.of(PAYER3).getId(), Nft::getDelegatingSpender)
+                                .returns(EntityId.of(PAYER2).getId(), Nft::getSpender));
     }
 
     @Test

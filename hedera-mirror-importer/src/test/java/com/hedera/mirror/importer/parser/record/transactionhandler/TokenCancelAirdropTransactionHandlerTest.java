@@ -78,8 +78,9 @@ class TokenCancelAirdropTransactionHandlerTest extends AbstractTransactionHandle
                 .customize(t -> t.consensusTimestamp(timestamp))
                 .get();
 
+        var tokenEntityId = EntityId.of(token);
         var expectedEntityTransactions =
-                getExpectedEntityTransactions(recordItem, transaction, receiver, sender, EntityId.of(token));
+                getExpectedEntityTransactions(recordItem, transaction, receiver, sender, tokenEntityId);
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
@@ -89,11 +90,11 @@ class TokenCancelAirdropTransactionHandlerTest extends AbstractTransactionHandle
 
         verify(entityListener).onTokenAirdrop(tokenAirdrop.capture());
         assertThat(tokenAirdrop.getValue())
-                .returns(receiver.getNum(), TokenAirdrop::getReceiverAccountId)
-                .returns(sender.getNum(), TokenAirdrop::getSenderAccountId)
+                .returns(receiver.getId(), TokenAirdrop::getReceiverAccountId)
+                .returns(sender.getId(), TokenAirdrop::getSenderAccountId)
                 .returns(TokenAirdropStateEnum.CANCELLED, TokenAirdrop::getState)
                 .returns(Range.atLeast(timestamp), TokenAirdrop::getTimestampRange)
-                .returns(token.getTokenNum(), TokenAirdrop::getTokenId);
+                .returns(tokenEntityId.getId(), TokenAirdrop::getTokenId);
         verifyNoMoreInteractions(entityListener);
     }
 }

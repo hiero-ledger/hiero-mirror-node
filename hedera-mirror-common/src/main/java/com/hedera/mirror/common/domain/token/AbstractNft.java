@@ -27,14 +27,18 @@ import lombok.experimental.SuperBuilder;
 @Upsertable(history = true)
 public abstract class AbstractNft implements History {
 
+    // sentinel value to indicate delegating spender / spender should keep its previous value
+    public static final long RETAIN_SPENDER = 0L;
+
     @UpsertColumn(coalesce = "case when deleted = true then null else coalesce({0}, e_{0}, {1}) end")
     private EntityId accountId;
 
     @Column(updatable = false)
     private Long createdTimestamp;
 
-    @UpsertColumn(coalesce = "case when delegating_spender < 0 then e_{0} else {0} end")
-    private EntityId delegatingSpender;
+    @UpsertColumn(
+            coalesce = "case when delegating_spender is not null and delegating_spender = 0 then e_{0} else {0} end")
+    private Long delegatingSpender;
 
     private Boolean deleted;
 
@@ -44,8 +48,8 @@ public abstract class AbstractNft implements History {
     @jakarta.persistence.Id
     private long serialNumber;
 
-    @UpsertColumn(coalesce = "case when spender < 0 then e_{0} else {0} end")
-    private EntityId spender;
+    @UpsertColumn(coalesce = "case when spender is not null and spender = 0 then e_{0} else {0} end")
+    private Long spender;
 
     @jakarta.persistence.Id
     private long tokenId;
@@ -55,6 +59,10 @@ public abstract class AbstractNft implements History {
     @JsonIgnore
     public AbstractNft.Id getId() {
         return new Id(serialNumber, tokenId);
+    }
+
+    public static boolean shouldKeepSpender(Long spender) {
+        return spender != null && spender == RETAIN_SPENDER;
     }
 
     @AllArgsConstructor

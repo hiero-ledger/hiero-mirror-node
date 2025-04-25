@@ -28,9 +28,7 @@ class CryptoDeleteTransactionHandlerTest extends AbstractDeleteOrUndeleteTransac
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
                 .setCryptoDelete(CryptoDeleteTransactionBody.newBuilder()
-                        .setDeleteAccountID(AccountID.newBuilder()
-                                .setAccountNum(DEFAULT_ENTITY_NUM)
-                                .build())
+                        .setDeleteAccountID(defaultEntityId.toAccountID())
                         .setTransferAccountID(AccountID.newBuilder().setAccountNum(999L)));
     }
 

@@ -458,10 +458,10 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     @Test
     void cryptoDeleteAllowance() {
         // given
-        var delegatingSpender = EntityId.of(recordItemBuilder.accountId());
+        var delegatingSpender = EntityId.of(recordItemBuilder.accountId()).getId();
         var ownerAccountId = EntityId.of(recordItemBuilder.accountId());
-        var spender1 = EntityId.of(recordItemBuilder.accountId());
-        var spender2 = EntityId.of(recordItemBuilder.accountId());
+        var spender1 = EntityId.of(recordItemBuilder.accountId()).getId();
+        var spender2 = EntityId.of(recordItemBuilder.accountId()).getId();
         var tokenId1 = EntityId.of(recordItemBuilder.tokenId());
         var tokenId2 = EntityId.of(recordItemBuilder.tokenId());
         List<NftRemoveAllowance> nftRemoveAllowances = List.of(
@@ -1842,22 +1842,22 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord()),
                 () -> assertThat(cryptoAllowanceRepository.findAll())
                         .allSatisfy(a -> assertThat(a.getAmount()).isPositive())
-                        .allSatisfy(a -> assertThat(a.getOwner()).isPositive())
-                        .allSatisfy(a -> assertThat(a.getSpender()).isPositive())
+                        .allSatisfy(a -> assertThat(a.getOwner()).isNotZero())
+                        .allSatisfy(a -> assertThat(a.getSpender()).isNotZero())
                         .allMatch(a -> recordItem.getConsensusTimestamp() == a.getTimestampLower())
                         .allMatch(a -> recordItem.getPayerAccountId().equals(a.getPayerAccountId())),
                 () -> assertThat(nftAllowanceRepository.findAll())
-                        .allSatisfy(a -> assertThat(a.getOwner()).isPositive())
-                        .allSatisfy(a -> assertThat(a.getSpender()).isPositive())
-                        .allSatisfy(a -> assertThat(a.getTokenId()).isPositive())
+                        .allSatisfy(a -> assertThat(a.getOwner()).isNotZero())
+                        .allSatisfy(a -> assertThat(a.getSpender()).isNotZero())
+                        .allSatisfy(a -> assertThat(a.getTokenId()).isNotZero())
                         .allMatch(a -> recordItem.getConsensusTimestamp() == a.getTimestampLower())
                         .allMatch(a -> recordItem.getPayerAccountId().equals(a.getPayerAccountId())),
                 () -> assertThat(nftRepository.findAll()).containsExactlyInAnyOrderElementsOf(expectedNfts),
                 () -> assertThat(tokenAllowanceRepository.findAll())
                         .allSatisfy(a -> assertThat(a.getAmount()).isPositive())
-                        .allSatisfy(a -> assertThat(a.getOwner()).isPositive())
-                        .allSatisfy(a -> assertThat(a.getSpender()).isPositive())
-                        .allSatisfy(a -> assertThat(a.getTokenId()).isPositive())
+                        .allSatisfy(a -> assertThat(a.getOwner()).isNotZero())
+                        .allSatisfy(a -> assertThat(a.getSpender()).isNotZero())
+                        .allSatisfy(a -> assertThat(a.getTokenId()).isNotZero())
                         .allMatch(a -> recordItem.getConsensusTimestamp() == a.getTimestampLower())
                         .allMatch(a -> recordItem.getPayerAccountId().equals(a.getPayerAccountId())));
     }
@@ -1940,8 +1940,8 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 .setTokenId(tokenId)
                 .build());
         expectedNfts.add(nft1.toBuilder()
-                .delegatingSpender(EntityId.of(delegatingSpender))
-                .spender(EntityId.of(spender1))
+                .delegatingSpender(EntityId.of(delegatingSpender).getId())
+                .spender(EntityId.of(spender1).getId())
                 .timestampRange(Range.atLeast(timestamp))
                 .build());
 
@@ -1973,11 +1973,11 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         // serial number 2's allowance is granted twice, the allowance should be granted to spender2 since it appears
         // after the nft allowance to spender1
         expectedNfts.add(nft2.toBuilder()
-                .spender(EntityId.of(spender2))
+                .spender(EntityId.of(spender2).getId())
                 .timestampRange(Range.atLeast(timestamp))
                 .build());
         expectedNfts.add(nft3.toBuilder()
-                .spender(EntityId.of(spender2))
+                .spender(EntityId.of(spender2).getId())
                 .timestampRange(Range.atLeast(timestamp))
                 .build());
 

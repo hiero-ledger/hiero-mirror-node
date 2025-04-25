@@ -68,6 +68,8 @@ class SyntheticCryptoTransferApprovalMigrationTest extends ImporterIntegrationTe
     private Entity currentKeyAffectedEntity;
     private Entity noKeyEntity;
     private EntityId payerAccountId;
+    private long realm;
+    private long shard;
     private Entity thresholdTwoKeyEntity;
 
     @BeforeEach
@@ -75,11 +77,20 @@ class SyntheticCryptoTransferApprovalMigrationTest extends ImporterIntegrationTe
         importerProperties.setNetwork(MAINNET);
         migration.setExecuted(false);
         migration.setComplete(false);
+
+        // The migration fixes data caused by bug in previous consensus node release which was later fixed in consensus
+        // node itself. In addition, it uses hardcoded entity ids. Non-zero realm / shard should not apply.
+        realm = commonProperties.getRealm();
+        shard = commonProperties.getShard();
+        commonProperties.setRealm(0);
+        commonProperties.setShard(0);
     }
 
     @AfterEach
     void teardown() {
         importerProperties.setNetwork(TESTNET);
+        commonProperties.setRealm(realm);
+        commonProperties.setShard(shard);
     }
 
     @Test

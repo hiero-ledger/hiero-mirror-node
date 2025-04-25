@@ -40,7 +40,7 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
     @BeforeEach
     void beforeEach() {
         when(entityIdService.lookup(ContractID.getDefaultInstance(), contractId))
-                .thenReturn(Optional.of(EntityId.of(DEFAULT_ENTITY_NUM)));
+                .thenReturn(Optional.of(defaultEntityId));
     }
 
     @Override
@@ -51,10 +51,8 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setContractUpdateInstance(ContractUpdateTransactionBody.newBuilder()
-                        .setContractID(ContractID.newBuilder()
-                                .setContractNum(DEFAULT_ENTITY_NUM)
-                                .build()));
+                .setContractUpdateInstance(
+                        ContractUpdateTransactionBody.newBuilder().setContractID(defaultEntityId.toContractID()));
     }
 
     @Override
@@ -111,7 +109,8 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .satisfies(c -> assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
                 .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
                 .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getProxyAccountId().getId()).isPositive()));
+                .satisfies(
+                        c -> assertThat(EntityId.isEmpty(c.getProxyAccountId())).isFalse()));
         assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
     }
 
@@ -146,7 +145,8 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .satisfies(c -> assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
                 .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
                 .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getProxyAccountId().getId()).isPositive()));
+                .satisfies(
+                        c -> assertThat(EntityId.isEmpty(c.getProxyAccountId())).isFalse()));
         assertThat(recordItem.getEntityTransactions()).isEmpty();
     }
 
@@ -245,26 +245,28 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .transaction()
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
-        var aliasAccountId = EntityId.of(10L);
-        when(entityIdService.lookup(AccountID.newBuilder().setAlias(alias).build()))
-                .thenReturn(Optional.of(aliasAccountId));
+        var plainAccountId = domainBuilder.entityId(10L);
+        var aliasProtoAccountId =
+                plainAccountId.toAccountID().toBuilder().setAlias(alias).build();
+        when(entityIdService.lookup(aliasProtoAccountId)).thenReturn(Optional.of(plainAccountId));
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
         assertContractUpdate(timestamp, contractId, t -> assertThat(t)
-                .returns(10L, Entity::getAutoRenewAccountId)
+                .returns(plainAccountId.getId(), Entity::getAutoRenewAccountId)
                 .satisfies(c -> assertThat(c.getAutoRenewPeriod()).isPositive())
                 .satisfies(c -> assertThat(c.getExpirationTimestamp()).isPositive())
                 .satisfies(c -> assertThat(c.getKey()).isNotEmpty())
                 .satisfies(c -> assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
                 .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
                 .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getProxyAccountId().getId()).isPositive()));
+                .satisfies(
+                        c -> assertThat(EntityId.isEmpty(c.getProxyAccountId())).isFalse()));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(
-                        getExpectedEntityTransactions(aliasAccountId, recordItem, transaction));
+                        getExpectedEntityTransactions(plainAccountId, recordItem, transaction));
     }
 
     @ParameterizedTest
@@ -284,8 +286,10 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .transaction()
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
-        when(entityIdService.lookup(AccountID.newBuilder().setAlias(alias).build()))
-                .thenReturn(Optional.ofNullable(entityId));
+        var aliasProtoAccountId = domainBuilder.entityId(10L).toAccountID().toBuilder()
+                .setAlias(alias)
+                .build();
+        when(entityIdService.lookup(aliasProtoAccountId)).thenReturn(Optional.ofNullable(entityId));
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
@@ -300,7 +304,8 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .satisfies(c -> assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
                 .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
                 .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getProxyAccountId().getId()).isPositive()));
+                .satisfies(
+                        c -> assertThat(EntityId.isEmpty(c.getProxyAccountId())).isFalse()));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(null, recordItem, transaction));
     }
@@ -310,7 +315,10 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
         var recordItem = recordItemBuilder
                 .contractUpdate()
                 .recordItem(r -> r.hapiVersion(new Version(0, 28, 0)))
-                .transactionBody(b -> b.getAutoRenewAccountIdBuilder().setAccountNum(0))
+                .transactionBody(b -> b.getAutoRenewAccountIdBuilder()
+                        .setShardNum(0)
+                        .setRealmNum(0)
+                        .setAccountNum(0))
                 .build();
         var contractId =
                 EntityId.of(recordItem.getTransactionRecord().getReceipt().getContractID());
@@ -328,7 +336,8 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .satisfies(c -> assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
                 .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
                 .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getProxyAccountId().getId()).isPositive()));
+                .satisfies(
+                        c -> assertThat(EntityId.isEmpty(c.getProxyAccountId())).isFalse()));
     }
 
     @Test

@@ -1562,9 +1562,9 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         // grant allowance
         var expectedNft = TestUtils.clone(nft);
-        expectedNft.setDelegatingSpender(domainBuilder.entityId());
+        expectedNft.setDelegatingSpender(domainBuilder.entityId().getId());
         expectedNft.setTimestampLower(domainBuilder.timestamp());
-        expectedNft.setSpender(domainBuilder.entityId());
+        expectedNft.setSpender(domainBuilder.entityId().getId());
 
         var nftUpdate = TestUtils.clone(expectedNft);
         nftUpdate.setCreatedTimestamp(null);

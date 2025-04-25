@@ -17,7 +17,6 @@ import com.hederahashgraph.api.proto.java.CryptoCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SchedulableTransactionBody;
 import com.hederahashgraph.api.proto.java.ScheduleCreateTransactionBody;
-import com.hederahashgraph.api.proto.java.ScheduleID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import org.junit.jupiter.api.Test;
@@ -50,9 +49,7 @@ class ScheduleCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
     protected TransactionReceipt.Builder getTransactionReceipt(ResponseCodeEnum responseCodeEnum) {
         return TransactionReceipt.newBuilder()
                 .setStatus(responseCodeEnum)
-                .setScheduleID(ScheduleID.newBuilder()
-                        .setScheduleNum(DEFAULT_ENTITY_NUM)
-                        .build());
+                .setScheduleID(defaultEntityId.toScheduleID());
     }
 
     @Override
@@ -123,7 +120,7 @@ class ScheduleCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .returns(null, Schedule::getExecutedTimestamp)
                 .satisfies(s -> assertThat(s.getExpirationTime()).isPositive())
                 .returns(schedulePayerAccountId, Schedule::getPayerAccountId)
-                .satisfies(s -> assertThat(s.getScheduleId()).isPositive())
+                .satisfies(s -> assertThat(s.getScheduleId()).isNotNull())
                 .satisfies(s -> assertThat(s.getTransactionBody()).isNotEmpty())
                 .returns(true, Schedule::isWaitForExpiry)));
         assertThat(recordItem.getEntityTransactions())
@@ -165,7 +162,7 @@ class ScheduleCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .returns(null, Schedule::getExecutedTimestamp)
                 .returns(null, Schedule::getExpirationTime)
                 .returns(payerAccountId, Schedule::getPayerAccountId)
-                .satisfies(s -> assertThat(s.getScheduleId()).isPositive())
+                .satisfies(s -> assertThat(s.getScheduleId()).isNotNull())
                 .satisfies(s -> assertThat(s.getTransactionBody()).isNotEmpty())
                 .returns(false, Schedule::isWaitForExpiry)));
         assertThat(recordItem.getEntityTransactions())

@@ -53,10 +53,7 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
 
     @Override
     protected TransactionReceipt.Builder getTransactionReceipt(ResponseCodeEnum responseCodeEnum) {
-        return TransactionReceipt.newBuilder()
-                .setStatus(responseCodeEnum)
-                .setAccountID(
-                        AccountID.newBuilder().setAccountNum(DEFAULT_ENTITY_NUM).build());
+        return TransactionReceipt.newBuilder().setStatus(responseCodeEnum).setAccountID(defaultEntityId.toAccountID());
     }
 
     @Override
@@ -284,7 +281,8 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .satisfies(c -> assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
                 .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
                 .returns(accountId.getNum(), Entity::getNum)
-                .satisfies(c -> assertThat(c.getProxyAccountId().getId()).isPositive())
+                .satisfies(
+                        c -> assertThat(EntityId.isEmpty(c.getProxyAccountId())).isFalse())
                 .returns(accountId.getRealm(), Entity::getRealm)
                 .returns(accountId.getShard(), Entity::getShard)
                 .returns(ACCOUNT, Entity::getType)

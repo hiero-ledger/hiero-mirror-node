@@ -18,7 +18,6 @@ import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
 import com.hederahashgraph.api.proto.java.FixedCustomFee;
 import com.hederahashgraph.api.proto.java.FixedFee;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import com.hederahashgraph.api.proto.java.TopicID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import java.util.Collections;
@@ -43,9 +42,7 @@ class ConsensusCreateTopicTransactionHandlerTest extends AbstractTransactionHand
 
     @Override
     protected TransactionReceipt.Builder getTransactionReceipt(ResponseCodeEnum responseCodeEnum) {
-        return TransactionReceipt.newBuilder()
-                .setStatus(responseCodeEnum)
-                .setTopicID(TopicID.newBuilder().setTopicNum(DEFAULT_ENTITY_NUM));
+        return TransactionReceipt.newBuilder().setStatus(responseCodeEnum).setTopicID(defaultEntityId.toTopicID());
     }
 
     @Override

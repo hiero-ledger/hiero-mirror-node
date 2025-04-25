@@ -81,8 +81,7 @@ class CryptoDeleteAllowanceTransactionHandlerTest extends AbstractTransactionHan
                 .returns(null, Nft::getMetadata)
                 .satisfies(n -> assertThat(n.getId().getSerialNumber()).isPositive())
                 .returns(null, Nft::getSpender)
-                .returns(Range.atLeast(timestamp), Nft::getTimestampRange)
-                .satisfies(n -> assertThat(n.getTokenId()).isPositive())));
+                .returns(Range.atLeast(timestamp), Nft::getTimestampRange)));
     }
 
     private Map<Long, EntityTransaction> getExpectedEntityTransactions(RecordItem recordItem, Transaction transaction) {

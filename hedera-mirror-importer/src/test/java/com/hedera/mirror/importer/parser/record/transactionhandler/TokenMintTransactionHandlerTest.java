@@ -17,7 +17,6 @@ import com.hedera.mirror.common.domain.token.AbstractNft;
 import com.hedera.mirror.common.domain.token.AbstractToken;
 import com.hedera.mirror.common.domain.token.Nft;
 import com.hedera.mirror.common.domain.token.Token;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenMintTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.Test;
@@ -33,9 +32,7 @@ class TokenMintTransactionHandlerTest extends AbstractTransactionHandlerTest {
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
                 .setTokenMint(TokenMintTransactionBody.newBuilder()
-                        .setToken(TokenID.newBuilder()
-                                .setTokenNum(DEFAULT_ENTITY_NUM)
-                                .build())
+                        .setToken(defaultEntityId.toTokenID())
                         .build());
     }
 
