@@ -23,7 +23,7 @@ This design document concerns the support of streaming blocks from block nodes i
 ### Database
 
 Since block nodes don't have a node id, the `not null` constraint of the `node_id` column in `record_file` table needs
-to be dropped. Note the column can be dropped after sunsetting stateproof alpha API. 
+to be dropped. Note the column can be dropped after sunsetting stateproof alpha API.
 
 ```sql
 alter table if exists record_file alter column node_id drop not null;
