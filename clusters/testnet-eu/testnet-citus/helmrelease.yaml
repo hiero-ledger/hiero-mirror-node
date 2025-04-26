@@ -60,6 +60,8 @@ spec:
         MonitorSubscribeLatency:
           enabled: false
     rest:
+      env:
+        HEDERA_MIRROR_REST_CACHE_RESPONSE_ENABLED: "false"
       monitor:
         config:
           contract:
