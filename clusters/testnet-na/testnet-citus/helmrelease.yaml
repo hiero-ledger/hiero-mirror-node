@@ -62,6 +62,7 @@ spec:
           enabled: false
     rest:
       env:
+        HEDERA_MIRROR_REST_CACHE_RESPONSE_ENABLED: "false"
         HEDERA_MIRROR_REST_RESPONSE_INCLUDEADMINKEY: "true"
       monitor:
         config:
