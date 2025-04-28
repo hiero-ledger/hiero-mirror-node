@@ -36,7 +36,7 @@ dependencies {
     implementation("org.gradle:test-retry-gradle-plugin:1.6.2")
     implementation("org.jooq:jooq-codegen-gradle:$jooqVersion")
     implementation("org.jooq:jooq-meta:$jooqVersion")
-    implementation("org.openapitools:openapi-generator-gradle-plugin:7.12.0")
+    implementation("org.openapitools:openapi-generator-gradle-plugin:7.13.0")
     implementation("org.owasp:dependency-check-gradle:12.1.1")
     implementation("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:6.1.0.5360")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:3.4.5")
