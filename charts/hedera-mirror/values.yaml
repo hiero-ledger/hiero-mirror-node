@@ -268,7 +268,7 @@ rest:
         rest:
           cache:
             response:
-              enabled: true
+              enabled: false
   db:
     password: ""  # Randomly generated if left blank
     username: mirror_rest
