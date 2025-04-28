@@ -77,7 +77,7 @@ class ContractCallHASSystemContractTest extends AbstractContractCallServiceTest 
     }
 
     @Test
-    void testHASApproveCall() throws Exception {
+    void testHASApproveCall() {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var ownerEntityId = accountEntityPersist().toEntityId();
@@ -99,7 +99,7 @@ class ContractCallHASSystemContractTest extends AbstractContractCallServiceTest 
     }
 
     @Test
-    void testHASApproveFromContractCall() throws Exception {
+    void testHASApproveFromContractCall() {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var contractOwner = testWeb3jService.deployWithoutPersist(EthCall::deploy);
@@ -126,10 +126,10 @@ class ContractCallHASSystemContractTest extends AbstractContractCallServiceTest 
     }
 
     @Test
-    void testHASApproveCallMissingOwner() throws Exception {
+    void testHASApproveCallMissingOwner() {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
-        final var ownerEntityId = domainBuilder.entity().get().toEntityId();
+        final var ownerEntityId = domainBuilder.entityId();
         final var spenderEntityId = accountEntityPersist().toEntityId();
         final var ownerAddress = toAddress(ownerEntityId).toHexString();
         final var spenderAddress = toAddress(spenderEntityId).toHexString();
@@ -144,11 +144,11 @@ class ContractCallHASSystemContractTest extends AbstractContractCallServiceTest 
     }
 
     @Test
-    void testHASApproveCallMissingSpender() throws Exception {
+    void testHASApproveCallMissingSpender() {
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var ownerEntityId = accountEntityPersist().toEntityId();
-        final var spenderEntityId = domainBuilder.entity().get().toEntityId();
+        final var spenderEntityId = domainBuilder.entityId();
         final var ownerAddress = toAddress(ownerEntityId).toHexString();
         final var spenderAddress = toAddress(spenderEntityId).toHexString();
 
@@ -166,12 +166,12 @@ class ContractCallHASSystemContractTest extends AbstractContractCallServiceTest 
         // Given
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var contractOwner = testWeb3jService.deployWithoutPersist(EthCall::deploy);
-        final var contractRuntimeBytecode = testWeb3jService.getContractRuntime();
-        final var ownerContractEntity =
-                persistContract(contractRuntimeBytecode, Address.fromHexString(contractOwner.getContractAddress()));
+        final var contractOwnerRuntimeBytecode = testWeb3jService.getContractRuntime();
+        final var contractOwnerEntity =
+                persistContract(contractOwnerRuntimeBytecode, Address.fromHexString(contractOwner.getContractAddress()));
 
         final var contractOwnerAddress =
-                toAddress(ownerContractEntity.toEntityId()).toHexString();
+                toAddress(contractOwnerEntity.toEntityId()).toHexString();
         final var spenderEntityId = accountEntityPersist().toEntityId();
         final var spenderAddress = toAddress(spenderEntityId).toHexString();
 
