@@ -33,13 +33,6 @@ import org.junit.jupiter.api.Test;
  *      transferred from or to the treasury account.
  */
 class ContractCallCustomFeesModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
-
-    private static final long FIXED_FEE_AMOUNT = 10L;
-    private static final long MIN_AMOUNT = 1L;
-    private static final long MAX_AMOUNT = 1000L;
-    private static final long NUMERATOR = 2L;
-    private static final long DENOMINATOR = 100L;
-
     private boolean isModularized;
     private Map<String, String> evmProperties;
 
@@ -66,7 +59,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         final var token = fungibleTokenPersistWithTreasuryAccount(
                 accountEntityWithEvmAddressPersist().toEntityId());
         final var collector = accountEntityWithEvmAddressPersist();
-        fixedFeeInHbarPersist(token, collector, FIXED_FEE_AMOUNT);
+        fixedFeeInHbarPersist(token, collector, DEFAULT_FEE_AMOUNT.longValue());
 
         // When I update the token fees
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
@@ -129,14 +122,12 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
                 accountEntityWithEvmAddressPersist().toEntityId());
 
         // When
-        final var modificationPrecompileTestContract =
-                testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
         final var newCollector = accountEntityWithEvmAddressPersist();
         final var newFee = buildFixedFeeInCustomToken(token, newCollector);
-        final var updateFeesFunctionCall =
-                modificationPrecompileTestContract.call_updateFungibleTokenCustomFeesAndGetExternal(
-                        getTokenAddress(token), List.of(newFee), List.of(), List.of());
+        final var updateFeesFunctionCall = contract.call_updateFungibleTokenCustomFeesAndGetExternal(
+                getTokenAddress(token), List.of(newFee), List.of(), List.of());
 
         tokenAccountPersist(token.getTokenId(), newCollector.getId());
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
@@ -149,7 +140,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(updatedFixedFee.tokenId).isEqualTo(newFee.tokenId);
         assertThat(updatedFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
 
-        verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
+        verifyEthCallAndEstimateGas(updateFeesFunctionCall, contract, ZERO_VALUE);
     }
 
     @Test
@@ -159,27 +150,25 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
                 accountEntityWithEvmAddressPersist().toEntityId());
 
         // When
-        final var modificationPrecompileTestContract =
-                testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
-        final var newCollector = accountEntityWithEvmAddressPersist();
-        final var newFee = buildFractionalFee(newCollector);
-        final var updateFeesFunctionCall =
-                modificationPrecompileTestContract.call_updateFungibleTokenCustomFeesAndGetExternal(
-                        getTokenAddress(token), List.of(), List.of(newFee), List.of());
+        final var collector = accountEntityWithEvmAddressPersist();
+        final var fractionalFee = buildFractionalFee(collector);
+        final var updateFeesFunctionCall = contract.call_updateFungibleTokenCustomFeesAndGetExternal(
+                getTokenAddress(token), List.of(), List.of(fractionalFee), List.of());
 
-        tokenAccountPersist(token.getTokenId(), newCollector.getId());
+        tokenAccountPersist(token.getTokenId(), collector.getId());
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
 
         // Then
         final var newFractionalFee = updateFeesFunctionCallResult.component2().getFirst();
-        assertThat(newFractionalFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
-        assertThat(newFractionalFee.numerator).isEqualTo(newFee.numerator);
-        assertThat(newFractionalFee.denominator).isEqualTo(newFee.denominator);
-        assertThat(newFractionalFee.minimumAmount).isEqualTo(newFee.minimumAmount);
-        assertThat(newFractionalFee.maximumAmount).isEqualTo(newFee.maximumAmount);
+        assertThat(newFractionalFee.feeCollector).isEqualTo(getAddressFromEntityId(collector.toEntityId()));
+        assertThat(newFractionalFee.numerator).isEqualTo(fractionalFee.numerator);
+        assertThat(newFractionalFee.denominator).isEqualTo(fractionalFee.denominator);
+        assertThat(newFractionalFee.minimumAmount).isEqualTo(fractionalFee.minimumAmount);
+        assertThat(newFractionalFee.maximumAmount).isEqualTo(fractionalFee.maximumAmount);
 
-        verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
+        verifyEthCallAndEstimateGas(updateFeesFunctionCall, contract, ZERO_VALUE);
     }
 
     @Test
@@ -189,16 +178,14 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
                 accountEntityWithEvmAddressPersist().toEntityId());
 
         // When
-        final var modificationPrecompileTestContract =
-                testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
         final var newCollector = accountEntityWithEvmAddressPersist();
         final var newFractionalFee = buildFractionalFee(newCollector);
         final var newFixedFee = createFixedFeeInHBAR(newCollector);
 
-        final var updateFeesFunctionCall =
-                modificationPrecompileTestContract.call_updateFungibleTokenCustomFeesAndGetExternal(
-                        getTokenAddress(token), List.of(newFixedFee), List.of(newFractionalFee), List.of());
+        final var updateFeesFunctionCall = contract.call_updateFungibleTokenCustomFeesAndGetExternal(
+                getTokenAddress(token), List.of(newFixedFee), List.of(newFractionalFee), List.of());
 
         tokenAccountPersist(token.getTokenId(), newCollector.getId());
 
@@ -232,17 +219,15 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
                 accountEntityWithEvmAddressPersist().toEntityId());
 
         final var collector = accountEntityWithEvmAddressPersist();
-        fixedFeeInHbarPersist(nft, collector, FIXED_FEE_AMOUNT);
+        fixedFeeInHbarPersist(nft, collector, DEFAULT_FEE_AMOUNT.longValue());
 
         // When
-        final var modificationPrecompileTestContract =
-                testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
         final var newCollector = accountEntityWithEvmAddressPersist();
         final var newFee = createFixedFeeInHBAR(newCollector);
-        final var updateFeesFunctionCall =
-                modificationPrecompileTestContract.call_updateNonFungibleTokenCustomFeesAndGetExternal(
-                        getTokenAddress(nft), List.of(newFee), List.of(), List.of());
+        final var updateFeesFunctionCall = contract.call_updateNonFungibleTokenCustomFeesAndGetExternal(
+                getTokenAddress(nft), List.of(newFee), List.of(), List.of());
 
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
 
@@ -255,7 +240,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(actualFixedFee.tokenId).isEqualTo(newFee.tokenId);
         assertThat(actualFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
 
-        verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
+        verifyEthCallAndEstimateGas(updateFeesFunctionCall, contract, ZERO_VALUE);
     }
 
     /**
@@ -269,14 +254,12 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
                 accountEntityWithEvmAddressPersist().toEntityId());
 
         // When
-        final var modificationPrecompileTestContract =
-                testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
         final var collector = accountEntityWithEvmAddressPersist();
         final var fee = createFixedFeeInHBAR(collector);
-        final var updateFeesFunctionCall =
-                modificationPrecompileTestContract.call_updateNonFungibleTokenCustomFeesAndGetExternal(
-                        getTokenAddress(nft), List.of(fee), List.of(), List.of());
+        final var updateFeesFunctionCall = contract.call_updateNonFungibleTokenCustomFeesAndGetExternal(
+                getTokenAddress(nft), List.of(fee), List.of(), List.of());
 
         tokenAccountPersist(nft.getTokenId(), collector.getId());
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
@@ -290,7 +273,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(actualFixedFee.tokenId).isEqualTo(fee.tokenId);
         assertThat(actualFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(collector.toEntityId()));
 
-        verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
+        verifyEthCallAndEstimateGas(updateFeesFunctionCall, contract, ZERO_VALUE);
     }
 
     @Test
@@ -300,15 +283,13 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
                 accountEntityWithEvmAddressPersist().toEntityId());
 
         // When
-        final var modificationPrecompileTestContract =
-                testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
         final var newCollector = accountEntityWithEvmAddressPersist();
         final var newFixedFee = createFixedFeeInHBAR(newCollector);
 
-        final var updateFeesFunctionCall =
-                modificationPrecompileTestContract.call_updateNonFungibleTokenCustomFeesAndGetExternal(
-                        getTokenAddress(nft), List.of(newFixedFee), List.of(), List.of());
+        final var updateFeesFunctionCall = contract.call_updateNonFungibleTokenCustomFeesAndGetExternal(
+                getTokenAddress(nft), List.of(newFixedFee), List.of(), List.of());
 
         tokenAccountPersist(nft.getTokenId(), newCollector.getId());
         final var updateFeesFunctionCallResult = updateFeesFunctionCall.send();
@@ -322,7 +303,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
         assertThat(actualFixedFee.tokenId).isEqualTo(newFixedFee.tokenId);
         assertThat(actualFixedFee.feeCollector).isEqualTo(getAddressFromEntityId(newCollector.toEntityId()));
 
-        verifyEthCallAndEstimateGas(updateFeesFunctionCall, modificationPrecompileTestContract, ZERO_VALUE);
+        verifyEthCallAndEstimateGas(updateFeesFunctionCall, contract, ZERO_VALUE);
     }
 
     @Test
@@ -423,7 +404,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     private FixedFee createFixedFeeInHBAR(Entity collectorAccount) {
         return new FixedFee(
-                BigInteger.valueOf(FIXED_FEE_AMOUNT + 10),
+                DEFAULT_FEE_AMOUNT.add(BigInteger.TEN),
                 Address.ZERO.toHexString(),
                 true,
                 false,
@@ -437,9 +418,9 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
      */
     private RoyaltyFee createRoyaltyFeeInHBAR(Entity collectorAccount) {
         return new RoyaltyFee(
-                BigInteger.valueOf(NUMERATOR),
-                BigInteger.valueOf(DENOMINATOR),
-                BigInteger.valueOf(FIXED_FEE_AMOUNT),
+                DEFAULT_NUMERATOR_VALUE,
+                DEFAULT_DENOMINATOR_VALUE,
+                DEFAULT_FEE_AMOUNT,
                 Address.ZERO.toHexString(),
                 true,
                 getAccountEvmAddress(collectorAccount));
@@ -447,9 +428,9 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     private RoyaltyFee createRoyaltyFeeInCustomToken(Token token, Entity collectorAccount) {
         return new RoyaltyFee(
-                BigInteger.valueOf(NUMERATOR),
-                BigInteger.valueOf(DENOMINATOR),
-                BigInteger.valueOf(FIXED_FEE_AMOUNT),
+                DEFAULT_NUMERATOR_VALUE,
+                DEFAULT_DENOMINATOR_VALUE,
+                DEFAULT_FEE_AMOUNT,
                 getTokenAddress(token),
                 false,
                 getAccountEvmAddress(collectorAccount));
@@ -457,19 +438,15 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     private FixedFee buildFixedFeeInCustomToken(Token token, Entity collectorAccount) {
         return new FixedFee(
-                BigInteger.valueOf(FIXED_FEE_AMOUNT + 10),
-                getTokenAddress(token),
-                false,
-                false,
-                getAccountEvmAddress(collectorAccount));
+                DEFAULT_FEE_AMOUNT, getTokenAddress(token), false, false, getAccountEvmAddress(collectorAccount));
     }
 
     private FractionalFee buildFractionalFee(Entity collectorAccount) {
         return new FractionalFee(
-                BigInteger.valueOf(NUMERATOR + 1),
-                BigInteger.valueOf(DENOMINATOR + 1),
-                BigInteger.valueOf(MIN_AMOUNT + 1),
-                BigInteger.valueOf(MAX_AMOUNT + 1),
+                DEFAULT_NUMERATOR_VALUE,
+                DEFAULT_DENOMINATOR_VALUE,
+                DEFAULT_FEE_MIN_VALUE,
+                DEFAULT_FEE_MIN_VALUE,
                 false,
                 getAccountEvmAddress(collectorAccount));
     }
