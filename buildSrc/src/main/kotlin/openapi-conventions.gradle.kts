@@ -12,7 +12,7 @@ openApiGenerate {
     configOptions =
         mapOf(
             "developerEmail" to "mirrornode@hedera.com",
-            "developerName" to "Hedera Mirror Node Team",
+            "developerName" to "Mirror Node Team",
             "developerOrganization" to "Hedera Hashgraph",
             "developerOrganizationUrl" to "https://github.com/hiero-ledger/hiero-mirror-node",
             "interfaceOnly" to "true",
