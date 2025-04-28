@@ -40,7 +40,7 @@ dependencies {
     implementation("org.owasp:dependency-check-gradle:12.1.1")
     implementation("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:6.1.0.5360")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:3.4.5")
-    implementation("org.testcontainers:postgresql:1.20.6")
+    implementation("org.testcontainers:postgresql:1.21.0")
     implementation("org.web3j:web3j-gradle-plugin:4.14.0")
 }
 
