@@ -161,7 +161,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected long gasUsedAfterExecution(final ContractExecutionParameters serviceParameters) {
         try {
-            var result = contractExecutionService.callContract(serviceParameters);
             return contractExecutionService.callContract(serviceParameters).getGasUsed();
         } catch (MirrorEvmTransactionException e) {
             // Some tests expect to fail but still want to capture the gas used
