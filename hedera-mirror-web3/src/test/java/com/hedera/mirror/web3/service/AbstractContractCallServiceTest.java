@@ -161,6 +161,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected long gasUsedAfterExecution(final ContractExecutionParameters serviceParameters) {
         try {
+            var result = contractExecutionService.callContract(serviceParameters);
             return contractExecutionService.callContract(serviceParameters).getGasUsed();
         } catch (MirrorEvmTransactionException e) {
             // Some tests expect to fail but still want to capture the gas used
@@ -179,7 +180,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected void verifyEthCallAndEstimateGas(
             final RemoteFunctionCall<TransactionReceipt> functionCall, final Contract contract) {
         final var actualGasUsed = gasUsedAfterExecution(getContractExecutionParameters(functionCall, contract));
-
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();
         // Verify eth_call
