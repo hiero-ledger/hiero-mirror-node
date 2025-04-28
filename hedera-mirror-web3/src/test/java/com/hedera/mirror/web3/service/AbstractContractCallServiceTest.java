@@ -179,6 +179,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected void verifyEthCallAndEstimateGas(
             final RemoteFunctionCall<TransactionReceipt> functionCall, final Contract contract) {
         final var actualGasUsed = gasUsedAfterExecution(getContractExecutionParameters(functionCall, contract));
+
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();
         // Verify eth_call
