@@ -313,10 +313,11 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
-    @Test
-    void mintNFT() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void mintNFT(final boolean isTreasuryAccountAliased) throws Exception {
         // Given
-        final var treasury = accountEntityPersist();
+        final var treasury = isTreasuryAccountAliased ? accountEntityWithEvmAddressPersist() : accountEntityPersist();
         final var tokenEntity = tokenEntityPersist();
 
         nonFungibleTokenPersist(tokenEntity, treasury);
