@@ -817,7 +817,9 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var expectedHederaToken = new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                getAddressFromEvmAddress(treasury.getEvmAddress()),
+                mirrorNodeEvmProperties.isModularizedServices()
+                        ? getAddressFromEntityId(treasury.toEntityId())
+                        : getAddressFromEvmAddress(treasury.getEvmAddress()),
                 tokenEntity.getMemo(),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),

@@ -474,9 +474,11 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
 
         final var expectedExpiry = new PrecompileTestContractHistorical.Expiry(
                 BigInteger.valueOf(expiryPeriod).divide(BigInteger.valueOf(1_000_000_000L)),
-                Address.fromHexString(
-                                Bytes.wrap(autoRenewAccount.getEvmAddress()).toHexString())
-                        .toHexString(),
+                mirrorNodeEvmProperties.isModularizedServices()
+                        ? getAddressFromEntity(autoRenewAccount)
+                        : Address.fromHexString(Bytes.wrap(autoRenewAccount.getEvmAddress())
+                                        .toHexString())
+                                .toHexString(),
                 BigInteger.valueOf(autoRenewExpiry));
 
         // Then
