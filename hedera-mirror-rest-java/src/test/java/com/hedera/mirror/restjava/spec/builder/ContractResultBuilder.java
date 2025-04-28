@@ -25,14 +25,13 @@ public class ContractResultBuilder
     protected ContractResult.ContractResultBuilder<?, ?> getEntityBuilder(SpecBuilderContext builderContext) {
         return ContractResult.builder()
                 .amount(0L)
-                .consensusTimestamp(1234510001L)
+                .consensusTimestamp(DEFAULT_CONSENSUS_TIMESTAMP)
                 .errorMessage("")
                 .functionParameters(HEX_FORMAT.parseHex("010102020303"))
                 .gasLimit(1000L)
-                .payerAccountId(EntityId.of(DEFAULT_PAYER_ACCOUNT_ID))
-                .senderId(EntityId.of(DEFAULT_SENDER_ID))
-                .transactionHash(
-                        HEX_FORMAT.parseHex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"))
+                .payerAccountId(DEFAULT_PAYER_ACCOUNT_ID)
+                .senderId(DEFAULT_SENDER_ID)
+                .transactionHash(DEFAULT_TRANSACTION_HASH)
                 .transactionIndex(1)
                 .transactionNonce(0)
                 .transactionResult(22);

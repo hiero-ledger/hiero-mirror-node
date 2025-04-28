@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.restjava.converter;
 
+import com.google.common.base.Strings;
 import jakarta.inject.Named;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
@@ -21,13 +22,15 @@ public class ByteArrayFromStringConverter implements Converter<String, byte[]> {
             return null;
         }
 
+        var cleanedSource = Strings.padStart(source.replaceAll("0x", ""), 2, '0');
+
         if (HEX_STRING_PATTERN.matcher(source).matches()) {
-            if (source.length() % 2 != 0) {
-                source = "0" + source;
+            if (cleanedSource.length() % 2 != 0) {
+                cleanedSource = cleanedSource.substring(0, cleanedSource.length() - 1);
             }
-            return HexFormat.of().parseHex(source.replace("0x", ""));
+            return HexFormat.of().parseHex(cleanedSource);
         }
 
-        return source.getBytes(StandardCharsets.UTF_8);
+        return cleanedSource.getBytes(StandardCharsets.UTF_8);
     }
 }

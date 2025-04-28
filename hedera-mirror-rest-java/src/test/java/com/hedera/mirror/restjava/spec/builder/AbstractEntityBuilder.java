@@ -3,6 +3,8 @@
 package com.hedera.mirror.restjava.spec.builder;
 
 import com.google.common.base.CaseFormat;
+import com.hedera.mirror.common.CommonProperties;
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.restjava.spec.model.SpecSetup;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
@@ -34,8 +36,18 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
 
     protected static final HexFormat HEX_FORMAT = HexFormat.of();
 
-    protected static final long DEFAULT_PAYER_ACCOUNT_ID = 102;
-    protected static final long DEFAULT_SENDER_ID = 101;
+    protected static CommonProperties COMMON_PROPS = CommonProperties.getInstance();
+
+    protected static final long NETWORK_FEE = 1;
+    protected static final long NODE_FEE = 2;
+    protected static final long SERVICE_FEE = 4;
+
+    // Common Defaults for specs
+    protected static final EntityId DEFAULT_CONTRACT_ID = EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 1);
+    protected static final EntityId DEFAULT_PAYER_ACCOUNT_ID = EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 102);
+    protected static final EntityId DEFAULT_SENDER_ID = EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 101);
+    protected static final long DEFAULT_CONSENSUS_TIMESTAMP = 1234510001L;
+    protected static final byte[] DEFAULT_TRANSACTION_HASH = HEX_FORMAT.parseHex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
 
     /*
      * Common handy spec attribute value converter functions to be used by subclasses.
@@ -134,9 +146,7 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
         var specEntities = getSpecEntitiesSupplier(specSetup).get();
         if (!CollectionUtils.isEmpty(specEntities)) {
             specEntities.forEach(specEntity -> transactionOperations.executeWithoutResult(t -> {
-                var builderContext = new SpecBuilderContext(
-                        isHistory(specEntity),
-                        specEntity); // TODO dont pass isHistory. Make it calculate dynamically based on data. Add
+                var builderContext = new SpecBuilderContext(specEntity);
                 // helper to context
                 var entityBuilder = getEntityBuilder(builderContext);
                 customizeWithSpec(entityBuilder, specEntity, builderContext);
@@ -146,7 +156,7 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
         }
     }
 
-    private void customizeWithSpec(B builder, Map<String, Object> customizations, SpecBuilderContext builderContext) {
+    protected void customizeWithSpec(Object builder, Map<String, Object> customizations, SpecBuilderContext builderContext) {
         var builderClass = builder.getClass();
         var builderMethods = methodCache.computeIfAbsent(builderClass, clazz -> Arrays.stream(clazz.getMethods())
                 .collect(Collectors.toMap(Method::getName, Function.identity(), (v1, v2) -> v2)));
@@ -197,5 +207,9 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
         return mappedAttributeName.indexOf('_') >= 0
                 ? CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, mappedAttributeName)
                 : mappedAttributeName;
+    }
+
+    protected static EntityId getScopedEntityId(long id) {
+        return EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), id);
     }
 }

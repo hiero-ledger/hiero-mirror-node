@@ -1,0 +1,45 @@
+package com.hedera.mirror.restjava.spec.builder;
+
+import com.hedera.mirror.common.domain.transaction.Transaction;
+import com.hedera.mirror.common.domain.transaction.TransactionType;
+import com.hedera.mirror.restjava.spec.model.SpecSetup;
+import jakarta.inject.Named;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
+
+@Named
+public class TransactionBuilder extends AbstractEntityBuilder<Transaction, Transaction.TransactionBuilder> {
+
+    @Override
+    protected Transaction.TransactionBuilder getEntityBuilder(SpecBuilderContext builderContext) {
+        return Transaction.builder()
+                .chargedTxFee(NODE_FEE + NETWORK_FEE + SERVICE_FEE)
+                .maxCustomFees(new byte[0][0])
+                .maxFee(33L)
+                .nonce(0)
+                .result(22)
+                .transactionBytes(Base64.getEncoder().encode("bytes".getBytes()))
+                .transactionHash(DEFAULT_TRANSACTION_HASH)
+                .type(TransactionType.CRYPTOTRANSFER.getProtoId())
+                .validDurationSeconds(11L)
+                .index(1);
+    }
+
+    @Override
+    protected Transaction getFinalEntity(Transaction.TransactionBuilder builder, Map<String, Object> entityAttributes) {
+        var transaction = builder.build();
+
+        if (transaction.getValidStartNs() == null) {
+            transaction.setValidStartNs(transaction.getConsensusTimestamp() - 1);
+        }
+
+        return transaction;
+    }
+
+    @Override
+    protected Supplier<List<Map<String, Object>>> getSpecEntitiesSupplier(SpecSetup specSetup) {
+        return specSetup::transactions;
+    }
+}

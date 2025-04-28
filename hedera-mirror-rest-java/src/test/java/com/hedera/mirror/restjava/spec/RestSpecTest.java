@@ -64,7 +64,7 @@ class RestSpecTest extends RestJavaIntegrationTest {
             return INCLUDED_SPEC_DIRS.matcher(dirName).matches()
                     && !RESPONSE_HEADER_FILE.equals(file.getName())
                     //                                        &&
-                    // file.getName().endsWith("failed-ethereum-transaction.json")
+//                     && file.getName().endsWith("non-populated-eth-data.json")
                     && EXCLUDED_SPEC_FILES.stream()
                             .noneMatch(path -> file.getPath().endsWith(path));
         }
