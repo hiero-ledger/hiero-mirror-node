@@ -100,7 +100,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
         return Token.newBuilder()
                 .accountsFrozenByDefault(token.getFreezeDefault())
                 .adminKey(Utils.parseKey(entity.getKey()))
-                .autoRenewAccountId(getAutoRenewAccount(entity.getAutoRenewAccountId(), timestamp))
+                .autoRenewAccountId(getAutoRenewAccount(entity.getAutoRenewAccountId()))
                 .autoRenewSeconds(
                         entity.getAutoRenewPeriod() != null ? entity.getAutoRenewPeriod() : DEFAULT_AUTO_RENEW_PERIOD)
                 .customFees(getCustomFees(token.getTokenId(), timestamp))
@@ -123,7 +123,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
                 .tokenId(toTokenId(entity.getId()))
                 .tokenType(TokenType.valueOf(token.getType().name()))
                 .totalSupply(getTotalSupply(token, timestamp))
-                .treasuryAccountId(getTreasury(token.getTreasuryAccountId(), timestamp))
+                .treasuryAccountId(getTreasury(token.getTreasuryAccountId()))
                 .wipeKey(Utils.parseKey(token.getWipeKey()))
                 .accountsKycGrantedByDefault(token.getKycStatus() == TokenKycStatusEnum.GRANTED)
                 .build();
@@ -147,26 +147,18 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
         }
     }
 
-    private Supplier<AccountID> getAutoRenewAccount(Long autoRenewAccountId, final Optional<Long> timestamp) {
+    private AccountID getAutoRenewAccount(Long autoRenewAccountId) {
         if (autoRenewAccountId == null) {
             return null;
         }
-        return Suppliers.memoize(() -> timestamp
-                .map(t -> entityRepository.findActiveByIdAndTimestamp(autoRenewAccountId, t))
-                .orElseGet(() -> entityRepository.findByIdAndDeletedIsFalse(autoRenewAccountId))
-                .map(entity -> EntityIdUtils.toAccountId(entity.toEntityId()))
-                .orElse(null));
+        return EntityIdUtils.toAccountId(autoRenewAccountId);
     }
 
-    private Supplier<AccountID> getTreasury(EntityId treasuryId, final Optional<Long> timestamp) {
+    private AccountID getTreasury(EntityId treasuryId) {
         if (treasuryId == null) {
             return null;
         }
-        return Suppliers.memoize(() -> timestamp
-                .map(t -> entityRepository.findActiveByIdAndTimestamp(treasuryId.getId(), t))
-                .orElseGet(() -> entityRepository.findByIdAndDeletedIsFalse(treasuryId.getId()))
-                .map(entity -> EntityIdUtils.toAccountId(entity.toEntityId()))
-                .orElse(null));
+        return EntityIdUtils.toAccountId(treasuryId);
     }
 
     private Supplier<List<CustomFee>> getCustomFees(Long tokenId, final Optional<Long> timestamp) {
