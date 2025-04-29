@@ -66,7 +66,7 @@ git add sealed-secret.yaml
 
 ```bash
 brew upgrade
-flux bootstrap github --owner=hiero-ledger --repository=hiero-mirror-node --branch=deploy --team=hiero-mirror-node-committers --context="${CONTEXT}" --path="clusters/${CONTEXT}" --private=false --interval=1m
+flux install --export > ./clusters/${CONTEXT}/flux-system/gotk-components.yaml
 ```
 
 ## Restore
