@@ -37,7 +37,7 @@ services:
     environment:
       HEDERA_MIRROR_GRAPHQL_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
-    image: gcr.io/mirrornode/hedera-mirror-graphql:0.128.1
+    image: gcr.io/mirrornode/hedera-mirror-graphql:0.128.2
     ports:
       - 8083:8083
     pull_policy: always
@@ -52,7 +52,7 @@ services:
       HEDERA_MIRROR_GRPC_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
       SPRING_DATA_REDIS_HOST: redis
-    image: gcr.io/mirrornode/hedera-mirror-grpc:0.128.1
+    image: gcr.io/mirrornode/hedera-mirror-grpc:0.128.2
     ports:
       - 5600:5600
     pull_policy: always
@@ -67,7 +67,7 @@ services:
       HEDERA_MIRROR_IMPORTER_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
       SPRING_DATA_REDIS_HOST: redis
-    image: gcr.io/mirrornode/hedera-mirror-importer:0.128.1
+    image: gcr.io/mirrornode/hedera-mirror-importer:0.128.2
     pull_policy: always
     restart: unless-stopped
     tty: true
@@ -80,7 +80,7 @@ services:
       replicas: 0
     environment:
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
-    image: gcr.io/mirrornode/hedera-mirror-monitor:0.128.1
+    image: gcr.io/mirrornode/hedera-mirror-monitor:0.128.2
     pull_policy: always
     restart: unless-stopped
 
@@ -101,7 +101,7 @@ services:
       CONFIG_PATH: /usr/etc/hedera/
       HEDERA_MIRROR_REST_DB_HOST: db
       HEDERA_MIRROR_REST_REDIS_URI: redis://redis:6379
-    image: gcr.io/mirrornode/hedera-mirror-rest:0.128.1
+    image: gcr.io/mirrornode/hedera-mirror-rest:0.128.2
     pull_policy: always
     ports:
       - 5551:5551
@@ -115,7 +115,7 @@ services:
     environment:
       HEDERA_MIRROR_RESTJAVA_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
-    image: gcr.io/mirrornode/hedera-mirror-rest-java:0.128.1
+    image: gcr.io/mirrornode/hedera-mirror-rest-java:0.128.2
     pull_policy: always
     ports:
       - 8084:8084
@@ -131,7 +131,7 @@ services:
     environment:
       HEDERA_MIRROR_ROSETTA_API_CONFIG: /usr/etc/hedera/application.yml
       HEDERA_MIRROR_ROSETTA_DB_HOST: db
-    image: gcr.io/mirrornode/hedera-mirror-rosetta:0.128.1
+    image: gcr.io/mirrornode/hedera-mirror-rosetta:0.128.2
     pull_policy: always
     ports:
       - 5700:5700
@@ -145,7 +145,7 @@ services:
     environment:
       HEDERA_MIRROR_WEB3_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
-    image: gcr.io/mirrornode/hedera-mirror-web3:0.128.1
+    image: gcr.io/mirrornode/hedera-mirror-web3:0.128.2
     pull_policy: always
     ports:
       - 8545:8545
