@@ -7,13 +7,13 @@ import static org.awaitility.Awaitility.await;
 
 import com.google.common.base.Stopwatch;
 import com.google.protobuf.ByteString;
-import com.hedera.hashgraph.sdk.AccountBalanceQuery;
 import com.hedera.hashgraph.sdk.AccountCreateTransaction;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Client;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.TopicDeleteTransaction;
 import com.hedera.hashgraph.sdk.TopicId;
+import com.hedera.hashgraph.sdk.TopicMessageSubmitTransaction;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
 import com.hedera.hashgraph.sdk.proto.AccountID;
 import com.hedera.hashgraph.sdk.proto.NodeAddress;
@@ -31,6 +31,7 @@ import java.math.RoundingMode;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -200,18 +201,29 @@ public class SDKClient implements Cleanable {
         var network = client.getNetwork();
         Map<String, AccountId> validNodes = new LinkedHashMap<>();
         var stopwatch = Stopwatch.createStarted();
+        var invalidNodes = new HashSet<AccountId>();
 
         for (var nodeEntry : network.entrySet()) {
             var endpoint = nodeEntry.getKey();
             var nodeAccountId = nodeEntry.getValue();
 
-            if (validateNode(nodeAccountId)) {
+            if (validateNode(endpoint, nodeAccountId)) {
                 validNodes.putIfAbsent(endpoint, nodeAccountId);
-                log.trace("Added node {} at endpoint {} to list of valid nodes", nodeAccountId, endpoint);
+            } else {
+                invalidNodes.add(nodeAccountId);
             }
 
             if (validNodes.size() >= acceptanceTestProperties.getMaxNodes()) {
                 break;
+            }
+        }
+
+        // Workaround SDK #2317 not propagating the address book when calling setNetwork(), causing TLS to fail
+        var iterator = validNodes.entrySet().iterator();
+        while (iterator.hasNext()) {
+            var next = iterator.next();
+            if (invalidNodes.contains(next.getValue())) {
+                iterator.remove();
             }
         }
 
@@ -232,21 +244,23 @@ public class SDKClient implements Cleanable {
         return configureClient(client).setMirrorNetwork(List.of(acceptanceTestProperties.getMirrorNodeAddress()));
     }
 
-    private boolean validateNode(AccountId nodeAccountId) {
+    private boolean validateNode(String endpoint, AccountId nodeAccountId) {
         var stopwatch = Stopwatch.createStarted();
 
         try {
-            new AccountBalanceQuery()
-                    .setAccountId(nodeAccountId)
-                    .setGrpcDeadline(sdkProperties.getGrpcDeadline())
-                    .setNodeAccountIds(List.of(nodeAccountId))
+            // client.setNetwork(Map.of(endpoint, nodeAccountId)); Enable after SDK #2317 is fixed
+            new TopicMessageSubmitTransaction()
+                    .setMessage("Mirror Acceptance node " + nodeAccountId + " validation")
+                    .setTopicId(topicId)
                     .setMaxAttempts(3)
                     .setMaxBackoff(Duration.ofSeconds(2))
-                    .execute(client, Duration.ofSeconds(10L));
-            log.info("Validated node {} in {}", nodeAccountId, stopwatch);
+                    .setNodeAccountIds(List.of(nodeAccountId))
+                    .execute(client, Duration.ofSeconds(10L))
+                    .getReceipt(client, Duration.ofSeconds(10L));
+            log.info("Validated node {} {} in {}", nodeAccountId, endpoint, stopwatch);
             return true;
         } catch (Exception e) {
-            log.warn("Unable to validate node {} after {}: {}", nodeAccountId, stopwatch, e.getMessage());
+            log.warn("Unable to validate node {} {} after {}: {}", nodeAccountId, endpoint, stopwatch, e.getMessage());
         }
 
         return false;
