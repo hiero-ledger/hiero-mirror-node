@@ -6,7 +6,6 @@ import static com.hedera.mirror.web3.state.Utils.DEFAULT_AUTO_RENEW_PERIOD;
 import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
 
-import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.Fraction;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.base.TokenSupplyType;
@@ -19,7 +18,6 @@ import com.hedera.hapi.node.transaction.FractionalFee;
 import com.hedera.hapi.node.transaction.RoyaltyFee;
 import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
 import com.hedera.mirror.common.domain.token.TokenPauseStatusEnum;
@@ -100,7 +98,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
         return Token.newBuilder()
                 .accountsFrozenByDefault(token.getFreezeDefault())
                 .adminKey(Utils.parseKey(entity.getKey()))
-                .autoRenewAccountId(getAutoRenewAccount(entity.getAutoRenewAccountId()))
+                .autoRenewAccountId(EntityIdUtils.toAccountId(entity.getAutoRenewAccountId()))
                 .autoRenewSeconds(
                         entity.getAutoRenewPeriod() != null ? entity.getAutoRenewPeriod() : DEFAULT_AUTO_RENEW_PERIOD)
                 .customFees(getCustomFees(token.getTokenId(), timestamp))
@@ -123,7 +121,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
                 .tokenId(toTokenId(entity.getId()))
                 .tokenType(TokenType.valueOf(token.getType().name()))
                 .totalSupply(getTotalSupply(token, timestamp))
-                .treasuryAccountId(getTreasury(token.getTreasuryAccountId()))
+                .treasuryAccountId(EntityIdUtils.toAccountId(token.getTreasuryAccountId()))
                 .wipeKey(Utils.parseKey(token.getWipeKey()))
                 .accountsKycGrantedByDefault(token.getKycStatus() == TokenKycStatusEnum.GRANTED)
                 .build();
@@ -145,20 +143,6 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
         } else {
             return nftRepository.findNftTotalSupplyByTokenIdAndTimestamp(tokenId, timestamp);
         }
-    }
-
-    private AccountID getAutoRenewAccount(Long autoRenewAccountId) {
-        if (autoRenewAccountId == null) {
-            return null;
-        }
-        return EntityIdUtils.toAccountId(autoRenewAccountId);
-    }
-
-    private AccountID getTreasury(EntityId treasuryId) {
-        if (treasuryId == null) {
-            return null;
-        }
-        return EntityIdUtils.toAccountId(treasuryId);
     }
 
     private Supplier<List<CustomFee>> getCustomFees(Long tokenId, final Optional<Long> timestamp) {

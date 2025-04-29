@@ -253,7 +253,7 @@ class TokenReadableKVStateTest {
 
         Token token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
 
-        assertThat(token.treasuryAccountIdSupplier().get()).isEqualTo(expectedTreasuryAccountId);
+        assertThat(token.treasuryAccountId()).isEqualTo(expectedTreasuryAccountId);
     }
 
     @Test
@@ -264,9 +264,8 @@ class TokenReadableKVStateTest {
         when(commonEntityAccessor.get(TOKEN_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
         final var expectedTreasuryAccountId = toAccountId(entityId);
 
-        assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID))
-                .satisfies(token ->
-                        assertThat(token.treasuryAccountIdSupplier().get()).isEqualTo(expectedTreasuryAccountId));
+        Token token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
+        assertThat(token.treasuryAccountId()).isEqualTo(expectedTreasuryAccountId);
     }
 
     @Test
@@ -278,9 +277,8 @@ class TokenReadableKVStateTest {
         when(commonEntityAccessor.get(TOKEN_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
 
         final var autoRenewAccountId = toAccountId(0L, 0L, 10L);
-        assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID))
-                .satisfies(token ->
-                        assertThat(token.autoRenewAccountIdSupplier().get()).isEqualTo(autoRenewAccountId));
+        Token token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
+        assertThat(token.autoRenewAccountId()).isEqualTo(autoRenewAccountId);
     }
 
     @Test
@@ -293,9 +291,8 @@ class TokenReadableKVStateTest {
         when(commonEntityAccessor.get(TOKEN_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
 
         final var autoRenewAccountId = toAccountId(0L, 0L, 10L);
-        assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID))
-                .satisfies(token ->
-                        assertThat(token.autoRenewAccountIdSupplier().get()).isEqualTo(autoRenewAccountId));
+        Token token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
+        assertThat(token.autoRenewAccountId()).isEqualTo(autoRenewAccountId);
     }
 
     @Test
