@@ -112,6 +112,10 @@ public final class EntityIdUtils {
         return EntityId.of(accountID.shardNum(), accountID.realmNum(), accountID.accountNum());
     }
 
+    public static EntityId toEntityId(final com.hedera.hapi.node.base.ScheduleID scheduleID) {
+        return EntityId.of(scheduleID.shardNum(), scheduleID.realmNum(), scheduleID.scheduleNum());
+    }
+
     public static EntityId toEntityId(final com.hedera.hapi.node.base.TokenID tokenID) {
         return EntityId.of(tokenID.shardNum(), tokenID.realmNum(), tokenID.tokenNum());
     }
@@ -184,6 +188,16 @@ public final class EntityIdUtils {
                 .shardNum(entityId.getShard())
                 .realmNum(entityId.getRealm())
                 .tokenNum(entityId.getNum())
+                .build();
+    }
+
+    public static com.hedera.hapi.node.base.ScheduleID toScheduleId(final Long scheduleId) {
+        final var decodedEntityId = EntityId.of(scheduleId);
+
+        return com.hedera.hapi.node.base.ScheduleID.newBuilder()
+                .shardNum(decodedEntityId.getShard())
+                .realmNum(decodedEntityId.getRealm())
+                .scheduleNum(decodedEntityId.getNum())
                 .build();
     }
 
