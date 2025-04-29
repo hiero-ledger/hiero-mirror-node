@@ -28,11 +28,111 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 public class TokenTest extends AbstractStateTest {
+
+    /**
+     * List of all valid arguments for testing, built as a static list, so we can reuse it.
+     */
+    public static final List<Token> ARGUMENTS;
+
+    static {
+        final var tokenIdList = TokenIDTest.ARGUMENTS;
+        final var nameList = STRING_TESTS_LIST;
+        final var symbolList = STRING_TESTS_LIST;
+        final var decimalsList = INTEGER_TESTS_LIST;
+        final var totalSupplyList = LONG_TESTS_LIST;
+        final var treasuryAccountIdList = AccountIDTest.ARGUMENTS;
+        final var adminKeyList = KeyTest.ARGUMENTS;
+        final var kycKeyList = KeyTest.ARGUMENTS;
+        final var freezeKeyList = KeyTest.ARGUMENTS;
+        final var wipeKeyList = KeyTest.ARGUMENTS;
+        final var supplyKeyList = KeyTest.ARGUMENTS;
+        final var feeScheduleKeyList = KeyTest.ARGUMENTS;
+        final var pauseKeyList = KeyTest.ARGUMENTS;
+        final var lastUsedSerialNumberList = LONG_TESTS_LIST;
+        final var deletedList = BOOLEAN_TESTS_LIST;
+        final var tokenTypeList = Arrays.asList(TokenType.values());
+        final var supplyTypeList = Arrays.asList(TokenSupplyType.values());
+        final var autoRenewAccountIdList = AccountIDTest.ARGUMENTS;
+        final var autoRenewSecondsList = LONG_TESTS_LIST;
+        final var expirationSecondList = LONG_TESTS_LIST;
+        final var memoList = STRING_TESTS_LIST;
+        final var maxSupplyList = LONG_TESTS_LIST;
+        final var pausedList = BOOLEAN_TESTS_LIST;
+        final var accountsFrozenByDefaultList = BOOLEAN_TESTS_LIST;
+        final var accountsKycGrantedByDefaultList = BOOLEAN_TESTS_LIST;
+        final var customFeesList = generateListArguments(CUSTOM_FEE_ARGUMENTS);
+        final var metadataList = BYTES_TESTS_LIST;
+        final var metadataKeyList = KeyTest.ARGUMENTS;
+
+        // work out the longest of all the lists of args as that is how many test cases we need
+        final int maxValues = IntStream.of(
+                        tokenIdList.size(),
+                        nameList.size(),
+                        symbolList.size(),
+                        decimalsList.size(),
+                        totalSupplyList.size(),
+                        treasuryAccountIdList.size(),
+                        adminKeyList.size(),
+                        kycKeyList.size(),
+                        freezeKeyList.size(),
+                        wipeKeyList.size(),
+                        supplyKeyList.size(),
+                        feeScheduleKeyList.size(),
+                        pauseKeyList.size(),
+                        lastUsedSerialNumberList.size(),
+                        deletedList.size(),
+                        tokenTypeList.size(),
+                        supplyTypeList.size(),
+                        autoRenewAccountIdList.size(),
+                        autoRenewSecondsList.size(),
+                        expirationSecondList.size(),
+                        memoList.size(),
+                        maxSupplyList.size(),
+                        pausedList.size(),
+                        accountsFrozenByDefaultList.size(),
+                        accountsKycGrantedByDefaultList.size(),
+                        customFeesList.size(),
+                        metadataList.size(),
+                        metadataKeyList.size())
+                .max()
+                .getAsInt();
+        // create new stream of model objects using lists above as constructor params
+        ARGUMENTS = (maxValues > 0 ? IntStream.range(0, maxValues) : IntStream.of(0))
+                .mapToObj(i -> new Token(
+                        tokenIdList.get(Math.min(i, tokenIdList.size() - 1)),
+                        nameList.get(Math.min(i, nameList.size() - 1)),
+                        symbolList.get(Math.min(i, symbolList.size() - 1)),
+                        decimalsList.get(Math.min(i, decimalsList.size() - 1)),
+                        totalSupplyList.get(Math.min(i, totalSupplyList.size() - 1)),
+                        treasuryAccountIdList.get(Math.min(i, treasuryAccountIdList.size() - 1)),
+                        adminKeyList.get(Math.min(i, adminKeyList.size() - 1)),
+                        kycKeyList.get(Math.min(i, kycKeyList.size() - 1)),
+                        freezeKeyList.get(Math.min(i, freezeKeyList.size() - 1)),
+                        wipeKeyList.get(Math.min(i, wipeKeyList.size() - 1)),
+                        supplyKeyList.get(Math.min(i, supplyKeyList.size() - 1)),
+                        feeScheduleKeyList.get(Math.min(i, feeScheduleKeyList.size() - 1)),
+                        pauseKeyList.get(Math.min(i, pauseKeyList.size() - 1)),
+                        lastUsedSerialNumberList.get(Math.min(i, lastUsedSerialNumberList.size() - 1)),
+                        deletedList.get(Math.min(i, deletedList.size() - 1)),
+                        tokenTypeList.get(Math.min(i, tokenTypeList.size() - 1)),
+                        supplyTypeList.get(Math.min(i, supplyTypeList.size() - 1)),
+                        autoRenewAccountIdList.get(Math.min(i, autoRenewAccountIdList.size() - 1)),
+                        autoRenewSecondsList.get(Math.min(i, autoRenewSecondsList.size() - 1)),
+                        expirationSecondList.get(Math.min(i, expirationSecondList.size() - 1)),
+                        memoList.get(Math.min(i, memoList.size() - 1)),
+                        maxSupplyList.get(Math.min(i, maxSupplyList.size() - 1)),
+                        pausedList.get(Math.min(i, pausedList.size() - 1)),
+                        accountsFrozenByDefaultList.get(Math.min(i, accountsFrozenByDefaultList.size() - 1)),
+                        accountsKycGrantedByDefaultList.get(Math.min(i, accountsKycGrantedByDefaultList.size() - 1)),
+                        customFeesList.get(Math.min(i, customFeesList.size() - 1)),
+                        metadataList.get(Math.min(i, metadataList.size() - 1)),
+                        metadataKeyList.get(Math.min(i, metadataKeyList.size() - 1))))
+                .toList();
+    }
 
     @SuppressWarnings("EqualsWithItself")
     @Test
@@ -63,32 +163,32 @@ public class TokenTest extends AbstractStateTest {
     }
 
     @Test
-    void testHashCodeWithCustomSuppliers() {
+    void testHashCodeWithCustomTreasuryAndAutoRenew() {
         final var item1 = ARGUMENTS.get(1);
-        final var itemCustomSuppliers = item1.copyBuilder()
+        final var itemCustomTreasuryAndAutoRenew = item1.copyBuilder()
                 .totalSupply(1)
-                .treasuryAccountId(() -> new AccountID(0L, 0L, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 1L)))
-                .autoRenewAccountId(() -> new AccountID(0L, 0L, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 2L)))
+                .treasuryAccountId(new AccountID(0L, 0L, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 1L)))
+                .autoRenewAccountId(new AccountID(0L, 0L, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 2L)))
                 .build();
 
-        assertThat(item1.hashCode()).isNotEqualTo(itemCustomSuppliers.hashCode());
+        assertThat(item1.hashCode()).isNotEqualTo(itemCustomTreasuryAndAutoRenew.hashCode());
     }
 
     @Test
-    void testEqualsWithNullSuppliers() {
+    void testEqualsWithNullTreasuryAndAutoRenew() {
         final var item1 = ARGUMENTS.get(1);
-        final var itemNullSuppliers1 = item1.copyBuilder()
+        final var itemNullTreasuryAndAutoRenew1 = item1.copyBuilder()
                 .totalSupply(null)
-                .treasuryAccountId((Supplier<AccountID>) null)
-                .autoRenewAccountId((Supplier<AccountID>) null)
+                .treasuryAccountId(null)
+                .autoRenewAccountId(null)
                 .build();
-        final var itemNullSuppliers2 = item1.copyBuilder()
+        final var itemNullTreasuryAndAutoRenew2 = item1.copyBuilder()
                 .totalSupply(null)
-                .treasuryAccountId((Supplier<AccountID>) null)
-                .autoRenewAccountId((Supplier<AccountID>) null)
+                .treasuryAccountId(null)
+                .autoRenewAccountId(null)
                 .build();
 
-        assertEquals(itemNullSuppliers1, itemNullSuppliers2);
+        assertEquals(itemNullTreasuryAndAutoRenew1, itemNullTreasuryAndAutoRenew2);
     }
 
     @Test
@@ -178,31 +278,21 @@ public class TokenTest extends AbstractStateTest {
     }
 
     @Test
-    void testEqualsWithNullTreasuryAccountIdSupplierValue() {
+    void testEqualsWithNullTreasuryAccountId() {
         final var item1 = ARGUMENTS.get(0);
-        final var itemNullTreasuryAccountIdSupplierValue =
-                item1.copyBuilder().treasuryAccountId((AccountID) null).build();
-        assertNotEquals(itemNullTreasuryAccountIdSupplierValue, item1);
-        assertNotEquals(item1, itemNullTreasuryAccountIdSupplierValue);
-    }
-
-    @Test
-    void testEqualsWithNullTreasuryAccountIdSupplier() {
-        final var item1 = ARGUMENTS.get(0);
-        final var itemNullTreasuryAccountIdSupplier = item1.copyBuilder()
-                .treasuryAccountId((Supplier<AccountID>) null)
-                .build();
-        assertNotEquals(itemNullTreasuryAccountIdSupplier, item1);
-        assertNotEquals(item1, itemNullTreasuryAccountIdSupplier);
+        final var itemNullTreasuryAccountId =
+                item1.copyBuilder().treasuryAccountId(null).build();
+        assertNotEquals(itemNullTreasuryAccountId, item1);
+        assertNotEquals(item1, itemNullTreasuryAccountId);
     }
 
     @Test
     void testEqualsWithNullTreasuryAccountIdBoth() {
         final var item1 = ARGUMENTS.get(0);
         final var itemNullTreasuryAccountId =
-                item1.copyBuilder().treasuryAccountId((AccountID) null).build();
+                item1.copyBuilder().treasuryAccountId(null).build();
         final var itemNullTreasuryAccountId2 =
-                item1.copyBuilder().treasuryAccountId((AccountID) null).build();
+                item1.copyBuilder().treasuryAccountId(null).build();
         assertEquals(itemNullTreasuryAccountId, itemNullTreasuryAccountId2);
     }
 
@@ -401,20 +491,10 @@ public class TokenTest extends AbstractStateTest {
     }
 
     @Test
-    void testEqualsWithNullAutoRenewAccountIdSupplierValue() {
+    void testEqualsWithNullAutoRenewAccountId() {
         final var item1 = ARGUMENTS.get(0);
         final var itemNullAutoRenewAccountId =
-                item1.copyBuilder().autoRenewAccountId((AccountID) null).build();
-        assertNotEquals(itemNullAutoRenewAccountId, item1);
-        assertNotEquals(item1, itemNullAutoRenewAccountId);
-    }
-
-    @Test
-    void testEqualsWithNullAutoRenewAccountIdSupplier() {
-        final var item1 = ARGUMENTS.get(0);
-        final var itemNullAutoRenewAccountId = item1.copyBuilder()
-                .autoRenewAccountId((Supplier<AccountID>) null)
-                .build();
+                item1.copyBuilder().autoRenewAccountId(null).build();
         assertNotEquals(itemNullAutoRenewAccountId, item1);
         assertNotEquals(item1, itemNullAutoRenewAccountId);
     }
@@ -423,9 +503,9 @@ public class TokenTest extends AbstractStateTest {
     void testEqualsWithNullAutoRenewAccountIdBoth() {
         final var item1 = ARGUMENTS.get(0);
         final var itemNullAutoRenewAccountId =
-                item1.copyBuilder().autoRenewAccountId((AccountID) null).build();
+                item1.copyBuilder().autoRenewAccountId(null).build();
         final var itemNullAutoRenewAccountId2 =
-                item1.copyBuilder().autoRenewAccountId((AccountID) null).build();
+                item1.copyBuilder().autoRenewAccountId(null).build();
         assertEquals(itemNullAutoRenewAccountId, itemNullAutoRenewAccountId2);
     }
 
@@ -578,70 +658,46 @@ public class TokenTest extends AbstractStateTest {
     @Test
     void testHasTreasuryAccountId() {
         final var item1 = ARGUMENTS.get(0);
-        final var itemNullTreasuryIdSupplier = item1.copyBuilder()
-                .treasuryAccountId((Supplier<AccountID>) null)
-                .build();
-        final var itemNullTreasuryIdSupplierValue =
-                item1.copyBuilder().treasuryAccountId((AccountID) null).build();
+        final var itemNullTreasuryId =
+                item1.copyBuilder().treasuryAccountId(null).build();
 
         assertThat(item1.hasTreasuryAccountId()).isTrue();
-        assertThat(itemNullTreasuryIdSupplier.hasTreasuryAccountId()).isFalse();
-        assertThat(itemNullTreasuryIdSupplierValue.hasTreasuryAccountId()).isFalse();
+        assertThat(itemNullTreasuryId.hasTreasuryAccountId()).isFalse();
     }
 
     @Test
     void testIfTreasuryAccountId() {
         final var item1 = ARGUMENTS.get(0);
-        final var itemNullTreasuryIdSupplier = item1.copyBuilder()
-                .treasuryAccountId((Supplier<AccountID>) null)
-                .build();
-        final var itemNullTreasuryIdSupplierValue =
-                item1.copyBuilder().treasuryAccountId((AccountID) null).build();
+        final var itemNullTreasuryId =
+                item1.copyBuilder().treasuryAccountId(null).build();
 
         List<AccountID> accountIDS = new ArrayList<>();
         Consumer<AccountID> accountIDConsumerIDConsumer = accountIDS::add;
 
         item1.ifTreasuryAccountId(accountIDConsumerIDConsumer);
-        itemNullTreasuryIdSupplier.ifTreasuryAccountId(accountIDConsumerIDConsumer);
-        itemNullTreasuryIdSupplierValue.ifTreasuryAccountId(accountIDConsumerIDConsumer);
-        assertThat(accountIDS)
-                .isNotEmpty()
-                .hasSize(1)
-                .contains(item1.treasuryAccountIdSupplier().get());
+        itemNullTreasuryId.ifTreasuryAccountId(accountIDConsumerIDConsumer);
+        assertThat(accountIDS).isNotEmpty().hasSize(1).contains(item1.treasuryAccountId());
     }
 
     @Test
     void testTreasuryAccountIdOrElse() {
         final var item1 = ARGUMENTS.get(0);
-        final var itemNullTreasuryIdSupplier = item1.copyBuilder()
-                .treasuryAccountId((Supplier<AccountID>) null)
-                .build();
-        final var itemNullTreasuryIdSupplierValue =
-                item1.copyBuilder().treasuryAccountId((AccountID) null).build();
+        final var itemNullTreasuryId =
+                item1.copyBuilder().treasuryAccountId(null).build();
 
-        assertThat(item1.treasuryAccountIdOrElse(AccountID.DEFAULT))
-                .isEqualTo(item1.treasuryAccountIdSupplier().get());
-        assertThat(itemNullTreasuryIdSupplier.treasuryAccountIdOrElse(AccountID.DEFAULT))
-                .isEqualTo(AccountID.DEFAULT);
-        assertThat(itemNullTreasuryIdSupplierValue.treasuryAccountIdOrElse(AccountID.DEFAULT))
+        assertThat(item1.treasuryAccountIdOrElse(AccountID.DEFAULT)).isEqualTo(item1.treasuryAccountId());
+        assertThat(itemNullTreasuryId.treasuryAccountIdOrElse(AccountID.DEFAULT))
                 .isEqualTo(AccountID.DEFAULT);
     }
 
     @Test
     void testTreasuryAccountIdOrThrow() {
         final var item1 = ARGUMENTS.get(0);
-        final var itemNullTreasuryIdSupplier = item1.copyBuilder()
-                .treasuryAccountId((Supplier<AccountID>) null)
-                .build();
-        final var itemNullTreasuryIdSupplierValue =
-                item1.copyBuilder().treasuryAccountId((AccountID) null).build();
+        final var itemNullTreasuryId =
+                item1.copyBuilder().treasuryAccountId(null).build();
 
-        assertThat(item1.treasuryAccountIdOrThrow())
-                .isEqualTo(item1.treasuryAccountIdSupplier().get());
-        assertThatThrownBy(itemNullTreasuryIdSupplier::treasuryAccountIdOrThrow)
-                .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(itemNullTreasuryIdSupplierValue::treasuryAccountIdOrThrow)
-                .isInstanceOf(NullPointerException.class);
+        assertThat(item1.treasuryAccountIdOrThrow()).isEqualTo(item1.treasuryAccountId());
+        assertThatThrownBy(itemNullTreasuryId::treasuryAccountIdOrThrow).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -903,70 +959,45 @@ public class TokenTest extends AbstractStateTest {
     @Test
     void testHasAutoRenewAccountId() {
         final var item1 = ARGUMENTS.get(0);
-        final var itemNullAutoRenewIdSupplier = item1.copyBuilder()
-                .autoRenewAccountId((Supplier<AccountID>) null)
-                .build();
-        final var itemNullAutoRenewIdSupplierValue =
-                item1.copyBuilder().autoRenewAccountId((AccountID) null).build();
+        final var itemNullAutoRenewId =
+                item1.copyBuilder().autoRenewAccountId(null).build();
 
         assertThat(item1.hasAutoRenewAccountId()).isTrue();
-        assertThat(itemNullAutoRenewIdSupplier.hasAutoRenewAccountId()).isFalse();
-        assertThat(itemNullAutoRenewIdSupplierValue.hasAutoRenewAccountId()).isFalse();
+        assertThat(itemNullAutoRenewId.hasAutoRenewAccountId()).isFalse();
     }
 
     @Test
     void testIfAutoRenewAccountId() {
         final var item1 = ARGUMENTS.get(0);
-        final var itemNullAutoRenewIdSupplier = item1.copyBuilder()
-                .autoRenewAccountId((Supplier<AccountID>) null)
-                .build();
-        final var itemNullAutoRenewIdSupplierValue =
-                item1.copyBuilder().autoRenewAccountId((AccountID) null).build();
+        final var itemNullAutoRenewId =
+                item1.copyBuilder().autoRenewAccountId(null).build();
 
         List<AccountID> accountIDS = new ArrayList<>();
         Consumer<AccountID> accountIDConsumer = accountIDS::add;
 
         item1.ifAutoRenewAccountId(accountIDConsumer);
-        itemNullAutoRenewIdSupplier.ifAutoRenewAccountId(accountIDConsumer);
-        itemNullAutoRenewIdSupplierValue.ifAutoRenewAccountId(accountIDConsumer);
-        assertThat(accountIDS)
-                .isNotEmpty()
-                .hasSize(1)
-                .contains(item1.autoRenewAccountIdSupplier().get());
+        itemNullAutoRenewId.ifAutoRenewAccountId(accountIDConsumer);
+        assertThat(accountIDS).isNotEmpty().hasSize(1).contains(item1.autoRenewAccountId());
     }
 
     @Test
     void testAutoRenewAccountIdOrElse() {
         final var item1 = ARGUMENTS.get(0);
-        final var itemNullAutoRenewIdSupplier = item1.copyBuilder()
-                .autoRenewAccountId((Supplier<AccountID>) null)
-                .build();
-        final var itemNullAutoRenewIdSupplierValue =
-                item1.copyBuilder().autoRenewAccountId((AccountID) null).build();
+        final var itemNullAutoRenewId =
+                item1.copyBuilder().autoRenewAccountId(null).build();
 
-        assertThat(item1.autoRenewAccountIdOrElse(AccountID.DEFAULT))
-                .isEqualTo(item1.autoRenewAccountIdSupplier().get());
-        assertThat(itemNullAutoRenewIdSupplier.autoRenewAccountIdOrElse(AccountID.DEFAULT))
-                .isEqualTo(AccountID.DEFAULT);
-        assertThat(itemNullAutoRenewIdSupplierValue.autoRenewAccountIdOrElse(AccountID.DEFAULT))
+        assertThat(itemNullAutoRenewId.autoRenewAccountIdOrElse(AccountID.DEFAULT))
                 .isEqualTo(AccountID.DEFAULT);
     }
 
     @Test
     void testAutoRenewAccountIdOrThrow() {
         final var item1 = ARGUMENTS.get(0);
-        final var itemNullAutoRenewIdSupplier = item1.copyBuilder()
-                .autoRenewAccountId((Supplier<AccountID>) null)
-                .build();
-        final var itemNullAutoRenewIdSupplierValue =
-                item1.copyBuilder().autoRenewAccountId((AccountID) null).build();
+        final var itemNullAutoRenewId =
+                item1.copyBuilder().autoRenewAccountId(null).build();
 
-        assertThat(item1.autoRenewAccountIdOrThrow())
-                .isEqualTo(item1.autoRenewAccountIdSupplier().get());
-        assertThatThrownBy(itemNullAutoRenewIdSupplier::autoRenewAccountIdOrThrow)
-                .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(itemNullAutoRenewIdSupplierValue::autoRenewAccountIdOrThrow)
-                .isInstanceOf(NullPointerException.class);
+        assertThat(item1.autoRenewAccountIdOrThrow()).isEqualTo(item1.autoRenewAccountId());
+        assertThatThrownBy(itemNullAutoRenewId::autoRenewAccountIdOrThrow).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -1079,106 +1110,5 @@ public class TokenTest extends AbstractStateTest {
         assertThat(token.feeScheduleKey()).isNotNull();
         assertThat(token.pauseKey()).isNotNull();
         assertThat(token.metadataKey()).isNotNull();
-    }
-
-    /**
-     * List of all valid arguments for testing, built as a static list, so we can reuse it.
-     */
-    public static final List<Token> ARGUMENTS;
-
-    static {
-        final var tokenIdList = TokenIDTest.ARGUMENTS;
-        final var nameList = STRING_TESTS_LIST;
-        final var symbolList = STRING_TESTS_LIST;
-        final var decimalsList = INTEGER_TESTS_LIST;
-        final var totalSupplyList = LONG_TESTS_LIST;
-        final var treasuryAccountIdList = AccountIDTest.ARGUMENTS;
-        final var adminKeyList = KeyTest.ARGUMENTS;
-        final var kycKeyList = KeyTest.ARGUMENTS;
-        final var freezeKeyList = KeyTest.ARGUMENTS;
-        final var wipeKeyList = KeyTest.ARGUMENTS;
-        final var supplyKeyList = KeyTest.ARGUMENTS;
-        final var feeScheduleKeyList = KeyTest.ARGUMENTS;
-        final var pauseKeyList = KeyTest.ARGUMENTS;
-        final var lastUsedSerialNumberList = LONG_TESTS_LIST;
-        final var deletedList = BOOLEAN_TESTS_LIST;
-        final var tokenTypeList = Arrays.asList(TokenType.values());
-        final var supplyTypeList = Arrays.asList(TokenSupplyType.values());
-        final var autoRenewAccountIdList = AccountIDTest.ARGUMENTS;
-        final var autoRenewSecondsList = LONG_TESTS_LIST;
-        final var expirationSecondList = LONG_TESTS_LIST;
-        final var memoList = STRING_TESTS_LIST;
-        final var maxSupplyList = LONG_TESTS_LIST;
-        final var pausedList = BOOLEAN_TESTS_LIST;
-        final var accountsFrozenByDefaultList = BOOLEAN_TESTS_LIST;
-        final var accountsKycGrantedByDefaultList = BOOLEAN_TESTS_LIST;
-        final var customFeesList = generateListArguments(CUSTOM_FEE_ARGUMENTS);
-        final var metadataList = BYTES_TESTS_LIST;
-        final var metadataKeyList = KeyTest.ARGUMENTS;
-
-        // work out the longest of all the lists of args as that is how many test cases we need
-        final int maxValues = IntStream.of(
-                        tokenIdList.size(),
-                        nameList.size(),
-                        symbolList.size(),
-                        decimalsList.size(),
-                        totalSupplyList.size(),
-                        treasuryAccountIdList.size(),
-                        adminKeyList.size(),
-                        kycKeyList.size(),
-                        freezeKeyList.size(),
-                        wipeKeyList.size(),
-                        supplyKeyList.size(),
-                        feeScheduleKeyList.size(),
-                        pauseKeyList.size(),
-                        lastUsedSerialNumberList.size(),
-                        deletedList.size(),
-                        tokenTypeList.size(),
-                        supplyTypeList.size(),
-                        autoRenewAccountIdList.size(),
-                        autoRenewSecondsList.size(),
-                        expirationSecondList.size(),
-                        memoList.size(),
-                        maxSupplyList.size(),
-                        pausedList.size(),
-                        accountsFrozenByDefaultList.size(),
-                        accountsKycGrantedByDefaultList.size(),
-                        customFeesList.size(),
-                        metadataList.size(),
-                        metadataKeyList.size())
-                .max()
-                .getAsInt();
-        // create new stream of model objects using lists above as constructor params
-        ARGUMENTS = (maxValues > 0 ? IntStream.range(0, maxValues) : IntStream.of(0))
-                .mapToObj(i -> new Token(
-                        tokenIdList.get(Math.min(i, tokenIdList.size() - 1)),
-                        nameList.get(Math.min(i, nameList.size() - 1)),
-                        symbolList.get(Math.min(i, symbolList.size() - 1)),
-                        decimalsList.get(Math.min(i, decimalsList.size() - 1)),
-                        totalSupplyList.get(Math.min(i, totalSupplyList.size() - 1)),
-                        treasuryAccountIdList.get(Math.min(i, treasuryAccountIdList.size() - 1)),
-                        adminKeyList.get(Math.min(i, adminKeyList.size() - 1)),
-                        kycKeyList.get(Math.min(i, kycKeyList.size() - 1)),
-                        freezeKeyList.get(Math.min(i, freezeKeyList.size() - 1)),
-                        wipeKeyList.get(Math.min(i, wipeKeyList.size() - 1)),
-                        supplyKeyList.get(Math.min(i, supplyKeyList.size() - 1)),
-                        feeScheduleKeyList.get(Math.min(i, feeScheduleKeyList.size() - 1)),
-                        pauseKeyList.get(Math.min(i, pauseKeyList.size() - 1)),
-                        lastUsedSerialNumberList.get(Math.min(i, lastUsedSerialNumberList.size() - 1)),
-                        deletedList.get(Math.min(i, deletedList.size() - 1)),
-                        tokenTypeList.get(Math.min(i, tokenTypeList.size() - 1)),
-                        supplyTypeList.get(Math.min(i, supplyTypeList.size() - 1)),
-                        autoRenewAccountIdList.get(Math.min(i, autoRenewAccountIdList.size() - 1)),
-                        autoRenewSecondsList.get(Math.min(i, autoRenewSecondsList.size() - 1)),
-                        expirationSecondList.get(Math.min(i, expirationSecondList.size() - 1)),
-                        memoList.get(Math.min(i, memoList.size() - 1)),
-                        maxSupplyList.get(Math.min(i, maxSupplyList.size() - 1)),
-                        pausedList.get(Math.min(i, pausedList.size() - 1)),
-                        accountsFrozenByDefaultList.get(Math.min(i, accountsFrozenByDefaultList.size() - 1)),
-                        accountsKycGrantedByDefaultList.get(Math.min(i, accountsKycGrantedByDefaultList.size() - 1)),
-                        customFeesList.get(Math.min(i, customFeesList.size() - 1)),
-                        metadataList.get(Math.min(i, metadataList.size() - 1)),
-                        metadataKeyList.get(Math.min(i, metadataKeyList.size() - 1))))
-                .toList();
     }
 }

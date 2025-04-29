@@ -643,8 +643,81 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         // Given
         final var treasury = accountEntityWithEvmAddressPersist();
         final var feeCollector = accountEntityWithEvmAddressPersist();
-        final var tokenEntity =
-                domainBuilder.entity().customize(e -> e.type(EntityType.TOKEN)).persist();
+        final var autoRenewAccount = accountEntityPersist();
+        final var tokenEntity = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.TOKEN).autoRenewAccountId(autoRenewAccount.getId()))
+                .persist();
+        final var token = domainBuilder
+                .token()
+                .customize(t -> t.tokenId(tokenEntity.getId())
+                        .type(TokenTypeEnum.FUNGIBLE_COMMON)
+                        .treasuryAccountId(treasury.toEntityId()))
+                .persist();
+
+        final var customFees =
+                persistCustomFeesWithFeeCollector(feeCollector, tokenEntity, TokenTypeEnum.FUNGIBLE_COMMON);
+
+        final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
+
+        // When
+        final var functionCall = contract.call_getInformationForFungibleToken(getAddressFromEntity(tokenEntity));
+
+        final var expectedTokenKeys = getExpectedTokenKeys(tokenEntity, token);
+
+        final var expectedExpiry = new Expiry(
+                BigInteger.valueOf(tokenEntity.getExpirationTimestamp()).divide(BigInteger.valueOf(1_000_000_000L)),
+                getAddressFromEntity(autoRenewAccount),
+                BigInteger.valueOf(tokenEntity.getAutoRenewPeriod()));
+        final var expectedHederaToken = new HederaToken(
+                token.getName(),
+                token.getSymbol(),
+                mirrorNodeEvmProperties.isModularizedServices()
+                        ? getAddressFromEntityId(treasury.toEntityId())
+                        : getAddressFromEvmAddress(treasury.getEvmAddress()),
+                tokenEntity.getMemo(),
+                token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
+                BigInteger.valueOf(token.getMaxSupply()),
+                token.getFreezeDefault(),
+                expectedTokenKeys,
+                expectedExpiry);
+
+        final var fixedFees = new ArrayList<FixedFee>();
+        fixedFees.add(getFixedFee(customFees.getFixedFees().getFirst(), feeCollector));
+
+        final var fractionalFees = new ArrayList<PrecompileTestContract.FractionalFee>();
+        fractionalFees.add(getFractionalFee(customFees.getFractionalFees().getFirst(), feeCollector));
+
+        final var royaltyFees = new ArrayList<PrecompileTestContract.RoyaltyFee>();
+
+        final var expectedTokenInfo = new TokenInfo(
+                expectedHederaToken,
+                BigInteger.valueOf(token.getTotalSupply()),
+                tokenEntity.getDeleted(),
+                false,
+                false,
+                fixedFees,
+                fractionalFees,
+                royaltyFees,
+                LEDGER_ID);
+        final var expectedFungibleTokenInfo =
+                new FungibleTokenInfo(expectedTokenInfo, BigInteger.valueOf(token.getDecimals()));
+
+        // Then
+        assertThat(functionCall.send()).isEqualTo(expectedFungibleTokenInfo);
+
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+    }
+
+    @Test
+    void getFungibleTokenInfoWithEmptyAutoRenew() throws Exception {
+        // Given
+        final var treasury = accountEntityWithEvmAddressPersist();
+        final var feeCollector = accountEntityWithEvmAddressPersist();
+        final var tokenEntity = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.TOKEN).autoRenewAccountId(null))
+                .persist();
         final var token = domainBuilder
                 .token()
                 .customize(t -> t.tokenId(tokenEntity.getId())
@@ -712,8 +785,11 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var owner = accountEntityPersist();
         final var treasury = accountEntityWithEvmAddressPersist();
         final var feeCollector = accountEntityWithEvmAddressPersist();
-        final var tokenEntity =
-                domainBuilder.entity().customize(e -> e.type(EntityType.TOKEN)).persist();
+        final var autoRenewAccount = accountEntityPersist();
+        final var tokenEntity = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.TOKEN).autoRenewAccountId(autoRenewAccount.getId()))
+                .persist();
         final var token = domainBuilder
                 .token()
                 .customize(t -> t.tokenId(tokenEntity.getId())
@@ -727,7 +803,89 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                         .spender(null)
                         .accountId(owner.toEntityId()))
                 .persist();
+        final var customFees =
+                persistCustomFeesWithFeeCollector(feeCollector, tokenEntity, TokenTypeEnum.NON_FUNGIBLE_UNIQUE);
 
+        final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
+
+        // When
+        final var functionCall = contract.call_getInformationForNonFungibleToken(
+                getAddressFromEntity(tokenEntity), DEFAULT_SERIAL_NUMBER);
+
+        final var expectedTokenKeys = getExpectedTokenKeys(tokenEntity, token);
+
+        final var expectedExpiry = new Expiry(
+                BigInteger.valueOf(tokenEntity.getExpirationTimestamp()).divide(BigInteger.valueOf(1_000_000_000L)),
+                getAddressFromEntity(autoRenewAccount),
+                BigInteger.valueOf(tokenEntity.getAutoRenewPeriod()));
+        final var expectedHederaToken = new HederaToken(
+                token.getName(),
+                token.getSymbol(),
+                mirrorNodeEvmProperties.isModularizedServices()
+                        ? getAddressFromEntityId(treasury.toEntityId())
+                        : getAddressFromEvmAddress(treasury.getEvmAddress()),
+                tokenEntity.getMemo(),
+                token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
+                BigInteger.valueOf(token.getMaxSupply()),
+                token.getFreezeDefault(),
+                expectedTokenKeys,
+                expectedExpiry);
+
+        final var fixedFees = new ArrayList<FixedFee>();
+        fixedFees.add(getFixedFee(customFees.getFixedFees().getFirst(), feeCollector));
+
+        final var fractionalFees = new ArrayList<PrecompileTestContract.FractionalFee>();
+
+        final var royaltyFees = new ArrayList<PrecompileTestContract.RoyaltyFee>();
+        royaltyFees.add(getRoyaltyFee(customFees.getRoyaltyFees().getFirst(), feeCollector));
+
+        final var expectedTokenInfo = new TokenInfo(
+                expectedHederaToken,
+                BigInteger.valueOf(token.getTotalSupply()),
+                tokenEntity.getDeleted(),
+                false,
+                false,
+                fixedFees,
+                fractionalFees,
+                royaltyFees,
+                LEDGER_ID);
+        final var expectedNonFungibleTokenInfo = new NonFungibleTokenInfo(
+                expectedTokenInfo,
+                BigInteger.valueOf(nft.getSerialNumber()),
+                getAddressFromEntity(owner),
+                BigInteger.valueOf(token.getCreatedTimestamp()).divide(BigInteger.valueOf(1_000_000_000L)),
+                nft.getMetadata(),
+                Address.ZERO.toHexString());
+
+        // Then
+        assertThat(functionCall.send()).isEqualTo(expectedNonFungibleTokenInfo);
+
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+    }
+
+    @Test
+    void getNonFungibleTokenInfoWithEmptyAutoRenew() throws Exception {
+        // Given
+        final var owner = accountEntityPersist();
+        final var treasury = accountEntityWithEvmAddressPersist();
+        final var feeCollector = accountEntityWithEvmAddressPersist();
+        final var tokenEntity = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.TOKEN).autoRenewAccountId(null))
+                .persist();
+        final var token = domainBuilder
+                .token()
+                .customize(t -> t.tokenId(tokenEntity.getId())
+                        .type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
+                        .treasuryAccountId(treasury.toEntityId()))
+                .persist();
+        final var nft = domainBuilder
+                .nft()
+                .customize(n -> n.tokenId(tokenEntity.getId())
+                        .serialNumber(DEFAULT_SERIAL_NUMBER.longValue())
+                        .spender(null)
+                        .accountId(owner.toEntityId()))
+                .persist();
         final var customFees =
                 persistCustomFeesWithFeeCollector(feeCollector, tokenEntity, TokenTypeEnum.NON_FUNGIBLE_UNIQUE);
 
@@ -794,8 +952,11 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         // Given
         final var treasury = accountEntityWithEvmAddressPersist();
         final var feeCollector = accountEntityWithEvmAddressPersist();
-        final var tokenEntity =
-                domainBuilder.entity().customize(e -> e.type(EntityType.TOKEN)).persist();
+        final var autoRenewAccount = accountEntityPersist();
+        final var tokenEntity = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.TOKEN).autoRenewAccountId(autoRenewAccount.getId()))
+                .persist();
         final var token = domainBuilder
                 .token()
                 .customize(t -> t.tokenId(tokenEntity.getId()).type(tokenType).treasuryAccountId(treasury.toEntityId()))
@@ -812,7 +973,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
 
         final var expectedExpiry = new Expiry(
                 BigInteger.valueOf(tokenEntity.getExpirationTimestamp()).divide(BigInteger.valueOf(1_000_000_000L)),
-                Address.ZERO.toHexString(),
+                getAddressFromEntity(autoRenewAccount),
                 BigInteger.valueOf(tokenEntity.getAutoRenewPeriod()));
         final var expectedHederaToken = new HederaToken(
                 token.getName(),
