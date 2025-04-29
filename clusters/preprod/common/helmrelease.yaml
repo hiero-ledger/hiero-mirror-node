@@ -13,7 +13,7 @@ spec:
       valuesFiles:
         - values.yaml
         - values-v2.yaml
-      version: '0.128.0'
+      version: '0.129.0-rc1'
   dependsOn:
     - name: testkube
       namespace: testkube
@@ -29,7 +29,6 @@ spec:
   timeout: 10m
   upgrade:
     cleanupOnFail: true
-    crds: CreateReplace
   valuesFrom:
     - kind: Secret
       name: mirror

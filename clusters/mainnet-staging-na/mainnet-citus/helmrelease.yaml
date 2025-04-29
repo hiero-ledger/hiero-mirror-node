@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.128.0-rc1'
+      version: '0.129.0-rc1'
   dependsOn:
     - name: mirror
       namespace: common
@@ -59,7 +59,6 @@ spec:
       env:
         HEDERA_MIRROR_REST_STATEPROOF_ENABLED: "true"
         HEDERA_MIRROR_REST_STATEPROOF_STREAMS_NETWORK: MAINNET
-        HEDERA_MIRROR_REST_CACHE_RESPONSE_ENABLED: "false"
       hpa:
         metrics:
           - type: Resource
