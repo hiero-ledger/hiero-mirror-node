@@ -77,7 +77,6 @@ public class TestWeb3jService implements Web3jService {
     private Supplier<String> estimatedGas;
     private long value = 0L; // the amount sent to the smart contract, if the contract function is payable.
     private long contractBalance = DEFAULT_CONTRACT_BALANCE;
-    private int maxAutoTokenAssociations = 1;
     private boolean persistContract = true;
     private byte[] contractRuntime;
     private BlockType blockType = BlockType.LATEST;
@@ -120,7 +119,6 @@ public class TestWeb3jService implements Web3jService {
         this.historicalRange = null;
         this.useContractCallDeploy = false;
         this.contractBalance = DEFAULT_CONTRACT_BALANCE;
-        this.maxAutoTokenAssociations = 1;
     }
 
     @SneakyThrows(Exception.class)
@@ -352,8 +350,7 @@ public class TestWeb3jService implements Web3jService {
                         .alias(null)
                         .evmAddress(null)
                         .key(domainBuilder.key(KeyCase.ED25519))
-                        .balance(contractBalance)
-                        .maxAutomaticTokenAssociations(maxAutoTokenAssociations))
+                        .balance(contractBalance))
                 .persist();
 
         domainBuilder
