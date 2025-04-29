@@ -167,8 +167,8 @@ class ContractCallHASSystemContractTest extends AbstractContractCallServiceTest 
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var contractOwner = testWeb3jService.deployWithoutPersist(EthCall::deploy);
         final var contractOwnerRuntimeBytecode = testWeb3jService.getContractRuntime();
-        final var contractOwnerEntity =
-                persistContract(contractOwnerRuntimeBytecode, Address.fromHexString(contractOwner.getContractAddress()));
+        final var contractOwnerEntity = persistContract(
+                contractOwnerRuntimeBytecode, Address.fromHexString(contractOwner.getContractAddress()));
 
         final var contractOwnerAddress =
                 toAddress(contractOwnerEntity.toEntityId()).toHexString();
