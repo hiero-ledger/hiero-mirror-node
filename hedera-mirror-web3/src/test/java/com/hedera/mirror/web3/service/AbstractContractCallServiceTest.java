@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.service;
 
+import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
@@ -58,6 +59,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tuweni.bytes.Bytes;
+import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -624,6 +626,28 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                         .tokenId(token.getTokenId())
                         .receiverAccountId(receiver.getId())
                         .senderAccountId(sender.getId()))
+                .persist();
+    }
+
+    protected void contractPersistCustomizable(
+            final String binary, final EntityId entityId, Consumer<Entity.EntityBuilder<?, ?>> customizer) {
+        final var contractBytes = Hex.decode(binary.replace(HEX_PREFIX, ""));
+        final var entity = domainBuilder
+                .entity(entityId)
+                .customize(e -> {
+                    e.type(CONTRACT).alias(null).evmAddress(null).maxAutomaticTokenAssociations(-1);
+                    customizer.accept(e);
+                })
+                .persist();
+
+        domainBuilder
+                .contract()
+                .customize(c -> c.id(entity.getId()).runtimeBytecode(contractBytes))
+                .persist();
+
+        domainBuilder
+                .contractState()
+                .customize(c -> c.contractId(entity.getId()))
                 .persist();
     }
 

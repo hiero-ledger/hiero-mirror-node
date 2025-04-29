@@ -147,12 +147,6 @@ public class TestWeb3jService implements Web3jService {
         return deployer.deploy(web3j, credentials, contractGasProvider, value).send();
     }
 
-    @SneakyThrows(Exception.class)
-    public <T extends Contract> T deployWithMaxAutoTokenAssociations(Deployer<T> deployer, Integer value) {
-        maxAutoTokenAssociations = value;
-        return deployer.deploy(web3j, credentials, contractGasProvider).send();
-    }
-
     @Override
     public <T extends Response> T send(Request request, Class<T> responseType) {
         final var method = request.getMethod();

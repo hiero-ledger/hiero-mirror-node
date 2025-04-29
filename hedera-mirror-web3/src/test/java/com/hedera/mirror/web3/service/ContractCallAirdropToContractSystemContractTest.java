@@ -3,10 +3,8 @@
 package com.hedera.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
-import static com.hedera.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -24,17 +22,26 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-
-import com.hedera.mirror.web3.web3j.generated.Empty;
-import org.bouncycastle.util.encoders.Hex;
+import java.util.stream.Stream;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class ContractCallAirdropToContractSystemContractTest extends AbstractContractCallServiceTest {
 
     public static final BigInteger DEFAULT_WEI_VALUE = BigInteger.ZERO;
+    public static final long DEFAULT_BALANCE = 100_000_000L;
+    public static final BigInteger DEFAULT_DEPLOYED_CONTRACT_BALANCE = BigInteger.valueOf(DEFAULT_BALANCE);
+    public static final long MAX_BALANCE = 1_000_000_000L;
+    public static final BigInteger MAX_DEPLOYED_CONTRACT_BALANCE = BigInteger.valueOf(1_000_000_000L);
+
+    private static Stream<Arguments> tokenType() {
+        return Stream.of(Arguments.of("fungible", true), Arguments.of("non-fungible", false));
+    }
 
     @BeforeEach
     void setUp() {
@@ -48,16 +55,16 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var contractEntityId = getEntityId(receiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(AssociateContract.BINARY), contractEntityId, e -> e.maxAutomaticTokenAssociations(1));
+        final var receiverContractEntityId = contractPersist(
+                receiverContractAddress, AssociateContract.BINARY, e -> e.maxAutomaticTokenAssociations(1));
+
         final var tokenId = fungibleTokenSetup(sender);
-        tokenAccountPersist(tokenId, contractEntityId.getId());
+        tokenAccountPersist(tokenId, receiverContractEntityId.getId());
         final var tokenAddress = toAddress(tokenId).toHexString();
 
-        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(100_000_000L));
-        final var airdropContractEntity = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntity, 100_000_000L);
+        final var airdropContract =
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+        contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(DEFAULT_BALANCE));
 
         // When
         final var functionCall = airdropContract.send_tokenAirdrop(
@@ -75,8 +82,6 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         }
     }
 
-
-
     @Test
     @DisplayName("Can airdrop multiple tokens to a contract that is already associated to them")
     void airdropMultipleToContract() {
@@ -84,9 +89,8 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var associationContractEntityId = getEntityId(receiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(AssociateContract.BINARY), associationContractEntityId, _ -> {});
+        final var receiverContractEntityId =
+                contractPersist(receiverContractAddress, AssociateContract.BINARY, e -> {});
         final var treasury = accountEntityPersist().toEntityId();
 
         var fungibleTokenAddresses = new ArrayList<String>();
@@ -105,19 +109,17 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
             fungibleTokenAddresses.add(fungibleTokenAddress);
             nonFungibleTokenAddresses.add(nonFungibleAddress);
 
-            tokenAccountPersist(fungibleTokenId, associationContractEntityId.getId());
-            tokenAccountPersist(nonFungibleTokenId, associationContractEntityId.getId());
+            tokenAccountPersist(fungibleTokenId, receiverContractEntityId.getId());
+            tokenAccountPersist(nonFungibleTokenId, receiverContractEntityId.getId());
 
             senders.add(getAddressFromEntity(sender));
             receivers.add(receiverContractAddress);
             serials.add(DEFAULT_SERIAL_NUMBER);
         }
 
-
         final var airdropContract =
-                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(1_000_000_000L));
-        final var airdropContractEntity = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntity, 1_000_000_000L);
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, MAX_DEPLOYED_CONTRACT_BALANCE);
+        contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(DEFAULT_BALANCE));
 
         // When
         final var functionCall = airdropContract.send_mixedAirdrop(
@@ -146,9 +148,9 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var associationContractEntityId = getEntityId(receiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(AssociateContract.BINARY), associationContractEntityId, e -> e.maxAutomaticTokenAssociations(2));
+        final var receiverContractEntityId = contractPersist(
+                receiverContractAddress, AssociateContract.BINARY, e -> e.maxAutomaticTokenAssociations(2));
+
         final var treasury = accountEntityPersist().toEntityId();
 
         var fungibleTokenAddresses = new ArrayList<String>();
@@ -167,10 +169,10 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
             fungibleTokenAddresses.add(fungibleTokenAddress);
             nonFungibleTokenAddresses.add(nonFungibleAddress);
 
-            if(i == 0) {
-                //associate to some of the tokens
-                tokenAccountPersist(fungibleTokenId, associationContractEntityId.getId());
-                tokenAccountPersist(nonFungibleTokenId, associationContractEntityId.getId());
+            if (i == 0) {
+                // associate to some of the tokens
+                tokenAccountPersist(fungibleTokenId, receiverContractEntityId.getId());
+                tokenAccountPersist(nonFungibleTokenId, receiverContractEntityId.getId());
             }
 
             senders.add(getAddressFromEntity(sender));
@@ -178,10 +180,8 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
             serials.add(DEFAULT_SERIAL_NUMBER);
         }
 
-        final var airdropContract =
-                testWeb3jService.deployWithValue(Airdrop::deploy, BigInteger.valueOf(1_000_000_000L));
-        final var airdropContractEntity = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntity, 1_000_000_000L);
+        final var airdropContract = testWeb3jService.deployWithValue(Airdrop::deploy, MAX_DEPLOYED_CONTRACT_BALANCE);
+        contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(MAX_BALANCE));
 
         // When
         final var functionCall = airdropContract.send_mixedAirdrop(
@@ -204,15 +204,16 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
     }
 
     @Test
-    @DisplayName("Can airdrop two tokens to a contract with no remaining auto association slots and already associated to one of the tokens")
+    @DisplayName(
+            "Can airdrop two tokens to a contract with no remaining auto association slots and already associated to one of the tokens")
     void airdropToContractWithNoRemainingAssociations() {
         // Given
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var associationContractEntityId = getEntityId(receiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(AssociateContract.BINARY), associationContractEntityId, e -> e.maxAutomaticTokenAssociations(0));
+        final var receiverContractEntityId = contractPersist(
+                receiverContractAddress, AssociateContract.BINARY, e -> e.maxAutomaticTokenAssociations(0));
+
         var fungibleTokenAddresses = new ArrayList<String>();
         var senders = new ArrayList<String>();
         var receivers = new ArrayList<String>();
@@ -223,26 +224,22 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
 
             fungibleTokenAddresses.add(tokenAddress);
 
-            if(i == 0) {
-                //associate to first token
-                tokenAccountPersist(tokenId, associationContractEntityId.getId());
+            if (i == 0) {
+                // associate to first token
+                tokenAccountPersist(tokenId, receiverContractEntityId.getId());
             }
 
             senders.add(getAddressFromEntity(sender));
             receivers.add(receiverContractAddress);
         }
 
-        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(100_000_000L));
-        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 100_000_000L);
+        final var airdropContract =
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+        contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(DEFAULT_BALANCE));
 
         // When
         final var functionCall = airdropContract.send_tokenNAmountAirdrops(
-                fungibleTokenAddresses,
-                senders,
-                receivers,
-                DEFAULT_TOKEN_AIRDROP_AMOUNT,
-                DEFAULT_WEI_VALUE);
+                fungibleTokenAddresses, senders, receivers, DEFAULT_TOKEN_AIRDROP_AMOUNT, DEFAULT_WEI_VALUE);
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -259,22 +256,21 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var associationContractEntityId = getEntityId(receiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(AssociateContract.BINARY), associationContractEntityId, _ -> {});
+        final var receiverContractEntityId =
+                contractPersist(receiverContractAddress, AssociateContract.BINARY, e -> {});
 
-        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(100_000_000L));
-        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 100_000_000L);
+        final var airdropContract =
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+        final var airdropContractEntityId =
+                contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(DEFAULT_BALANCE));
 
         final var treasury = accountEntityPersist().toEntityId();
-
         final var tokenId = fungibleTokenSetupWithTreasuryAccount(treasury, sender);
         final var tokenAddress = toAddress(tokenId).toHexString();
 
         persistCustomFees(airdropContractEntityId, tokenId, false);
 
-        tokenAccountPersist(tokenId, associationContractEntityId.getId());
+        tokenAccountPersist(tokenId, receiverContractEntityId.getId());
         tokenAccountPersist(tokenId, airdropContractEntityId.getId());
 
         // When
@@ -294,19 +290,20 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
     }
 
     @Test
-    @DisplayName("Airdropped token with custom fees (netOfTransfers = true) to be paid by the contract receiver should be paid by the sender")
+    @DisplayName(
+            "Airdropped token with custom fees (netOfTransfers = true) to be paid by the contract receiver should be paid by the sender")
     void airdropToContractCustomFeePaidBySenderWithNetOfTransfers() {
         // Given
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var associationContractEntityId = getEntityId(receiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(AssociateContract.BINARY), associationContractEntityId, _ -> {});
+        final var receiverContractEntityId =
+                contractPersist(receiverContractAddress, AssociateContract.BINARY, e -> {});
 
-        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(100_000_000L));
-        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 100_000_000L);
+        final var airdropContract =
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+        final var airdropContractEntityId =
+                contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(DEFAULT_BALANCE));
 
         final var treasury = accountEntityPersist().toEntityId();
 
@@ -315,7 +312,7 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
 
         persistCustomFees(airdropContractEntityId, tokenId, true);
 
-        tokenAccountPersist(tokenId, associationContractEntityId.getId());
+        tokenAccountPersist(tokenId, receiverContractEntityId.getId());
         tokenAccountPersist(tokenId, airdropContractEntityId.getId());
 
         // When
@@ -335,37 +332,38 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
     }
 
     @Test
-    @DisplayName("Airdropped token with custom fees to be paid by the contract receiver that is a fee collector for another fee would not be paid")
+    @DisplayName(
+            "Airdropped token with custom fees to be paid by the contract receiver that is a fee collector for another fee would not be paid")
     void airdropToContractCustomFeePaidByContractReceiverFeeCollectorNotPaid() {
         // Given
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var receiverContractEntityId = getEntityId(receiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(AssociateContract.BINARY), receiverContractEntityId, _ -> {});
+        final var receiverContractEntityId =
+                contractPersist(receiverContractAddress, AssociateContract.BINARY, e -> {});
 
-        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(100_000_000L));
-        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 100_000_000L);
+        final var airdropContract =
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+        final var airdropContractEntityId =
+                contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(DEFAULT_BALANCE));
 
         final var treasury = accountEntityPersist().toEntityId();
-
         final var tokenId = fungibleTokenSetupWithTreasuryAccount(treasury, sender);
         final var tokenAddress = toAddress(tokenId).toHexString();
 
         final var fractionalFee = FractionalFee.builder()
                 .collectorAccountId(airdropContractEntityId)
-                .denominator(10L)
-                .minimumAmount(1L)
-                .maximumAmount(100L)
-                .numerator(1L)
+                .denominator(DEFAULT_DENOMINATOR_VALUE.longValue())
+                .minimumAmount(DEFAULT_FEE_MIN_VALUE.longValue())
+                .maximumAmount(DEFAULT_FEE_MAX_VALUE.longValue())
+                .numerator(DEFAULT_NUMERATOR_VALUE.longValue())
                 .allCollectorsAreExempt(true)
                 .build();
 
         final var fixedFee = FixedFee.builder()
-                        .amount(10L)
-                                .collectorAccountId(receiverContractEntityId).build();
+                .amount(10L)
+                .collectorAccountId(receiverContractEntityId)
+                .build();
         domainBuilder
                 .customFee()
                 .customize(f -> f.entityId(tokenId)
@@ -394,19 +392,19 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
     }
 
     @Test
-    @DisplayName("Airdropped token with custom fees to be paid by the contract receiver when the collector is contract should not be paid")
+    @DisplayName(
+            "Airdropped token with custom fees to be paid by the contract receiver when the collector is contract should not be paid")
     void airdropToContractCustomFeePaidByContractCollectorNotPaid() {
         // Given
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var receiverContractEntityId = getEntityId(receiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(AssociateContract.BINARY), receiverContractEntityId, _ -> {});
+        final var receiverContractEntityId =
+                contractPersist(receiverContractAddress, AssociateContract.BINARY, e -> {});
 
-        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(100_000_000L));
-        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 100_000_000L);
+        final var airdropContract =
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+        contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(DEFAULT_BALANCE));
 
         final var tokenId = fungibleTokenSetupWithTreasuryAccount(receiverContractEntityId, sender);
         final var tokenAddress = toAddress(tokenId).toHexString();
@@ -431,165 +429,93 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         }
     }
 
-    @Test
-    @DisplayName("Can airdrop token to a contract that is not associated to it with free auto association slots")
-    void airdropToContractNoAssociations() {
+    @ParameterizedTest(
+            name = "Can airdrop {0} token to a contract that is not associated to it with free auto association slots")
+    @MethodSource("tokenType")
+    void airdropToContractNoAssociations(String tokenType, boolean isFungible) {
         // Given
         final var sender = accountEntityPersist();
-        final var receiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
+        final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var receiverContractEntityId = getEntityId(receiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(Empty.BINARY), receiverContractEntityId, e -> e.maxAutomaticTokenAssociations(10));
+        contractPersist(receiverContractAddress, AssociateContract.BINARY, e -> e.maxAutomaticTokenAssociations(10));
 
-        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(100_000_000L));
-        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 100_000_000L);
+        final var airdropContract =
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+        final var airdropContractEntityId =
+                contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(DEFAULT_BALANCE));
 
-        final var fungibleTokenId = fungibleTokenSetup(sender);
-        final var fungibleTokenAddress = toAddress(fungibleTokenId).toHexString();
-
-        final var treasury = accountEntityPersist().toEntityId();
-        final var nonFungibleTokenId = nonFungibleTokenSetup(treasury, sender);
-        final var nonFungibleTokenAddress = toAddress(nonFungibleTokenId).toHexString();
-
-        tokenAccountPersist(fungibleTokenId, airdropContractEntityId.getId());
-        tokenAccountPersist(nonFungibleTokenId, airdropContractEntityId.getId());
+        final var tokenId = isFungible
+                ? fungibleTokenSetup(sender)
+                : nonFungibleTokenSetup(accountEntityPersist().toEntityId(), sender);
+        final var tokenAddress = toAddress(tokenId).toHexString();
+        tokenAccountPersist(tokenId, airdropContractEntityId.getId());
 
         // When
-        final var functionCallFungible = airdropContract.send_tokenAirdrop(
-                fungibleTokenAddress,
-                getAddressFromEntity(sender),
-                receiverContractAddress,
-                DEFAULT_TOKEN_AIRDROP_AMOUNT,
-                DEFAULT_WEI_VALUE);
-
-        final var functionCallNonFungible = airdropContract.send_nftAirdrop(
-                nonFungibleTokenAddress,
-                getAddressFromEntity(sender),
-                receiverContractAddress,
-                BigInteger.ONE,
-                DEFAULT_WEI_VALUE);
+        final var functionCall = isFungible
+                ? airdropContract.send_tokenAirdrop(
+                        tokenAddress,
+                        getAddressFromEntity(sender),
+                        receiverContractAddress,
+                        DEFAULT_TOKEN_AIRDROP_AMOUNT,
+                        DEFAULT_WEI_VALUE)
+                : airdropContract.send_nftAirdrop(
+                        tokenAddress,
+                        getAddressFromEntity(sender),
+                        receiverContractAddress,
+                        BigInteger.ONE,
+                        DEFAULT_WEI_VALUE);
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCallFungible, airdropContract);
-            verifyEthCallAndEstimateGas(functionCallNonFungible, airdropContract);
+            verifyEthCallAndEstimateGas(functionCall, airdropContract);
         } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCallFungible::send);
+            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
         }
     }
 
-
-
-    @Test
-    @DisplayName("Can airdrop token to a contract that is not associated to it with free auto association slots")
-    void airdropToContractWithMaxAutoAssociationsZero() {
+    @ParameterizedTest(
+            name = "Can airdrop {0} token to a contract that is not associated to it with no free auto association slots")
+    @MethodSource("tokenType")
+    void airdropToContractWithMaxAutoAssociationsZero(String tokenType, boolean isFungible) {
         // Given
         final var sender = accountEntityPersist();
-        final var receiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
+        final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var receiverContractEntityId = getEntityId(receiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(Empty.BINARY), receiverContractEntityId, e -> e.maxAutomaticTokenAssociations(0));
+        contractPersist(receiverContractAddress, AssociateContract.BINARY, e -> e.maxAutomaticTokenAssociations(0));
 
-        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(100_000_000L));
-        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 100_000_000L);
+        final var airdropContract =
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+        final var airdropContractEntityId =
+                contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(DEFAULT_BALANCE));
 
-        final var fungibleTokenId = fungibleTokenSetup(sender);
-        final var fungibleTokenAddress = toAddress(fungibleTokenId).toHexString();
-
-        final var treasury = accountEntityPersist().toEntityId();
-        final var nonFungibleTokenId = nonFungibleTokenSetup(treasury, sender);
-        final var nonFungibleTokenAddress = toAddress(nonFungibleTokenId).toHexString();
-
-        tokenAccountPersist(fungibleTokenId, airdropContractEntityId.getId());
-        tokenAccountPersist(nonFungibleTokenId, airdropContractEntityId.getId());
+        final var tokenId = isFungible
+                ? fungibleTokenSetup(sender)
+                : nonFungibleTokenSetup(accountEntityPersist().toEntityId(), sender);
+        final var tokenAddress = toAddress(tokenId).toHexString();
+        tokenAccountPersist(tokenId, airdropContractEntityId.getId());
 
         // When
-        final var functionCallFungible = airdropContract.send_tokenAirdrop(
-                fungibleTokenAddress,
-                getAddressFromEntity(sender),
-                receiverContractAddress,
-                DEFAULT_TOKEN_AIRDROP_AMOUNT,
-                DEFAULT_WEI_VALUE);
-
-        final var functionCallNonFungible = airdropContract.send_nftAirdrop(
-                nonFungibleTokenAddress,
-                getAddressFromEntity(sender),
-                receiverContractAddress,
-                BigInteger.ONE,
-                DEFAULT_WEI_VALUE);
+        final var functionCall = isFungible
+                ? airdropContract.send_tokenAirdrop(
+                        tokenAddress,
+                        getAddressFromEntity(sender),
+                        receiverContractAddress,
+                        DEFAULT_TOKEN_AIRDROP_AMOUNT,
+                        DEFAULT_WEI_VALUE)
+                : airdropContract.send_nftAirdrop(
+                        tokenAddress,
+                        getAddressFromEntity(sender),
+                        receiverContractAddress,
+                        BigInteger.ONE,
+                        DEFAULT_WEI_VALUE);
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCallFungible, airdropContract);
-            verifyEthCallAndEstimateGas(functionCallNonFungible, airdropContract);
+            verifyEthCallAndEstimateGas(functionCall, airdropContract);
         } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCallFungible::send);
+            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
         }
     }
-
-//    @Test
-//    @DisplayName("Airdrop to Contract that has filled all its maxAutoAssociation slots")
-//    void airdropToContractWithFilledMaxAutoAssociations() throws Exception {
-//        // Given
-//        final var sender = accountEntityPersist();
-//        final var receiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
-//        final var receiverContractAddress = receiverContract.getContractAddress();
-//        final var receiverContractEntityId = getEntityId(receiverContractAddress);
-//        associationContractPersist(
-//                BytecodeUtils.extractRuntimeBytecode(Empty.BINARY), receiverContractEntityId, e -> e.maxAutomaticTokenAssociations(1));
-//
-//        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(100_000_000L));
-//        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-//        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 100_000_000L);
-//
-//        final var treasury = accountEntityPersist().toEntityId();
-//        final var fungibleTokenIdFillingTheSlot = fungibleTokenSetup(sender);
-//        final var fillingTokenAddress = toAddress(fungibleTokenIdFillingTheSlot).toHexString();
-//        tokenAccountPersist(fungibleTokenIdFillingTheSlot, airdropContractEntityId.getId());
-//
-//        final var functionCallFilling = airdropContract.send_tokenAirdrop(
-//                fillingTokenAddress,
-//                getAddressFromEntity(sender),
-//                receiverContractAddress,
-//                BigInteger.TWO,
-//                DEFAULT_WEI_VALUE);
-//
-//        final var fungibleTokenId = fungibleTokenSetup(sender);
-//        final var fungibleTokenAddress = toAddress(fungibleTokenId).toHexString();
-//        final var nonFungibleTokenId = nonFungibleTokenSetup(treasury, sender);
-//        final var nonFungibleTokenAddress = toAddress(nonFungibleTokenId).toHexString();
-//
-//        tokenAccountPersist(fungibleTokenId, airdropContractEntityId.getId());
-//        tokenAccountPersist(nonFungibleTokenId, airdropContractEntityId.getId());
-//
-//        // When
-//        final var functionCallFungible = airdropContract.send_tokenAirdrop(
-//                fungibleTokenAddress,
-//                getAddressFromEntity(sender),
-//                receiverContractAddress,
-//                DEFAULT_TOKEN_AIRDROP_AMOUNT,
-//                DEFAULT_WEI_VALUE);
-//
-//        final var functionCallNonFungible = airdropContract.send_nftAirdrop(
-//                nonFungibleTokenAddress,
-//                getAddressFromEntity(sender),
-//                receiverContractAddress,
-//                BigInteger.ONE,
-//                DEFAULT_WEI_VALUE);
-//
-//        // Then
-//        if (mirrorNodeEvmProperties.isModularizedServices()) {
-//            verifyEthCallAndEstimateGas(functionCallFilling, airdropContract);
-//            verifyEthCallAndEstimateGas(functionCallFungible, airdropContract);
-//            verifyEthCallAndEstimateGas(functionCallNonFungible, airdropContract);
-//        } else {
-//            assertThrows(PrecompileNotSupportedException.class, functionCallFungible::send);
-//        }
-//    }
 
     @Test
     @DisplayName("Can airdrop multiple tokens to contract that has free auto association slots")
@@ -598,9 +524,8 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var associationContractEntityId = getEntityId(receiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(AssociateContract.BINARY), associationContractEntityId, _ -> {});
+        contractPersist(receiverContractAddress, AssociateContract.BINARY, e -> {});
+
         var fungibleTokenAddresses = new ArrayList<String>();
         var nonFungibleTokenAddresses = new ArrayList<String>();
         var senders = new ArrayList<String>();
@@ -623,9 +548,9 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
             serials.add(DEFAULT_SERIAL_NUMBER);
         }
 
-        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(1_000_000_000L));
-        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 1_000_000_000L);
+        final var airdropContract =
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, MAX_DEPLOYED_CONTRACT_BALANCE);
+        contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(MAX_BALANCE));
 
         // When
         final var functionCall = airdropContract.send_mixedAirdrop(
@@ -654,9 +579,8 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var associationContractEntityId = getEntityId(receiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(AssociateContract.BINARY), associationContractEntityId, e -> e.maxAutomaticTokenAssociations(0));
+        contractPersist(receiverContractAddress, AssociateContract.BINARY, e -> e.maxAutomaticTokenAssociations(0));
+
         var fungibleTokenAddresses = new ArrayList<String>();
         var nonFungibleTokenAddresses = new ArrayList<String>();
         var senders = new ArrayList<String>();
@@ -679,9 +603,9 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
             serials.add(DEFAULT_SERIAL_NUMBER);
         }
 
-        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(1_000_000_000L));
-        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 1_000_000_000L);
+        final var airdropContract =
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, MAX_DEPLOYED_CONTRACT_BALANCE);
+        contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(MAX_BALANCE));
 
         // When
         final var functionCall = airdropContract.send_mixedAirdrop(
@@ -707,10 +631,10 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
     @DisplayName("Airdrop with multiple senders and multiple contract receivers")
     void airdropMultipleSenderMultipleContractReceivers() {
         // Given
-        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(1_000_000_000L));
-        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 1_000_000_000L);
-        final var airdropContractAddress = toAddress(airdropContractEntityId).toHexString();
+        final var airdropContract =
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, MAX_DEPLOYED_CONTRACT_BALANCE);
+        final var airdropContractAddress = airdropContract.getContractAddress();
+        contractPersist(airdropContractAddress, Airdrop.BINARY, e -> e.balance(MAX_BALANCE));
 
         final var sender = accountEntityPersist();
         var senders = new ArrayList<String>();
@@ -727,11 +651,7 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
 
         // When
         final var functionCall = airdropContract.send_tokenNAmountAirdrops(
-                fungibleTokenAddresses,
-                senders,
-                receivers,
-                DEFAULT_TOKEN_AIRDROP_AMOUNT,
-                DEFAULT_WEI_VALUE);
+                fungibleTokenAddresses, senders, receivers, DEFAULT_TOKEN_AIRDROP_AMOUNT, DEFAULT_WEI_VALUE);
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -755,24 +675,21 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
 
             fungibleTokenAddresses.add(fungibleTokenAddress);
         }
-        final var firstReceiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
-        final var firstReceiverContractAddress = firstReceiverContract.getContractAddress();
-        final var emptyContractEntityId = getEntityId(firstReceiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(Empty.BINARY), emptyContractEntityId, _ -> {});
 
-        final var secondReceiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
+        final var firstReceiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
+        final var firstReceiverContractAddress = firstReceiverContract.getContractAddress();
+        contractPersist(firstReceiverContractAddress, AssociateContract.BINARY, e -> {});
+
+        final var secondReceiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var secondReceiverContractAddress = secondReceiverContract.getContractAddress();
-        final var associationContractEntityId = getEntityId(secondReceiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(AssociateContract.BINARY), associationContractEntityId, _ -> {});
+        contractPersist(secondReceiverContractAddress, AssociateContract.BINARY, e -> {});
 
         receivers.add(firstReceiverContractAddress);
         receivers.add(secondReceiverContractAddress);
 
-        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(1_000_000_000L));
-        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 1_000_000_000L);
+        final var airdropContract =
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, MAX_DEPLOYED_CONTRACT_BALANCE);
+        contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(MAX_BALANCE));
 
         // When
         final var functionCall = airdropContract.send_distributeMultipleTokens(
@@ -791,25 +708,28 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
     }
 
     @Test
-    @DisplayName("Airdrop frozen token that is already associated to the receiving contract should result in failed airdrop")
+    @DisplayName(
+            "Airdrop frozen token that is already associated to the receiving contract should result in failed airdrop")
     void airdropFrozenToken() {
         // Given
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var receiverContractEntityId = getEntityId(receiverContractAddress);
-        associationContractPersist(
-                BytecodeUtils.extractRuntimeBytecode(AssociateContract.BINARY), receiverContractEntityId, e -> e.maxAutomaticTokenAssociations(10));
+        final var receiverContractEntityId = contractPersist(
+                receiverContractAddress, AssociateContract.BINARY, e -> {});
 
-        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(100_000_000L));
-        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 100_000_000L);
+        final var airdropContract =
+                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+        final var airdropContractEntityId =
+                contractPersist(airdropContract.getContractAddress(), Airdrop.BINARY, e -> e.balance(DEFAULT_BALANCE));
 
         final var tokenId = fungibleTokenSetup(sender);
         final var tokenAddress = toAddress(tokenId).toHexString();
 
         tokenAccountPersist(tokenId, airdropContractEntityId.getId());
-        tokenAccount(ta -> ta.tokenId(tokenId).accountId(receiverContractEntityId.getId()).freezeStatus(TokenFreezeStatusEnum.FROZEN));
+        tokenAccount(ta -> ta.tokenId(tokenId)
+                .accountId(receiverContractEntityId.getId())
+                .freezeStatus(TokenFreezeStatusEnum.FROZEN));
 
         // When
         final var functionCall = airdropContract.send_tokenAirdrop(
@@ -828,50 +748,14 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         }
     }
 
-//    @Test
-//    @DisplayName("Airdrop token to a contract not associated to it with no available auto association slots should fail")
-//    void airdropToContractWithNoFreeSlotsAndNoAssociation() {
-//        // Given
-//        final var sender = accountEntityPersist();
-//        final var receiverContract = testWeb3jService.deployWithoutPersist(AssociateContract::deploy);
-//        final var receiverContractAddress = receiverContract.getContractAddress();
-//        final var receiverContractEntityId = getEntityId(receiverContractAddress);
-//        associationContractPersist(
-//                BytecodeUtils.extractRuntimeBytecode(AssociateContract.BINARY), receiverContractEntityId, e -> e.maxAutomaticTokenAssociations(0));
-//
-//        final var airdropContract = testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, BigInteger.valueOf(100_000_000L));
-//        final var airdropContractEntityId = getEntityId(airdropContract.getContractAddress());
-//        airdropContractPersist(BytecodeUtils.extractRuntimeBytecode(Airdrop.BINARY), airdropContractEntityId, 100_000_000L);
-//
-//        final var treasury = accountEntityPersist().toEntityId();
-//        final var tokenId = fungibleTokenSetupWithTreasuryAccount(treasury, sender);
-//        final var tokenAddress = toAddress(tokenId).toHexString();
-//        tokenAccountPersist(tokenId, treasury.getId());
-//        tokenAllowancePersist(sender.getId(), treasury.getId(), tokenId);
-//        // When
-//        final var functionCall = airdropContract.call_transferFrom(
-//                tokenAddress,
-//                getAddressFromEntity(sender),
-//                receiverContractAddress,
-//                DEFAULT_TOKEN_AIRDROP_AMOUNT);
-//
-//        // Then
-//        if (mirrorNodeEvmProperties.isModularizedServices()) {
-//            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-//            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-//        } else {
-//            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-//        }
-//    }
-
-    private void persistCustomFees(final EntityId airdropContractEntityId, final Long tokenId, final boolean netOfTransfers) {
+    private void persistCustomFees(final EntityId entityId, final Long tokenId, final boolean netOfTransfers) {
         final var fractionalFee = FractionalFee.builder()
-                .collectorAccountId(airdropContractEntityId)
-                .denominator(10L)
-                .minimumAmount(1L)
-                .maximumAmount(100L)
+                .collectorAccountId(entityId)
+                .denominator(DEFAULT_DENOMINATOR_VALUE.longValue())
+                .minimumAmount(DEFAULT_FEE_MIN_VALUE.longValue())
+                .maximumAmount(DEFAULT_FEE_MAX_VALUE.longValue())
                 .netOfTransfers(netOfTransfers)
-                .numerator(1L)
+                .numerator(DEFAULT_NUMERATOR_VALUE.longValue())
                 .build();
         domainBuilder
                 .customFee()
@@ -882,9 +766,8 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
                 .persist();
     }
 
-    private Long nonFungibleTokenSetup(EntityId treasury, Entity sender) {
-        final var nonFungible =
-                nonFungibleTokenCustomizable(t -> t.kycKey(null).treasuryAccountId(treasury));
+    private Long nonFungibleTokenSetup(final EntityId treasury, final Entity sender) {
+        final var nonFungible = nonFungibleTokenCustomizable(t -> t.kycKey(null).treasuryAccountId(treasury));
         final var nonFungibleTokenId = nonFungible.getTokenId();
         nftPersistCustomizable(n ->
                 n.tokenId(nonFungibleTokenId).accountId(sender.toEntityId()).spender(sender.toEntityId()));
@@ -893,7 +776,7 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         return nonFungibleTokenId;
     }
 
-    private Long fungibleTokenSetup(Entity sender) {
+    private Long fungibleTokenSetup(final Entity sender) {
         final var token = fungibleTokenCustomizable(t -> t.kycKey(null));
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, sender.getId());
@@ -907,55 +790,14 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         return tokenId;
     }
 
-    private void associationContractPersist(final String binary, final EntityId entityId, final Consumer<Entity.EntityBuilder<?, ?>> customizer) {
-        final var contractBytes = Hex.decode(binary.replace(HEX_PREFIX, ""));
-        final var entity = domainBuilder
-                .entity(entityId)
-                .customize(e -> {
-                    e.type(CONTRACT).alias(null).evmAddress(null)
-                            .maxAutomaticTokenAssociations(-1);
-                    customizer.accept(e);
-                })
-                .persist();
-
-        domainBuilder
-                .contract()
-                .customize(c -> c.id(entity.getId()).runtimeBytecode(contractBytes))
-                .persist();
-
-        domainBuilder
-                .contractState()
-                .customize(c -> c.contractId(entity.getId()))
-                .persist();
-    }
-
-    private void airdropContractPersist(final String binary, final EntityId entityId, final Long balance) {
-        final var contractBytes = Hex.decode(binary.replace(HEX_PREFIX, ""));
-        final var entity = domainBuilder
-                .entity(entityId)
-                .customize(e -> e.type(CONTRACT).alias(null).evmAddress(null).maxAutomaticTokenAssociations(-1).balance(balance))
-                .persist();
-
-        domainBuilder
-                .contract()
-                .customize(c -> c.id(entity.getId()).runtimeBytecode(contractBytes))
-                .persist();
-
-        domainBuilder
-                .contractState()
-                .customize(c -> c.contractId(entity.getId()))
-                .persist();
-    }
-
     private EntityId getEntityId(String address) {
-        return  entityIdFromEvmAddress(Address.fromHexString(address));
+        return entityIdFromEvmAddress(Address.fromHexString(address));
     }
 
-    private Entity hollowAccountPersist() {
-        return domainBuilder
-                .entity()
-                .customize(e -> e.key(null).maxAutomaticTokenAssociations(10).receiverSigRequired(false))
-                .persist();
+    private EntityId contractPersist(
+            String receiverContractAddress, String binary, Consumer<Entity.EntityBuilder<?, ?>> customizer) {
+        final var receiverContractEntityId = getEntityId(receiverContractAddress);
+        contractPersistCustomizable(BytecodeUtils.extractRuntimeBytecode(binary), receiverContractEntityId, customizer);
+        return receiverContractEntityId;
     }
-
 }
