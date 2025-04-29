@@ -67,7 +67,6 @@ spec:
       ingress:
         enabled: true
       env:
-        HEDERA_MIRROR_REST_CACHE_RESPONSE_ENABLED: "false"
         HEDERA_MIRROR_REST_STATEPROOF_ENABLED: "true"
         HEDERA_MIRROR_REST_STATEPROOF_STREAMS_NETWORK: MAINNET
       monitor:
