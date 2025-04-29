@@ -48,8 +48,8 @@ public abstract class CommonIntegrationTest {
     }
 
     protected void reset() {
-        commonProperties.setRealm(1L);
-        commonProperties.setShard(1L);
+        commonProperties.setRealm(0L);
+        commonProperties.setShard(0L);
 
         if (cacheManagers != null) {
             cacheManagers.forEach(this::resetCacheManager);
