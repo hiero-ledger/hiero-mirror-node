@@ -3,11 +3,12 @@
 changelog:
   contributors:
     exclude:
-      names: ["dependabot[bot]", "hedera-github-bot"]
+      names: ["hedera-github-bot"]
     title: "Contributors"
   issues:
     exclude:
       labels: ["wontfix", "question", "duplicate", "invalid"]
+  milestoneReference: title
   repository: hiero-ledger/hiero-mirror-node
   sections:
     - title: "Enhancements"
