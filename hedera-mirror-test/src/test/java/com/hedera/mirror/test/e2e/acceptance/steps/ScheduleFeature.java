@@ -60,7 +60,7 @@ public class ScheduleFeature extends AbstractFeature {
         currentSignersCount = SIGNATORY_COUNT_OFFSET;
         var recipient = accountClient.getAccount(accountName);
         var scheduledTransaction = accountClient.getCryptoTransferTransaction(
-                accountClient.getTokenTreasuryAccount().getAccountId(),
+                accountClient.getAccount(AccountNameEnum.TOKEN_TREASURY).getAccountId(),
                 recipient.getAccountId(),
                 Hbar.fromTinybars(DEFAULT_TINY_HBAR));
 
@@ -137,7 +137,7 @@ public class ScheduleFeature extends AbstractFeature {
 
     @Then("the scheduled transaction is signed by treasuryAccount")
     public void treasurySignsSignature() {
-        signSignature(accountClient.getTokenTreasuryAccount());
+        signSignature(accountClient.getAccount(AccountNameEnum.TOKEN_TREASURY));
     }
 
     @When("I successfully delete the schedule")

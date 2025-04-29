@@ -131,7 +131,7 @@ public interface TokenAccountRepository extends CrudRepository<TokenAccount, Abs
                             order by timestamp_range desc
                             limit 1
                     ) as ta
-                    left join token as t using (token_id)
+                    left join (select * from token where token_id = :tokenId) as t on true;
                     """,
             nativeQuery = true)
     Optional<TokenAccount> findByIdAndTimestamp(long accountId, long tokenId, long blockTimestamp);

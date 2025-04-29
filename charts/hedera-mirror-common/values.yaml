@@ -75,7 +75,7 @@ loki:
   ruler:
     replicas: 0
   rules:
-    - name: hedera-mirror-grpc
+    - name: grpc
       rules:
         - alert: GrpcLogErrors
           annotations:

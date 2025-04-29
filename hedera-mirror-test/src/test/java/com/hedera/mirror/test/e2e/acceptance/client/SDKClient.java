@@ -9,7 +9,6 @@ import com.google.common.base.Stopwatch;
 import com.google.protobuf.ByteString;
 import com.hedera.hashgraph.sdk.AccountBalanceQuery;
 import com.hedera.hashgraph.sdk.AccountCreateTransaction;
-import com.hedera.hashgraph.sdk.AccountDeleteTransaction;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Client;
 import com.hedera.hashgraph.sdk.Hbar;
@@ -54,12 +53,14 @@ public class SDKClient implements Cleanable {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final Client client;
-    private final ExpandedAccountId defaultOperator;
     private final Map<String, AccountId> validateNetworkMap;
     private final AcceptanceTestProperties acceptanceTestProperties;
     private final SdkProperties sdkProperties;
     private final MirrorNodeClient mirrorNodeClient;
     private final TopicId topicId;
+
+    @Getter
+    private final ExpandedAccountId defaultOperator;
 
     @Getter
     private final ExpandedAccountId expandedOperatorAccountId;
@@ -91,9 +92,6 @@ public class SDKClient implements Cleanable {
 
     @Override
     public void clean() {
-        var createdAccountId = expandedOperatorAccountId.getAccountId();
-        var operatorId = defaultOperator.getAccountId();
-
         if (topicId != null) {
             try {
                 var response = new TopicDeleteTransaction()
@@ -104,19 +102,6 @@ public class SDKClient implements Cleanable {
                 log.info("Deleted startup probe topic {} via {}", topicId, response.transactionId);
             } catch (Exception e) {
                 log.warn("Unable to delete startup probe topic {}", topicId, e);
-            }
-        }
-
-        if (!operatorId.equals(createdAccountId)) {
-            try {
-                var response = new AccountDeleteTransaction()
-                        .setAccountId(createdAccountId)
-                        .setTransferAccountId(operatorId)
-                        .execute(client)
-                        .getReceipt(client);
-                log.info("Deleted temporary operator account {} via {}", createdAccountId, response.transactionId);
-            } catch (Exception e) {
-                log.warn("Unable to delete temporary operator account {}", createdAccountId, e);
             }
         }
 

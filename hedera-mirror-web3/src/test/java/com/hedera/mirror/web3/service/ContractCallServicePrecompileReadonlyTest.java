@@ -583,9 +583,11 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
 
         final var expectedExpiry = new Expiry(
                 BigInteger.valueOf(expiryPeriod).divide(BigInteger.valueOf(1_000_000_000L)),
-                Address.fromHexString(
-                                Bytes.wrap(autoRenewAccount.getEvmAddress()).toHexString())
-                        .toHexString(),
+                mirrorNodeEvmProperties.isModularizedServices()
+                        ? getAddressFromEntity(autoRenewAccount)
+                        : Address.fromHexString(Bytes.wrap(autoRenewAccount.getEvmAddress())
+                                        .toHexString())
+                                .toHexString(),
                 BigInteger.valueOf(autoRenewExpiry));
 
         // Then
@@ -667,7 +669,9 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var expectedHederaToken = new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                getAddressFromEvmAddress(treasury.getEvmAddress()),
+                mirrorNodeEvmProperties.isModularizedServices()
+                        ? getAddressFromEntityId(treasury.toEntityId())
+                        : getAddressFromEvmAddress(treasury.getEvmAddress()),
                 tokenEntity.getMemo(),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),
@@ -742,7 +746,9 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var expectedHederaToken = new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                getAddressFromEvmAddress(treasury.getEvmAddress()),
+                mirrorNodeEvmProperties.isModularizedServices()
+                        ? getAddressFromEntityId(treasury.toEntityId())
+                        : getAddressFromEvmAddress(treasury.getEvmAddress()),
                 tokenEntity.getMemo(),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),
@@ -811,7 +817,9 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var expectedHederaToken = new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                getAddressFromEvmAddress(treasury.getEvmAddress()),
+                mirrorNodeEvmProperties.isModularizedServices()
+                        ? getAddressFromEntityId(treasury.toEntityId())
+                        : getAddressFromEvmAddress(treasury.getEvmAddress()),
                 tokenEntity.getMemo(),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),

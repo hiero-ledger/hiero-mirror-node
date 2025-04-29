@@ -5,11 +5,14 @@ package com.hedera.mirror.web3.state.keyvalue;
 import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
 import static com.hedera.mirror.web3.state.Utils.DEFAULT_AUTO_RENEW_PERIOD;
+import static com.hedera.mirror.web3.state.Utils.EMPTY_KEY_LIST;
 import static com.hedera.mirror.web3.state.Utils.parseKey;
 import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
 
 import com.hedera.hapi.node.base.AccountID;
+import com.hedera.hapi.node.base.ContractID;
+import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.state.token.AccountApprovalForAllAllowance;
 import com.hedera.hapi.node.state.token.AccountCryptoAllowance;
@@ -101,6 +104,7 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
         } else if (entity.getAlias() != null && entity.getAlias().length > 0) {
             alias = entity.getAlias();
         }
+        final boolean isSmartContract = CONTRACT.equals(entity.getType());
 
         return Account.newBuilder()
                 .accountId(EntityIdUtils.toAccountId(entity.toEntityId()))
@@ -114,17 +118,38 @@ public class AccountReadableKVState extends AbstractReadableKVState<AccountID, A
                 .ethereumNonce(Objects.requireNonNullElse(entity.getEthereumNonce(), 0L))
                 .expirationSecond(TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS))
                 .expiredAndPendingRemoval(false)
-                .key(parseKey(entity.getKey()))
+                .key(getKey(entity, isSmartContract))
                 .maxAutoAssociations(Objects.requireNonNullElse(entity.getMaxAutomaticTokenAssociations(), 0))
                 .memo(entity.getMemo())
                 .numberAssociations(() -> tokenAccountBalances.get().all())
                 .numberOwnedNfts(getOwnedNfts(entity.getId(), timestamp))
                 .numberPositiveBalances(() -> tokenAccountBalances.get().positive())
                 .receiverSigRequired(entity.getReceiverSigRequired() != null && entity.getReceiverSigRequired())
-                .smartContract(CONTRACT.equals(entity.getType()))
+                .smartContract(isSmartContract)
                 .tinybarBalance(getAccountBalance(entity, timestamp))
                 .tokenAllowances(getFungibleTokenAllowances(entity.getId(), timestamp))
                 .build();
+    }
+
+    private Key getKey(final Entity entity, final boolean isSmartContract) {
+        final var key = parseKey(entity.getKey());
+        if (key == null) {
+            if (isSmartContract) {
+                return Key.newBuilder()
+                        .contractID(ContractID.newBuilder()
+                                .shardNum(entity.getShard())
+                                .realmNum(entity.getRealm())
+                                .contractNum(entity.getNum())
+                                .build())
+                        .build();
+            } else {
+                // In hedera.app there isn't a case in which an account does not have a key set in the state - it is
+                // either valid, or it is an empty KeyList as the one below. This key is added in the account state in
+                // the mirror node for consistency as well as to prevent from potential NullPointerException.
+                return EMPTY_KEY_LIST;
+            }
+        }
+        return key;
     }
 
     private Supplier<Long> getOwnedNfts(Long accountId, final Optional<Long> timestamp) {

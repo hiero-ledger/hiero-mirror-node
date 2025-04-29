@@ -154,7 +154,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
         return Suppliers.memoize(() -> timestamp
                 .map(t -> entityRepository.findActiveByIdAndTimestamp(autoRenewAccountId, t))
                 .orElseGet(() -> entityRepository.findByIdAndDeletedIsFalse(autoRenewAccountId))
-                .map(EntityIdUtils::toAccountId)
+                .map(entity -> EntityIdUtils.toAccountId(entity.toEntityId()))
                 .orElse(null));
     }
 
@@ -165,7 +165,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
         return Suppliers.memoize(() -> timestamp
                 .map(t -> entityRepository.findActiveByIdAndTimestamp(treasuryId.getId(), t))
                 .orElseGet(() -> entityRepository.findByIdAndDeletedIsFalse(treasuryId.getId()))
-                .map(EntityIdUtils::toAccountId)
+                .map(entity -> EntityIdUtils.toAccountId(entity.toEntityId()))
                 .orElse(null));
     }
 

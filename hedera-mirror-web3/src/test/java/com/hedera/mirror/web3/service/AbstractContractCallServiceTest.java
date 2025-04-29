@@ -12,9 +12,11 @@ import static com.hedera.mirror.web3.utils.ContractCallTestUtil.isWithinExpected
 import static com.hedera.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1.CONTEXT;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import com.google.common.collect.Range;
+import com.google.protobuf.ByteString;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.entity.Entity;
@@ -45,12 +47,19 @@ import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
+import com.sun.jna.ptr.IntByReference;
 import com.swirlds.state.State;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -61,12 +70,14 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.context.annotation.Import;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.tx.Contract;
+import org.web3j.utils.Numeric;
 
 @Import(Web3jTestConfiguration.class)
 public abstract class AbstractContractCallServiceTest extends Web3IntegrationTest {
@@ -85,6 +96,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final BigInteger DEFAULT_NUMERATOR_VALUE = BigInteger.valueOf(20L);
     protected static final BigInteger DEFAULT_FEE_MIN_VALUE = BigInteger.valueOf(1L);
     protected static final BigInteger DEFAULT_FEE_MAX_VALUE = BigInteger.valueOf(1000L);
+    protected static final String ED_25519 = "Ed25519";
 
     @Resource
     protected TestWeb3jService testWeb3jService;
@@ -742,6 +754,83 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .customize(e -> e.createdTimestamp(genesisRecordFile.getConsensusStart())
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
+    }
+
+    /**
+     * @param messageHash - message to be signed
+     * @param privateKey - private key used to sign the message
+     */
+    // Sign message with ECDSA private key
+    protected static byte[] signMessageECDSA(final byte[] messageHash, byte[] privateKey) {
+        final LibSecp256k1.secp256k1_ecdsa_recoverable_signature signature =
+                new LibSecp256k1.secp256k1_ecdsa_recoverable_signature();
+        LibSecp256k1.secp256k1_ecdsa_sign_recoverable(CONTEXT, signature, messageHash, privateKey, null, null);
+
+        final ByteBuffer compactSig = ByteBuffer.allocate(64);
+        final IntByReference recId = new IntByReference(0);
+        LibSecp256k1.secp256k1_ecdsa_recoverable_signature_serialize_compact(
+                LibSecp256k1.CONTEXT, compactSig, recId, signature);
+        compactSig.flip();
+        final byte[] sig = compactSig.array();
+
+        final byte[] result = new byte[65];
+        System.arraycopy(sig, 0, result, 0, 64);
+        result[64] = (byte) (recId.getValue() + 27);
+        return result;
+    }
+
+    /**
+     * Signs message with ED25519 private key
+     *
+     * @param msg - message to be signed
+     * @param privateKey - private key used to sign the message
+     */
+    protected static byte[] signBytesED25519(final byte[] msg, final PrivateKey privateKey)
+            throws InvalidKeyException, SignatureException, NoSuchAlgorithmException {
+        Signature signature = Signature.getInstance(ED_25519);
+        signature.initSign(privateKey);
+        signature.update(msg);
+        return signature.sign();
+    }
+
+    /**
+     * Returns the evm address in proper format with Upper and Lower case for the letters
+     *
+     * @param address - address bytes to be converted into readable evm address
+     */
+    protected static com.esaulpaugh.headlong.abi.Address asHeadlongAddress(final byte[] address) {
+        final var addressBytes = Bytes.wrap(address);
+        final var addressAsInteger = addressBytes.toUnsignedBigInteger();
+        return com.esaulpaugh.headlong.abi.Address.wrap(
+                com.esaulpaugh.headlong.abi.Address.toChecksumAddress(addressAsInteger));
+    }
+
+    protected byte[] getProtobufKeyECDSA(BigInteger publicKey) {
+        // Convert BigInteger public key to a full 65-byte uncompressed key
+        var fullPublicKey = Numeric.hexStringToByteArray(Numeric.toHexStringWithPrefixZeroPadded(publicKey, 130));
+        // Convert to compressed format (33 bytes)
+        // 0x02 for even Y, 0x03 for odd Y
+        var prefix = (byte) (fullPublicKey[64] % 2 == 0 ? 0x02 : 0x03);
+        var compressedKey = new byte[33];
+        compressedKey[0] = prefix;
+        // Copy only X coordinate
+        System.arraycopy(fullPublicKey, 1, compressedKey, 1, 32);
+        var finalResult = ByteString.copyFrom(compressedKey);
+        return Key.newBuilder().setECDSASecp256K1(finalResult).build().toByteArray();
+    }
+
+    /**
+     * Persist account with a specific public key and evm address
+     *
+     * @param evmAddress - the evm address to be set to the account
+     * @param publicKey - the public key to be set to the account
+     */
+    protected Entity persistAccountWithEvmAddressAndPublicKey(byte[] evmAddress, byte[] publicKey) {
+        return accountEntityPersistCustomizable(e -> e.alias(evmAddress)
+                .evmAddress(evmAddress)
+                .key(publicKey)
+                .type(EntityType.ACCOUNT)
+                .balance(DEFAULT_ACCOUNT_BALANCE));
     }
 
     public enum KeyType {
