@@ -200,7 +200,6 @@ class ContractCallHASSystemContractTest extends AbstractContractCallServiceTest 
                 .contract()
                 .customize(c -> c.id(contractEntityId.getId()).runtimeBytecode(runtimeBytecode))
                 .persist();
-        domainBuilder.recordFile().customize(f -> f.bytes(runtimeBytecode)).persist();
         return entity;
     }
 }
