@@ -35,7 +35,7 @@ import java.util.function.Supplier;
  *                 Bitcoin (21 million whole tokens with 8 decimals) or hbars (50 billion whole tokens with 8 decimals).
  *                 It could even match Bitcoin with milli-satoshis (21 million whole tokens with 11 decimals).
  * @param totalSupplySupplier <b>(5)</b> The total supply of this token wrapped in a Supplier.
- * @param treasuryAccountIdSupplier <b>(6)</b> The treasury account id of this token wrapped in a Supplier.
+ * @param treasuryAccountId <b>(6)</b> The treasury account id of this token.
  * @param adminKey <b>(7)</b> (Optional) The admin key of this token. If this key is set, the token is mutable.
  *                 A mutable token can be modified.
  *                 If this key is not set on token creation, it cannot be modified.
@@ -58,8 +58,8 @@ import java.util.function.Supplier;
  *                  If it has been omitted during token creation, FUNGIBLE_COMMON type is used.
  * @param supplyType <b>(17)</b> The supply type of this token.A token can have either INFINITE or FINITE supply type.
  *                   If it has been omitted during token creation, INFINITE type is used.
- * @param autoRenewAccountIdSupplier <b>(18)</b> The id of the account (if any) that the network will attempt to charge for the
- *  *                           token's auto-renewal upon expiration wrapped in a Supplier.
+ * @param autoRenewAccountId <b>(18)</b> The id of the account (if any) that the network will attempt to charge for the
+ *  *                           token's auto-renewal upon expiration.
  * @param autoRenewSeconds <b>(19)</b> The number of seconds the network should automatically extend the token's expiration by, if the
  *                         token has a valid auto-renew account, and is not deleted upon expiration.
  *                         If this is not provided in a allowed range on token creation, the transaction will fail with INVALID_AUTO_RENEWAL_PERIOD.
@@ -81,7 +81,7 @@ public record Token(
         @Nonnull String symbol,
         int decimals,
         Supplier<Long> totalSupplySupplier,
-        @Nullable Supplier<AccountID> treasuryAccountIdSupplier,
+        @Nullable AccountID treasuryAccountId,
         @Nullable Key adminKey,
         @Nullable Key kycKey,
         @Nullable Key freezeKey,
@@ -93,7 +93,7 @@ public record Token(
         boolean deleted,
         TokenType tokenType,
         TokenSupplyType supplyType,
-        @Nullable Supplier<AccountID> autoRenewAccountIdSupplier,
+        @Nullable AccountID autoRenewAccountId,
         long autoRenewSeconds,
         long expirationSecond,
         @Nonnull String memo,
@@ -112,8 +112,8 @@ public record Token(
     /** Default instance with all fields set to default values */
     public static final Token DEFAULT = newBuilder()
             .totalSupply(0L)
-            .autoRenewAccountId((AccountID) null)
-            .treasuryAccountId((AccountID) null)
+            .autoRenewAccountId(null)
+            .treasuryAccountId(null)
             .build();
     /**
      * Create a pre-populated Token.
@@ -201,7 +201,7 @@ public record Token(
                 symbol,
                 decimals,
                 () -> totalSupply,
-                () -> treasuryAccountId,
+                treasuryAccountId,
                 adminKey,
                 kycKey,
                 freezeKey,
@@ -213,7 +213,7 @@ public record Token(
                 deleted,
                 tokenType,
                 supplyType,
-                () -> autoRenewAccountId,
+                autoRenewAccountId,
                 autoRenewSeconds,
                 expirationSecond,
                 memo,
@@ -224,6 +224,15 @@ public record Token(
                 () -> customFees,
                 metadata,
                 metadataKey);
+    }
+
+    /**
+     * Return a new builder for building a model object. This is just a shortcut for <code>new Model.Builder()</code>.
+     *
+     * @return a new builder
+     */
+    public static Builder newBuilder() {
+        return new Builder();
     }
 
     /**
@@ -253,14 +262,8 @@ public record Token(
                 result = 31 * result + Long.hashCode(currentValue);
             }
         }
-        if (treasuryAccountIdSupplier != null && treasuryAccountIdSupplier.get() != null) {
-            Object currentValue = treasuryAccountIdSupplier.get();
-            Object defaultValue =
-                    DEFAULT.treasuryAccountIdSupplier != null ? DEFAULT.treasuryAccountIdSupplier.get() : null;
-
-            if (!currentValue.equals(defaultValue)) {
-                result = 31 * result + currentValue.hashCode();
-            }
+        if (treasuryAccountId != null && !treasuryAccountId.equals(DEFAULT.treasuryAccountId)) {
+            result = 31 * result + treasuryAccountId.hashCode();
         }
         if (adminKey != null && !adminKey.equals(DEFAULT.adminKey)) {
             result = 31 * result + adminKey.hashCode();
@@ -295,14 +298,8 @@ public record Token(
         if (supplyType != null && !supplyType.equals(DEFAULT.supplyType)) {
             result = 31 * result + Integer.hashCode(supplyType.protoOrdinal());
         }
-        if (autoRenewAccountIdSupplier != null && autoRenewAccountIdSupplier.get() != null) {
-            Object currentValue = autoRenewAccountIdSupplier.get();
-            Object defaultValue =
-                    DEFAULT.autoRenewAccountIdSupplier != null ? DEFAULT.autoRenewAccountIdSupplier.get() : null;
-
-            if (!currentValue.equals(defaultValue)) {
-                result = 31 * result + currentValue.hashCode();
-            }
+        if (autoRenewAccountId != null && !autoRenewAccountId.equals(DEFAULT.autoRenewAccountId)) {
+            result = 31 * result + autoRenewAccountId.hashCode();
         }
         if (autoRenewSeconds != DEFAULT.autoRenewSeconds) {
             result = 31 * result + Long.hashCode(autoRenewSeconds);
@@ -386,7 +383,10 @@ public record Token(
         if (!areSuppliersEqual(totalSupplySupplier, thatObj.totalSupplySupplier)) {
             return false;
         }
-        if (!areSuppliersEqual(treasuryAccountIdSupplier, thatObj.treasuryAccountIdSupplier)) {
+        if (treasuryAccountId == null && thatObj.treasuryAccountId != null) {
+            return false;
+        }
+        if (treasuryAccountId != null && !treasuryAccountId.equals(thatObj.treasuryAccountId)) {
             return false;
         }
         if (adminKey == null && thatObj.adminKey != null) {
@@ -449,7 +449,10 @@ public record Token(
         if (supplyType != null && !supplyType.equals(thatObj.supplyType)) {
             return false;
         }
-        if (!areSuppliersEqual(autoRenewAccountIdSupplier, thatObj.autoRenewAccountIdSupplier)) {
+        if (autoRenewAccountId == null && thatObj.autoRenewAccountId != null) {
+            return false;
+        }
+        if (autoRenewAccountId != null && !autoRenewAccountId.equals(thatObj.autoRenewAccountId)) {
             return false;
         }
         if (autoRenewSeconds != thatObj.autoRenewSeconds) {
@@ -540,7 +543,7 @@ public record Token(
      * @return true of the treasuryAccountId has a value
      */
     public boolean hasTreasuryAccountId() {
-        return treasuryAccountIdSupplier != null && treasuryAccountIdSupplier.get() != null;
+        return treasuryAccountId != null;
     }
 
     /**
@@ -551,7 +554,7 @@ public record Token(
      * @return the value for treasuryAccountId if it has a value, or else returns the default value
      */
     public AccountID treasuryAccountIdOrElse(@Nonnull final AccountID defaultValue) {
-        return hasTreasuryAccountId() ? treasuryAccountIdSupplier.get() : defaultValue;
+        return hasTreasuryAccountId() ? treasuryAccountId : defaultValue;
     }
 
     /**
@@ -562,9 +565,7 @@ public record Token(
      * @throws NullPointerException if treasuryAccountId is null
      */
     public @Nonnull AccountID treasuryAccountIdOrThrow() {
-        return treasuryAccountIdSupplier == null
-                ? requireNonNull(null, "Field treasuryAccountId is null")
-                : requireNonNull(treasuryAccountIdSupplier.get(), "Field treasuryAccountId is null");
+        return requireNonNull(treasuryAccountId, "Field treasuryAccountId is null");
     }
 
     /**
@@ -574,7 +575,7 @@ public record Token(
      */
     public void ifTreasuryAccountId(@Nonnull final Consumer<AccountID> ifPresent) {
         if (hasTreasuryAccountId()) {
-            ifPresent.accept(treasuryAccountIdSupplier.get());
+            ifPresent.accept(treasuryAccountId);
         }
     }
 
@@ -878,7 +879,7 @@ public record Token(
      * @return true of the autoRenewAccountId has a value
      */
     public boolean hasAutoRenewAccountId() {
-        return autoRenewAccountIdSupplier != null && autoRenewAccountIdSupplier.get() != null;
+        return autoRenewAccountId != null;
     }
 
     /**
@@ -889,7 +890,7 @@ public record Token(
      * @return the value for autoRenewAccountId if it has a value, or else returns the default value
      */
     public AccountID autoRenewAccountIdOrElse(@Nonnull final AccountID defaultValue) {
-        return hasAutoRenewAccountId() ? autoRenewAccountIdSupplier.get() : defaultValue;
+        return hasAutoRenewAccountId() ? autoRenewAccountId : defaultValue;
     }
 
     /**
@@ -900,9 +901,7 @@ public record Token(
      * @throws NullPointerException if autoRenewAccountId is null
      */
     public @Nonnull AccountID autoRenewAccountIdOrThrow() {
-        return autoRenewAccountIdSupplier == null
-                ? requireNonNull(null, "Field autoRenewAccountId is null")
-                : requireNonNull(autoRenewAccountIdSupplier.get(), "Field autoRenewAccountId is null");
+        return requireNonNull(autoRenewAccountId, "Field autoRenewAccountId is null");
     }
 
     /**
@@ -912,7 +911,7 @@ public record Token(
      */
     public void ifAutoRenewAccountId(@Nonnull final Consumer<AccountID> ifPresent) {
         if (hasAutoRenewAccountId()) {
-            ifPresent.accept(autoRenewAccountIdSupplier.get());
+            ifPresent.accept(autoRenewAccountId);
         }
     }
 
@@ -973,21 +972,6 @@ public record Token(
     }
 
     /**
-     * @return The id of the account (if any) that the network will attempt to charge for the
-     *                           token's auto-renewal upon expiration
-     */
-    public AccountID autoRenewAccountId() {
-        return autoRenewAccountIdSupplier.get();
-    }
-
-    /**
-     * @return The treasury account id of this token
-     */
-    public AccountID treasuryAccountId() {
-        return treasuryAccountIdSupplier.get();
-    }
-
-    /**
      * Return a builder for building a copy of this model object. It will be pre-populated with all the data from this
      * model object.
      *
@@ -1000,7 +984,7 @@ public record Token(
                 symbol,
                 decimals,
                 totalSupplySupplier,
-                treasuryAccountIdSupplier,
+                treasuryAccountId,
                 adminKey,
                 kycKey,
                 freezeKey,
@@ -1012,7 +996,7 @@ public record Token(
                 deleted,
                 tokenType,
                 supplyType,
-                autoRenewAccountIdSupplier,
+                autoRenewAccountId,
                 autoRenewSeconds,
                 expirationSecond,
                 memo,
@@ -1025,14 +1009,6 @@ public record Token(
                 metadataKey);
     }
 
-    /**
-     * Return a new builder for building a model object. This is just a shortcut for <code>new Model.Builder()</code>.
-     *
-     * @return a new builder
-     */
-    public static Builder newBuilder() {
-        return new Builder();
-    }
     /**
      * Builder class for easy creation, ideal for clean code where performance is not critical. In critical performance
      * paths use the constructor directly.
@@ -1053,7 +1029,7 @@ public record Token(
         private Supplier<Long> totalSupplySupplier = null;
 
         @Nullable
-        private Supplier<AccountID> treasuryAccountIdSupplier = null;
+        private AccountID treasuryAccountId = null;
 
         @Nullable
         private Key adminKey = null;
@@ -1082,7 +1058,7 @@ public record Token(
         private TokenSupplyType supplyType = TokenSupplyType.fromProtobufOrdinal(0);
 
         @Nullable
-        private Supplier<AccountID> autoRenewAccountIdSupplier = null;
+        private AccountID autoRenewAccountId = null;
 
         private long autoRenewSeconds = 0;
         private long expirationSecond = 0;
@@ -1124,7 +1100,7 @@ public record Token(
          *                                    or hbars (50 billion whole tokens with 8 decimals). It could even match
          *                                    Bitcoin with milli-satoshis (21 million whole tokens with 11 decimals).
          * @param totalSupplySupplier         <b>(5)</b> The total supply of this token wrapped in a Supplier.
-         * @param treasuryAccountIdSupplier   <b>(6)</b> The treasury account id of this token wrapped in a Supplier.
+         * @param treasuryAccountId           <b>(6)</b> The treasury account id of this token.
          * @param adminKey                    <b>(7)</b> (Optional) The admin key of this token. If this key is set, the
          *                                    token is mutable.
          *                                    A mutable token can be modified. If this key is not set on token creation,
@@ -1161,10 +1137,9 @@ public record Token(
          * @param supplyType                  <b>(17)</b> The supply type of this token.A token can have either INFINITE
          *                                    or FINITE supply type.
          *                                    If it has been omitted during token creation, INFINITE type is used.
-         * @param autoRenewAccountIdSupplier  <b>(18)</b> The id of the account (if any) that the network will attempt
+         * @param autoRenewAccountId          <b>(18)</b> The id of the account (if any) that the network will attempt
          *                                    to charge for the
-         *                                    *                           token's auto-renewal upon expiration wrapped
-         *                                    in a Supplier.
+         *                                    *                           token's auto-renewal upon expiration.
          * @param autoRenewSeconds            <b>(19)</b> The number of seconds the network should automatically extend
          *                                    the token's expiration by, if the
          *                                    token has a valid auto-renew account, and is not deleted upon expiration.
@@ -1194,7 +1169,7 @@ public record Token(
                 String symbol,
                 int decimals,
                 Supplier<Long> totalSupplySupplier,
-                Supplier<AccountID> treasuryAccountIdSupplier,
+                AccountID treasuryAccountId,
                 Key adminKey,
                 Key kycKey,
                 Key freezeKey,
@@ -1206,7 +1181,7 @@ public record Token(
                 boolean deleted,
                 TokenType tokenType,
                 TokenSupplyType supplyType,
-                Supplier<AccountID> autoRenewAccountIdSupplier,
+                AccountID autoRenewAccountId,
                 long autoRenewSeconds,
                 long expirationSecond,
                 String memo,
@@ -1222,7 +1197,7 @@ public record Token(
             this.symbol = symbol != null ? symbol : "";
             this.decimals = decimals;
             this.totalSupplySupplier = totalSupplySupplier;
-            this.treasuryAccountIdSupplier = treasuryAccountIdSupplier;
+            this.treasuryAccountId = treasuryAccountId;
             this.adminKey = adminKey;
             this.kycKey = kycKey;
             this.freezeKey = freezeKey;
@@ -1234,7 +1209,7 @@ public record Token(
             this.deleted = deleted;
             this.tokenType = tokenType;
             this.supplyType = supplyType;
-            this.autoRenewAccountIdSupplier = autoRenewAccountIdSupplier;
+            this.autoRenewAccountId = autoRenewAccountId;
             this.autoRenewSeconds = autoRenewSeconds;
             this.expirationSecond = expirationSecond;
             this.memo = memo != null ? memo : "";
@@ -1259,7 +1234,7 @@ public record Token(
                     symbol,
                     decimals,
                     totalSupplySupplier,
-                    treasuryAccountIdSupplier,
+                    treasuryAccountId,
                     adminKey,
                     kycKey,
                     freezeKey,
@@ -1271,7 +1246,7 @@ public record Token(
                     deleted,
                     tokenType,
                     supplyType,
-                    autoRenewAccountIdSupplier,
+                    autoRenewAccountId,
                     autoRenewSeconds,
                     expirationSecond,
                     memo,
@@ -1374,20 +1349,7 @@ public record Token(
          * @return builder to continue building with
          */
         public Builder treasuryAccountId(@Nullable AccountID treasuryAccountId) {
-            this.treasuryAccountIdSupplier = () -> treasuryAccountId;
-            return this;
-        }
-
-        /**
-         * <b>(6)</b> The treasury account id of this token. This account receives the initial supply of
-         * tokens as well as the tokens from the Token Mint operation once executed. The balance of the treasury account
-         * is decreased when the Token Burn operation is executed.
-         *
-         * @param treasuryAccountIdSupplier value to set
-         * @return builder to continue building with
-         */
-        public Builder treasuryAccountId(@Nullable Supplier<AccountID> treasuryAccountIdSupplier) {
-            this.treasuryAccountIdSupplier = treasuryAccountIdSupplier;
+            this.treasuryAccountId = treasuryAccountId;
             return this;
         }
 
@@ -1615,19 +1577,7 @@ public record Token(
          * @return builder to continue building with
          */
         public Builder autoRenewAccountId(@Nullable AccountID autoRenewAccountId) {
-            this.autoRenewAccountIdSupplier = () -> autoRenewAccountId;
-            return this;
-        }
-
-        /**
-         * <b>(18)</b> The id of the account (if any) that the network will attempt to charge for the
-         * token's auto-renewal upon expiration.
-         *
-         * @param autoRenewAccountIdSupplier value to set
-         * @return builder to continue building with
-         */
-        public Builder autoRenewAccountId(@Nullable Supplier<AccountID> autoRenewAccountIdSupplier) {
-            this.autoRenewAccountIdSupplier = autoRenewAccountIdSupplier;
+            this.autoRenewAccountId = autoRenewAccountId;
             return this;
         }
 

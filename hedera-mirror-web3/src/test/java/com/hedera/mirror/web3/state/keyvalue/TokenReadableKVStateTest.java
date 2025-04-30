@@ -6,10 +6,8 @@ import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -248,51 +246,26 @@ class TokenReadableKVStateTest {
     @Test
     void getPartialTreasuryAccount() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
-        setupToken(Optional.empty());
-
-        Entity treasuryEntity = mock(Entity.class);
-        EntityId treasuryEntityId = mock(EntityId.class);
-        when(treasuryEntityId.getShard()).thenReturn(11L);
-        when(treasuryEntityId.getRealm()).thenReturn(12L);
-        when(treasuryEntityId.getNum()).thenReturn(13L);
-
-        when(treasuryEntity.toEntityId()).thenReturn(treasuryEntityId);
+        final var entityId = EntityId.of(11L, 12L, 13L);
+        setupToken(Optional.empty(), entityId);
         when(commonEntityAccessor.get(TOKEN_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
-        when(entityRepository.findByIdAndDeletedIsFalse(
-                        databaseToken.getTreasuryAccountId().getId()))
-                .thenReturn(Optional.of(treasuryEntity));
-
-        final var expectedTreasuryAccountId = toAccountId(11L, 12L, 13L);
+        final var expectedTreasuryAccountId = toAccountId(entityId);
 
         Token token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
 
-        assertThat(token.treasuryAccountIdSupplier().get()).isEqualTo(expectedTreasuryAccountId);
-        verify(entityRepository)
-                .findByIdAndDeletedIsFalse(databaseToken.getTreasuryAccountId().getId());
+        assertThat(token.treasuryAccountId()).isEqualTo(expectedTreasuryAccountId);
     }
 
     @Test
     void getPartialTreasuryAccountHistorical() {
         when(contractCallContext.getTimestamp()).thenReturn(timestamp);
-        setupToken(timestamp);
-
-        Entity treasuryEntity = mock(Entity.class);
-        EntityId treasuryEntityId = mock(EntityId.class);
-        when(treasuryEntityId.getShard()).thenReturn(0L);
-        when(treasuryEntityId.getRealm()).thenReturn(0L);
-        when(treasuryEntityId.getNum()).thenReturn(10L);
-        when(treasuryEntity.toEntityId()).thenReturn(treasuryEntityId);
-
+        final var entityId = EntityId.of(11L, 12L, 13L);
+        setupToken(timestamp, entityId);
         when(commonEntityAccessor.get(TOKEN_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
-        when(entityRepository.findActiveByIdAndTimestamp(treasuryEntity.getId(), timestamp.get()))
-                .thenReturn(Optional.of(treasuryEntity));
+        final var expectedTreasuryAccountId = toAccountId(entityId);
 
-        final var expectedTreasuryAccountId = toAccountId(0L, 0L, 10L);
-        assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID))
-                .satisfies(token ->
-                        assertThat(token.treasuryAccountIdSupplier().get()).isEqualTo(expectedTreasuryAccountId));
-
-        verify(entityRepository).findActiveByIdAndTimestamp(treasuryEntity.getId(), timestamp.get());
+        Token token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
+        assertThat(token.treasuryAccountId()).isEqualTo(expectedTreasuryAccountId);
     }
 
     @Test
@@ -300,26 +273,12 @@ class TokenReadableKVStateTest {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         setupToken(Optional.empty());
         databaseToken.setTreasuryAccountId(null);
-
-        Entity autorenewEntity = mock(Entity.class);
         entity.setAutoRenewAccountId(10L);
-        EntityId autorenewEntityId = mock(EntityId.class);
-        when(autorenewEntityId.getShard()).thenReturn(0L);
-        when(autorenewEntityId.getRealm()).thenReturn(0L);
-        when(autorenewEntityId.getNum()).thenReturn(10L);
-        when(autorenewEntity.toEntityId()).thenReturn(autorenewEntityId);
         when(commonEntityAccessor.get(TOKEN_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
-        when(entityRepository.findByIdAndDeletedIsFalse(entity.getAutoRenewAccountId()))
-                .thenReturn(Optional.of(autorenewEntity));
-
-        verify(entityRepository, never()).findByIdAndDeletedIsFalse(anyLong());
 
         final var autoRenewAccountId = toAccountId(0L, 0L, 10L);
-        assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID))
-                .satisfies(token ->
-                        assertThat(token.autoRenewAccountIdSupplier().get()).isEqualTo(autoRenewAccountId));
-
-        verify(entityRepository).findByIdAndDeletedIsFalse(entity.getAutoRenewAccountId());
+        Token token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
+        assertThat(token.autoRenewAccountId()).isEqualTo(autoRenewAccountId);
     }
 
     @Test
@@ -328,26 +287,12 @@ class TokenReadableKVStateTest {
         setupToken(timestamp);
         databaseToken.setTreasuryAccountId(null);
 
-        Entity autorenewEntity = mock(Entity.class);
-        EntityId autorenewEntityId = mock(EntityId.class);
-        when(autorenewEntityId.getShard()).thenReturn(0L);
-        when(autorenewEntityId.getRealm()).thenReturn(0L);
-        when(autorenewEntityId.getNum()).thenReturn(10L);
-        when(autorenewEntity.toEntityId()).thenReturn(autorenewEntityId);
-
         entity.setAutoRenewAccountId(10L);
         when(commonEntityAccessor.get(TOKEN_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
-        when(entityRepository.findActiveByIdAndTimestamp(entity.getAutoRenewAccountId(), timestamp.get()))
-                .thenReturn(Optional.of(autorenewEntity));
-
-        verify(entityRepository, never()).findActiveByIdAndTimestamp(anyLong(), anyLong());
 
         final var autoRenewAccountId = toAccountId(0L, 0L, 10L);
-        assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID))
-                .satisfies(token ->
-                        assertThat(token.autoRenewAccountIdSupplier().get()).isEqualTo(autoRenewAccountId));
-
-        verify(entityRepository).findActiveByIdAndTimestamp(entity.getAutoRenewAccountId(), timestamp.get());
+        Token token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
+        assertThat(token.autoRenewAccountId()).isEqualTo(autoRenewAccountId);
     }
 
     @Test
@@ -841,10 +786,15 @@ class TokenReadableKVStateTest {
     }
 
     private void setupToken(Optional<Long> timestamp) {
+        setupToken(timestamp, mock(EntityId.class));
+    }
+
+    private void setupToken(Optional<Long> timestamp, EntityId treasuryAccountId) {
         databaseToken =
                 domainBuilder.token().customize(t -> t.tokenId(entity.getId())).get();
-        final var treasuryId = mock(EntityId.class);
-        databaseToken.setTreasuryAccountId(treasuryId);
+
+        databaseToken.setTreasuryAccountId(treasuryAccountId);
+
         if (timestamp.isPresent()) {
             when(tokenRepository.findByTokenIdAndTimestamp(entity.getId(), timestamp.get()))
                     .thenReturn(Optional.ofNullable(databaseToken));
