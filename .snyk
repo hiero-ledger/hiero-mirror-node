@@ -4,6 +4,6 @@ ignore: {}
 patch: {}
 exclude:
   global:
-    - monitor/src/main/java/com/hedera/mirror/monitor/OperatorProperties.java
+    - monitor/src/main/java/org/hiero/mirror/monitor/OperatorProperties.java
     - hedera-mirror-rest/tokens.js
     - hedera-mirror-rest/middleware/responseCacheHandler.js
