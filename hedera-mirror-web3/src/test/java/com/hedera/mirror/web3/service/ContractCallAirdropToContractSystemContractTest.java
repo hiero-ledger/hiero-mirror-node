@@ -55,8 +55,7 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var receiverContractEntityId =
-                contractPersist(receiverContractAddress, Empty.BINARY, e -> e.maxAutomaticTokenAssociations(1));
+        final var receiverContractEntityId = contractPersist(receiverContractAddress, Empty.BINARY, e -> {});
 
         final var tokenId = fungibleTokenSetup(sender);
         tokenAccountPersist(tokenId, receiverContractEntityId.getId());
@@ -89,7 +88,8 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var receiverContractEntityId = contractPersist(receiverContractAddress, Empty.BINARY, e -> {});
+        final var receiverContractEntityId =
+                contractPersist(receiverContractAddress, Empty.BINARY, e -> e.maxAutomaticTokenAssociations(-1));
         final var treasury = accountEntityPersist().toEntityId();
 
         final var fungibleTokenAddresses = new ArrayList<String>();
@@ -256,7 +256,8 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var receiverContractEntityId = contractPersist(receiverContractAddress, Empty.BINARY, e -> {});
+        final var receiverContractEntityId =
+                contractPersist(receiverContractAddress, Empty.BINARY, e -> e.maxAutomaticTokenAssociations(-1));
 
         final var airdropContract =
                 testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
@@ -296,7 +297,8 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var receiverContractEntityId = contractPersist(receiverContractAddress, Empty.BINARY, e -> {});
+        final var receiverContractEntityId =
+                contractPersist(receiverContractAddress, Empty.BINARY, e -> e.maxAutomaticTokenAssociations(-1));
 
         final var airdropContract =
                 testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
@@ -337,7 +339,8 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var receiverContractEntityId = contractPersist(receiverContractAddress, Empty.BINARY, e -> {});
+        final var receiverContractEntityId =
+                contractPersist(receiverContractAddress, Empty.BINARY, e -> e.maxAutomaticTokenAssociations(-1));
 
         final var airdropContract =
                 testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
@@ -396,7 +399,8 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var receiverContractEntityId = contractPersist(receiverContractAddress, Empty.BINARY, e -> {});
+        final var receiverContractEntityId =
+                contractPersist(receiverContractAddress, Empty.BINARY, e -> e.maxAutomaticTokenAssociations(-1));
 
         final var airdropContract =
                 testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
@@ -521,7 +525,7 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        contractPersist(receiverContractAddress, Empty.BINARY, e -> {});
+        contractPersist(receiverContractAddress, Empty.BINARY, e -> e.maxAutomaticTokenAssociations(-1));
 
         final var fungibleTokenAddresses = new ArrayList<String>();
         final var nonFungibleTokenAddresses = new ArrayList<String>();
@@ -631,7 +635,8 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var airdropContract =
                 testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, MAX_DEPLOYED_CONTRACT_BALANCE);
         final var airdropContractAddress = airdropContract.getContractAddress();
-        contractPersist(airdropContractAddress, Airdrop.BINARY, e -> e.balance(MAX_BALANCE));
+        contractPersist(airdropContractAddress, Airdrop.BINARY, e -> e.balance(MAX_BALANCE)
+                .maxAutomaticTokenAssociations(-1));
 
         final var sender = accountEntityPersist();
         final var senders = new ArrayList<String>();
@@ -675,11 +680,11 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
 
         final var firstReceiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
         final var firstReceiverContractAddress = firstReceiverContract.getContractAddress();
-        contractPersist(firstReceiverContractAddress, Empty.BINARY, e -> {});
+        contractPersist(firstReceiverContractAddress, Empty.BINARY, e -> e.maxAutomaticTokenAssociations(-1));
 
         final var secondReceiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
         final var secondReceiverContractAddress = secondReceiverContract.getContractAddress();
-        contractPersist(secondReceiverContractAddress, Empty.BINARY, e -> {});
+        contractPersist(secondReceiverContractAddress, Empty.BINARY, e -> e.maxAutomaticTokenAssociations(-1));
 
         receivers.add(firstReceiverContractAddress);
         receivers.add(secondReceiverContractAddress);
@@ -712,7 +717,8 @@ class ContractCallAirdropToContractSystemContractTest extends AbstractContractCa
         final var sender = accountEntityPersist();
         final var receiverContract = testWeb3jService.deployWithoutPersist(Empty::deploy);
         final var receiverContractAddress = receiverContract.getContractAddress();
-        final var receiverContractEntityId = contractPersist(receiverContractAddress, Empty.BINARY, e -> {});
+        final var receiverContractEntityId =
+                contractPersist(receiverContractAddress, Empty.BINARY, e -> e.maxAutomaticTokenAssociations(-1));
 
         final var airdropContract =
                 testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);

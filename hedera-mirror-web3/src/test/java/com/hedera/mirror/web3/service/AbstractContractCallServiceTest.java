@@ -647,7 +647,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         final var entity = domainBuilder
                 .entity(entityId)
                 .customize(e -> {
-                    e.type(CONTRACT).alias(null).evmAddress(null).maxAutomaticTokenAssociations(-1);
+                    e.type(CONTRACT).alias(null).evmAddress(null);
                     customizer.accept(e);
                 })
                 .persist();
