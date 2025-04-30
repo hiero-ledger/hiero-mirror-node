@@ -72,6 +72,8 @@ spec:
           size: 90Gi
     test:
       enabled: true
+      env:
+        HEDERA_MIRROR_TEST_ACCEPTANCE_WEB3_MODULARIZEDSERVICES: "true"
     web3:
       enabled: true
       env:
