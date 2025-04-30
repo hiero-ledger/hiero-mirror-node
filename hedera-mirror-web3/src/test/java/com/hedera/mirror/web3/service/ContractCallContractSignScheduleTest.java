@@ -5,6 +5,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1.CONTEXT;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.hedera.hapi.node.base.Key.KeyOneOfType;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.base.SignaturePair;
 import com.hedera.hapi.node.scheduled.SchedulableTransactionBody;
@@ -94,15 +95,21 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
         var publicKey = keyPair.getPublicKey().toByteArray();
         final var signedBytes = signMessage(messageHash, privateKey);
 
+        final var signaturePair = SignaturePair.newBuilder()
+                .ecdsaSecp256k1(Bytes.wrap(signedBytes))
+                .pubKeyPrefix(Bytes.wrap(publicKey))
+                .build();
+
         final var signatureMap = SignatureMap.newBuilder()
-                .sigPair(SignaturePair.newBuilder()
-                        .ecdsaSecp256k1(Bytes.wrap(signedBytes))
-                        .pubKeyPrefix(Bytes.wrap(publicKey))
-                        .build())
+                .sigPair(signaturePair)
                 .build();
 
         final var signatureMapBytes =
                 SignatureMap.PROTOBUF.toBytes(signatureMap).toByteArray();
+
+        domainBuilder.transactionSignature()
+                .customize(ts -> ts.publicKeyPrefix(publicKey).signature(signedBytes).entityId(EntityId.of(schedule.getScheduleId()))
+                        .type(KeyOneOfType.ECDSA_SECP256K1.protoOrdinal())).persist();
 
         // When
         final var entityId = EntityId.of(schedule.getScheduleId());
