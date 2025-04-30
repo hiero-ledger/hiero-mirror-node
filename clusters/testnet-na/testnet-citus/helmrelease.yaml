@@ -62,7 +62,6 @@ spec:
           enabled: false
     rest:
       env:
-        HEDERA_MIRROR_REST_CACHE_RESPONSE_ENABLED: "false"
         HEDERA_MIRROR_REST_RESPONSE_INCLUDEADMINKEY: "true"
       monitor:
         config:
@@ -81,4 +80,4 @@ spec:
     web3:
       env:
         HEDERA_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
-        HEDERA_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "0.25"
+        HEDERA_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "0.50"
