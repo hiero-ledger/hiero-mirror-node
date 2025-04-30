@@ -50,11 +50,9 @@ class CommonParserPropertiesTest {
         return Stream.of(
                 Arguments.of("0.0.1", recordItemBuilder.consensusSubmitMessage().build(), true),
                 Arguments.of("0.0.2", recordItemBuilder.cryptoCreate().build(), true),
-                Arguments.of("0.0.3", recordItemBuilder.freeze().build(), true),
                 Arguments.of("0.0.4", recordItemBuilder.fileCreate().build(), true),
                 Arguments.of("0.0.1", recordItemBuilder.cryptoCreate().build(), false),
                 Arguments.of("0.0.2", recordItemBuilder.consensusSubmitMessage().build(), false),
-                Arguments.of("0.0.4", recordItemBuilder.freeze().build(), false),
                 Arguments.of(null, recordItemBuilder.consensusSubmitMessage().build(), false),
                 Arguments.of("0.0.1", recordItemBuilder.unknown().build(), false),
                 Arguments.of(null, recordItemBuilder.unknown().build(), false),
@@ -79,11 +77,9 @@ class CommonParserPropertiesTest {
         return Stream.of(
                 Arguments.of("0.0.1", recordItemBuilder.consensusSubmitMessage().build(), true),
                 Arguments.of("0.0.2", recordItemBuilder.cryptoCreate().build(), true),
-                Arguments.of("0.0.3", recordItemBuilder.freeze().build(), false),
                 Arguments.of("0.0.4", recordItemBuilder.fileCreate().build(), false),
                 Arguments.of("0.0.1", recordItemBuilder.cryptoCreate().build(), false),
                 Arguments.of("0.0.2", recordItemBuilder.consensusSubmitMessage().build(), false),
-                Arguments.of("0.0.4", recordItemBuilder.freeze().build(), false),
                 Arguments.of("0.0.5", recordItemBuilder.consensusSubmitMessage().build(), false),
                 Arguments.of(
                         "0.0.1/0.0.2",
@@ -96,7 +92,6 @@ class CommonParserPropertiesTest {
                         false),
                 Arguments.of(
                         "0.0.2/0.0.3/0.0.4", recordItemBuilder.cryptoCreate().build(), false),
-                Arguments.of("0.0.1/0.0.3", recordItemBuilder.freeze().build(), false),
                 Arguments.of("0.0.1/0.0.2", recordItemBuilder.fileCreate().build(), false),
                 Arguments.of(
                         "0.0.1/0.0.4/0.0.5", recordItemBuilder.cryptoCreate().build(), false),
@@ -104,7 +99,6 @@ class CommonParserPropertiesTest {
                         "0.0.2/0.0.4/0.0.5",
                         recordItemBuilder.consensusSubmitMessage().build(),
                         false),
-                Arguments.of("0.0.1/0.0.2/0.0.4", recordItemBuilder.freeze().build(), false),
                 Arguments.of(
                         "0.0.2/0.0.4/0.0.5",
                         recordItemBuilder.consensusSubmitMessage().build(),
