@@ -39,6 +39,8 @@ import org.springframework.validation.annotation.Validated;
 @Data
 @Validated
 public class CommonParserProperties {
+    private static final List<Integer> WHITE_LISTED_TYPES =
+            List.of(TransactionType.FREEZE.getProtoId(), TransactionType.ATOMIC_BATCH.getProtoId());
 
     @Min(8192)
     private int bufferSize = 32768; // tested max byte size of buffer used by PGCopyOutputStream
@@ -52,7 +54,17 @@ public class CommonParserProperties {
     private Collection<TransactionFilter> include = new ArrayList<>();
 
     @Getter(lazy = true)
-    private final Predicate<TransactionFilterFields> filter = includeFilter().and(excludeFilter());
+    private final Predicate<TransactionFilterFields> filter =
+            whitelisted().or(includeFilter().and(excludeFilter()));
+
+    private Predicate<TransactionFilterFields> whitelisted() {
+        var combined = new ArrayList<>(exclude);
+        combined.addAll(include);
+        if (combined.isEmpty()) {
+            return t -> false;
+        }
+        return t -> WHITE_LISTED_TYPES.contains(t.getRecordItem().getTransactionType());
+    }
 
     public boolean hasFilter() {
         return (!exclude.isEmpty()) || (!include.isEmpty());

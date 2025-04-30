@@ -307,6 +307,38 @@ class CommonParserPropertiesTest {
                 .hasCauseInstanceOf(EvaluationException.class);
     }
 
+    @Test
+    void ignoresWhiteListedExcludes() {
+        var batchRecordItem = recordItemBuilder.atomicBatch().build();
+        var freezeRecordItem = recordItemBuilder.freeze().build();
+        var cryptTransferRecordItem = recordItemBuilder.cryptoTransfer().build();
+        commonParserProperties.getExclude().add(filter("0.0.1", null, null));
+        commonParserProperties.getExclude().add(filter(null, "transactionBody.dataCase.number == 74", null));
+        commonParserProperties.getExclude().add(filter(null, "transactionBody.dataCase.number == 23", null));
+        commonParserProperties.getExclude().add(filter(null, null, TransactionType.ATOMIC_BATCH));
+        commonParserProperties.getExclude().add(filter(null, null, TransactionType.FREEZE));
+        commonParserProperties.getExclude().add(filter(null, null, TransactionType.ATOMIC_BATCH));
+        commonParserProperties.getExclude().add(filter(null, null, TransactionType.FREEZE));
+
+        assertThat(commonParserProperties.hasFilter()).isTrue();
+
+        assertThat(commonParserProperties
+                        .getFilter()
+                        .test(new TransactionFilterFields(
+                                Collections.singleton(EntityId.of("0.0.1")), batchRecordItem)))
+                .isEqualTo(true);
+        assertThat(commonParserProperties
+                        .getFilter()
+                        .test(new TransactionFilterFields(
+                                Collections.singleton(EntityId.of("0.0.1")), freezeRecordItem)))
+                .isEqualTo(true);
+        assertThat(commonParserProperties
+                        .getFilter()
+                        .test(new TransactionFilterFields(
+                                Collections.singleton(EntityId.of("0.0.1")), cryptTransferRecordItem)))
+                .isEqualTo(false);
+    }
+
     private Collection<EntityId> entities(String entityId) {
         if (StringUtils.isBlank(entityId)) {
             return null;
