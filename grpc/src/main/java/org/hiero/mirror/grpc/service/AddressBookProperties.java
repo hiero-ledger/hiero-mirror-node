@@ -12,7 +12,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-@ConfigurationProperties("hedera.mirror.grpc.addressbook")
+@ConfigurationProperties("hiero.mirror.grpc.addressbook")
 public class AddressBookProperties {
 
     @DurationMin(millis = 500L)

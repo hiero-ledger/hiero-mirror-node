@@ -9,6 +9,6 @@ scalar Object
 
 """
 An ISO 8601 compatible timestamp with nanoseconds granularity. All timestamps are consensus timestamps assigned by
-Hedera nodes.
+consensus nodes.
 """
 scalar Timestamp

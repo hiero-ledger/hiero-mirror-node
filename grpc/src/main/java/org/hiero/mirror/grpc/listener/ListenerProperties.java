@@ -13,7 +13,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-@ConfigurationProperties("hedera.mirror.grpc.listener")
+@ConfigurationProperties("hiero.mirror.grpc.listener")
 public class ListenerProperties {
 
     private boolean enabled = true;

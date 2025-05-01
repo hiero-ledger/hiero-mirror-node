@@ -22,7 +22,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-@ConfigurationProperties("hedera.mirror.monitor.subscribe")
+@ConfigurationProperties("hiero.mirror.monitor.subscribe")
 public class SubscribeProperties {
 
     @Min(1)

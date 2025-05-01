@@ -64,7 +64,7 @@ interface Accountable implements Entity & Node {
     "A consensus timestamp range with an inclusive from timestamp and an exclusive to timestamp."
     timestamp: TimestampRange!
 
-    "The type of Hedera entity."
+    "The type of entity."
     type: EntityType!
 }
 
@@ -105,7 +105,7 @@ enum HbarUnit {
 }
 
 """
-The base type for an entity on the Hedera network. Each entity is assigned an incrementing
+The base type for an entity on the network. Each entity is assigned an incrementing
 identifier that is shared across all entity types and associated with a particular shard and realm.
 """
 interface Entity implements Node {
@@ -145,7 +145,7 @@ interface Entity implements Node {
     "A consensus timestamp range with an inclusive from timestamp and an exclusive to timestamp."
     timestamp: TimestampRange!
 
-    "The type of Hedera entity."
+    "The type of entity."
     type: EntityType!
 }
 
@@ -164,7 +164,7 @@ type EntityId {
 }
 
 """
-The unique identifier to find an entity on the Hedera network.
+The unique identifier to find an entity on the network.
 """
 input EntityIdInput {
     "The shard number to allow for horizontal scaling of networks. Defaults to zero."
@@ -177,7 +177,7 @@ input EntityIdInput {
     num: Long! @Min(value: 0)
 }
 
-"The type of Hedera entity."
+"The type of entity."
 enum EntityType {
     ACCOUNT
     CONTRACT
@@ -248,7 +248,7 @@ type TimestampRange {
     to: Timestamp
 }
 
-"The type of transaction submitted to the Hedera network."
+"The type of transaction submitted to the network."
 enum TransactionType {
     CONSENSUSCREATETOPIC
     CONSENSUSDELETETOPIC
