@@ -122,3 +122,8 @@ require (
 	google.golang.org/grpc v1.67.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace (
+	github.com/coinbase/rosetta-sdk-go v0.8.9 => github.com/coinbase/mesh-sdk-go v0.8.9
+	github.com/coinbase/rosetta-sdk-go/types v1.0.0 => github.com/coinbase/mesh-sdk-go/types v1.0.0
+)
