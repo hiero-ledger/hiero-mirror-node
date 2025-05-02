@@ -21,6 +21,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import lombok.Value;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Common encapsulation for a Hedera entity identifier.
@@ -137,6 +138,19 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
         }
 
         return of(parts.get(0), parts.get(1), parts.get(2));
+    }
+
+    public static boolean isValid(String entityId) {
+        try {
+            if (StringUtils.isBlank(entityId)) {
+                return false;
+            }
+
+            of(entityId);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public static EntityId of(long shard, long realm, long num) {

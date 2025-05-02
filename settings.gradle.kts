@@ -12,7 +12,7 @@ include(":grpc")
 
 include(":hedera-mirror-importer")
 
-include(":hedera-mirror-monitor")
+include(":monitor")
 
 include(":protobuf")
 

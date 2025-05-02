@@ -3763,7 +3763,7 @@
   "refresh": "1m",
   "schemaVersion": 38,
   "tags": [
-    "hedera",
+    "hiero",
     "mirror",
     "application",
     "grpc",
@@ -3927,7 +3927,7 @@
     ]
   },
   "timezone": "",
-  "title": "Hedera / Mirror / gRPC API",
+  "title": "Hiero / Mirror / gRPC API",
   "uid": "26rjapg7z",
   "version": 12,
   "weekStart": ""
