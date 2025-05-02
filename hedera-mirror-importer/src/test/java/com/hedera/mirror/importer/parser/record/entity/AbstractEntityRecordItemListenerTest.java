@@ -63,6 +63,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 import lombok.SneakyThrows;
+import org.apache.commons.codec.binary.Hex;
 import org.springframework.transaction.support.TransactionTemplate;
 
 public abstract class AbstractEntityRecordItemListenerTest extends ImporterIntegrationTest {
@@ -176,8 +177,10 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
         return sigMap.build();
     }
 
+    @SneakyThrows
     protected static Key keyFromString(String key) {
-        return Key.newBuilder().setEd25519(ByteString.copyFromUtf8(key)).build();
+        var bytes = Hex.decodeHex(key);
+        return Key.newBuilder().setEd25519(DomainUtils.fromBytes(bytes)).build();
     }
 
     private static Builder defaultTransactionBodyBuilder() {
