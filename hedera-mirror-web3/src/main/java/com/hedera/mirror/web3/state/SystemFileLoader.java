@@ -6,6 +6,7 @@ import static com.hedera.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_S
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_MODULARIZED;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
+import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.CurrentAndNextFeeSchedule;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.NodeAddressBook;
@@ -22,10 +23,14 @@ import com.hedera.node.config.data.EntitiesConfig;
 import com.hedera.pbj.runtime.Codec;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.NodeAddress;
+import com.hederahashgraph.api.proto.java.ServiceEndpoint;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -116,10 +121,10 @@ public class SystemFileLoader {
 
     private Map<FileID, SystemFile> loadAll() {
         var configuration = properties.getVersionedConfiguration();
-
+        final var mockAddressBook = Bytes.wrap(addressBookMockup(1, false).toByteArray());
         var files = List.of(
-                new SystemFile(load(systemEntity.addressBookFile101(), Bytes.EMPTY), NodeAddressBook.PROTOBUF),
-                new SystemFile(load(systemEntity.addressBookFile102(), Bytes.EMPTY), NodeAddressBook.PROTOBUF),
+                new SystemFile(load(systemEntity.addressBookFile101(), mockAddressBook), NodeAddressBook.PROTOBUF),
+                new SystemFile(load(systemEntity.addressBookFile102(), mockAddressBook), NodeAddressBook.PROTOBUF),
                 new SystemFile(
                         load(systemEntity.feeScheduleFile(), fileSchema.genesisFeeSchedules(configuration)),
                         CurrentAndNextFeeSchedule.PROTOBUF),
@@ -158,6 +163,44 @@ public class SystemFileLoader {
         var configuration = properties.getVersionedConfiguration();
         long maxLifetime = configuration.getConfigData(EntitiesConfig.class).maxLifetime();
         return Instant.now().getEpochSecond() + maxLifetime;
+    }
+
+    @SuppressWarnings("deprecation")
+    private com.hederahashgraph.api.proto.java.NodeAddressBook addressBookMockup(int size, boolean includeEndpoints) {
+
+        com.hederahashgraph.api.proto.java.NodeAddressBook.Builder builder =
+                com.hederahashgraph.api.proto.java.NodeAddressBook.newBuilder();
+        for (int i = 0; i < size; ++i) {
+            long nodeId = 3 + i;
+            NodeAddress.Builder nodeAddressBuilder = NodeAddress.newBuilder()
+                    .setIpAddress(ByteString.copyFromUtf8("127.0.0." + nodeId))
+                    .setPortno((int) nodeId)
+                    .setNodeId(nodeId)
+                    .setMemo(ByteString.copyFromUtf8(String.format(
+                            "%s.%s.%s",
+                            this.properties.getCommonProperties().getShard(),
+                            this.properties.getCommonProperties().getRealm(),
+                            nodeId)))
+                    .setNodeAccountId(AccountID.newBuilder().setAccountNum(nodeId))
+                    .setNodeCertHash(ByteString.copyFromUtf8("nodeCertHash"))
+                    .setRSAPubKey("rsa+public/key");
+
+            // add service endpoints
+            if (includeEndpoints) {
+                List<ServiceEndpoint> serviceEndpoints = new ArrayList<>();
+                for (int j = 1; j <= size; ++j) {
+                    serviceEndpoints.add(ServiceEndpoint.newBuilder()
+                            .setIpAddressV4(ByteString.copyFrom(new byte[] {127, 0, 0, (byte) j}))
+                            .setPort(443 + j)
+                            .setDomainName("")
+                            .build());
+                }
+                nodeAddressBuilder.addAllServiceEndpoint(serviceEndpoints);
+            }
+
+            builder.addNodeAddress(nodeAddressBuilder.build());
+        }
+        return builder.build();
     }
 
     private record SystemFile(File genesisFile, Codec<?> codec) {}

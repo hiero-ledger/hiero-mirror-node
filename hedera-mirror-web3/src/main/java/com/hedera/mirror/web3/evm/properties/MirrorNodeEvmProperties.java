@@ -64,7 +64,9 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
 
+    @Getter
     private final CommonProperties commonProperties;
+
     private final SystemEntity systemEntity;
 
     @Getter
@@ -351,6 +353,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("nodes.gossipFqdnRestricted", "false");
         props.put("tss.hintsEnabled", "false");
         props.put("tss.historyEnabled", "false");
+        props.put("executor.disableThrottles", "true");
         props.putAll(properties); // Allow user defined properties to override the defaults
         return Collections.unmodifiableMap(props);
     }
