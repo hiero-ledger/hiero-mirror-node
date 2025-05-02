@@ -2,7 +2,7 @@
 
 package com.hedera.mirror.web3.service;
 
-import static com.hedera.hapi.node.base.ResponseCodeEnum.INVALID_ACCOUNT_ID;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -171,7 +171,7 @@ class TransactionExecutionServiceTest {
         // Then
         assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
                 .isInstanceOf(MirrorEvmTransactionException.class)
-                .hasMessage(INVALID_ACCOUNT_ID.name());
+                .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
     }
 
     @ParameterizedTest
