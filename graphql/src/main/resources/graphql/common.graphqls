@@ -1,0 +1,307 @@
+"""
+A specialization of an Entity appropriate for entities that have a Hbar balance.
+"""
+interface Accountable implements Entity & Node {
+    "The account charged the auto-renewal fee."
+    autoRenewAccount: Account
+
+    "The amount of time to elapse before auto-renew occurs."
+    autoRenewPeriod: Duration
+
+    "The balance of the accountable entity. Defaults to tinybars."
+    balance(unit: HbarUnit = TINYBAR): Long
+
+    "The consensus timestamp at which the entity was created."
+    createdTimestamp: Timestamp
+
+    "Whether the entity declines receiving a staking reward."
+    declineReward: Boolean!
+
+    "Whether the entity still exists in consensus node state."
+    deleted: Boolean
+
+    "The unique identifier associated with the entity."
+    entityId: EntityId!
+
+    """
+    The time at which this entity will expire and be auto-renewed, if possible. If this was not explicitly set by the
+    user it will be calculated as the createdTimestamp plus the autoRenewPeriod.
+    """
+    expirationTimestamp: Timestamp
+
+    "An opaque, globally unique identifier specific to GraphQL."
+    id: ID!
+
+    """
+    The admin key associated with this entity whose signing requirements must be met in order to modify the entity on
+    the network. This returns a dynamic map that varies per entity and may be arbitrarily complex depending upon this
+    key's signing requirements.
+    """
+    key: Object
+
+    "The memo associated with the entity."
+    memo: String!
+
+    "The accountable entity to receive the remaining balance from the deleted entity."
+    obtainer: Accountable
+
+    """
+    The pending reward the account will receive in the next reward payout. Note the value is updated at the end of each
+    staking period and there may be delay to reflect the changes in the past staking period. Defaults to tinybars.
+    """
+    pendingReward(unit: HbarUnit = TINYBAR): Long
+
+    "The account to which this account is staked. Mutually exclusive with stakedNode."
+    stakedAccount: Account
+
+    """
+    The staking period during which either the staking settings for this account changed (such as starting staking or
+    changing stakedNode) or the most recent reward was earned, whichever is later. If this account is not currently
+    staked to a node, then the value is null.
+    """
+    stakePeriodStart: Timestamp
+
+    "A consensus timestamp range with an inclusive from timestamp and an exclusive to timestamp."
+    timestamp: TimestampRange!
+
+    "The type of entity."
+    type: EntityType!
+}
+
+"The encoding used to convert the raw bytes to String"
+enum BinaryEncoding {
+    "Base 64 encoding."
+    BASE64
+
+    "Base 16 hexadecimal encoding with a '0x' prefix and using lowercase letters and numbers."
+    HEX
+}
+
+"""
+The unit to format the hbar currency. Tinybars is the smallest and most exact unit. Anything beyond tinybars will
+potentially result in a loss of information.
+"""
+enum HbarUnit {
+    "1 Gℏ = 1,000,000,000 ℏ"
+    GIGABAR
+
+    "1 Mℏ = 1,000,000 ℏ"
+    MEGABAR
+
+    "1Kℏ = 1,000 ℏ"
+    KILOBAR
+
+    "1 ℏ = 1 ℏ"
+    HBAR
+
+    "1,000 mℏ = 1 ℏ"
+    MILIBAR
+
+    "1,000,000 μℏ = 1 ℏ"
+    MICROBAR
+
+    "100,000,000 tℏ = 1 ℏ"
+    TINYBAR
+}
+
+"""
+The base type for an entity on the network. Each entity is assigned an incrementing
+identifier that is shared across all entity types and associated with a particular shard and realm.
+"""
+interface Entity implements Node {
+    "The account charged the auto-renewal fee."
+    autoRenewAccount: Account
+
+    "The amount of time to elapse before auto-renew occurs."
+    autoRenewPeriod: Duration
+
+    "The consensus timestamp at which the entity was created."
+    createdTimestamp: Timestamp
+
+    "Whether the entity still exists on the ledger."
+    deleted: Boolean
+
+    "The unique identifier associated with the entity."
+    entityId: EntityId!
+
+    """
+    The time at which this entity will expire and be auto-renewed, if possible. If this was not explicitly set by the
+    user it will be calculated as the createdTimestamp plus the autoRenewPeriod.
+    """
+    expirationTimestamp: Timestamp
+
+    "An opaque, globally unique identifier specific to GraphQL."
+    id: ID!
+
+    """
+    The admin key associated with this entity whose signing requirements must be met in order to modify the entity on
+    the network.
+    """
+    key: Object
+
+    "The memo associated with the entity."
+    memo: String!
+
+    "A consensus timestamp range with an inclusive from timestamp and an exclusive to timestamp."
+    timestamp: TimestampRange!
+
+    "The type of entity."
+    type: EntityType!
+}
+
+"""
+An incrementing identifier that is shared across all entity types and associated with a particular shard and realm.
+"""
+type EntityId {
+    "The shard number to allow for horizontal scaling of networks."
+    shard: Long!
+
+    "The realm number."
+    realm: Long!
+
+    "The unique incrementing identifier associated with this entity."
+    num: Long!
+}
+
+"""
+The unique identifier to find an entity on the network.
+"""
+input EntityIdInput {
+    "The shard number to allow for horizontal scaling of networks. Defaults to zero."
+    shard: Long! = 0 @Min(value: 0)
+
+    "The realm number. Defaults to zero."
+    realm: Long! = 0 @Min(value: 0)
+
+    "The unique incrementing identifier associated with this entity."
+    num: Long! @Min(value: 0)
+}
+
+"The type of entity."
+enum EntityType {
+    ACCOUNT
+    CONTRACT
+    FILE
+    SCHEDULE
+    TOKEN
+    TOPIC
+    UNKNOWN
+}
+
+"""
+A GraphQL object with a globally unique ID. A GraphQL concept and standard that's not to be confused with a consensus
+node or mirror node.
+"""
+interface Node {
+    "An opaque, globally unique identifier specific to GraphQL."
+    id: ID!
+}
+
+"""
+Contains the pagination metadata for a particular connection.
+"""
+type PageInfo {
+    """
+    When paginating forwards, the cursor to continue. Empty string indicates no more results.
+    """
+    endCursor: String!
+
+    """
+    When paginating forwards, are there more items?
+    """
+    hasNextPage: Boolean!
+
+    """
+    When paginating backwards, are there more items?
+    """
+    hasPreviousPage: Boolean!
+
+    """
+    When paginating backwards, the cursor to continue. Empty string indicates no more results.
+    """
+    startCursor: String!
+}
+
+"""
+A release identifier that follows semantic versioning (https://semver.org/).
+"""
+type SemanticVersion {
+    "The major version indicates incompatible API changes."
+    major: Int!
+
+    "The minor version indicates new, backwards-compatible functionality."
+    minor: Int!
+
+    "The patch version indicates backwards compatible bug fixes."
+    patch: Int!
+}
+
+"""
+A consensus timestamp range with an inclusive from timestamp and an exclusive to timestamp. Usually indicates the
+consensus timestamp range in which the data was in effect on the network.
+"""
+type TimestampRange {
+    "A timestamp that marks the inclusive beginning of the range."
+    from: Timestamp!
+
+    "A timestamp that marks the exclusive end of the range."
+    to: Timestamp
+}
+
+"The type of transaction submitted to the network."
+enum TransactionType {
+    CONSENSUSCREATETOPIC
+    CONSENSUSDELETETOPIC
+    CONSENSUSSUBMITMESSAGE
+    CONSENSUSUPDATETOPIC
+    CONTRACTCALL
+    CONTRACTCREATEINSTANCE
+    CONTRACTDELETEINSTANCE
+    CONTRACTUPDATEINSTANCE
+    CRYPTOADDLIVEHASH
+    CRYPTOAPPROVEALLOWANCE
+    CRYPTOCREATEACCOUNT
+    CRYPTODELETE
+    CRYPTODELETEALLOWANCE
+    CRYPTODELETELIVEHASH
+    CRYPTOTRANSFER
+    CRYPTOUPDATEACCOUNT
+    ETHEREUMTRANSACTION
+    FILEAPPEND
+    FILECREATE
+    FILEDELETE
+    FILEUPDATE
+    FREEZE
+    NODECREATE
+    NODEUPDATE
+    NODEDELETE
+    NODESTAKEUPDATE
+    SCHEDULECREATE
+    SCHEDULEDELETE
+    SCHEDULESIGN
+    SYSTEMDELETE
+    SYSTEMUNDELETE
+    TOKENAIRDROP
+    TOKENASSOCIATE
+    TOKENBURN
+    TOKENCANCELAIRDROP
+    TOKENCLAIMAIRDROP
+    TOKENCREATION
+    TOKENDELETION
+    TOKENDISSOCIATE
+    TOKENFEESCHEDULEUPDATE
+    TOKENFREEZE
+    TOKENGRANTKYC
+    TOKENMINT
+    TOKENPAUSE
+    TOKENREJECT
+    TOKENREVOKEKYC
+    TOKENUNFREEZE
+    TOKENUNPAUSE
+    TOKENUPDATE
+    TOKENUPDATENFTS
+    TOKENWIPE
+    UNCHECKEDSUBMIT
+    UNKNOWN
+    UTILPRNG
+}

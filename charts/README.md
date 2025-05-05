@@ -240,12 +240,12 @@ kubectl logs -f --prefix --tail=10 -l app.kubernetes.io/name=importer
 
 To change application properties without restarting, you can create a
 [ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#create-configmaps-from-files)
-named `hedera-mirror-grpc` or `hedera-mirror-importer` and supply an `application.yaml` or `application.properties`.
+named `grpc` or `hedera-mirror-importer` and supply an `application.yaml` or `application.properties`.
 Note that some properties that are used on startup will still require a restart.
 
 ```shell script
-echo "logging.level.com.hedera.mirror.grpc=TRACE" > application.properties
-kubectl create configmap hedera-mirror-grpc --from-file=application.properties
+echo "logging.level.org.hiero.mirror.grpc=TRACE" > application.properties
+kubectl create configmap grpc --from-file=application.properties
 ```
 
 Dashboard, metrics and alerts can be viewed via [Grafana](https://grafana.com). See the [Using](#using) section for how

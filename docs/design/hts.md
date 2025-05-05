@@ -630,8 +630,6 @@ Optional Filters
 - Update `EntityType` with `TOKEN` option
 
 ```java
-    package com.hedera.mirror.grpc.domain;
-
     public enum EntityType {
 
         UNKNOWN, // Filler value to offset next values by one to match database values

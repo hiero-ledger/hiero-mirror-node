@@ -65,7 +65,7 @@ public class DomainUtils {
             return null;
         }
 
-        return ArrayUtils.isNotEmpty(bytes) ? Hex.encodeHexString(bytes) : "";
+        return ArrayUtils.isNotEmpty(bytes) ? Hex.encodeHexString(bytes) : StringUtils.EMPTY;
     }
 
     public static byte[] getHashBytes(HashObject hashObject) {
@@ -82,15 +82,11 @@ public class DomainUtils {
      */
     public static String getPublicKey(@Nullable byte[] protobufKey) {
         try {
-            if (protobufKey == null) {
+            if (ArrayUtils.isEmpty(protobufKey)) {
                 return null;
             }
 
-            if (ArrayUtils.isEmpty(protobufKey)) {
-                return ""; // Key.getDefaultInstance() case
-            }
-
-            Key key = Key.parseFrom(protobufKey);
+            var key = Key.parseFrom(protobufKey);
             byte[] primitiveKey = getPublicKey(key, 1);
             return bytesToHex(primitiveKey);
         } catch (Exception e) {

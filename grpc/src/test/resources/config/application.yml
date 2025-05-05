@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: Apache-2.0
+
+grpc:
+  client:
+    GLOBAL:
+      negotiationType: plaintext
+    local:
+      address: in-process:local
+  server:
+    enableKeepAlive: false
+    inProcessName: local
+hiero:
+  mirror:
+    grpc:
+      endTimeInterval: 100ms
+      listener:
+        enabled: false # Disabled except in tests that use it since it polls in background repeatedly every 50ms
+        interval: 50ms
+        type: SHARED_POLL # We manually pg_notify on importer so can't use NOTIFY as default
+      retriever:
+        pollingFrequency: 50ms
+spring:
+  test:
+    database:
+      replace: NONE

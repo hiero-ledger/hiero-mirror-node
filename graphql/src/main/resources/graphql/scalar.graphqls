@@ -1,0 +1,14 @@
+"An ISO 8601 compatible duration with support for nanoseconds granularity in the format P[n]Y[n]M[n]DT[n]H[n]M[n]S."
+scalar Duration
+
+"A 64-bit numeric type."
+scalar Long
+
+"A map-like object with dynamic key/value pairs."
+scalar Object
+
+"""
+An ISO 8601 compatible timestamp with nanoseconds granularity. All timestamps are consensus timestamps assigned by
+consensus nodes.
+"""
+scalar Timestamp

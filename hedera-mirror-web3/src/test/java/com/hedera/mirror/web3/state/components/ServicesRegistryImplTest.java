@@ -4,20 +4,25 @@ package com.hedera.mirror.web3.state.components;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hedera.mirror.web3.state.keyvalue.StateKeyRegistry;
 import com.hedera.node.app.ids.EntityIdService;
 import com.hedera.node.app.service.file.impl.FileServiceImpl;
 import com.swirlds.state.lifecycle.Service;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 
 class ServicesRegistryImplTest {
+
+    @Mock
+    private StateKeyRegistry stateKeyRegistry;
 
     private ServicesRegistryImpl servicesRegistry;
 
     @BeforeEach
     void setUp() {
-        servicesRegistry = new ServicesRegistryImpl(List.of());
+        servicesRegistry = new ServicesRegistryImpl(List.of(), stateKeyRegistry);
     }
 
     @Test

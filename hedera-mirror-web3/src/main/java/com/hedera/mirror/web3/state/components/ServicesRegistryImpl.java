@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.state.components;
 
+import com.hedera.mirror.web3.state.keyvalue.StateKeyRegistry;
 import com.hedera.mirror.web3.state.singleton.SingletonState;
 import com.hedera.node.app.services.ServicesRegistry;
 import com.hedera.node.app.state.merkle.SchemaApplications;
@@ -21,6 +22,7 @@ public class ServicesRegistryImpl implements ServicesRegistry {
 
     private final SortedSet<Registration> entries = new TreeSet<>();
     private final Collection<SingletonState<?>> singletons;
+    private final StateKeyRegistry stateKeyRegistry;
 
     @Nonnull
     @Override
@@ -30,7 +32,7 @@ public class ServicesRegistryImpl implements ServicesRegistry {
 
     @Override
     public void register(@Nonnull Service service) {
-        final var registry = new SchemaRegistryImpl(singletons, new SchemaApplications());
+        final var registry = new SchemaRegistryImpl(singletons, new SchemaApplications(), stateKeyRegistry);
         service.registerSchemas(registry);
         entries.add(new ServicesRegistryImpl.Registration(service, registry));
     }
@@ -39,7 +41,7 @@ public class ServicesRegistryImpl implements ServicesRegistry {
     @Override
     public ServicesRegistry subRegistryFor(@Nonnull String... serviceNames) {
         final var selections = Set.of(serviceNames);
-        final var subRegistry = new ServicesRegistryImpl(singletons);
+        final var subRegistry = new ServicesRegistryImpl(singletons, stateKeyRegistry);
         subRegistry.entries.addAll(entries.stream()
                 .filter(registration -> selections.contains(registration.serviceName()))
                 .toList());

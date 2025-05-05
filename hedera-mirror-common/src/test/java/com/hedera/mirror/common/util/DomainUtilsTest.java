@@ -42,7 +42,7 @@ class DomainUtilsTest {
             + "340000006104414e37848e6bbf0824d32e434c315eac3c23300db659f6058ed160ff8f6e80e2353d280b95c876b9f97b785f0a0f"
             + "c8f76842241c2484966791344fd54bc103ce57380052abade51b5b4cf21fad404fe6a1ee7228bff3cd2fbfd617802d8f625b";
     private static final String ECDSA_SECP256K1_KEY =
-            "0347ba1b98360d856fb796ecbcbde934055b9e0967e5e40d0abeb3fd68bf83" + "82c2";
+            "0347ba1b98360d856fb796ecbcbde934055b9e0967e5e40d0abeb3fd68bf8382c2";
     private static final String RSA_3072_KEY = "308201a2300d06092a864886f70d01010105000382018f003082018a0282018100c34"
             + "471f9db1efd5345cb664ed7bb980a8a859f41a51c4a009a91a1db51401af9dea56ce00ca09050c0d02f49ee58b68b24760f077c4"
             + "079f4345ea2e78f4e8f52518a437dc3db47b611ce0574b56d064899892b7378d65491e65676cdf3f2f2b07f34f8bec515f3d4037"
@@ -118,7 +118,7 @@ class DomainUtilsTest {
     @Test
     void getPublicKeyWhenDefaultInstance() {
         var keyBytes = Key.getDefaultInstance().toByteArray();
-        assertThat(DomainUtils.getPublicKey(keyBytes)).isEmpty();
+        assertThat(DomainUtils.getPublicKey(keyBytes)).isNull();
     }
 
     @Test

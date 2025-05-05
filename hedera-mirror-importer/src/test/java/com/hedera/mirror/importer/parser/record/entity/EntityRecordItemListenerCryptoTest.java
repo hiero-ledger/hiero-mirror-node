@@ -13,7 +13,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -545,55 +544,47 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         createAccount();
 
         // now update
-        Transaction transaction = cryptoUpdateTransaction(accountId1);
-        TransactionBody transactionBody = getTransactionBody(transaction);
-        CryptoUpdateTransactionBody cryptoUpdateTransactionBody = transactionBody.getCryptoUpdateAccount();
-        TransactionRecord txnRecord = transactionRecordSuccess(transactionBody);
+        var newKey = recordItemBuilder.thresholdKey(2, 1);
+        var transaction = cryptoUpdateTransaction(accountId1, b -> b.setKey(newKey));
+        var transactionBody = getTransactionBody(transaction);
+        var cryptoUpdate = transactionBody.getCryptoUpdateAccount();
+        var txnRecord = transactionRecordSuccess(transactionBody);
 
         parseRecordItemAndCommit(RecordItem.builder()
                 .hapiVersion(RecordFile.HAPI_VERSION_0_27_0)
                 .transactionRecord(txnRecord)
                 .transaction(transaction)
                 .build());
-        Entity dbAccountEntity = getTransactionEntity(txnRecord.getConsensusTimestamp());
+        var dbAccountEntity = getTransactionEntity(txnRecord.getConsensusTimestamp());
 
         assertAll(
                 () -> assertEquals(2, transactionRepository.count()),
                 () -> assertEntities(EntityId.of(accountId1)),
                 () -> assertEquals(6, cryptoTransferRepository.count()),
                 () -> assertCryptoTransaction(transactionBody, txnRecord),
-
                 // transaction body inputs
-                () -> assertEquals(
-                        cryptoUpdateTransactionBody.getAutoRenewPeriod().getSeconds(),
-                        dbAccountEntity.getAutoRenewPeriod()),
-                () -> assertEquals(
-                        DomainUtils.getPublicKey(
-                                cryptoUpdateTransactionBody.getKey().toByteArray()),
-                        dbAccountEntity.getPublicKey()),
-                () -> assertEquals(
-                        EntityId.of(cryptoUpdateTransactionBody.getProxyAccountID()),
-                        dbAccountEntity.getProxyAccountId()),
-                () -> assertArrayEquals(cryptoUpdateTransactionBody.getKey().toByteArray(), dbAccountEntity.getKey()),
-                () -> assertEquals(
-                        cryptoUpdateTransactionBody
-                                .getMaxAutomaticTokenAssociations()
-                                .getValue(),
-                        dbAccountEntity.getMaxAutomaticTokenAssociations()),
-                () -> assertEquals(cryptoUpdateTransactionBody.getMemo().getValue(), dbAccountEntity.getMemo()),
-                () -> assertEquals(
-                        DomainUtils.timeStampInNanos(cryptoUpdateTransactionBody.getExpirationTime()),
-                        dbAccountEntity.getExpirationTimestamp()),
-                () -> assertEquals(
-                        DomainUtils.timestampInNanosMax(txnRecord.getConsensusTimestamp()),
-                        dbAccountEntity.getTimestampLower()),
-                () -> assertFalse(dbAccountEntity.getReceiverSigRequired()),
-                () -> assertFalse(dbAccountEntity.getDeclineReward()),
-                () -> assertEquals(cryptoUpdateTransactionBody.getStakedNodeId(), dbAccountEntity.getStakedNodeId()),
-                () -> assertEquals(AbstractEntity.ACCOUNT_ID_CLEARED, dbAccountEntity.getStakedAccountId()),
-                () -> assertEquals(
-                        Utility.getEpochDay(DomainUtils.timestampInNanosMax(txnRecord.getConsensusTimestamp())),
-                        dbAccountEntity.getStakePeriodStart()));
+                () -> assertThat(dbAccountEntity)
+                        .returns(cryptoUpdate.getAutoRenewPeriod().getSeconds(), Entity::getAutoRenewPeriod)
+                        .returns(null, Entity::getPublicKey)
+                        .returns(EntityId.of(cryptoUpdate.getProxyAccountID()), Entity::getProxyAccountId)
+                        .returns(newKey.toByteArray(), Entity::getKey)
+                        .returns(
+                                cryptoUpdate.getMaxAutomaticTokenAssociations().getValue(),
+                                Entity::getMaxAutomaticTokenAssociations)
+                        .returns(cryptoUpdate.getMemo().getValue(), Entity::getMemo)
+                        .returns(
+                                DomainUtils.timeStampInNanos(cryptoUpdate.getExpirationTime()),
+                                Entity::getExpirationTimestamp)
+                        .returns(
+                                DomainUtils.timestampInNanosMax(txnRecord.getConsensusTimestamp()),
+                                Entity::getTimestampLower)
+                        .returns(false, Entity::getReceiverSigRequired)
+                        .returns(false, Entity::getDeclineReward)
+                        .returns(cryptoUpdate.getStakedNodeId(), Entity::getStakedNodeId)
+                        .returns(AbstractEntity.ACCOUNT_ID_CLEARED, Entity::getStakedAccountId)
+                        .returns(
+                                Utility.getEpochDay(DomainUtils.timestampInNanosMax(txnRecord.getConsensusTimestamp())),
+                                Entity::getStakePeriodStart));
     }
 
     @Test

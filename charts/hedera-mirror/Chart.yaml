@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 apiVersion: v2
-appVersion: 0.129.0-SNAPSHOT
+appVersion: 0.130.0-SNAPSHOT
 dependencies:
   - alias: grpc
     condition: grpc.enabled
@@ -30,11 +30,11 @@ dependencies:
   - alias: postgresql
     condition: postgresql.enabled
     name: postgresql-ha
-    repository: https://charts.bitnami.com/bitnami
+    repository: oci://registry-1.docker.io/bitnamicharts
     version: 15.3.12
   - condition: redis.enabled
     name: redis
-    repository: https://charts.bitnami.com/bitnami
+    repository: oci://registry-1.docker.io/bitnamicharts
     version: 20.11.5
   - alias: rest
     condition: rest.enabled
@@ -73,4 +73,4 @@ maintainers:
   - name: Hedera Mirror Node Team
     email: mirrornode@hedera.com
 name: hedera-mirror
-version: 0.129.0-SNAPSHOT
+version: 0.130.0-SNAPSHOT

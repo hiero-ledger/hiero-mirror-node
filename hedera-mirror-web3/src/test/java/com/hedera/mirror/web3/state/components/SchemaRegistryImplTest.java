@@ -5,8 +5,8 @@ package com.hedera.mirror.web3.state.components;
 import static java.util.Collections.EMPTY_MAP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -14,7 +14,10 @@ import static org.mockito.Mockito.when;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.mirror.web3.state.core.MapWritableStates;
+import com.hedera.mirror.web3.state.keyvalue.AccountReadableKVState;
+import com.hedera.mirror.web3.state.keyvalue.StateKeyRegistry;
 import com.hedera.node.app.config.ConfigProviderImpl;
+import com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema;
 import com.hedera.node.app.state.merkle.SchemaApplicationType;
 import com.hedera.node.app.state.merkle.SchemaApplications;
 import com.hedera.pbj.runtime.Codec;
@@ -62,12 +65,15 @@ class SchemaRegistryImplTest {
     @Mock
     private Codec<String> mockCodec;
 
+    @Mock
+    private StateKeyRegistry stateKeyRegistry;
+
     private Configuration config;
     private SchemaRegistryImpl schemaRegistry;
 
     @BeforeEach
     void initialize() {
-        schemaRegistry = new SchemaRegistryImpl(List.of(), schemaApplications);
+        schemaRegistry = new SchemaRegistryImpl(List.of(), schemaApplications, stateKeyRegistry);
         config = new ConfigProviderImpl().getConfiguration();
     }
 
@@ -76,12 +82,6 @@ class SchemaRegistryImplTest {
         schemaRegistry.register(schema);
         SortedSet<Schema> schemas = schemaRegistry.getSchemas();
         assertThat(schemas).contains(schema);
-    }
-
-    @Test
-    void testMigrateWithNoSchemas() {
-        schemaRegistry.migrate(serviceName, mirrorNodeState, startupNetworks);
-        verify(mirrorNodeState, never()).getWritableStates(any());
     }
 
     @Test
@@ -121,12 +121,17 @@ class SchemaRegistryImplTest {
         when(schemaApplications.computeApplications(any(), any(), any(), any()))
                 .thenReturn(EnumSet.of(SchemaApplicationType.STATE_DEFINITIONS, SchemaApplicationType.MIGRATION));
 
-        var stateDefinitionSingleton = new StateDefinition<>("KEY", mockCodec, mockCodec, 123, false, true, false);
-        var stateDefinitionQueue = new StateDefinition<>("KEY_QUEUE", mockCodec, mockCodec, 123, false, false, true);
-        var stateDefinition = new StateDefinition<>("STATE", mockCodec, mockCodec, 123, true, false, false);
+        var stateDefinitionSingleton = new StateDefinition<>(
+                V0490TokenSchema.STAKING_NETWORK_REWARDS_KEY, mockCodec, mockCodec, 123, false, true, false);
+        var stateDefinitionQueue =
+                new StateDefinition<>(V0490TokenSchema.STAKING_INFO_KEY, mockCodec, mockCodec, 123, false, false, true);
+        var stateDefinition =
+                new StateDefinition<>(AccountReadableKVState.KEY, mockCodec, mockCodec, 123, true, false, false);
 
         when(schema.statesToCreate(config))
                 .thenReturn(Set.of(stateDefinitionSingleton, stateDefinitionQueue, stateDefinition));
+        when(stateKeyRegistry.contains(V0490TokenSchema.STAKING_INFO_KEY)).thenReturn(true);
+        when(stateKeyRegistry.contains(AccountReadableKVState.KEY)).thenReturn(true);
 
         schemaRegistry.register(schema);
         schemaRegistry.migrate(
@@ -136,6 +141,82 @@ class SchemaRegistryImplTest {
         verify(schema).migrate(any());
         verify(writableStates, times(1)).commit();
         verify(mirrorNodeState, times(1)).addService(any(), any());
+    }
+
+    @Test
+    void testMigrateWithStateDefinitionsMissingSingleton() {
+        when(mirrorNodeState.getReadableStates(serviceName)).thenReturn(readableStates);
+        when(schemaApplications.computeApplications(any(), any(), any(), any()))
+                .thenReturn(EnumSet.of(SchemaApplicationType.STATE_DEFINITIONS, SchemaApplicationType.MIGRATION));
+
+        final var singletonKey = "KEY";
+        var stateDefinitionSingleton =
+                new StateDefinition<>(singletonKey, mockCodec, mockCodec, 123, false, true, false);
+
+        when(schema.statesToCreate(config)).thenReturn(Set.of(stateDefinitionSingleton));
+
+        schemaRegistry.register(schema);
+        UnsupportedOperationException exception = assertThrows(
+                UnsupportedOperationException.class,
+                () -> schemaRegistry.migrate(
+                        serviceName,
+                        mirrorNodeState,
+                        previousVersion,
+                        config,
+                        config,
+                        new HashMap<>(),
+                        startupNetworks));
+        assertThat(exception.getMessage()).isEqualTo("Unsupported singleton key: " + singletonKey);
+    }
+
+    @Test
+    void testMigrateWithStateDefinitionsMissingStateKeyQueue() {
+        when(mirrorNodeState.getReadableStates(serviceName)).thenReturn(readableStates);
+        when(schemaApplications.computeApplications(any(), any(), any(), any()))
+                .thenReturn(EnumSet.of(SchemaApplicationType.STATE_DEFINITIONS, SchemaApplicationType.MIGRATION));
+
+        final var stateKey = "KEY_QUEUE";
+        var stateDefinitionSingleton = new StateDefinition<>(stateKey, mockCodec, mockCodec, 123, false, false, true);
+
+        when(schema.statesToCreate(config)).thenReturn(Set.of(stateDefinitionSingleton));
+
+        schemaRegistry.register(schema);
+        UnsupportedOperationException exception = assertThrows(
+                UnsupportedOperationException.class,
+                () -> schemaRegistry.migrate(
+                        serviceName,
+                        mirrorNodeState,
+                        previousVersion,
+                        config,
+                        config,
+                        new HashMap<>(),
+                        startupNetworks));
+        assertThat(exception.getMessage()).isEqualTo("Unsupported state key for queue: " + stateKey);
+    }
+
+    @Test
+    void testMigrateWithStateDefinitionsMissingStateKey() {
+        when(mirrorNodeState.getReadableStates(serviceName)).thenReturn(readableStates);
+        when(schemaApplications.computeApplications(any(), any(), any(), any()))
+                .thenReturn(EnumSet.of(SchemaApplicationType.STATE_DEFINITIONS, SchemaApplicationType.MIGRATION));
+
+        final var stateKey = "STATE_KEY";
+        var stateDefinitionSingleton = new StateDefinition<>(stateKey, mockCodec, mockCodec, 123, false, false, false);
+
+        when(schema.statesToCreate(config)).thenReturn(Set.of(stateDefinitionSingleton));
+
+        schemaRegistry.register(schema);
+        UnsupportedOperationException exception = assertThrows(
+                UnsupportedOperationException.class,
+                () -> schemaRegistry.migrate(
+                        serviceName,
+                        mirrorNodeState,
+                        previousVersion,
+                        config,
+                        config,
+                        new HashMap<>(),
+                        startupNetworks));
+        assertThat(exception.getMessage()).isEqualTo("Unsupported state key: " + stateKey);
     }
 
     @Test

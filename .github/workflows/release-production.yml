@@ -39,7 +39,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
         with:
           egress-policy: audit
 
@@ -53,6 +53,10 @@ jobs:
         if: matrix.project == 'rest-monitor'
         run: echo "CONTEXT=hedera-mirror-rest/monitoring" >> $GITHUB_ENV
 
+      - name: Custom context
+        if: contains(fromJSON('["graphql", "grpc", "monitor"]'), matrix.project)
+        run: echo "CONTEXT=${{ matrix.project }}" >> $GITHUB_ENV
+
       - name: Install JDK
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
@@ -63,7 +67,7 @@ jobs:
         uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244 # v4
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@71f986410dfbc7added4569d411d040a91dc6935 # v2.1.8
+        uses: google-github-actions/auth@ba79af03959ebeac9769e648f473a284504d9193 # v2.1.10
         with:
           credentials_json: "${{ secrets.GCR_KEY }}"
 
@@ -90,7 +94,7 @@ jobs:
           version: latest
 
       - name: Build and push images
-        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
         with:
           annotations: "index,manifest,manifest-descriptor:com.googleapis.cloudmarketplace.product.service.name=services/hedera-mirror-node-mirror-node-public.cloudpartnerservices.goog"
           build-args: VERSION=${{env.TAG}}
@@ -111,7 +115,7 @@ jobs:
       contents: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
         with:
           egress-policy: audit
 
@@ -137,7 +141,7 @@ jobs:
       MPDEV: "/home/runner/mpdev"
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
         with:
           egress-policy: audit
 
@@ -146,7 +150,7 @@ jobs:
 
       - name: Authenticate to Google Cloud
         id: google-auth
-        uses: google-github-actions/auth@71f986410dfbc7added4569d411d040a91dc6935 # v2.1.8
+        uses: google-github-actions/auth@ba79af03959ebeac9769e648f473a284504d9193 # v2.1.10
         with:
           workload_identity_provider: "projects/798248771094/locations/global/workloadIdentityPools/default-pool/providers/gh-provider"
           service_account: "container-publisher@mirror-node-public.iam.gserviceaccount.com"

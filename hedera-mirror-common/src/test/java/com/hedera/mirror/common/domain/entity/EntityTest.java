@@ -5,7 +5,14 @@ package com.hedera.mirror.common.domain.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
+import com.hedera.mirror.common.util.CommonUtils;
+import com.hedera.mirror.common.util.DomainUtils;
+import com.hederahashgraph.api.proto.java.Key;
+import com.hederahashgraph.api.proto.java.KeyList;
+import com.hederahashgraph.api.proto.java.ThresholdKey;
 import java.nio.charset.StandardCharsets;
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -54,5 +61,56 @@ class EntityTest {
 
         entity.setTimestampLower(0L);
         assertThat(entity.getTimestampLower()).isZero();
+    }
+
+    @Test
+    void setKeyWithPublicKeySideEffect() {
+        // simple key
+        var entity = new Entity();
+        byte[] keyBytes = CommonUtils.nextBytes(16);
+        var protobufKeyBytes = Key.newBuilder()
+                .setEd25519(DomainUtils.fromBytes(keyBytes))
+                .build()
+                .toByteArray();
+        entity.setKey(protobufKeyBytes);
+        assertThat(entity.getKey()).isEqualTo(protobufKeyBytes);
+        assertThat(entity.getPublicKey()).isEqualTo(Hex.encodeHexString(keyBytes));
+
+        // threshold key of one key
+        entity = new Entity();
+        keyBytes = CommonUtils.nextBytes(16);
+        protobufKeyBytes = Key.newBuilder()
+                .setThresholdKey(ThresholdKey.newBuilder()
+                        .setKeys(KeyList.newBuilder()
+                                .addKeys(Key.newBuilder().setEd25519(DomainUtils.fromBytes(keyBytes))))
+                        .setThreshold(1))
+                .build()
+                .toByteArray();
+        entity.setKey(protobufKeyBytes);
+        assertThat(entity.getKey()).isEqualTo(protobufKeyBytes);
+        assertThat(entity.getPublicKey()).isEqualTo(Hex.encodeHexString(keyBytes));
+
+        // threshold key of two keys
+        entity = new Entity();
+        keyBytes = CommonUtils.nextBytes(16);
+        byte[] otherKeyBytes = CommonUtils.nextBytes(16);
+        protobufKeyBytes = Key.newBuilder()
+                .setThresholdKey(ThresholdKey.newBuilder()
+                        .setKeys(KeyList.newBuilder()
+                                .addKeys(Key.newBuilder().setEd25519(DomainUtils.fromBytes(keyBytes)))
+                                .addKeys(Key.newBuilder().setEd25519(DomainUtils.fromBytes(otherKeyBytes))))
+                        .setThreshold(1))
+                .build()
+                .toByteArray();
+        entity.setKey(protobufKeyBytes);
+        assertThat(entity.getKey()).isEqualTo(protobufKeyBytes);
+        assertThat(entity.getPublicKey()).isEqualTo(StringUtils.EMPTY);
+
+        // unparsable
+        entity = new Entity();
+        protobufKeyBytes = new byte[] {0x00, 0x01, 0x02, 0x03};
+        entity.setKey(protobufKeyBytes);
+        assertThat(entity.getKey()).isEqualTo(protobufKeyBytes);
+        assertThat(entity.getPublicKey()).isEqualTo(StringUtils.EMPTY);
     }
 }
