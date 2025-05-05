@@ -176,13 +176,6 @@ public class SchemaRegistryImpl implements SchemaRegistry {
             public boolean isGenesis() {
                 return MigrationContext.super.isGenesis();
             }
-
-            @Override
-            public <T extends Comparable<? super T>> boolean isUpgrade(
-                    @Nonnull Function<Configuration, T> currentVersionFn,
-                    @Nonnull Function<SemanticVersion, T> previousVersionFn) {
-                return MigrationContext.super.isUpgrade(currentVersionFn, previousVersionFn);
-            }
         };
     }
 

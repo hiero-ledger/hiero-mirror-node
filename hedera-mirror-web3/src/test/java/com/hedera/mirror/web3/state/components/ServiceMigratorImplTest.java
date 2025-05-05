@@ -8,13 +8,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.node.app.config.BootstrapConfigProviderImpl;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.metrics.StoreMetricsServiceImpl;
 import com.hedera.node.app.services.ServicesRegistry;
 import com.hedera.node.app.services.ServicesRegistry.Registration;
-import com.hedera.node.app.version.ServicesSoftwareVersion;
 import com.hedera.node.config.VersionedConfiguration;
 import com.hedera.node.config.data.VersionConfig;
 import com.swirlds.metrics.api.Metrics;
@@ -74,10 +74,13 @@ class ServiceMigratorImplTest {
 
     private ServiceMigratorImpl serviceMigrator;
 
+    private SemanticVersion currentVersion;
+
     @BeforeEach
     void initialize() {
         serviceMigrator = new ServiceMigratorImpl();
         bootstrapConfig = new BootstrapConfigProviderImpl().getConfiguration();
+        currentVersion = bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion();
     }
 
     @Test
@@ -90,8 +93,7 @@ class ServiceMigratorImplTest {
                 mirrorNodeState,
                 servicesRegistry,
                 null,
-                new ServicesSoftwareVersion(
-                        bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion()),
+                currentVersion,
                 new ConfigProviderImpl().getConfiguration(),
                 new ConfigProviderImpl().getConfiguration(),
                 metrics,
@@ -117,8 +119,7 @@ class ServiceMigratorImplTest {
                 mirrorNodeState,
                 servicesRegistry,
                 null,
-                new ServicesSoftwareVersion(
-                        bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion()),
+                currentVersion,
                 new ConfigProviderImpl().getConfiguration(),
                 new ConfigProviderImpl().getConfiguration(),
                 metrics,
@@ -142,8 +143,6 @@ class ServiceMigratorImplTest {
         Registration registration2 = new Registration(service2, registry2);
         when(servicesRegistry.registrations()).thenReturn(Set.of(registration1, registration2));
 
-        var servicesVersion = bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion();
-        var servicesSoftwareVersion = new ServicesSoftwareVersion(servicesVersion);
         var configuration = new ConfigProviderImpl().getConfiguration();
 
         var exception = assertThrows(IllegalArgumentException.class, () -> {
@@ -151,7 +150,7 @@ class ServiceMigratorImplTest {
                     mirrorNodeState,
                     servicesRegistry,
                     null,
-                    servicesSoftwareVersion,
+                    currentVersion,
                     configuration,
                     configuration,
                     metrics,
@@ -166,8 +165,6 @@ class ServiceMigratorImplTest {
 
     @Test
     void doMigrationsInvalidState() {
-        var servicesVersion = bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion();
-        var servicesSoftwareVersion = new ServicesSoftwareVersion(servicesVersion);
         var configuration = new ConfigProviderImpl().getConfiguration();
 
         var exception = assertThrows(IllegalArgumentException.class, () -> {
@@ -175,7 +172,7 @@ class ServiceMigratorImplTest {
                     mockState,
                     servicesRegistry,
                     null,
-                    servicesSoftwareVersion,
+                    currentVersion,
                     configuration,
                     configuration,
                     metrics,
@@ -190,8 +187,6 @@ class ServiceMigratorImplTest {
 
     @Test
     void doMigrationsInvalidServicesRegistry() {
-        var servicesVersion = bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion();
-        var servicesSoftwareVersion = new ServicesSoftwareVersion(servicesVersion);
         var configuration = new ConfigProviderImpl().getConfiguration();
 
         var exception = assertThrows(IllegalArgumentException.class, () -> {
@@ -199,7 +194,7 @@ class ServiceMigratorImplTest {
                     mirrorNodeState,
                     mockServicesRegistry,
                     null,
-                    servicesSoftwareVersion,
+                    currentVersion,
                     configuration,
                     configuration,
                     metrics,
@@ -218,8 +213,6 @@ class ServiceMigratorImplTest {
         when(servicesRegistry.registrations()).thenReturn(Set.of(mockServiceRegistration));
         when(mockServiceRegistration.registry()).thenReturn(mockSchemaRegistry);
 
-        var servicesVersion = bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion();
-        var servicesSoftwareVersion = new ServicesSoftwareVersion(servicesVersion);
         var configuration = new ConfigProviderImpl().getConfiguration();
 
         var exception = assertThrows(IllegalArgumentException.class, () -> {
@@ -227,7 +220,7 @@ class ServiceMigratorImplTest {
                     mirrorNodeState,
                     servicesRegistry,
                     null,
-                    servicesSoftwareVersion,
+                    currentVersion,
                     configuration,
                     configuration,
                     metrics,
