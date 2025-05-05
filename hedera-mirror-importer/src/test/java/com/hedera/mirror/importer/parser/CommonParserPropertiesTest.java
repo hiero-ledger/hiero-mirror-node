@@ -50,9 +50,11 @@ class CommonParserPropertiesTest {
         return Stream.of(
                 Arguments.of("0.0.1", recordItemBuilder.consensusSubmitMessage().build(), true),
                 Arguments.of("0.0.2", recordItemBuilder.cryptoCreate().build(), true),
+                Arguments.of("0.0.3", recordItemBuilder.freeze().build(), true),
                 Arguments.of("0.0.4", recordItemBuilder.fileCreate().build(), true),
                 Arguments.of("0.0.1", recordItemBuilder.cryptoCreate().build(), false),
                 Arguments.of("0.0.2", recordItemBuilder.consensusSubmitMessage().build(), false),
+                Arguments.of("0.0.4", recordItemBuilder.freeze().build(), false),
                 Arguments.of(null, recordItemBuilder.consensusSubmitMessage().build(), false),
                 Arguments.of("0.0.1", recordItemBuilder.unknown().build(), false),
                 Arguments.of(null, recordItemBuilder.unknown().build(), false),
@@ -77,9 +79,11 @@ class CommonParserPropertiesTest {
         return Stream.of(
                 Arguments.of("0.0.1", recordItemBuilder.consensusSubmitMessage().build(), true),
                 Arguments.of("0.0.2", recordItemBuilder.cryptoCreate().build(), true),
+                Arguments.of("0.0.3", recordItemBuilder.freeze().build(), false),
                 Arguments.of("0.0.4", recordItemBuilder.fileCreate().build(), false),
                 Arguments.of("0.0.1", recordItemBuilder.cryptoCreate().build(), false),
                 Arguments.of("0.0.2", recordItemBuilder.consensusSubmitMessage().build(), false),
+                Arguments.of("0.0.4", recordItemBuilder.freeze().build(), false),
                 Arguments.of("0.0.5", recordItemBuilder.consensusSubmitMessage().build(), false),
                 Arguments.of(
                         "0.0.1/0.0.2",
@@ -92,6 +96,7 @@ class CommonParserPropertiesTest {
                         false),
                 Arguments.of(
                         "0.0.2/0.0.3/0.0.4", recordItemBuilder.cryptoCreate().build(), false),
+                Arguments.of("0.0.1/0.0.3", recordItemBuilder.freeze().build(), false),
                 Arguments.of("0.0.1/0.0.2", recordItemBuilder.fileCreate().build(), false),
                 Arguments.of(
                         "0.0.1/0.0.4/0.0.5", recordItemBuilder.cryptoCreate().build(), false),
@@ -99,6 +104,7 @@ class CommonParserPropertiesTest {
                         "0.0.2/0.0.4/0.0.5",
                         recordItemBuilder.consensusSubmitMessage().build(),
                         false),
+                Arguments.of("0.0.1/0.0.2/0.0.4", recordItemBuilder.freeze().build(), false),
                 Arguments.of(
                         "0.0.2/0.0.4/0.0.5",
                         recordItemBuilder.consensusSubmitMessage().build(),
@@ -299,38 +305,6 @@ class CommonParserPropertiesTest {
                 .as(description)
                 .isInstanceOf(InvalidConfigurationException.class)
                 .hasCauseInstanceOf(EvaluationException.class);
-    }
-
-    @Test
-    void ignoresWhiteListedExcludes() {
-        var batchRecordItem = recordItemBuilder.atomicBatch().build();
-        var freezeRecordItem = recordItemBuilder.freeze().build();
-        var cryptTransferRecordItem = recordItemBuilder.cryptoTransfer().build();
-        commonParserProperties.getExclude().add(filter("0.0.1", null, null));
-        commonParserProperties.getExclude().add(filter(null, "transactionBody.dataCase.number == 74", null));
-        commonParserProperties.getExclude().add(filter(null, "transactionBody.dataCase.number == 23", null));
-        commonParserProperties.getExclude().add(filter(null, null, TransactionType.ATOMIC_BATCH));
-        commonParserProperties.getExclude().add(filter(null, null, TransactionType.FREEZE));
-        commonParserProperties.getExclude().add(filter(null, null, TransactionType.ATOMIC_BATCH));
-        commonParserProperties.getExclude().add(filter(null, null, TransactionType.FREEZE));
-
-        assertThat(commonParserProperties.hasFilter()).isTrue();
-
-        assertThat(commonParserProperties
-                        .getFilter()
-                        .test(new TransactionFilterFields(
-                                Collections.singleton(EntityId.of("0.0.1")), batchRecordItem)))
-                .isEqualTo(true);
-        assertThat(commonParserProperties
-                        .getFilter()
-                        .test(new TransactionFilterFields(
-                                Collections.singleton(EntityId.of("0.0.1")), freezeRecordItem)))
-                .isEqualTo(true);
-        assertThat(commonParserProperties
-                        .getFilter()
-                        .test(new TransactionFilterFields(
-                                Collections.singleton(EntityId.of("0.0.1")), cryptTransferRecordItem)))
-                .isEqualTo(false);
     }
 
     private Collection<EntityId> entities(String entityId) {

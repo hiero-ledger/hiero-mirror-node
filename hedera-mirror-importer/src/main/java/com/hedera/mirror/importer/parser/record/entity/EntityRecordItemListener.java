@@ -98,6 +98,8 @@ public class EntityRecordItemListener implements RecordItemListener {
             }
             entityId = EntityId.EMPTY;
         }
+
+        // to:do - exclude Freeze from Filter transaction type
         TransactionFilterFields transactionFilterFields = getTransactionFilterFields(entityId, recordItem);
         Collection<EntityId> entities = transactionFilterFields.getEntities();
         log.debug("Processing {} transaction {} for entities {}", transactionType, consensusTimestamp, entities);
