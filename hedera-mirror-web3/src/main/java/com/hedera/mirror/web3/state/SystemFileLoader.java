@@ -59,7 +59,7 @@ public class SystemFileLoader {
     @Getter(lazy = true)
     private final Map<FileID, SystemFile> systemFiles = loadAll();
 
-    private byte[] mockAddressBook = null;
+    private byte[] mockAddressBook;
 
     @Cacheable(
             cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
@@ -122,10 +122,10 @@ public class SystemFileLoader {
 
     private Map<FileID, SystemFile> loadAll() {
         var configuration = properties.getVersionedConfiguration();
-        var mockAddressBook = Bytes.wrap(getMockAddressBook());
+        var addressBookMock = Bytes.wrap(getMockAddressBook());
         var files = List.of(
-                new SystemFile(load(systemEntity.addressBookFile101(), mockAddressBook), NodeAddressBook.PROTOBUF),
-                new SystemFile(load(systemEntity.addressBookFile102(), mockAddressBook), NodeAddressBook.PROTOBUF),
+                new SystemFile(load(systemEntity.addressBookFile101(), addressBookMock), NodeAddressBook.PROTOBUF),
+                new SystemFile(load(systemEntity.addressBookFile102(), addressBookMock), NodeAddressBook.PROTOBUF),
                 new SystemFile(
                         load(systemEntity.feeScheduleFile(), fileSchema.genesisFeeSchedules(configuration)),
                         CurrentAndNextFeeSchedule.PROTOBUF),
