@@ -65,15 +65,14 @@ ensuring the load is distributed evenly across all nodes.
 
 The `type` property specifies which transaction type to publish. It also affects which `properties` need to be
 specified, with different transaction types requiring different properties to be set. See the
-[TransactionType](/hedera-mirror-monitor/src/main/java/com/hedera/mirror/monitor/publish/transaction/TransactionType.java)
+[TransactionType](/monitor/src/main/java/com/hedera/mirror/monitor/publish/transaction/TransactionType.java)
 enum for a list of possible values for `type`. The properties can be seen as fields on the various
-[TransactionSupplier](/hedera-mirror-monitor/src/main/java/com/hedera/mirror/monitor/publish/transaction) classes that
+[TransactionSupplier](/monitor/src/main/java/com/hedera/mirror/monitor/publish/transaction) classes that
 the `TransactionType` enum references. Most of these properties have a default and don't need to be explicitly
 specified, but some are empty and may need to be populated.
 
 For example, if you want to publish a topic message, you would open the `TransactionType` class,
-find `CONSENSUS_SUBMIT_MESSAGE`, then open the
-[ConsensusSubmitMessageTransactionSupplier](/hedera-mirror-monitor/src/main/java/com/hedera/mirror/monitor/publish/transaction/consensus/ConsensusSubmitMessageTransactionSupplier.java)
+find `CONSENSUS_SUBMIT_MESSAGE`, then open the ConsensusSubmitMessageTransactionSupplier
 class that it references. From there, you can see that fields `maxTransactionFee`, `message`, `retry`, and `topicId` are
 available as properties. Only `topicId` doesn't have a default and will be required. Here's a YAML excerpt that
 specifies some of those properties:
@@ -95,9 +94,8 @@ hedera:
             type: CONSENSUS_SUBMIT_MESSAGE
 ```
 
-Some properties, such as `transferTypes` in
-the [CryptoTransferTransactionSupplier](/hedera-mirror-monitor/src/main/java/com/hedera/mirror/monitor/publish/transaction/account/CryptoTransferTransactionSupplier.java)
-, are Collections, which requires the YAML list syntax.
+Some properties, such as `transferTypes` in the CryptoTransferTransactionSupplier, are Collections, which requires the
+YAML list syntax.
 
 #### Scheduled Transactions
 

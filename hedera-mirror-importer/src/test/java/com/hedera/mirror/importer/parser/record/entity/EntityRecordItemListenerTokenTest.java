@@ -1154,7 +1154,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 TOKEN_ID,
                 newSymbol,
                 TOKEN_UPDATE_MEMO,
-                keyFromString("updated-key"),
+                keyFromString(KEY2),
                 AccountID.newBuilder().setAccountNum(2002).build(),
                 PAYER2);
         insertAndParseTransaction(10L, transaction);

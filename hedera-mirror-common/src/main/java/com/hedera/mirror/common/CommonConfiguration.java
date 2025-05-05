@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ConfigurationPropertiesScan(basePackages = "com.hedera.mirror")
+@ConfigurationPropertiesScan(basePackages = {"com.hedera.mirror", "org.hiero.mirror"})
 @EnableConfigurationProperties(CommonProperties.class)
 @EntityScan("com.hedera.mirror.common.domain")
 public class CommonConfiguration {

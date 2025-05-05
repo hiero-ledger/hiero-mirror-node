@@ -456,7 +456,14 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertThatThrownBy(() -> addressBookService.getCurrent())
                 .isInstanceOf(InvalidDatasetException.class)
                 .hasMessageContaining("Unable to load starting address book");
-        commonProperties.setRealm(0L);
+    }
+
+    @Test
+    void invalidInitialShard() {
+        commonProperties.setShard(1000L);
+        assertThatThrownBy(() -> addressBookService.getCurrent())
+                .isInstanceOf(InvalidDatasetException.class)
+                .hasMessageContaining("Unable to load starting address book");
     }
 
     @Test
@@ -505,50 +512,68 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     @SuppressWarnings("deprecation")
     @Test
     @Transactional
-    void verifyAddressBookEntriesWithNodeIdAndPortNotSet() {
-        var nodeAccountId1 = entityId(3);
-        var nodeAccountId2 = entityId(4);
-
-        // nodeId 0, port 0
-        var nodeAddress1 = NodeAddress.newBuilder()
-                .setIpAddress(ByteString.copyFromUtf8("127.0.0.1"))
-                .setMemo(ByteString.copyFromUtf8(nodeAccountId1.toString()))
-                .setNodeAccountId(nodeAccountId1.toAccountID())
-                .setNodeCertHash(ByteString.copyFromUtf8("nodeCertHash"))
-                .setRSAPubKey("rsa+public/key")
-                .build();
-        // nodeId 0, port 50211
-        var nodeAddress2 = NodeAddress.newBuilder(nodeAddress1)
-                .setIpAddress(ByteString.copyFromUtf8("127.0.0.2"))
-                .setMemo(ByteString.copyFromUtf8(nodeAccountId2.toString()))
-                .setNodeAccountId(nodeAccountId2.toAccountID())
-                .setPortno(50211)
-                .build();
+    void verifyAddressBookWithMissingFields() {
+        // Given
+        var nodeAccountId = entityId(3);
+        var ipAddress = "127.0.0.1";
         var nodeAddressBook = NodeAddressBook.newBuilder()
-                .addAllNodeAddress(List.of(nodeAddress1, nodeAddress2))
+                .addNodeAddress(NodeAddress.newBuilder()
+                        .setIpAddress(ByteString.copyFromUtf8(ipAddress))
+                        .setNodeAccountId(nodeAccountId.toAccountID()))
                 .build();
-
         byte[] addressBookBytes = nodeAddressBook.toByteArray();
-        long addressBookConsensusTimeStamp = 5L;
-        update(addressBookBytes, addressBookConsensusTimeStamp, true);
+        long consensusTimeStamp = 5L;
 
-        assertAddressBookData(addressBookBytes, addressBookConsensusTimeStamp + 1);
-        var addressBook = addressBookService.getCurrent();
-        var listAssert = assertThat(addressBook.getEntries()).hasSize(nodeAddressBook.getNodeAddressCount());
-        for (var nodeAddress : nodeAddressBook.getNodeAddressList()) {
-            long expectedNodeId =
-                    EntityId.of(nodeAddress.getMemo().toStringUtf8()).getNum() - 3;
-            listAssert.anySatisfy(abe -> {
-                assertThat(abe.getMemo()).isEqualTo(nodeAddress.getMemo().toStringUtf8());
-                assertThat(abe.getNodeAccountId()).isEqualTo(EntityId.of(nodeAddress.getNodeAccountId()));
-                assertThat(abe.getNodeCertHash())
-                        .isEqualTo(nodeAddress.getNodeCertHash().toByteArray());
-                assertThat(abe.getPublicKey()).isEqualTo(nodeAddress.getRSAPubKey());
-                assertThat(abe.getNodeId()).isEqualTo(expectedNodeId); // both entries have null node id
+        // When
+        update(addressBookBytes, consensusTimeStamp - 1, true);
 
-                assertAddressBookEndPoints(abe.getServiceEndpoints(), nodeAddress.getServiceEndpointList());
-            });
-        }
+        // Then
+        long nodeId = nodeAccountId.getNum() - 3;
+        assertAddressBookData(addressBookBytes, consensusTimeStamp);
+        softly.assertThat(addressBookService.getCurrent())
+                .isNotNull()
+                .extracting(AddressBook::getEntries, InstanceOfAssertFactories.list(AddressBookEntry.class))
+                .hasSize(nodeAddressBook.getNodeAddressCount())
+                .first()
+                .returns("", AddressBookEntry::getDescription)
+                .returns(null, AddressBookEntry::getMemo)
+                .returns(nodeAccountId, AddressBookEntry::getNodeAccountId)
+                .returns(null, AddressBookEntry::getNodeCertHash)
+                .returns(nodeId, AddressBookEntry::getNodeId)
+                .returns("", AddressBookEntry::getPublicKey)
+                .returns(consensusTimeStamp, AddressBookEntry::getConsensusTimestamp)
+                .returns(0L, AddressBookEntry::getStake)
+                .extracting(
+                        AddressBookEntry::getServiceEndpoints,
+                        InstanceOfAssertFactories.set(AddressBookServiceEndpoint.class))
+                .hasSize(1)
+                .first()
+                .returns(nodeId, AddressBookServiceEndpoint::getNodeId)
+                .returns("", AddressBookServiceEndpoint::getDomainName)
+                .returns(ipAddress, AddressBookServiceEndpoint::getIpAddressV4)
+                .returns(consensusTimeStamp, AddressBookServiceEndpoint::getConsensusTimestamp)
+                .returns(0, AddressBookServiceEndpoint::getPort);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    @Transactional
+    void verifyAddressBookWithMissingNodeAccount() {
+        // Given
+        var nodeAddressBook = NodeAddressBook.newBuilder()
+                .addNodeAddress(NodeAddress.newBuilder()
+                        .setIpAddress(ByteString.copyFromUtf8("127.0.0.1"))
+                        .setMemo(ByteString.copyFromUtf8("memo")))
+                .build();
+        byte[] addressBookBytes = nodeAddressBook.toByteArray();
+        long consensusTimeStamp = 5L;
+        var current = addressBookService.getCurrent();
+
+        // When
+        update(addressBookBytes, consensusTimeStamp - 1, true);
+
+        // Then
+        assertThat(addressBookService.getCurrent()).isEqualTo(current);
     }
 
     @Test

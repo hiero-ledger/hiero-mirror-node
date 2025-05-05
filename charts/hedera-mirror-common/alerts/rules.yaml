@@ -18,7 +18,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod, statusCode) (rate(grpc_server_processing_duration_seconds_count{application="hedera-mirror-grpc",statusCode!~"CANCELLED|DEADLINE_EXCEEDED|INVALID_ARGUMENT|NOT_FOUND|OK"}[5m])) / sum by (cluster, namespace, pod, statusCode) (rate(grpc_server_processing_duration_seconds_count{application="hedera-mirror-grpc"}[5m])) > 0.05
+                expr: sum by (cluster, namespace, pod, statusCode) (rate(grpc_server_processing_duration_seconds_count{application="grpc",statusCode!~"CANCELLED|DEADLINE_EXCEEDED|INVALID_ARGUMENT|NOT_FOUND|OK"}[5m])) / sum by (cluster, namespace, pod, statusCode) (rate(grpc_server_processing_duration_seconds_count{application="grpc"}[5m])) > 0.05
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -32,7 +32,7 @@ groups:
             description: '{{ (index $values "A").Value | humanizePercentage }} gRPC {{ $labels.statusCode }} error rate for {{ $labels.namespace }}/{{ $labels.pod }}'
             summary: Mirror gRPC API error rate exceeds 5%
           labels:
-            application: hedera-mirror-grpc
+            application: grpc
             severity: critical
           isPaused: false
         - uid: ddk5wsan91gqoe
@@ -46,7 +46,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (process_cpu_usage{application="hedera-mirror-grpc"}) / sum by (cluster, namespace, pod) (system_cpu_count{application="hedera-mirror-grpc"}) > 0.8
+                expr: sum by (cluster, namespace, pod) (process_cpu_usage{application="grpc"}) / sum by (cluster, namespace, pod) (system_cpu_count{application="grpc"}) > 0.8
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -60,7 +60,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ (index $values "A").Value | humanizePercentage }}'
             summary: Mirror gRPC API CPU usage exceeds 80%
           labels:
-            application: hedera-mirror-grpc
+            application: grpc
             area: resource
             severity: critical
           isPaused: false
@@ -75,7 +75,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (hikaricp_connections_active{application="hedera-mirror-grpc"}) / sum by (cluster, namespace, pod) (hikaricp_connections_max{application="hedera-mirror-grpc"}) > 0.75
+                expr: sum by (cluster, namespace, pod) (hikaricp_connections_active{application="grpc"}) / sum by (cluster, namespace, pod) (hikaricp_connections_max{application="grpc"}) > 0.75
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -89,7 +89,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} is using {{ (index $values "A").Value | humanizePercentage }} of available database connections'
             summary: Mirror gRPC API database connection utilization exceeds 75%
           labels:
-            application: hedera-mirror-grpc
+            application: grpc
             area: resource
             severity: critical
           isPaused: false
@@ -104,7 +104,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (process_files_open_files{application="hedera-mirror-grpc"}) / sum by (cluster, namespace, pod) (process_files_max_files{application="hedera-mirror-grpc"}) > 0.8
+                expr: sum by (cluster, namespace, pod) (process_files_open_files{application="grpc"}) / sum by (cluster, namespace, pod) (process_files_max_files{application="grpc"}) > 0.8
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -118,7 +118,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} file descriptor usage reached {{ (index $values "A").Value | humanizePercentage }}'
             summary: Mirror gRPC API file descriptor usage exceeds 80%
           labels:
-            application: hedera-mirror-grpc
+            application: grpc
             area: resource
             severity: critical
           isPaused: false
@@ -133,7 +133,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (rate(hedera_mirror_grpc_consensus_latency_seconds_sum{application="hedera-mirror-grpc"}[5m])) / sum by (cluster, namespace, pod) (rate(hedera_mirror_grpc_consensus_latency_seconds_count{application="hedera-mirror-grpc"}[5m])) > 15
+                expr: sum by (cluster, namespace, pod) (rate(hiero_mirror_grpc_consensus_latency_seconds_sum{application="grpc"}[5m])) / sum by (cluster, namespace, pod) (rate(hiero_mirror_grpc_consensus_latency_seconds_count{application="grpc"}[5m])) > 15
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -147,7 +147,7 @@ groups:
             description: High latency of {{ (index $values "A").Value | humanizeDuration }} between the main nodes and {{ $labels.namespace }}/{{ $labels.pod }}
             summary: Mirror gRPC API consensus to delivery (C2MD) latency exceeds 15s
           labels:
-            application: hedera-mirror-grpc
+            application: grpc
             severity: critical
           isPaused: false
         - uid: adjvacubwa48wf
@@ -161,7 +161,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (jvm_memory_used_bytes{application="hedera-mirror-grpc"}) / sum by (cluster, namespace, pod) (jvm_memory_max_bytes{application="hedera-mirror-grpc"}) > 0.8
+                expr: sum by (cluster, namespace, pod) (jvm_memory_used_bytes{application="grpc"}) / sum by (cluster, namespace, pod) (jvm_memory_max_bytes{application="grpc"}) > 0.8
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -175,7 +175,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ (index $values "A").Value | humanizePercentage }}'
             summary: Mirror gRPC API memory usage exceeds 80%
           labels:
-            application: hedera-mirror-grpc
+            application: grpc
             area: resource
             severity: critical
           isPaused: false
@@ -190,7 +190,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (increase(logback_events_total{application="hedera-mirror-grpc",level="error"}[1m])) >= 2
+                expr: sum by (cluster, namespace, pod) (increase(logback_events_total{application="grpc",level="error"}[1m])) >= 2
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -204,7 +204,7 @@ groups:
             description: Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ index $values "A" }} error messages/s in a 3m period
             summary: High rate of log errors
           labels:
-            application: hedera-mirror-grpc
+            application: grpc
             severity: critical
           isPaused: false
         - uid: edjvatx37r75sc
@@ -218,7 +218,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, type) (hedera_mirror_grpc_subscribers{application="hedera-mirror-grpc"}) <= 0
+                expr: sum by (cluster, namespace, type) (hiero_mirror_grpc_subscribers{application="grpc"}) <= 0
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -232,7 +232,7 @@ groups:
             description: '{{ $labels.namespace }} has {{ index $values "A" }} subscribers for {{ $labels.type }}'
             summary: Mirror gRPC API has no subscribers
           labels:
-            application: hedera-mirror-grpc
+            application: grpc
             severity: critical
           isPaused: false
         - uid: cdjvb1g2e43cwb
@@ -246,7 +246,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (rate(spring_data_repository_invocations_seconds_sum{application="hedera-mirror-grpc"}[5m])) / sum by (cluster, namespace, pod) (rate(spring_data_repository_invocations_seconds_count{application="hedera-mirror-grpc"}[5m])) > 1
+                expr: sum by (cluster, namespace, pod) (rate(spring_data_repository_invocations_seconds_sum{application="grpc"}[5m])) / sum by (cluster, namespace, pod) (rate(spring_data_repository_invocations_seconds_count{application="grpc"}[5m])) > 1
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -260,7 +260,7 @@ groups:
             description: High average database query latency of {{ (index $values "A").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}
             summary: Mirror gRPC API query latency exceeds 1s
           labels:
-            application: hedera-mirror-grpc
+            application: grpc
             severity: warning
           isPaused: false
     - orgId: 1
@@ -869,7 +869,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (process_cpu_usage{application="hedera-mirror-monitor"}) / sum by (cluster, namespace, pod) (system_cpu_count{application="hedera-mirror-monitor"}) > 0.8
+                expr: sum by (cluster, namespace, pod) (process_cpu_usage{application="monitor"}) / sum by (cluster, namespace, pod) (system_cpu_count{application="monitor"}) > 0.8
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -883,7 +883,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ (index $values "A").Value | humanizePercentage }}'
             summary: Mirror Monitor CPU usage exceeds 80%
           labels:
-            application: hedera-mirror-monitor
+            application: monitor
             area: resource
             severity: critical
           isPaused: false
@@ -898,7 +898,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (jvm_memory_used_bytes{application="hedera-mirror-monitor"}) / sum by (cluster, namespace, pod) (jvm_memory_max_bytes{application="hedera-mirror-monitor"}) > 0.8
+                expr: sum by (cluster, namespace, pod) (jvm_memory_used_bytes{application="monitor"}) / sum by (cluster, namespace, pod) (jvm_memory_max_bytes{application="monitor"}) > 0.8
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -912,7 +912,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ (index $values "A").Value | humanizePercentage }}'
             summary: Mirror Monitor memory usage exceeds 80%
           labels:
-            application: hedera-mirror-monitor
+            application: monitor
             area: resource
             severity: critical
           isPaused: false
@@ -927,7 +927,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (increase(logback_events_total{application="hedera-mirror-monitor",level="error"}[2m])) >= 2
+                expr: sum by (cluster, namespace, pod) (increase(logback_events_total{application="monitor",level="error"}[2m])) >= 2
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -941,7 +941,7 @@ groups:
             description: Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ index $values "A" }} error messages/s in a 3m period
             summary: High rate of log errors
           labels:
-            application: hedera-mirror-monitor
+            application: monitor
             area: log
             severity: critical
           isPaused: false
@@ -956,7 +956,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod, scenario) (rate(hedera_mirror_monitor_publish_submit_seconds_count{application="hedera-mirror-monitor",status!="SUCCESS"}[2m])) / sum by (cluster, namespace, pod, scenario) (rate(hedera_mirror_monitor_publish_submit_seconds_count{application="hedera-mirror-monitor"}[2m])) > 0.5
+                expr: sum by (cluster, namespace, pod, scenario) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application="monitor",status!="SUCCESS"}[2m])) / sum by (cluster, namespace, pod, scenario) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application="monitor"}[2m])) > 0.5
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -970,7 +970,7 @@ groups:
             description: Averaging {{ (index $values "A").Value | humanizePercentage }} error rate publishing '{{ $labels.scenario }}' scenario from {{ $labels.namespace }}/{{ $labels.pod }}
             summary: Publish error rate exceeds 50%
           labels:
-            application: hedera-mirror-monitor
+            application: monitor
             mode: publish
             severity: critical
           isPaused: false
@@ -985,7 +985,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum(rate(hedera_mirror_monitor_publish_submit_seconds_sum{application="hedera-mirror-monitor"}[2m])) by (cluster, namespace, pod, scenario) / sum(rate(hedera_mirror_monitor_publish_submit_seconds_count{application="hedera-mirror-monitor"}[2m])) by (cluster, namespace, pod, scenario) > 7
+                expr: sum(rate(hiero_mirror_monitor_publish_submit_seconds_sum{application="monitor"}[2m])) by (cluster, namespace, pod, scenario) / sum(rate(hiero_mirror_monitor_publish_submit_seconds_count{application="monitor"}[2m])) by (cluster, namespace, pod, scenario) > 7
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -999,7 +999,7 @@ groups:
             description: Averaging {{ (index $values "A").Value | humanizeDuration }} publish latency for '{{ $labels.scenario }}' scenario for {{ $labels.namespace }}/{{ $labels.pod }}
             summary: Publish latency exceeds 7s
           labels:
-            application: hedera-mirror-monitor
+            application: monitor
             mode: publish
             severity: warning
           isPaused: false
@@ -1014,7 +1014,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace) (rate(hedera_mirror_monitor_publish_submit_seconds_count{application="hedera-mirror-monitor",status=~"(PLATFORM_NOT_ACTIVE|UNAVAILABLE)"}[2m])) / sum by (cluster, namespace) (rate(hedera_mirror_monitor_publish_submit_seconds_count{application="hedera-mirror-monitor"}[2m])) > 0.33
+                expr: sum by (cluster, namespace) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application="monitor",status=~"(PLATFORM_NOT_ACTIVE|UNAVAILABLE)"}[2m])) / sum by (cluster, namespace) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application="monitor"}[2m])) > 0.33
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1028,7 +1028,7 @@ groups:
             description: Averaging {{ (index $values "A").Value | humanizePercentage }} PLATFORM_NOT_ACTIVE or UNAVAILABLE errors while attempting to publish in {{ $labels.namespace }}
             summary: Platform is not active
           labels:
-            application: hedera-mirror-monitor
+            application: monitor
             mode: publish
             severity: warning
           isPaused: false
@@ -1043,7 +1043,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: (sum by (cluster, namespace, pod, scenario) (rate(hedera_mirror_monitor_publish_submit_seconds_sum{application="hedera-mirror-monitor"}[2m])) / sum by (cluster, namespace, pod, scenario) (rate(hedera_mirror_monitor_publish_submit_seconds_count{application="hedera-mirror-monitor"}[2m])) > 0 or on () vector(0)) <= 0
+                expr: (sum by (cluster, namespace, pod, scenario) (rate(hiero_mirror_monitor_publish_submit_seconds_sum{application="monitor"}[2m])) / sum by (cluster, namespace, pod, scenario) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application="monitor"}[2m])) > 0 or on () vector(0)) <= 0
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1057,7 +1057,7 @@ groups:
             description: Publish TPS dropped to {{ index $values "A" }} for '{{ $labels.scenario }}' scenario for {{ $labels.namespace }}/{{ $labels.pod }}
             summary: Publishing stopped
           labels:
-            application: hedera-mirror-monitor
+            application: monitor
             mode: publish
             severity: critical
           isPaused: false
@@ -1072,7 +1072,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod, scenario) (rate(hedera_mirror_monitor_publish_handle_seconds_sum{application="hedera-mirror-monitor"}[5m])) / sum by (cluster, namespace, pod, scenario) (rate(hedera_mirror_monitor_publish_handle_seconds_count{application="hedera-mirror-monitor"}[5m])) > 11
+                expr: sum by (cluster, namespace, pod, scenario) (rate(hiero_mirror_monitor_publish_handle_seconds_sum{application="monitor"}[5m])) / sum by (cluster, namespace, pod, scenario) (rate(hiero_mirror_monitor_publish_handle_seconds_count{application="monitor"}[5m])) > 11
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1086,7 +1086,7 @@ groups:
             description: Averaging {{ (index $values "A").Value | humanizeDuration }} transaction latency for '{{ $labels.scenario }}' scenario for {{ $labels.namespace }}/{{ $labels.pod }}
             summary: Submit to transaction being handled latency exceeds 11s
           labels:
-            application: hedera-mirror-monitor
+            application: monitor
             mode: publish
             severity: warning
           isPaused: false
@@ -1101,7 +1101,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum(rate(hedera_mirror_monitor_subscribe_e2e_seconds_sum{application="hedera-mirror-monitor"}[2m])) by (cluster, namespace, pod, scenario, subscriber) / sum(rate(hedera_mirror_monitor_subscribe_e2e_seconds_count{application="hedera-mirror-monitor"}[2m])) by (cluster, namespace, pod, scenario, subscriber) > 14
+                expr: sum(rate(hiero_mirror_monitor_subscribe_e2e_seconds_sum{application="monitor"}[2m])) by (cluster, namespace, pod, scenario, subscriber) / sum(rate(hiero_mirror_monitor_subscribe_e2e_seconds_count{application="monitor"}[2m])) by (cluster, namespace, pod, scenario, subscriber) > 14
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1115,7 +1115,7 @@ groups:
             description: 'Latency averaging {{ (index $values "A").Value | humanizeDuration }} for ''{{ $labels.scenario }}'' #{{ $labels.subscriber }} scenario for {{ $labels.namespace }}/{{ $labels.pod }}'
             summary: End to end latency exceeds 14s
           labels:
-            application: hedera-mirror-monitor
+            application: monitor
             severity: critical
           isPaused: false
         - uid: adk7fp4i32ebka
@@ -1129,7 +1129,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: (sum by (cluster, namespace, pod, subscriber, scenario) (rate(hedera_mirror_monitor_subscribe_e2e_seconds_sum{application="hedera-mirror-monitor"}[2m])) / sum by (cluster, namespace, pod, subscriber, scenario) (rate(hedera_mirror_monitor_subscribe_e2e_seconds_count{application="hedera-mirror-monitor"}[2m])) > 0 or on () vector(0)) <= 0
+                expr: (sum by (cluster, namespace, pod, subscriber, scenario) (rate(hiero_mirror_monitor_subscribe_e2e_seconds_sum{application="monitor"}[2m])) / sum by (cluster, namespace, pod, subscriber, scenario) (rate(hiero_mirror_monitor_subscribe_e2e_seconds_count{application="monitor"}[2m])) > 0 or on () vector(0)) <= 0
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1143,7 +1143,7 @@ groups:
             description: 'TPS dropped to {{ index $values "A" }} for ''{{ $labels.scenario }}'' #{{ $labels.subscriber }} scenario for {{ $labels.namespace }}/{{ $labels.pod }}'
             summary: Subscription stopped
           labels:
-            application: hedera-mirror-monitor
+            application: monitor
             severity: critical
           isPaused: false
     - orgId: 1

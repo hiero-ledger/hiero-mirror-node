@@ -75,7 +75,31 @@ class EntityIdTest {
     @Test
     void ofStringPositive() {
         assertThat(EntityId.of("0.0.1")).isEqualTo(EntityId.of(0, 0, 1));
+        assertThat(EntityId.of("0.1.2")).isEqualTo(EntityId.of(0, 1, 2));
+        assertThat(EntityId.of("1.2.3")).isEqualTo(EntityId.of(1, 2, 3));
         assertThat(EntityId.of("0.0.0")).isEqualTo(EntityId.EMPTY);
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+            emptyValue = "''",
+            value = {
+                "0.0.0,                   true",
+                "0.0.1,                   true",
+                "0.1.2,                   true",
+                "1.2.3,                   true",
+                ",                        false",
+                "'',                      false",
+                "0,                       false",
+                "1,                       false",
+                "0.1,                     false",
+                "a.b.c,                   false",
+                "0.1.2.3,                 false",
+                "1.0.-1,                  false",
+                "0.0.9223372036854775808, false",
+            })
+    void isValid(String id, boolean result) {
+        assertThat(EntityId.isValid(id)).isEqualTo(result);
     }
 
     @Test

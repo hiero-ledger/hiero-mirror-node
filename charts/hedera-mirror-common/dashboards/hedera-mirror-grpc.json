@@ -273,7 +273,7 @@
           "datasource": {
             "uid": "${prometheus}"
           },
-          "expr": "sum(hedera_mirror_grpc_subscribers{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
+          "expr": "sum(hiero_mirror_grpc_subscribers{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "interval": "1m",
           "legendFormat": "",
           "refId": "A"
@@ -351,7 +351,7 @@
           "datasource": {
             "uid": "${prometheus}"
           },
-          "expr": "sum(rate(hedera_mirror_grpc_consensus_latency_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "sum(rate(hiero_mirror_grpc_consensus_latency_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
           "interval": "1m",
           "legendFormat": "",
           "refId": "A"
@@ -433,7 +433,7 @@
           "datasource": {
             "uid": "${prometheus}"
           },
-          "expr": "sum(rate(hedera_mirror_grpc_consensus_latency_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "sum(rate(hiero_mirror_grpc_consensus_latency_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
           "interval": "1m",
           "legendFormat": "",
           "refId": "A"
@@ -644,7 +644,7 @@
           "datasource": {
             "uid": "${prometheus}"
           },
-          "expr": "sum(hedera_mirror_grpc_subscribers{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}) by (type)",
+          "expr": "sum(hiero_mirror_grpc_subscribers{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}) by (type)",
           "interval": "1m",
           "legendFormat": "{{ type }}",
           "refId": "A"
@@ -1218,7 +1218,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "(sum(rate(hedera_mirror_grpc_consensus_latency_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (type) / sum(rate(hedera_mirror_grpc_consensus_latency_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (type)) > 0",
+          "expr": "(sum(rate(hiero_mirror_grpc_consensus_latency_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (type) / sum(rate(hiero_mirror_grpc_consensus_latency_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (type)) > 0",
           "interval": "1m",
           "legendFormat": "{{ type }}",
           "range": true,
@@ -3440,7 +3440,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(hedera_mirror_grpc_listener_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (mode) / sum(rate(hedera_mirror_grpc_listener_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (mode)",
+          "expr": "sum(rate(hiero_mirror_grpc_listener_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (mode) / sum(rate(hiero_mirror_grpc_listener_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (mode)",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
@@ -3543,7 +3543,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(hedera_mirror_grpc_listener_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (mode)",
+          "expr": "sum(rate(hiero_mirror_grpc_listener_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (mode)",
           "interval": "",
           "legendFormat": "{{ mode }}",
           "range": true,
@@ -3645,7 +3645,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(hedera_mirror_grpc_retriever_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) / sum(rate(hedera_mirror_grpc_retriever_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "sum(rate(hiero_mirror_grpc_retriever_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) / sum(rate(hiero_mirror_grpc_retriever_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
           "instant": false,
           "interval": "",
           "legendFormat": " ",
@@ -3749,7 +3749,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(hedera_mirror_grpc_retriever_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "sum(rate(hiero_mirror_grpc_retriever_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
           "interval": "",
           "legendFormat": " ",
           "range": true,
@@ -3763,7 +3763,7 @@
   "refresh": "1m",
   "schemaVersion": 38,
   "tags": [
-    "hedera",
+    "hiero",
     "mirror",
     "application",
     "grpc",
@@ -3774,7 +3774,7 @@
       {
         "hide": 2,
         "name": "application",
-        "query": "hedera-mirror-grpc",
+        "query": "grpc",
         "skipUrlSync": false,
         "type": "constant"
       },
@@ -3927,7 +3927,7 @@
     ]
   },
   "timezone": "",
-  "title": "Hedera / Mirror / gRPC API",
+  "title": "Hiero / Mirror / gRPC API",
   "uid": "26rjapg7z",
   "version": 12,
   "weekStart": ""

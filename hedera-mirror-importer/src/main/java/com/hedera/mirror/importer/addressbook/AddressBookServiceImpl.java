@@ -406,12 +406,13 @@ public class AddressBookServiceImpl implements AddressBookService {
     @SuppressWarnings({"deprecation", "java:S1874"})
     private Pair<Long, EntityId> getNodeIds(NodeAddress nodeAddressProto) {
         var memo = nodeAddressProto.getMemo().toStringUtf8();
-        EntityId memoNodeAccountId = StringUtils.isEmpty(memo) ? EntityId.EMPTY : EntityId.of(memo);
         var nodeAccountId = nodeAddressProto.hasNodeAccountId()
                 ? EntityId.of(nodeAddressProto.getNodeAccountId())
-                : memoNodeAccountId;
+                : EntityId.isValid(memo) ? EntityId.of(memo) : EntityId.EMPTY;
 
-        if (EntityId.isEmpty(nodeAccountId) || nodeAccountId.getRealm() != commonProperties.getRealm()) {
+        if (EntityId.isEmpty(nodeAccountId)
+                || nodeAccountId.getRealm() != commonProperties.getRealm()
+                || nodeAccountId.getShard() != commonProperties.getShard()) {
             throw new InvalidDatasetException("Invalid NodeAddress.nodeAccountId: " + nodeAddressProto);
         }
 
@@ -436,11 +437,11 @@ public class AddressBookServiceImpl implements AddressBookService {
                 .serviceEndpoints(Set.of())
                 .stake(nodeAddressProto.getStake());
 
-        if (nodeAddressProto.getNodeCertHash() != null) {
+        if (!nodeAddressProto.getNodeCertHash().isEmpty()) {
             builder.nodeCertHash(nodeAddressProto.getNodeCertHash().toByteArray());
         }
 
-        if (nodeAddressProto.getMemo() != null) {
+        if (!nodeAddressProto.getMemo().isEmpty()) {
             builder.memo(nodeAddressProto.getMemo().toStringUtf8());
         }
 

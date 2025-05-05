@@ -2,19 +2,19 @@
 
 plugins { id("com.gradle.develocity") version ("3.17") }
 
-rootProject.name = "hedera-mirror-node"
+rootProject.name = "hiero-mirror-node"
 
 include(":hedera-mirror-common")
 
-include(":hedera-mirror-graphql")
+include(":graphql")
 
-include(":hedera-mirror-grpc")
+include(":grpc")
 
 include(":hedera-mirror-importer")
 
-include(":hedera-mirror-monitor")
+include(":monitor")
 
-include(":hedera-mirror-protobuf")
+include(":protobuf")
 
 include(":hedera-mirror-rest")
 

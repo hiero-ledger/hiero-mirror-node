@@ -163,6 +163,16 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                 .persist();
     }
 
+    protected Entity tokenEntityPersistHistoricalCustomizable(
+            final Range<Long> timestampRange, final Consumer<Entity.EntityBuilder<?, ?>> customizer) {
+        return domainBuilder
+                .entity()
+                .customize(e -> {
+                    e.type(EntityType.TOKEN).timestampRange(timestampRange);
+                    customizer.accept(e);
+                })
+                .persist();
+    }
     /**
      * Method used to persist fungible TokenHistory object with no customization
      *

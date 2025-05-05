@@ -474,9 +474,11 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
 
         final var expectedExpiry = new PrecompileTestContractHistorical.Expiry(
                 BigInteger.valueOf(expiryPeriod).divide(BigInteger.valueOf(1_000_000_000L)),
-                Address.fromHexString(
-                                Bytes.wrap(autoRenewAccount.getEvmAddress()).toHexString())
-                        .toHexString(),
+                mirrorNodeEvmProperties.isModularizedServices()
+                        ? getAddressFromEntity(autoRenewAccount)
+                        : Address.fromHexString(Bytes.wrap(autoRenewAccount.getEvmAddress())
+                                        .toHexString())
+                                .toHexString(),
                 BigInteger.valueOf(autoRenewExpiry));
 
         // Then
@@ -564,7 +566,9 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
 
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
+        final var autoRenewAccount = accountEntityPersistHistorical(historicalRange);
+        final var tokenEntity = tokenEntityPersistHistoricalCustomizable(
+                historicalRange, e -> e.autoRenewAccountId(autoRenewAccount.getId()));
         final var treasury =
                 accountPersistWithBalanceHistorical(DEFAULT_TOKEN_SUPPLY, tokenEntity.toEntityId(), historicalRange);
         final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
@@ -583,7 +587,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var result = contract.call_getInformationForFungibleToken(getAddressFromEntity(tokenEntity))
                 .send();
 
-        final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury);
+        final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury, autoRenewAccount);
 
         final var fixedFees = new ArrayList<FixedFee>();
         fixedFees.add(getFixedFee(customFees.getFixedFees().getFirst(), feeCollector));
@@ -612,7 +616,9 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var owner = accountEntityPersistHistorical(historicalRange);
         final var treasury = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
+        final var autoRenewAccount = accountEntityPersistHistorical(historicalRange);
+        final var tokenEntity = tokenEntityPersistHistoricalCustomizable(
+                historicalRange, e -> e.autoRenewAccountId(autoRenewAccount.getId()));
         final var token = nonFungibleTokenCustomizable(t -> t.tokenId(tokenEntity.getId())
                 .treasuryAccountId(treasury.toEntityId())
                 .timestampRange(historicalRange)
@@ -637,7 +643,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                         getAddressFromEntity(tokenEntity), DEFAULT_SERIAL_NUMBER)
                 .send();
 
-        final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury);
+        final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury, autoRenewAccount);
 
         final var fixedFees = new ArrayList<PrecompileTestContractHistorical.FixedFee>();
         fixedFees.add(getFixedFee(customFees.getFixedFees().getFirst(), feeCollector));
@@ -668,7 +674,9 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // Given
         final var historicalRange = setUpHistoricalContext(blockNumber);
 
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
+        final var autoRenewAccount = accountEntityPersistHistorical(historicalRange);
+        final var tokenEntity = tokenEntityPersistHistoricalCustomizable(
+                historicalRange, e -> e.autoRenewAccountId(autoRenewAccount.getId()));
         final var treasury =
                 accountPersistWithBalanceHistorical(DEFAULT_TOKEN_SUPPLY, tokenEntity.toEntityId(), historicalRange);
         final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
@@ -687,7 +695,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var result = contract.call_getInformationForToken(getAddressFromEntity(tokenEntity))
                 .send();
 
-        final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury);
+        final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury, autoRenewAccount);
 
         final var fixedFees = new ArrayList<PrecompileTestContractHistorical.FixedFee>();
         fixedFees.add(getFixedFee(customFees.getFixedFees().getFirst(), feeCollector));
@@ -709,7 +717,9 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var historicalRange = setUpHistoricalContext(blockNumber);
         final var treasury = accountEntityPersistWithEvmAddressHistorical(historicalRange);
         final var feeCollector = accountEntityPersistWithEvmAddressHistorical(historicalRange);
-        final var tokenEntity = tokenEntityPersistHistorical(historicalRange);
+        final var autoRenewAccount = accountEntityPersistHistorical(historicalRange);
+        final var tokenEntity = tokenEntityPersistHistoricalCustomizable(
+                historicalRange, e -> e.autoRenewAccountId(autoRenewAccount.getId()));
         final var token = nonFungibleTokenCustomizable(t -> t.tokenId(tokenEntity.getId())
                 .treasuryAccountId(treasury.toEntityId())
                 .timestampRange(historicalRange)
@@ -732,7 +742,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var result = contract.call_getInformationForToken(getAddressFromEntity(tokenEntity))
                 .send();
 
-        final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury);
+        final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury, autoRenewAccount);
 
         final var fixedFees = new ArrayList<PrecompileTestContractHistorical.FixedFee>();
         fixedFees.add(getFixedFee(customFees.getFixedFees().getFirst(), feeCollector));
@@ -1063,17 +1073,19 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     }
 
     private PrecompileTestContractHistorical.HederaToken createExpectedHederaToken(
-            final Entity tokenEntity, final Token token, final Entity treasury) {
+            final Entity tokenEntity, final Token token, final Entity treasury, final Entity autoRenewAccount) {
         final var expectedTokenKeys = getExpectedTokenKeys(tokenEntity, token);
 
         final var expectedExpiry = new PrecompileTestContractHistorical.Expiry(
                 BigInteger.valueOf(tokenEntity.getExpirationTimestamp()).divide(BigInteger.valueOf(1_000_000_000L)),
-                Address.ZERO.toHexString(),
+                getAddressFromEntity(autoRenewAccount),
                 BigInteger.valueOf(tokenEntity.getAutoRenewPeriod()));
         return new PrecompileTestContractHistorical.HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                getAddressFromEvmAddress(treasury.getEvmAddress()),
+                mirrorNodeEvmProperties.isModularizedServices()
+                        ? getAddressFromEntityId(treasury.toEntityId())
+                        : getAddressFromEvmAddress(treasury.getEvmAddress()),
                 tokenEntity.getMemo(),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),

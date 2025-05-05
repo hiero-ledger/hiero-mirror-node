@@ -446,8 +446,8 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
     @Test
     void updateTopicTestError() {
         var topicId = TopicID.newBuilder().setTopicNum(1600).build();
-        var updatedAdminKey = keyFromString("updated-admin-key");
-        var updatedSubmitKey = keyFromString("updated-submit-key");
+        var updatedAdminKey = keyFromString(KEY);
+        var updatedSubmitKey = keyFromString(KEY2);
         var consensusTimestamp = 6_000_000L;
         var responseCode = ResponseCodeEnum.INVALID_TOPIC_ID;
 
@@ -479,8 +479,8 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
 
     @Test
     void updateTopicTestTopicNotFound() {
-        var adminKey = keyFromString("updated-admin-key");
-        var submitKey = keyFromString("updated-submit-key");
+        var adminKey = keyFromString(KEY);
+        var submitKey = keyFromString(KEY2);
         var consensusTimestamp = 6_000_000L;
         var responseCode = SUCCESS;
         var memo = "updated-memo";
