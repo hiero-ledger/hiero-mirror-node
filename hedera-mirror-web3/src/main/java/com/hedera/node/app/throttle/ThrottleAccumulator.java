@@ -42,7 +42,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.math.BigInteger;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
@@ -160,17 +159,6 @@ public class ThrottleAccumulator {
             @NonNull final State state,
             @Nullable final AccountID queryPayerId) {
         return false;
-    }
-
-    private int getAssociationCount(@NonNull final Query query, @NonNull final ReadableAccountStore accountStore) {
-        final var accountID = query.cryptogetAccountBalanceOrThrow().accountID();
-        if (accountID != null) {
-            final var account = accountStore.getAccountById(accountID);
-            if (account != null) {
-                return account.numberAssociations();
-            }
-        }
-        return 0;
     }
 
     /**
@@ -448,7 +436,7 @@ public class ThrottleAccumulator {
                     "Resolved {} bytes throttle -\n {} bytes/sec (throttling {})",
                     throttleType.name(),
                     bytesThrottle.capacity(),
-                    (jumboConfig.isEnabled() ? "ON" : "OFF"));
+                    jumboConfig.isEnabled() ? "ON" : "OFF");
         }
     }
 
@@ -462,30 +450,6 @@ public class ThrottleAccumulator {
         return throttleType.equals(ThrottleType.BACKEND_THROTTLE)
                 ? contractsConfig.gasThrottleBurstSeconds()
                 : DEFAULT_BURST_SECONDS;
-    }
-
-    private void logResolvedDefinitions(final int capacitySplit) {
-        if (verbose != Verbose.YES) {
-            return;
-        }
-        var sb = new StringBuilder("Resolved ")
-                .append(throttleType.name())
-                .append(" ")
-                .append("(after splitting capacity ")
-                .append(capacitySplit)
-                .append(" ways) - \n");
-        functionReqs.entrySet().stream()
-                .sorted(Comparator.comparing(entry -> entry.getKey().toString()))
-                .forEach(entry -> {
-                    var function = entry.getKey();
-                    var manager = entry.getValue();
-                    sb.append("  ")
-                            .append(function)
-                            .append(": ")
-                            .append(manager.asReadableRequirements())
-                            .append("\n");
-                });
-        log.info("{}", () -> sb.toString().trim());
     }
 
     /**
