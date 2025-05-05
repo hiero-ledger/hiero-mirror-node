@@ -196,7 +196,7 @@ public class TransactionExecutionService {
             return EntityIdUtils.toAccountId(systemEntity.treasuryAccount());
         }
         final var senderAddress = params.getSender().canonicalAddress();
-        AccountID accountIDNum = getSenderAccountIDAsNum(senderAddress);
+        final var accountIDNum = getSenderAccountIDAsNum(senderAddress);
 
         final var account = accountReadableKVState.get(accountIDNum);
         if (account == null) {
