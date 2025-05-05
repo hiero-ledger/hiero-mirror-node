@@ -42,7 +42,7 @@ class AccountBalancesDownloaderTest extends AbstractDownloaderTest<AccountBalanc
     private AccountBalanceFileRepository accountBalanceFileRepository;
 
     @Override
-    protected EntityId entityId(long num) {
+    protected EntityId entityNum(long num) {
         return EntityId.of(0, 0, num);
     }
 

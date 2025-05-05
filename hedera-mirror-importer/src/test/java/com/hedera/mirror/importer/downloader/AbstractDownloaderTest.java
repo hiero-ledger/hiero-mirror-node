@@ -161,7 +161,7 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         }
     }
 
-    protected EntityId entityId(long num) {
+    protected EntityId entityNum(long num) {
         return domainBuilder.entityNum(num);
     }
 
@@ -640,7 +640,7 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
 
         // Copy all files and modify only node 0.0.3's files to have a different timestamp
         fileCopier.filterFiles(getStreamFilenameInstantString(file2) + "*").copy();
-        Path basePath = fileCopier.getTo().resolve(streamType.getNodePrefix() + entityId(3));
+        Path basePath = fileCopier.getTo().resolve(streamType.getNodePrefix() + entityNum(3));
 
         // Construct a new filename with the offset added to the last valid file
         long nanoOffset = getCloseInterval().plus(offset).toNanos();
