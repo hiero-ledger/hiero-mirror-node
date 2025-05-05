@@ -73,6 +73,7 @@ spring:
     username: ${hedera.mirror.web3.db.username}
     hikari:
       connection-timeout: 3000
+      leak-detection-threshold: 2000
       data-source-properties:
         idle_in_transaction_session_timeout: "30000"
         lock_timeout: "10000"
