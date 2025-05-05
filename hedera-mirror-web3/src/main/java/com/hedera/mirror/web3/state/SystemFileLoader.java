@@ -15,6 +15,7 @@ import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
 import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.exception.InvalidFileException;
 import com.hedera.mirror.web3.repository.FileDataRepository;
@@ -60,6 +61,8 @@ public class SystemFileLoader {
     @Getter(lazy = true)
     private final Map<FileID, SystemFile> systemFiles = loadAll();
 
+    private byte[] mockAddressBook = null;
+
     @Cacheable(
             cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
             cacheNames = CACHE_NAME_MODULARIZED,
@@ -96,7 +99,7 @@ public class SystemFileLoader {
                         .getFileAtTimestamp(fileId, nanoSeconds.get())
                         .map(fileData -> {
                             try {
-                                var bytes = Bytes.wrap(fileData.getFileData());
+                                var bytes = getBytes(fileData, fileId);
                                 if (systemFile.codec != null) {
                                     systemFile.codec().parse(bytes.toReadableSequentialData());
                                 }
@@ -121,7 +124,7 @@ public class SystemFileLoader {
 
     private Map<FileID, SystemFile> loadAll() {
         var configuration = properties.getVersionedConfiguration();
-        final var mockAddressBook = Bytes.wrap(addressBookMockup(1, false).toByteArray());
+        final var mockAddressBook = Bytes.wrap(getMockAddressBook());
         var files = List.of(
                 new SystemFile(load(systemEntity.addressBookFile101(), mockAddressBook), NodeAddressBook.PROTOBUF),
                 new SystemFile(load(systemEntity.addressBookFile102(), mockAddressBook), NodeAddressBook.PROTOBUF),
@@ -178,8 +181,8 @@ public class SystemFileLoader {
                     .setNodeId(nodeId)
                     .setMemo(ByteString.copyFromUtf8(String.format(
                             "%s.%s.%s",
-                            this.properties.getCommonProperties().getShard(),
-                            this.properties.getCommonProperties().getRealm(),
+                            properties.getCommonProperties().getShard(),
+                            properties.getCommonProperties().getRealm(),
                             nodeId)))
                     .setNodeAccountId(AccountID.newBuilder().setAccountNum(nodeId))
                     .setNodeCertHash(ByteString.copyFromUtf8("nodeCertHash"))
@@ -201,6 +204,25 @@ public class SystemFileLoader {
             builder.addNodeAddress(nodeAddressBuilder.build());
         }
         return builder.build();
+    }
+
+    private Bytes getBytes(FileData fileData, long fileId) {
+        byte[] fileBytes = fileData.getFileData();
+        boolean isAddressBookFile = fileId == systemEntity.addressBookFile101().getId()
+                || fileId == systemEntity.addressBookFile102().getId();
+        if (isAddressBookFile && (fileBytes == null || fileBytes.length == 0)) {
+            fileBytes = getMockAddressBook();
+        }
+
+        return Bytes.wrap(fileBytes);
+    }
+
+    // Lazy initialization method
+    private byte[] getMockAddressBook() {
+        if (mockAddressBook == null) {
+            mockAddressBook = addressBookMockup(1, false).toByteArray();
+        }
+        return mockAddressBook;
     }
 
     private record SystemFile(File genesisFile, Codec<?> codec) {}
