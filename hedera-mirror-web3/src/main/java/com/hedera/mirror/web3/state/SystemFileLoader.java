@@ -26,12 +26,10 @@ import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NodeAddress;
-import com.hederahashgraph.api.proto.java.ServiceEndpoint;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -124,7 +122,7 @@ public class SystemFileLoader {
 
     private Map<FileID, SystemFile> loadAll() {
         var configuration = properties.getVersionedConfiguration();
-        final var mockAddressBook = Bytes.wrap(getMockAddressBook());
+        var mockAddressBook = Bytes.wrap(getMockAddressBook());
         var files = List.of(
                 new SystemFile(load(systemEntity.addressBookFile101(), mockAddressBook), NodeAddressBook.PROTOBUF),
                 new SystemFile(load(systemEntity.addressBookFile102(), mockAddressBook), NodeAddressBook.PROTOBUF),
@@ -169,7 +167,7 @@ public class SystemFileLoader {
     }
 
     @SuppressWarnings("deprecation")
-    private com.hederahashgraph.api.proto.java.NodeAddressBook addressBookMockup(int size, boolean includeEndpoints) {
+    private com.hederahashgraph.api.proto.java.NodeAddressBook addressBookMockup(int size) {
 
         com.hederahashgraph.api.proto.java.NodeAddressBook.Builder builder =
                 com.hederahashgraph.api.proto.java.NodeAddressBook.newBuilder();
@@ -187,20 +185,6 @@ public class SystemFileLoader {
                     .setNodeAccountId(AccountID.newBuilder().setAccountNum(nodeId))
                     .setNodeCertHash(ByteString.copyFromUtf8("nodeCertHash"))
                     .setRSAPubKey("rsa+public/key");
-
-            // add service endpoints
-            if (includeEndpoints) {
-                List<ServiceEndpoint> serviceEndpoints = new ArrayList<>();
-                for (int j = 1; j <= size; ++j) {
-                    serviceEndpoints.add(ServiceEndpoint.newBuilder()
-                            .setIpAddressV4(ByteString.copyFrom(new byte[] {127, 0, 0, (byte) j}))
-                            .setPort(443 + j)
-                            .setDomainName("")
-                            .build());
-                }
-                nodeAddressBuilder.addAllServiceEndpoint(serviceEndpoints);
-            }
-
             builder.addNodeAddress(nodeAddressBuilder.build());
         }
         return builder.build();
@@ -220,7 +204,7 @@ public class SystemFileLoader {
     // Lazy initialization method
     private byte[] getMockAddressBook() {
         if (mockAddressBook == null) {
-            mockAddressBook = addressBookMockup(1, false).toByteArray();
+            mockAddressBook = addressBookMockup(1).toByteArray();
         }
         return mockAddressBook;
     }
