@@ -68,20 +68,23 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 public abstract class AbstractEntityRecordItemListenerTest extends ImporterIntegrationTest {
 
-    protected static final ContractID CONTRACT_ID = entityId(901).toContractID();
-    protected static final ContractID CREATED_CONTRACT_ID = entityId(902).toContractID();
+    protected static final ContractID CONTRACT_ID =
+            DOMAIN_BUILDER.entityNum(901).toContractID();
+    protected static final ContractID CREATED_CONTRACT_ID =
+            DOMAIN_BUILDER.entityNum(902).toContractID();
     protected static final SignatureMap DEFAULT_SIG_MAP = getDefaultSigMap();
     protected static final String KEY = "0a2212200aa8e21064c61eab86e2a9c164565b4e7a9a4146106e0a6cd03a8c395a110fff";
     protected static final String KEY2 = "0a3312200aa8e21064c61eab86e2a9c164565b4e7a9a4146106e0a6cd03a8c395a110e92";
-    protected static final AccountID PAYER = entityId(2002).toAccountID();
-    protected static final AccountID PAYER2 = entityId(2003).toAccountID();
-    protected static final AccountID PAYER3 = entityId(2006).toAccountID();
-    protected static final AccountID RECEIVER = entityId(2004).toAccountID();
-    protected static final AccountID SPENDER = entityId(2005).toAccountID();
+    protected static final AccountID PAYER = DOMAIN_BUILDER.entityNum(2002).toAccountID();
+    protected static final AccountID PAYER2 = DOMAIN_BUILDER.entityNum(2003).toAccountID();
+    protected static final AccountID PAYER3 = DOMAIN_BUILDER.entityNum(2006).toAccountID();
+    protected static final AccountID RECEIVER = DOMAIN_BUILDER.entityNum(2004).toAccountID();
+    protected static final AccountID SPENDER = DOMAIN_BUILDER.entityNum(2005).toAccountID();
     protected static final AccountID DEFAULT_ACCOUNT_ID = AccountID.getDefaultInstance();
-    protected static final AccountID NODE = entityId(3).toAccountID();
-    protected static final AccountID PROXY = entityId(1003).toAccountID();
-    protected static final AccountID PROXY_UPDATE = entityId(3000).toAccountID();
+    protected static final AccountID NODE = DOMAIN_BUILDER.entityNum(3).toAccountID();
+    protected static final AccountID PROXY = DOMAIN_BUILDER.entityNum(1003).toAccountID();
+    protected static final AccountID PROXY_UPDATE =
+            DOMAIN_BUILDER.entityNum(3000).toAccountID();
     protected static final String TRANSACTION_MEMO = "transaction memo";
 
     @Resource

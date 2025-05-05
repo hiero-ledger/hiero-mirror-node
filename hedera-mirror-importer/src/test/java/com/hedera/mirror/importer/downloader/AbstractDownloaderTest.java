@@ -162,7 +162,7 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     }
 
     protected EntityId entityId(long num) {
-        return domainBuilder.entityId(num);
+        return domainBuilder.entityNum(num);
     }
 
     protected void loadAddressBook(String filename) {

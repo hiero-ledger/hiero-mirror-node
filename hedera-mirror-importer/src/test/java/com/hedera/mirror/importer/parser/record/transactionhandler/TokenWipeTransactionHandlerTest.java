@@ -36,7 +36,7 @@ class TokenWipeTransactionHandlerTest extends AbstractTransactionHandlerTest {
         return TransactionBody.newBuilder()
                 .setTokenWipe(TokenWipeAccountTransactionBody.newBuilder()
                         .setAccount(
-                                domainBuilder.entityId(DEFAULT_ENTITY_NUM + 1).toAccountID())
+                                domainBuilder.entityNum(DEFAULT_ENTITY_NUM + 1).toAccountID())
                         .setToken(defaultEntityId.toTokenID())
                         .build());
     }

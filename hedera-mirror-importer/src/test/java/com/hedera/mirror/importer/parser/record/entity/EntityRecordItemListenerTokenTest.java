@@ -117,12 +117,12 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
     private static final Timestamp EXPIRY_TIMESTAMP =
             Timestamp.newBuilder().setSeconds(360L).build();
     private static final long EXPIRY_NS = EXPIRY_TIMESTAMP.getSeconds() * 1_000_000_000 + EXPIRY_TIMESTAMP.getNanos();
-    private static final EntityId FEE_COLLECTOR_ACCOUNT_ID_1 = entityId(1199);
-    private static final EntityId FEE_COLLECTOR_ACCOUNT_ID_2 = entityId(1200);
-    private static final EntityId FEE_COLLECTOR_ACCOUNT_ID_3 = entityId(1201);
-    private static final EntityId FEE_DOMAIN_TOKEN_ID = entityId(9800);
-    private static final EntityId FEE_PAYER_1 = entityId(1500);
-    private static final EntityId FEE_PAYER_2 = entityId(1501);
+    private static final EntityId FEE_COLLECTOR_ACCOUNT_ID_1 = DOMAIN_BUILDER.entityNum(1199);
+    private static final EntityId FEE_COLLECTOR_ACCOUNT_ID_2 = DOMAIN_BUILDER.entityNum(1200);
+    private static final EntityId FEE_COLLECTOR_ACCOUNT_ID_3 = DOMAIN_BUILDER.entityNum(1201);
+    private static final EntityId FEE_DOMAIN_TOKEN_ID = DOMAIN_BUILDER.entityNum(9800);
+    private static final EntityId FEE_PAYER_1 = DOMAIN_BUILDER.entityNum(1500);
+    private static final EntityId FEE_PAYER_2 = DOMAIN_BUILDER.entityNum(1501);
     private static final long INITIAL_SUPPLY = 1_000_000L;
     private static final byte[] METADATA = "METADATA".getBytes();
     private static final long SERIAL_NUMBER_1 = 1L;
@@ -130,7 +130,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
     private static final List<Long> SERIAL_NUMBER_LIST = Arrays.asList(SERIAL_NUMBER_1, SERIAL_NUMBER_2);
     private static final String SYMBOL = "FOOCOIN";
     private static final String TOKEN_CREATE_MEMO = "TokenCreate memo";
-    private static final EntityId DOMAIN_TOKEN_ID = entityId(3001);
+    private static final EntityId DOMAIN_TOKEN_ID = DOMAIN_BUILDER.entityNum(3001);
     private static final TokenID TOKEN_ID = DOMAIN_TOKEN_ID.toTokenID();
     private static final Key TOKEN_REF_KEY = keyFromString(KEY);
     private static final long TOKEN_UPDATE_AUTO_RENEW_PERIOD = 12L;
@@ -3834,7 +3834,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .setSenderId(PAYER)
                 .setFungibleTokenType(TOKEN_ID)
                 .build();
-        var nftTokenId = entityId(1234L).toTokenID();
+        var nftTokenId = domainBuilder.entityNum(1234L).toTokenID();
         var protoNftId = NftID.newBuilder().setTokenID(nftTokenId).setSerialNumber(SERIAL_NUMBER_1);
         var pendingNftAirdropId = PendingAirdropId.newBuilder()
                 .setReceiverId(RECEIVER)

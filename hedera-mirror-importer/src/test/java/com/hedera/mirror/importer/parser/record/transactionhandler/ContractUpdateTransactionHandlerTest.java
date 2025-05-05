@@ -245,7 +245,7 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .transaction()
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
-        var plainAccountId = domainBuilder.entityId(10L);
+        var plainAccountId = domainBuilder.entityNum(10L);
         var aliasProtoAccountId =
                 plainAccountId.toAccountID().toBuilder().setAlias(alias).build();
         when(entityIdService.lookup(aliasProtoAccountId)).thenReturn(Optional.of(plainAccountId));
@@ -286,7 +286,7 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .transaction()
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
-        var aliasProtoAccountId = domainBuilder.entityId(10L).toAccountID().toBuilder()
+        var aliasProtoAccountId = domainBuilder.entityNum(10L).toAccountID().toBuilder()
                 .setAlias(alias)
                 .build();
         when(entityIdService.lookup(aliasProtoAccountId)).thenReturn(Optional.ofNullable(entityId));

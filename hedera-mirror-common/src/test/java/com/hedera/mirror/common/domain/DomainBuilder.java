@@ -177,7 +177,7 @@ public class DomainBuilder {
     public DomainWrapper<AddressBook, AddressBook.AddressBookBuilder> addressBook() {
         var builder = AddressBook.builder()
                 .fileData(bytes(10))
-                .fileId(entityId(102))
+                .fileId(entityNum(102))
                 .nodeCount(6)
                 .startConsensusTimestamp(timestamp())
                 .endConsensusTimestamp(timestamp());
@@ -196,7 +196,7 @@ public class DomainBuilder {
                 .description(text(10))
                 .memo(text(10))
                 .nodeId(nodeId)
-                .nodeAccountId(entityId(nodeId + 3))
+                .nodeAccountId(entityNum(nodeId + 3))
                 .nodeCertHash(bytes(96))
                 .publicKey(text(64))
                 .stake(0L);
@@ -1123,10 +1123,10 @@ public class DomainBuilder {
 
     public EntityId entityId() {
         long nextNum = number() + LAST_RESERVED_ID;
-        return entityId(nextNum);
+        return entityNum(nextNum);
     }
 
-    public EntityId entityId(long num) {
+    public EntityId entityNum(long num) {
         return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), num);
     }
 

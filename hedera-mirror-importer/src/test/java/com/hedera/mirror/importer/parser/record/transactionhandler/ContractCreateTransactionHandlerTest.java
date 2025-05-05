@@ -250,7 +250,7 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .get();
         var initCode = DomainUtils.toBytes(
                 recordItem.getSidecarRecords().get(2).getBytecode().getInitcode());
-        var aliasAccountId = domainBuilder.entityId(10L);
+        var aliasAccountId = domainBuilder.entityNum(10L);
         when(entityIdService.lookup(aliasAccount)).thenReturn(Optional.of(aliasAccountId));
         var expectedEntityTransactions = getExpectedEntityTransactions(recordItem, transaction);
         expectedEntityTransactions.put(

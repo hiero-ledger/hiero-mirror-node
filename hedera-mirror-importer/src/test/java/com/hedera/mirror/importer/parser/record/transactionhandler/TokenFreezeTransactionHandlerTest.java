@@ -27,7 +27,8 @@ class TokenFreezeTransactionHandlerTest extends AbstractTransactionHandlerTest {
         return TransactionBody.newBuilder()
                 .setTokenFreeze(TokenFreezeAccountTransactionBody.newBuilder()
                         .setAccount(defaultEntityId.toAccountID())
-                        .setToken(domainBuilder.entityId(DEFAULT_ENTITY_NUM + 1).toTokenID())
+                        .setToken(
+                                domainBuilder.entityNum(DEFAULT_ENTITY_NUM + 1).toTokenID())
                         .build());
     }
 

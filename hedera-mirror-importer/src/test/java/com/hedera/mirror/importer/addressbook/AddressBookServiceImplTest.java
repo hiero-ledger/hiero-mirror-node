@@ -90,15 +90,15 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     @SuppressWarnings("deprecation")
     private static NodeAddressBook addressBook(int size, int endPointSize) {
         var builder = NodeAddressBook.newBuilder();
-        var nodeAccountIdPrefix = String.format("%d.%d.", COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm());
         for (int i = 0; i < size; ++i) {
             long nodeId = 3 + i;
-            NodeAddress.Builder nodeAddressBuilder = NodeAddress.newBuilder()
+            var nodeAccountId = DOMAIN_BUILDER.entityNum(nodeId);
+            var nodeAddressBuilder = NodeAddress.newBuilder()
                     .setIpAddress(ByteString.copyFromUtf8("127.0.0." + nodeId))
                     .setPortno((int) nodeId)
                     .setNodeId(nodeId)
-                    .setMemo(ByteString.copyFromUtf8(nodeAccountIdPrefix + nodeId))
-                    .setNodeAccountId(entityId(nodeId).toAccountID())
+                    .setMemo(ByteString.copyFromUtf8(nodeAccountId.toString()))
+                    .setNodeAccountId(nodeAccountId.toAccountID())
                     .setNodeCertHash(ByteString.copyFromUtf8("nodeCertHash"))
                     .setRSAPubKey("rsa+public/key");
 
@@ -287,7 +287,8 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
             102, true
             """)
     void isAddressBook(long fileNum, boolean expected) {
-        assertThat(addressBookService.isAddressBook(entityId(fileNum))).isEqualTo(expected);
+        assertThat(addressBookService.isAddressBook(domainBuilder.entityNum(fileNum)))
+                .isEqualTo(expected);
     }
 
     @Test
@@ -514,7 +515,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     @Transactional
     void verifyAddressBookWithMissingFields() {
         // Given
-        var nodeAccountId = entityId(3);
+        var nodeAccountId = domainBuilder.entityId();
         var ipAddress = "127.0.0.1";
         var nodeAddressBook = NodeAddressBook.newBuilder()
                 .addNodeAddress(NodeAddress.newBuilder()
@@ -528,7 +529,6 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         update(addressBookBytes, consensusTimeStamp - 1, true);
 
         // Then
-        long nodeId = nodeAccountId.getNum() - 3;
         assertAddressBookData(addressBookBytes, consensusTimeStamp);
         softly.assertThat(addressBookService.getCurrent())
                 .isNotNull()
@@ -539,7 +539,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .returns(null, AddressBookEntry::getMemo)
                 .returns(nodeAccountId, AddressBookEntry::getNodeAccountId)
                 .returns(null, AddressBookEntry::getNodeCertHash)
-                .returns(nodeId, AddressBookEntry::getNodeId)
+                .returns(0L, AddressBookEntry::getNodeId)
                 .returns("", AddressBookEntry::getPublicKey)
                 .returns(consensusTimeStamp, AddressBookEntry::getConsensusTimestamp)
                 .returns(0L, AddressBookEntry::getStake)
@@ -548,7 +548,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                         InstanceOfAssertFactories.set(AddressBookServiceEndpoint.class))
                 .hasSize(1)
                 .first()
-                .returns(nodeId, AddressBookServiceEndpoint::getNodeId)
+                .returns(0L, AddressBookServiceEndpoint::getNodeId)
                 .returns("", AddressBookServiceEndpoint::getDomainName)
                 .returns(ipAddress, AddressBookServiceEndpoint::getIpAddressV4)
                 .returns(consensusTimeStamp, AddressBookServiceEndpoint::getConsensusTimestamp)
@@ -766,7 +766,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                                 .setDomainName(domainName)
                                 .setPort(BASE_PORT))
                         .setNodeId(0L)
-                        .setNodeAccountId(entityId(3).toAccountID()))
+                        .setNodeAccountId(domainBuilder.entityId().toAccountID()))
                 .build();
 
         var path = dataPath.resolve("addressbook.bin");
@@ -1111,7 +1111,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
             throws UnknownHostException {
         NodeAddress.Builder nodeAddressBuilder = NodeAddress.newBuilder()
                 .setDescription("NodeAddressWithServiceEndpoint")
-                .setNodeAccountId(entityId(accountNum).toAccountID())
+                .setNodeAccountId(domainBuilder.entityNum(accountNum).toAccountID())
                 .setNodeCertHash(ByteString.copyFromUtf8(accountNum + "NodeCertHash"))
                 .setNodeId(accountNum - AddressBookServiceImpl.INITIAL_NODE_ID_ACCOUNT_ID_OFFSET)
                 .setRSAPubKey(accountNum + "RSAPubKey")
@@ -1169,11 +1169,9 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         for (ServiceEndpoint serviceEndpoint : expected) {
             listAssert.anySatisfy(abe -> {
                 AtomicReference<String> ip = new AtomicReference<>("");
-                assertDoesNotThrow(() -> {
-                    ip.set(InetAddress.getByAddress(
-                                    serviceEndpoint.getIpAddressV4().toByteArray())
-                            .getHostAddress());
-                });
+                assertDoesNotThrow(() -> ip.set(InetAddress.getByAddress(
+                                serviceEndpoint.getIpAddressV4().toByteArray())
+                        .getHostAddress()));
 
                 assertThat(abe.getPort()).isEqualTo(serviceEndpoint.getPort());
                 assertThat(abe.getIpAddressV4()).isEqualTo(ip.get());

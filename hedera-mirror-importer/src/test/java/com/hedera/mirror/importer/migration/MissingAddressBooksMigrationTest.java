@@ -50,7 +50,7 @@ class MissingAddressBooksMigrationTest extends ImporterIntegrationTest {
         var builder = NodeAddressBook.newBuilder();
         for (int i = 0; i < size; ++i) {
             long nodeId = 3 + i;
-            var nodeAccountId = entityId(nodeId);
+            var nodeAccountId = DOMAIN_BUILDER.entityNum(nodeId);
             var nodeAddressBuilder = NodeAddress.newBuilder()
                     .setIpAddress(ByteString.copyFromUtf8("127.0.0." + nodeId))
                     .setPortno((int) nodeId)

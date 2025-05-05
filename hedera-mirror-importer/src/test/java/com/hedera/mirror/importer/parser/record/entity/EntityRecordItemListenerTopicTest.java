@@ -66,10 +66,11 @@ import org.junit.jupiter.params.provider.CsvSource;
 @RequiredArgsConstructor
 class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListenerTest {
 
-    private static final TopicID FILTERED_TOPIC_ID = entityId(999).toTopicID();
-    private static final TopicID TOPIC_ID = entityId(200).toTopicID();
+    private static final TopicID FILTERED_TOPIC_ID =
+            DOMAIN_BUILDER.entityNum(999).toTopicID();
+    private static final TopicID TOPIC_ID = DOMAIN_BUILDER.entityNum(200).toTopicID();
     private static final String TRANSACTION_MEMO = "transaction memo";
-    private static final EntityId PAYER_ACCOUNT_ID = entityId(9999);
+    private static final EntityId PAYER_ACCOUNT_ID = DOMAIN_BUILDER.entityNum(9999);
     private static final String TRANSACTION_ID = PAYER_ACCOUNT_ID.toString() + "-123456789";
 
     private final CommonParserProperties commonParserProperties;
@@ -129,7 +130,7 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
         assertEquals(1L, entityRepository.count());
         var autoRenewAccountId = autoRenewAccountNum == null
                 ? null
-                : domainBuilder.entityId(autoRenewAccountNum).getId();
+                : domainBuilder.entityNum(autoRenewAccountNum).getId();
         var expectedEntity = createTopicEntity(topicId, null, null, memo, autoRenewAccountId, autoRenewPeriod);
         expectedEntity.setCreatedTimestamp(consensusTimestamp);
         expectedEntity.setDeleted(false);
@@ -203,7 +204,7 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
                 .returns("", from(Entity::getMemo))
                 .returns(false, from(Entity::getDeleted))
                 .returns(EntityType.TOPIC, from(Entity::getType))
-                .returns(domainBuilder.entityId(autoRenewAccountNum).getId(), AbstractEntity::getAutoRenewAccountId);
+                .returns(domainBuilder.entityNum(autoRenewAccountNum).getId(), AbstractEntity::getAutoRenewAccountId);
         var expectedTopic = Topic.builder()
                 .createdTimestamp(consensusTimestamp)
                 .feeExemptKeyList(FeeExemptKeyList.getDefaultInstance().toByteArray())
@@ -411,7 +412,7 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
 
         var expectedAutoRenewAccountId = autoRenewAccountNum == null
                 ? topicEntity.getAutoRenewAccountId()
-                : domainBuilder.entityId(autoRenewAccountNum).getId();
+                : domainBuilder.entityNum(autoRenewAccountNum).getId();
         var expectedAutoRenewPeriod = autoRenewPeriod == null ? topicEntity.getAutoRenewPeriod() : autoRenewPeriod;
         var expected = createTopicEntity(
                 topicId,
@@ -484,7 +485,7 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
         var consensusTimestamp = 6_000_000L;
         var responseCode = SUCCESS;
         var memo = "updated-memo";
-        var autoRenewAccount = domainBuilder.entityId(1);
+        var autoRenewAccount = domainBuilder.entityNum(1);
         // Topic does not get stored in the repository beforehand.
 
         var transaction = createUpdateTopicTransaction(
@@ -544,7 +545,7 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
 
         var autoRenewAccountId = autoRenewAccountNum == null
                 ? null
-                : domainBuilder.entityId(autoRenewAccountNum).getId();
+                : domainBuilder.entityNum(autoRenewAccountNum).getId();
         // Store topic to be updated.
         var topicEntity = createTopicEntity(
                 topicId, expirationTimeSeconds, expirationTimeNanos, memo, autoRenewAccountId, autoRenewPeriod);
@@ -560,7 +561,7 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
 
         if (updatedAutoRenewAccountNum != null) {
             topicEntity.setAutoRenewAccountId(
-                    domainBuilder.entityId(updatedAutoRenewAccountNum).getId());
+                    domainBuilder.entityNum(updatedAutoRenewAccountNum).getId());
         }
         if (updatedAutoRenewPeriod != null) {
             topicEntity.setAutoRenewPeriod(updatedAutoRenewPeriod);
@@ -592,7 +593,7 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
 
         if (updatedAutoRenewAccountNum != null) {
             topicEntity.setAutoRenewAccountId(
-                    domainBuilder.entityId(updatedAutoRenewAccountNum).getId());
+                    domainBuilder.entityNum(updatedAutoRenewAccountNum).getId());
         }
         topicEntity.setDeleted(false);
         topicEntity.setTimestampLower(consensusTimestamp);
@@ -945,7 +946,7 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
     void submitMessageTestInvalidChunkInfo() {
         // given
         var id = 10_000_000L;
-        var topicId = domainBuilder.entityId(9000).toTopicID();
+        var topicId = domainBuilder.entityNum(9000).toTopicID();
         var scheduled = false;
         var nonce = 0;
 
@@ -1052,7 +1053,7 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
         var innerBody = ConsensusCreateTopicTransactionBody.newBuilder();
         if (autoRenewAccount != null) {
             innerBody.setAutoRenewAccount(
-                    domainBuilder.entityId(autoRenewAccount).toAccountID());
+                    domainBuilder.entityNum(autoRenewAccount).toAccountID());
         }
         if (autoRenewPeriod != null) {
             innerBody.setAutoRenewPeriod(

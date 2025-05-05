@@ -27,7 +27,8 @@ class TokenRevokeKycTransactionHandlerTest extends AbstractTransactionHandlerTes
         return TransactionBody.newBuilder()
                 .setTokenRevokeKyc(TokenRevokeKycTransactionBody.newBuilder()
                         .setAccount(defaultEntityId.toAccountID())
-                        .setToken(domainBuilder.entityId(DEFAULT_ENTITY_NUM + 1).toTokenID())
+                        .setToken(
+                                domainBuilder.entityNum(DEFAULT_ENTITY_NUM + 1).toTokenID())
                         .build());
     }
 

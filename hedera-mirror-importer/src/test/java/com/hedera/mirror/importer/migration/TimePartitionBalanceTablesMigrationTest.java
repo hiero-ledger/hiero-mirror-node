@@ -110,7 +110,7 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
     @Test
     void migrate() {
         // given
-        var treasury = domainBuilder.entityId(2);
+        var treasury = domainBuilder.entityNum(2);
         var account2 = domainBuilder.entityId();
         var account3 = domainBuilder.entityId();
         var account4 = domainBuilder.entityId();

@@ -91,7 +91,7 @@ import org.springframework.cache.CacheManager;
 class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListenerTest {
 
     private static final long INITIAL_BALANCE = 1000L;
-    private static final EntityId accountId1 = entityId(1001);
+    private static final EntityId accountId1 = DOMAIN_BUILDER.entityNum(1001);
     private static final long[] additionalTransfers = {5000};
     private static final long[] additionalTransferAmounts = {1001, 1002};
     private static final ByteString ALIAS_KEY = DomainUtils.fromBytes(UtilityTest.ALIAS_ECDSA_SECP256K1);
@@ -793,7 +793,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 // (the results of overflows).
                 .setExpirationTime(Timestamp.newBuilder().setSeconds(seconds))
                 .setDeclineReward(BoolValue.of(true))
-                .setStakedAccountId(domainBuilder.entityId(1L).toAccountID()));
+                .setStakedAccountId(domainBuilder.entityNum(1L).toAccountID()));
         var transactionBody = getTransactionBody(updateTransaction);
 
         var txnRecord = transactionRecordSuccess(transactionBody);

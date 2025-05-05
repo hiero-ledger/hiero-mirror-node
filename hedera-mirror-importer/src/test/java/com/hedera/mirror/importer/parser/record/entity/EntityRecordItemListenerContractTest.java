@@ -199,7 +199,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
 
     @Test
     void contractCallChildNonce() {
-        var childContractID = entityId(1001).toContractID();
+        var childContractID = domainBuilder.entityNum(1001).toContractID();
 
         var setupResult = setupContract(CONTRACT_ID, ContractIdType.PLAIN, true, true);
         var parentId = setupResult.entity.toEntityId();
@@ -321,7 +321,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                 .record(r -> r.setContractCreateResult(r.getContractCreateResultBuilder()
                         .setEvmAddress(BytesValue.of(DomainUtils.fromBytes(parentEvmAddress)))))
                 .recordItem(r -> r.hapiVersion(RecordFile.HAPI_VERSION_0_27_0))
-                .sidecarRecords(s -> s.remove(0))
+                .sidecarRecords(List::removeFirst)
                 .build();
 
         var contractCreateResult = parentRecordItem.getTransactionRecord().getContractCreateResult();

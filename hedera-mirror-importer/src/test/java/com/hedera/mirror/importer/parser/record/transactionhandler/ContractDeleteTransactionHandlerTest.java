@@ -27,7 +27,7 @@ import org.mockito.ArgumentMatchers;
 
 class ContractDeleteTransactionHandlerTest extends AbstractDeleteOrUndeleteTransactionHandlerTest {
 
-    private final EntityId obtainerId = domainBuilder.entityId(99);
+    private final EntityId obtainerId = domainBuilder.entityNum(99);
 
     @BeforeEach
     void beforeEach() {

@@ -98,7 +98,7 @@ class BackfillAndDeduplicateBalanceMigrationTest
     void migrate() {
         // given
         // based on partitionTimeInterval of '10 years' in test application config
-        var treasury = domainBuilder.entityId(2);
+        var treasury = domainBuilder.entityNum(2);
         var account2 = EntityId.of(domainBuilder.id() + treasury.getId());
         var account3 = EntityId.of(domainBuilder.id() + treasury.getId());
         var account4 = EntityId.of(domainBuilder.id() + treasury.getId());
@@ -412,7 +412,7 @@ class BackfillAndDeduplicateBalanceMigrationTest
         // given
         // there is no balance info before the portion already handled by V1.89.2, for simplicity, no data is populated
         // for account_balance_old and token_balance_old
-        var treasury = domainBuilder.entityId(2);
+        var treasury = domainBuilder.entityNum(2);
         var account = EntityId.of(domainBuilder.id() + treasury.getId());
         var token = EntityId.of(domainBuilder.id() + treasury.getId());
         long timestamp = domainBuilder.timestamp();
@@ -450,7 +450,7 @@ class BackfillAndDeduplicateBalanceMigrationTest
         // given min frequency is set to 6 minutes
         migration.migrationProperties.getParams().put("minFrequency", "6m");
 
-        var treasury = domainBuilder.entityId(2);
+        var treasury = domainBuilder.entityNum(2);
         var account = EntityId.of(domainBuilder.id() + treasury.getId());
         var token = EntityId.of(domainBuilder.id() + treasury.getId());
         long sentinelTimestamp = domainBuilder.timestamp();

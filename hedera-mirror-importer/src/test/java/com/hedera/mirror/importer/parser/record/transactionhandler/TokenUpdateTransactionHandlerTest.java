@@ -48,9 +48,9 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
                         .setFreezeKey(DEFAULT_KEY)
                         .setMetadataKey(DEFAULT_KEY)
                         .setSymbol("SYMBOL")
-                        .setTreasury(domainBuilder.entityId(1).toAccountID())
+                        .setTreasury(domainBuilder.entityNum(1).toAccountID())
                         .setAutoRenewAccount(domainBuilder
-                                .entityId(DEFAULT_AUTO_RENEW_ACCOUNT_NUM)
+                                .entityNum(DEFAULT_AUTO_RENEW_ACCOUNT_NUM)
                                 .toAccountID())
                         .setAutoRenewPeriod(Duration.newBuilder().setSeconds(100))
                         .setName("token_name")
