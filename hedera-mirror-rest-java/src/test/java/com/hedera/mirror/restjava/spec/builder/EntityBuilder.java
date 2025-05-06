@@ -85,7 +85,7 @@ class EntityBuilder extends AbstractEntityBuilder<AbstractEntity, AbstractEntity
 
             // Work around entity builder resetting the public key when setting key
             var publicKeyOverride = account.get("public_key");
-            if (entity.getPublicKey() == null && publicKeyOverride != null) {
+            if (publicKeyOverride != null) {
                 entity.setPublicKey(publicKeyOverride.toString());
             }
         }

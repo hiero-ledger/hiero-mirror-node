@@ -18,7 +18,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -49,9 +48,14 @@ import org.testcontainers.containers.GenericContainer;
         properties = {"spring.main.allow-bean-definition-overriding=true"})
 class RestSpecTest extends RestJavaIntegrationTest {
 
-    private static final List<String> EXCLUDED_SPEC_FILES = Collections.emptyList();
+    private static final List<String> EXCLUDED_SPEC_FILES = Stream.of(
+                    Path.of("accounts", "{id}", "tokens", "all-params.json"), // token cache issue
+                    Path.of("accounts", "{id}", "tokens", "token-id-pagination.json") // token cache issue
+                    )
+            .map(Path::toString)
+            .toList();
     private static final Pattern INCLUDED_SPEC_DIRS = Pattern.compile(
-            "^(accounts|accounts/\\{id}/allowances.*|accounts/\\{id}/rewards.*|balances.*|blocks.*|contracts|contracts/\\{id}|contracts/\\{id}/results|contracts/\\{id}/results/\\{id}|contracts/results|network/exchangerate.*|network/fees.*|network/stake.*)$");
+            "^(accounts.*|balances.*|blocks.*|contracts|contracts/\\{id}|contracts/\\{id}/results|contracts/\\{id}/results/\\{id}|contracts/results|network/exchangerate.*|network/fees.*|network/stake.*)$");
     private static final String RESPONSE_HEADER_FILE = "responseHeaders.json";
     private static final int JS_REST_API_CONTAINER_PORT = 5551;
     private static final Path REST_BASE_PATH = Path.of("..", "hedera-mirror-rest", "__tests__", "specs");
@@ -64,7 +68,7 @@ class RestSpecTest extends RestJavaIntegrationTest {
             return INCLUDED_SPEC_DIRS.matcher(dirName).matches()
                     && !RESPONSE_HEADER_FILE.equals(file.getName())
                     //                                        &&
-//                     && file.getName().endsWith("non-populated-eth-data.json")
+                    //                     && file.getName().endsWith("all-params-foo.json")
                     && EXCLUDED_SPEC_FILES.stream()
                             .noneMatch(path -> file.getPath().endsWith(path));
         }

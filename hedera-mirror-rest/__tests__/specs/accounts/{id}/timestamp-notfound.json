@@ -54,7 +54,7 @@
       }
     },
     {
-      "_description": "no valid balance snapshot timestamp found, falls back to balance and balance_timestamp in entity / entity_history table",
+      "description": "no valid balance snapshot timestamp found, falls back to balance and balance_timestamp in entity / entity_history table",
       "urls": [
         "/api/v1/accounts/0.0.8?timestamp=lt:1234567881.000000007",
         "/api/v1/accounts/0.0.KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ?timestamp=lt:1234567881.000000007"

@@ -43,11 +43,15 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
     protected static final long SERVICE_FEE = 4;
 
     // Common Defaults for specs
-    protected static final EntityId DEFAULT_CONTRACT_ID = EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 1);
-    protected static final EntityId DEFAULT_PAYER_ACCOUNT_ID = EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 102);
-    protected static final EntityId DEFAULT_SENDER_ID = EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 101);
+    protected static final EntityId DEFAULT_CONTRACT_ID =
+            EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 1);
+    protected static final EntityId DEFAULT_PAYER_ACCOUNT_ID =
+            EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 102);
+    protected static final EntityId DEFAULT_SENDER_ID =
+            EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 101);
     protected static final long DEFAULT_CONSENSUS_TIMESTAMP = 1234510001L;
-    protected static final byte[] DEFAULT_TRANSACTION_HASH = HEX_FORMAT.parseHex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
+    protected static final byte[] DEFAULT_TRANSACTION_HASH =
+            HEX_FORMAT.parseHex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
 
     /*
      * Common handy spec attribute value converter functions to be used by subclasses.
@@ -77,6 +81,15 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
                 }
 
                 return value;
+            };
+    protected static final BiFunction<Object, SpecBuilderContext, Object> RAW_BYTES_CONVERTER =
+            (value, builderContext) -> {
+                if (value instanceof String valueStr) {
+                    return valueStr.getBytes();
+                }
+
+                throw new IllegalArgumentException(
+                        "Unsupported value type for RAW_BYTES_CONVERTER: " + value.getClass());
             };
     private static final Map<Class<?>, Map<String, Method>> methodCache = new ConcurrentHashMap<>();
     // Map a synthetic spec attribute name to another attribute name convertable to a builder method name
@@ -156,7 +169,8 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
         }
     }
 
-    protected void customizeWithSpec(Object builder, Map<String, Object> customizations, SpecBuilderContext builderContext) {
+    protected void customizeWithSpec(
+            Object builder, Map<String, Object> customizations, SpecBuilderContext builderContext) {
         var builderClass = builder.getClass();
         var builderMethods = methodCache.computeIfAbsent(builderClass, clazz -> Arrays.stream(clazz.getMethods())
                 .collect(Collectors.toMap(Method::getName, Function.identity(), (v1, v2) -> v2)));
