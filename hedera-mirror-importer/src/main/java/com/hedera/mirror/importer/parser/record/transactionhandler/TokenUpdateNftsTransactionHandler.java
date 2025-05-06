@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.importer.parser.record.transactionhandler;
 
+import static com.hedera.mirror.common.domain.token.AbstractNft.RETAIN_SPENDER;
 import static com.hedera.mirror.common.util.DomainUtils.toBytes;
 
 import com.google.common.collect.Range;
@@ -50,8 +51,8 @@ class TokenUpdateNftsTransactionHandler extends AbstractTransactionHandler {
         var consensusTimestamp = recordItem.getConsensusTimestamp();
         var nftBuilder = Nft.builder()
                 .metadata(toBytes(transactionBody.getMetadata().getValue()))
-                .delegatingSpender(EntityId.UNSET)
-                .spender(EntityId.UNSET)
+                .delegatingSpender(RETAIN_SPENDER)
+                .spender(RETAIN_SPENDER)
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .tokenId(tokenId.getId());
 

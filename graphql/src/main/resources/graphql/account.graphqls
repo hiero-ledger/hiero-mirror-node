@@ -1,5 +1,5 @@
 """
-Represents a Hedera account holder on the network.
+Represents an account holder on the network.
 """
 type Account implements Accountable & Entity & Node {
     "The unique alias associated with this account."
@@ -76,7 +76,7 @@ type Account implements Accountable & Entity & Node {
     "A consensus timestamp range with an inclusive from timestamp and an exclusive to timestamp."
     timestamp: TimestampRange!
 
-    "The type of Hedera entity."
+    "The type of entity."
     type: EntityType!
 }
 
@@ -89,7 +89,7 @@ input AccountInput {
     "A RFC 4648 Base32, with the trailing '=' characters removed, string that represents an account alias."
     alias: String @Pattern(regexp: "^[A-Z2-7]+$")
 
-    "The unique shard, realm, and number associated with a Hedera account."
+    "The unique shard, realm, and number associated with an account."
     entityId: EntityIdInput
 
     "A hex-encoded string that represents a 20-byte EVM address."

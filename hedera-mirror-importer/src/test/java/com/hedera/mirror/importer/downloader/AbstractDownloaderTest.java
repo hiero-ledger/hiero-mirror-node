@@ -16,6 +16,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Iterables;
+import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.StreamFile;
 import com.hedera.mirror.common.domain.StreamType;
 import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
@@ -91,6 +92,8 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     private static final Pattern STREAM_FILENAME_INSTANT_PATTERN =
             Pattern.compile("^\\d{4}-\\d{2}-\\d{2}T\\d{2}_\\d{2}_\\d{2}(\\.\\d{1,9})?Z");
 
+    protected final DomainBuilder domainBuilder = new DomainBuilder();
+
     @Mock(strictness = LENIENT)
     protected ConsensusNodeService consensusNodeService;
 
@@ -156,6 +159,10 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    protected EntityId entityNum(long num) {
+        return domainBuilder.entityNum(num);
     }
 
     protected void loadAddressBook(String filename) {
@@ -308,8 +315,9 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         importerProperties.setStartBlockNumber(null);
         var nodeAccountId = nodes.iterator().next().getNodeAccountId();
 
-        var nodePath = downloaderProperties.getStreamType().getNodePrefix() + nodeAccountId;
-        fileCopier.from(nodePath).to(nodePath).copy();
+        var srcPath = downloaderProperties.getStreamType().getNodePrefix() + "0.0." + nodeAccountId.getNum();
+        var dstPath = downloaderProperties.getStreamType().getNodePrefix() + nodeAccountId;
+        fileCopier.from(srcPath).to(dstPath).copy();
         expectLastStreamFile(Instant.EPOCH);
         downloader.download();
 
@@ -324,8 +332,9 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         importerProperties.setStartBlockNumber(null);
         var nodeAccountId = nodes.iterator().next().getNodeAccountId();
 
-        var nodePath = downloaderProperties.getStreamType().getNodePrefix() + nodeAccountId;
-        fileCopier.from(nodePath).to(nodePath).copy();
+        var srcPath = downloaderProperties.getStreamType().getNodePrefix() + "0.0." + nodeAccountId.getNum();
+        var dstPath = downloaderProperties.getStreamType().getNodePrefix() + nodeAccountId;
+        fileCopier.from(srcPath).to(dstPath).copy();
         expectLastStreamFile(Instant.EPOCH);
         downloader.download();
         verifyUnsuccessful();
@@ -631,7 +640,7 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
 
         // Copy all files and modify only node 0.0.3's files to have a different timestamp
         fileCopier.filterFiles(getStreamFilenameInstantString(file2) + "*").copy();
-        Path basePath = fileCopier.getTo().resolve(streamType.getNodePrefix() + "0.0.3");
+        Path basePath = fileCopier.getTo().resolve(streamType.getNodePrefix() + entityNum(3));
 
         // Construct a new filename with the offset added to the last valid file
         long nanoOffset = getCloseInterval().plus(offset).toNanos();

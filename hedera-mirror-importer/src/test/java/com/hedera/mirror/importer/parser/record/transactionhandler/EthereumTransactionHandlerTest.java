@@ -157,9 +157,9 @@ class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTest {
         assertThat(recordItem.getEthereumTransaction()).isSameAs(ethereumTransaction);
 
         var functionResult = getContractFunctionResult(recordItem.getTransactionRecord(), create);
-        var senderId = functionResult.getSenderId().getAccountNum();
+        var senderId = EntityId.of(functionResult.getSenderId());
         verify(entityListener)
-                .onEntity(argThat(e -> e.getId() == senderId
+                .onEntity(argThat(e -> e.getId() == senderId.getId()
                         && e.getTimestampRange() == null
                         && e.getEthereumNonce() == expectedNonce));
         assertThat(recordItem.getEntityTransactions())
@@ -207,9 +207,9 @@ class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTest {
         assertThat(recordItem.getEthereumTransaction()).isSameAs(ethereumTransaction);
 
         var functionResult = getContractFunctionResult(recordItem.getTransactionRecord(), false);
-        var senderId = functionResult.getSenderId().getAccountNum();
+        var senderId = EntityId.of(functionResult.getSenderId());
         verify(entityListener)
-                .onEntity(argThat(e -> e.getId() == senderId
+                .onEntity(argThat(e -> e.getId() == senderId.getId()
                         && e.getTimestampRange() == null
                         && e.getEthereumNonce() == ethereumTransaction.getNonce() + 1));
         assertThat(recordItem.getEntityTransactions())
@@ -360,10 +360,10 @@ class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTest {
             verify(entityListener, never()).onEntity(any());
         } else {
             var functionResult = getContractFunctionResult(recordItem.getTransactionRecord(), create);
-            var senderId = functionResult.getSenderId().getAccountNum();
+            var senderId = EntityId.of(functionResult.getSenderId());
             verify(entityListener).onEthereumTransaction(ethereumTransaction);
             verify(entityListener)
-                    .onEntity(argThat(e -> e.getId() == senderId
+                    .onEntity(argThat(e -> e.getId() == senderId.getId()
                             && e.getTimestampRange() == null
                             && e.getEthereumNonce().longValue() == expectedNonce));
             assertThat(recordItem.getEntityTransactions())

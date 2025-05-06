@@ -3,6 +3,7 @@
 package com.hedera.mirror.importer.migration;
 
 import com.google.common.base.Stopwatch;
+import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.importer.ImporterProperties;
 import jakarta.inject.Named;
 import java.io.IOException;
@@ -24,7 +25,7 @@ public class FixFungibleTokenTotalSupplyMigration extends RepeatableMigration {
               from account_balance
               where consensus_timestamp <= (select consensus_end from last)
                 and consensus_timestamp > (select consensus_end from last) - 2678400000000000
-               and account_id = 2
+               and account_id = ?
             ), token_balance_snapshot as (
               select distinct on (account_id, token_id) token_id, balance
               from token_balance
@@ -59,17 +60,20 @@ public class FixFungibleTokenTotalSupplyMigration extends RepeatableMigration {
             """;
 
     private final JdbcTemplate jdbcTemplate;
+    private final SystemEntity systemEntity;
 
     @Lazy
-    public FixFungibleTokenTotalSupplyMigration(JdbcTemplate jdbcTemplate, ImporterProperties importerProperties) {
+    public FixFungibleTokenTotalSupplyMigration(
+            JdbcTemplate jdbcTemplate, ImporterProperties importerProperties, SystemEntity systemEntity) {
         super(importerProperties.getMigration());
         this.jdbcTemplate = jdbcTemplate;
+        this.systemEntity = systemEntity;
     }
 
     @Override
     protected void doMigrate() throws IOException {
         var stopwatch = Stopwatch.createStarted();
-        int count = jdbcTemplate.update(SQL);
+        int count = jdbcTemplate.update(SQL, systemEntity.treasuryAccount().getId());
         log.info("Fixed {} fungible tokens' total supply in {}", count, stopwatch);
     }
 

@@ -10,7 +10,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.topic.TopicMessage;
 import com.hederahashgraph.api.proto.java.ConsensusSubmitMessageTransactionBody;
-import com.hederahashgraph.api.proto.java.TopicID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -27,10 +26,8 @@ class ConsensusSubmitMessageTransactionHandlerTest extends AbstractTransactionHa
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setConsensusSubmitMessage(ConsensusSubmitMessageTransactionBody.newBuilder()
-                        .setTopicID(TopicID.newBuilder()
-                                .setTopicNum(DEFAULT_ENTITY_NUM)
-                                .build()));
+                .setConsensusSubmitMessage(
+                        ConsensusSubmitMessageTransactionBody.newBuilder().setTopicID(defaultEntityId.toTopicID()));
     }
 
     @Override

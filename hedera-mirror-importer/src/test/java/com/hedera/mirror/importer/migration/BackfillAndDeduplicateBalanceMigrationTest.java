@@ -68,6 +68,11 @@ class BackfillAndDeduplicateBalanceMigrationTest
     @BeforeEach
     void setup() {
         migration.migrationProperties.setEnabled(true);
+
+        // The migration dedups account balance using treasury account 0.0.2 as the sentinel account. It should only
+        // apply to past network with shard=0 and realm=0
+        commonProperties.setRealm(0);
+        commonProperties.setShard(0);
     }
 
     @AfterEach
@@ -93,7 +98,7 @@ class BackfillAndDeduplicateBalanceMigrationTest
     void migrate() {
         // given
         // based on partitionTimeInterval of '10 years' in test application config
-        var treasury = systemEntity.treasuryAccount();
+        var treasury = domainBuilder.entityNum(2);
         var account2 = EntityId.of(domainBuilder.id() + treasury.getId());
         var account3 = EntityId.of(domainBuilder.id() + treasury.getId());
         var account4 = EntityId.of(domainBuilder.id() + treasury.getId());
@@ -407,7 +412,7 @@ class BackfillAndDeduplicateBalanceMigrationTest
         // given
         // there is no balance info before the portion already handled by V1.89.2, for simplicity, no data is populated
         // for account_balance_old and token_balance_old
-        var treasury = systemEntity.treasuryAccount();
+        var treasury = domainBuilder.entityNum(2);
         var account = EntityId.of(domainBuilder.id() + treasury.getId());
         var token = EntityId.of(domainBuilder.id() + treasury.getId());
         long timestamp = domainBuilder.timestamp();
@@ -445,7 +450,7 @@ class BackfillAndDeduplicateBalanceMigrationTest
         // given min frequency is set to 6 minutes
         migration.migrationProperties.getParams().put("minFrequency", "6m");
 
-        var treasury = systemEntity.treasuryAccount();
+        var treasury = domainBuilder.entityNum(2);
         var account = EntityId.of(domainBuilder.id() + treasury.getId());
         var token = EntityId.of(domainBuilder.id() + treasury.getId());
         long sentinelTimestamp = domainBuilder.timestamp();

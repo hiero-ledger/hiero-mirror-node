@@ -75,6 +75,11 @@ class SyntheticCryptoTransferApprovalMigrationTest extends ImporterIntegrationTe
         importerProperties.setNetwork(MAINNET);
         migration.setExecuted(false);
         migration.setComplete(false);
+
+        // The migration fixes data caused by bug in previous consensus node release which was later fixed in consensus
+        // node itself. In addition, it uses hardcoded entity ids. Non-zero realm / shard should not apply.
+        commonProperties.setRealm(0);
+        commonProperties.setShard(0);
     }
 
     @AfterEach

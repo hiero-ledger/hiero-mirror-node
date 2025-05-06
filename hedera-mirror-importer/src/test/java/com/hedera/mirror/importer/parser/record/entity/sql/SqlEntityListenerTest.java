@@ -100,11 +100,14 @@ import org.apache.commons.codec.binary.Hex;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.EnumSource.Mode;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @RequiredArgsConstructor
@@ -1419,6 +1422,23 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         assertThat(transactionRepository.findAll()).containsExactlyInAnyOrder(batchParent, firstInner, secondInner);
     }
 
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void onTransactionWithMissingBatchParent(CapturedOutput output) {
+        var timestamp = domainBuilder.timestamp();
+        var firstInner = domainBuilder
+                .transaction()
+                .customize(builder -> builder.batchKey(domainBuilder.key()).parentConsensusTimestamp(timestamp))
+                .get();
+
+        sqlEntityListener.onTransaction(firstInner);
+
+        completeFileAndCommit();
+
+        assertThat(transactionRepository.findAll()).containsExactlyInAnyOrder(firstInner);
+        assertThat(output.getAll()).contains("Recoverable error. Batch parent not found for transaction");
+    }
+
     @ParameterizedTest
     @EnumSource(
             value = TransactionType.class,
@@ -1562,9 +1582,9 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         // grant allowance
         var expectedNft = TestUtils.clone(nft);
-        expectedNft.setDelegatingSpender(domainBuilder.entityId());
+        expectedNft.setDelegatingSpender(domainBuilder.entityId().getId());
         expectedNft.setTimestampLower(domainBuilder.timestamp());
-        expectedNft.setSpender(domainBuilder.entityId());
+        expectedNft.setSpender(domainBuilder.entityId().getId());
 
         var nftUpdate = TestUtils.clone(expectedNft);
         nftUpdate.setCreatedTimestamp(null);

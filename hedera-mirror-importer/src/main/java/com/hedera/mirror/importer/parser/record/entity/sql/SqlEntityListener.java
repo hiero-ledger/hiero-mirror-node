@@ -22,6 +22,7 @@ import com.hedera.mirror.common.domain.entity.Node;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.common.domain.schedule.Schedule;
+import com.hedera.mirror.common.domain.token.AbstractNft;
 import com.hedera.mirror.common.domain.token.AbstractTokenAccount.Id;
 import com.hedera.mirror.common.domain.token.CustomFee;
 import com.hedera.mirror.common.domain.token.Nft;
@@ -355,11 +356,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             Transaction batchParent = context.get(Transaction.class, transaction.getParentConsensusTimestamp());
 
             if (batchParent == null) {
-                throw new ParserException(
+                Utility.handleRecoverableError(
                         "Batch parent not found for transaction: " + transaction.getConsensusTimestamp());
+            } else {
+                batchParent.addInnerTransaction(transaction);
             }
-
-            batchParent.addInnerTransaction(transaction);
         }
 
         if (entityProperties.getPersist().shouldPersistTransactionHash(TransactionType.of(transaction.getType()))) {
@@ -614,11 +615,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
          * An unset spender field indicates this is an NFT metadata only update, and that the existing allowance
          * information must be retained from the source.
          */
-        if (EntityId.isUnset(dest.getSpender())) {
+        if (AbstractNft.shouldKeepSpender(dest.getSpender())) {
             dest.setSpender(src.getSpender());
         }
 
-        if (EntityId.isUnset(dest.getDelegatingSpender())) {
+        if (AbstractNft.shouldKeepSpender(dest.getDelegatingSpender())) {
             dest.setDelegatingSpender(src.getDelegatingSpender());
         }
 

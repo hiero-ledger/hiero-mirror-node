@@ -94,7 +94,7 @@ public class PublishMetrics {
                 .register(meterRegistry);
     }
 
-    @Scheduled(fixedDelayString = "${hedera.mirror.monitor.publish.statusFrequency:10000}")
+    @Scheduled(fixedDelayString = "${hiero.mirror.monitor.publish.statusFrequency:10000}")
     public void status() {
         if (publishProperties.isEnabled()) {
             var running = new AtomicBoolean(false);

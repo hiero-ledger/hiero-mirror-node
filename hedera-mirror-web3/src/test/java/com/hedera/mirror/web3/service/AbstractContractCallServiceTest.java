@@ -422,7 +422,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected Token nftPersist(final EntityId treasury, final EntityId accountId, final EntityId spender) {
         final var token = nonFungibleTokenPersistWithTreasury(treasury);
         nftPersistCustomizable(
-                n -> n.accountId(accountId).tokenId(token.getTokenId()).spender(spender));
+                n -> n.accountId(accountId).tokenId(token.getTokenId()).spender(spender.getId()));
         return token;
     }
 
@@ -552,7 +552,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .customize(n -> n.tokenId(token.getTokenId())
                         .serialNumber(nftSerialNumber)
                         .accountId(ownerId)
-                        .spender(spenderId))
+                        .spender(spenderId.getId()))
                 .persist();
     }
 
@@ -603,7 +603,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             domainBuilder
                     .nft()
                     .customize(n -> n.accountId(treasuryAccount.toEntityId())
-                            .spender(treasuryAccount.toEntityId())
+                            .spender(treasuryAccount.getId())
                             .tokenId(tokenToUpdateEntity.getId())
                             .serialNumber(DEFAULT_SERIAL_NUMBER.longValue()))
                     .persist();

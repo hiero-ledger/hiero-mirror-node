@@ -7,7 +7,7 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
-@ConfigurationProperties("hedera.mirror.graphql.cache")
+@ConfigurationProperties("hiero.mirror.graphql.cache")
 @Data
 @Validated
 public class CacheProperties {

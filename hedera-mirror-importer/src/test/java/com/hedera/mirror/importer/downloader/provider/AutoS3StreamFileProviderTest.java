@@ -39,7 +39,7 @@ class AutoS3StreamFileProviderTest extends AbstractHip679S3StreamFileProviderTes
 
     @Test
     void nodeAccountIdToNodeIdListTransition() {
-        var node = node("0.0.3");
+        var node = node(3);
         var accountIdFileCopier = createDefaultFileCopier();
         accountIdFileCopier.copy();
 
@@ -74,49 +74,49 @@ class AutoS3StreamFileProviderTest extends AbstractHip679S3StreamFileProviderTes
     @SuppressWarnings("java:S2699")
     @Test
     void listInvalidFilenameNodeId() {
-        var node = node("0.0.4");
+        var node = node(4);
         listInvalidFilename(createNodeIdFileCopier(), node);
     }
 
     @SuppressWarnings("java:S2699")
     @Test
     void getNotFoundNodeId() {
-        var node = node("0.0.4");
+        var node = node(4);
         getNotFound(createNodeIdFileCopier(), node);
     }
 
     @SuppressWarnings("java:S2699")
     @Test
     void getErrorNodeId() {
-        var node = node("0.0.4");
+        var node = node(4);
         getError(createNodeIdFileCopier(), node);
     }
 
     @SuppressWarnings("java:S2699")
     @Test
     void listNodeId() {
-        var node = node("0.0.4");
+        var node = node(4);
         list(createNodeIdFileCopier(), node);
     }
 
     @SuppressWarnings("java:S2699")
     @Test
     void listAfterNodeId() {
-        var node = node("0.0.4");
+        var node = node(4);
         listAfter(createNodeIdFileCopier(), node);
     }
 
     @SuppressWarnings("java:S2699")
     @Test
     void listNotFoundNodeId() {
-        var node = node("0.0.4");
+        var node = node(4);
         listNotFound(createNodeIdFileCopier(), node);
     }
 
     @SuppressWarnings("java:S2699")
     @Test
     void listErrorNodeId() {
-        var node = node("0.0.4");
+        var node = node(4);
         listError(createNodeIdFileCopier(), node);
     }
 

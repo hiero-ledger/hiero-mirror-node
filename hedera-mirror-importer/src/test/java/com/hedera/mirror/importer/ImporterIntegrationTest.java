@@ -6,9 +6,11 @@ import static com.hedera.mirror.importer.TestUtils.getResource;
 
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Range;
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.config.CommonIntegrationTest;
 import com.hedera.mirror.common.config.RedisTestConfiguration;
 import com.hedera.mirror.common.converter.EntityIdConverter;
+import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.importer.config.DateRangeCalculator;
 import com.hedera.mirror.importer.config.Owner;
@@ -58,6 +60,9 @@ import org.springframework.jdbc.core.RowMapper;
 @ExtendWith(SoftAssertionsExtension.class)
 @Import(RedisTestConfiguration.class)
 public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
+
+    protected static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    protected static final DomainBuilder DOMAIN_BUILDER = new DomainBuilder();
 
     private static final Map<Class<?>, String> DEFAULT_DOMAIN_CLASS_IDS = new ConcurrentHashMap<>();
 

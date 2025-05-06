@@ -10,7 +10,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-@ConfigurationProperties("hedera.mirror.grpc.db")
+@ConfigurationProperties("hiero.mirror.grpc.db")
 public class DbProperties {
     @NotBlank
     private String host = "";

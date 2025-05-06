@@ -9,7 +9,6 @@ import com.google.protobuf.ByteString;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import com.hederahashgraph.api.proto.java.ScheduleID;
 import com.hederahashgraph.api.proto.java.ScheduleSignTransactionBody;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignaturePair;
@@ -26,10 +25,8 @@ class ScheduleSignTransactionHandlerTest extends AbstractTransactionHandlerTest 
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setScheduleSign(ScheduleSignTransactionBody.newBuilder()
-                        .setScheduleID(ScheduleID.newBuilder()
-                                .setScheduleNum(DEFAULT_ENTITY_NUM)
-                                .build()));
+                .setScheduleSign(
+                        ScheduleSignTransactionBody.newBuilder().setScheduleID(defaultEntityId.toScheduleID()));
     }
 
     @Override
@@ -53,9 +50,7 @@ class ScheduleSignTransactionHandlerTest extends AbstractTransactionHandlerTest 
     protected TransactionReceipt.Builder getTransactionReceipt(ResponseCodeEnum responseCodeEnum) {
         return TransactionReceipt.newBuilder()
                 .setStatus(responseCodeEnum)
-                .setScheduleID(ScheduleID.newBuilder()
-                        .setScheduleNum(DEFAULT_ENTITY_NUM)
-                        .build());
+                .setScheduleID(defaultEntityId.toScheduleID());
     }
 
     @Override

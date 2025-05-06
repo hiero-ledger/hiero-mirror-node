@@ -186,7 +186,6 @@ class TokenAccessorImplTest {
                 .nft()
                 .customize(n -> {
                     n.createdTimestamp(createdTimestampSecs * 1_000_000_000 + createdTimestampNanos);
-                    n.spender(EntityId.EMPTY);
                     n.accountId(EntityId.EMPTY);
                 })
                 .get();

@@ -16,7 +16,6 @@ import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.token.Nft;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hederahashgraph.api.proto.java.AccountID;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenWipeAccountTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.Optional;
@@ -36,10 +35,9 @@ class TokenWipeTransactionHandlerTest extends AbstractTransactionHandlerTest {
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
                 .setTokenWipe(TokenWipeAccountTransactionBody.newBuilder()
-                        .setAccount(AccountID.newBuilder().setAccountNum(DEFAULT_ENTITY_NUM))
-                        .setToken(TokenID.newBuilder()
-                                .setTokenNum(DEFAULT_ENTITY_NUM)
-                                .build())
+                        .setAccount(
+                                domainBuilder.entityNum(DEFAULT_ENTITY_NUM + 1).toAccountID())
+                        .setToken(defaultEntityId.toTokenID())
                         .build());
     }
 

@@ -86,14 +86,14 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
                 .persist();
         // deleted before last snapshot, will not appear in full snapshot
         domainBuilder
-                .entity(EntityId.of(shard, realm, domainBuilder.id()))
+                .entity(EntityId.of(shard, realm, domainBuilder.number()))
                 .customize(e -> e.balance(0L)
                         .balanceTimestamp(lastSnapshotTimestamp - 1)
                         .deleted(true)
                         .timestampRange(Range.atLeast(lastSnapshotTimestamp - 1)))
                 .persist();
         var account = domainBuilder
-                .entity(EntityId.of(shard, realm, domainBuilder.id()))
+                .entity(EntityId.of(shard, realm, domainBuilder.number()))
                 .persist();
         var deletedAccount = domainBuilder
                 .entity()
@@ -135,27 +135,27 @@ class AccountBalanceRepositoryTest extends ImporterIntegrationTest {
                 .customize(e -> e.balanceTimestamp(1L))
                 .persist();
         var account = domainBuilder
-                .entity(EntityId.of(shard, realm, domainBuilder.id()))
+                .entity(EntityId.of(shard, realm, domainBuilder.number()))
                 .customize(e -> e.balanceTimestamp(1L))
                 .persist();
         var contract = domainBuilder
-                .entity(EntityId.of(shard, realm, domainBuilder.id()))
+                .entity(EntityId.of(shard, realm, domainBuilder.number()))
                 .customize(e -> e.balanceTimestamp(1L).deleted(null).type(EntityType.CONTRACT))
                 .persist();
         domainBuilder
-                .entity(EntityId.of(shard, realm, domainBuilder.id()))
+                .entity(EntityId.of(shard, realm, domainBuilder.number()))
                 .customize(e -> e.balance(null).balanceTimestamp(null))
                 .persist();
         var fileWithBalance = domainBuilder
-                .entity(EntityId.of(shard, realm, domainBuilder.id()))
+                .entity(EntityId.of(shard, realm, domainBuilder.number()))
                 .customize(e -> e.balanceTimestamp(1L).type(EntityType.FILE))
                 .persist();
         var unknownWithBalance = domainBuilder
-                .entity(EntityId.of(shard, realm, domainBuilder.id()))
+                .entity(EntityId.of(shard, realm, domainBuilder.number()))
                 .customize(e -> e.balanceTimestamp(1L).type(EntityType.UNKNOWN))
                 .persist();
         domainBuilder
-                .entity(EntityId.of(shard, realm, domainBuilder.id()))
+                .entity(EntityId.of(shard, realm, domainBuilder.number()))
                 .customize(e -> e.balance(null).balanceTimestamp(null).type(EntityType.TOPIC))
                 .persist();
 

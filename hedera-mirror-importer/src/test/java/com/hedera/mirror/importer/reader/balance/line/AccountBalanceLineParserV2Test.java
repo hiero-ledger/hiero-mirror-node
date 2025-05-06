@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.base.Splitter;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.importer.exception.InvalidDatasetException;
@@ -14,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -23,13 +21,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 class AccountBalanceLineParserV2Test {
 
     private static final long TIMESTAMP = 1596340377922333444L;
-    private AccountBalanceLineParserV2 parser;
-    private CommonProperties commonProperties = CommonProperties.getInstance();
-
-    @BeforeEach
-    void setup() {
-        parser = new AccountBalanceLineParserV2(commonProperties);
-    }
+    private final AccountBalanceLineParserV2 parser = new AccountBalanceLineParserV2();
 
     @DisplayName("Parse account balance line")
     @ParameterizedTest(name = "from \"{0}\"")
@@ -105,11 +97,11 @@ class AccountBalanceLineParserV2Test {
                                     actualId.getTokenId().getNum()));
                     assertThat(actualId).isNotNull();
                     assertThat(actualId.getConsensusTimestamp()).isEqualTo(TIMESTAMP);
-                    assertThat(actualId.getAccountId().getShard()).isEqualTo(commonProperties.getShard());
+                    assertThat(actualId.getAccountId().getShard()).isEqualTo(0);
                     assertThat(actualId.getAccountId().getRealm()).isEqualTo(expectedRealm);
                     assertThat(actualId.getAccountId().getNum()).isEqualTo(expectedAccount);
 
-                    assertThat(actualId.getTokenId().getShard()).isEqualTo(commonProperties.getShard());
+                    assertThat(actualId.getTokenId().getShard()).isEqualTo(0);
                     assertThat(actualId.getTokenId().getRealm()).isEqualTo(expectedRealm);
                 }
             } else {

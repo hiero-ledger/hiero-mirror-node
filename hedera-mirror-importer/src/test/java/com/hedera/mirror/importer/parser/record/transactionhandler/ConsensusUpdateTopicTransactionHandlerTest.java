@@ -23,7 +23,6 @@ import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
 import com.hederahashgraph.api.proto.java.FixedCustomFee;
 import com.hederahashgraph.api.proto.java.FixedCustomFeeList;
 import com.hederahashgraph.api.proto.java.FixedFee;
-import com.hederahashgraph.api.proto.java.TopicID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.List;
 import java.util.Optional;
@@ -41,10 +40,8 @@ class ConsensusUpdateTopicTransactionHandlerTest extends AbstractTransactionHand
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setConsensusUpdateTopic(ConsensusUpdateTopicTransactionBody.newBuilder()
-                        .setTopicID(TopicID.newBuilder()
-                                .setTopicNum(DEFAULT_ENTITY_NUM)
-                                .build()));
+                .setConsensusUpdateTopic(
+                        ConsensusUpdateTopicTransactionBody.newBuilder().setTopicID(defaultEntityId.toTopicID()));
     }
 
     @Override

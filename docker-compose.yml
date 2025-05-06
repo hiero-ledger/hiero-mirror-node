@@ -31,14 +31,14 @@ services:
   graphql:
     configs:
       - source: app-config
-        target: /usr/etc/hedera/application.yml
+        target: /usr/etc/hiero/application.yml
         uid: "1000"
         gid: "1000"
     deploy:
       replicas: 0
     environment:
-      HEDERA_MIRROR_GRAPHQL_DB_HOST: db
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
+      HIERO_MIRROR_GRAPHQL_DB_HOST: db
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
     image: gcr.io/mirrornode/hedera-mirror-graphql:0.130.0-SNAPSHOT
     ports:
       - 8083:8083
@@ -49,12 +49,12 @@ services:
   grpc:
     configs:
       - source: app-config
-        target: /usr/etc/hedera/application.yml
+        target: /usr/etc/hiero/application.yml
         uid: "1000"
         gid: "1000"
     environment:
-      HEDERA_MIRROR_GRPC_DB_HOST: db
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
+      HIERO_MIRROR_GRPC_DB_HOST: db
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
       SPRING_DATA_REDIS_HOST: redis
     image: gcr.io/mirrornode/hedera-mirror-grpc:0.130.0-SNAPSHOT
     ports:
@@ -81,13 +81,13 @@ services:
   monitor:
     configs:
       - source: app-config
-        target: /usr/etc/hedera/application.yml
+        target: /usr/etc/hiero/application.yml
         uid: "1000"
         gid: "1000"
     deploy:
       replicas: 0
     environment:
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
     image: gcr.io/mirrornode/hedera-mirror-monitor:0.130.0-SNAPSHOT
     pull_policy: always
     restart: unless-stopped

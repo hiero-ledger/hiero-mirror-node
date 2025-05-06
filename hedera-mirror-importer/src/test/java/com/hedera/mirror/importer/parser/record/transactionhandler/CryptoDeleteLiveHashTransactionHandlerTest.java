@@ -3,7 +3,6 @@
 package com.hedera.mirror.importer.parser.record.transactionhandler;
 
 import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoDeleteLiveHashTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 
@@ -19,9 +18,7 @@ class CryptoDeleteLiveHashTransactionHandlerTest extends AbstractTransactionHand
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
                 .setCryptoDeleteLiveHash(CryptoDeleteLiveHashTransactionBody.newBuilder()
-                        .setAccountOfLiveHash(AccountID.newBuilder()
-                                .setAccountNum(DEFAULT_ENTITY_NUM)
-                                .build()));
+                        .setAccountOfLiveHash(defaultEntityId.toAccountID()));
     }
 
     @Override

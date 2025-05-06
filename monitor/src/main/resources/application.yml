@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-hedera:
+hiero:
   mirror:
     monitor:
       publish:
@@ -47,7 +47,7 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
-      environment: ${hedera.mirror.monitor.network}
+      environment: ${hiero.mirror.monitor.network}
   prometheus:
     metrics:
       export:

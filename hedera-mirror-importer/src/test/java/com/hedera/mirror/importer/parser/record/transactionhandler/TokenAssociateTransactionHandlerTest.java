@@ -10,7 +10,6 @@ import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.token.TokenAccount;
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TokenAssociateTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.Test;
@@ -25,8 +24,8 @@ class TokenAssociateTransactionHandlerTest extends AbstractTransactionHandlerTes
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setTokenAssociate(TokenAssociateTransactionBody.newBuilder()
-                        .setAccount(AccountID.newBuilder().setAccountNum(DEFAULT_ENTITY_NUM)));
+                .setTokenAssociate(
+                        TokenAssociateTransactionBody.newBuilder().setAccount(defaultEntityId.toAccountID()));
     }
 
     @Override

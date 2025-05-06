@@ -23,16 +23,16 @@ class PersistPropertiesTest {
             textBlock =
                     """
             , false
-            0.0.0, false
-            0.0.10, true
-            0.0.98, false
-            0.0.800, false
+            0, false
+            10, true
+            98, false
+            800, false
             """)
-    void shouldPersistEntityTransaction(String entityIdStr, boolean expected) {
+    void shouldPersistEntityTransaction(Long entityNum, boolean expected) {
         var persistProperties = new EntityProperties.PersistProperties(SYSTEM_ENTITY);
         persistProperties.setEntityTransactions(true);
-        var entityId = entityIdStr != null ? EntityId.of(entityIdStr) : null;
-        assertThat(persistProperties.shouldPersistEntityTransaction(entityId)).isEqualTo(expected);
+        assertThat(persistProperties.shouldPersistEntityTransaction(entityId(entityNum)))
+                .isEqualTo(expected);
     }
 
     @Test
@@ -95,5 +95,14 @@ class PersistPropertiesTest {
                 .isEqualTo(transactionHash);
         assertThat(persistProperties.shouldPersistTransactionHash(TransactionType.CONTRACTCALL))
                 .isEqualTo(transactionHash);
+    }
+
+    private EntityId entityId(Long num) {
+        if (num == null || num == 0) {
+            return null;
+        }
+
+        var commonProperties = CommonProperties.getInstance();
+        return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), num);
     }
 }

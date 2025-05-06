@@ -16,7 +16,6 @@ import com.hedera.mirror.importer.repository.ContractRepository;
 import com.hedera.mirror.importer.repository.EntityHistoryRepository;
 import com.hedera.mirror.importer.repository.EntityRepository;
 import com.hedera.services.stream.proto.ContractBytecode;
-import com.hederahashgraph.api.proto.java.ContractID;
 import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -85,7 +84,6 @@ class SidecarContractMigrationTest extends ImporterIntegrationTest {
         var contracts = new ArrayList<Contract>();
         var contractBytecodesMap = new HashMap<Long, ContractBytecode>();
         var contractBytecodeBuilder = ContractBytecode.newBuilder();
-        var contractIdBuilder = ContractID.newBuilder();
         var expected = new TreeSet<Long>();
 
         for (int i = 0; i < 66000; i++) {
@@ -99,7 +97,7 @@ class SidecarContractMigrationTest extends ImporterIntegrationTest {
             contractBytecodesMap.put(
                     entityId,
                     contractBytecodeBuilder
-                            .setContractId(contractIdBuilder.setContractNum(entityId))
+                            .setContractId(entity.toEntityId().toContractID())
                             .setRuntimeBytecode(fromBytes(domainBuilder.bytes(4)))
                             .build());
         }

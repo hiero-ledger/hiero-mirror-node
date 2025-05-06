@@ -5,10 +5,8 @@ package com.hedera.mirror.importer.reader.balance.line;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.importer.exception.InvalidDatasetException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -17,13 +15,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 class AccountBalanceLineParserV1Test {
 
     private static final long TIMESTAMP = 1596340377922333444L;
-    private AccountBalanceLineParserV1 parser;
-    private CommonProperties commonProperties = CommonProperties.getInstance();
-
-    @BeforeEach
-    void setup() {
-        parser = new AccountBalanceLineParserV1(commonProperties);
-    }
+    private final AccountBalanceLineParserV1 parser = new AccountBalanceLineParserV1();
 
     @DisplayName("Parse account balance line")
     @ParameterizedTest(name = "from \"{0}\"")
@@ -60,7 +52,7 @@ class AccountBalanceLineParserV1Test {
 
             assertThat(accountBalance.getBalance()).isEqualTo(expectedBalance);
             assertThat(id).isNotNull();
-            assertThat(id.getAccountId().getShard()).isEqualTo(commonProperties.getShard());
+            assertThat(id.getAccountId().getShard()).isEqualTo(0);
             assertThat(id.getAccountId().getRealm()).isEqualTo(expectedRealm);
             assertThat(id.getAccountId().getNum()).isEqualTo(expectedAccount);
             assertThat(id.getConsensusTimestamp()).isEqualTo(TIMESTAMP);

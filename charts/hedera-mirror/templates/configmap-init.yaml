@@ -23,10 +23,10 @@ data:
       --set ON_ERROR_STOP=1 \
       --set "dbName=${HEDERA_MIRROR_IMPORTER_DB_NAME}" \
       --set "dbSchema=${HEDERA_MIRROR_IMPORTER_DB_SCHEMA}" \
-      --set "graphQLPassword=${HEDERA_MIRROR_GRAPHQL_DB_PASSWORD}" \
-      --set "graphQLUsername=${HEDERA_MIRROR_GRAPHQL_DB_USERNAME}" \
-      --set "grpcPassword=${HEDERA_MIRROR_GRPC_DB_PASSWORD}" \
-      --set "grpcUsername=${HEDERA_MIRROR_GRPC_DB_USERNAME}" \
+      --set "graphQLPassword=${HIERO_MIRROR_GRAPHQL_DB_PASSWORD}" \
+      --set "graphQLUsername=${HIERO_MIRROR_GRAPHQL_DB_USERNAME}" \
+      --set "grpcPassword=${HIERO_MIRROR_GRPC_DB_PASSWORD}" \
+      --set "grpcUsername=${HIERO_MIRROR_GRPC_DB_USERNAME}" \
       --set "importerPassword=${HEDERA_MIRROR_IMPORTER_DB_PASSWORD}" \
       --set "importerUsername=${HEDERA_MIRROR_IMPORTER_DB_USERNAME}" \
       --set "ownerUsername=${HEDERA_MIRROR_IMPORTER_DB_OWNER}" \

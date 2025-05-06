@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.token.Token;
 import com.hedera.mirror.common.domain.token.TokenPauseStatusEnum;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenPauseTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.Test;
@@ -24,8 +23,7 @@ class TokenPauseTransactionHandlerTest extends AbstractTransactionHandlerTest {
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setTokenPause(TokenPauseTransactionBody.newBuilder()
-                        .setToken(TokenID.newBuilder().setTokenNum(DEFAULT_ENTITY_NUM)));
+                .setTokenPause(TokenPauseTransactionBody.newBuilder().setToken(defaultEntityId.toTokenID()));
     }
 
     @Override

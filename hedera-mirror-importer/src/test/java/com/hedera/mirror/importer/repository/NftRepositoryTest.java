@@ -50,8 +50,8 @@ class NftRepositoryTest extends ImporterIntegrationTest {
         var nft3 = domainBuilder
                 .nft()
                 .customize(n -> n.accountId(oldTreasury)
-                        .delegatingSpender(domainBuilder.entityId())
-                        .spender(domainBuilder.entityId())
+                        .delegatingSpender(domainBuilder.id())
+                        .spender(domainBuilder.id())
                         .tokenId(tokenId))
                 .persist();
         // Already owned by new treasury before the update

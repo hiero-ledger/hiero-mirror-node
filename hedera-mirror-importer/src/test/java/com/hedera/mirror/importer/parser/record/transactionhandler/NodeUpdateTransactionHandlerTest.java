@@ -8,7 +8,6 @@ import static org.mockito.Mockito.verify;
 
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.entity.Node;
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NodeUpdateTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
@@ -25,9 +24,7 @@ class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
                 .setNodeUpdate(NodeUpdateTransactionBody.newBuilder()
-                        .setAccountId(AccountID.newBuilder()
-                                .setAccountNum(DEFAULT_ENTITY_NUM)
-                                .build())
+                        .setAccountId(defaultEntityId.toAccountID())
                         .build());
     }
 

@@ -11,9 +11,7 @@ import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.token.TokenAccount;
 import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TokenGrantKycTransactionBody;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -28,10 +26,9 @@ class TokenGrantKycTransactionHandlerTest extends AbstractTransactionHandlerTest
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
                 .setTokenGrantKyc(TokenGrantKycTransactionBody.newBuilder()
-                        .setAccount(AccountID.newBuilder().setAccountNum(DEFAULT_ENTITY_NUM))
-                        .setToken(TokenID.newBuilder()
-                                .setTokenNum(DEFAULT_ENTITY_NUM)
-                                .build())
+                        .setAccount(defaultEntityId.toAccountID())
+                        .setToken(
+                                domainBuilder.entityNum(DEFAULT_ENTITY_NUM + 1).toTokenID())
                         .build());
     }
 

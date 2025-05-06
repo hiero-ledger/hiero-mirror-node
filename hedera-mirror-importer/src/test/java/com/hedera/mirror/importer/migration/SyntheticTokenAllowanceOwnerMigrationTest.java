@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -26,23 +27,36 @@ class SyntheticTokenAllowanceOwnerMigrationTest extends ImporterIntegrationTest 
 
     private final SyntheticTokenAllowanceOwnerMigration migration;
     private final TokenAllowanceRepository tokenAllowanceRepository;
+
     private TokenAllowance tokenAllowancePreMigration;
     private TokenAllowance collidedTokenAllowance;
     private Pair<TokenAllowance, List<TokenAllowance>> incorrectTokenAllowancePair;
     private Pair<TokenAllowance, List<TokenAllowance>> unaffectedTokenAllowancePair;
     private Pair<TokenAllowance, List<TokenAllowance>> correctTokenAllowancePair;
     private TokenAllowance newTokenAllowance;
-    private static final EntityId CONTRACT_RESULT_SENDER_ID = EntityId.of("0.0.2001");
-    private static final EntityId CORRECT_CONTRACT_RESULT_SENDER_ID = EntityId.of("0.0.3001");
-    private static final long INCORRECT_OWNER_ACCOUNT_ID = 1001L;
-    private static final long OWNER_ACCOUNT_ID = 38L;
-    private static final long OWNER_PRE_MIGRATION = 1322L;
-    private static final long SPENDER = 39L;
-    private static final long TOKEN_ID = 44L;
-    private static final long CONTRACT_RESULT_CONSENSUS_TIMESTAMP = 1676546391434923004L;
+    private EntityId contractResultSenderId;
+    private EntityId correctContractResultSenderId;
+    private EntityId incorrectOwnerAccountId;
+    private EntityId ownerAccountId;
+    private EntityId ownerPreMigration;
+    private EntityId spender;
+    private EntityId tokenId;
+    private long contractResultConsensusTimestamp;
+
+    @BeforeEach
+    void beforeEach() {
+        contractResultSenderId = domainBuilder.entityId();
+        correctContractResultSenderId = domainBuilder.entityId();
+        incorrectOwnerAccountId = domainBuilder.entityId();
+        ownerAccountId = domainBuilder.entityId();
+        ownerPreMigration = domainBuilder.entityId();
+        spender = domainBuilder.entityId();
+        tokenId = domainBuilder.entityId();
+        contractResultConsensusTimestamp = domainBuilder.timestamp();
+    }
 
     @AfterEach
-    void after() throws Exception {
+    void afterEach() throws Exception {
         Field activeField = migration.getClass().getDeclaredField("executed");
         activeField.setAccessible(true);
         activeField.set(migration, new AtomicBoolean(false));
@@ -133,22 +147,21 @@ class SyntheticTokenAllowanceOwnerMigrationTest extends ImporterIntegrationTest 
     void onEndHapiVersionNotMatched() {
         // given
         // Token allowance and token allowance history entries that have the incorrect owner
-        var tokenAllowancePairIncorrectOwner =
-                generateTokenAllowance(CONTRACT_RESULT_SENDER_ID, INCORRECT_OWNER_ACCOUNT_ID);
+        var tokenAllowancePairIncorrectOwner = generateTokenAllowance(contractResultSenderId, incorrectOwnerAccountId);
 
         // A token allowance that has no contract result, but has primary key values that will end up matching those of
         // a migrated token allowance.
-        var preMigrationTokenAllowance = getCollidedTokenAllowance(OWNER_ACCOUNT_ID, 1676546171829734003L);
+        var preMigrationTokenAllowance =
+                getCollidedTokenAllowance(ownerAccountId, contractResultConsensusTimestamp - 2000L);
 
         // A token allowance that has a contract result, once migrated it will have the same primary key fields as the
         // above token allowance.
 
-        var tokenAllowanceCollided =
-                getCollidedTokenAllowance(OWNER_PRE_MIGRATION, CONTRACT_RESULT_CONSENSUS_TIMESTAMP);
+        var tokenAllowanceCollided = getCollidedTokenAllowance(ownerPreMigration, contractResultConsensusTimestamp);
 
         // The contract result for the collided token allowance
         persistContractResultForCollidedTokenAllowance(
-                OWNER_ACCOUNT_ID, OWNER_PRE_MIGRATION, CONTRACT_RESULT_CONSENSUS_TIMESTAMP);
+                ownerAccountId, ownerPreMigration, contractResultConsensusTimestamp);
 
         domainBuilder
                 .recordFile()
@@ -179,8 +192,7 @@ class SyntheticTokenAllowanceOwnerMigrationTest extends ImporterIntegrationTest 
 
     private void setup() {
         // Token allowance and token allowance history entries that have the incorrect owner
-
-        incorrectTokenAllowancePair = generateTokenAllowance(CONTRACT_RESULT_SENDER_ID, INCORRECT_OWNER_ACCOUNT_ID);
+        incorrectTokenAllowancePair = generateTokenAllowance(contractResultSenderId, incorrectOwnerAccountId);
 
         // A token allowance can occur through HAPI and absent a corresponding Contract Result.
         // This token allowance and it's history should be unaffected by the migration
@@ -189,68 +201,69 @@ class SyntheticTokenAllowanceOwnerMigrationTest extends ImporterIntegrationTest 
         // This problem has already been fixed. So there are token allowances with the correct owner.
         // This token allowance and it's history should be unaffected by the migration
         correctTokenAllowancePair =
-                generateTokenAllowance(CORRECT_CONTRACT_RESULT_SENDER_ID, CORRECT_CONTRACT_RESULT_SENDER_ID.getId());
+                generateTokenAllowance(correctContractResultSenderId, correctContractResultSenderId);
 
         // A token allowance that has no history and the correct owner, it should not be affected by the migration.
         newTokenAllowance = domainBuilder.tokenAllowance().persist();
         domainBuilder
                 .contractResult()
-                .customize(c -> c.senderId(EntityId.of(0L, 0L, newTokenAllowance.getOwner()))
+                .customize(c -> c.senderId(EntityId.of(newTokenAllowance.getOwner()))
                         .consensusTimestamp(newTokenAllowance.getTimestampLower()))
                 .persist();
 
         // A token allowance that has no contract result, but has primary key values that will end up matching those of
         // a migrated token allowance.
-        tokenAllowancePreMigration = getCollidedTokenAllowance(OWNER_ACCOUNT_ID, 1676546171829734003L);
+        tokenAllowancePreMigration =
+                getCollidedTokenAllowance(ownerAccountId, contractResultConsensusTimestamp - 2000L);
 
         // A token allowance that has a contract result, once migrated it will have the same primary key fields as the
         // above token allowance.
-        collidedTokenAllowance = getCollidedTokenAllowance(OWNER_PRE_MIGRATION, CONTRACT_RESULT_CONSENSUS_TIMESTAMP);
+        collidedTokenAllowance = getCollidedTokenAllowance(ownerPreMigration, contractResultConsensusTimestamp);
 
         // The contract result for the collided token allowance
         persistContractResultForCollidedTokenAllowance(
-                OWNER_ACCOUNT_ID, OWNER_PRE_MIGRATION, CONTRACT_RESULT_CONSENSUS_TIMESTAMP);
+                ownerAccountId, ownerPreMigration, contractResultConsensusTimestamp);
     }
 
     private void persistContractResultForCollidedTokenAllowance(
-            long ownerAccountId, long ownerPreMigration, long contractResultConsensus) {
+            EntityId ownerAccountId, EntityId ownerPreMigration, long contractResultConsensus) {
         domainBuilder
                 .contractResult()
-                .customize(c -> c.senderId(EntityId.of(ownerAccountId))
-                        .payerAccountId(EntityId.of(ownerPreMigration))
+                .customize(c -> c.senderId(ownerAccountId)
+                        .payerAccountId(ownerPreMigration)
                         .consensusTimestamp(contractResultConsensus))
                 .persist();
     }
 
-    private TokenAllowance getCollidedTokenAllowance(long ownerPreMigration, long contractResultConsensus) {
+    private TokenAllowance getCollidedTokenAllowance(EntityId ownerPreMigration, long contractResultConsensus) {
         return domainBuilder
                 .tokenAllowance()
-                .customize(t -> t.owner(ownerPreMigration)
-                        .payerAccountId(EntityId.of(ownerPreMigration))
-                        .spender(SPENDER)
+                .customize(t -> t.owner(ownerPreMigration.getId())
+                        .payerAccountId(ownerPreMigration)
+                        .spender(spender.getId())
                         .timestampRange(Range.atLeast(contractResultConsensus))
-                        .tokenId(TOKEN_ID))
+                        .tokenId(tokenId.getId()))
                 .persist();
     }
 
     private void assertContractResultSender() {
         var expected = new ArrayList<>(List.of(incorrectTokenAllowancePair.getLeft()));
         // The owner should be set to the contract result sender id
-        expected.forEach(t -> t.setOwner(CONTRACT_RESULT_SENDER_ID.getId()));
+        expected.forEach(t -> t.setOwner(contractResultSenderId.getId()));
         expected.add(unaffectedTokenAllowancePair.getLeft());
         expected.add(correctTokenAllowancePair.getLeft());
         expected.add(newTokenAllowance);
-        collidedTokenAllowance.setOwner(OWNER_ACCOUNT_ID);
+        collidedTokenAllowance.setOwner(ownerAccountId.getId());
         expected.add(collidedTokenAllowance);
         assertThat(tokenAllowanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(expected);
 
         // The history of the token allowance should also be updated with the corrected owner
         var expectedHistory = new ArrayList<>(incorrectTokenAllowancePair.getRight());
         // The owner should be set to the contract result sender id
-        expectedHistory.forEach(t -> t.setOwner(CONTRACT_RESULT_SENDER_ID.getId()));
+        expectedHistory.forEach(t -> t.setOwner(contractResultSenderId.getId()));
         expectedHistory.addAll(unaffectedTokenAllowancePair.getRight());
         expectedHistory.addAll(correctTokenAllowancePair.getRight());
-        tokenAllowancePreMigration.setTimestampUpper(CONTRACT_RESULT_CONSENSUS_TIMESTAMP);
+        tokenAllowancePreMigration.setTimestampUpper(contractResultConsensusTimestamp);
         expectedHistory.add(tokenAllowancePreMigration);
         assertThat(findHistory(TokenAllowance.class)).containsExactlyInAnyOrderElementsOf(expectedHistory);
     }
@@ -264,10 +277,10 @@ class SyntheticTokenAllowanceOwnerMigrationTest extends ImporterIntegrationTest 
      * @return the current token allowance and the historical token allowances
      */
     private Pair<TokenAllowance, List<TokenAllowance>> generateTokenAllowance(
-            EntityId contractResultSenderId, Long ownerAccountId) {
+            EntityId contractResultSenderId, EntityId ownerAccountId) {
         var builder = domainBuilder.tokenAllowance();
         if (contractResultSenderId != null) {
-            builder.customize(t -> t.owner(ownerAccountId));
+            builder.customize(t -> t.owner(ownerAccountId.getId()));
         }
         var currentTokenAllowance = builder.persist();
         var range = currentTokenAllowance.getTimestampRange();

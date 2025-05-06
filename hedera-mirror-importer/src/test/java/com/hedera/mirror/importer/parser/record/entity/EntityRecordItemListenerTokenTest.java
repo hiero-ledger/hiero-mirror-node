@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Streams;
+import com.google.common.primitives.Longs;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.StringValue;
 import com.hedera.mirror.common.domain.contract.ContractLog;
@@ -88,6 +89,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -113,12 +117,12 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
     private static final Timestamp EXPIRY_TIMESTAMP =
             Timestamp.newBuilder().setSeconds(360L).build();
     private static final long EXPIRY_NS = EXPIRY_TIMESTAMP.getSeconds() * 1_000_000_000 + EXPIRY_TIMESTAMP.getNanos();
-    private static final EntityId FEE_COLLECTOR_ACCOUNT_ID_1 = EntityId.of(1199);
-    private static final EntityId FEE_COLLECTOR_ACCOUNT_ID_2 = EntityId.of(1200);
-    private static final EntityId FEE_COLLECTOR_ACCOUNT_ID_3 = EntityId.of(1201);
-    private static final EntityId FEE_DOMAIN_TOKEN_ID = EntityId.of(9800);
-    private static final EntityId FEE_PAYER_1 = EntityId.of(1500);
-    private static final EntityId FEE_PAYER_2 = EntityId.of(1501);
+    private static final EntityId FEE_COLLECTOR_ACCOUNT_ID_1 = DOMAIN_BUILDER.entityNum(1199);
+    private static final EntityId FEE_COLLECTOR_ACCOUNT_ID_2 = DOMAIN_BUILDER.entityNum(1200);
+    private static final EntityId FEE_COLLECTOR_ACCOUNT_ID_3 = DOMAIN_BUILDER.entityNum(1201);
+    private static final EntityId FEE_DOMAIN_TOKEN_ID = DOMAIN_BUILDER.entityNum(9800);
+    private static final EntityId FEE_PAYER_1 = DOMAIN_BUILDER.entityNum(1500);
+    private static final EntityId FEE_PAYER_2 = DOMAIN_BUILDER.entityNum(1501);
     private static final long INITIAL_SUPPLY = 1_000_000L;
     private static final byte[] METADATA = "METADATA".getBytes();
     private static final long SERIAL_NUMBER_1 = 1L;
@@ -126,8 +130,8 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
     private static final List<Long> SERIAL_NUMBER_LIST = Arrays.asList(SERIAL_NUMBER_1, SERIAL_NUMBER_2);
     private static final String SYMBOL = "FOOCOIN";
     private static final String TOKEN_CREATE_MEMO = "TokenCreate memo";
-    private static final TokenID TOKEN_ID = TokenID.newBuilder().setTokenNum(2).build();
-    private static final EntityId DOMAIN_TOKEN_ID = EntityId.of(TOKEN_ID);
+    private static final EntityId DOMAIN_TOKEN_ID = DOMAIN_BUILDER.entityNum(3001);
+    private static final TokenID TOKEN_ID = DOMAIN_TOKEN_ID.toTokenID();
     private static final Key TOKEN_REF_KEY = keyFromString(KEY);
     private static final long TOKEN_UPDATE_AUTO_RENEW_PERIOD = 12L;
     private static final Key TOKEN_UPDATE_REF_KEY = keyFromString(KEY2);
@@ -319,12 +323,13 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
 
     private static Stream<Arguments> provideTokenUpdateArguments() {
         return Stream.of(
-                Arguments.of("new auto renew account", PAYER2, PAYER2.getAccountNum()),
+                Arguments.of(
+                        "new auto renew account", PAYER2, EntityId.of(PAYER2).getId()),
                 Arguments.of(
                         "clear auto renew account",
                         AccountID.newBuilder().setAccountNum(0).build(),
                         0L),
-                Arguments.of("keep auto renew account", null, PAYER.getAccountNum()));
+                Arguments.of("keep auto renew account", null, PAYER_ACCOUNT_ID.getId()));
     }
 
     private static Stream<Arguments> provideAssessedCustomFees() {
@@ -517,7 +522,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 DOMAIN_TOKEN_ID,
                 TOKEN,
                 TOKEN_REF_KEY,
-                PAYER.getAccountNum(),
+                PAYER_ACCOUNT_ID.getId(),
                 AUTO_RENEW_PERIOD,
                 false,
                 EXPIRY_NS,
@@ -758,14 +763,14 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         assertThat(tokenTransferRepository.findById(tokenTransferId)).hasValue(expectedDissociateTransfer);
 
         var expectedTokenAccount = TokenAccount.builder()
-                .accountId(PAYER2.getAccountNum())
+                .accountId(EntityId.of(PAYER2).getId())
                 .associated(false)
                 .automaticAssociation(false)
                 .balanceTimestamp(dissociateTimeStamp)
                 .createdTimestamp(ASSOCIATE_TIMESTAMP)
                 .timestampRange(Range.atLeast(dissociateTimeStamp))
                 .balance(0)
-                .tokenId(TOKEN_ID.getTokenNum())
+                .tokenId(DOMAIN_TOKEN_ID.getId())
                 .build();
         assertThat(tokenAccountRepository.findById(expectedTokenAccount.getId()))
                 .get()
@@ -883,14 +888,14 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         assertThat(tokenTransferRepository.findAll()).isEmpty();
 
         var expectedTokenAccount = TokenAccount.builder()
-                .accountId(PAYER2.getAccountNum())
+                .accountId(EntityId.of(PAYER2).getId())
                 .associated(false)
                 .automaticAssociation(false)
                 .balance(0)
                 .balanceTimestamp(dissociateTimeStamp)
                 .createdTimestamp(ASSOCIATE_TIMESTAMP)
                 .timestampRange(Range.atLeast(dissociateTimeStamp))
-                .tokenId(TOKEN_ID.getTokenNum())
+                .tokenId(DOMAIN_TOKEN_ID.getId())
                 .build();
         assertThat(tokenAccountRepository.findById(expectedTokenAccount.getId()))
                 .get()
@@ -964,14 +969,14 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .containsExactlyInAnyOrderElementsOf(expectedDissociateTransfers);
 
         var expectedTokenAccount = TokenAccount.builder()
-                .accountId(PAYER2.getAccountNum())
+                .accountId(EntityId.of(PAYER2).getId())
                 .associated(false)
                 .automaticAssociation(false)
                 .balanceTimestamp(dissociateTimeStamp)
                 .createdTimestamp(ASSOCIATE_TIMESTAMP)
                 .timestampRange(Range.atLeast(dissociateTimeStamp))
                 .balance(0)
-                .tokenId(TOKEN_ID.getTokenNum())
+                .tokenId(DOMAIN_TOKEN_ID.getId())
                 .build();
         assertThat(tokenAccountRepository.findById(expectedTokenAccount.getId()))
                 .get()
@@ -1004,7 +1009,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 DOMAIN_TOKEN_ID,
                 TOKEN,
                 TOKEN_REF_KEY,
-                PAYER.getAccountNum(),
+                PAYER_ACCOUNT_ID.getId(),
                 AUTO_RENEW_PERIOD,
                 true,
                 EXPIRY_NS,
@@ -1038,7 +1043,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 DOMAIN_TOKEN_ID,
                 TOKEN,
                 TOKEN_REF_KEY,
-                PAYER.getAccountNum(),
+                PAYER_ACCOUNT_ID.getId(),
                 AUTO_RENEW_PERIOD,
                 false,
                 EXPIRY_NS,
@@ -1321,13 +1326,10 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         var oldTreasury = domainBuilder.entityId();
         var newTreasury = domainBuilder.entityId();
         var tokenId = domainBuilder.entityId();
-        var protoAccount =
-                AccountID.newBuilder().setAccountNum(account.getNum()).build();
-        var protoOldTreasury =
-                AccountID.newBuilder().setAccountNum(oldTreasury.getNum()).build();
-        var protoNewTreasury =
-                AccountID.newBuilder().setAccountNum(newTreasury.getNum()).build();
-        var protoTokenId = TokenID.newBuilder().setTokenNum(tokenId.getNum()).build();
+        var protoAccount = account.toAccountID();
+        var protoOldTreasury = oldTreasury.toAccountID();
+        var protoNewTreasury = newTreasury.toAccountID();
+        var protoTokenId = tokenId.toTokenID();
 
         var recordItems = new ArrayList<RecordItem>();
         var tokenCreateRecordItem = recordItemBuilder
@@ -1708,9 +1710,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(PAYER2.getAccountNum()).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(0).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(-amount).toArray(), from(ContractLog::getData));
+                .returns(toTrimmedBytes(EntityId.of(PAYER2)), from(ContractLog::getTopic1))
+                .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(-amount), from(ContractLog::getData));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(burnTimestamp))
@@ -1768,7 +1770,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .createdTimestamp(mintTimestamp)
                 .deleted(false)
                 .metadata(METADATA)
-                .spender(EntityId.of(SPENDER))
+                .spender(EntityId.of(SPENDER).getId())
                 .serialNumber(SERIAL_NUMBER_1)
                 .timestampRange(Range.atLeast(approveAllowanceTimestamp))
                 .tokenId(DOMAIN_TOKEN_ID.getId())
@@ -1824,9 +1826,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(PAYER.getAccountNum()).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(0).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(SERIAL_NUMBER_1).toArray(), from(ContractLog::getTopic3));
+                .returns(toTrimmedBytes(PAYER_ACCOUNT_ID), from(ContractLog::getTopic1))
+                .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(SERIAL_NUMBER_1), from(ContractLog::getTopic3));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(burnTimestamp))
@@ -1957,9 +1959,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(0).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(PAYER2.getAccountNum()).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(amount).toArray(), from(ContractLog::getData));
+                .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic1))
+                .returns(toTrimmedBytes(EntityId.of(PAYER2)), from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(amount), from(ContractLog::getData));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(mintTimestamp))
@@ -2090,9 +2092,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(0).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(PAYER.getAccountNum()).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(SERIAL_NUMBER_1).toArray(), from(ContractLog::getTopic3));
+                .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic1))
+                .returns(toTrimmedBytes(PAYER_ACCOUNT_ID), from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(SERIAL_NUMBER_1), from(ContractLog::getTopic3));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(mintTimestamp))
@@ -2376,7 +2378,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         // with spender
         var nftHistory1 = nft.toBuilder()
                 .accountId(PAYER_ACCOUNT_ID)
-                .spender(EntityId.of(PAYER2))
+                .spender(EntityId.of(PAYER2).getId())
                 .timestampRange(Range.closedOpen(approveAllowanceTimestamp, transferTimestamp))
                 .build();
         // when mint
@@ -2661,7 +2663,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .deleted(false)
                 .metadata(METADATA)
                 .serialNumber(SERIAL_NUMBER_1)
-                .spender(EntityId.of(SPENDER))
+                .spender(EntityId.of(SPENDER).getId())
                 .timestampRange(Range.atLeast(approveAllowanceTimestamp))
                 .tokenId(DOMAIN_TOKEN_ID.getId())
                 .build();
@@ -2729,9 +2731,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(PAYER.getAccountNum()).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(RECEIVER.getAccountNum()).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(SERIAL_NUMBER_1).toArray(), from(ContractLog::getTopic3));
+                .returns(toTrimmedBytes(PAYER_ACCOUNT_ID), from(ContractLog::getTopic1))
+                .returns(toTrimmedBytes(EntityId.of(RECEIVER)), from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(SERIAL_NUMBER_1), from(ContractLog::getTopic3));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(transferTimestamp))
@@ -3158,9 +3160,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(PAYER2.getAccountNum()).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(0).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(-transferAmount).toArray(), from(ContractLog::getData));
+                .returns(toTrimmedBytes(EntityId.of(PAYER2)), from(ContractLog::getTopic1))
+                .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(-transferAmount), from(ContractLog::getData));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(wipeTimestamp))
@@ -3217,7 +3219,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .deleted(false)
                 .metadata(METADATA)
                 .serialNumber(SERIAL_NUMBER_1)
-                .spender(EntityId.of(SPENDER))
+                .spender(EntityId.of(SPENDER).getId())
                 .timestampRange(Range.atLeast(approveAllowanceTimestamp))
                 .tokenId(DOMAIN_TOKEN_ID.getId())
                 .build();
@@ -3269,9 +3271,9 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getContractId))
                 .returns(EntityId.of(TOKEN_ID), from(ContractLog::getRootContractId))
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
-                .returns(Bytes.ofUnsignedLong(PAYER2.getAccountNum()).toArray(), from(ContractLog::getTopic1))
-                .returns(Bytes.ofUnsignedLong(0).toArray(), from(ContractLog::getTopic2))
-                .returns(Bytes.ofUnsignedLong(SERIAL_NUMBER_1).toArray(), from(ContractLog::getTopic3));
+                .returns(toTrimmedBytes(EntityId.of(PAYER2)), from(ContractLog::getTopic1))
+                .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic2))
+                .returns(toTrimmedBytes(SERIAL_NUMBER_1), from(ContractLog::getTopic3));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(wipeTimestamp))
@@ -3418,8 +3420,8 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .get()
                 .returns(mintTimestamp, Nft::getCreatedTimestamp)
                 .returns(DomainUtils.toBytes(newMetadata.getValue()), Nft::getMetadata)
-                .returns(EntityId.of(PAYER3), Nft::getDelegatingSpender)
-                .returns(EntityId.of(PAYER2), Nft::getSpender);
+                .returns(EntityId.of(PAYER3).getId(), Nft::getDelegatingSpender)
+                .returns(EntityId.of(PAYER2).getId(), Nft::getSpender);
 
         var nftHistory = findHistory(Nft.class);
         assertThat(nftHistory)
@@ -3432,8 +3434,8 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                         // Second history row written when NFT metadata was updated. Allowance set spender columns must
                         // be indicated.
                         n -> assertThat(n)
-                                .returns(EntityId.of(PAYER3), Nft::getDelegatingSpender)
-                                .returns(EntityId.of(PAYER2), Nft::getSpender));
+                                .returns(EntityId.of(PAYER3).getId(), Nft::getDelegatingSpender)
+                                .returns(EntityId.of(PAYER2).getId(), Nft::getSpender));
     }
 
     @Test
@@ -3594,20 +3596,20 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         var expectedPendingFungible = domainBuilder
                 .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
                 .customize(t -> t.amount(pendingAmount)
-                        .receiverAccountId(RECEIVER.getAccountNum())
-                        .senderAccountId(PAYER.getAccountNum())
+                        .receiverAccountId(EntityId.of(RECEIVER).getId())
+                        .senderAccountId(PAYER_ACCOUNT_ID.getId())
                         .state(TokenAirdropStateEnum.PENDING)
                         .timestampRange(Range.atLeast(airdropTimestamp))
-                        .tokenId(TOKEN_ID.getTokenNum()))
+                        .tokenId(DOMAIN_TOKEN_ID.getId()))
                 .get();
         var expectedPendingNft = domainBuilder
                 .tokenAirdrop(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                .customize(t -> t.receiverAccountId(RECEIVER.getAccountNum())
-                        .senderAccountId(PAYER.getAccountNum())
+                .customize(t -> t.receiverAccountId(EntityId.of(RECEIVER).getId())
+                        .senderAccountId(PAYER_ACCOUNT_ID.getId())
                         .serialNumber(SERIAL_NUMBER_1)
                         .state(TokenAirdropStateEnum.PENDING)
                         .timestampRange(Range.atLeast(airdropTimestamp))
-                        .tokenId(nftTokenId.getTokenNum()))
+                        .tokenId(EntityId.of(nftTokenId).getId()))
                 .get();
 
         assertThat(tokenTransferRepository.findAll())
@@ -3735,18 +3737,18 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         var expectedPendingFungible = domainBuilder
                 .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
                 .customize(t -> t.amount(pendingAmount)
-                        .receiverAccountId(RECEIVER.getAccountNum())
-                        .senderAccountId(PAYER.getAccountNum())
+                        .receiverAccountId(EntityId.of(RECEIVER).getId())
+                        .senderAccountId(PAYER_ACCOUNT_ID.getId())
                         .timestampRange(Range.atLeast(airdropTimestamp))
-                        .tokenId(TOKEN_ID.getTokenNum()))
+                        .tokenId(DOMAIN_TOKEN_ID.getId()))
                 .get();
         var expectedPendingNft = domainBuilder
                 .tokenAirdrop(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                .customize(t -> t.receiverAccountId(RECEIVER.getAccountNum())
-                        .senderAccountId(PAYER.getAccountNum())
+                .customize(t -> t.receiverAccountId(EntityId.of(RECEIVER).getId())
+                        .senderAccountId(PAYER_ACCOUNT_ID.getId())
                         .serialNumber(SERIAL_NUMBER_1)
                         .timestampRange(Range.atLeast(airdropTimestamp))
-                        .tokenId(nftTokenId.getTokenNum()))
+                        .tokenId(EntityId.of(nftTokenId).getId()))
                 .get();
 
         var pendingFungibleAirdropId = PendingAirdropId.newBuilder()
@@ -3832,7 +3834,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .setSenderId(PAYER)
                 .setFungibleTokenType(TOKEN_ID)
                 .build();
-        var nftTokenId = TokenID.newBuilder().setTokenNum(1234L).build();
+        var nftTokenId = domainBuilder.entityNum(1234L).toTokenID();
         var protoNftId = NftID.newBuilder().setTokenID(nftTokenId).setSerialNumber(SERIAL_NUMBER_1);
         var pendingNftAirdropId = PendingAirdropId.newBuilder()
                 .setReceiverId(RECEIVER)
@@ -3865,18 +3867,18 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
                 // Amount will be null when there is no pending airdrop
                 .customize(t -> t.amount(null)
-                        .receiverAccountId(RECEIVER.getAccountNum())
-                        .senderAccountId(PAYER.getAccountNum())
+                        .receiverAccountId(EntityId.of(RECEIVER).getId())
+                        .senderAccountId(PAYER_ACCOUNT_ID.getId())
                         .timestampRange(Range.atLeast(updateTimestamp))
-                        .tokenId(TOKEN_ID.getTokenNum()))
+                        .tokenId(DOMAIN_TOKEN_ID.getId()))
                 .get();
         var expectedPendingNft = domainBuilder
                 .tokenAirdrop(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
-                .customize(t -> t.receiverAccountId(RECEIVER.getAccountNum())
-                        .senderAccountId(PAYER.getAccountNum())
+                .customize(t -> t.receiverAccountId(EntityId.of(RECEIVER).getId())
+                        .senderAccountId(PAYER_ACCOUNT_ID.getId())
                         .serialNumber(SERIAL_NUMBER_1)
                         .timestampRange(Range.atLeast(updateTimestamp))
-                        .tokenId(nftTokenId.getTokenNum()))
+                        .tokenId(EntityId.of(nftTokenId).getId()))
                 .get();
         expectedPendingFungible.setState(expectedState);
         expectedPendingNft.setState(expectedState);
@@ -4009,17 +4011,19 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
 
         parseRecordItemAndCommit(cryptoTransferRecordItem);
 
-        var expectedNft = domainBuilder.nftTransfer().customize(t -> {
-            t.receiverAccountId(EntityId.of(RECEIVER))
-                    .senderAccountId(PAYER_ACCOUNT_ID)
-                    .serialNumber(SERIAL_NUMBER_1)
-                    .tokenId(DOMAIN_TOKEN_ID);
-        });
         var nftId = new Id(SERIAL_NUMBER_1, DOMAIN_TOKEN_ID.getId());
-        var nft = nftRepository.findById(nftId).get();
-        assertThat(nft.getAccountId()).isEqualTo(EntityId.of(RECEIVER));
-        assertThat(nft.getTimestampLower()).isEqualTo(transferTimestamp);
-        assertNftTransferInRepository(transferTimestamp, expectedNft.get());
+        assertThat(nftRepository.findById(nftId))
+                .get()
+                .returns(EntityId.of(RECEIVER), Nft::getAccountId)
+                .returns(transferTimestamp, Nft::getTimestampLower);
+        var expectedNftTransfer = domainBuilder
+                .nftTransfer()
+                .customize(t -> t.receiverAccountId(EntityId.of(RECEIVER))
+                        .senderAccountId(PAYER_ACCOUNT_ID)
+                        .serialNumber(SERIAL_NUMBER_1)
+                        .tokenId(DOMAIN_TOKEN_ID))
+                .get();
+        assertNftTransferInRepository(transferTimestamp, expectedNftTransfer);
 
         // when
         long rejectTimestamp = 20L;
@@ -4055,11 +4059,13 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         parseRecordItemAndCommit(tokenReject);
 
         // then
-        var nftRejected = nftRepository.findById(nftId).get();
-        assertThat(nftRejected.getAccountId()).isEqualTo(PAYER_ACCOUNT_ID);
-        assertThat(nftRejected.getTimestampLower()).isEqualTo(rejectTimestamp);
-        expectedNft.customize(t -> t.receiverAccountId(PAYER_ACCOUNT_ID).senderAccountId(EntityId.of(RECEIVER)));
-        assertNftTransferInRepository(rejectTimestamp, expectedNft.get());
+        assertThat(nftRepository.findById(nftId))
+                .get()
+                .returns(PAYER_ACCOUNT_ID, Nft::getAccountId)
+                .returns(rejectTimestamp, Nft::getTimestampLower);
+        expectedNftTransfer.setReceiverAccountId(PAYER_ACCOUNT_ID);
+        expectedNftTransfer.setSenderAccountId(EntityId.of(RECEIVER));
+        assertNftTransferInRepository(rejectTimestamp, expectedNftTransfer);
     }
 
     void tokenCreate(
@@ -4078,7 +4084,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 DOMAIN_TOKEN_ID,
                 TOKEN,
                 TOKEN_REF_KEY,
-                PAYER.getAccountNum(),
+                PAYER_ACCOUNT_ID.getId(),
                 AUTO_RENEW_PERIOD,
                 false,
                 EXPIRY_NS,
@@ -4774,6 +4780,23 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         }
 
         return protoCustomFees;
+    }
+
+    private byte[] toTrimmedBytes(EntityId entityId) {
+        if (EntityId.isEmpty(entityId)) {
+            return ArrayUtils.EMPTY_BYTE_ARRAY;
+        }
+
+        return trim(DomainUtils.toEvmAddress(entityId));
+    }
+
+    private byte[] toTrimmedBytes(long value) {
+        return trim(Longs.toByteArray(value));
+    }
+
+    @SneakyThrows
+    private byte[] trim(byte[] data) {
+        return Hex.decodeHex(Hex.encodeHexString(data).replaceFirst("^(00)+", ""));
     }
 
     @Builder
