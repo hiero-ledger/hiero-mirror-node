@@ -185,7 +185,7 @@ spotless {
             .npmExecutable(npmExecutable)
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
             .config(mapOf("bracketSpacing" to false, "printWidth" to 120, "singleQuote" to true))
-        target("hedera-mirror-rest/**/*.js", "hedera-mirror-test/k6/**/*.js", "tools/**/*.js")
+        target("hedera-mirror-rest/**/*.js", "tools/**/*.js")
         targetExclude(
             "**/build/**",
             "**/node_modules/**",

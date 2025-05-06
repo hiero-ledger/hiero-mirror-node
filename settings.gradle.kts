@@ -26,7 +26,7 @@ include(":hedera-mirror-rest:monitoring")
 
 include(":hedera-mirror-rosetta")
 
-include(":hedera-mirror-test")
+include(":test")
 
 include(":hedera-mirror-web3")
 
