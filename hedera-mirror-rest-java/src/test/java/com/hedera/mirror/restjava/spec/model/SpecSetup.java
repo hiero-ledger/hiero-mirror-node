@@ -10,10 +10,12 @@ public record SpecSetup(
         Map<String, Object> config,
         List<Map<String, Object>> accounts,
         List<Map<String, Object>> balances,
+        List<Map<String, Object>> contractactions,
         List<Map<String, Object>> contracts,
         List<Map<String, Object>> contractlogs,
         List<Map<String, Object>> contractresults,
         List<Map<String, Object>> contractStateChanges,
+        List<Map<String, Object>> contractStates,
         List<Map<String, Object>> cryptoAllowances,
         @JsonProperty("cryptotransfers") List<Map<String, Object>> cryptoTransfers,
         List<Map<String, Object>> entities,
@@ -29,4 +31,5 @@ public record SpecSetup(
         List<Map<String, Object>> tokenAllowances,
         List<Map<String, Object>> tokens,
         @JsonProperty("topicmessages") List<Map<String, Object>> topicMessages,
-        List<Map<String, Object>> transactions) {}
+        List<Map<String, Object>> transactions,
+        List<Map<String, Object>> transactionhashes) {}

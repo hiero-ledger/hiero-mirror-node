@@ -7,24 +7,17 @@ import com.hedera.mirror.restjava.spec.model.SpecSetup;
 import jakarta.inject.Named;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 @Named
 public class ContractResultBuilder
         extends AbstractEntityBuilder<ContractResult, ContractResult.ContractResultBuilder<?, ?>> {
-    private static final Map<String, BiFunction<Object, SpecBuilderContext, Object>> METHOD_PARAMETER_CONVERTERS =
-            Map.of();
-
-    public ContractResultBuilder() {
-        super(METHOD_PARAMETER_CONVERTERS);
-    }
-
     @Override
     protected ContractResult.ContractResultBuilder<?, ?> getEntityBuilder(SpecBuilderContext builderContext) {
         return ContractResult.builder()
                 .amount(0L)
                 .consensusTimestamp(DEFAULT_CONSENSUS_TIMESTAMP)
+                .contractId(0)
                 .errorMessage("")
                 .functionParameters(HEX_FORMAT.parseHex("010102020303"))
                 .gasLimit(1000L)

@@ -55,7 +55,7 @@ class RestSpecTest extends RestJavaIntegrationTest {
             .map(Path::toString)
             .toList();
     private static final Pattern INCLUDED_SPEC_DIRS = Pattern.compile(
-            "^(accounts.*|balances.*|blocks.*|contracts|contracts/\\{id}|contracts/\\{id}/results|contracts/\\{id}/results/\\{id}|contracts/results|network/exchangerate.*|network/fees.*|network/stake.*)$");
+            "^(accounts.*|balances.*|blocks.*|contracts.*|network/exchangerate.*|network/fees.*|network/stake.*)$");
     private static final String RESPONSE_HEADER_FILE = "responseHeaders.json";
     private static final int JS_REST_API_CONTAINER_PORT = 5551;
     private static final Path REST_BASE_PATH = Path.of("..", "hedera-mirror-rest", "__tests__", "specs");
@@ -67,8 +67,8 @@ class RestSpecTest extends RestJavaIntegrationTest {
             var dirName = directory.getPath().replace(REST_BASE_PATH + "/", "");
             return INCLUDED_SPEC_DIRS.matcher(dirName).matches()
                     && !RESPONSE_HEADER_FILE.equals(file.getName())
-                    //                                        &&
-                    //                     && file.getName().endsWith("all-params-foo.json")
+                    //                                         &&
+                    // file.getName().endsWith("failed-ethereum-transaction-with-default-contract-result.json")
                     && EXCLUDED_SPEC_FILES.stream()
                             .noneMatch(path -> file.getPath().endsWith(path));
         }

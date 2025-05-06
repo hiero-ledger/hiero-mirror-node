@@ -13,6 +13,11 @@ import java.util.function.Supplier;
 
 @Named
 public class TransactionBuilder extends AbstractEntityBuilder<Transaction, Transaction.TransactionBuilder> {
+    private static final Map<String, String> ATTRIBUTE_MAP = Map.of("valid_start_timestamp", "validStartNs");
+
+    public TransactionBuilder() {
+        super(Map.of(), ATTRIBUTE_MAP);
+    }
 
     @Override
     protected Transaction.TransactionBuilder getEntityBuilder(SpecBuilderContext builderContext) {

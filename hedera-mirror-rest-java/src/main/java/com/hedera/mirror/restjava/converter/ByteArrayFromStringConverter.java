@@ -19,7 +19,7 @@ public class ByteArrayFromStringConverter implements Converter<String, byte[]> {
     @Override
     public byte[] convert(String source) {
         if (!StringUtils.hasLength(source)) {
-            return null;
+            return new byte[0];
         }
 
         var cleanedSource = Strings.padStart(source.replaceAll("0x", ""), 2, '0');
