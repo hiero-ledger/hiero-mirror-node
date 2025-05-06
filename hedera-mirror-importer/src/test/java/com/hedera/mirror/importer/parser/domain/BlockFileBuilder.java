@@ -24,6 +24,9 @@ public class BlockFileBuilder {
         long blockNumber = domainBuilder.number();
         byte[] bytes = domainBuilder.bytes(256);
         String filename = StringUtils.leftPad(Long.toString(blockNumber), 36, "0") + ".blk.gz";
+        var blockTimestamp = blockItems.isEmpty()
+                ? domainBuilder.protoTimestamp()
+                : blockItems.getLast().getTransactionResult().getConsensusTimestamp();
         var firstConsensusTimestamp = blockItems.isEmpty()
                 ? domainBuilder.protoTimestamp()
                 : blockItems.getFirst().getTransactionResult().getConsensusTimestamp();
@@ -36,7 +39,7 @@ public class BlockFileBuilder {
 
         return BlockFile.builder()
                 .blockHeader(BlockHeader.newBuilder()
-                        .setFirstTransactionConsensusTime(firstConsensusTimestamp)
+                        .setBlockTimestamp(blockTimestamp)
                         .setNumber(blockNumber)
                         .setHapiProtoVersion(SemanticVersion.newBuilder().setMinor(57))
                         .setSoftwareVersion(SemanticVersion.newBuilder().setMinor(57))

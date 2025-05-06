@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.importer.reader.block;
 
-import static com.hedera.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -19,6 +18,7 @@ import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.hapi.block.stream.protoc.RecordFileItem;
 import com.hedera.hapi.platform.event.legacy.EventTransaction;
 import com.hedera.mirror.common.domain.DigestAlgorithm;
+import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.transaction.BlockFile;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.importer.TestUtils;
@@ -27,7 +27,6 @@ import com.hedera.mirror.importer.exception.InvalidStreamFileException;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
-import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.time.Instant;
@@ -45,42 +44,42 @@ public class ProtoBlockFileReaderTest {
 
     public static final List<BlockFile> TEST_BLOCK_FILES = List.of(
             BlockFile.builder()
-                    .consensusStart(1743543388185101630L)
-                    .consensusEnd(1743543388372187000L)
-                    .count(5L)
+                    .consensusStart(1746477299499963486L)
+                    .consensusEnd(1746477301609588787L)
+                    .count(6L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "449e750e4da69fecb92234a8dede0ac3e7b53141aecc1a30cba050ec44a729c9b5e5a06607ac6ac8a17110fb99c202ef")
-                    .index(2301160L)
-                    .name(BlockFile.getBlockStreamFilename(2301160))
+                            "fb31381a223175f1f8730df52be31c318eb093f8029440da2d3f0ed19f29e58af111b5c1600412eed02be1e92b4befb4")
+                    .index(76L)
+                    .name(BlockFile.getBlockStreamFilename(76))
                     .previousHash(
-                            "aeb9db588e53e6b3d1d39f1a75dbf7123e95c18cea102380989bdda89079809e2217bfb230eda982e37e36f40e87988a")
-                    .roundStart(2301161L)
-                    .roundEnd(2301161L)
+                            "47ad177417a4e6a85c67660dc9abcd5e735ae689f5a3096c68bbdff6b330e7951ddd545cd16445d19118975464380a3b")
+                    .roundStart(521L)
+                    .roundEnd(527L)
                     .version(ProtoBlockFileReader.VERSION)
                     .build(),
             BlockFile.builder()
-                    .consensusStart(1743543388490143524L)
-                    .consensusEnd(1743543388704490000L)
-                    .count(4L)
+                    .consensusStart(1746477301948765000L)
+                    .consensusEnd(1746477303380786221L)
+                    .count(3L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "0d2523cc3f44a0ffebd9bcd1950c685deb932e53b7af3e8cd202397ae2d110c3452797eb0ff05cca1ffe9780e31bec34")
-                    .index(2301161L)
-                    .name(BlockFile.getBlockStreamFilename(2301161))
+                            "c198f382ba69796c805450842de7f97c91d2a8a7f88f43c977247d15b898b5b09ac7f857fa13fe627f8d15bb68879bb2")
+                    .index(77L)
+                    .name(BlockFile.getBlockStreamFilename(77))
                     .previousHash(
-                            "449e750e4da69fecb92234a8dede0ac3e7b53141aecc1a30cba050ec44a729c9b5e5a06607ac6ac8a17110fb99c202ef")
-                    .roundStart(2301162L)
-                    .roundEnd(2301162L)
+                            "fb31381a223175f1f8730df52be31c318eb093f8029440da2d3f0ed19f29e58af111b5c1600412eed02be1e92b4befb4")
+                    .roundStart(528L)
+                    .roundEnd(534L)
                     .version(ProtoBlockFileReader.VERSION)
                     .build(),
             BlockFile.builder()
-                    .consensusStart(1741033890694027337L)
-                    .consensusEnd(1741033890694027337L)
-                    .count(0L)
+                    .consensusStart(1746477093416982857L)
+                    .consensusEnd(1746477093416983584L)
+                    .count(728L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "40ecba4f4134cf9e7a6fb643b54cda852ed4dcacee7d339a120165a6552169b52568dcdd921913df69b18074d6fd6cf0")
+                            "958e5fba01f066cdbe2733059b33bf0ebec0fbac5eac5b0806ebc2c792187650e1b0b34a6a4c83025a31c2da787f510d")
                     .index(0L)
                     .name(BlockFile.getBlockStreamFilename(0))
                     .previousHash(
@@ -89,8 +88,8 @@ public class ProtoBlockFileReaderTest {
                     .roundEnd(1L)
                     .version(ProtoBlockFileReader.VERSION)
                     .build());
-    private static final long TIMESTAMP = 1738889423L;
 
+    private final DomainBuilder domainBuilder = new DomainBuilder();
     private final ProtoBlockFileReader reader = new ProtoBlockFileReader();
 
     @ParameterizedTest(name = "{0}")
@@ -343,16 +342,21 @@ public class ProtoBlockFileReaderTest {
     void noEventTransactions() {
         var roundHeader = BlockItem.newBuilder().setRoundHeader(RoundHeader.getDefaultInstance());
         var eventHeader = BlockItem.newBuilder().setEventHeader(EventHeader.getDefaultInstance());
+        // A standalone state changes block item, with consensus timestamp
+        var stateChanges = stateChanges();
         var block = Block.newBuilder()
                 .addItems(blockHeader())
                 .addItems(roundHeader)
                 .addItems(eventHeader)
+                .addItems(stateChanges)
                 .addItems(blockProof())
                 .build();
         var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(0), gzip(block));
+        long timestamp =
+                DomainUtils.timestampInNanosMax(stateChanges.getStateChanges().getConsensusTimestamp());
         assertThat(reader.read(streamFileData))
-                .returns(TIMESTAMP * NANOS_PER_SECOND, BlockFile::getConsensusEnd)
-                .returns(TIMESTAMP * NANOS_PER_SECOND, BlockFile::getConsensusStart)
+                .returns(timestamp, BlockFile::getConsensusEnd)
+                .returns(timestamp, BlockFile::getConsensusStart)
                 .returns(0L, BlockFile::getCount)
                 .returns(List.of(), BlockFile::getItems)
                 .returns(ProtoBlockFileReader.VERSION, BlockFile::getVersion);
@@ -465,8 +469,7 @@ public class ProtoBlockFileReaderTest {
 
     private BlockItem blockHeader() {
         return BlockItem.newBuilder()
-                .setBlockHeader(BlockHeader.newBuilder()
-                        .setFirstTransactionConsensusTime(Timestamp.newBuilder().setSeconds(TIMESTAMP)))
+                .setBlockHeader(BlockHeader.newBuilder().setBlockTimestamp(domainBuilder.protoTimestamp()))
                 .build();
     }
 
@@ -534,6 +537,12 @@ public class ProtoBlockFileReaderTest {
 
     private byte[] gzip(Block block) {
         return TestUtils.gzip(block.toByteArray());
+    }
+
+    private BlockItem stateChanges() {
+        return BlockItem.newBuilder()
+                .setStateChanges(StateChanges.newBuilder().setConsensusTimestamp(domainBuilder.protoTimestamp()))
+                .build();
     }
 
     @SneakyThrows

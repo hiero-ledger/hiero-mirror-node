@@ -108,12 +108,6 @@ public class ProtoBlockFileReader implements BlockFileReader {
                     blockHeader.getHashAlgorithm(), context.getFilename()));
         }
 
-        // BlockHeader.first_transaction_consensus_time is null when there's no transactions in the block file even
-        // though HIP defines how to derive it for empty round
-        if (blockHeader.hasFirstTransactionConsensusTime()) {
-            context.setLastMetaTimestamp(
-                    DomainUtils.timestampInNanosMax(blockHeader.getFirstTransactionConsensusTime()));
-        }
         blockFileBuilder.blockHeader(blockHeader);
         blockFileBuilder.index(blockHeader.getNumber());
     }
