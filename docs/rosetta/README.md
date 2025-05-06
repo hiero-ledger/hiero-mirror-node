@@ -57,10 +57,10 @@ Configure and run the server in online mode:
 2. Set the desired configuration for both the [Importer](/docs/configuration.md#importer)
    and [Rosetta API](/docs/configuration.md#rosetta-api) in a new `application.yml` file to be mounted to the container.
    Alternatively, every property can be also be set via corresponding environment variables that can be passed to the
-   container. For example, the YAML property `hedera.mirror.importer.startDate` can be set
-   as `-e HEDERA_MIRROR_IMPORTER_STARTDATE=1970-01-01T01:01:00Z`.
+   container. For example, the YAML property `hiero.mirror.importer.startDate` can be set
+   as `-e HIERO_MIRROR_IMPORTER_STARTDATE=1970-01-01T01:01:00Z`.
 
-3. Set `hedera.mirror.importer.startDate` to 15 minutes before UTC now and zero the seconds, for example, if UTC now is
+3. Set `hiero.mirror.importer.startDate` to 15 minutes before UTC now and zero the seconds, for example, if UTC now is
    `2021-12-06T15:25:20Z`, startDate should set to `2021-12-06T15:10:00Z`. Setting `startDate` properly can make the
    importer get the genesis account balance file faster.
 

@@ -6,10 +6,10 @@ This checklist verifies a release is rolled out successfully.
 
 - [ ] Milestone created
 - [ ] Milestone field populated on relevant [issues](https://github.com/hiero-ledger/hiero-mirror-node/issues?q=is%3Aclosed+no%3Amilestone+sort%3Aupdated-desc)
-- [ ] Nothing open for [milestone](https://github.com/hiero-ledger/hiero-mirror-node/issues?q=is%3Aopen+sort%3Aupdated-desc+milestone%3A0.125.0)
+- [ ] Nothing open for [milestone](https://github.com/hiero-ledger/hiero-mirror-node/issues?q=is%3Aopen+sort%3Aupdated-desc+milestone%3A0.130.0)
 - [ ] GitHub checks for branch are passing
 - [ ] No pre-release or snapshot dependencies present in build files
-- [ ] Verify hedera-services protobuf dependency doesn't contain any unsupported fields or messages
+- [ ] Verify HAPI protobuf dependency doesn't contain any unsupported fields or messages
 - [ ] Automated Kubernetes deployment to integration successful
 - [ ] Tag release
 

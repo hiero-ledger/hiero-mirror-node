@@ -15,7 +15,7 @@ graphql:
 
 grpc:
   config:
-    hedera:
+    hiero:
       mirror:
         grpc:
           listener:
@@ -39,7 +39,7 @@ grpc:
 
 importer:
   config:
-    hedera:
+    hiero:
       mirror:
         importer:
           downloader:

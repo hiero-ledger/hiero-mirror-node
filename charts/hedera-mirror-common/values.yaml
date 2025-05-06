@@ -106,7 +106,7 @@ loki:
           for: 3m
           labels:
             severity: critical
-    - name: hedera-mirror-importer
+    - name: importer
       rules:
         - alert: ImporterLogErrors
           annotations:

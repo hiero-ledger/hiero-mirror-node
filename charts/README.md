@@ -240,7 +240,7 @@ kubectl logs -f --prefix --tail=10 -l app.kubernetes.io/name=importer
 
 To change application properties without restarting, you can create a
 [ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#create-configmaps-from-files)
-named `grpc` or `hedera-mirror-importer` and supply an `application.yaml` or `application.properties`.
+named `grpc` or `importer` and supply an `application.yaml` or `application.properties`.
 Note that some properties that are used on startup will still require a restart.
 
 ```shell script

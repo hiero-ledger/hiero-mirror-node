@@ -262,7 +262,7 @@ spotless {
         licenseHeader(licenseHeader.replaceFirst("//", "--"), "^[^-\\s]")
         target(
             "hedera-mirror-common/src/test/resources/*.sql",
-            "hedera-mirror-importer/**/*.sql",
+            "importer/**/*.sql",
             "hedera-mirror-rest/__tests__/data/**/*.sql",
         )
         targetExclude("**/build/**", "**/db/migration/**")

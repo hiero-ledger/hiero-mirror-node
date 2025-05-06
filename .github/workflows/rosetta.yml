@@ -88,7 +88,7 @@ jobs:
 
       - name: Run Mirror Node in Online Mode
         run: |
-          ONLINE_CONTAINER_ID=$(docker run -d -e HEDERA_MIRROR_IMPORTER_STARTDATE=${STARTDATE} \
+          ONLINE_CONTAINER_ID=$(docker run -d -e HIERO_MIRROR_IMPORTER_STARTDATE=${STARTDATE} \
             -e NETWORK=${NETWORK} \
             -e HEDERA_MIRROR_ROSETTA_RESPONSE_MAXTRANSACTIONSINBLOCK=4 \
             -v ${{ github.workspace }}/application_importer.yml:/app/importer/application.yml \

@@ -2,7 +2,7 @@
 
 importer:
   config:
-    hedera:
+    hiero:
       mirror:
         importer:
           db:

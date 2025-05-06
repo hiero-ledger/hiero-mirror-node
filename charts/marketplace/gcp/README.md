@@ -347,9 +347,9 @@ To ensure a smooth upgrade process:
    ```shell
    kubectl edit secrets mirror-passwords
    ```
-7. Set the `HEDERA_MIRROR_IMPORTER_DB_USERNAME` value to `bWlycm9yX25vZGU=` (the base64 encoded value of the
+7. Set the `HIERO_MIRROR_IMPORTER_DB_USERNAME` value to `bWlycm9yX25vZGU=` (the base64 encoded value of the
    default `mirror_node` value)
-8. Set the `HEDERA_MIRROR_IMPORTER_DB_RESTUSERNAME` value to `bWlycm9yX2FwaQ==` (the base64 encoded value of the
+8. Set the `HIERO_MIRROR_IMPORTER_DB_RESTUSERNAME` value to `bWlycm9yX2FwaQ==` (the base64 encoded value of the
    default `mirror_api` value)
 9. Scale up the Importer Deployment resource
    ```shell
