@@ -1,8 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package com.hedera.mirror.restjava.spec.builder;
 
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.contract.ContractStateChange;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.restjava.spec.model.SpecSetup;
 import jakarta.inject.Named;
 import java.util.List;
@@ -10,7 +11,8 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 @Named
-public class ContractStateChangeBuilder extends AbstractEntityBuilder<ContractStateChange, ContractStateChange.ContractStateChangeBuilder> {
+public class ContractStateChangeBuilder
+        extends AbstractEntityBuilder<ContractStateChange, ContractStateChange.ContractStateChangeBuilder> {
 
     private final CommonProperties commonProperties;
 
@@ -30,8 +32,8 @@ public class ContractStateChangeBuilder extends AbstractEntityBuilder<ContractSt
     }
 
     @Override
-    protected ContractStateChange getFinalEntity(ContractStateChange.ContractStateChangeBuilder builder,
-            Map<String, Object> entityAttributes) {
+    protected ContractStateChange getFinalEntity(
+            ContractStateChange.ContractStateChangeBuilder builder, Map<String, Object> entityAttributes) {
         return builder.build();
     }
 

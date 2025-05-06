@@ -3,7 +3,6 @@
 package com.hedera.mirror.restjava.spec.builder;
 
 import com.hedera.mirror.common.domain.contract.ContractResult;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.restjava.spec.model.SpecSetup;
 import jakarta.inject.Named;
 import java.util.List;
