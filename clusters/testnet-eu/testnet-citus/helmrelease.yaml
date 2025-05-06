@@ -34,7 +34,6 @@ spec:
   timeout: 48h
   upgrade:
     cleanupOnFail: true
-    crds: CreateReplace
   valuesFrom:
     - kind: Secret
       name: mirror
