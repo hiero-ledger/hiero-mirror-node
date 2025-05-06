@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TokenRejectTransactionBody;
@@ -24,10 +23,9 @@ class TokenRejectTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
-        var ownerId = AccountID.newBuilder().setAccountNum(DEFAULT_ENTITY_NUM).build();
         return TransactionBody.newBuilder()
                 .setTokenReject(TokenRejectTransactionBody.newBuilder()
-                        .setOwner(ownerId)
+                        .setOwner(defaultEntityId.toAccountID())
                         .build());
     }
 
@@ -38,8 +36,7 @@ class TokenRejectTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @BeforeEach
     void beforeEach() {
-        var ownerId = EntityId.of(DEFAULT_ENTITY_NUM);
-        when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.of(ownerId));
+        when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.of(defaultEntityId));
     }
 
     @Test

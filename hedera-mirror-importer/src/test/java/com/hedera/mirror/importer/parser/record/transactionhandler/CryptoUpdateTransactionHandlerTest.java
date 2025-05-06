@@ -39,10 +39,8 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setCryptoUpdateAccount(CryptoUpdateTransactionBody.newBuilder()
-                        .setAccountIDToUpdate(AccountID.newBuilder()
-                                .setAccountNum(DEFAULT_ENTITY_NUM)
-                                .build()));
+                .setCryptoUpdateAccount(
+                        CryptoUpdateTransactionBody.newBuilder().setAccountIDToUpdate(defaultEntityId.toAccountID()));
     }
 
     @Override

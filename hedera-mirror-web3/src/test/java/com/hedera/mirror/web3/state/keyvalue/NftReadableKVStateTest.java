@@ -200,7 +200,7 @@ class NftReadableKVStateTest {
                 .customize(t -> {
                     t.tokenId(entity.getId()).serialNumber(NFT_ID.serialNumber());
                     if (spender != null) {
-                        t.spender(spender);
+                        t.spender(spender.getId());
                     }
                     if (owner != null) {
                         t.accountId(owner);

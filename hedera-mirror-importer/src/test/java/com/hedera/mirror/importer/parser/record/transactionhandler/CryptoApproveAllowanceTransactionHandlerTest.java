@@ -26,7 +26,6 @@ import com.hedera.mirror.importer.TestUtils;
 import com.hedera.mirror.importer.parser.contractresult.SyntheticContractResultService;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoApproveAllowanceTransactionBody;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.Map;
 import java.util.Objects;
@@ -58,19 +57,18 @@ class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHa
         expectedCryptoAllowance = CryptoAllowance.builder()
                 .amountGranted(100L)
                 .amount(100L)
-                .owner(cryptoOwner.getAccountNum())
+                .owner(EntityId.of(cryptoOwner).getId())
                 .payerAccountId(payerAccountId)
-                .spender(recordItemBuilder.accountId().getAccountNum())
+                .spender(EntityId.of(recordItemBuilder.accountId()).getId())
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         when(entityIdService.lookup(cryptoOwner)).thenReturn(Optional.of(EntityId.of(cryptoOwner)));
         var nftOwner = recordItemBuilder.accountId();
-        var nftTokenId = recordItemBuilder.tokenId().getTokenNum();
+        long nftTokenId = EntityId.of(recordItemBuilder.tokenId()).getId();
         expectedNft = Nft.builder()
                 .accountId(EntityId.of(nftOwner))
-                .delegatingSpender(EntityId.EMPTY)
                 .serialNumber(1)
-                .spender(EntityId.of(recordItemBuilder.accountId()))
+                .spender(EntityId.of(recordItemBuilder.accountId()).getId())
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .tokenId(nftTokenId)
                 .build();
@@ -79,7 +77,7 @@ class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHa
                 .approvedForAll(true)
                 .owner(expectedNft.getAccountId().getId())
                 .payerAccountId(payerAccountId)
-                .spender(expectedNft.getSpender().getId())
+                .spender(expectedNft.getSpender())
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .tokenId(nftTokenId)
                 .build();
@@ -87,11 +85,11 @@ class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHa
         expectedTokenAllowance = TokenAllowance.builder()
                 .amountGranted(200L)
                 .amount(200L)
-                .owner(tokenOwner.getAccountNum())
+                .owner(EntityId.of(tokenOwner).getId())
                 .payerAccountId(payerAccountId)
-                .spender(recordItemBuilder.accountId().getAccountNum())
+                .spender(EntityId.of(recordItemBuilder.accountId()).getId())
                 .timestampRange(Range.atLeast(consensusTimestamp))
-                .tokenId(recordItemBuilder.tokenId().getTokenNum())
+                .tokenId(EntityId.of(recordItemBuilder.tokenId()).getId())
                 .build();
         when(entityIdService.lookup(tokenOwner)).thenReturn(Optional.of(EntityId.of(tokenOwner)));
     }
@@ -174,7 +172,9 @@ class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHa
                 .record(r -> r.setConsensusTimestamp(TestUtils.toTimestamp(consensusTimestamp)))
                 .build();
         var transaction = domainBuilder.transaction().get();
-        when(entityIdService.lookup(AccountID.newBuilder().setAlias(alias).build()))
+        when(entityIdService.lookup(domainBuilder.entityId().toAccountID().toBuilder()
+                        .setAlias(alias)
+                        .build()))
                 .thenReturn(Optional.of(EntityId.EMPTY));
         transactionHandler.updateTransaction(transaction, recordItem);
 
@@ -220,7 +220,8 @@ class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHa
     @Test
     void updateTransactionWithAlias() {
         var alias = DomainUtils.fromBytes(domainBuilder.key());
-        var ownerEntityId = EntityId.of(recordItemBuilder.accountId());
+        var ownerAccountId = recordItemBuilder.accountId();
+        var ownerEntityId = EntityId.of(ownerAccountId);
         var recordItem = recordItemBuilder
                 .cryptoApproveAllowance()
                 .transactionBody(this::customizeTransactionBody)
@@ -240,7 +241,7 @@ class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHa
                 .transaction()
                 .customize(t -> t.consensusTimestamp(timestamp))
                 .get();
-        when(entityIdService.lookup(AccountID.newBuilder().setAlias(alias).build()))
+        when(entityIdService.lookup(ownerAccountId.toBuilder().setAlias(alias).build()))
                 .thenReturn(Optional.of(ownerEntityId));
         transactionHandler.updateTransaction(transaction, recordItem);
         assertAllowances(ownerEntityId.getId());
@@ -265,56 +266,58 @@ class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHa
     private void customizeTransactionBody(CryptoApproveAllowanceTransactionBody.Builder builder) {
         builder.clear();
 
+        var ownerAccountId = EntityId.of(expectedCryptoAllowance.getOwner()).toAccountID();
+        var spenderAccountId = EntityId.of(expectedCryptoAllowance.getSpender()).toAccountID();
         // duplicate with different amount
         builder.addCryptoAllowances(com.hederahashgraph.api.proto.java.CryptoAllowance.newBuilder()
                 .setAmount(expectedCryptoAllowance.getAmount() - 10)
-                .setOwner(AccountID.newBuilder().setAccountNum(expectedCryptoAllowance.getOwner()))
-                .setSpender(AccountID.newBuilder().setAccountNum(expectedCryptoAllowance.getSpender())));
+                .setOwner(ownerAccountId)
+                .setSpender(spenderAccountId));
         // the last one is honored
         builder.addCryptoAllowances(com.hederahashgraph.api.proto.java.CryptoAllowance.newBuilder()
                 .setAmount(expectedCryptoAllowance.getAmount())
-                .setOwner(AccountID.newBuilder().setAccountNum(expectedCryptoAllowance.getOwner()))
-                .setSpender(AccountID.newBuilder().setAccountNum(expectedCryptoAllowance.getSpender())));
+                .setOwner(ownerAccountId)
+                .setSpender(spenderAccountId));
 
+        var nftOwnerAccountId = expectedNft.getAccountId().toAccountID();
+        var nftSpenderAccountId = EntityId.of(expectedNft.getSpender()).toAccountID();
+        var nftTokenId = EntityId.of(expectedNft.getTokenId()).toTokenID();
         // duplicate nft allowance by serial
         builder.addNftAllowances(com.hederahashgraph.api.proto.java.NftAllowance.newBuilder()
-                .setOwner(AccountID.newBuilder()
-                        .setAccountNum(expectedNft.getAccountId().getNum()))
+                .setOwner(nftOwnerAccountId)
                 .addSerialNumbers(expectedNft.getId().getSerialNumber())
-                .setSpender(AccountID.newBuilder()
-                        .setAccountNum(expectedNft.getSpender().getNum() + 1))
-                .setTokenId(TokenID.newBuilder().setTokenNum(expectedNft.getTokenId())));
+                .setSpender(nftSpenderAccountId)
+                .setTokenId(nftTokenId));
         // duplicate nft approved for all allowance, approved for all flag is flipped from the last one
         builder.addNftAllowances(com.hederahashgraph.api.proto.java.NftAllowance.newBuilder()
                 .setApprovedForAll(BoolValue.of(!expectedNftAllowance.isApprovedForAll()))
-                .setOwner(AccountID.newBuilder()
-                        .setAccountNum(expectedNft.getAccountId().getNum()))
+                .setOwner(nftOwnerAccountId)
                 .addSerialNumbers(expectedNft.getId().getSerialNumber())
-                .setSpender(AccountID.newBuilder()
-                        .setAccountNum(expectedNft.getSpender().getNum()))
-                .setTokenId(TokenID.newBuilder().setTokenNum(expectedNft.getTokenId())));
+                .setSpender(nftSpenderAccountId)
+                .setTokenId(nftTokenId));
         // the last one is honored
         builder.addNftAllowances(com.hederahashgraph.api.proto.java.NftAllowance.newBuilder()
                 .setApprovedForAll(BoolValue.of(expectedNftAllowance.isApprovedForAll()))
-                .setOwner(AccountID.newBuilder()
-                        .setAccountNum(expectedNft.getAccountId().getNum()))
+                .setOwner(nftOwnerAccountId)
                 .addSerialNumbers(expectedNft.getId().getSerialNumber())
-                .setSpender(AccountID.newBuilder()
-                        .setAccountNum(expectedNft.getSpender().getNum()))
-                .setTokenId(TokenID.newBuilder().setTokenNum(expectedNft.getTokenId())));
+                .setSpender(nftSpenderAccountId)
+                .setTokenId(nftTokenId));
 
+        ownerAccountId = EntityId.of(expectedTokenAllowance.getOwner()).toAccountID();
+        spenderAccountId = EntityId.of(expectedTokenAllowance.getSpender()).toAccountID();
+        var tokenId = EntityId.of(expectedTokenAllowance.getTokenId()).toTokenID();
         // duplicate token allowance
         builder.addTokenAllowances(com.hederahashgraph.api.proto.java.TokenAllowance.newBuilder()
                 .setAmount(expectedTokenAllowance.getAmount() - 10)
-                .setOwner(AccountID.newBuilder().setAccountNum(expectedTokenAllowance.getOwner()))
-                .setSpender(AccountID.newBuilder().setAccountNum(expectedTokenAllowance.getSpender()))
-                .setTokenId(TokenID.newBuilder().setTokenNum(expectedTokenAllowance.getTokenId())));
+                .setOwner(ownerAccountId)
+                .setSpender(spenderAccountId)
+                .setTokenId(tokenId));
         // the last one is honored
         builder.addTokenAllowances(com.hederahashgraph.api.proto.java.TokenAllowance.newBuilder()
                 .setAmount(expectedTokenAllowance.getAmount())
-                .setOwner(AccountID.newBuilder().setAccountNum(expectedTokenAllowance.getOwner()))
-                .setSpender(AccountID.newBuilder().setAccountNum(expectedTokenAllowance.getSpender()))
-                .setTokenId(TokenID.newBuilder().setTokenNum(expectedTokenAllowance.getTokenId())));
+                .setOwner(ownerAccountId)
+                .setSpender(spenderAccountId)
+                .setTokenId(tokenId));
     }
 
     private Map<Long, EntityTransaction> getExpectedEntityTransactions(RecordItem recordItem, Transaction transaction) {
@@ -338,6 +341,6 @@ class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHa
     }
 
     private void setTransactionPayer(TransactionBody.Builder builder) {
-        builder.getTransactionIDBuilder().setAccountID(AccountID.newBuilder().setAccountNum(payerAccountId.getNum()));
+        builder.getTransactionIDBuilder().setAccountID(payerAccountId.toAccountID());
     }
 }

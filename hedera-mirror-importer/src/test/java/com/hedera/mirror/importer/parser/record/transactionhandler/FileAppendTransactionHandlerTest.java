@@ -14,7 +14,6 @@ import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.importer.addressbook.AddressBookService;
 import com.hederahashgraph.api.proto.java.FileAppendTransactionBody;
-import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -34,10 +33,7 @@ class FileAppendTransactionHandlerTest extends AbstractTransactionHandlerTest {
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setFileAppend(FileAppendTransactionBody.newBuilder()
-                        .setFileID(FileID.newBuilder()
-                                .setFileNum(DEFAULT_ENTITY_NUM)
-                                .build()));
+                .setFileAppend(FileAppendTransactionBody.newBuilder().setFileID(defaultEntityId.toFileID()));
     }
 
     @Override

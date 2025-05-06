@@ -44,7 +44,9 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import lombok.AccessLevel;
 import lombok.CustomLog;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -71,6 +73,9 @@ public class AddressBookServiceImpl implements AddressBookService {
     private final NodeStakeRepository nodeStakeRepository;
     private final SystemEntity systemEntity;
     private final TransactionTemplate transactionTemplate;
+
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
+    private final Collection<Long> addressBookFileIds = toAddressBookIds();
 
     @Override
     @CacheEvict(allEntries = true)
@@ -239,7 +244,7 @@ public class AddressBookServiceImpl implements AddressBookService {
         if (currentAddressBook != null) {
             // verify no file_data 102 entries exists after current addressBook
             List<FileData> fileDataList = fileDataRepository.findAddressBooksBetween(
-                    currentAddressBook.getStartConsensusTimestamp(), Long.MAX_VALUE, 1);
+                    currentAddressBook.getStartConsensusTimestamp(), Long.MAX_VALUE, getAddressBookFileIds(), 1);
             if (CollectionUtils.isEmpty(fileDataList)) {
                 log.trace("All valid address books exist in db, skipping migration");
                 return currentAddressBook;
@@ -564,9 +569,10 @@ public class AddressBookServiceImpl implements AddressBookService {
         AddressBook lastAddressBook = null;
 
         // retrieve pages of fileData entries for historic address books within range
-        var pageSize = 1000;
-        List<FileData> fileDataList =
-                fileDataRepository.findAddressBooksBetween(currentConsensusTimestamp, endTimestamp, pageSize);
+        var fileIds = getAddressBookFileIds();
+        int pageSize = 1000;
+        var fileDataList =
+                fileDataRepository.findAddressBooksBetween(currentConsensusTimestamp, endTimestamp, fileIds, pageSize);
         while (!CollectionUtils.isEmpty(fileDataList)) {
             log.info("Retrieved {} file_data rows for address book processing", fileDataList.size());
 
@@ -581,11 +587,17 @@ public class AddressBookServiceImpl implements AddressBookService {
                 currentConsensusTimestamp = fileData.getConsensusTimestamp();
             }
 
-            fileDataList =
-                    fileDataRepository.findAddressBooksBetween(currentConsensusTimestamp, endTimestamp, pageSize);
+            fileDataList = fileDataRepository.findAddressBooksBetween(
+                    currentConsensusTimestamp, endTimestamp, fileIds, pageSize);
         }
 
         log.info("Processed {} historic address books", fileDataEntries);
         return lastAddressBook;
+    }
+
+    private Collection<Long> toAddressBookIds() {
+        return List.of(
+                systemEntity.addressBookFile101().getId(),
+                systemEntity.addressBookFile102().getId());
     }
 }

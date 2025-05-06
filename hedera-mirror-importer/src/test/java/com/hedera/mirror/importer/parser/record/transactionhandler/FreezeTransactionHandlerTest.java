@@ -11,7 +11,6 @@ import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.transaction.NetworkFreeze;
 import com.hedera.mirror.common.util.DomainUtils;
-import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.FreezeType;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -31,10 +30,9 @@ class FreezeTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
-        var fileId = FileID.newBuilder().setFileNum(DEFAULT_ENTITY_NUM);
         return recordItemBuilder
                 .freeze()
-                .transactionBody(b -> b.setUpdateFile(fileId))
+                .transactionBody(b -> b.setUpdateFile(defaultEntityId.toFileID()))
                 .build()
                 .getTransactionBody()
                 .toBuilder();

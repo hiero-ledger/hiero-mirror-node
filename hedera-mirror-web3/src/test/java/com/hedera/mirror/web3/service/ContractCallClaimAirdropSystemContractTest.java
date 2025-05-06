@@ -54,7 +54,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
         final var token = nonFungibleTokenCustomizable(
                 e -> e.treasuryAccountId(treasuryEntityId).kycKey(null));
         nftPersistCustomizable(n ->
-                n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.toEntityId()));
+                n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.getId()));
         tokenAccountPersist(token.getTokenId(), sender.getId());
 
         persistAirdropForNft(token, sender, receiver);
@@ -112,7 +112,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
             final var token = nonFungibleTokenCustomizable(
                     e -> e.treasuryAccountId(treasuryEntityId).kycKey(null));
             nftPersistCustomizable(n ->
-                    n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.toEntityId()));
+                    n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.getId()));
             tokenAccountPersist(token.getTokenId(), sender.getId());
             final var nftAddress = toAddress(token.getTokenId()).toHexString();
             persistAirdropForNft(token, sender, receiver);
@@ -173,7 +173,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
             final var token = nonFungibleTokenCustomizable(
                     e -> e.treasuryAccountId(treasuryEntityId).kycKey(null));
             nftPersistCustomizable(n ->
-                    n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.toEntityId()));
+                    n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.getId()));
             tokenAccountPersist(token.getTokenId(), sender.getId());
             final var nftAddress = toAddress(token.getTokenId()).toHexString();
             persistAirdropForNft(token, sender, receiver);
@@ -332,7 +332,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
         final var token = nonFungibleTokenCustomizable(
                 e -> e.treasuryAccountId(treasuryEntityId).kycKey(null));
         nftPersistCustomizable(n ->
-                n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.toEntityId()));
+                n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.getId()));
         tokenAccountPersist(token.getTokenId(), sender.getId());
 
         persistAirdropForNft(token, sender, receiver);

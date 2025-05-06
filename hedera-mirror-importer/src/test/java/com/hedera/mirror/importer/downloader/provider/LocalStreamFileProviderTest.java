@@ -5,6 +5,7 @@ package com.hedera.mirror.importer.downloader.provider;
 import static com.hedera.mirror.importer.ImporterProperties.STREAMS;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.importer.domain.StreamFileData;
 import com.hedera.mirror.importer.domain.StreamFilename;
 import com.hedera.mirror.importer.downloader.CommonDownloaderProperties.PathType;
@@ -50,7 +51,7 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
 
     @Test
     void listAll() {
-        var node = node("0.0.3");
+        var node = node(3);
         createDefaultFileCopier().copy();
         var sigs = streamFileProvider
                 .list(node, StreamFilename.EPOCH)
@@ -63,9 +64,10 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
 
     @Test
     void listByDay() {
-        var node = node("0.0.3");
-        createSignature("2022-07-13", "recordstreams", "record0.0.3", "2022-07-13T08_46_08.041986003Z.rcd_sig");
-        createSignature("2022-07-13", "recordstreams", "record0.0.3", "2022-07-13T08_46_11.304284003Z.rcd_sig");
+        var node = node(3);
+        var folder = "record" + node.getNodeAccountId();
+        createSignature("2022-07-13", "recordstreams", folder, "2022-07-13T08_46_08.041986003Z.rcd_sig");
+        createSignature("2022-07-13", "recordstreams", folder, "2022-07-13T08_46_11.304284003Z.rcd_sig");
         var sigs = streamFileProvider
                 .list(node, StreamFilename.EPOCH)
                 .collectList()
@@ -78,9 +80,10 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
     @Test
     void listByDayAuto() {
         properties.setPathType(PathType.AUTO);
-        var node = node("0.0.3");
-        createSignature("2022-07-13", "demo", "0", "0", "record", "2022-07-13T23_59_59.304284003Z.rcd_sig");
-        createSignature("2022-07-14", "demo", "0", "0", "record", "2022-07-14T00_01_01.203216501Z.rcd_sig");
+        var node = node(3);
+        var shard = String.valueOf(CommonProperties.getInstance().getShard());
+        createSignature("2022-07-13", "demo", shard, "0", "record", "2022-07-13T23_59_59.304284003Z.rcd_sig");
+        createSignature("2022-07-14", "demo", shard, "0", "record", "2022-07-14T00_01_01.203216501Z.rcd_sig");
         var sigs = streamFileProvider
                 .list(node, StreamFilename.EPOCH)
                 .collectList()
@@ -92,9 +95,10 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
 
     @Test
     void listAcrossDays() {
-        var node = node("0.0.3");
-        createSignature("2022-07-13", "recordstreams", "record0.0.3", "2022-07-13T23_59_59.304284003Z.rcd_sig");
-        createSignature("2022-07-14", "recordstreams", "record0.0.3", "2022-07-14T00_01_01.203216501Z.rcd_sig");
+        var node = node(3);
+        var folder = "record" + node.getNodeAccountId();
+        createSignature("2022-07-13", "recordstreams", folder, "2022-07-13T23_59_59.304284003Z.rcd_sig");
+        createSignature("2022-07-14", "recordstreams", folder, "2022-07-14T00_01_01.203216501Z.rcd_sig");
         var sigs = streamFileProvider
                 .list(node, StreamFilename.EPOCH)
                 .collectList()
@@ -107,11 +111,10 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
     @Test
     void listStartsAtNextDay() throws Exception {
         localProperties.setDeleteAfterProcessing(false);
-        var node = node("0.0.3");
-        var previous =
-                createSignature("2022-07-13", "recordstreams", "record0.0.3", "2022-07-13T23_59_59.304284003Z.rcd_sig");
-        var expected =
-                createSignature("2022-07-14", "recordstreams", "record0.0.3", "2022-07-14T00_01_01.203216501Z.rcd_sig");
+        var node = node(3);
+        var folder = "record" + node.getNodeAccountId();
+        var previous = createSignature("2022-07-13", "recordstreams", folder, "2022-07-13T23_59_59.304284003Z.rcd_sig");
+        var expected = createSignature("2022-07-14", "recordstreams", folder, "2022-07-14T00_01_01.203216501Z.rcd_sig");
         var sigs = streamFileProvider
                 .list(node, StreamFilename.from(previous.getPath()))
                 .collectList()
@@ -130,7 +133,7 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
     @Test
     void listDeletesFiles() throws Exception {
         localProperties.setDeleteAfterProcessing(true);
-        var node = node("0.0.3");
+        var node = node(3);
         createDefaultFileCopier().copy();
         var lastFilename = StreamFilename.from(Instant.now().toString().replace(':', '_') + ".rcd.gz");
         StepVerifier.withVirtualTime(() -> streamFileProvider.list(node, lastFilename))
@@ -159,8 +162,7 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
                     Path::getParent, properties.getImporterProperties().getNetwork());
         }
 
-        var accountId = "0.0.3";
-        var node = node(accountId);
+        var node = node(3);
         var data1 = streamFileData(node, "2022-07-13T08_46_08.041986003Z.rcd_sig");
         var data2 = streamFileData(node, "2022-07-13T08_46_11.304284003Z.rcd_sig");
         StepVerifier.withVirtualTime(() -> streamFileProvider.list(node, StreamFilename.EPOCH))

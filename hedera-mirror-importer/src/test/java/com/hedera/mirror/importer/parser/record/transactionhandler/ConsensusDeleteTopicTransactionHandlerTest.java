@@ -11,7 +11,6 @@ import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hederahashgraph.api.proto.java.ConsensusDeleteTopicTransactionBody;
-import com.hederahashgraph.api.proto.java.TopicID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
@@ -26,10 +25,8 @@ class ConsensusDeleteTopicTransactionHandlerTest extends AbstractDeleteOrUndelet
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setConsensusDeleteTopic(ConsensusDeleteTopicTransactionBody.newBuilder()
-                        .setTopicID(TopicID.newBuilder()
-                                .setTopicNum(DEFAULT_ENTITY_NUM)
-                                .build()));
+                .setConsensusDeleteTopic(
+                        ConsensusDeleteTopicTransactionBody.newBuilder().setTopicID(defaultEntityId.toTopicID()));
     }
 
     @Override

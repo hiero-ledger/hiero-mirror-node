@@ -4,11 +4,17 @@ package com.hedera.mirror.importer.parser.contractlog;
 
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
+import com.hedera.mirror.common.util.DomainUtils;
 import lombok.Data;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
 
 @Data
 public abstract class AbstractSyntheticContractLog implements SyntheticContractLog {
+
+    private static final byte[] FALSE = new byte[] {0};
+    private static final byte[] TRUE = new byte[] {1};
+
     private final RecordItem recordItem;
     private final EntityId entityId;
     private final byte[] topic0;
@@ -45,14 +51,41 @@ public abstract class AbstractSyntheticContractLog implements SyntheticContractL
             .toArray();
 
     static byte[] entityIdToBytes(EntityId entityId) {
-        return Bytes.ofUnsignedLong(entityId.getNum()).toArrayUnsafe();
+        if (EntityId.isEmpty(entityId)) {
+            return ArrayUtils.EMPTY_BYTE_ARRAY;
+        }
+
+        return trim(DomainUtils.toEvmAddress(entityId));
     }
 
     static byte[] longToBytes(long value) {
-        return Bytes.ofUnsignedLong(value).toArrayUnsafe();
+        return trim(Bytes.ofUnsignedLong(value).toArrayUnsafe());
     }
 
     static byte[] booleanToBytes(boolean value) {
-        return Bytes.of(value ? 1 : 0).toArrayUnsafe();
+        return value ? TRUE : FALSE;
+    }
+
+    static byte[] trim(byte[] data) {
+        if (ArrayUtils.isEmpty(data)) {
+            return data;
+        }
+
+        int i = 0;
+        for (; i < data.length; i++) {
+            if (data[i] != 0) {
+                break;
+            }
+        }
+
+        if (i == 0) {
+            return data;
+        }
+
+        if (i == data.length) {
+            return ArrayUtils.EMPTY_BYTE_ARRAY;
+        }
+
+        return ArrayUtils.subarray(data, i, data.length);
     }
 }

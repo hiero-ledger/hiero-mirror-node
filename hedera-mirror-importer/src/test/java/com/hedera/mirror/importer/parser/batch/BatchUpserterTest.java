@@ -604,8 +604,8 @@ class BatchUpserterTest extends ImporterIntegrationTest {
         var nft2 = domainBuilder
                 .nft()
                 .customize(n -> n.accountId(accountId1)
-                        .delegatingSpender(domainBuilder.entityId())
-                        .spender(domainBuilder.entityId())
+                        .delegatingSpender(domainBuilder.id())
+                        .spender(domainBuilder.id())
                         .tokenId(nonFungibleToken1.getId()))
                 .persist();
         var nft3 = domainBuilder

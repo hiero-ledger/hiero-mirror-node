@@ -18,7 +18,6 @@ import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Duration;
 import com.hederahashgraph.api.proto.java.Timestamp;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenUpdateTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.Optional;
@@ -42,15 +41,17 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
                 .setTokenUpdate(TokenUpdateTransactionBody.newBuilder()
-                        .setToken(TokenID.newBuilder().setTokenNum(DEFAULT_ENTITY_NUM))
+                        .setToken(defaultEntityId.toTokenID())
                         .setAdminKey(DEFAULT_KEY)
                         .setExpiry(Timestamp.newBuilder().setSeconds(360))
                         .setKycKey(DEFAULT_KEY)
                         .setFreezeKey(DEFAULT_KEY)
                         .setMetadataKey(DEFAULT_KEY)
                         .setSymbol("SYMBOL")
-                        .setTreasury(AccountID.newBuilder().setAccountNum(1))
-                        .setAutoRenewAccount(AccountID.newBuilder().setAccountNum(DEFAULT_AUTO_RENEW_ACCOUNT_NUM))
+                        .setTreasury(domainBuilder.entityNum(1).toAccountID())
+                        .setAutoRenewAccount(domainBuilder
+                                .entityNum(DEFAULT_AUTO_RENEW_ACCOUNT_NUM)
+                                .toAccountID())
                         .setAutoRenewPeriod(Duration.newBuilder().setSeconds(100))
                         .setName("token_name")
                         .setWipeKey(DEFAULT_KEY));

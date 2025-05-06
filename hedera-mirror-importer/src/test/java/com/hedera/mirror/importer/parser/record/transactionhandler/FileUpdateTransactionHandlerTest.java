@@ -13,7 +13,6 @@ import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.importer.addressbook.AddressBookService;
-import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.FileUpdateTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.Test;
@@ -34,10 +33,7 @@ class FileUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setFileUpdate(FileUpdateTransactionBody.newBuilder()
-                        .setFileID(FileID.newBuilder()
-                                .setFileNum(DEFAULT_ENTITY_NUM)
-                                .build()));
+                .setFileUpdate(FileUpdateTransactionBody.newBuilder().setFileID(defaultEntityId.toFileID()));
     }
 
     @Override

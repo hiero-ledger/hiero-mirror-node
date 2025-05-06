@@ -495,7 +495,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var tokenId = tokenEntity.getId();
         nonFungibleTokenCustomizable(t -> t.tokenId(tokenId).freezeDefault(true).timestampRange(historicalRange));
         nftPersistCustomizable(
-                n -> n.tokenId(tokenId).timestampRange(historicalRange).spender(approvedAccount.toEntityId()));
+                n -> n.tokenId(tokenId).timestampRange(historicalRange).spender(approvedAccount.getId()));
 
         final var contract = testWeb3jService.deploy(PrecompileTestContractHistorical::deploy);
 

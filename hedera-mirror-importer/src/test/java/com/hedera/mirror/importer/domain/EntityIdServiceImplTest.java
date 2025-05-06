@@ -178,6 +178,8 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         var entity =
                 domainBuilder.entity().customize(e -> e.evmAddress(EVM_ADDRESS)).persist();
         var accountId = AccountID.newBuilder()
+                .setShardNum(COMMON_PROPERTIES.getShard())
+                .setRealmNum(COMMON_PROPERTIES.getRealm())
                 .setAlias(DomainUtils.fromBytes(ALIAS_ECDSA_SECP256K1))
                 .build();
         // when, then

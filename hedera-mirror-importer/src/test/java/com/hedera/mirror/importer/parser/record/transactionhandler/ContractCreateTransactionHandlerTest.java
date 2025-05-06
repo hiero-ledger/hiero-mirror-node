@@ -28,7 +28,6 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.EthereumTransactionBody.Builder;
-import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
@@ -54,7 +53,7 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
 
     @BeforeEach
     void beforeEach() {
-        when(entityIdService.lookup(contractId)).thenReturn(Optional.of(EntityId.of(DEFAULT_ENTITY_NUM)));
+        when(entityIdService.lookup(contractId)).thenReturn(Optional.of(defaultEntityId));
     }
 
     @Override
@@ -188,8 +187,8 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .transaction()
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
-        var autoRenewAccount =
-                recordItem.getTransactionBody().getContractCreateInstance().getAutoRenewAccountId();
+        var body = recordItem.getTransactionBody().getContractCreateInstance();
+        var autoRenewAccount = body.getAutoRenewAccountId();
         var initCode = DomainUtils.toBytes(
                 recordItem.getSidecarRecords().get(2).getBytecode().getInitcode());
         when(entityIdService.lookup(autoRenewAccount)).thenReturn(Optional.of(EntityId.of(autoRenewAccount)));
@@ -199,10 +198,10 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
 
         // then
         assertEntity(contractId, timestamp)
-                .returns(autoRenewAccount.getAccountNum(), Entity::getAutoRenewAccountId)
+                .returns(EntityId.of(autoRenewAccount).getId(), Entity::getAutoRenewAccountId)
                 .returns(null, Entity::getEvmAddress);
         assertContract(contractId)
-                .satisfies(c -> assertThat(c.getFileId().getId()).isPositive())
+                .returns(EntityId.of(body.getFileID()), Contract::getFileId)
                 .returns(initCode, Contract::getInitcode);
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
@@ -251,7 +250,7 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .get();
         var initCode = DomainUtils.toBytes(
                 recordItem.getSidecarRecords().get(2).getBytecode().getInitcode());
-        var aliasAccountId = EntityId.of(10L);
+        var aliasAccountId = domainBuilder.entityNum(10L);
         when(entityIdService.lookup(aliasAccount)).thenReturn(Optional.of(aliasAccountId));
         var expectedEntityTransactions = getExpectedEntityTransactions(recordItem, transaction);
         expectedEntityTransactions.put(
@@ -262,10 +261,15 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
 
         // then
         assertEntity(contractId, timestamp)
-                .returns(10L, Entity::getAutoRenewAccountId)
+                .returns(aliasAccountId.getId(), Entity::getAutoRenewAccountId)
                 .returns(null, Entity::getEvmAddress);
         assertContract(contractId)
-                .satisfies(c -> assertThat(c.getFileId().getId()).isPositive())
+                .returns(
+                        EntityId.of(recordItem
+                                .getTransactionBody()
+                                .getContractCreateInstance()
+                                .getFileID()),
+                        Contract::getFileId)
                 .returns(initCode, Contract::getInitcode);
         assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
     }
@@ -375,7 +379,12 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .returns(null, Entity::getAutoRenewAccountId)
                 .returns(null, Entity::getEvmAddress);
         assertContract(contractId)
-                .satisfies(c -> assertThat(c.getFileId().getId()).isPositive())
+                .returns(
+                        EntityId.of(recordItem
+                                .getTransactionBody()
+                                .getContractCreateInstance()
+                                .getFileID()),
+                        Contract::getFileId)
                 .returns(initCode, Contract::getInitcode);
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
@@ -481,10 +490,7 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
         // parent item
         var parentRecordItem = recordItemBuilder
                 .contractCreate()
-                .transactionBody(x -> x.clearInitcode()
-                        .setFileID(FileID.newBuilder()
-                                .setFileNum(DEFAULT_ENTITY_NUM)
-                                .build()))
+                .transactionBody(x -> x.clearInitcode().setFileID(defaultEntityId.toFileID()))
                 .build();
 
         // child item
@@ -666,7 +672,8 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .satisfies(c -> assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
                 .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
                 .returns(contractId.getNum(), Entity::getNum)
-                .satisfies(c -> assertThat(c.getProxyAccountId().getId()).isPositive())
+                .satisfies(
+                        c -> assertThat(EntityId.isEmpty(c.getProxyAccountId())).isFalse())
                 .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
                 .returns(contractId.getRealm(), Entity::getRealm)
                 .returns(contractId.getShard(), Entity::getShard)

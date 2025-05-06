@@ -57,9 +57,7 @@ class TokenCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionReceipt.Builder getTransactionReceipt(ResponseCodeEnum responseCodeEnum) {
-        return TransactionReceipt.newBuilder()
-                .setStatus(responseCodeEnum)
-                .setTokenID(TokenID.newBuilder().setTokenNum(DEFAULT_ENTITY_NUM).build());
+        return TransactionReceipt.newBuilder().setStatus(responseCodeEnum).setTokenID(defaultEntityId.toTokenID());
     }
 
     @Override

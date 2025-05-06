@@ -10,7 +10,6 @@ import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hederahashgraph.api.proto.java.TokenDeleteTransactionBody;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
@@ -26,9 +25,7 @@ class TokenDeleteTransactionHandlerTest extends AbstractDeleteOrUndeleteTransact
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
                 .setTokenDeletion(TokenDeleteTransactionBody.newBuilder()
-                        .setToken(TokenID.newBuilder()
-                                .setTokenNum(DEFAULT_ENTITY_NUM)
-                                .build())
+                        .setToken(defaultEntityId.toTokenID())
                         .build());
     }
 

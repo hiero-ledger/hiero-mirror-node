@@ -61,8 +61,11 @@ class TokenAirdropTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .customize(t -> t.consensusTimestamp(timestamp))
                 .get();
 
-        var expectedEntityTransactions = getExpectedEntityTransactions(
-                recordItem, transaction, EntityId.of(receiver), EntityId.of(sender), EntityId.of(token));
+        var receiverId = EntityId.of(receiver);
+        var senderId = EntityId.of(sender);
+        var tokenId = EntityId.of(token);
+        var expectedEntityTransactions =
+                getExpectedEntityTransactions(recordItem, transaction, receiverId, senderId, tokenId);
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
@@ -73,12 +76,12 @@ class TokenAirdropTransactionHandlerTest extends AbstractTransactionHandlerTest 
         verify(entityListener).onTokenAirdrop(tokenAirdrop.capture());
         assertThat(tokenAirdrop.getValue())
                 .returns(amount, TokenAirdrop::getAmount)
-                .returns(receiver.getAccountNum(), TokenAirdrop::getReceiverAccountId)
-                .returns(sender.getAccountNum(), TokenAirdrop::getSenderAccountId)
+                .returns(receiverId.getId(), TokenAirdrop::getReceiverAccountId)
+                .returns(senderId.getId(), TokenAirdrop::getSenderAccountId)
                 .returns(0L, TokenAirdrop::getSerialNumber)
                 .returns(PENDING, TokenAirdrop::getState)
                 .returns(Range.atLeast(timestamp), TokenAirdrop::getTimestampRange)
-                .returns(token.getTokenNum(), TokenAirdrop::getTokenId);
+                .returns(tokenId.getId(), TokenAirdrop::getTokenId);
     }
 
     @Test
@@ -103,9 +106,11 @@ class TokenAirdropTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .transaction()
                 .customize(t -> t.consensusTimestamp(timestamp))
                 .get();
-
-        var expectedEntityTransactions = getExpectedEntityTransactions(
-                recordItem, transaction, EntityId.of(receiver), EntityId.of(sender), EntityId.of(token));
+        var receiverId = EntityId.of(receiver);
+        var senderId = EntityId.of(sender);
+        var tokenId = EntityId.of(token);
+        var expectedEntityTransactions =
+                getExpectedEntityTransactions(recordItem, transaction, receiverId, senderId, tokenId);
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
@@ -116,10 +121,10 @@ class TokenAirdropTransactionHandlerTest extends AbstractTransactionHandlerTest 
         verify(entityListener).onTokenAirdrop(tokenAirdrop.capture());
         assertThat(tokenAirdrop.getValue())
                 .returns(null, TokenAirdrop::getAmount)
-                .returns(receiver.getAccountNum(), TokenAirdrop::getReceiverAccountId)
-                .returns(sender.getAccountNum(), TokenAirdrop::getSenderAccountId)
+                .returns(receiverId.getId(), TokenAirdrop::getReceiverAccountId)
+                .returns(senderId.getId(), TokenAirdrop::getSenderAccountId)
                 .returns(PENDING, TokenAirdrop::getState)
                 .returns(Range.atLeast(timestamp), TokenAirdrop::getTimestampRange)
-                .returns(token.getTokenNum(), TokenAirdrop::getTokenId);
+                .returns(tokenId.getId(), TokenAirdrop::getTokenId);
     }
 }

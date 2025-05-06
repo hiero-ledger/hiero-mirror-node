@@ -8,11 +8,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.importer.FileCopier;
 import com.hedera.mirror.importer.TestUtils;
+import com.hedera.mirror.importer.domain.ConsensusNodeStub;
 import com.hedera.mirror.importer.downloader.AbstractDownloaderTest;
 import com.hedera.mirror.importer.downloader.Downloader;
 import com.hedera.mirror.importer.downloader.DownloaderProperties;
@@ -35,11 +36,15 @@ import org.mockito.Mock;
 
 class AccountBalancesDownloaderTest extends AbstractDownloaderTest<AccountBalanceFile> {
 
-    private final CommonProperties commonProperties = CommonProperties.getInstance();
-    private final DomainBuilder domainBuilder = new DomainBuilder();
+    private final CommonProperties commonProperties = new CommonProperties();
 
     @Mock
     private AccountBalanceFileRepository accountBalanceFileRepository;
+
+    @Override
+    protected EntityId entityNum(long num) {
+        return EntityId.of(0, 0, num);
+    }
 
     @Override
     protected DownloaderProperties getDownloaderProperties() {
@@ -50,8 +55,8 @@ class AccountBalancesDownloaderTest extends AbstractDownloaderTest<AccountBalanc
 
     @Override
     protected Downloader<AccountBalanceFile, AccountBalance> getDownloader() {
-        BalanceFileReader balanceFileReader = new BalanceFileReaderImplV1(
-                new BalanceParserProperties(), new AccountBalanceLineParserV1(commonProperties));
+        BalanceFileReader balanceFileReader =
+                new BalanceFileReaderImplV1(new BalanceParserProperties(), new AccountBalanceLineParserV1());
         var streamFileProvider = new S3StreamFileProvider(commonProperties, commonDownloaderProperties, s3AsyncClient);
         return new AccountBalancesDownloader(
                 accountBalanceFileRepository,
@@ -83,6 +88,33 @@ class AccountBalancesDownloaderTest extends AbstractDownloaderTest<AccountBalanc
         super.beforeEach();
         setTestFilesAndInstants(
                 List.of("2019-08-30T18_15_00.016002001Z_Balances.csv", "2019-08-30T18_30_00.010147001Z_Balances.csv"));
+
+        // account balance files will never exist in non-zero realm / shard network. besides, all test account balance
+        // files have 0 shard and realm, it's tedious and with no value to rewrite the test files with correct shard
+        // and realm
+        commonProperties.setRealm(0);
+        commonProperties.setShard(0);
+
+        fileCopier.setIgnoreNonZeroRealmShard(true);
+
+        // recreate nodes with shard=0 and realm=0
+        var newNodes = nodes.stream()
+                .filter(n -> {
+                    var nodeAccountId = n.getNodeAccountId();
+                    return nodeAccountId.getShard() != 0 || nodeAccountId.getRealm() != 0;
+                })
+                .map(n -> ConsensusNodeStub.builder()
+                        .nodeAccountId(EntityId.of(0, 0, n.getNodeAccountId().getNum()))
+                        .nodeId(n.getNodeId())
+                        .publicKey(n.getPublicKey())
+                        .stake(n.getStake())
+                        .totalStake(n.getTotalStake())
+                        .build())
+                .toList();
+        if (!newNodes.isEmpty()) {
+            nodes.clear();
+            nodes.addAll(newNodes);
+        }
     }
 
     @Test

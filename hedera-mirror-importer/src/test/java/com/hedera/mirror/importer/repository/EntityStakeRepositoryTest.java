@@ -14,7 +14,6 @@ import com.hedera.mirror.common.domain.addressbook.NodeStake;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.AccountBalance.Id;
 import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityStake;
 import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.importer.ImporterIntegrationTest;
@@ -94,10 +93,8 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
         // history row for account3
         var account3History = domainBuilder
-                .entityHistory()
-                .customize(e -> e.id(account3.getId())
-                        .num(account3.getNum())
-                        .stakedNodeId(3L)
+                .entityHistory(account3.toEntityId())
+                .customize(e -> e.stakedNodeId(3L)
                         .timestampRange(Range.closedOpen(nodeStakeTimestamp - 10, nodeStakeTimestamp + 1)))
                 .persist();
         // deleted account will not appear in entity_state_start
@@ -334,11 +331,10 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                         .timestampRange(
                                 Range.closedOpen(previousNodeStakeTimestamp - 900L, previousNodeStakeTimestamp + 200L)))
                 .persist();
+        var aliceEntityId = aliceHistory1.toEntityId();
         var aliceHistory2 = domainBuilder
-                .entityHistory()
-                .customize(e -> e.id(aliceHistory1.getId())
-                        .num(aliceHistory1.getNum())
-                        .stakedAccountId(domainBuilder.id())
+                .entityHistory(aliceEntityId)
+                .customize(e -> e.stakedAccountId(domainBuilder.id())
                         .stakePeriodStart(epochDay)
                         .timestampRange(Range.closedOpen(aliceHistory1.getTimestampUpper(), nodeStakeTimestamp + 300L)))
                 .persist();
@@ -349,7 +345,6 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                         .stakedAccountId(domainBuilder.id())
                         .timestampRange(Range.atLeast(aliceHistory2.getTimestampUpper())))
                 .persist();
-        var aliceEntityId = EntityId.of(aliceHistory1.getId());
 
         // Account 800's current end stake period is epochDay - 1 while the latest node stake's epoch day is
         // epochDay + 1, thus entity stake is two staking period behind
@@ -605,7 +600,8 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         long previousBalanceTimestamp = balanceTimestamp - 1000L;
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.balance(5000L).id(new AccountBalance.Id(balanceTimestamp, EntityId.of(2L))))
+                .customize(ab ->
+                        ab.balance(5000L).id(new AccountBalance.Id(balanceTimestamp, systemEntity.treasuryAccount())))
                 .persist();
         domainBuilder
                 .accountBalance()
@@ -701,7 +697,7 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         // Treasury account balance
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(balanceTimestamp, EntityId.of(2L))))
+                .customize(ab -> ab.id(new AccountBalance.Id(balanceTimestamp, systemEntity.treasuryAccount())))
                 .persist();
         var account = domainBuilder
                 .entity(domainBuilder.id(), nodeStake.getConsensusTimestamp() - 20)
@@ -910,11 +906,11 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         long previousBalanceTimestamp = balanceTimestamp - 2000;
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new Id(balanceTimestamp, EntityId.of(2L))))
+                .customize(ab -> ab.id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new Id(previousBalanceTimestamp, EntityId.of(2L))))
+                .customize(ab -> ab.id(new Id(previousBalanceTimestamp, systemEntity.treasuryAccount())))
                 .persist();
         // Deduped
         domainBuilder

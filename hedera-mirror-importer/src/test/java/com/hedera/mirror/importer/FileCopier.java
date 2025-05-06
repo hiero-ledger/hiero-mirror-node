@@ -2,8 +2,10 @@
 
 package com.hedera.mirror.importer;
 
+import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.StreamType;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import java.io.File;
 import java.io.FileFilter;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,9 +13,12 @@ import java.nio.file.Paths;
 import java.util.function.Function;
 import lombok.CustomLog;
 import lombok.NonNull;
+import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.Value;
+import lombok.experimental.NonFinal;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.file.AccumulatorPathVisitor;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.apache.commons.lang3.StringUtils;
@@ -23,11 +28,16 @@ import org.apache.commons.lang3.StringUtils;
 public class FileCopier {
 
     private static final FileFilter ALL_FILTER = f -> true;
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
 
     private final Path from;
     private final Path to;
     private final FileFilter dirFilter;
     private final FileFilter fileFilter;
+
+    @NonFinal
+    @Setter
+    private boolean ignoreNonZeroRealmShard = false;
 
     private FileCopier(
             @NonNull Path from, @NonNull Path to, @NonNull FileFilter dirFilter, @NonNull FileFilter fileFilter) {
@@ -90,6 +100,23 @@ public class FileCopier {
                     paths.forEach(p -> log.trace("Moved: {}", p));
                 }
             }
+
+            if (ignoreNonZeroRealmShard || (COMMON_PROPERTIES.getShard() == 0 && COMMON_PROPERTIES.getRealm() == 0)) {
+                return;
+            }
+
+            var visitor = AccumulatorPathVisitor.builder().get();
+            Files.walkFileTree(to, visitor);
+            var dirs = visitor.getDirList();
+            for (var dir : dirs.subList(0, dirs.size() - 1)) {
+                var newDir = getNewDir(dir);
+                if (newDir == null) {
+                    continue;
+                }
+
+                log.debug("Moving {} to {}", dir, newDir);
+                FileUtils.moveDirectory(dir.toFile(), newDir);
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -109,6 +136,7 @@ public class FileCopier {
         var destination = destinationAdjuster.apply(to);
         var networkDir = destination.resolve(network);
         var sourceNodeDirs = FileUtils.listFilesAndDirs(from.toFile(), TrueFileFilter.INSTANCE, null);
+        long shard = ignoreNonZeroRealmShard ? 0 : COMMON_PROPERTIES.getShard();
 
         for (var sourceNodeDir : sourceNodeDirs) {
             var sourceNodeDirName = sourceNodeDir.getName();
@@ -122,7 +150,7 @@ public class FileCopier {
                 var nodeEntityId = EntityId.of(nodeAccountId);
 
                 var destinationNodeIdPath = networkDir.resolve(Path.of(
-                        String.valueOf(nodeEntityId.getShard()),
+                        String.valueOf(shard),
                         String.valueOf(nodeEntityId.getNum() - 3L), // Node ID
                         streamType.getNodeIdBasedSuffix()));
 
@@ -130,5 +158,25 @@ public class FileCopier {
                 break;
             }
         }
+    }
+
+    private File getNewDir(Path current) {
+        var dirname = current.getFileName().toString();
+        var parent = current.getParent();
+        if (dirname.matches("^record0\\.0\\.\\d+$")) {
+            var prefix = String.format("record%d.%d.", COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm());
+            return current.getParent()
+                    .resolve(dirname.replace("record0.0.", prefix))
+                    .toFile();
+        } else if (COMMON_PROPERTIES.getShard() != 0
+                && dirname.matches("^\\d+$")
+                && parent.getFileName().toString().matches("^\\d+$")) {
+            return parent.getParent()
+                    .resolve(String.valueOf(COMMON_PROPERTIES.getShard()))
+                    .resolve(dirname)
+                    .toFile();
+        }
+
+        return null;
     }
 }

@@ -4,7 +4,6 @@ package com.hedera.mirror.importer.reader.balance.line;
 
 import com.google.common.base.Splitter;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.balance.AccountBalance;
 import com.hedera.mirror.common.domain.balance.TokenBalance;
 import com.hedera.mirror.common.domain.entity.EntityId;
@@ -23,8 +22,6 @@ import org.apache.commons.codec.binary.Base64;
 public class AccountBalanceLineParserV2 implements AccountBalanceLineParser {
 
     private static final Splitter SPLITTER = Splitter.on(',').trimResults().omitEmptyStrings();
-
-    private final CommonProperties commonProperties;
 
     /**
      * Parses an account balance line to extract shard, realm, account, balance, and token balances. If the shard
@@ -61,10 +58,9 @@ public class AccountBalanceLineParserV2 implements AccountBalanceLineParser {
                 throw new InvalidDatasetException(INVALID_BALANCE + line);
             }
 
-            if (shardNum != commonProperties.getShard()) {
+            if (shardNum != 0) {
                 throw new InvalidDatasetException(String.format(
-                        "Invalid account balance line: %s. Expect " + "shard (%d), got shard (%d)",
-                        line, commonProperties.getShard(), shardNum));
+                        "Invalid account balance line: %s. Expect shard (0), got shard (%d)", line, shardNum));
             }
 
             EntityId accountId = EntityId.of(shardNum, realmNum, accountNum);

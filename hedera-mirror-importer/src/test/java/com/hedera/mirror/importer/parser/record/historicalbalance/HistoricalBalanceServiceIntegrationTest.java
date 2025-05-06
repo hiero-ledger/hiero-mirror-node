@@ -86,8 +86,9 @@ class HistoricalBalanceServiceIntegrationTest extends ImporterIntegrationTest {
                 - properties.getMinFrequency().minusMinutes(1).toNanos();
         long balanceTimestamp = partitionLowerBound + Duration.ofMinutes(1).toNanos();
 
-        treasuryAccount =
-                domainBuilder.entity(2, prevPartitionBalanceTimestamp - 200).persist();
+        treasuryAccount = domainBuilder
+                .entity(systemEntity.treasuryAccount(), prevPartitionBalanceTimestamp - 200)
+                .persist();
         account = domainBuilder
                 .entity()
                 .customize(e -> e.balanceTimestamp(balanceTimestamp))

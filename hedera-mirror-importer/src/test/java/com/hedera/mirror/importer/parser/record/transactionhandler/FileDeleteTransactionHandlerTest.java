@@ -10,7 +10,6 @@ import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hederahashgraph.api.proto.java.FileDeleteTransactionBody;
-import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
@@ -25,10 +24,7 @@ class FileDeleteTransactionHandlerTest extends AbstractDeleteOrUndeleteTransacti
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setFileDelete(FileDeleteTransactionBody.newBuilder()
-                        .setFileID(FileID.newBuilder()
-                                .setFileNum(DEFAULT_ENTITY_NUM)
-                                .build()));
+                .setFileDelete(FileDeleteTransactionBody.newBuilder().setFileID(defaultEntityId.toFileID()));
     }
 
     @Override

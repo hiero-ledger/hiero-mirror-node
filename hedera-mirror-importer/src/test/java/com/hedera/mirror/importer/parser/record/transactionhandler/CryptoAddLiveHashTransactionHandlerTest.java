@@ -23,8 +23,7 @@ class CryptoAddLiveHashTransactionHandlerTest extends AbstractTransactionHandler
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return recordItemBuilder
                 .cryptoAddLiveHash()
-                .transactionBody(
-                        b -> b.getLiveHashBuilder().getAccountIdBuilder().setAccountNum(DEFAULT_ENTITY_NUM))
+                .transactionBody(b -> b.getLiveHashBuilder().setAccountId(defaultEntityId.toAccountID()))
                 .build()
                 .getTransactionBody()
                 .toBuilder();

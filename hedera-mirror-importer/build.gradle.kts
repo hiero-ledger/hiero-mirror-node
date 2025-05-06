@@ -50,6 +50,7 @@ dependencies {
     testImplementation("org.awaitility:awaitility")
     testImplementation("org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api") // Used by s3proxy
     testImplementation("org.gaul:s3proxy")
+    testImplementation("org.junit.platform:junit-platform-launcher")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

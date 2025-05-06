@@ -115,13 +115,14 @@ class CryptoApproveAllowanceTransactionHandler extends AbstractTransactionHandle
                 continue;
             }
 
-            var spender = EntityId.of(nftApproval.getSpender());
+            var spenderId = EntityId.of(nftApproval.getSpender());
             var tokenId = EntityId.of(nftApproval.getTokenId());
             boolean hasApprovedForAll = nftApproval.hasApprovedForAll();
             parseNftApproveForAll(
-                    recordItem, nftAllowanceState, nftApproval, ownerAccountId, spender, tokenId, hasApprovedForAll);
+                    recordItem, nftAllowanceState, nftApproval, ownerAccountId, spenderId, tokenId, hasApprovedForAll);
 
-            var delegatingSpender = EntityId.of(nftApproval.getDelegatingSpender());
+            var delegatingSpenderId = EntityId.of(nftApproval.getDelegatingSpender());
+            var delegatingSpender = EntityId.isEmpty(delegatingSpenderId) ? null : delegatingSpenderId.getId();
             for (var serialNumber : nftApproval.getSerialNumbersList()) {
                 // services allows the same serial number of a nft token appears in multiple nft allowances to
                 // different spenders. The last spender will be granted such allowance.
@@ -129,7 +130,7 @@ class CryptoApproveAllowanceTransactionHandler extends AbstractTransactionHandle
                         .accountId(ownerAccountId)
                         .delegatingSpender(delegatingSpender)
                         .serialNumber(serialNumber)
-                        .spender(spender)
+                        .spender(spenderId.getId())
                         .timestampRange(Range.atLeast(consensusTimestamp))
                         .tokenId(tokenId.getId())
                         .build();
@@ -138,15 +139,15 @@ class CryptoApproveAllowanceTransactionHandler extends AbstractTransactionHandle
                     entityListener.onNft(nft);
                     if (!hasApprovedForAll) {
                         syntheticContractLogService.create(new ApproveAllowanceIndexedContractLog(
-                                recordItem, tokenId, ownerAccountId, spender, serialNumber));
+                                recordItem, tokenId, ownerAccountId, spenderId, serialNumber));
                     }
-
-                    recordItem.addEntityId(delegatingSpender);
-                    recordItem.addEntityId(ownerAccountId);
-                    recordItem.addEntityId(spender);
-                    recordItem.addEntityId(tokenId);
                 }
             }
+
+            recordItem.addEntityId(delegatingSpenderId);
+            recordItem.addEntityId(ownerAccountId);
+            recordItem.addEntityId(spenderId);
+            recordItem.addEntityId(tokenId);
         }
     }
 

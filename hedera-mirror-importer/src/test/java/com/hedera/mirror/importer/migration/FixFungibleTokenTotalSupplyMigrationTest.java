@@ -39,8 +39,8 @@ class FixFungibleTokenTotalSupplyMigrationTest extends ImporterIntegrationTest {
     void migrate() {
         // given
         long lastTimestamp = domainBuilder.timestamp();
-        var treasuryAccount =
-                domainBuilder.entity().customize(a -> a.num(2L)).persist().toEntityId();
+        var treasuryAccount = systemEntity.treasuryAccount();
+        domainBuilder.entity(treasuryAccount).persist();
         var account = domainBuilder.entity().persist().toEntityId();
         long token1DissociateAmount = 500;
         var treasury = domainBuilder.entity().persist().toEntityId();

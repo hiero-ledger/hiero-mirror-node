@@ -10,7 +10,6 @@ import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hederahashgraph.api.proto.java.ScheduleDeleteTransactionBody;
-import com.hederahashgraph.api.proto.java.ScheduleID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
@@ -25,8 +24,8 @@ class ScheduleDeleteTransactionHandlerTest extends AbstractDeleteOrUndeleteTrans
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setScheduleDelete(ScheduleDeleteTransactionBody.newBuilder()
-                        .setScheduleID(ScheduleID.newBuilder().setScheduleNum(DEFAULT_ENTITY_NUM)));
+                .setScheduleDelete(
+                        ScheduleDeleteTransactionBody.newBuilder().setScheduleID(defaultEntityId.toScheduleID()));
     }
 
     @Override
