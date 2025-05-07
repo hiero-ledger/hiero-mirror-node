@@ -10,8 +10,8 @@ import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_4
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_50;
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
-import static com.swirlds.common.utility.CommonUtils.unhex;
 import static com.swirlds.state.lifecycle.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
+import static org.hiero.base.utility.CommonUtils.unhex;
 
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.SemanticVersion;

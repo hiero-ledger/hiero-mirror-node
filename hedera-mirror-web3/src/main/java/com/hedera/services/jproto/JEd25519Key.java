@@ -3,8 +3,8 @@
 package com.hedera.services.jproto;
 
 import com.hederahashgraph.api.proto.java.Key;
-import com.swirlds.common.utility.CommonUtils;
 import java.util.Arrays;
+import org.hiero.base.utility.CommonUtils;
 
 /** Maps to proto Key of type ed25519. */
 public class JEd25519Key extends JKey {

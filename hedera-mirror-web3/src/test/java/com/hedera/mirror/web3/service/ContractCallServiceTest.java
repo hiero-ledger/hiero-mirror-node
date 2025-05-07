@@ -744,7 +744,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, senderAddress);
-        final var actualGas = 175242L;
+        final var actualGas = mirrorNodeEvmProperties.isModularizedServices() ? 1413995L : 175242L;
         persistRewardAccounts();
 
         // When
@@ -763,7 +763,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, Address.ZERO);
-        final var actualGas = 175242L;
+        final var actualGas = mirrorNodeEvmProperties.isModularizedServices() ? 1413995L : 175242L;
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
