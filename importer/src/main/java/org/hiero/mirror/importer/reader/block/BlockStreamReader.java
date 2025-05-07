@@ -6,5 +6,7 @@ import com.hedera.mirror.common.domain.transaction.BlockFile;
 
 public interface BlockStreamReader {
 
+    int VERSION = 7;
+
     BlockFile read(BlockStream blockStream);
 }

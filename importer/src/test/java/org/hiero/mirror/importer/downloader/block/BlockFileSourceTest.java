@@ -4,10 +4,11 @@ package org.hiero.mirror.importer.downloader.block;
 
 import static org.apache.commons.lang3.StringUtils.countMatches;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.importer.TestUtils.S3_PROXY_PORT;
 import static org.hiero.mirror.importer.TestUtils.generateRandomByteArray;
 import static org.hiero.mirror.importer.TestUtils.gzip;
-import static org.hiero.mirror.importer.reader.block.ProtoBlockFileReaderTest.TEST_BLOCK_FILES;
+import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_BLOCK_FILES;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doNothing;
@@ -18,7 +19,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ch.qos.logback.classic.Level;
@@ -51,8 +51,9 @@ import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
+import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
-import org.hiero.mirror.importer.reader.block.ProtoBlockFileReader;
+import org.hiero.mirror.importer.reader.block.BlockStreamReaderImpl;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,13 +77,13 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
-class BlockStreamPollerTest {
+class BlockFileSourceTest {
 
     @TempDir
     private Path archivePath;
 
     private BlockStreamVerifier blockStreamVerifier;
-    private BlockStreamPoller blockStreamPoller;
+    private BlockFileSource blockFileSource;
 
     @Mock(strictness = Strictness.LENIENT)
     private ConsensusNodeService consensusNodeService;
@@ -90,12 +91,12 @@ class BlockStreamPollerTest {
     @TempDir
     private Path dataPath;
 
-    private CommonProperties commonProperties = CommonProperties.getInstance();
+    private final CommonProperties commonProperties = CommonProperties.getInstance();
     private CommonDownloaderProperties commonDownloaderProperties;
     private FileCopier fileCopier;
     private ImporterProperties importerProperties;
     private List<ConsensusNode> nodes;
-    private BlockPollerProperties properties;
+    private BlockStreamProperties properties;
     private MeterRegistry meterRegistry;
 
     @Mock
@@ -117,7 +118,7 @@ class BlockStreamPollerTest {
         importerProperties.setDataPath(archivePath);
         commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
         commonDownloaderProperties.setPathType(PathType.NODE_ID);
-        properties = new BlockPollerProperties();
+        properties = new BlockStreamProperties();
         properties.setEnabled(true);
         meterRegistry = new SimpleMeterRegistry();
 
@@ -150,14 +151,14 @@ class BlockStreamPollerTest {
                 .transform(any(BlockFile.class));
         blockStreamVerifier = spy(new BlockStreamVerifier(
                 blockFileTransformer, recordFileRepository, mock(StreamFileNotifier.class), meterRegistry));
-        blockStreamPoller = new BlockStreamPoller(
-                new ProtoBlockFileReader(),
+        blockFileSource = new BlockFileSource(
+                new BlockStreamReaderImpl(),
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 consensusNodeService,
+                meterRegistry,
                 properties,
-                streamFileProvider,
-                meterRegistry);
+                streamFileProvider);
 
         var fromPath = Path.of("data", "blockstreams");
         fileCopier = FileCopier.create(
@@ -170,15 +171,6 @@ class BlockStreamPollerTest {
     @SneakyThrows
     void teardown() {
         s3Proxy.stop();
-    }
-
-    @Test
-    void disabled() {
-        properties.setEnabled(false);
-        blockStreamPoller.poll();
-        verifyNoInteractions(blockStreamVerifier);
-        verifyNoInteractions(consensusNodeService);
-        verifyNoInteractions(recordFileRepository);
     }
 
     @ParameterizedTest(name = "startBlockNumber={0}")
@@ -199,7 +191,7 @@ class BlockStreamPollerTest {
                         .build()));
 
         // when
-        blockStreamPoller.poll();
+        blockFileSource.get();
 
         // then
         verify(blockStreamVerifier)
@@ -217,7 +209,7 @@ class BlockStreamPollerTest {
         Mockito.reset(blockStreamVerifier);
 
         // when
-        blockStreamPoller.poll();
+        blockFileSource.get();
 
         // then
         byte[] expectedBytes = FileUtils.readFileToByteArray(
@@ -244,14 +236,16 @@ class BlockStreamPollerTest {
     @Test
     void genesisNotFound(CapturedOutput output) {
         // given, when
-        blockStreamPoller.poll();
+        String filename = BlockFile.getBlockStreamFilename(0L);
+        assertThatThrownBy(blockFileSource::get)
+                .isInstanceOf(BlockStreamException.class)
+                .hasMessage("Failed to download block file " + filename);
 
         // then
         verify(blockStreamVerifier, never()).verify(any(BlockFile.class));
         verify(consensusNodeService).getNodes();
         verify(recordFileRepository).findLatest();
 
-        String filename = BlockFile.getBlockStreamFilename(0L);
         String logs = output.getAll();
         assertThat(countMatches(logs, "Downloaded block file " + filename)).isZero();
         var nodeLogs = findAllMatches(logs, "Failed to process block file " + filename + " from node \\d");
@@ -260,8 +254,6 @@ class BlockStreamPollerTest {
                 .map(nodeId -> "Failed to process block file %s from node %d".formatted(filename, nodeId))
                 .toList();
         assertThat(nodeLogs).containsExactlyInAnyOrderElementsOf(expectedNodeLogs);
-        assertThat(countMatches(logs, "Failed to download block file " + filename))
-                .isOne();
     }
 
     @SneakyThrows
@@ -273,7 +265,9 @@ class BlockStreamPollerTest {
         FileUtils.writeByteArrayToFile(genesisBlockFile, gzip(generateRandomByteArray(1024)));
 
         // when
-        blockStreamPoller.poll();
+        assertThatThrownBy(blockFileSource::get)
+                .isInstanceOf(BlockStreamException.class)
+                .hasMessage("Failed to download block file " + filename);
 
         // then
         verify(blockStreamVerifier, never()).verify(any(BlockFile.class));
@@ -289,8 +283,6 @@ class BlockStreamPollerTest {
                 .map(nodeId -> "Failed to process block file %s from node %d".formatted(filename, nodeId))
                 .toList();
         assertThat(errorLogs).containsExactlyInAnyOrderElementsOf(expected);
-        assertThat(countMatches(logs, "Failed to download block file " + filename))
-                .isOne();
     }
 
     @Test
@@ -302,7 +294,7 @@ class BlockStreamPollerTest {
         doNothing().when(blockStreamVerifier).verify(any());
 
         // when
-        blockStreamPoller.poll();
+        blockFileSource.get();
 
         // then
         verify(blockStreamVerifier)
@@ -325,17 +317,19 @@ class BlockStreamPollerTest {
         var streamFileProvider = mock(StreamFileProvider.class);
         when(streamFileProvider.get(any(), any()))
                 .thenReturn(Mono.delay(Duration.ofMillis(120L)).then(Mono.empty()));
-        var poller = new BlockStreamPoller(
-                new ProtoBlockFileReader(),
+        var source = new BlockFileSource(
+                new BlockStreamReaderImpl(),
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 consensusNodeService,
+                meterRegistry,
                 properties,
-                streamFileProvider,
-                meterRegistry);
+                streamFileProvider);
 
         // when
-        poller.poll();
+        assertThatThrownBy(source::get)
+                .isInstanceOf(BlockStreamException.class)
+                .hasMessage("Failed to download block file " + filename);
 
         // then
         verify(blockStreamVerifier, never()).verify(any(BlockFile.class));
@@ -348,8 +342,6 @@ class BlockStreamPollerTest {
         assertThat(countMatches(logs, "Failed to download block file " + filename + "from node"))
                 .isZero();
         assertThat(countMatches(logs, "Failed to process block file " + filename))
-                .isOne();
-        assertThat(countMatches(logs, "Failed to download block file " + filename))
                 .isOne();
     }
 
@@ -367,7 +359,9 @@ class BlockStreamPollerTest {
         fileCopier.filterFiles(filename).to("1").copy();
 
         // when
-        blockStreamPoller.poll();
+        assertThatThrownBy(blockFileSource::get)
+                .isInstanceOf(BlockStreamException.class)
+                .hasMessage("Failed to download block file " + filename);
 
         // then
         verify(blockStreamVerifier, times(2)).verify(argThat(b -> b.getIndex() == blockNumber(0)));
@@ -386,8 +380,6 @@ class BlockStreamPollerTest {
                 .map(nodeId -> "Failed to process block file %s from node %d".formatted(filename, nodeId))
                 .toList();
         assertThat(errorLogs).containsExactlyInAnyOrderElementsOf(expected);
-        assertThat(countMatches(logs, "Failed to download block file " + filename))
-                .isOne();
     }
 
     @RepeatedTest(5)
@@ -408,7 +400,7 @@ class BlockStreamPollerTest {
         fileCopier.filterFiles(filename).to("1").copy();
 
         // when
-        blockStreamPoller.poll();
+        blockFileSource.get();
 
         // then
         verify(blockStreamVerifier, times(2)).verify(argThat(b -> b.getIndex() == blockNumber(0)));

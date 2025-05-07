@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import com.hedera.mirror.common.domain.transaction.BlockFile;
-import com.hedera.mirror.importer.downloader.BlockStreamSource;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;

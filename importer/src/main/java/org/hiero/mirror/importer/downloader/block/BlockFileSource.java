@@ -7,6 +7,7 @@ import com.hedera.hapi.block.stream.protoc.Block;
 import com.hedera.mirror.common.domain.StreamType;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import jakarta.inject.Named;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -19,10 +20,12 @@ import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
+import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.util.Utility;
 
+@Named
 final class BlockFileSource extends AbstractBlockStreamSource {
 
     private final ConsensusNodeService consensusNodeService;
@@ -98,7 +101,7 @@ final class BlockFileSource extends AbstractBlockStreamSource {
             timeout = commonDownloaderProperties.getTimeout().minus(stopwatch.elapsed());
         }
 
-        throw new RuntimeException("Failed to download block file " + filename);
+        throw new BlockStreamException("Failed to download block file " + filename);
     }
 
     private BlockStream getBlockStream(StreamFileData blockFileData, long nodeId) throws IOException {
@@ -110,8 +113,7 @@ final class BlockFileSource extends AbstractBlockStreamSource {
                     bytes,
                     blockFileData.getFilename(),
                     blockFileData.getStreamFilename().getTimestamp(),
-                    nodeId,
-                    bytes.length);
+                    nodeId);
         }
     }
 

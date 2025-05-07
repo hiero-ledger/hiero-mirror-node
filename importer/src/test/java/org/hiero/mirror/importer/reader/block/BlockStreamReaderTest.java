@@ -40,7 +40,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-public class ProtoBlockFileReaderTest {
+public class BlockStreamReaderTest {
 
     public static final List<BlockFile> TEST_BLOCK_FILES = List.of(
             BlockFile.builder()
@@ -56,7 +56,7 @@ public class ProtoBlockFileReaderTest {
                             "47ad177417a4e6a85c67660dc9abcd5e735ae689f5a3096c68bbdff6b330e7951ddd545cd16445d19118975464380a3b")
                     .roundStart(521L)
                     .roundEnd(527L)
-                    .version(ProtoBlockFileReader.VERSION)
+                    .version(BlockStreamReader.VERSION)
                     .build(),
             BlockFile.builder()
                     .consensusStart(1746477301948765000L)
@@ -71,7 +71,7 @@ public class ProtoBlockFileReaderTest {
                             "fb31381a223175f1f8730df52be31c318eb093f8029440da2d3f0ed19f29e58af111b5c1600412eed02be1e92b4befb4")
                     .roundStart(528L)
                     .roundEnd(534L)
-                    .version(ProtoBlockFileReader.VERSION)
+                    .version(BlockStreamReader.VERSION)
                     .build(),
             BlockFile.builder()
                     .consensusStart(1746477093416982857L)
@@ -86,16 +86,16 @@ public class ProtoBlockFileReaderTest {
                             "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
                     .roundStart(1L)
                     .roundEnd(1L)
-                    .version(ProtoBlockFileReader.VERSION)
+                    .version(BlockStreamReader.VERSION)
                     .build());
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
-    private final ProtoBlockFileReader reader = new ProtoBlockFileReader();
+    private final BlockStreamReader reader = new BlockStreamReaderImpl();
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("readTestArgumentsProvider")
-    void read(String filename, StreamFileData streamFileData, BlockFile expected) {
-        var actual = reader.read(streamFileData);
+    void read(BlockStream blockStream, BlockFile expected) {
+        var actual = reader.read(blockStream);
         assertThat(actual)
                 .usingRecursiveComparison()
                 .ignoringFields("blockHeader", "blockProof", "items")
@@ -125,17 +125,19 @@ public class ProtoBlockFileReaderTest {
                         .setRecordFile(RecordFileItem.getDefaultInstance())
                         .build())
                 .build();
-        byte[] bytes = gzip(block);
-        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(1), bytes);
+        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
         var expected = BlockFile.builder()
-                .loadStart(streamFileData.getStreamFilename().getTimestamp())
-                .name(streamFileData.getFilename())
+                .bytes(blockStream.bytes())
+                .loadStart(blockStream.loadStart())
+                .name(blockStream.filename())
+                .nodeId(blockStream.nodeId())
                 .recordFileItem(RecordFileItem.getDefaultInstance())
-                .version(ProtoBlockFileReader.VERSION)
+                .size(blockStream.bytes().length)
+                .version(BlockStreamReader.VERSION)
                 .build();
 
         // when
-        var actual = reader.read(streamFileData);
+        var actual = reader.read(blockStream);
 
         // then
         assertThat(actual).isEqualTo(expected);
@@ -218,9 +220,9 @@ public class ProtoBlockFileReaderTest {
                 .addItems(BlockItem.newBuilder().setStateChanges(postBatchStateChanges))
                 .addItems(blockProof())
                 .build();
-        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(1), gzip(block));
+        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
 
-        var blockFile = reader.read(streamFileData);
+        var blockFile = reader.read(blockStream);
         var items = blockFile.getItems();
         var batchParentItem = blockFile.getItems().get(1);
         var precedingChild = blockFile.getItems().get(2);
@@ -291,11 +293,11 @@ public class ProtoBlockFileReaderTest {
                 .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult1))
                 .addItems(blockProof())
                 .build();
-        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(1), gzip(block));
+        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
 
-        assertThatThrownBy(() -> reader.read(streamFileData))
+        assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessage("Missing transaction result in block file 000000000000000000000000000000000001.blk.gz");
+                .hasMessage("Missing transaction result in block 000000000000000000000000000000000001.blk.gz");
     }
 
     @Test
@@ -330,12 +332,13 @@ public class ProtoBlockFileReaderTest {
                 .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult1))
                 .addItems(blockProof())
                 .build();
-        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(1), gzip(block));
+        //        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(1), gzip(block));
+        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
 
-        assertThatThrownBy(() -> reader.read(streamFileData))
+        assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessage(
-                        "Failed to parse inner transaction from atomic batch in block file 000000000000000000000000000000000001.blk.gz");
+                        "Failed to parse inner transaction from atomic batch in block 000000000000000000000000000000000001.blk.gz");
     }
 
     @Test
@@ -351,15 +354,15 @@ public class ProtoBlockFileReaderTest {
                 .addItems(stateChanges)
                 .addItems(blockProof())
                 .build();
-        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(0), gzip(block));
+        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
         long timestamp =
                 DomainUtils.timestampInNanosMax(stateChanges.getStateChanges().getConsensusTimestamp());
-        assertThat(reader.read(streamFileData))
+        assertThat(reader.read(blockStream))
                 .returns(timestamp, BlockFile::getConsensusEnd)
                 .returns(timestamp, BlockFile::getConsensusStart)
                 .returns(0L, BlockFile::getCount)
                 .returns(List.of(), BlockFile::getItems)
-                .returns(ProtoBlockFileReader.VERSION, BlockFile::getVersion);
+                .returns(BlockStreamReader.VERSION, BlockFile::getVersion);
     }
 
     @Test
@@ -388,10 +391,10 @@ public class ProtoBlockFileReaderTest {
                 .addItems(BlockItem.newBuilder().setStateChanges(nonTransactionStateChange))
                 .addItems(blockProof())
                 .build();
-        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(0), gzip(block));
+        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
 
         // when
-        var blockFile = reader.read(streamFileData);
+        var blockFile = reader.read(blockStream);
 
         // then the block item should only have its own state changes
         assertThat(blockFile)
@@ -412,8 +415,8 @@ public class ProtoBlockFileReaderTest {
     @Test
     void throwWhenMissingBlockHeader() {
         var block = Block.newBuilder().addItems(blockProof()).build();
-        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(1), gzip(block));
-        assertThatThrownBy(() -> reader.read(streamFileData))
+        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block header");
     }
@@ -421,8 +424,8 @@ public class ProtoBlockFileReaderTest {
     @Test
     void throwWhenMissingBlockProof() {
         var block = Block.newBuilder().addItems(blockHeader()).build();
-        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(1), gzip(block));
-        assertThatThrownBy(() -> reader.read(streamFileData))
+        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block proof");
     }
@@ -438,8 +441,8 @@ public class ProtoBlockFileReaderTest {
                 .addItems(eventTransaction())
                 .addItems(blockProof())
                 .build();
-        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(1), gzip(block));
-        assertThatThrownBy(() -> reader.read(streamFileData))
+        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing transaction result");
     }
@@ -461,8 +464,8 @@ public class ProtoBlockFileReaderTest {
                 .addItems(transactionResult)
                 .addItems(blockProof())
                 .build();
-        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(1), gzip(block));
-        assertThatThrownBy(() -> reader.read(streamFileData))
+        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Failed to deserialize Transaction");
     }
@@ -535,14 +538,25 @@ public class ProtoBlockFileReaderTest {
         return eventTransaction(transaction);
     }
 
-    private byte[] gzip(Block block) {
-        return TestUtils.gzip(block.toByteArray());
-    }
-
     private BlockItem stateChanges() {
         return BlockItem.newBuilder()
                 .setStateChanges(StateChanges.newBuilder().setConsensusTimestamp(domainBuilder.protoTimestamp()))
                 .build();
+    }
+
+    private static BlockStream createBlockStream(Block block, byte[] bytes, String filename) {
+        if (bytes == null) {
+            bytes = TestUtils.gzip(block.toByteArray());
+        }
+
+        return new BlockStream(block.getItemsList(), bytes, filename, TestUtils.id(), TestUtils.id());
+    }
+
+    @SneakyThrows
+    private static Block getBlock(StreamFileData blockFileData) {
+        try (var is = blockFileData.getInputStream()) {
+            return Block.parseFrom(is.readAllBytes());
+        }
     }
 
     @SneakyThrows
@@ -550,10 +564,13 @@ public class ProtoBlockFileReaderTest {
         return TEST_BLOCK_FILES.stream().map(blockFile -> {
             var file = TestUtils.getResource("data/blockstreams/" + blockFile.getName());
             var streamFileData = StreamFileData.from(file);
-            blockFile.setBytes(streamFileData.getBytes());
-            blockFile.setLoadStart(streamFileData.getStreamFilename().getTimestamp());
-            blockFile.setSize(streamFileData.getBytes().length);
-            return Arguments.of(blockFile.getName(), streamFileData, blockFile);
+            byte[] bytes = streamFileData.getBytes();
+            var blockStream = createBlockStream(getBlock(streamFileData), bytes, blockFile.getName());
+            blockFile.setBytes(bytes);
+            blockFile.setLoadStart(blockStream.loadStart());
+            blockFile.setNodeId(blockStream.nodeId());
+            blockFile.setSize(bytes.length);
+            return Arguments.of(blockStream, blockFile);
         });
     }
 }

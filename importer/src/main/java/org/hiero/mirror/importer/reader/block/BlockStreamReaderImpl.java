@@ -39,17 +39,17 @@ import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 @Named
 public class BlockStreamReaderImpl implements BlockStreamReader {
 
-    static final int VERSION = 7;
-
     @Override
     public BlockFile read(@NotNull BlockStream blockStream) {
         var context = new ReaderContext(blockStream.blockItems(), blockStream.filename());
+        byte[] bytes = blockStream.bytes();
+        Integer size = bytes != null ? bytes.length : null;
         var blockFileBuilder = context.getBlockFile()
-                .bytes(blockStream.bytes())
+                .bytes(bytes)
                 .loadStart(blockStream.loadStart())
                 .name(blockStream.filename())
                 .nodeId(blockStream.nodeId())
-                .size(blockStream.size())
+                .size(size)
                 .version(VERSION);
 
         var blockItem = context.readBlockItemFor(RECORD_FILE);
@@ -81,7 +81,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
     private void readBlockHeader(ReaderContext context) {
         var blockItem = context.readBlockItemFor(BLOCK_HEADER);
         if (blockItem == null) {
-            throw new InvalidStreamFileException("Missing block header in block file " + context.getFilename());
+            throw new InvalidStreamFileException("Missing block header in block " + context.getFilename());
         }
 
         var blockFileBuilder = context.getBlockFile();
@@ -91,7 +91,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
             blockFileBuilder.digestAlgorithm(DigestAlgorithm.SHA_384);
         } else {
             throw new InvalidStreamFileException(String.format(
-                    "Unsupported hash algorithm %s in block header of block file %s",
+                    "Unsupported hash algorithm %s in block header of block %s",
                     blockHeader.getHashAlgorithm(), context.getFilename()));
         }
 
@@ -102,7 +102,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
     private void readBlockProof(ReaderContext context) {
         var blockItem = context.readBlockItemFor(BLOCK_PROOF);
         if (blockItem == null) {
-            throw new InvalidStreamFileException("Missing block proof in file " + context.getFilename());
+            throw new InvalidStreamFileException("Missing block proof in block " + context.getFilename());
         }
 
         var blockFile = context.getBlockFile();
@@ -128,7 +128,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
                 var transactionResultProtoBlockItem = context.readBlockItemFor(TRANSACTION_RESULT);
                 if (transactionResultProtoBlockItem == null) {
                     throw new InvalidStreamFileException(
-                            "Missing transaction result in block file " + context.getFilename());
+                            "Missing transaction result in block " + context.getFilename());
                 }
 
                 var transactionOutputs = new EnumMap<TransactionOutput.TransactionCase, TransactionOutput>(
@@ -164,7 +164,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
             }
         } catch (InvalidProtocolBufferException e) {
             throw new InvalidStreamFileException(
-                    "Failed to deserialize Transaction from block file " + context.getFilename(), e);
+                    "Failed to deserialize Transaction from block " + context.getFilename(), e);
         }
     }
 
@@ -243,7 +243,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
                 var innerTransaction = Transaction.parseFrom(batchBody.getTransactions(batchIndex++));
                 if (innerTransaction == null || Transaction.getDefaultInstance().equals(innerTransaction)) {
                     throw new InvalidStreamFileException(
-                            "Failed to parse inner transaction from atomic batch in block file " + filename);
+                            "Failed to parse inner transaction from atomic batch in block " + filename);
                 }
                 return innerTransaction;
             }

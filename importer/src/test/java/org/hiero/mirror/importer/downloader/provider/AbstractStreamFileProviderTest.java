@@ -5,7 +5,7 @@ package org.hiero.mirror.importer.downloader.provider;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.importer.domain.StreamFilename.SIDECAR_FOLDER;
-import static org.hiero.mirror.importer.reader.block.ProtoBlockFileReaderTest.TEST_BLOCK_FILES;
+import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_BLOCK_FILES;
 
 import com.google.common.collect.Streams;
 import com.hedera.mirror.common.CommonProperties;
