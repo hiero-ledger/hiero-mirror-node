@@ -102,7 +102,7 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
 
     private void downloadSidecars(StreamFilename recordFilename, RecordFile recordFile, ConsensusNode node) {
         // do nothing if both writing sidecars files and sidecar parsing options are disabled, or sidecars are empty
-        if (!downloaderProperties.isWriteSidecars() && !sidecarProperties.isEnabled()
+        if (!((RecordDownloaderProperties) downloaderProperties).isWriteSidecars() && !sidecarProperties.isEnabled()
                 || recordFile.getSidecars().isEmpty()) {
             return;
         }
@@ -145,9 +145,7 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
             }
 
             if (downloaderProperties.isWriteFiles()) {
-                var streamPath = importerProperties
-                        .getStreamPath()
-                        .resolve(streamFileData.getFilename().substring(0, 10));
+                var streamPath = importerProperties.getArchiveDestinationFolderPath(streamFileData);
                 Utility.archiveFile(streamFileData.getFilePath(), sidecar.getBytes(), streamPath);
             }
 

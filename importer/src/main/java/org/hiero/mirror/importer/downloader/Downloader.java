@@ -333,9 +333,7 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
 
                 verify(streamFile, signature);
 
-                var archiveDestinationFolder = importerProperties
-                        .getStreamPath()
-                        .resolve(streamFileData.getFilename().substring(0, 10));
+                var archiveDestinationFolder = importerProperties.getArchiveDestinationFolderPath(streamFileData);
 
                 if (downloaderProperties.isWriteFiles()) {
                     Utility.archiveFile(streamFileData.getFilePath(), streamFile.getBytes(), archiveDestinationFolder);
