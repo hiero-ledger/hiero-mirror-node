@@ -1417,7 +1417,7 @@ const addToken = async (custom) => {
   token.token_id = EntityId.parse(token.token_id).getEncodedId();
   token.treasury_account_id = EntityId.parse(token.treasury_account_id).getEncodedId();
 
-  convertByteaFields(['metadata'], token);
+  convertByteaFields(['metadata', 'fee_schedule_key', 'supply_key'], token);
   const table = getTableName('token', token);
   await insertDomainObject(table, insertFields, token);
 

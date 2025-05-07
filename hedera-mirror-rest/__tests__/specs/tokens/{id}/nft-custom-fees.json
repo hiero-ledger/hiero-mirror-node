@@ -163,7 +163,7 @@
     "expiry_timestamp": null,
     "fee_schedule_key": {
       "_type": "ProtobufEncoded",
-      "key": "7b2231222c2232222c2233227d"
+      "key": "010203"
     },
     "freeze_default": false,
     "freeze_key": null,

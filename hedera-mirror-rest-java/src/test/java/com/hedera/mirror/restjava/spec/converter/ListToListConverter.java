@@ -9,13 +9,13 @@ import org.springframework.core.convert.converter.Converter;
 
 @Named
 @ConfigurationPropertiesBinding
-public class ListToListOfLongConverter implements Converter<List<?>, List<Long>> {
+public class ListToListConverter implements Converter<List<?>, List<?>> {
     @Override
-    public List<Long> convert(List<?> source) {
+    public List<?> convert(List<?> source) {
         return source.stream()
                 .map(value -> switch (value) {
                     case Integer intValue -> (long) intValue;
-                    default -> throw new IllegalStateException("Invalid type: " + value.getClass());
+                    default -> value;
                 })
                 .toList();
     }

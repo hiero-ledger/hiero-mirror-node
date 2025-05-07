@@ -71,7 +71,9 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
 
                         return HEX_FORMAT.parseHex(cleanValueStr);
                     }
-                    return Base64.getDecoder().decode(valueStr);
+
+                    var cleanedBase64Source = valueStr.replaceAll("[^A-Za-z0-9+/=]", "");
+                    return Base64.getDecoder().decode(cleanedBase64Source);
                 }
 
                 if (value instanceof Collection<?> valueCollection) {
@@ -83,13 +85,16 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
                 return value;
             };
     protected static final BiFunction<Object, SpecBuilderContext, Object> RAW_BYTES_CONVERTER =
-            (value, builderContext) -> {
-                if (value instanceof String valueStr) {
-                    return valueStr.getBytes();
-                }
-
-                throw new IllegalArgumentException(
-                        "Unsupported value type for RAW_BYTES_CONVERTER: " + value.getClass());
+            (value, builderContext) -> switch (value) {
+                case null -> null;
+                case String valueStr -> valueStr.getBytes();
+                case Collection<?> valueCollection ->
+                    ArrayUtils.toPrimitive(valueCollection.stream()
+                            .map(item -> ((Integer) item).byteValue())
+                            .toArray(Byte[]::new));
+                default ->
+                    throw new IllegalArgumentException(
+                            "Unsupported value type for RAW_BYTES_CONVERTER: " + value.getClass());
             };
     private static final Map<Class<?>, Map<String, Method>> methodCache = new ConcurrentHashMap<>();
     // Map a synthetic spec attribute name to another attribute name convertable to a builder method name

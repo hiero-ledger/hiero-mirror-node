@@ -22,7 +22,7 @@ import java.util.function.Supplier;
 @Named
 public class TokenBuilder extends AbstractEntityBuilder<AbstractToken, AbstractToken.AbstractTokenBuilder<?, ?>> {
     private static final Map<String, BiFunction<Object, SpecBuilderContext, Object>> PARAMETER_CONVERTERS =
-            Map.of("metadata", RAW_BYTES_CONVERTER);
+            Map.of("metadata", RAW_BYTES_CONVERTER, "supplyKey", HEX_OR_BASE64_CONVERTER);
 
     public TokenBuilder() {
         super(PARAMETER_CONVERTERS);
@@ -53,10 +53,8 @@ public class TokenBuilder extends AbstractEntityBuilder<AbstractToken, AbstractT
         var token = builder.build();
 
         if (TokenTypeEnum.NON_FUNGIBLE_UNIQUE.equals(token.getType())) {
-            if (token.getDecimals() == null) {
-                token.setDecimals(0);
-                token.setInitialSupply(0L);
-            }
+            token.setDecimals(0);
+            token.setInitialSupply(0L);
         }
         if (token.getTimestampRange() == null) {
             token.setTimestampRange(Range.atLeast(token.getCreatedTimestamp()));

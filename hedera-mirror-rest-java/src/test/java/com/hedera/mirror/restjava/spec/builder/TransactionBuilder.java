@@ -2,13 +2,16 @@
 
 package com.hedera.mirror.restjava.spec.builder;
 
+import com.hedera.mirror.common.domain.token.NftTransfer;
 import com.hedera.mirror.common.domain.transaction.Transaction;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hedera.mirror.restjava.spec.model.SpecSetup;
 import jakarta.inject.Named;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 @Named
@@ -46,7 +49,27 @@ public class TransactionBuilder extends AbstractEntityBuilder<Transaction, Trans
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     protected Supplier<List<Map<String, Object>>> getSpecEntitiesSupplier(SpecSetup specSetup) {
-        return specSetup::transactions;
+        return () -> Optional.ofNullable(specSetup.transactions())
+                .map(transactions -> transactions.stream()
+                        .map(transaction -> {
+                            var nftTransfer = (List<Map<String, Object>>) transaction.get("nft_transfer");
+
+                            if (nftTransfer != null) {
+                                var nftTransfers = nftTransfer.stream()
+                                        .map(transfer -> {
+                                            var builder = NftTransfer.builder();
+                                            customizeWithSpec(builder, transfer, new SpecBuilderContext(transfer));
+                                            return builder.build();
+                                        })
+                                        .toList();
+                                transaction = new HashMap<>(transaction);
+                                transaction.put("nft_transfer", nftTransfers);
+                            }
+                            return transaction;
+                        })
+                        .toList())
+                .orElse(null);
     }
 }

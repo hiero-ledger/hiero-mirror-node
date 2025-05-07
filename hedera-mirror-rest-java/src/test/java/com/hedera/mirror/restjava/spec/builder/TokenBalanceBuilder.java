@@ -72,13 +72,14 @@ public class TokenBalanceBuilder extends AbstractEntityBuilder<TokenBalance, Tok
         return Collections.emptyList();
     }
 
+    // TODO// Use id builder like contract transaction
     private TokenBalance.Id getId(Map<String, Object> specEntity) {
         var consensusTimestamp =
                 specEntity.getOrDefault("timestamp", specEntity.getOrDefault("consensus_timestamp", 1));
         var accountIdVal = specEntity.get("id");
         var tokenNum = Long.parseLong(specEntity.getOrDefault("token_num", 0).toString());
         var tokenRealm = Long.parseLong(specEntity
-                .getOrDefault("token_realm_num", commonProperties.getRealm())
+                .getOrDefault("token_realm_num", specEntity.getOrDefault("token_realm", commonProperties.getRealm()))
                 .toString());
         var accountRealm = Long.parseLong(specEntity
                 .getOrDefault("realm_num", commonProperties.getRealm())

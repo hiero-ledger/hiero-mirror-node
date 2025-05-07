@@ -16,6 +16,8 @@ import com.hedera.mirror.restjava.spec.model.RestSpecNormalized;
 import com.hedera.mirror.restjava.spec.model.SpecTestNormalized;
 import java.io.File;
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,7 +57,7 @@ class RestSpecTest extends RestJavaIntegrationTest {
             .map(Path::toString)
             .toList();
     private static final Pattern INCLUDED_SPEC_DIRS = Pattern.compile(
-            "^(accounts.*|balances.*|blocks.*|contracts.*|network/exchangerate.*|network/fees.*|network/stake.*)$");
+            "^(accounts.*|balances.*|blocks.*|contracts.*|network/exchangerate.*|network/fees.*|network/stake.*|tokens.*)$");
     private static final String RESPONSE_HEADER_FILE = "responseHeaders.json";
     private static final int JS_REST_API_CONTAINER_PORT = 5551;
     private static final Path REST_BASE_PATH = Path.of("..", "hedera-mirror-rest", "__tests__", "specs");
@@ -68,7 +70,7 @@ class RestSpecTest extends RestJavaIntegrationTest {
             return INCLUDED_SPEC_DIRS.matcher(dirName).matches()
                     && !RESPONSE_HEADER_FILE.equals(file.getName())
                     //                                         &&
-                    // file.getName().endsWith("failed-ethereum-transaction-with-default-contract-result.json")
+                    //                     && file.getName().endsWith("all-args.json")
                     && EXCLUDED_SPEC_FILES.stream()
                             .noneMatch(path -> file.getPath().endsWith(path));
         }
@@ -179,7 +181,7 @@ class RestSpecTest extends RestJavaIntegrationTest {
 
         var response = restClient
                 .get()
-                .uri(url)
+                .uri(URLDecoder.decode(url, StandardCharsets.UTF_8))
                 .retrieve()
                 .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
                     // Override default handling of 4xx errors, and proceed to evaluate the response.
