@@ -116,7 +116,7 @@ class ProtoRecordFileDownloaderTest extends AbstractRecordFileDownloaderTest {
         assertThat(importerProperties.getDataPath())
                 .isNotEmptyDirectory()
                 .isDirectoryRecursivelyContaining(
-                        "glob:**/streams/recordstreams/record*/sidecar/2022-07-13T08_46_11.304284003Z_01.rcd.gz");
+                        "glob:**/streams/2022-07-13/recordstreams/record*/sidecar/2022-07-13T08_46_11.304284003Z_01.rcd.gz");
     }
 
     @Test

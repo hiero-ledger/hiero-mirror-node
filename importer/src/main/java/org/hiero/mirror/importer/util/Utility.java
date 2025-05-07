@@ -41,6 +41,7 @@ public class Utility {
     public static final long DEFAULT_RUNNING_HASH_VERSION = 3;
     public static final Instant MAX_INSTANT_LONG = Instant.ofEpochSecond(0, Long.MAX_VALUE);
     public static final String HALT_ON_ERROR_PROPERTY = "HIERO_MIRROR_IMPORTER_PARSER_HALTONERROR";
+    public static final String HALT_ON_DOWNLOADER_ERROR_PROPERTY = "HIERO_MIRROR_IMPORTER_DOWNLOADER_HALTONERROR";
     static final String RECOVERABLE_ERROR = "Recoverable error. ";
     static final String HALT_ON_ERROR_DEFAULT = "false";
     private static final int ECDSA_SECP256K1_COMPRESSED_KEY_LENGTH = 33;
@@ -116,6 +117,7 @@ public class Utility {
             log.trace("Archived file to {}", destination);
         } catch (Exception e) {
             log.error("Error archiving file to {}", destination, e);
+            if (Boolean.parseBoolean(System.getProperty(HALT_ON_DOWNLOADER_ERROR_PROPERTY))) System.exit(-1);
         }
     }
 

@@ -333,15 +333,15 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
 
                 verify(streamFile, signature);
 
+                var archiveDestinationFolder = importerProperties.getArchiveDestinationFolderPath(streamFileData);
+
                 if (downloaderProperties.isWriteFiles()) {
-                    Utility.archiveFile(
-                            streamFileData.getFilePath(), streamFile.getBytes(), importerProperties.getStreamPath());
+                    Utility.archiveFile(streamFileData.getFilePath(), streamFile.getBytes(), archiveDestinationFolder);
                 }
 
                 if (downloaderProperties.isWriteSignatures()) {
-                    var destination = importerProperties.getStreamPath();
-                    signatures.forEach(
-                            s -> Utility.archiveFile(s.getFilename().getFilePath(), s.getBytes(), destination));
+                    signatures.forEach(s ->
+                            Utility.archiveFile(s.getFilename().getFilePath(), s.getBytes(), archiveDestinationFolder));
                 }
 
                 if (!downloaderProperties.isPersistBytes()) {
