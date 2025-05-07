@@ -24,7 +24,7 @@ include(":hedera-mirror-rest:check-state-proof")
 
 include(":hedera-mirror-rest:monitoring")
 
-include(":hedera-mirror-rosetta")
+include(":rosetta")
 
 include(":test")
 

@@ -2,7 +2,7 @@
 
 import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
 
-description = "Hedera Mirror Node Test"
+description = "Mirror Node Acceptance Test"
 
 plugins {
     id("com.gradleup.shadow")

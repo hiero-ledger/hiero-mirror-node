@@ -80,10 +80,10 @@ jobs:
         with:
           path: tmp
 
-      - name: Copy hedera-mirror-rosetta to workspace root
+      - name: Copy rosetta to workspace root
         working-directory: .
         run: |
-          cp -r tmp/hedera-mirror-rosetta/* .
+          cp -r tmp/rosetta/* .
           rm -fr tmp
 
       - name: Run Gosec Security Scanner

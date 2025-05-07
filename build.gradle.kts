@@ -166,7 +166,7 @@ spotless {
     format("go") {
         endWithNewline()
         licenseHeader(licenseHeader, "package")
-        target("hedera-mirror-rosetta/**/*.go")
+        target("rosetta/**/*.go")
         targetExclude("**/build/**")
         trimTrailingWhitespace()
     }
@@ -202,7 +202,7 @@ spotless {
         targetExclude(
             "**/build/**",
             "hedera-mirror-rest/**",
-            "hedera-mirror-rosetta/**",
+            "rosetta/**",
             // Known issue with Java 21: https://github.com/palantir/palantir-java-format/issues/933
             "hedera-mirror-rest-java/**/EntityServiceImpl.java",
             "tools/**",

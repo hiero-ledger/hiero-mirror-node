@@ -45,7 +45,7 @@ The recommended way to run Rosetta locally is to use the all-in-one docker image
 for a Hedera mirror node release. Please replace the example release `v0.60.0` with the latest release from
 our releases page.
 
-1. Download the [Dockerfile](/hedera-mirror-rosetta/build/Dockerfile).
+1. Download the [Dockerfile](/rosetta/build/Dockerfile).
 
 2. Run `docker build --build-arg GIT_REF=v0.60.0 -t hedera-mirror-rosetta:0.60.0 .`
 
@@ -85,10 +85,10 @@ passing `-e MODE=offline`.
 
 Before running any tests, we need to make sure the server has ingested the genesis balance file and the genesis block.
 This can be done using the shell
-script [wait-for-mirror-node.sh](/hedera-mirror-rosetta/scripts/wait-for-mirror-node.sh). The script will report that
+script [wait-for-mirror-node.sh](/rosetta/scripts/wait-for-mirror-node.sh). The script will report that
 mirror node syncing has started when the genesis information is available.
 
-A sample [configuration file](/hedera-mirror-rosetta/scripts/validation/testnet/validation.json) is provided to run
+A sample [configuration file](/rosetta/scripts/validation/testnet/validation.json) is provided to run
 rosetta-cli tests. Please refer to [the official guide](https://docs.cloud.coinbase.com/rosetta/docs/configuration-file)
 for the options.
 
@@ -97,7 +97,7 @@ to work around the known `rosetta-cli` performance issue of loading large genesi
 
 #### Genesis Balance File
 
-As an alternative, run the [script](/hedera-mirror-rosetta/scripts/validation/get-genesis-balance.sh) script to get the
+As an alternative, run the [script](/rosetta/scripts/validation/get-genesis-balance.sh) script to get the
 genesis account balance file.
 
 The `get-genesis-balance.sh` script takes the following form

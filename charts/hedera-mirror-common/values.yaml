@@ -149,7 +149,7 @@ loki:
           for: 1m
           labels:
             severity: critical
-    - name: hedera-mirror-rosetta
+    - name: rosetta
       rules:
         - alert: RosettaLogErrors
           annotations:
