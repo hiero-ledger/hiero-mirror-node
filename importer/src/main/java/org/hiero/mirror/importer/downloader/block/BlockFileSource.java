@@ -47,13 +47,13 @@ final class BlockFileSource extends AbstractBlockStreamSource {
         this.consensusNodeService = consensusNodeService;
         this.streamFileProvider = streamFileProvider;
 
-        cloudStorageLatencyMetric = Timer.builder("hedera.mirror.importer.cloud.latency")
+        cloudStorageLatencyMetric = Timer.builder("hiero.mirror.importer.cloud.latency")
                 .description("The difference in time between the consensus time of the last transaction in the file "
                         + "and the time at which the file was created in the cloud storage provider")
                 .tag("type", StreamType.BLOCK.toString())
                 .register(meterRegistry);
 
-        downloadLatencyMetric = Timer.builder("hedera.mirror.download.latency")
+        downloadLatencyMetric = Timer.builder("hiero.mirror.importer.stream.latency")
                 .description("The difference in time between the consensus time of the last transaction in the file "
                         + "and the time at which the file was downloaded and verified")
                 .tag("type", StreamType.BLOCK.toString())
