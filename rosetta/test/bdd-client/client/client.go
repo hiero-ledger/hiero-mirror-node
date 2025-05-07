@@ -5,7 +5,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
 	"net/http"
 	"strings"
 	"time"
