@@ -209,7 +209,6 @@ public class TransactionExecutionService {
     }
 
     private AccountID getSenderAccountIDAsNum(final Address senderAddress) {
-        final var senderAccountID = accountIdFromEvmAddress(senderAddress);
         AccountID accountIDNum;
         if (!isMirror(senderAddress)) {
             // If the address is an alias we need to first check if it exists and get the AccountID as a num.
@@ -218,6 +217,7 @@ public class TransactionExecutionService {
                 throwPayerAccountNotFoundException(SENDER_NOT_FOUND);
             }
         } else {
+            final var senderAccountID = accountIdFromEvmAddress(senderAddress);
             // If the address was passed as a long-zero address we need to convert it to the correct AccountID type.
             accountIDNum = AccountID.newBuilder()
                     .accountNum(senderAccountID.getAccountNum())
