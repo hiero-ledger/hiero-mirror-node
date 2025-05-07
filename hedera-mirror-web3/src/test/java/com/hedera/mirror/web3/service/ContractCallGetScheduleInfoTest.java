@@ -4,7 +4,6 @@ package com.hedera.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
-import static com.hedera.node.app.service.contract.impl.utils.ConversionUtils.asEvmAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -23,10 +22,13 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.math.BigInteger;
 import org.junit.jupiter.api.Test;
 
+/**
+ * This test class validates the correct results for getting schedule info for a token create transaction via smart contract calls .
+ */
 class ContractCallGetScheduleInfoTest extends AbstractContractCallServiceHistoricalTest {
 
     @Test
-    void getFungibleCreateScheduleInfoNonExisting() throws Exception {
+    void getFungibleCreateScheduleInfoNonExisting() {
         // Cannot get schedule info for non-existing schedule
         // Given
         final var entity = domainBuilder.entityId();
@@ -40,7 +42,7 @@ class ContractCallGetScheduleInfoTest extends AbstractContractCallServiceHistori
     }
 
     @Test
-    void getNFTCreateScheduleInfoNonExisting() throws Exception {
+    void getNFTCreateScheduleInfoNonExisting() {
         // Cannot get schedule info for non-existing schedule
         // Given
         final var entity = domainBuilder.entityId();
@@ -65,36 +67,15 @@ class ContractCallGetScheduleInfoTest extends AbstractContractCallServiceHistori
                 .persist();
         final var tokenName = "Fungible-Token";
         final var tokenSymbol = "FUNG";
-        final var maxSupply = 1000;
-        // Create Token create transaction body
-        final var expiry = Timestamp.newBuilder().seconds(10L).build();
-        final var tokenCreateTransactionBody = TokenCreateTransactionBody.newBuilder()
-                .tokenType(TokenType.FUNGIBLE_COMMON)
-                .name(tokenName)
-                .supplyType(TokenSupplyType.FINITE)
-                .expiry(expiry)
-                .treasury(AccountID.newBuilder()
-                        .shardNum(treasuryAccount.getShard())
-                        .realmNum(treasuryAccount.getRealm())
-                        .accountNum(treasuryAccount.getNum())
-                        .build())
-                .symbol(tokenSymbol)
-                .autoRenewAccount(AccountID.newBuilder()
-                        .accountNum(treasuryAccount.getNum())
-                        .build())
-                .initialSupply(500L)
-                .maxSupply(maxSupply)
-                .build();
-        // Create Schedule transaction body
-        final var scheduleTransactionBody = SchedulableTransactionBody.newBuilder()
-                .tokenCreation(tokenCreateTransactionBody)
-                .build();
-        final var bytes = CommonPbjConverters.asBytes(SchedulableTransactionBody.PROTOBUF, scheduleTransactionBody);
+        final var maxSupply = 1000L;
+        // Build Schedule Token create transaction body in bytes
+        final var scheduleTokenCreateTransactionBodyBytes = buildScheduledTokenCreateTransactionBody(
+                treasuryAccount, tokenName, tokenSymbol, TokenType.FUNGIBLE_COMMON, 500L, maxSupply);
         // Persist schedule
         final var schedule = domainBuilder
                 .schedule()
                 .customize(e -> e.scheduleId(scheduleEntity.toEntityId().getId())
-                        .transactionBody(bytes)
+                        .transactionBody(scheduleTokenCreateTransactionBodyBytes)
                         .payerAccountId(payerAccount.toEntityId())
                         .creatorAccountId(payerAccount.toEntityId()))
                 .persist();
@@ -131,36 +112,15 @@ class ContractCallGetScheduleInfoTest extends AbstractContractCallServiceHistori
                 .persist();
         final var tokenName = "Non-Fungible-Token";
         final var tokenSymbol = "NFT";
-        final var maxSupply = 1000;
-        // Create Token create transaction body
-        final var expiry = Timestamp.newBuilder().seconds(10L).build();
-        final var tokenCreateTransactionBody = TokenCreateTransactionBody.newBuilder()
-                .tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
-                .name(tokenName)
-                .supplyType(TokenSupplyType.FINITE)
-                .expiry(expiry)
-                .treasury(AccountID.newBuilder()
-                        .shardNum(treasuryAccount.getShard())
-                        .realmNum(treasuryAccount.getRealm())
-                        .accountNum(treasuryAccount.getNum())
-                        .build())
-                .symbol(tokenSymbol)
-                .autoRenewAccount(AccountID.newBuilder()
-                        .accountNum(treasuryAccount.getNum())
-                        .build())
-                .initialSupply(0L)
-                .maxSupply(maxSupply)
-                .build();
-        // Create Schedule transaction body
-        final var scheduleTransactionBody = SchedulableTransactionBody.newBuilder()
-                .tokenCreation(tokenCreateTransactionBody)
-                .build();
-        final var bytes = CommonPbjConverters.asBytes(SchedulableTransactionBody.PROTOBUF, scheduleTransactionBody);
+        final var maxSupply = 1000L;
+        // Build Schedule Token create transaction body in bytes
+        final var scheduleTokenCreateTransactionBodyBytes = buildScheduledTokenCreateTransactionBody(
+                treasuryAccount, tokenName, tokenSymbol, TokenType.NON_FUNGIBLE_UNIQUE, 0L, maxSupply);
         // Persist schedule
         final var schedule = domainBuilder
                 .schedule()
                 .customize(e -> e.scheduleId(scheduleEntity.toEntityId().getId())
-                        .transactionBody(bytes)
+                        .transactionBody(scheduleTokenCreateTransactionBodyBytes)
                         .payerAccountId(payerAccount.toEntityId())
                         .creatorAccountId(payerAccount.toEntityId()))
                 .persist();
@@ -181,5 +141,51 @@ class ContractCallGetScheduleInfoTest extends AbstractContractCallServiceHistori
         } else {
             assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         }
+    }
+
+    /**
+     * Build Scheduled Token Create transaction body in bytes
+     *
+     * @param treasuryAccount The treasury account of the token
+     * @param name The name of the token
+     * @param symbol The symbol of the token
+     * @param tokenType Token type, either Fungible or Non-Fungible
+     * @param initialSupply The initial supply of the token
+     * @param maxSupply the max supply of the token
+     * @return The schedule transaction body for token create transaction in bytes
+     */
+    private byte[] buildScheduledTokenCreateTransactionBody(
+            com.hedera.mirror.common.domain.entity.Entity treasuryAccount,
+            String name,
+            String symbol,
+            TokenType tokenType,
+            long initialSupply,
+            long maxSupply) {
+
+        final var treasuryAccountId = AccountID.newBuilder()
+                .shardNum(treasuryAccount.getShard())
+                .realmNum(treasuryAccount.getRealm())
+                .accountNum(treasuryAccount.getNum())
+                .build();
+
+        final var tokenCreateTransactionBody = TokenCreateTransactionBody.newBuilder()
+                .tokenType(tokenType)
+                .name(name)
+                .symbol(symbol)
+                .supplyType(TokenSupplyType.FINITE)
+                .expiry(Timestamp.newBuilder().seconds(10L).build())
+                .treasury(treasuryAccountId)
+                .autoRenewAccount(AccountID.newBuilder()
+                        .accountNum(treasuryAccount.getNum())
+                        .build())
+                .initialSupply(initialSupply)
+                .maxSupply(maxSupply)
+                .build();
+
+        final var scheduleTransactionBody = SchedulableTransactionBody.newBuilder()
+                .tokenCreation(tokenCreateTransactionBody)
+                .build();
+
+        return CommonPbjConverters.asBytes(SchedulableTransactionBody.PROTOBUF, scheduleTransactionBody);
     }
 }
