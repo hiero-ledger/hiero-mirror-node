@@ -10,7 +10,7 @@ include(":graphql")
 
 include(":grpc")
 
-include(":hedera-mirror-importer")
+include(":importer")
 
 include(":monitor")
 

@@ -6,10 +6,10 @@ set -eo pipefail
 
 function config_data_retention() {
   echo "Configuring data retention"
-  export HEDERA_MIRROR_IMPORTER_RETENTION_BATCHPERIOD="${DATA_RETENTION_BATCHPERIOD:-1d}"
-  export HEDERA_MIRROR_IMPORTER_RETENTION_ENABLED="${DATA_RETENTION_ENABLED:-false}"
-  export HEDERA_MIRROR_IMPORTER_RETENTION_FREQUENCY="${DATA_RETENTION_FREQUENCY:-7d}"
-  export HEDERA_MIRROR_IMPORTER_RETENTION_PERIOD="${DATA_RETENTION_PERIOD:-90d}"
+  export HIERO_MIRROR_IMPORTER_RETENTION_BATCHPERIOD="${DATA_RETENTION_BATCHPERIOD:-1d}"
+  export HIERO_MIRROR_IMPORTER_RETENTION_ENABLED="${DATA_RETENTION_ENABLED:-false}"
+  export HIERO_MIRROR_IMPORTER_RETENTION_FREQUENCY="${DATA_RETENTION_FREQUENCY:-7d}"
+  export HIERO_MIRROR_IMPORTER_RETENTION_PERIOD="${DATA_RETENTION_PERIOD:-90d}"
 }
 
 function run_offline_mode() {
@@ -87,7 +87,7 @@ function restore() {
 
   DATA_DIR="data_dump"
   TMPDIR=$(mktemp -d)
-  export PGPASSWORD="${HEDERA_MIRROR_IMPORTER_DB_PASSWORD:-mirror_node_pass}"
+  export PGPASSWORD="${HIERO_MIRROR_IMPORTER_DB_PASSWORD:-mirror_node_pass}"
 
   cp /app/postgresql-restore.conf "${PGCONF}/conf.d/postgresql.conf"
   /etc/init.d/postgresql start
@@ -117,12 +117,12 @@ function restore() {
 
 function main() {
   if [[ -n "${NETWORK}" ]]; then
-    export HEDERA_MIRROR_IMPORTER_NETWORK="${NETWORK}"
+    export HIERO_MIRROR_IMPORTER_NETWORK="${NETWORK}"
     export HEDERA_MIRROR_ROSETTA_NETWORK="${NETWORK}"
   fi
 
   if [[ -n "${OWNER_PASSWORD}" ]]; then
-    export HEDERA_MIRROR_IMPORTER_DB_PASSWORD="${OWNER_PASSWORD}"
+    export HIERO_MIRROR_IMPORTER_DB_PASSWORD="${OWNER_PASSWORD}"
   fi
 
   if [[ -n "${ROSETTA_PASSWORD}" ]]; then

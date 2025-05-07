@@ -72,7 +72,7 @@ Update the handling of the topic message `runningHashVersion`:
 #### BlockFileReader
 
 ```java
-package com.hedera.mirror.importer.reader.block;
+package org.hiero.mirror.importer.reader.block;
 
 public interface BlockFileReader extends StreamFileReader<BlockFile, BlockItem> {
 }
@@ -81,7 +81,7 @@ public interface BlockFileReader extends StreamFileReader<BlockFile, BlockItem> 
 #### ProtoBlockFileReader
 
 ```java
-package com.hedera.mirror.importer.reader.block;
+package org.hiero.mirror.importer.reader.block;
 
 public class ProtoBlockFileReader implements BlockFileReader {
     // Generates a BlockFile from a StreamFileData.
@@ -95,7 +95,7 @@ public class ProtoBlockFileReader implements BlockFileReader {
 #### StreamFileTransformer
 
 ```java
-package com.hedera.mirror.importer.downloader;
+package org.hiero.mirror.importer.downloader;
 
 public interface StreamFileTransformer<T extends StreamFile<?>, S extends StreamFile<?>> {
     // Used for transforming a block file into a record file in phase one and for transforming a record file into a block file in phase two.
@@ -106,7 +106,7 @@ public interface StreamFileTransformer<T extends StreamFile<?>, S extends Stream
 #### BlockFileTransformer
 
 ```java
-package com.hedera.mirror.importer.downloader.block;
+package org.hiero.mirror.importer.downloader.block;
 
 public class BlockFileTransformer implements StreamFileTransformer<RecordFile, BlockFile> {
 
@@ -122,7 +122,7 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
 #### StreamPoller
 
 ```java
-package com.hedera.mirror.importer.downloader;
+package org.hiero.mirror.importer.downloader;
 
 public interface StreamPoller<StreamFile> {
     void poll();
@@ -132,7 +132,7 @@ public interface StreamPoller<StreamFile> {
 #### BlockStreamPoller
 
 ```java
-package com.hedera.mirror.importer.downloader.block;
+package org.hiero.mirror.importer.downloader.block;
 
 public class BlockStreamPoller extends StreamPoller<BlockFile> {
     private final BlockFileReader blockFileReader;
@@ -158,7 +158,7 @@ public class BlockStreamPoller extends StreamPoller<BlockFile> {
 #### BlockStreamVerifier
 
 ```java
-package com.hedera.mirror.importer.downloader.block;
+package org.hiero.mirror.importer.downloader.block;
 
 public class BlockStreamVerifier {
     private final StreamFileTransformer<RecordFile, BlockFile> blockFileTransformer;
@@ -477,7 +477,7 @@ Beginning from an `EventTransaction` block item, a record item is composed of on
 - Add block file to record file transform metrics to the Grafana dashboard.
 - Add a performance test for the Performance environment that ingests block files instead of record files.
 - Add `BlockFileBuilder` and `BlockItemBuilder` domain classes.
-- Add downloader tests for block files similar to the existing downloader tests for record files in `com.hedera.mirror.importer.downloader.record`.
+- Add downloader tests for block files similar to the existing downloader tests for record files in `org.hiero.mirror.importer.downloader.record`.
 
 ### BlockFileTransformer tests
 

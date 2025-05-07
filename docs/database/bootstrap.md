@@ -9,6 +9,7 @@ This guide provides step-by-step instructions for setting up a fresh PostgreSQL 
 - [Prerequisites](#prerequisites)
   - [1. Optional High-Performance Decompressors](#1-optional-high-performance-decompressors)
   - [2. Environment Variables for Thread Counts](#2-environment-variables-for-thread-counts)
+  - [3. Sizing the Script Runner Machine](#3-sizing-the-script-runner-machine)
 - [Database Initialization and Data Import](#database-initialization-and-data-import)
   - [1. Download the Required Scripts and Configuration File](#1-download-the-required-scripts-and-configuration-file)
   - [2. Edit the `bootstrap.env` Configuration File](#2-edit-the-bootstrapenv-configuration-file)
@@ -73,6 +74,20 @@ This guide provides step-by-step instructions for setting up a fresh PostgreSQL 
 
    **Note:** The default `gunzip` decompressor is single-threaded and is not affected by these environment variables. When setting these values, be mindful of the CPU resources on the machine _running the script_. Setting thread counts too high relative to available cores can lead to CPU overcontention and potentially slow down the overall process rather than speeding it up.
 
+   ### 3. Sizing the Script Runner Machine
+
+   The `bootstrap.sh` script utilizes multiple layers of parallelism: it processes up to `MAX_JOBS` data files concurrently, and for each file, it may use `DECOMPRESSOR_THREADS` (for `rapidgzip` or `igzip`) and `B3SUM_THREADS` in parallel. Proper resource allocation on the machine running the script is crucial for optimal performance.
+
+   - **CPU Threads:** A good starting point is `((DECOMPRESSOR_THREADS + B3SUM_THREADS) * MAX_JOBS) + 2`.
+     - _Example:_ Using defaults (`DECOMPRESSOR_THREADS=2`, `B3SUM_THREADS=2`) and `MAX_JOBS=8` (derived from an 8-core DB), you would ideally want `((2 + 2) * 8) + 2 = 34` CPU threads available on the script runner machine.
+   - **RAM:** Allocate a minimum of 1GB, preferably 2GB, per calculated CPU thread.
+     - _Example:_ For 34 threads, aim for 34GB to 68GB of RAM.
+
+   > [!NOTE]
+   > For optimal performance and resource isolation, it is strongly recommended to run the `bootstrap.sh` script on a separate machine from the PostgreSQL database server. This prevents contention for CPU, RAM, and I/O resources between the import script and the database itself.
+   >
+   > Additionally, ensure the database server has adequate resources for the import: allocate at least `MAX_JOBS + 2` CPU threads and sufficient RAM to handle `MAX_JOBS` concurrent write operations, considering your specific PostgreSQL configuration (e.g., `work_mem`, `shared_buffers`).
+
 ---
 
 ## Database Initialization and Data Import
@@ -86,8 +101,8 @@ Download the `bootstrap.sh` script and the `bootstrap.env` configuration file. T
 1. **Download `bootstrap.sh` and `bootstrap.env`:**
 
    ```bash
-   curl -O https://raw.githubusercontent.com/hiero-ledger/hiero-mirror-node/main/hedera-mirror-importer/src/main/resources/db/scripts/bootstrap.sh \
-        -O https://raw.githubusercontent.com/hiero-ledger/hiero-mirror-node/main/hedera-mirror-importer/src/main/resources/db/scripts/bootstrap.env
+   curl -O https://raw.githubusercontent.com/hiero-ledger/hiero-mirror-node/main/importer/src/main/resources/db/scripts/bootstrap.sh \
+        -O https://raw.githubusercontent.com/hiero-ledger/hiero-mirror-node/main/importer/src/main/resources/db/scripts/bootstrap.env
 
    chmod +x bootstrap.sh
    ```
@@ -221,9 +236,6 @@ gcloud storage rsync -r -x ".*_atma\.csv\.gz$" "gs://mirrornode-db-export/$VERSI
 
 ##### Download Full DB Data Files
 
-> [!WARNING]
-> Bootstrap of a full database export is currently **not supported** by the `bootstrap.sh` script in this version. Support for full database bootstrap will be added in the near future. The instructions below are for informational purposes only. For full-db support, you may use the previous version by checking out the following branch: `git checkout release/0.127`. The previous version is compatible only with the data files of the `0.113.2` export in the GCS bucket.
-
 Create a directory and download all files and subdirectories for the selected version:
 
 ```bash
@@ -285,9 +297,6 @@ The `bootstrap.sh` script initializes the database and imports the data. It is d
 
    For a full database import:
 
-   > [!WARNING]
-   > The `--full` option for a full database import is currently **not supported** in this version of the `bootstrap.sh` script. Using this flag will result in errors and a failed database bootstrap.
-
    ```bash
    setsid ./bootstrap.sh 8 --full /path/to/db_export 2>> bootstrap.log
    ```
@@ -297,7 +306,7 @@ The `bootstrap.sh` script initializes the database and imports the data. It is d
    - `/path/to/db_export` is the directory where you downloaded the database export data.
    - The script creates several tracking and logging files:
 
-     - `bootstrap.log`: Main log file for all script operations. Timestamps now use abbreviated month names (e.g., 'Apr' instead of '04').
+     - `bootstrap.log`: Main log file for all script operations.
      - `bootstrap.pid`: Stores the process ID of the main script, used for managing the process group (e.g., for termination). The script performs an improved check at startup to avoid conflicts with unrelated processes that might share a stale PID.
      - `bootstrap_tracking.txt`: Tracks the progress of each file's import and hash verification.
      - `bootstrap_progress.log`: Displays real-time progress of active `psql COPY` operations (see Monitoring section).
@@ -371,7 +380,6 @@ The `bootstrap.sh` script initializes the database and imports the data. It is d
     - Hash Verification Status:
       - `HASH_UNVERIFIED`: BLAKE3 hash has not been verified yet.
       - `HASH_VERIFIED`: BLAKE3 hash verification passed.
-      - `UNVERIFIED_COUNT`: (Fallback) Import completed, but row count query failed (e.g., couldn't extract partition info).
       - `ROW_COUNT_UNVERIFIED`: (Fallback) Import completed, primary row count query failed, but a basic data existence check passed.
 
 #### **6.2. Stopping the Script**
@@ -381,16 +389,16 @@ If you need to stop the script before it completes:
 1. **Gracefully Terminate the Script and All Child Processes:**
 
    ```bash
-   kill -TERM -- -$(cat bootstrap.pid)
+   kill -TERM -- -$(cat temp/bootstrap.pid)
    ```
 
-   - Sends the `SIGTERM` signal to the entire process group identified by the PID in `bootstrap.pid`.
+   - Sends the `SIGTERM` signal to the entire process group identified by the PID in `temp/bootstrap.pid`.
    - Allows the script and all its background processes to perform cleanup (including removing temporary DB objects and files) and exit gracefully.
 
 2. **If the Script Doesn't Stop, Force Termination of the Process Group:**
 
    ```bash
-   kill -KILL -$(cat bootstrap.pid)
+   kill -KILL -- -$(cat temp/bootstrap.pid)
    ```
 
    - Sends the `SIGKILL` signal to the entire process group.
@@ -399,9 +407,6 @@ If you need to stop the script before it completes:
 #### **6.3. Resuming the Import Process**
 
 - **Re-run the Bootstrap Script:**
-
-  > [!WARNING]
-  > The `--full` option for resuming a full database import is currently **not supported** in this version.
 
   ```bash
   # Minimal DB

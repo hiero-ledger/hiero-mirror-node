@@ -34,7 +34,7 @@ target/
 .project
 
 # Application specific
-hedera-mirror-importer/data/
+importer/data/
 application*.yaml
 application*.yml
 Chart.lock

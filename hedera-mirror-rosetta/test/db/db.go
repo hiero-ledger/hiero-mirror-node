@@ -26,9 +26,9 @@ import (
 
 const (
 	dbCleanupScript = "../hedera-mirror-common/src/test/resources/cleanup.sql"
-	dbMigrationPath = "../hedera-mirror-importer/src/main/resources/db/migration/v1"
+	dbMigrationPath = "../importer/src/main/resources/db/migration/v1"
 	dbName          = "mirror_node"
-	initScript      = "../hedera-mirror-importer/src/main/resources/db/scripts/init.sh"
+	initScript      = "../importer/src/main/resources/db/scripts/init.sh"
 	ownerUsername   = "mirror_node"
 	poolMaxWait     = 5 * time.Minute
 )

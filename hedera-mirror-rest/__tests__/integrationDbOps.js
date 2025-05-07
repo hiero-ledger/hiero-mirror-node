@@ -39,11 +39,11 @@ const cleanupSql = fs.readFileSync(
 
 const v1SchemaConfigs = {
   baselineVersion: '0',
-  locations: '../hedera-mirror-importer/src/main/resources/db/migration/v1',
+  locations: '../importer/src/main/resources/db/migration/v1',
 };
 const v2SchemaConfigs = {
   baselineVersion: '1.999.999',
-  locations: '../hedera-mirror-importer/src/main/resources/db/migration/v2',
+  locations: '../importer/src/main/resources/db/migration/v2',
 };
 
 const schemaConfigs = isV2Schema() ? v2SchemaConfigs : v1SchemaConfigs;
