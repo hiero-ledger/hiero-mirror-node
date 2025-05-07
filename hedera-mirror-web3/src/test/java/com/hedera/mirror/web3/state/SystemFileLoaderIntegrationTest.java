@@ -7,12 +7,16 @@ import static com.hedera.mirror.common.domain.transaction.TransactionType.FILEUP
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.Web3IntegrationTest;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
+import com.hederahashgraph.api.proto.java.NodeAddress;
+import com.hederahashgraph.api.proto.java.NodeAddressBook;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
@@ -43,6 +47,23 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                     .setCentEquiv(4)
                     .setHbarEquiv(33)
                     .setExpirationTime(TimestampSeconds.newBuilder().setSeconds(2_234_567_893L))
+                    .build())
+            .build();
+
+    private static final long FIRST_NODE = 3L;
+    private static final long SECOND_NODE = 4L;
+    private static final NodeAddressBook ACTUAL_NODE_ADDRESS_BOOK = NodeAddressBook.newBuilder()
+            .addNodeAddress(NodeAddress.newBuilder()
+                    .setIpAddress(ByteString.copyFromUtf8("127.0.0." + FIRST_NODE))
+                    .setPortno((int) FIRST_NODE)
+                    .setNodeId(FIRST_NODE)
+                    .setNodeAccountId(AccountID.newBuilder().setAccountNum(FIRST_NODE))
+                    .build())
+            .addNodeAddress(NodeAddress.newBuilder()
+                    .setIpAddress(ByteString.copyFromUtf8("127.0.0." + SECOND_NODE))
+                    .setPortno((int) SECOND_NODE)
+                    .setNodeId(SECOND_NODE)
+                    .setNodeAccountId(AccountID.newBuilder().setAccountNum(SECOND_NODE))
                     .build())
             .build();
 
@@ -79,6 +100,26 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
         final var secondLoad = systemFileLoader.load(fileId, 350L);
         assertThat(secondLoad).isNotNull();
         assertThat(secondLoad.contents()).isEqualTo(Bytes.wrap(exchangeRatesSet.toByteArray()));
+    }
+
+    @Test
+    void loadActualFileDataNotMockup() {
+        // Setup
+        final var fileId = fileId(systemEntity.addressBookFile102());
+        final var entityId = toEntityId(fileId);
+
+        domainBuilder
+                .fileData()
+                .customize(f -> f.transactionType(FILECREATE.getProtoId())
+                        .fileData(ACTUAL_NODE_ADDRESS_BOOK.toByteArray())
+                        .entityId(entityId)
+                        .consensusTimestamp(200L))
+                .persist();
+
+        final var actualFile = systemFileLoader.load(fileId, 350L);
+        assertThat(actualFile).isNotNull();
+        // check that the returned file does not have its contents changed
+        assertThat(actualFile.contents()).isEqualTo(Bytes.wrap(ACTUAL_NODE_ADDRESS_BOOK.toByteArray()));
     }
 
     private FileID fileId(EntityId fileId) {

@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -59,7 +60,8 @@ public class SystemFileLoader {
     @Getter(lazy = true)
     private final Map<FileID, SystemFile> systemFiles = loadAll();
 
-    private byte[] mockAddressBook;
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
+    private final byte[] mockAddressBook = createMockAddressBook(1);
 
     @Cacheable(
             cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
@@ -167,7 +169,7 @@ public class SystemFileLoader {
     }
 
     @SuppressWarnings("deprecation")
-    private com.hederahashgraph.api.proto.java.NodeAddressBook addressBookMockup(int size) {
+    private byte[] createMockAddressBook(int size) {
 
         com.hederahashgraph.api.proto.java.NodeAddressBook.Builder builder =
                 com.hederahashgraph.api.proto.java.NodeAddressBook.newBuilder();
@@ -177,17 +179,10 @@ public class SystemFileLoader {
                     .setIpAddress(ByteString.copyFromUtf8("127.0.0." + nodeId))
                     .setPortno((int) nodeId)
                     .setNodeId(nodeId)
-                    .setMemo(ByteString.copyFromUtf8(String.format(
-                            "%s.%s.%s",
-                            properties.getCommonProperties().getShard(),
-                            properties.getCommonProperties().getRealm(),
-                            nodeId)))
-                    .setNodeAccountId(AccountID.newBuilder().setAccountNum(nodeId))
-                    .setNodeCertHash(ByteString.copyFromUtf8("nodeCertHash"))
-                    .setRSAPubKey("rsa+public/key");
+                    .setNodeAccountId(AccountID.newBuilder().setAccountNum(nodeId));
             builder.addNodeAddress(nodeAddressBuilder.build());
         }
-        return builder.build();
+        return builder.build().toByteArray();
     }
 
     private Bytes getBytes(FileData fileData, long fileId) {
@@ -199,14 +194,6 @@ public class SystemFileLoader {
         }
 
         return Bytes.wrap(fileBytes);
-    }
-
-    // Lazy initialization method
-    private byte[] getMockAddressBook() {
-        if (mockAddressBook == null) {
-            mockAddressBook = addressBookMockup(1).toByteArray();
-        }
-        return mockAddressBook;
     }
 
     private record SystemFile(File genesisFile, Codec<?> codec) {}
