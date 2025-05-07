@@ -61,7 +61,7 @@ public class SystemFileLoader {
     private final Map<FileID, SystemFile> systemFiles = loadAll();
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
-    private final byte[] mockAddressBook = createMockAddressBook(1);
+    private final byte[] mockAddressBook = createMockAddressBook();
 
     @Cacheable(
             cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
@@ -169,19 +169,16 @@ public class SystemFileLoader {
     }
 
     @SuppressWarnings("deprecation")
-    private byte[] createMockAddressBook(int size) {
-
+    private byte[] createMockAddressBook() {
         com.hederahashgraph.api.proto.java.NodeAddressBook.Builder builder =
                 com.hederahashgraph.api.proto.java.NodeAddressBook.newBuilder();
-        for (int i = 0; i < size; ++i) {
-            long nodeId = 3 + i;
-            NodeAddress.Builder nodeAddressBuilder = NodeAddress.newBuilder()
-                    .setIpAddress(ByteString.copyFromUtf8("127.0.0." + nodeId))
-                    .setPortno((int) nodeId)
-                    .setNodeId(nodeId)
-                    .setNodeAccountId(AccountID.newBuilder().setAccountNum(nodeId));
-            builder.addNodeAddress(nodeAddressBuilder.build());
-        }
+        long nodeId = 3;
+        NodeAddress.Builder nodeAddressBuilder = NodeAddress.newBuilder()
+                .setIpAddress(ByteString.copyFromUtf8("127.0.0." + nodeId))
+                .setPortno((int) nodeId)
+                .setNodeId(nodeId)
+                .setNodeAccountId(AccountID.newBuilder().setAccountNum(nodeId));
+        builder.addNodeAddress(nodeAddressBuilder.build());
         return builder.build().toByteArray();
     }
 
