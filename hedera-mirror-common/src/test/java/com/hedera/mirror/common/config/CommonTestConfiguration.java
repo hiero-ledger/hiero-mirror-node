@@ -50,7 +50,7 @@ public class CommonTestConfiguration {
     @ConfigurationProperties("spring.flyway")
     @Primary
     FlywayProperties flywayProperties() {
-        final var baseLocation = "filesystem:../hedera-mirror-importer/src/main/resources/db/migration/";
+        final var baseLocation = "filesystem:../importer/src/main/resources/db/migration/";
         var placeholders = ImmutableMap.<String, String>builder()
                 .put("api-password", "mirror_api_pass")
                 .put("api-user", "mirror_api")

@@ -9,20 +9,20 @@ RUN apt-get update -y --no-install-recommends && apt-get install -y gcc git open
 # GIT_REF can be a branch, a tag, or a 40-charater git commit hash
 ARG GIT_REF=main
 ARG REPO_URL=https://github.com/hiero-ledger/hiero-mirror-node
-RUN git clone --depth 1 -n "${REPO_URL}" hedera-mirror-node \
-    && cd hedera-mirror-node \
+RUN git clone --depth 1 -n "${REPO_URL}" repo \
+    && cd repo \
     && git fetch --depth 1 origin "${GIT_REF}" \
     && git reset --hard FETCH_HEAD
-WORKDIR /hedera-mirror-node
+WORKDIR /repo
 RUN ./gradlew :importer:build :rosetta:build -x test
 WORKDIR /app
 RUN mkdir importer rosetta scripts \
-    && cp -r /hedera-mirror-node/hedera-mirror-rosetta/container/* . \
-    && rm /hedera-mirror-node/hedera-mirror-importer/build/libs/importer-*-plain.jar \
-    && cp /hedera-mirror-node/hedera-mirror-importer/build/libs/importer-*.jar ./importer/hedera-mirror-importer.jar \
-    && cp /hedera-mirror-node/hedera-mirror-rosetta/build/hedera-mirror-rosetta ./rosetta \
-    && cp /hedera-mirror-node/hedera-mirror-importer/src/main/resources/db/scripts/init.sh ./scripts \
-    && cp /hedera-mirror-node/hedera-mirror-importer/src/main/resources/db/scripts/init-temp-schema.sh ./scripts
+    && cp -r /repo/hedera-mirror-rosetta/container/* . \
+    && cp /repo/hedera-mirror-rosetta/build/hedera-mirror-rosetta ./rosetta \
+    && rm /repo/importer/build/libs/importer-*-plain.jar \
+    && cp /repo/importer/build/libs/importer-*.jar ./importer/importer.jar \
+    && cp /repo/importer/src/main/resources/db/scripts/init.sh ./scripts \
+    && cp /repo/importer/src/main/resources/db/scripts/init-temp-schema.sh ./scripts
 
 # ######################################################################## #
 # --------------------------- Runner Container --------------------------- #

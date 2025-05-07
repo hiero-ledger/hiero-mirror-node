@@ -1,0 +1,1 @@
+org.springframework.context.ApplicationListener=org.hiero.mirror.common.config.HieroPropertiesMigrator

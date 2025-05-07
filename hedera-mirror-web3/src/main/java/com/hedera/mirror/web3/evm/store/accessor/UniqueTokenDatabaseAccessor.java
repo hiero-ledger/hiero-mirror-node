@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
+import static com.hedera.services.utils.EntityIdUtils.idFromEncodedId;
 import static com.hedera.services.utils.EntityIdUtils.idFromEntityId;
 
 import com.hedera.mirror.common.domain.entity.EntityId;
@@ -43,7 +44,7 @@ public class UniqueTokenDatabaseAccessor extends DatabaseAccessor<Object, Unique
                 nft.getSerialNumber(),
                 mapNanosToRichInstant(nft.getCreatedTimestamp()),
                 idFromEntityId(nft.getAccountId()),
-                idFromEntityId(nft.getSpender()),
+                idFromEncodedId(nft.getSpender()),
                 nft.getMetadata());
     }
 

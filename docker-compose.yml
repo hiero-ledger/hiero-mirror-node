@@ -26,19 +26,19 @@ services:
     tty: true
     volumes:
       - ./db:/var/lib/postgresql/data
-      - ./hedera-mirror-importer/src/main/resources/db/scripts/init.sh:/docker-entrypoint-initdb.d/init.sh
+      - ./importer/src/main/resources/db/scripts/init.sh:/docker-entrypoint-initdb.d/init.sh
 
   graphql:
     configs:
       - source: app-config
-        target: /usr/etc/hedera/application.yml
+        target: /usr/etc/hiero/application.yml
         uid: "1000"
         gid: "1000"
     deploy:
       replicas: 0
     environment:
-      HEDERA_MIRROR_GRAPHQL_DB_HOST: db
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
+      HIERO_MIRROR_GRAPHQL_DB_HOST: db
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
     image: gcr.io/mirrornode/hedera-mirror-graphql:0.130.0-SNAPSHOT
     ports:
       - 8083:8083
@@ -49,12 +49,12 @@ services:
   grpc:
     configs:
       - source: app-config
-        target: /usr/etc/hedera/application.yml
+        target: /usr/etc/hiero/application.yml
         uid: "1000"
         gid: "1000"
     environment:
-      HEDERA_MIRROR_GRPC_DB_HOST: db
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
+      HIERO_MIRROR_GRPC_DB_HOST: db
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
       SPRING_DATA_REDIS_HOST: redis
     image: gcr.io/mirrornode/hedera-mirror-grpc:0.130.0-SNAPSHOT
     ports:
@@ -66,12 +66,12 @@ services:
   importer:
     configs:
       - source: app-config
-        target: /usr/etc/hedera/application.yml
+        target: /usr/etc/hiero/application.yml
         uid: "1000"
         gid: "1000"
     environment:
-      HEDERA_MIRROR_IMPORTER_DB_HOST: db
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
+      HIERO_MIRROR_IMPORTER_DB_HOST: db
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
       SPRING_DATA_REDIS_HOST: redis
     image: gcr.io/mirrornode/hedera-mirror-importer:0.130.0-SNAPSHOT
     pull_policy: always
@@ -81,13 +81,13 @@ services:
   monitor:
     configs:
       - source: app-config
-        target: /usr/etc/hedera/application.yml
+        target: /usr/etc/hiero/application.yml
         uid: "1000"
         gid: "1000"
     deploy:
       replicas: 0
     environment:
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
     image: gcr.io/mirrornode/hedera-mirror-monitor:0.130.0-SNAPSHOT
     pull_policy: always
     restart: unless-stopped
@@ -104,11 +104,11 @@ services:
   rest:
     configs:
       - source: app-config
-        target: /usr/etc/hedera/application.yml
+        target: /usr/etc/hiero/application.yml
         uid: "1000"
         gid: "1000"
     environment:
-      CONFIG_PATH: /usr/etc/hedera/
+      CONFIG_PATH: /usr/etc/hiero/
       HEDERA_MIRROR_REST_DB_HOST: db
       HEDERA_MIRROR_REST_REDIS_URI: redis://redis:6379
     image: gcr.io/mirrornode/hedera-mirror-rest:0.130.0-SNAPSHOT
@@ -121,12 +121,12 @@ services:
   rest-java:
     configs:
       - source: app-config
-        target: /usr/etc/hedera/application.yml
+        target: /usr/etc/hiero/application.yml
         uid: "1000"
         gid: "1000"
     environment:
       HEDERA_MIRROR_RESTJAVA_DB_HOST: db
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
     image: gcr.io/mirrornode/hedera-mirror-rest-java:0.130.0-SNAPSHOT
     pull_policy: always
     ports:
@@ -137,13 +137,13 @@ services:
   rosetta:
     configs:
       - source: app-config
-        target: /usr/etc/hedera/application.yml
+        target: /usr/etc/hiero/application.yml
         uid: "1000"
         gid: "1000"
     deploy:
       replicas: 0
     environment:
-      HEDERA_MIRROR_ROSETTA_API_CONFIG: /usr/etc/hedera/application.yml
+      HEDERA_MIRROR_ROSETTA_API_CONFIG: /usr/etc/hiero/application.yml
       HEDERA_MIRROR_ROSETTA_DB_HOST: db
     image: gcr.io/mirrornode/hedera-mirror-rosetta:0.130.0-SNAPSHOT
     pull_policy: always
@@ -155,12 +155,12 @@ services:
   web3:
     configs:
       - source: app-config
-        target: /usr/etc/hedera/application.yml
+        target: /usr/etc/hiero/application.yml
         uid: "1000"
         gid: "1000"
     environment:
       HEDERA_MIRROR_WEB3_DB_HOST: db
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera/
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
     image: gcr.io/mirrornode/hedera-mirror-web3:0.130.0-SNAPSHOT
     pull_policy: always
     ports:
@@ -171,7 +171,7 @@ services:
 configs:
   app-config:
     content: |
-      hedera:
+      hiero:
         mirror:
           importer:
             network: DEMO # Select one of PREVIEWNET/TESTNET/MAINNET and populate below config

@@ -177,7 +177,7 @@ public class DomainBuilder {
     public DomainWrapper<AddressBook, AddressBook.AddressBookBuilder> addressBook() {
         var builder = AddressBook.builder()
                 .fileData(bytes(10))
-                .fileId(EntityId.of(0L, 0L, 102))
+                .fileId(entityNum(102))
                 .nodeCount(6)
                 .startConsensusTimestamp(timestamp())
                 .endConsensusTimestamp(timestamp());
@@ -196,7 +196,7 @@ public class DomainBuilder {
                 .description(text(10))
                 .memo(text(10))
                 .nodeId(nodeId)
-                .nodeAccountId(EntityId.of(0L, 0L, nodeId + 3))
+                .nodeAccountId(entityNum(nodeId + 3))
                 .nodeCertHash(bytes(96))
                 .publicKey(text(64))
                 .stake(0L);
@@ -458,22 +458,20 @@ public class DomainBuilder {
         return entity(entityId(), timestamp());
     }
 
-    public DomainWrapper<EntityHistory, EntityHistory.EntityHistoryBuilder<?, ?>> entityHistory() {
-        var entityId = entityId();
-        long timestamp = timestamp();
-
+    public DomainWrapper<EntityHistory, EntityHistory.EntityHistoryBuilder<?, ?>> entityHistory(
+            EntityId entityId, long createdTimestamp) {
         var builder = EntityHistory.builder()
                 .alias(key())
                 .autoRenewAccountId(id())
                 .autoRenewPeriod(8_000_000L)
                 .balance(number())
-                .balanceTimestamp(timestamp)
-                .createdTimestamp(timestamp)
+                .balanceTimestamp(createdTimestamp)
+                .createdTimestamp(createdTimestamp)
                 .declineReward(false)
                 .deleted(false)
                 .ethereumNonce(1L)
                 .evmAddress(evmAddress())
-                .expirationTimestamp(timestamp + 30_000_000L)
+                .expirationTimestamp(createdTimestamp + 30_000_000L)
                 .id(entityId.getId())
                 .key(key())
                 .maxAutomaticTokenAssociations(1)
@@ -487,10 +485,17 @@ public class DomainBuilder {
                 .shard(entityId.getShard())
                 .stakedNodeId(-1L)
                 .stakePeriodStart(-1L)
-                .timestampRange(Range.closedOpen(timestamp, timestamp + 10))
+                .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10))
                 .type(ACCOUNT);
-
         return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<EntityHistory, EntityHistory.EntityHistoryBuilder<?, ?>> entityHistory(EntityId entityId) {
+        return entityHistory(entityId, timestamp());
+    }
+
+    public DomainWrapper<EntityHistory, EntityHistory.EntityHistoryBuilder<?, ?>> entityHistory() {
+        return entityHistory(entityId(), timestamp());
     }
 
     public DomainWrapper<EntityStake, EntityStake.EntityStakeBuilder<?, ?>> entityStake() {
@@ -1118,7 +1123,11 @@ public class DomainBuilder {
 
     public EntityId entityId() {
         long nextNum = number() + LAST_RESERVED_ID;
-        return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), nextNum);
+        return entityNum(nextNum);
+    }
+
+    public EntityId entityNum(long num) {
+        return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), num);
     }
 
     public byte[] evmAddress() {

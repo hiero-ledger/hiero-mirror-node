@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-hedera:
+hiero:
   mirror:
     graphql:
       db:
@@ -63,16 +63,16 @@ spring:
       secrets:
         paths: /usr/etc/${spring.application.name}
   datasource:
-    name: ${hedera.mirror.graphql.db.name}
-    password: ${hedera.mirror.graphql.db.password}
-    url: jdbc:postgresql://${hedera.mirror.graphql.db.host}:${hedera.mirror.graphql.db.port}/${hedera.mirror.graphql.db.name}?options=-c%20statement_timeout=${hedera.mirror.graphql.db.statementTimeout}
-    username: ${hedera.mirror.graphql.db.username}
+    name: ${hiero.mirror.graphql.db.name}
+    password: ${hiero.mirror.graphql.db.password}
+    url: jdbc:postgresql://${hiero.mirror.graphql.db.host}:${hiero.mirror.graphql.db.port}/${hiero.mirror.graphql.db.name}?options=-c%20statement_timeout=${hiero.mirror.graphql.db.statementTimeout}
+    username: ${hiero.mirror.graphql.db.username}
     hikari:
       connection-timeout: 3000
       data-source-properties:
         idle_in_transaction_session_timeout: "30000"
         lock_timeout: "10000"
-        sslmode: ${hedera.mirror.graphql.db.sslMode}
+        sslmode: ${hiero.mirror.graphql.db.sslMode}
         tcpKeepAlive: true
       maximum-pool-size: 50
       minimum-idle: 4

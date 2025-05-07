@@ -11,7 +11,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-@ConfigurationProperties("hedera.mirror.monitor.health.release")
+@ConfigurationProperties("hiero.mirror.monitor.health.release")
 public class ReleaseHealthProperties {
 
     @DurationMin(seconds = 30)

@@ -11,11 +11,19 @@ public class GlobalTestSetup implements LauncherSessionListener, TestExecutionLi
 
     @Override
     public void launcherSessionOpened(LauncherSession session) {
-        session.getLauncher().registerTestExecutionListeners(new TestExecutionListener() {
-            @Override
-            public void testPlanExecutionStarted(TestPlan testPlan) {
-                new CommonProperties().init();
-            }
-        });
+        session.getLauncher().registerTestExecutionListeners(this);
+    }
+
+    @Override
+    public void testPlanExecutionStarted(TestPlan testPlan) {
+        // Only init once
+        // Other modules with their own testPlanExecutionStarted handler and dependent on common / CommonProperties
+        // run before common module's handler. So this will be called twice with the first from the other module's
+        // global set up if exists.
+        try {
+            CommonProperties.getInstance();
+        } catch (IllegalStateException ex) {
+            new CommonProperties().init();
+        }
     }
 }

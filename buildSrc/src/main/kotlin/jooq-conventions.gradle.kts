@@ -66,8 +66,8 @@ tasks.compileJava { dependsOn(tasks.jooqCodegen) }
 tasks.flywayMigrate {
     locations =
         arrayOf(
-            "filesystem:../hedera-mirror-importer/src/main/resources/db/migration/v1",
-            "filesystem:../hedera-mirror-importer/src/main/resources/db/migration/common",
+            "filesystem:../importer/src/main/resources/db/migration/v1",
+            "filesystem:../importer/src/main/resources/db/migration/common",
         )
     password = dbPassword
     placeholders =
@@ -120,7 +120,7 @@ abstract class PostgresService : BuildService<PostgresService.Params>, AutoClose
             Transferable.of(
                 File(
                         parameters.getRootDir().get() +
-                            "/hedera-mirror-importer/src/main/resources/db/scripts/init.sh"
+                            "/importer/src/main/resources/db/scripts/init.sh"
                     )
                     .readBytes()
             )

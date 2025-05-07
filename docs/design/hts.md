@@ -185,7 +185,7 @@ To support the goals the following database schema changes should be made
 - Add a `TokenIdConverter`
 
 ```java
-    package com.hedera.mirror.importer.converter;
+    package org.hiero.mirror.importer.converter;
     ...
     public class TokenIdConverter extends AbstractEntityIdConverter {
 
@@ -659,7 +659,7 @@ TBD
 ## Open Questions
 
 - [x] What's the maximum character size of the token `symbol` string
-  - A: Max length is currently 100 chars to match memo, https://github.com/hashgraph/hedera-services/blob/separate-tokenrels-fcm/hedera-node/src/main/resources/bootstrap.properties#L56
+  - A: Max length is currently 100 chars to match memo
 - [x] Will a `token_id` and `token` be assigned a default value for HBARs across the network e.g. i.e. '1' and 'HBAR' respectively
   - A: Currently no since hbar is not treated as an entity like tokens will be.
 - [x] Should token only entity items exist in their own table or be added to `entity`?

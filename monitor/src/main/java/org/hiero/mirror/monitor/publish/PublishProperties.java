@@ -17,7 +17,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-@ConfigurationProperties("hedera.mirror.monitor.publish")
+@ConfigurationProperties("hiero.mirror.monitor.publish")
 public class PublishProperties {
 
     private boolean async = true;

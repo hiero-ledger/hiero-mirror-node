@@ -158,6 +158,16 @@ class EntityIdUtilsTest {
     }
 
     @Test
+    void idFromEncodedId() {
+        assertThat(EntityIdUtils.idFromEncodedId(null)).isNull();
+        assertThat(EntityIdUtils.idFromEncodedId(0L)).isNull();
+        assertThat(EntityIdUtils.idFromEncodedId(EntityId.of(SHARD, REALM, NUM).getId()))
+                .returns(SHARD, Id::shard)
+                .returns(REALM, Id::realm)
+                .returns(NUM, Id::num);
+    }
+
+    @Test
     void idFromEntityId() {
         assertThat(EntityIdUtils.idFromEntityId(EntityId.of(SHARD, REALM, NUM)))
                 .returns(SHARD, Id::shard)

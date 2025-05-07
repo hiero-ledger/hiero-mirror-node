@@ -17,7 +17,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("grpcVersion", "1.72.0")
-    set("jooq.version", "3.20.2") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.20.4") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.14.0")
     set("protobufVersion", "4.30.2")
@@ -51,7 +51,7 @@ dependencies {
         api("com.graphql-java:graphql-java-extended-validation:22.0")
         api("com.hedera.hashgraph:app:0.61.3")
         api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.61.3")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.62.0")
         api("com.hedera.hashgraph:sdk:2.54.0")
         api("com.ongres.scram:client:2.1")
         api("com.playtika.testcontainers:embedded-google-pubsub:3.1.11")
@@ -88,7 +88,7 @@ dependencies {
         api("org.springframework.cloud:spring-cloud-dependencies:2024.0.0")
         api("org.testcontainers:junit-jupiter:1.21.0")
         api("org.mockito:mockito-inline:5.2.0")
-        api("software.amazon.awssdk:bom:2.31.25")
+        api("software.amazon.awssdk:bom:2.31.35")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
         api("org.web3j:core:4.12.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
@@ -262,7 +262,7 @@ spotless {
         licenseHeader(licenseHeader.replaceFirst("//", "--"), "^[^-\\s]")
         target(
             "hedera-mirror-common/src/test/resources/*.sql",
-            "hedera-mirror-importer/**/*.sql",
+            "importer/**/*.sql",
             "hedera-mirror-rest/__tests__/data/**/*.sql",
         )
         targetExclude("**/build/**", "**/db/migration/**")

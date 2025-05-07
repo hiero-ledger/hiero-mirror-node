@@ -13,7 +13,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-@ConfigurationProperties("hedera.mirror.grpc.retriever")
+@ConfigurationProperties("hiero.mirror.grpc.retriever")
 public class RetrieverProperties {
 
     private boolean enabled = true;

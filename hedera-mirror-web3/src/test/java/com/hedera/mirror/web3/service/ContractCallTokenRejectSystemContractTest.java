@@ -274,7 +274,7 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
         final var token = nonFungibleTokenPersistWithTreasury(treasury);
         final var tokenId = token.getTokenId();
         nftPersistCustomizable(
-                n -> n.tokenId(tokenId).accountId(sender.toEntityId()).spender(sender.toEntityId()));
+                n -> n.tokenId(tokenId).accountId(sender.toEntityId()).spender(sender.getId()));
         tokenAccountPersist(tokenId, sender.getId());
         tokenAccountPersist(tokenId, treasury.getId());
         return tokenId;

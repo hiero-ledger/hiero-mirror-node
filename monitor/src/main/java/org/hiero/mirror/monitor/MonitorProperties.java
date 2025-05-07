@@ -22,7 +22,7 @@ import org.springframework.validation.annotation.Validated;
 @Data
 @EnableConfigurationProperties(CommonProperties.class)
 @Validated
-@ConfigurationProperties("hedera.mirror.monitor")
+@ConfigurationProperties("hiero.mirror.monitor")
 public class MonitorProperties {
 
     @Resource

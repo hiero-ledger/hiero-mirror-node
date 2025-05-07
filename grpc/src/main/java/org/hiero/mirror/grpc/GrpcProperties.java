@@ -13,7 +13,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-@ConfigurationProperties("hedera.mirror.grpc")
+@ConfigurationProperties("hiero.mirror.grpc")
 public class GrpcProperties {
 
     private boolean checkTopicExists = true;

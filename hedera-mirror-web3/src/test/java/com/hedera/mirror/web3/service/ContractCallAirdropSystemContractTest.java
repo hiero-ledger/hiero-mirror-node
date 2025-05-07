@@ -67,7 +67,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         final var token = nonFungibleTokenCustomizable(
                 e -> e.treasuryAccountId(treasuryEntityId).kycKey(null));
         nftPersistCustomizable(n ->
-                n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.toEntityId()));
+                n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.getId()));
         tokenAccountPersist(token.getTokenId(), sender.getId());
         final var nftAddress = toAddress(token.getTokenId()).toHexString();
 
@@ -135,7 +135,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
             final var token = nonFungibleTokenCustomizable(
                     e -> e.treasuryAccountId(treasuryEntityId).kycKey(null));
             nftPersistCustomizable(n ->
-                    n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.toEntityId()));
+                    n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.getId()));
             tokenAccountPersist(token.getTokenId(), sender.getId());
             final var nftAddress = toAddress(token.getTokenId()).toHexString();
 
@@ -187,7 +187,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
             final var token = nonFungibleTokenCustomizable(
                     e -> e.treasuryAccountId(treasuryEntityId).kycKey(null));
             nftPersistCustomizable(n ->
-                    n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.toEntityId()));
+                    n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.getId()));
             tokenAccountPersist(token.getTokenId(), sender.getId());
             final var nftAddress = toAddress(token.getTokenId()).toHexString();
 
@@ -248,7 +248,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
             final var token = nonFungibleTokenCustomizable(
                     e -> e.treasuryAccountId(treasuryEntityId).kycKey(null));
             nftPersistCustomizable(n ->
-                    n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.toEntityId()));
+                    n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.getId()));
             tokenAccountPersist(token.getTokenId(), sender.getId());
             final var nftAddress = toAddress(token.getTokenId()).toHexString();
 
@@ -358,7 +358,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         final var token = nonFungibleTokenCustomizable(
                 e -> e.treasuryAccountId(treasuryEntityId).kycKey(null));
         nftPersistCustomizable(n ->
-                n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.toEntityId()));
+                n.accountId(sender.toEntityId()).tokenId(token.getTokenId()).spender(sender.getId()));
         tokenAccountPersist(token.getTokenId(), sender.getId());
         final var nftAddress = toAddress(token.getTokenId()).toHexString();
 
@@ -398,7 +398,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
             final var serialNumber = i + 1;
             nftPersistCustomizable(n -> n.accountId(sender.toEntityId())
                     .tokenId(token.getTokenId())
-                    .spender(sender.toEntityId())
+                    .spender(sender.getId())
                     .serialNumber(serialNumber));
 
             receivers.add(getAddressFromEntity(receiver));
@@ -436,7 +436,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
             final var serialNumber = i + 1;
             nftPersistCustomizable(n -> n.accountId(sender.toEntityId())
                     .tokenId(token.getTokenId())
-                    .spender(sender.toEntityId())
+                    .spender(sender.getId())
                     .serialNumber(serialNumber));
 
             receivers.add(getAddressFromEntity(receiver));
@@ -477,7 +477,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
             if (i < 4) {
                 nftPersistCustomizable(n -> n.accountId(sender.toEntityId())
                         .tokenId(token.getTokenId())
-                        .spender(sender.toEntityId())
+                        .spender(sender.getId())
                         .serialNumber(serialNumber));
             }
             receivers.add(getAddressFromEntity(receiver));
