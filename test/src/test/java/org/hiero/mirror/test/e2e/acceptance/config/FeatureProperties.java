@@ -19,7 +19,7 @@ public class FeatureProperties {
 
     @Min(1)
     @Max(10_000_000)
-    private long maxContractFunctionGas = 6_000_000;
+    private long maxContractFunctionGas = 5_250_000;
 
     private boolean sidecars = false;
 }
