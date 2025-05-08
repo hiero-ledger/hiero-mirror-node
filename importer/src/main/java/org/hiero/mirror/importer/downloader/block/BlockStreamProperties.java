@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
 
 @Component("blockStreamProperties")
-@ConfigurationProperties("hedera.mirror.importer.downloader.block")
+@ConfigurationProperties("hiero.mirror.importer.block")
 @Data
 @RequiredArgsConstructor
 @Validated

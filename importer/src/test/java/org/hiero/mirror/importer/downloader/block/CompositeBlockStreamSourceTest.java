@@ -54,7 +54,7 @@ class CompositeBlockStreamSourceTest {
         // given
         doThrow(new RuntimeException()).when(blockFileSource).get();
 
-        // then
+        // when
         source.get();
 
         // then
