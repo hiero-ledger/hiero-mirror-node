@@ -6,9 +6,9 @@ import (
 	"bytes"
 	"reflect"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/test/bdd-client/client"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
-	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -72,8 +72,7 @@ func loadConfig() (*config, error) {
 	log.Infof("Loaded external configuration file %s", v.ConfigFileUsed())
 
 	config := &config{}
-	var decodeHook = interface{}(addDecodeHooks).(viper.DecoderConfigOption)
-	if err := v.UnmarshalKey(configPrefix, config, decodeHook); err != nil {
+	if err := v.UnmarshalKey(configPrefix, config, addDecodeHooks); err != nil {
 		log.Errorf("Failed to unmarshal config %v", err)
 		return nil, err
 	}
