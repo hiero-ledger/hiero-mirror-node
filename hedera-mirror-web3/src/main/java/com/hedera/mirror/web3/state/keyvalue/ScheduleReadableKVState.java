@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package com.hedera.mirror.web3.state.keyvalue;
 
 import com.hedera.hapi.node.base.Key;
@@ -20,6 +22,8 @@ import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Named
@@ -31,7 +35,9 @@ public class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID,
 
     private final TransactionSignatureRepository transactionSignatureRepository;
 
-    protected ScheduleReadableKVState(ScheduleRepository scheduleRepository, CommonEntityAccessor commonEntityAccessor,
+    protected ScheduleReadableKVState(
+            ScheduleRepository scheduleRepository,
+            CommonEntityAccessor commonEntityAccessor,
             TransactionSignatureRepository transactionSignatureRepository) {
         super(V0490ScheduleSchema.SCHEDULES_BY_ID_KEY);
         this.scheduleRepository = scheduleRepository;
@@ -50,53 +56,62 @@ public class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID,
             return null;
         }
 
-        return scheduleRepository.findById(scheduleId.getId())
+        return scheduleRepository
+                .findById(scheduleId.getId())
                 .map(schedule -> {
                     try {
-                        return mapToSchedule(schedule, key, entity);
+                        return mapToSchedule(schedule, key, entity, timestamp);
                     } catch (ParseException e) {
-                        throw new RuntimeException(e);
+                        throw new IllegalArgumentException(e);
                     }
                 })
                 .orElse(null);
     }
 
-    private Schedule mapToSchedule(final com.hedera.mirror.common.domain.schedule.Schedule schedule, final ScheduleID scheduleID,
-            final Entity entity) throws ParseException {
+    private Schedule mapToSchedule(
+            final com.hedera.mirror.common.domain.schedule.Schedule schedule,
+            final ScheduleID scheduleID,
+            final Entity entity,
+            final Optional<Long> timestamp)
+            throws ParseException {
         return Schedule.newBuilder()
                 .scheduleId(scheduleID)
                 .payerAccountId(EntityIdUtils.toAccountId(schedule.getPayerAccountId()))
                 .schedulerAccountId(EntityIdUtils.toAccountId(schedule.getCreatorAccountId()))
                 .deleted(entity.getDeleted())
                 .memo(entity.getMemo())
-                .scheduledTransaction(SchedulableTransactionBody.PROTOBUF.parse(Bytes.wrap(schedule.getTransactionBody())))
-                .originalCreateTransaction(TransactionBody.newBuilder().transactionID(TransactionID.newBuilder()
+                .scheduledTransaction(
+                        SchedulableTransactionBody.PROTOBUF.parse(Bytes.wrap(schedule.getTransactionBody())))
+                .originalCreateTransaction(TransactionBody.newBuilder()
+                        .transactionID(TransactionID.newBuilder()
                                 .accountID(EntityIdUtils.toAccountId(schedule.getCreatorAccountId()))))
-                .signatories(getSignatories(schedule.getScheduleId()))
+                .signatories(getSignatories(schedule.getScheduleId(), timestamp))
                 .build();
     }
 
-    private List<Key> getSignatories(final Long scheduleId) {
-        // Here we should also start taking into a account the timestamp and make historical query
-        final var signatures = transactionSignatureRepository.findByEntityId(EntityId.of(scheduleId));
+    private List<Key> getSignatories(final Long scheduleId, final Optional<Long> timestamp) {
+        final var entityId = EntityId.of(scheduleId);
+        final var signatures = timestamp
+                .map(ts ->
+                        transactionSignatureRepository.findByEntityIdAndConsensusTimestampLessThanEqual(entityId, ts))
+                .orElseGet(() -> transactionSignatureRepository.findByEntityId(entityId));
 
         return signatures.stream()
                 .map(signature -> {
                     Key.KeyOneOfType keyType = fromProtoOrdinal(signature.getType());
-
                     return switch (keyType) {
-                        // Might need to add logic for KEY_LIST and THRESHOLD_KEY check
-                        // private static void accumulateNewSignatories( in AbstractScheduleHandler
-                        case ED25519 -> Key.newBuilder()
-                                .ed25519(Bytes.wrap(signature.getPublicKeyPrefix()))
-                                .build();
-
-                        case ECDSA_SECP256K1 -> Key.newBuilder()
-                                .ecdsaSecp256k1(Bytes.wrap(signature.getPublicKeyPrefix()))
-                                .build();
-                        default -> throw new IllegalArgumentException("Unsupported key type in getSignatories: " + keyType);
+                        case ED25519 ->
+                            Key.newBuilder()
+                                    .ed25519(Bytes.wrap(signature.getPublicKeyPrefix()))
+                                    .build();
+                        case ECDSA_SECP256K1 ->
+                            Key.newBuilder()
+                                    .ecdsaSecp256k1(Bytes.wrap(signature.getPublicKeyPrefix()))
+                                    .build();
+                        default -> null; // skip unsupported key types
                     };
                 })
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
@@ -115,5 +130,4 @@ public class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID,
         }
         throw new IllegalArgumentException("Unknown protoOrdinal: " + protoOrdinal);
     }
-
 }
