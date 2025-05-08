@@ -133,7 +133,6 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
         final var functionCall = contract.send_signScheduleCall(
                 (getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))), signatureMapBytes);
         // Then
-
         final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
@@ -262,7 +261,6 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
                 (getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))),
                 SignatureMap.PROTOBUF.toBytes(signatureMap).toByteArray());
         // Then
-
         final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
@@ -407,7 +405,7 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
         return Bytes.wrap(buffer.array()).toByteArray();
     }
 
-    private byte[] getMessageHash(Entity scheduleEntity) {
+    private byte[] getMessageHash(final Entity scheduleEntity) {
         return new Keccak.Digest256().digest(getMessageBytes(scheduleEntity));
     }
 
