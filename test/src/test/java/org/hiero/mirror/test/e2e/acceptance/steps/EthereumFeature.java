@@ -59,7 +59,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
                 .getPublicKey()
                 .toAccountId(commonProperties.getShard(), commonProperties.getRealm());
 
-        networkTransactionResponse = accountClient.sendCryptoTransfer(ethereumSignerAccount, Hbar.from(5L), null);
+        networkTransactionResponse = accountClient.sendCryptoTransfer(ethereumSignerAccount, Hbar.from(30L), null);
 
         assertThat(networkTransactionResponse.getTransactionId()).isNotNull();
         assertThat(networkTransactionResponse.getReceipt()).isNotNull();
@@ -78,7 +78,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
 
         assertThat(accountInfo.getAccount()).isNotNull();
         assertThat(accountInfo.getBalance().getBalance())
-                .isEqualTo(Hbar.from(5L).toTinybars());
+                .isEqualTo(Hbar.from(30L).toTinybars());
 
         assertThat(accountInfo.getTransactions()).hasSize(1);
         assertThat(transactions).hasSize(2);

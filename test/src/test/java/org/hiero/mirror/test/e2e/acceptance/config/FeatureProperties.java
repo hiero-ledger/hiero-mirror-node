@@ -18,8 +18,8 @@ import org.springframework.validation.annotation.Validated;
 public class FeatureProperties {
 
     @Min(1)
-    @Max(5_000_000)
-    private long maxContractFunctionGas = 3_000_000;
+    @Max(10_000_000)
+    private long maxContractFunctionGas = 6_000_000;
 
     private boolean sidecars = false;
 }
