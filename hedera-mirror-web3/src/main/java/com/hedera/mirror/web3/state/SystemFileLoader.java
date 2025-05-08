@@ -26,6 +26,7 @@ import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NodeAddress;
+import com.hederahashgraph.api.proto.java.ServiceEndpoint;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
@@ -39,6 +40,7 @@ import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.retry.support.RetryTemplate;
 
@@ -97,9 +99,10 @@ public class SystemFileLoader {
         return retryTemplate.execute(
                 context -> fileDataRepository
                         .getFileAtTimestamp(fileId, nanoSeconds.get())
+                        .filter(fileData -> ArrayUtils.isNotEmpty(fileData.getFileData()))
                         .map(fileData -> {
                             try {
-                                var bytes = getBytes(fileData, fileId);
+                                var bytes = Bytes.wrap(fileData.getFileData());
                                 if (systemFile.codec != null) {
                                     systemFile.codec().parse(bytes.toReadableSequentialData());
                                 }
@@ -168,16 +171,21 @@ public class SystemFileLoader {
         return Instant.now().getEpochSecond() + maxLifetime;
     }
 
-    @SuppressWarnings("deprecation")
     private byte[] createMockAddressBook() {
         com.hederahashgraph.api.proto.java.NodeAddressBook.Builder builder =
                 com.hederahashgraph.api.proto.java.NodeAddressBook.newBuilder();
         long nodeId = 3;
         NodeAddress.Builder nodeAddressBuilder = NodeAddress.newBuilder()
-                .setIpAddress(ByteString.copyFromUtf8("127.0.0." + nodeId))
-                .setPortno((int) nodeId)
+                .addServiceEndpoint(ServiceEndpoint.newBuilder()
+                        .setIpAddressV4(ByteString.copyFromUtf8("127.0.0." + nodeId))
+                        .setPort((int) nodeId)
+                        .build())
                 .setNodeId(nodeId)
-                .setNodeAccountId(AccountID.newBuilder().setAccountNum(nodeId));
+                .setNodeAccountId(AccountID.newBuilder()
+                        // setting the shard and realm just to be safe
+                        .setShardNum(properties.getCommonProperties().getShard())
+                        .setRealmNum(properties.getCommonProperties().getRealm())
+                        .setAccountNum(nodeId));
         builder.addNodeAddress(nodeAddressBuilder.build());
         return builder.build().toByteArray();
     }
