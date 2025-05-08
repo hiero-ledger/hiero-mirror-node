@@ -76,7 +76,7 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(1000));
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, Address.ZERO);
-        final long actualGas = 57764L;
+        final long actualGas = mirrorNodeEvmProperties.isModularizedServices() ? 97768L : 57764L;
         long expectedGas = longValueOf.applyAsLong(contractCallService.processCall(serviceParameters));
         assertThat(isWithinExpectedGasRange(expectedGas, actualGas))
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, expectedGas, actualGas)
@@ -151,7 +151,7 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(TestNestedAddressThis::deploy);
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, Address.ZERO);
-        final long actualGas = 95401L;
+        final long actualGas = mirrorNodeEvmProperties.isModularizedServices() ? 147805L : 95401L;
         long expectedGas = longValueOf.applyAsLong(contractCallService.processCall(serviceParameters));
         assertThat(isWithinExpectedGasRange(expectedGas, actualGas))
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, expectedGas, actualGas)

@@ -13,13 +13,13 @@ on:
 defaults:
   run:
     shell: bash
-    working-directory: ./hedera-mirror-rosetta
+    working-directory: ./rosetta
 
 permissions:
   contents: read
 
 env:
-  MODULE: hedera-mirror-rosetta
+  MODULE: rosetta
   NETWORK: previewnet
 
 jobs:
@@ -73,7 +73,7 @@ jobs:
           build-args: GIT_REF=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          context: ./hedera-mirror-rosetta/container
+          context: ./rosetta/container
           github-token: ${{ secrets.GITHUB_TOKEN }}
           load: true
           provenance: false
@@ -90,7 +90,7 @@ jobs:
         run: |
           ONLINE_CONTAINER_ID=$(docker run -d -e HIERO_MIRROR_IMPORTER_STARTDATE=${STARTDATE} \
             -e NETWORK=${NETWORK} \
-            -e HEDERA_MIRROR_ROSETTA_RESPONSE_MAXTRANSACTIONSINBLOCK=4 \
+            -e HIERO_MIRROR_ROSETTA_RESPONSE_MAXTRANSACTIONSINBLOCK=4 \
             -v ${{ github.workspace }}/application_importer.yml:/app/importer/application.yml \
             -v ${{ github.workspace }}/application_rosetta.yml:/app/rosetta/application.yml \
             -p 5700:5700 "${MODULE}:${{ github.sha }}")
@@ -102,7 +102,7 @@ jobs:
           MAX_WAIT_SECONDS: 900
 
       - name: Rosetta CLI Configuration
-        working-directory: ./hedera-mirror-rosetta/scripts/validation/${{ env.NETWORK }}
+        working-directory: ./rosetta/scripts/validation/${{ env.NETWORK }}
         run: |
           # set start index to genesis index + 1
           body='{"network_identifier": {"blockchain": "Hedera", "network": "'${NETWORK}'"}}'
@@ -112,7 +112,7 @@ jobs:
             mv tmp.json validation.json
 
       - name: Run Rosetta CLI Validation
-        working-directory: ./hedera-mirror-rosetta/scripts/validation
+        working-directory: ./rosetta/scripts/validation
         run: ./run-validation.sh ${NETWORK} data
 
       - name: Run Rosetta Postman API Tests

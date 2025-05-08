@@ -143,8 +143,8 @@ services:
     deploy:
       replicas: 0
     environment:
-      HEDERA_MIRROR_ROSETTA_API_CONFIG: /usr/etc/hiero/application.yml
-      HEDERA_MIRROR_ROSETTA_DB_HOST: db
+      HIERO_MIRROR_ROSETTA_API_CONFIG: /usr/etc/hiero/application.yml
+      HIERO_MIRROR_ROSETTA_DB_HOST: db
     image: gcr.io/mirrornode/hedera-mirror-rosetta:0.130.0-SNAPSHOT
     pull_policy: always
     ports:

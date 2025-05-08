@@ -47,12 +47,10 @@ import com.hedera.node.app.state.recordcache.RecordCacheService;
 import com.hedera.node.app.throttle.AppThrottleFactory;
 import com.hedera.node.app.throttle.CongestionThrottleService;
 import com.hedera.node.app.throttle.ThrottleAccumulator;
-import com.hedera.node.app.version.ServicesSoftwareVersion;
 import com.hedera.node.app.workflows.handle.metric.UnavailableMetrics;
 import com.hedera.node.config.data.VersionConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.base.time.Time;
-import com.swirlds.common.crypto.Hash;
 import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.crypto.MerkleCryptography;
 import com.swirlds.metrics.api.Metrics;
@@ -91,6 +89,7 @@ import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
+import org.hiero.base.crypto.Hash;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 @Named
@@ -136,7 +135,8 @@ public class MirrorNodeState implements MerkleNodeState {
         final var bootstrapConfig = mirrorNodeEvmProperties.getVersionedConfiguration();
         final var currentSemanticVersion =
                 bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion();
-        final var currentVersion = new ServicesSoftwareVersion(currentSemanticVersion);
+        final var currentVersion =
+                bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion();
         final var previousVersion = latest.isEmpty() ? null : currentVersion;
         ContractCallContext.run(ctx -> {
             latest.ifPresent(ctx::setRecordFile);
@@ -409,11 +409,7 @@ public class MirrorNodeState implements MerkleNodeState {
                 () -> DEFAULT_NODE_INFO,
                 () -> NO_OP_METRICS,
                 new AppThrottleFactory(
-                        () -> config,
-                        () -> this,
-                        () -> ThrottleDefinitions.DEFAULT,
-                        ThrottleAccumulator::new,
-                        v -> new ServicesSoftwareVersion()),
+                        () -> config, () -> this, () -> ThrottleDefinitions.DEFAULT, ThrottleAccumulator::new),
                 () -> NOOP_FEE_CHARGING,
                 new AppEntityIdFactory(config));
         Set.of(
@@ -449,5 +445,7 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     @Override
-    public void setHash(Hash hash) {}
+    public void setHash(Hash hash) {
+        // No-op
+    }
 }

@@ -18,8 +18,8 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.TokenID;
-import com.swirlds.common.utility.CommonUtils;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.base.utility.CommonUtils;
 import org.hyperledger.besu.datatypes.Address;
 
 public final class EntityIdUtils {

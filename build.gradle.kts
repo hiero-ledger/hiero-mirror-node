@@ -49,9 +49,9 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:2.9")
         api("com.graphql-java:graphql-java-extended-scalars:22.0")
         api("com.graphql-java:graphql-java-extended-validation:22.0")
-        api("com.hedera.hashgraph:app:0.61.3")
+        api("com.hedera.hashgraph:app:0.62.0")
         api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.62.0")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.62.1")
         api("com.hedera.hashgraph:sdk:2.54.0")
         api("com.ongres.scram:client:2.1")
         api("com.playtika.testcontainers:embedded-google-pubsub:3.1.11")
@@ -88,7 +88,7 @@ dependencies {
         api("org.springframework.cloud:spring-cloud-dependencies:2024.0.0")
         api("org.testcontainers:junit-jupiter:1.21.0")
         api("org.mockito:mockito-inline:5.2.0")
-        api("software.amazon.awssdk:bom:2.31.35")
+        api("software.amazon.awssdk:bom:2.31.38")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
         api("org.web3j:core:4.12.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
@@ -166,7 +166,7 @@ spotless {
     format("go") {
         endWithNewline()
         licenseHeader(licenseHeader, "package")
-        target("hedera-mirror-rosetta/**/*.go")
+        target("rosetta/**/*.go")
         targetExclude("**/build/**")
         trimTrailingWhitespace()
     }
@@ -185,7 +185,7 @@ spotless {
             .npmExecutable(npmExecutable)
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
             .config(mapOf("bracketSpacing" to false, "printWidth" to 120, "singleQuote" to true))
-        target("hedera-mirror-rest/**/*.js", "hedera-mirror-test/k6/**/*.js", "tools/**/*.js")
+        target("hedera-mirror-rest/**/*.js", "tools/**/*.js")
         targetExclude(
             "**/build/**",
             "**/node_modules/**",
@@ -202,7 +202,7 @@ spotless {
         targetExclude(
             "**/build/**",
             "hedera-mirror-rest/**",
-            "hedera-mirror-rosetta/**",
+            "rosetta/**",
             // Known issue with Java 21: https://github.com/palantir/palantir-java-format/issues/933
             "hedera-mirror-rest-java/**/EntityServiceImpl.java",
             "tools/**",

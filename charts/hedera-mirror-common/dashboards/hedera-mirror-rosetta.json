@@ -197,7 +197,7 @@
           "datasource": {
             "uid": "${prometheus}"
           },
-          "expr": "sum(rate(hedera_mirror_rosetta_request_duration_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))  ",
+          "expr": "sum(rate(hiero_mirror_rosetta_request_duration_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))  ",
           "format": "time_series",
           "interval": "1m",
           "intervalFactor": 2,
@@ -349,7 +349,7 @@
           "datasource": {
             "uid": "${prometheus}"
           },
-          "expr": "sum(rate(hedera_mirror_rosetta_response_bytes_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) / \nsum(rate(hedera_mirror_rosetta_response_bytes_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "sum(rate(hiero_mirror_rosetta_response_bytes_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) / \nsum(rate(hiero_mirror_rosetta_response_bytes_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
           "format": "time_series",
           "interval": "1m",
           "intervalFactor": 2,
@@ -510,7 +510,7 @@
           "datasource": {
             "uid": "${prometheus}"
           },
-          "expr": "(sum(rate(hedera_mirror_rosetta_request_duration_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",le=\"100\",status_code=~\"^2..$\"}[$__rate_interval])) +\nsum(rate(hedera_mirror_rosetta_request_duration_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",le=\"250\",status_code=~\"^2..$\"}[$__rate_interval])))\n/ 2 / sum(rate(hedera_mirror_rosetta_request_duration_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "(sum(rate(hiero_mirror_rosetta_request_duration_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",le=\"100\",status_code=~\"^2..$\"}[$__rate_interval])) +\nsum(rate(hiero_mirror_rosetta_request_duration_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",le=\"250\",status_code=~\"^2..$\"}[$__rate_interval])))\n/ 2 / sum(rate(hiero_mirror_rosetta_request_duration_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
           "format": "time_series",
           "interval": "1m",
           "intervalFactor": 2,
@@ -643,7 +643,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(hedera_mirror_rosetta_request_duration_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) > 0",
+          "expr": "sum(rate(hiero_mirror_rosetta_request_duration_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) > 0",
           "format": "time_series",
           "interval": "1m",
           "intervalFactor": 10,
@@ -751,7 +751,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(hedera_mirror_rosetta_request_duration_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",status_code=~\"^2..$\"}[$__rate_interval])) by (status_code) > 0",
+          "expr": "sum(rate(hiero_mirror_rosetta_request_duration_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",status_code=~\"^2..$\"}[$__rate_interval])) by (status_code) > 0",
           "format": "time_series",
           "hide": false,
           "interval": "1m",
@@ -860,7 +860,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(hedera_mirror_rosetta_request_duration_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) / sum(rate(hedera_mirror_rosetta_request_duration_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) > 0",
+          "expr": "sum(rate(hiero_mirror_rosetta_request_duration_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) / sum(rate(hiero_mirror_rosetta_request_duration_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) > 0",
           "format": "time_series",
           "interval": "1m",
           "intervalFactor": 2,
@@ -928,7 +928,7 @@
           "datasource": {
             "uid": "${prometheus}"
           },
-          "expr": "sum(increase(hedera_mirror_rosetta_request_duration_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",status_code=~\"^2..$\"}[$__rate_interval])) by (le)",
+          "expr": "sum(increase(hiero_mirror_rosetta_request_duration_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",status_code=~\"^2..$\"}[$__rate_interval])) by (le)",
           "format": "heatmap",
           "hide": false,
           "instant": false,
@@ -1038,7 +1038,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": " sum(rate(hedera_mirror_rosetta_request_bytes_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) / sum(rate(hedera_mirror_rosetta_request_bytes_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) > 0",
+          "expr": " sum(rate(hiero_mirror_rosetta_request_bytes_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) / sum(rate(hiero_mirror_rosetta_request_bytes_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) > 0",
           "format": "time_series",
           "hide": false,
           "interval": "1m",
@@ -1147,7 +1147,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(hedera_mirror_rosetta_response_bytes_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) / sum(rate(hedera_mirror_rosetta_response_bytes_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) > 0",
+          "expr": "sum(rate(hiero_mirror_rosetta_response_bytes_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) / sum(rate(hiero_mirror_rosetta_response_bytes_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (route) > 0",
           "format": "time_series",
           "hide": false,
           "interval": "1m",
@@ -1217,7 +1217,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(hedera_mirror_rosetta_response_bytes_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (le) > 0",
+          "expr": "sum(increase(hiero_mirror_rosetta_response_bytes_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (le) > 0",
           "format": "heatmap",
           "hide": false,
           "instant": false,
@@ -1819,7 +1819,7 @@
   "tags": [
     "api",
     "application",
-    "hedera",
+    "hiero",
     "mirror",
     "rosetta"
   ],
@@ -1996,8 +1996,8 @@
     ]
   },
   "timezone": "",
-  "title": "Hedera / Mirror / Rosetta API",
+  "title": "Hiero / Mirror / Rosetta API",
   "uid": "0vnSftR7a",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }

@@ -35,7 +35,7 @@ _Note:_ Gas estimation only supports the `latest` block
 
 ## Acceptance Tests
 
-The [acceptance tests](/hedera-mirror-test/README.md) contain a suite of tests to validate a web3 deployment.
+The [acceptance tests](/test/README.md) contain a suite of tests to validate a web3 deployment.
 The `@web3` acceptance tag can be used to specifically target the web3 module.
 
 `./gradlew :test:acceptance --info -Dcucumber.filter.tags=@web3`
