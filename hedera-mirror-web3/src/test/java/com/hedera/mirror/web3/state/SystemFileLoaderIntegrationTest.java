@@ -23,18 +23,18 @@ import com.hederahashgraph.api.proto.java.FeeSchedule;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.NodeAddressBook;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
-import com.hederahashgraph.api.proto.java.ServicesConfigurationList;
-import com.hederahashgraph.api.proto.java.Setting;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @RequiredArgsConstructor
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
 
@@ -109,34 +109,7 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                     .build())
             .build();
 
-    private static final ServicesConfigurationList NETWORK_PROPERTY = ServicesConfigurationList.newBuilder()
-            .addNameValue(Setting.newBuilder().setName("name").build())
-            .build();
-
     private static final byte[] EMPTY_BYTES = new byte[0];
-    private static final int ADDRESS_BOOK_101 = 101;
-    private static final int ADDRESS_BOOK_102 = 102;
-    private static final int FEE_SCHEDULE_FILE = 111;
-    private static final int EXCHANGE_RATES_FILE = 112;
-    private static final int THROTTLE_DEFINITIONS_FILE = 123;
-
-    private static Stream<Arguments> fileData() {
-        return Stream.of(
-                Arguments.of(ADDRESS_BOOK_101, NODE_ADDRESS_BOOK.toByteArray()),
-                Arguments.of(ADDRESS_BOOK_102, NODE_ADDRESS_BOOK.toByteArray()),
-                Arguments.of(FEE_SCHEDULE_FILE, FEE_SCHEDULE.toByteArray()),
-                Arguments.of(EXCHANGE_RATES_FILE, EXCHANGE_RATES_SET.toByteArray()),
-                Arguments.of(THROTTLE_DEFINITIONS_FILE, THROTTLE_DEFINITIONS.toByteArray()));
-    }
-
-    private static Stream<Arguments> fileNumData() {
-        return Stream.of(
-                Arguments.of(ADDRESS_BOOK_101),
-                Arguments.of(ADDRESS_BOOK_102),
-                Arguments.of(FEE_SCHEDULE_FILE),
-                Arguments.of(EXCHANGE_RATES_FILE),
-                Arguments.of(THROTTLE_DEFINITIONS_FILE));
-    }
 
     private final SystemFileLoader systemFileLoader;
 
@@ -175,9 +148,8 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
 
     @ParameterizedTest
     @MethodSource("fileNumData")
-    void loadFileWithEmptyBytesReturnsGenesisFile(int fileNum) {
+    void loadFileWithEmptyBytesReturnsGenesisFile(EntityId entityId) {
         // Setup
-        final var entityId = getEntityId(fileNum);
         final var fileId = fileId(entityId);
 
         domainBuilder
@@ -196,9 +168,8 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
 
     @ParameterizedTest
     @MethodSource("fileData")
-    void loadFileReturnsCorrectWithEmptyAndValidFile(int fileNum, byte[] fileData) {
+    void loadFileReturnsCorrectWithEmptyAndValidFile(EntityId entityId, byte[] fileData) {
         // Setup
-        final var entityId = getEntityId(fileNum);
         final var fileId = fileId(entityId);
 
         domainBuilder
@@ -222,15 +193,17 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
         assertThat(actualFile.contents()).isEqualTo(Bytes.wrap(fileData));
     }
 
-    private EntityId getEntityId(int fileNum) {
-        return switch (fileNum) {
-            case ADDRESS_BOOK_101 -> systemEntity.addressBookFile101();
-            case ADDRESS_BOOK_102 -> systemEntity.addressBookFile102();
-            case FEE_SCHEDULE_FILE -> systemEntity.feeScheduleFile();
-            case EXCHANGE_RATES_FILE -> systemEntity.exchangeRateFile();
-            case THROTTLE_DEFINITIONS_FILE -> systemEntity.throttleDefinitionFile();
-            default -> throw new IllegalArgumentException("Invalid fileNum: " + fileNum);
-        };
+    private Stream<Arguments> fileData() {
+        return Stream.of(
+                Arguments.of(systemEntity.addressBookFile101(), NODE_ADDRESS_BOOK.toByteArray()),
+                Arguments.of(systemEntity.addressBookFile102(), NODE_ADDRESS_BOOK.toByteArray()),
+                Arguments.of(systemEntity.feeScheduleFile(), FEE_SCHEDULE.toByteArray()),
+                Arguments.of(systemEntity.exchangeRateFile(), EXCHANGE_RATES_SET.toByteArray()),
+                Arguments.of(systemEntity.throttleDefinitionFile(), THROTTLE_DEFINITIONS.toByteArray()));
+    }
+
+    private Stream<Arguments> fileNumData() {
+        return fileData().map(args -> Arguments.of(args.get()[0]));
     }
 
     private FileID fileId(EntityId fileId) {
