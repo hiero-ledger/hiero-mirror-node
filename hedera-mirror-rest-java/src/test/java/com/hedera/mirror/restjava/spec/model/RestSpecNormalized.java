@@ -34,11 +34,13 @@ public record RestSpecNormalized(
         if (CollectionUtils.isEmpty(restSpec.tests())) {
             var specTest = new SpecTest(
                     restSpec.description(),
+                    restSpec.extendedDescription(),
                     restSpec.responseHeaders(),
                     restSpec.responseJson(),
                     restSpec.responseStatus(),
                     restSpec.url(),
-                    restSpec.urls());
+                    restSpec.urls(),
+                    restSpec.responseJsonMatrix());
             normalizedTests = List.of(SpecTestNormalized.from(specTest));
         } else {
             normalizedTests = SpecTestNormalized.allFrom(restSpec.tests());

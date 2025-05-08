@@ -7,7 +7,7 @@
       }
     ]
   },
-  "url": [
+  "urls": [
     "/api/v1/contracts/0.0.6001",
     "/api/v1/contracts/b928f69bb1d91cd65274e3c79d8986362984fda3"
   ],

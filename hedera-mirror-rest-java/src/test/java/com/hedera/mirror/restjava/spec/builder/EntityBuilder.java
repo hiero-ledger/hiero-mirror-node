@@ -13,16 +13,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 @Named
 class EntityBuilder extends AbstractEntityBuilder<AbstractEntity, AbstractEntity.AbstractEntityBuilder<?, ?>> {
 
-    private static final Map<String, Function<Object, Object>> METHOD_PARAMETER_CONVERTERS = Map.of(
-            "alias", BASE32_CONVERTER,
-            "evmAddress", HEX_OR_BASE64_CONVERTER,
-            "key", HEX_OR_BASE64_CONVERTER);
+    private static final Map<String, BiFunction<Object, SpecBuilderContext, Object>> METHOD_PARAMETER_CONVERTERS =
+            Map.of(
+                    "alias", BASE32_CONVERTER,
+                    "evmAddress", HEX_OR_BASE64_CONVERTER,
+                    "key", HEX_OR_BASE64_CONVERTER);
 
     EntityBuilder() {
         super(METHOD_PARAMETER_CONVERTERS);
@@ -84,7 +85,7 @@ class EntityBuilder extends AbstractEntityBuilder<AbstractEntity, AbstractEntity
 
             // Work around entity builder resetting the public key when setting key
             var publicKeyOverride = account.get("public_key");
-            if (entity.getPublicKey() == null && publicKeyOverride != null) {
+            if (publicKeyOverride != null) {
                 entity.setPublicKey(publicKeyOverride.toString());
             }
         }

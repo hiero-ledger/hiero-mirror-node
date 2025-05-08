@@ -61,14 +61,22 @@
       }
     },
     {
-      "url": [
+      "urls": ["/api/v1/contracts/5001/state?timestamp=ne:123"],
+      "responseStatus": 400,
+      "responseJson": {
+        "_status": {
+          "messages": [
+            {
+              "message": "Not equals (ne) operator is not supported for timestamp"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "urls": [
         "/api/v1/contracts/5001/state?timestamp=x",
-        "/api/v1/contracts/5001/state?timestamp=ne:123",
-        "/api/v1/contracts/5001/state?timestamp=0x0001",
-        "/api/v1/contracts/5001/state?timestamp=gt:123",
-        "/api/v1/contracts/5001/state?timestamp=gte:123",
-        "/api/v1/contracts/5001/state?timestamp=lt:123",
-        "/api/v1/contracts/5001/state?timestamp=lte:123"
+        "/api/v1/contracts/5001/state?timestamp=0x0001"
       ],
       "responseStatus": 400,
       "responseJson": {

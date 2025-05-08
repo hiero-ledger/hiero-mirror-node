@@ -17,4 +17,5 @@ public record RestSpec(
         SpecSetup setup,
         List<SpecTest> tests,
         String url,
-        List<String> urls) {}
+        List<String> urls,
+        Map<String, Object> responseJsonMatrix) {}

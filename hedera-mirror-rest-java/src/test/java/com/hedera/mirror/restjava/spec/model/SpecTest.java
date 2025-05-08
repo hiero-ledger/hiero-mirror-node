@@ -11,11 +11,13 @@ import org.springframework.util.StringUtils;
 
 public record SpecTest(
         String description,
+        List<String> extendedDescription,
         Map<String, String> responseHeaders,
         @JsonDeserialize(using = JsonAsStringDeserializer.class) String responseJson,
         int responseStatus,
         String url,
-        List<String> urls) {
+        List<String> urls,
+        Map<String, Object> responseJsonMatrix) {
 
     public List<String> getNormalizedUrls() {
         return Stream.concat(Stream.ofNullable(url), Stream.ofNullable(urls).flatMap(List::stream))

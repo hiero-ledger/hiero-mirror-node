@@ -10,7 +10,7 @@ import com.hedera.mirror.restjava.spec.model.SpecSetup;
 import jakarta.inject.Named;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 @Named
@@ -19,7 +19,7 @@ class RecordFileBuilder extends AbstractEntityBuilder<RecordFile, RecordFile.Rec
 
     private static final byte[] DEFAULT_BYTES = new byte[] {1, 1, 2, 2, 3, 3};
 
-    private static final Map<String, Function<Object, Object>> METHOD_PARAMETER_CONVERTERS =
+    private static final Map<String, BiFunction<Object, SpecBuilderContext, Object>> METHOD_PARAMETER_CONVERTERS =
             Map.of("logsBloom", HEX_OR_BASE64_CONVERTER);
 
     RecordFileBuilder() {
