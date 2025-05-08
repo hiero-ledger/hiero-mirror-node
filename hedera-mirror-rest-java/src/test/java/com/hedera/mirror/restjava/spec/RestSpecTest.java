@@ -57,7 +57,7 @@ class RestSpecTest extends RestJavaIntegrationTest {
             .map(Path::toString)
             .toList();
     private static final Pattern INCLUDED_SPEC_DIRS = Pattern.compile(
-            "^(accounts.*|balances.*|blocks.*|contracts.*|network/exchangerate.*|network/fees.*|network/stake.*|tokens.*)$");
+            "^(accounts.*|balances.*|blocks.*|contracts.*|network/exchangerate.*|network/fees.*|network/stake.*|tokens.*|transactions.*)$");
     private static final String RESPONSE_HEADER_FILE = "responseHeaders.json";
     private static final int JS_REST_API_CONTAINER_PORT = 5551;
     private static final Path REST_BASE_PATH = Path.of("..", "hedera-mirror-rest", "__tests__", "specs");
@@ -69,8 +69,6 @@ class RestSpecTest extends RestJavaIntegrationTest {
             var dirName = directory.getPath().replace(REST_BASE_PATH + "/", "");
             return INCLUDED_SPEC_DIRS.matcher(dirName).matches()
                     && !RESPONSE_HEADER_FILE.equals(file.getName())
-                    //                                         &&
-                    //                     && file.getName().endsWith("all-args.json")
                     && EXCLUDED_SPEC_FILES.stream()
                             .noneMatch(path -> file.getPath().endsWith(path));
         }
@@ -128,7 +126,12 @@ class RestSpecTest extends RestJavaIntegrationTest {
 
             // Skip tests that require rest application config
             if (normalizedSpec.setup().config() != null) {
-                log.info("Skipping spec file: {} (setup not yet supported)", specFilePath);
+                log.info("Skipping spec file: {} (config setup not supported yet)", specFilePath);
+                continue;
+            }
+
+            if (normalizedSpec.setup().sql() != null) {
+                log.info("Skipping spec file: {} (sql setup not supported yet)", specFilePath);
                 continue;
             }
 

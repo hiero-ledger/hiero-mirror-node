@@ -45,13 +45,13 @@ public class CustomFeeBuilder
             return tokens.stream()
                     .map(this::getTokenCustomFees)
                     .flatMap(Collection::stream)
-                    .map(fee -> toCustomFees(fee, new SpecBuilderContext(fee)))
+                    .map(fee -> toCustomFee(fee, new SpecBuilderContext(fee)))
                     .toList();
         };
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> toCustomFees(Map<String, Object> entityAttributes, SpecBuilderContext context) {
+    private Map<String, Object> toCustomFee(Map<String, Object> entityAttributes, SpecBuilderContext context) {
         var fixedFees = Optional.ofNullable((List<Map<String, Object>>) entityAttributes.get("fixed_fees"))
                 .map(list -> list.stream()
                         .map(fixedFee -> {

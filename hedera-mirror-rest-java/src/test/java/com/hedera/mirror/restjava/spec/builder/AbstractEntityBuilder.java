@@ -3,6 +3,7 @@
 package com.hedera.mirror.restjava.spec.builder;
 
 import com.google.common.base.CaseFormat;
+import com.google.common.base.Strings;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.restjava.spec.model.SpecSetup;
@@ -45,13 +46,18 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
     // Common Defaults for specs
     protected static final EntityId DEFAULT_CONTRACT_ID =
             EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 1);
+    protected static final EntityId DEFAULT_FEE_COLLECTOR_ID =
+            EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 98);
+    protected static final EntityId DEFAULT_NODE_ID = EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 3);
     protected static final EntityId DEFAULT_PAYER_ACCOUNT_ID =
             EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 102);
     protected static final EntityId DEFAULT_SENDER_ID =
             EntityId.of(COMMON_PROPS.getShard(), COMMON_PROPS.getRealm(), 101);
     protected static final long DEFAULT_CONSENSUS_TIMESTAMP = 1234510001L;
-    protected static final byte[] DEFAULT_TRANSACTION_HASH =
+    protected static final byte[] DEFAULT_CONTRACT_TRANSACTION_HASH =
             HEX_FORMAT.parseHex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
+    protected static final byte[] DEFAULT_TRANSACTION_HASH = HEX_FORMAT.parseHex(
+            "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f30");
 
     /*
      * Common handy spec attribute value converter functions to be used by subclasses.
@@ -72,7 +78,12 @@ abstract class AbstractEntityBuilder<T, B> implements SpecDomainBuilder {
                         return HEX_FORMAT.parseHex(cleanValueStr);
                     }
 
-                    var cleanedBase64Source = valueStr.replaceAll("[^A-Za-z0-9+/=]", "");
+                    var cleanedBase64Source = Strings.padEnd(valueStr.replaceAll("[^A-Za-z0-9+/=]", ""), 4, '0');
+                    var charsToDrop = cleanedBase64Source.length() % 4;
+                    if (charsToDrop > 0) {
+                        cleanedBase64Source =
+                                cleanedBase64Source.substring(0, cleanedBase64Source.length() - charsToDrop);
+                    }
                     return Base64.getDecoder().decode(cleanedBase64Source);
                 }
 

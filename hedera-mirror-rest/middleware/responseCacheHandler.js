@@ -38,7 +38,7 @@ const responseCacheCheckHandler = async (req, res, next) => {
     if (isHead || clientCached) {
       res.end();
     } else {
-      if (cachedResponse.compressed) {  
+      if (cachedResponse.compressed) {
         cachedResponse.body = Buffer.from(cachedResponse.body);
         const acceptsGzip = req.get('accept-encoding')?.includes('gzip');
         if (!acceptsGzip) {

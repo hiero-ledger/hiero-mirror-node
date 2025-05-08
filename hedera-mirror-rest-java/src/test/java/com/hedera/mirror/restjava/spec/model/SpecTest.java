@@ -11,6 +11,7 @@ import org.springframework.util.StringUtils;
 
 public record SpecTest(
         String description,
+        List<String> extendedDescription,
         Map<String, String> responseHeaders,
         @JsonDeserialize(using = JsonAsStringDeserializer.class) String responseJson,
         int responseStatus,

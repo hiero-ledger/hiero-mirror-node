@@ -23,7 +23,7 @@ public class ContractResultBuilder
                 .gasLimit(1000L)
                 .payerAccountId(DEFAULT_PAYER_ACCOUNT_ID)
                 .senderId(DEFAULT_SENDER_ID)
-                .transactionHash(DEFAULT_TRANSACTION_HASH)
+                .transactionHash(DEFAULT_CONTRACT_TRANSACTION_HASH)
                 .transactionIndex(1)
                 .transactionNonce(0)
                 .transactionResult(22);

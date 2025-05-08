@@ -58,10 +58,8 @@ public class SpecTestConfig {
         var envBuilder = ImmutableMap.<String, String>builder()
                 .put("HEDERA_MIRROR_REST_REDIS_ENABLED", "false")
                 .put("HEDERA_MIRROR_REST_DB_HOST", "postgresql") // Postgresql container network alias
-                .put("HEDERA_MIRROR_REST_LOG_LEVEL", "TRACE")
-                .put("HEDERA_MIRROR_REST_CACHE_RESPONSE_ENABLED", "false")
-                //                .put("HEDERA_MIRROR_REST_CACHE_TOKEN_MAXSIZE", "1")
-                .put("HEDERA_MIRROR_REST_DB_PORT", PostgreSQLContainer.POSTGRESQL_PORT.toString());
+                .put("HEDERA_MIRROR_REST_DB_PORT", PostgreSQLContainer.POSTGRESQL_PORT.toString())
+                .put("HEDERA_MIRROR_REST_STATEPROOF_ENABLED", "true");
 
         if (v2) {
             envBuilder

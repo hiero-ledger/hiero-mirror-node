@@ -8,10 +8,12 @@ import java.util.Map;
 
 public record SpecSetup(
         Map<String, Object> config,
+        @JsonProperty("assessedcustomfees") List<Map<String, Object>> assessedCustomFees,
         List<Map<String, Object>> accounts,
         List<Map<String, Object>> balances,
         List<Map<String, Object>> contractactions,
         List<Map<String, Object>> contracts,
+        // TODO refactor these names and use json property
         List<Map<String, Object>> contractlogs,
         List<Map<String, Object>> contractresults,
         List<Map<String, Object>> contractStateChanges,
@@ -27,6 +29,7 @@ public record SpecSetup(
         List<Map<String, Object>> nfts,
         List<Map<String, Object>> recordFiles,
         List<Map<String, Object>> stakingRewardTransfers,
+        Map<String, Object> sql,
         @JsonProperty("tokenaccounts") List<Map<String, Object>> tokenAccounts,
         List<Map<String, Object>> tokenAllowances,
         List<Map<String, Object>> tokens,

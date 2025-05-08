@@ -34,6 +34,7 @@ public record RestSpecNormalized(
         if (CollectionUtils.isEmpty(restSpec.tests())) {
             var specTest = new SpecTest(
                     restSpec.description(),
+                    restSpec.extendedDescription(),
                     restSpec.responseHeaders(),
                     restSpec.responseJson(),
                     restSpec.responseStatus(),

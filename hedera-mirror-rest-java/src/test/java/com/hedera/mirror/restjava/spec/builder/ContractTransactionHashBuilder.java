@@ -37,7 +37,7 @@ public class ContractTransactionHashBuilder
                                     entity.getOrDefault("consensus_timestamp", DEFAULT_CONSENSUS_TIMESTAMP));
                             contractTransactionHash.put("entity_id", entity.getOrDefault("contract_id", 0));
                             contractTransactionHash.put(
-                                    "hash", entity.getOrDefault("transaction_hash", DEFAULT_TRANSACTION_HASH));
+                                    "hash", entity.getOrDefault("transaction_hash", DEFAULT_CONTRACT_TRANSACTION_HASH));
                             contractTransactionHash.put(
                                     "payer_account_id",
                                     entity.getOrDefault("payer_account_id", DEFAULT_PAYER_ACCOUNT_ID.getId()));
