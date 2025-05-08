@@ -9,7 +9,7 @@ A node based CLI tool `check-state-proof` is provided here to showcase the steps
 
 ## Logic
 
-The CLI takes the following steps to prove legitimacy of provided transaction ID
+The CLI takes the following steps to prove the legitimacy of the provided transaction ID
 
 1. Obtain user input of transactionId and other params
 
@@ -50,7 +50,7 @@ If you would like to configure your mirror node to support State Proof Alpha you
 The node based CLI tool `check-state-proof` can be installed as follows
 
 1. Ensure you've installed [NodeJS](https://nodejs.org/en/about/)
-2. Navigate to the `hedera-mirror-rest/check-state-proof` directory
+2. Navigate to the `rest/check-state-proof` directory
 3. Npm install the tool - `npm install -g .`
 
 To verify correct installation simply run `check-state-proof --help` or `npm start -- --help` to show usage instructions.
@@ -85,7 +85,7 @@ Usage options include
 
 ### Sample Case
 
-To verify the sample case run the following command
+To verify the sample case, run the following command
 
 `check-state-proof -t 0.0.94139-1570800748-313194300 -f <absoluteDirPath>/stateProofSample.json`
 
@@ -109,6 +109,6 @@ or
 
 ### Input File
 
-The tool can be run using a provided input file containing the response from te State Proof Alpha API as follows
+The tool can be run using a provided input file containing the response from the State Proof Alpha API as follows
 
 `check-state-proof -t <transactionId> -f <filePath>`

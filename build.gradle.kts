@@ -185,7 +185,7 @@ spotless {
             .npmExecutable(npmExecutable)
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
             .config(mapOf("bracketSpacing" to false, "printWidth" to 120, "singleQuote" to true))
-        target("hedera-mirror-rest/**/*.js", "tools/**/*.js")
+        target("rest/**/*.js", "tools/**/*.js")
         targetExclude(
             "**/build/**",
             "**/node_modules/**",
@@ -201,7 +201,7 @@ spotless {
         target("**/*.java")
         targetExclude(
             "**/build/**",
-            "hedera-mirror-rest/**",
+            "rest/**",
             "rosetta/**",
             // Known issue with Java 21: https://github.com/palantir/palantir-java-format/issues/933
             "hedera-mirror-rest-java/**/EntityServiceImpl.java",
@@ -221,7 +221,7 @@ spotless {
         endWithNewline()
         ktfmt().kotlinlangStyle()
         licenseHeader(licenseHeader, "(description|import|plugins)")
-        target("*.kts", "*/*.kts", "buildSrc/**/*.kts", "hedera-mirror-rest/*/*.kts")
+        target("*.kts", "*/*.kts", "buildSrc/**/*.kts", "rest/*/*.kts")
         targetExclude("**/build/**", "**/node_modules/**")
         trimTrailingWhitespace()
     }
@@ -263,7 +263,7 @@ spotless {
         target(
             "hedera-mirror-common/src/test/resources/*.sql",
             "importer/**/*.sql",
-            "hedera-mirror-rest/__tests__/data/**/*.sql",
+            "rest/__tests__/data/**/*.sql",
         )
         targetExclude("**/build/**", "**/db/migration/**")
         trimTrailingWhitespace()
@@ -303,10 +303,10 @@ tasks.register("release") {
         replaceVersion("docker-compose.yml", "(?<=gcr.io/mirrornode/hedera-mirror-.+:).+")
         replaceVersion("gradle.properties", "(?<=^version=).+")
         replaceVersion(
-            "hedera-mirror-rest/**/package*.json",
+            "rest/**/package*.json",
             "(?<=\"@hiero-ledger/(check-state-proof|mirror-rest|mirror-monitor)\",\\s{3,7}\"version\": \")[^\"]+",
         )
-        replaceVersion("hedera-mirror-rest/**/openapi.yml", "(?<=^  version: ).+")
+        replaceVersion("rest/**/openapi.yml", "(?<=^  version: ).+")
         replaceVersion(
             "tools/traffic-replay/log-downloader/package*.json",
             "(?<=\"@hiero-ledger/mirror-log-downloader\",\\s{3,7}\"version\": \")[^\"]+",

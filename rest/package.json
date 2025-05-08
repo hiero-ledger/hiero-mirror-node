@@ -1,7 +1,7 @@
 {
   "name": "@hiero-ledger/mirror-rest",
   "version": "0.130.0-SNAPSHOT",
-  "description": "Hedera Mirror Node REST API",
+  "description": "Mirror Node REST API",
   "type": "module",
   "main": "server.js",
   "private": true,
@@ -9,12 +9,12 @@
     "node": ">= 22"
   },
   "scripts": {
-    "dev": "HEDERA_MIRROR_REST_LOG_LEVEL=trace nodemon --import=extensionless/register server.js",
+    "dev": "HIERO_MIRROR_REST_LOG_LEVEL=trace nodemon --import=extensionless/register server.js",
     "start": "node --import=extensionless/register server.js",
     "pretest": "node --import=extensionless/register __tests__/integration/generator.js",
     "test": "node --import=extensionless/register --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
-  "author": "Hedera Mirror Node Team",
+  "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
     "@awaitjs/express": "^0.9.0",

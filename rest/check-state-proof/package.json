@@ -16,11 +16,11 @@
     "url": "git+https://github.com/hiero-ledger/hiero-mirror-node.git"
   },
   "keywords": [
-    "hedera",
+    "hiero",
     "transaction",
     "stateproof"
   ],
-  "author": "Hedera Mirror Node Team",
+  "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/hiero-ledger/hiero-mirror-node/issues"

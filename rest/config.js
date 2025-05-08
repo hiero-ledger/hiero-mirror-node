@@ -13,8 +13,10 @@ import configureLogger from './logger';
 
 configureLogger();
 
-const defaultConfigName = 'application';
 const config = {};
+const defaultConfigName = 'application';
+const hederaPrefix = 'hedera';
+const hieroPrefix = 'hiero';
 let loaded = false;
 
 function load(configPath, configName) {
@@ -38,6 +40,16 @@ function loadYaml(configFile) {
     const doc = yaml.load(fs.readFileSync(configFile, 'utf8'));
     logger.info(`Loaded configuration source: ${configFile}`);
     extend(true, config, doc);
+
+    // Migrated deprecated properties
+    const hedera = doc[hederaPrefix];
+    if (hedera) {
+      extend(true, config, {hiero: hedera});
+      delete config[hederaPrefix];
+      logger.warn(
+        `Source contains deprecated '${hederaPrefix}' properties that have been automatically migrated to '${hieroPrefix}''`
+      );
+    }
   } catch (err) {
     logger.warn(`Skipping configuration ${configFile}: ${err}`);
   }
@@ -50,24 +62,35 @@ function loadEnvironment() {
 }
 
 /*
- * Sets a config property from an environment variable by converting HEDERA_MIRROR_REST_FOO_BAR to an object path
- * notation hedera.mirror.rest.foo.bar using a case insensitive search. If more than one property matches with a
- * different case, it will choose the first.
+ * Sets a config property from an environment variable by converting HIERO_MIRROR_REST_FOO_BAR to an object path
+ * notation hiero.mirror.rest.foo.bar using a case insensitive search. If more than one property matches with a
+ * different case, it will choose the first. Will also convert HEDERA_MIRROR to hiero.mirror properties.
  */
 function setConfigValue(propertyPath, value) {
   let current = config;
   const properties = propertyPath.toLowerCase().split('_');
 
-  // Ignore properties that don't start with HEDERA_MIRROR
-  if (properties.length < 3 || properties[0] !== 'hedera' || properties[1] !== 'mirror') {
+  // Ignore properties that don't start with HEDERA_MIRROR or HIERO_MIRROR
+  if (
+    properties.length < 3 ||
+    (properties[0] !== 'hedera' && properties[0] !== 'hiero') ||
+    properties[1] !== 'mirror'
+  ) {
     return;
   }
 
   for (let i = 0; i < properties.length; i += 1) {
-    const property = properties[i];
+    let property = properties[i];
     let found = false;
 
     for (const [k, v] of Object.entries(current)) {
+      if (property === hederaPrefix) {
+        property = hieroPrefix;
+        logger.warn(
+          `Deprecated '${hederaPrefix}' property automatically migrated to '${hieroPrefix}': ${propertyPath}`
+        );
+      }
+
       if (property === k.toLowerCase()) {
         if (i < properties.length - 1) {
           current = v;
@@ -99,11 +122,11 @@ function convertType(value) {
 }
 
 function getConfig() {
-  return config.hedera?.mirror?.rest;
+  return config.hiero?.mirror?.rest;
 }
 
 function getMirrorConfig() {
-  return config.hedera?.mirror;
+  return config.hiero?.mirror;
 }
 
 function getResponseLimit() {

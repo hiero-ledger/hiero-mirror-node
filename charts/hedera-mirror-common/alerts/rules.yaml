@@ -1176,7 +1176,7 @@ groups:
             description: REST API 5xx error rate for {{ $labels.namespace }} is {{ (index $values "A").Value | humanizePercentage }}
             summary: Mirror REST API error rate exceeds 1%
           labels:
-            application: hedera-mirror-rest
+            application: rest
             severity: critical
           isPaused: false
         - uid: ddk8223a2cum8e
@@ -1204,7 +1204,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ (index $values "A").Value | humanizePercentage }}'
             summary: Mirror REST API CPU usage exceeds 80%
           labels:
-            application: hedera-mirror-rest
+            application: rest
             area: resource
             severity: critical
           isPaused: false
@@ -1233,7 +1233,7 @@ groups:
             description: REST API has not seen any requests to {{ $labels.namespace }} for 5m
             summary: No Mirror REST API requests seen for awhile
           labels:
-            application: hedera-mirror-rest
+            application: rest
             severity: warning
           isPaused: false
         - uid: ddk829d7iij9cb
@@ -1261,7 +1261,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} is taking {{ $value }} ms to generate a response'
             summary: Mirror REST API request latency exceeds 2s
           labels:
-            application: hedera-mirror-rest
+            application: rest
             severity: warning
           isPaused: false
     - orgId: 1

@@ -16,13 +16,13 @@ include(":monitor")
 
 include(":protobuf")
 
-include(":hedera-mirror-rest")
+include(":rest")
 
 include(":hedera-mirror-rest-java")
 
-include(":hedera-mirror-rest:check-state-proof")
+include(":rest:check-state-proof")
 
-include(":hedera-mirror-rest:monitoring")
+include(":rest:monitoring")
 
 include(":rosetta")
 

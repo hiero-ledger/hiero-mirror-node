@@ -24,7 +24,7 @@ const onMetricsAuthenticate = async (req, username, password) => {
 };
 
 const ipEndpointHistogram = new client.Counter({
-  name: 'hedera_mirror_rest_request_count',
+  name: 'hiero_mirror_rest_request_count',
   help: 'a counter mapping ip addresses to the endpoints they hit',
   labelNames: ['endpoint', 'ip'],
 });

@@ -13,6 +13,13 @@ const custom = {
   hedera: {
     mirror: {
       common: {
+        realm: 2,
+      },
+    },
+  },
+  hiero: {
+    mirror: {
+      common: {
         shard: 1,
       },
       rest: {
@@ -29,7 +36,7 @@ const custom = {
 
 beforeEach(() => {
   jest.resetModules();
-  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hedera-mirror-rest-'));
+  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rest-'));
   process.env = {CONFIG_PATH: tempDir};
   cleanup();
 });
@@ -45,9 +52,10 @@ const assertCustomConfig = (actual, customConfig) => {
   expect(actual.rest.log.level).toBe('info');
 
   // fields overridden by custom
-  expect(Number(actual.common.shard)).toBe(customConfig.hedera.mirror.common.shard);
-  expect(actual.rest.response.limit.max).toBe(customConfig.hedera.mirror.rest.response.limit.max);
-  expect(actual.rest.response.compression).toBe(customConfig.hedera.mirror.rest.response.compression);
+  expect(Number(actual.common.realm)).toBe(customConfig.hedera.mirror.common.realm);
+  expect(Number(actual.common.shard)).toBe(customConfig.hiero.mirror.common.shard);
+  expect(actual.rest.response.limit.max).toBe(customConfig.hiero.mirror.rest.response.limit.max);
+  expect(actual.rest.response.compression).toBe(customConfig.hiero.mirror.rest.response.compression);
 };
 
 const loadConfig = async () => (await import('../config')).getMirrorConfig();
@@ -90,88 +98,89 @@ describe('Load YAML configuration:', () => {
 
 describe('Load environment configuration:', () => {
   test('Number', async () => {
-    process.env = {HEDERA_MIRROR_COMMON_SHARD: '2', HEDERA_MIRROR_REST_PORT: '5552'};
+    process.env = {HEDERA_MIRROR_COMMON_REALM: '3', HIERO_MIRROR_COMMON_SHARD: '2', HIERO_MIRROR_REST_PORT: '5552'};
     const config = await loadConfig();
+    expect(config.common.realm).toBe(3n);
     expect(config.common.shard).toBe(2n);
     expect(config.rest.port).toBe(5552);
   });
 
   test('Secret', async () => {
     const secret = 'secret';
-    process.env = {HEDERA_MIRROR_REST_DB_PASSWORD: secret, HEDERA_MIRROR_REST_DB_TLS_KEY: secret};
+    process.env = {HIERO_MIRROR_REST_DB_PASSWORD: secret, HIERO_MIRROR_REST_DB_TLS_KEY: secret};
     const config = await loadConfig();
     expect(config.rest.db.password).toBe(secret);
     expect(config.rest.db.tls.key).toBe(secret);
   });
 
   test('String', async () => {
-    process.env = {HEDERA_MIRROR_REST_LOG_LEVEL: 'warn'};
+    process.env = {HIERO_MIRROR_REST_LOG_LEVEL: 'warn'};
     const config = await loadConfig();
     expect(config.rest.log.level).toBe('warn');
   });
 
   test('Boolean', async () => {
-    process.env = {HEDERA_MIRROR_REST_RESPONSE_INCLUDEHOSTINLINK: 'true'};
+    process.env = {HIERO_MIRROR_REST_RESPONSE_INCLUDEHOSTINLINK: 'true'};
     const config = await loadConfig();
     expect(config.rest.response.includeHostInLink).toBe(true);
   });
 
   test('Camel case', async () => {
-    process.env = {HEDERA_MIRROR_REST_QUERY_MAXREPEATEDQUERYPARAMETERS: '50'};
+    process.env = {HIERO_MIRROR_REST_QUERY_MAXREPEATEDQUERYPARAMETERS: '50'};
     const config = await loadConfig();
     expect(config.rest.query.maxRepeatedQueryParameters).toBe(50);
   });
 
   test('Unknown property', async () => {
-    process.env = {HEDERA_MIRROR_REST_FOO: '3'};
+    process.env = {HIERO_MIRROR_REST_FOO: '3'};
     const config = await loadConfig();
     expect(config.rest.foo).toBeUndefined();
   });
 
   test('Invalid property path', async () => {
-    process.env = {HEDERA_MIRROR_COMMON_SHARD_FOO: '3'};
+    process.env = {HIERO_MIRROR_COMMON_SHARD_FOO: '3'};
     const config = await loadConfig();
     expect(config.common.shard).toBe(0n);
   });
 
   test('Unexpected prefix', async () => {
-    process.env = {HEDERA_MIRROR_NODE_REST_PORT: '80'};
+    process.env = {HIERO_MIRROR_NODE_REST_PORT: '80'};
     const config = await loadConfig();
     expect(config.rest.port).not.toBe(80);
   });
 
   test('Extra path', async () => {
-    process.env = {HEDERA_MIRROR_REST_SERVICE_PORT: '80'};
+    process.env = {HIERO_MIRROR_REST_SERVICE_PORT: '80'};
     const config = await loadConfig();
     expect(config.rest.port).not.toBe(80);
   });
 
   test('Max Timestamp Range 3d', async () => {
-    process.env = {HEDERA_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: '3d'};
+    process.env = {HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: '3d'};
     const config = await loadConfig();
     expect(config.rest.query.maxTimestampRangeNs).toBe(259200000000000n);
   });
 
   test('Max Timestamp Range 120d - larger than js MAX_SAFE_INTEGER', async () => {
-    process.env = {HEDERA_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: '120d'};
+    process.env = {HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: '120d'};
     const config = await loadConfig();
     expect(config.rest.query.maxTimestampRangeNs).toBe(10368000000000000n);
   });
 
   test('Max Timestamp Range invalid', async () => {
-    process.env = {HEDERA_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: '3x'};
+    process.env = {HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: '3x'};
     await expect(loadConfig()).rejects.toThrowErrorMatchingSnapshot();
   });
 
   test('Max Timestamp Range null', async () => {
-    process.env = {HEDERA_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: null};
+    process.env = {HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: null};
     await expect(loadConfig()).rejects.toThrowErrorMatchingSnapshot();
   });
 });
 
 describe('Override query config', () => {
   const customConfig = (queryConfig) => ({
-    hedera: {
+    hiero: {
       mirror: {
         rest: {
           query: queryConfig,
@@ -227,7 +236,7 @@ describe('Override query config', () => {
 
 describe('Override stateproof config', () => {
   const customConfig = (stateproofConfig) => ({
-    hedera: {
+    hiero: {
       mirror: {
         rest: {
           stateproof: stateproofConfig,
@@ -346,7 +355,7 @@ describe('Override stateproof config', () => {
 
 describe('Override db pool config', () => {
   const customConfig = (poolConfig) => ({
-    hedera: {
+    hiero: {
       mirror: {
         rest: {
           db: {
@@ -420,7 +429,7 @@ describe('Override db pool config', () => {
 
 describe('Override network currencyFormat config', () => {
   const customConfig = (networkCurrencyFormatConfig) => ({
-    hedera: {
+    hiero: {
       mirror: {
         rest: {
           network: {

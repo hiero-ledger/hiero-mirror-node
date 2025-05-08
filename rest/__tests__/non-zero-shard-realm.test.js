@@ -3,8 +3,8 @@
 import request from 'supertest';
 
 // set env vars before importing config implicitly
-process.env['HEDERA_MIRROR_COMMON_SHARD'] = 1;
-process.env['HEDERA_MIRROR_COMMON_REALM'] = 2;
+process.env['HIERO_MIRROR_COMMON_SHARD'] = 1;
+process.env['HIERO_MIRROR_COMMON_REALM'] = 2;
 
 const config = (await import('../config')).default;
 const EntityId = (await import('../entityId')).default;

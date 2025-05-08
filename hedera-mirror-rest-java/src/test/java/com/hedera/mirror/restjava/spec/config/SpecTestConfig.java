@@ -56,14 +56,14 @@ public class SpecTestConfig {
     @Bean(REST_API)
     GenericContainer<?> jsRestApi(PostgreSQLContainer<?> postgresql, Network prostgresqlNetwork) {
         var envBuilder = ImmutableMap.<String, String>builder()
-                .put("HEDERA_MIRROR_REST_REDIS_ENABLED", "false")
-                .put("HEDERA_MIRROR_REST_DB_HOST", "postgresql") // Postgresql container network alias
-                .put("HEDERA_MIRROR_REST_DB_PORT", PostgreSQLContainer.POSTGRESQL_PORT.toString());
+                .put("HIERO_MIRROR_REST_REDIS_ENABLED", "false")
+                .put("HIERO_MIRROR_REST_DB_HOST", "postgresql") // Postgresql container network alias
+                .put("HIERO_MIRROR_REST_DB_PORT", PostgreSQLContainer.POSTGRESQL_PORT.toString());
 
         if (v2) {
             envBuilder
-                    .put("HEDERA_MIRROR_REST_DB_USERNAME", "mirror_rest")
-                    .put("HEDERA_MIRROR_REST_DB_PASSWORD", "mirror_rest_pass");
+                    .put("HIERO_MIRROR_REST_DB_USERNAME", "mirror_rest")
+                    .put("HIERO_MIRROR_REST_DB_PASSWORD", "mirror_rest_pass");
         }
 
         return new GenericContainer<>(DockerImageName.parse("gcr.io/mirrornode/hedera-mirror-rest:latest"))

@@ -30,7 +30,7 @@ The results of these checks are exposed as a set of REST APIs by this monitoring
 
 ```
 git clone git@github.com:hiero-ledger/hiero-mirror-node.git
-cd hiero-mirror-node/hedera-mirror-rest/monitoring
+cd hiero-mirror-node/rest/monitoring
 ```
 
 To install the dependencies and configure the monitor:
@@ -55,7 +55,7 @@ To customize per-resource configuration:
   e.g., `tokenBalancesLimit` for the token. If not set, the tests will use the first token from the
   token discovery API response
 
-See [default.serverlist.json](/hedera-mirror-rest/monitoring/config/default.serverlist.json) for a full
+See [default.serverlist.json](/rest/monitoring/config/default.serverlist.json) for a full
 list of configuration properties.
 
 To run the monitor:

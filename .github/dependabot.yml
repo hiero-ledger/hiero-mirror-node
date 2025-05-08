@@ -20,19 +20,19 @@ updates:
     schedule:
       interval: "weekly"
 
-  - directory: "/hedera-mirror-rest"
+  - directory: "/rest"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
     schedule:
       interval: "weekly"
 
-  - directory: "/hedera-mirror-rest/monitoring"
+  - directory: "/rest/monitoring"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
     schedule:
       interval: "weekly"
 
-  - directory: "/hedera-mirror-rest/check-state-proof"
+  - directory: "/rest/check-state-proof"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
     schedule:

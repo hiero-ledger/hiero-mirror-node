@@ -19,7 +19,7 @@ postgresql:
   enabled: false
 rest:
   config:
-    hedera:
+    hiero:
       mirror:
         rest:
           query:

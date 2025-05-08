@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-description = "Hedera Mirror Node Check State Proof"
+description = "Mirror Node Check State Proof"
 
 plugins { id("javascript-conventions") }
 

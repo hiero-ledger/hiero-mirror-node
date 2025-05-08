@@ -87,7 +87,7 @@ nodes connected to those environments will need to be reset to remain functional
 5. Update the REST API to the new bucket name if state proofs are enabled.
 
    ```shell
-   HEDERA_MIRROR_REST_STATEPROOF_STREAMS_BUCKETNAME: "hedera-testnet-streams-YYYY-MM"
+   HIERO_MIRROR_REST_STATEPROOF_STREAMS_BUCKETNAME: "hedera-testnet-streams-YYYY-MM"
    ```
 
 6. If any of the mirror node monitoring tools is used, ensure any hardcoded entity IDs in their configuration is updated

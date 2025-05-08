@@ -121,10 +121,10 @@ local.properties
 *.iml
 
 # check-state-proof output dir
-hedera-mirror-rest/check-state-proof/output
+rest/check-state-proof/output
 
 # generated spec based integration test modules
-hedera-mirror-rest/__tests__/integration/*.spec.test.js
+rest/__tests__/integration/*.spec.test.js
 
 # Rosetta
 rosetta-cli
@@ -160,8 +160,8 @@ build
 snyk
 **/secret.*
 
-hedera-mirror-rest/report.*
-hedera-mirror-rest/monitoring/config/serverlist.json
+rest/report.*
+rest/monitoring/config/serverlist.json
 report-*.csv
 
 hedera-mirror-web3/src/testHistorical/solidity/openzeppelin
