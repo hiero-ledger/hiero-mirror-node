@@ -18,6 +18,7 @@ import com.hedera.hapi.node.base.AccountID.AccountOneOfType;
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.TokenID;
+import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.state.token.AccountApprovalForAllAllowance;
 import com.hedera.hapi.node.state.token.AccountCryptoAllowance;
@@ -83,6 +84,8 @@ class AccountReadableKVStateTest {
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final int POSITIVE_BALANCES = 7;
     private static final int NEGATIVE_BALANCES = 8;
+    private static final ProtoBytes EVM_ADDRESS_BYTES =
+            new ProtoBytes(Bytes.wrap("67d8d32e9bf1a9968a5ff53b87d777aa8ebbee69".getBytes()));
     private static final List<TokenAccountAssociationsCount> associationsCount = Arrays.asList(
             new TokenAccountAssociationsCount() {
                 @Override
@@ -165,6 +168,7 @@ class AccountReadableKVStateTest {
         entity.setAutoRenewAccountId(AUTO_RENEW_ACCOUNT_ID.getId());
         entity.setMaxAutomaticTokenAssociations(MAX_AUTOMATIC_TOKEN_ASSOCIATIONS);
         entity.setType(EntityType.ACCOUNT);
+        entity.setEvmAddress(EVM_ADDRESS_BYTES.value().toByteArray());
 
         token = new Entity();
         token.setId(EntityIdUtils.toAccountId(SHARD, REALM, TOKEN_NUM).accountNum());
@@ -272,6 +276,7 @@ class AccountReadableKVStateTest {
     void accountFieldsWithPublicKeyAliasMatchEntityFields() {
         final var ecdsaPublicKey = "0x03af80b90d25145da28c583359beb47b21796b2fe1a23c1511e443e7a64dfdb27d";
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        entity.setEvmAddress(null);
         entity.setAlias(Bytes.wrap(ecdsaPublicKey).toByteArray());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
         assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
@@ -596,6 +601,23 @@ class AccountReadableKVStateTest {
 
         verify(tokenAccountRepository, times(1))
                 .countByAccountIdAndAssociatedGroupedByBalanceIsPositive(entity.getId());
+    }
+
+    @Test
+    void whenAccountNumIsReadPutAliasInCache() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        assertThat(accountReadableKVState
+                        .getReadCache(AliasesReadableKVState.KEY)
+                        .containsKey(EVM_ADDRESS_BYTES))
+                .isFalse();
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
+                .returns(ACCOUNT_ID, Account::accountId)
+                .returns(EVM_ADDRESS_BYTES.value(), Account::alias));
+        assertThat(accountReadableKVState
+                        .getReadCache(AliasesReadableKVState.KEY)
+                        .containsKey(EVM_ADDRESS_BYTES))
+                .isTrue();
     }
 
     @Test
