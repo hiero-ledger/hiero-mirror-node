@@ -15,7 +15,6 @@ import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
 import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.exception.InvalidFileException;
 import com.hedera.mirror.web3.repository.FileDataRepository;
@@ -188,17 +187,6 @@ public class SystemFileLoader {
                         .setAccountNum(nodeId));
         builder.addNodeAddress(nodeAddressBuilder.build());
         return builder.build().toByteArray();
-    }
-
-    private Bytes getBytes(FileData fileData, long fileId) {
-        byte[] fileBytes = fileData.getFileData();
-        boolean isAddressBookFile = fileId == systemEntity.addressBookFile101().getId()
-                || fileId == systemEntity.addressBookFile102().getId();
-        if (isAddressBookFile && (fileBytes == null || fileBytes.length == 0)) {
-            fileBytes = getMockAddressBook();
-        }
-
-        return Bytes.wrap(fileBytes);
     }
 
     private record SystemFile(File genesisFile, Codec<?> codec) {}
