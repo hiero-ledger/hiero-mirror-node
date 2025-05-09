@@ -80,7 +80,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
 
         assertThat(accountInfo.getAccount()).isNotNull();
         assertThat(accountInfo.getBalance().getBalance())
-                .isEqualTo(Hbar.from(8L).toTinybars());
+                .isEqualTo(Hbar.from(5L).toTinybars());
 
         assertThat(accountInfo.getTransactions()).hasSize(1);
         assertThat(transactions).hasSize(2);
