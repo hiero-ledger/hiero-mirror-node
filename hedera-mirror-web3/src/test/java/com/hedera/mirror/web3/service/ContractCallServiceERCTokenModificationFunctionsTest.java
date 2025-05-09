@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hedera.mirror.common.domain.entity.Entity;
+import com.hedera.mirror.common.domain.token.FractionalFee;
 import com.hedera.mirror.web3.utils.BytecodeUtils;
 import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.mirror.web3.viewmodel.ContractCallRequest;
@@ -17,6 +18,7 @@ import com.hedera.mirror.web3.web3j.generated.ERCTestContract;
 import com.hedera.mirror.web3.web3j.generated.RedirectTestContract;
 import jakarta.annotation.Resource;
 import java.math.BigInteger;
+import java.util.List;
 import lombok.SneakyThrows;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
@@ -180,6 +182,40 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, recipient.getId());
+
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var contractAddress = Address.fromHexString(contract.getContractAddress());
+        final var contractEntityId = entityIdFromEvmAddress(contractAddress);
+
+        tokenAccountPersist(tokenId, contractEntityId.getId());
+        final var tokenAddress = toAddress(tokenId).toHexString();
+        final var recipientAddress = toAddress(recipient).toHexString();
+        // When
+        final var functionCall =
+                contract.send_transfer(tokenAddress, recipientAddress, BigInteger.valueOf(DEFAULT_AMOUNT_GRANTED));
+        // Then
+        verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @Test
+    void transferWithFractionalFee() {
+        // Given
+        final var recipient = accountEntityPersist().toEntityId();
+        final var treasury = accountEntityWithEvmAddressPersist().toEntityId();
+
+        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var tokenId = token.getTokenId();
+        tokenAccountPersist(tokenId, recipient.getId());
+
+        final var fractionalFee =
+                FractionalFee.builder().collectorAccountId(recipient).build();
+        domainBuilder
+                .customFee()
+                .customize(f -> f.entityId(token.getTokenId())
+                        .fixedFees(List.of())
+                        .fractionalFees(List.of(fractionalFee))
+                        .royaltyFees(List.of()))
+                .persist();
 
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         final var contractAddress = Address.fromHexString(contract.getContractAddress());

@@ -14,7 +14,7 @@ public class FractionalFee extends AbstractFee {
 
     private long denominator;
 
-    private Long maximumAmount;
+    private long maximumAmount;
 
     private long minimumAmount;
 
