@@ -111,6 +111,10 @@ public final class EntityIdUtils {
         return EntityId.of(accountID.shardNum(), accountID.realmNum(), accountID.accountNum());
     }
 
+    public static EntityId toEntityId(final com.hedera.hapi.node.base.ScheduleID scheduleID) {
+        return EntityId.of(scheduleID.shardNum(), scheduleID.realmNum(), scheduleID.scheduleNum());
+    }
+
     public static EntityId toEntityId(final com.hedera.hapi.node.base.TokenID tokenID) {
         return EntityId.of(tokenID.shardNum(), tokenID.realmNum(), tokenID.tokenNum());
     }
