@@ -13,7 +13,7 @@ import jakarta.inject.Named;
 import java.util.Map;
 
 @Named
-public class CacheManager {
+public class AliasedAccountCacheManager {
 
     public void putAccountAlias(final Bytes accountAlias, final AccountID accountID) {
         getReadCache(AliasesReadableKVState.KEY)

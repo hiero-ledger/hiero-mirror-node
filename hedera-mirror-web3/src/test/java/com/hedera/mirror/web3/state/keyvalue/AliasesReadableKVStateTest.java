@@ -13,7 +13,7 @@ import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.common.ContractCallContext;
-import com.hedera.mirror.web3.state.CacheManager;
+import com.hedera.mirror.web3.state.AliasedAccountCacheManager;
 import com.hedera.mirror.web3.state.CommonEntityAccessor;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.Collections;
@@ -44,7 +44,7 @@ class AliasesReadableKVStateTest {
     private CommonEntityAccessor commonEntityAccessor;
 
     @Spy
-    private CacheManager cacheManager;
+    private AliasedAccountCacheManager aliasedAccountCacheManager;
 
     private static final ProtoBytes EVM_ADDRESS_BYTES =
             new ProtoBytes(Bytes.wrap("67d8d32e9bf1a9968a5ff53b87d777aa8ebbee69".getBytes()));

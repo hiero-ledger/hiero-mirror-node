@@ -42,7 +42,7 @@ import com.hedera.mirror.web3.repository.NftRepository;
 import com.hedera.mirror.web3.repository.TokenAccountRepository;
 import com.hedera.mirror.web3.repository.TokenAllowanceRepository;
 import com.hedera.mirror.web3.repository.projections.TokenAccountAssociationsCount;
-import com.hedera.mirror.web3.state.CacheManager;
+import com.hedera.mirror.web3.state.AliasedAccountCacheManager;
 import com.hedera.mirror.web3.state.CommonEntityAccessor;
 import com.hedera.node.config.VersionedConfiguration;
 import com.hedera.node.config.data.ContractsConfig;
@@ -146,7 +146,7 @@ class AccountReadableKVStateTest {
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Spy
-    private CacheManager cacheManager;
+    private AliasedAccountCacheManager aliasedAccountCacheManager;
 
     @Spy
     private ContractCallContext contractCallContext;
