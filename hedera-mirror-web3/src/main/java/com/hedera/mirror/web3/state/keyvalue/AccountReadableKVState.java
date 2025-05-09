@@ -15,7 +15,7 @@ import com.hedera.mirror.web3.repository.NftAllowanceRepository;
 import com.hedera.mirror.web3.repository.NftRepository;
 import com.hedera.mirror.web3.repository.TokenAccountRepository;
 import com.hedera.mirror.web3.repository.TokenAllowanceRepository;
-import com.hedera.mirror.web3.state.CacheManager;
+import com.hedera.mirror.web3.state.AliasedAccountCacheManager;
 import com.hedera.mirror.web3.state.CommonEntityAccessor;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
@@ -31,7 +31,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
     public static final String KEY = "ACCOUNTS";
 
     private final CommonEntityAccessor commonEntityAccessor;
-    private final CacheManager cacheManager;
+    private final AliasedAccountCacheManager aliasedAccountCacheManager;
 
     public AccountReadableKVState(
             @Nonnull CommonEntityAccessor commonEntityAccessor,
@@ -43,7 +43,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             @Nonnull TokenAccountRepository tokenAccountRepository,
             @Nonnull AccountBalanceRepository accountBalanceRepository,
             @Nonnull MirrorNodeEvmProperties mirrorNodeEvmProperties,
-            @Nonnull CacheManager cacheManager) {
+            @Nonnull AliasedAccountCacheManager aliasedAccountCacheManager) {
         super(
                 KEY,
                 accountBalanceRepository,
@@ -55,7 +55,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                 tokenAllowanceRepository,
                 mirrorNodeEvmProperties);
         this.commonEntityAccessor = commonEntityAccessor;
-        this.cacheManager = cacheManager;
+        this.aliasedAccountCacheManager = aliasedAccountCacheManager;
     }
 
     @Override
@@ -68,7 +68,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     final var account = accountFromEntity(entity, timestamp);
                     // Associate the account alias with this entity in the cache, if any.
                     if (account.alias().length() > 0) {
-                        cacheManager.putAccountAlias(account.alias(), key);
+                        aliasedAccountCacheManager.putAccountAlias(account.alias(), key);
                     }
                     return account;
                 })
