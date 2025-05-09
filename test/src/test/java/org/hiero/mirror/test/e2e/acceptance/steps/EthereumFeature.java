@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
-import static com.hedera.mirror.rest.model.TransactionTypes.CRYPTOCREATEACCOUNT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.PARENT_CONTRACT;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.CREATE_CHILD;
@@ -22,7 +21,6 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.util.Comparator;
 import java.util.Objects;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -63,36 +61,6 @@ public class EthereumFeature extends AbstractEstimateFeature {
         account = accountInfo.getAccount();
         assertThat(accountInfo.getBalance().getBalance())
                 .isEqualTo(Hbar.fromTinybars(HBAR_AMOUNT_IN_TINYBARS).toTinybars());
-    }
-
-    @Then("validate the signer account and its balance")
-    public void verifyAccountCreated() {
-        var accountInfo = mirrorClient.getAccountDetailsUsingAlias(ethereumSignerAccount);
-        account = accountInfo.getAccount();
-        var transactions = mirrorClient
-                .getTransactions(networkTransactionResponse.getTransactionIdStringNoCheckSum())
-                .getTransactions()
-                .stream()
-                .sorted(Comparator.comparing(TransactionDetail::getConsensusTimestamp))
-                .toList();
-
-        assertThat(accountInfo.getAccount()).isNotNull();
-        assertThat(accountInfo.getBalance().getBalance())
-                .isEqualTo(Hbar.from(5L).toTinybars());
-
-        assertThat(accountInfo.getTransactions()).hasSize(1);
-        assertThat(transactions).hasSize(2);
-
-        var createAccountTransaction = transactions.get(0);
-        var transferTransaction = transactions.get(1);
-
-        assertThat(transferTransaction)
-                .usingRecursiveComparison()
-                .ignoringFields("assessedCustomFees")
-                .isEqualTo(accountInfo.getTransactions().get(0));
-
-        assertThat(createAccountTransaction.getName()).isEqualTo(CRYPTOCREATEACCOUNT);
-        assertThat(createAccountTransaction.getConsensusTimestamp()).isEqualTo(accountInfo.getCreatedTimestamp());
     }
 
     @Given("I successfully create contract by Legacy ethereum transaction")
