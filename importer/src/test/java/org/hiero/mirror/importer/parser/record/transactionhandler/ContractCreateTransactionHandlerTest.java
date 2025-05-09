@@ -26,6 +26,7 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.EthereumTransactionBody.Builder;
+import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
@@ -34,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.commons.codec.binary.Hex;
 import org.assertj.core.api.ObjectAssert;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.util.Utility;
@@ -188,6 +190,10 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
         var body = recordItem.getTransactionBody().getContractCreateInstance();
+        var key = body.getAdminKey();
+        var simpleKey = key.hasEd25519()
+                ? key.getEd25519().toByteArray()
+                : key.getECDSASecp256K1().toByteArray();
         var autoRenewAccount = body.getAutoRenewAccountId();
         var initCode = DomainUtils.toBytes(
                 recordItem.getSidecarRecords().get(2).getBytecode().getInitcode());
@@ -199,12 +205,41 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
         // then
         assertEntity(contractId, timestamp)
                 .returns(EntityId.of(autoRenewAccount).getId(), Entity::getAutoRenewAccountId)
-                .returns(null, Entity::getEvmAddress);
+                .returns(null, Entity::getEvmAddress)
+                .returns(key.toByteArray(), Entity::getKey)
+                .returns(Hex.encodeHexString(simpleKey), Entity::getPublicKey);
         assertContract(contractId)
                 .returns(EntityId.of(body.getFileID()), Contract::getFileId)
                 .returns(initCode, Contract::getInitcode);
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void updateTransactionMissingKey() {
+        // given
+        var recordItem = recordItemBuilder
+                .contractCreate()
+                .transactionBody(b -> b.clearAdminKey().clearAutoRenewAccountId())
+                .build();
+        var contractId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getContractID());
+        var timestamp = recordItem.getConsensusTimestamp();
+        var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
+                .get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        var key = Key.newBuilder().setContractID(contractId.toContractID()).build();
+        verify(entityListener).onEntity(entityCaptor.capture());
+        assertThat(entityCaptor.getValue())
+                .isNotNull()
+                .returns(key.toByteArray(), Entity::getKey)
+                .returns("", Entity::getPublicKey);
     }
 
     @Test
