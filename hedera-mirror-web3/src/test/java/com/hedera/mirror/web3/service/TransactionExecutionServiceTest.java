@@ -2,15 +2,18 @@
 
 package com.hedera.mirror.web3.service;
 
-import static com.hedera.hapi.node.base.ResponseCodeEnum.INVALID_ACCOUNT_ID;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
+import static com.hedera.mirror.web3.state.Utils.isMirror;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
+import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionReceipt;
 import com.hedera.hapi.node.transaction.TransactionRecord;
@@ -40,6 +43,7 @@ import java.util.stream.Stream;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -137,41 +141,82 @@ class TransactionExecutionServiceTest {
         assertThat(result.getRevertReason()).isNotPresent();
     }
 
-    @MockitoSettings(strictness = Strictness.LENIENT)
-    @ParameterizedTest
-    @ValueSource(strings = {"0x1234", "0x627306090abab3a6e1400e9345bc60c78a8bef57"})
-    void testExecuteContractCallInvalidSender(String senderAddressHex) {
-        // Given
-        ContractCallContext.get().setOpcodeTracerOptions(new OpcodeTracerOptions());
+    @Nested
+    class InvalidSenderNegativeTest {
 
-        // Mock the SingleTransactionRecord and TransactionRecord
-        var singleTransactionRecord = mock(SingleTransactionRecord.class);
-        var transactionRecord = mock(TransactionRecord.class);
-        var transactionReceipt = mock(TransactionReceipt.class);
+        private static Stream<Arguments> invalidSenderAddress() {
+            return Stream.of(
+                    Arguments.of(Address.fromHexString("0x1234")),
+                    Arguments.of(Address.fromHexString("0x627306090abab3a6e1400e9345bc60c78a8bef57")));
+        }
 
-        // Simulate SUCCESS status in the receipt
-        when(transactionReceipt.status()).thenReturn(ResponseCodeEnum.SUCCESS);
-        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
-        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+        @BeforeEach
+        void setup() {
+            // Mock the SingleTransactionRecord and TransactionRecord
+            var singleTransactionRecord = mock(SingleTransactionRecord.class);
+            var transactionRecord = mock(TransactionRecord.class);
+            var transactionReceipt = mock(TransactionReceipt.class);
 
-        var contractFunctionResult = mock(ContractFunctionResult.class);
-        when(contractFunctionResult.gasUsed()).thenReturn(DEFAULT_GAS);
-        when(contractFunctionResult.contractCallResult()).thenReturn(Bytes.EMPTY);
+            // Simulate SUCCESS status in the receipt
+            when(transactionReceipt.status()).thenReturn(ResponseCodeEnum.SUCCESS);
+            when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+            when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
 
-        // Mock the transactionRecord to return the contract call result
-        when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
+            var contractFunctionResult = mock(ContractFunctionResult.class);
+            when(contractFunctionResult.gasUsed()).thenReturn(DEFAULT_GAS);
+            when(contractFunctionResult.contractCallResult()).thenReturn(Bytes.EMPTY);
 
-        final var senderAddress = Address.fromHexString(senderAddressHex);
-        // Mock the executor to return a List with the mocked SingleTransactionRecord
-        when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
-                .thenReturn(List.of(singleTransactionRecord));
+            // Mock the transactionRecord to return the contract call result
+            when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
 
-        var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, senderAddress);
+            // Mock the executor to return a List with the mocked SingleTransactionRecord
+            when(transactionExecutor.execute(
+                            any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
+                    .thenReturn(List.of(singleTransactionRecord));
+        }
 
-        // Then
-        assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
-                .isInstanceOf(MirrorEvmTransactionException.class)
-                .hasMessage(INVALID_ACCOUNT_ID.name());
+        @MockitoSettings(strictness = Strictness.LENIENT)
+        @ParameterizedTest
+        @MethodSource("invalidSenderAddress")
+        void testExecuteContractCallInvalidSender(final Address senderAddress) {
+            // Given
+            if (isMirror(senderAddress)) {
+                when(accountReadableKVState.get(any())).thenReturn(null);
+            } else {
+                when(aliasesReadableKVState.get(any())).thenReturn(null);
+                when(accountReadableKVState.get(any())).thenReturn(mock(Account.class));
+            }
+
+            var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, senderAddress);
+
+            // Then
+            assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
+                    .isInstanceOf(MirrorEvmTransactionException.class)
+                    .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
+        }
+
+        @MockitoSettings(strictness = Strictness.LENIENT)
+        @ParameterizedTest
+        @MethodSource("invalidSenderAddress")
+        void testExecuteContractCallInvalidSenderContract(final Address senderAddress) {
+            // Given
+            final var smartContractAccount = mock(Account.class);
+            when(smartContractAccount.smartContract()).thenReturn(true);
+            if (isMirror(senderAddress)) {
+                when(accountReadableKVState.get(any())).thenReturn(smartContractAccount);
+            } else {
+                final var accountID = mock(AccountID.class);
+                when(aliasesReadableKVState.get(any())).thenReturn(accountID);
+                when(accountReadableKVState.get(accountID)).thenReturn(smartContractAccount);
+            }
+
+            var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, senderAddress);
+
+            // Then
+            assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
+                    .isInstanceOf(MirrorEvmTransactionException.class)
+                    .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
+        }
     }
 
     @ParameterizedTest
