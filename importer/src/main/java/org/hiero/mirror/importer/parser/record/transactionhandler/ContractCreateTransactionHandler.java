@@ -14,6 +14,7 @@ import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.Transaction;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hedera.mirror.common.util.DomainUtils;
+import com.hederahashgraph.api.proto.java.Key;
 import jakarta.inject.Named;
 import lombok.CustomLog;
 import org.hiero.mirror.importer.domain.EntityIdService;
@@ -83,6 +84,11 @@ class ContractCreateTransactionHandler extends AbstractEntityCrudTransactionHand
 
         if (transactionBody.hasAdminKey()) {
             entity.setKey(transactionBody.getAdminKey().toByteArray());
+        } else {
+            // Consensus nodes fall back to an implicit `ContractID(shard, realm, num)` key if one is not provided
+            var contractId = entity.toEntityId().toContractID();
+            var key = Key.newBuilder().setContractID(contractId).build().toByteArray();
+            entity.setKey(key);
         }
 
         if (transactionBody.hasProxyAccountID()) {
