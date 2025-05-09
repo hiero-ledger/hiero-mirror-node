@@ -10,7 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hedera.mirror.common.domain.entity.Entity;
+import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.token.FallbackFee;
+import com.hedera.mirror.common.domain.token.FixedFee;
 import com.hedera.mirror.common.domain.token.FractionalFee;
+import com.hedera.mirror.common.domain.token.RoyaltyFee;
 import com.hedera.mirror.web3.utils.BytecodeUtils;
 import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.mirror.web3.viewmodel.ContractCallRequest;
@@ -198,23 +202,33 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
     }
 
     @Test
-    void transferWithFractionalFee() {
+    void transferWithFees() {
         // Given
         final var recipient = accountEntityPersist().toEntityId();
-        final var treasury = accountEntityWithEvmAddressPersist().toEntityId();
+        final var treasury = accountEntityPersist().toEntityId();
 
         final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
         final var tokenId = token.getTokenId();
         tokenAccountPersist(tokenId, recipient.getId());
-
+        final var tokenEntityId = EntityId.of(tokenId);
         final var fractionalFee =
                 FractionalFee.builder().collectorAccountId(recipient).build();
+        final var fixedFee = FixedFee.builder()
+                .denominatingTokenId(tokenEntityId)
+                .collectorAccountId(recipient)
+                .build();
+        final var fallbackFee =
+                FallbackFee.builder().denominatingTokenId(tokenEntityId).build();
+        final var royaltyFee = RoyaltyFee.builder()
+                .fallbackFee(fallbackFee)
+                .collectorAccountId(recipient)
+                .build();
         domainBuilder
                 .customFee()
-                .customize(f -> f.entityId(token.getTokenId())
-                        .fixedFees(List.of())
+                .customize(f -> f.entityId(tokenId)
+                        .fixedFees(List.of(fixedFee))
                         .fractionalFees(List.of(fractionalFee))
-                        .royaltyFees(List.of()))
+                        .royaltyFees(List.of(royaltyFee)))
                 .persist();
 
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);

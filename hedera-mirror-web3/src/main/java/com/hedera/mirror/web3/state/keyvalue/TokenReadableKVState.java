@@ -201,7 +201,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
             final var fractionalFee = new FractionalFee(
                     new Fraction(f.getNumerator(), f.getDenominator()),
                     f.getMinimumAmount(),
-                    f.getMaximumAmount(),
+                    f.getMaximumAmount() == null ? 0 : f.getMaximumAmount(),
                     f.isNetOfTransfers());
             var constructed = new CustomFee(
                     new OneOf<>(FeeOneOfType.FRACTIONAL_FEE, fractionalFee), collector, f.isAllCollectorsAreExempt());
