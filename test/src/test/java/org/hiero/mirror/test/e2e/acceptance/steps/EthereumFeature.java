@@ -15,7 +15,6 @@ import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.rest.model.ContractResult;
 import com.hedera.mirror.rest.model.TransactionByIdResponse;
 import com.hedera.mirror.rest.model.TransactionDetail;
@@ -28,6 +27,7 @@ import java.util.Objects;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
+import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient;
 import org.hiero.mirror.test.e2e.acceptance.client.EthereumClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
@@ -44,25 +44,25 @@ public class EthereumFeature extends AbstractEstimateFeature {
 
     protected final AccountClient accountClient;
 
-    private final CommonProperties commonProperties;
-
     protected AccountId ethereumSignerAccount;
     protected PrivateKey ethereumSignerPrivateKey;
     private String account;
 
     private byte[] childContractBytecodeFromParent;
 
+    private static final Long HBAR_AMOUNT_IN_TINYBARS = 800_000_000L;
+
     @Given("I successfully created a signer account with an EVM address alias")
     public void createAccountWithEvmAddressAlias() {
-        ethereumSignerPrivateKey = PrivateKey.generateECDSA();
-        ethereumSignerAccount = ethereumSignerPrivateKey
-                .getPublicKey()
-                .toAccountId(commonProperties.getShard(), commonProperties.getRealm());
+        // Create new signer account with EVM address and ECDSA key
+        var signerAccount = accountClient.createNewAccount(HBAR_AMOUNT_IN_TINYBARS, AccountNameEnum.BOB);
+        ethereumSignerAccount = signerAccount.getAccountId();
+        ethereumSignerPrivateKey = signerAccount.getPrivateKey();
 
-        networkTransactionResponse = accountClient.sendCryptoTransfer(ethereumSignerAccount, Hbar.from(8L), null);
-
-        assertThat(networkTransactionResponse.getTransactionId()).isNotNull();
-        assertThat(networkTransactionResponse.getReceipt()).isNotNull();
+        var accountInfo = mirrorClient.getAccountDetailsByAccountId(ethereumSignerAccount);
+        account = accountInfo.getAccount();
+        assertThat(accountInfo.getBalance().getBalance())
+                .isEqualTo(Hbar.fromTinybars(HBAR_AMOUNT_IN_TINYBARS).toTinybars());
     }
 
     @Then("validate the signer account and its balance")
