@@ -204,7 +204,7 @@ spotless {
             "rest/**",
             "rosetta/**",
             // Known issue with Java 21: https://github.com/palantir/palantir-java-format/issues/933
-            "hedera-mirror-rest-java/**/EntityServiceImpl.java",
+            "rest-java/**/EntityServiceImpl.java",
             "tools/**",
         )
         toggleOffOn()

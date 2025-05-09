@@ -18,7 +18,7 @@ include(":protobuf")
 
 include(":rest")
 
-include(":hedera-mirror-rest-java")
+include(":rest-java")
 
 include(":rest:check-state-proof")
 

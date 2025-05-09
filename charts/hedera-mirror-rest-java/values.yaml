@@ -21,7 +21,7 @@ alertmanager:
               value: resource
           targetMatch:
             - name: application
-              value: hedera-mirror-rest-java
+              value: rest-java
           equal:
             - namespace
             - pod
@@ -32,7 +32,7 @@ config: {}
 
 # Environment variables to add to the container. The value can either be a string or an EnvVarSource. Evaluated as a template.
 env:
-  SPRING_CONFIG_ADDITIONAL_LOCATION: "file:/usr/etc/hedera/"
+  SPRING_CONFIG_ADDITIONAL_LOCATION: "file:/usr/etc/hiero/"
   # FOO:
   #   valueFrom:
   #     secretKeyRef:
@@ -181,10 +181,10 @@ prometheusRules:
       description: "{{ $value | humanizePercentage }} Java REST API error rate for {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "Mirror Java REST API error rate exceeds 5%"
     enabled: true
-    expr: sum(rate(http_server_requests_seconds_count{application="hedera-mirror-rest-java", status="SERVER_ERROR"}[5m])) by (namespace, pod) / sum(rate(http_server_requests_seconds_count{application="hedera-mirror-rest-java"}[5m])) by (namespace, pod) > 0.05
+    expr: sum(rate(http_server_requests_seconds_count{application="rest-java", status="SERVER_ERROR"}[5m])) by (namespace, pod) / sum(rate(http_server_requests_seconds_count{application="rest-java"}[5m])) by (namespace, pod) > 0.05
     for: 2m
     labels:
-      application: hedera-mirror-rest-java
+      application: rest-java
       severity: critical
 
   RestJavaHighCPU:
@@ -192,10 +192,10 @@ prometheusRules:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ $value | humanizePercentage }}"
       summary: "Mirror Java REST API CPU usage exceeds 80%"
     enabled: true
-    expr: sum(process_cpu_usage{application="hedera-mirror-rest-java"}) by (namespace, pod) / sum(system_cpu_count{application="hedera-mirror-rest-java"}) by (namespace, pod) > 0.8
+    expr: sum(process_cpu_usage{application="rest-java"}) by (namespace, pod) / sum(system_cpu_count{application="rest-java"}) by (namespace, pod) > 0.8
     for: 5m
     labels:
-      application: hedera-mirror-rest-java
+      application: rest-java
       area: resource
       severity: critical
 
@@ -204,10 +204,10 @@ prometheusRules:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} is using {{ $value | humanizePercentage }} of available database connections"
       summary: "Mirror Java REST API database connection utilization exceeds 75%"
     enabled: true
-    expr: sum(hikaricp_connections_active{application="hedera-mirror-rest-java"}) by (namespace, pod) / sum(hikaricp_connections_max{application="hedera-mirror-rest-java"}) by (namespace, pod) > 0.75
+    expr: sum(hikaricp_connections_active{application="rest-java"}) by (namespace, pod) / sum(hikaricp_connections_max{application="rest-java"}) by (namespace, pod) > 0.75
     for: 5m
     labels:
-      application: hedera-mirror-rest-java
+      application: rest-java
       area: resource
       severity: critical
 
@@ -216,10 +216,10 @@ prometheusRules:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} file descriptor usage reached {{ $value | humanizePercentage }}"
       summary: "Mirror Java REST API file descriptor usage exceeds 80%"
     enabled: true
-    expr: sum(process_files_open_files{application="hedera-mirror-rest-java"}) by (namespace, pod) / sum(process_files_max_files{application="hedera-mirror-rest-java"}) by (namespace, pod) > 0.8
+    expr: sum(process_files_open_files{application="rest-java"}) by (namespace, pod) / sum(process_files_max_files{application="rest-java"}) by (namespace, pod) > 0.8
     for: 5m
     labels:
-      application: hedera-mirror-rest-java
+      application: rest-java
       area: resource
       severity: critical
 
@@ -228,10 +228,10 @@ prometheusRules:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ $value | humanizePercentage }}"
       summary: "Mirror Java REST API memory usage exceeds 80%"
     enabled: true
-    expr: sum(jvm_memory_used_bytes{application="hedera-mirror-rest-java"}) by (namespace, pod) / sum(jvm_memory_max_bytes{application="hedera-mirror-rest-java"}) by (namespace, pod) > 0.8
+    expr: sum(jvm_memory_used_bytes{application="rest-java"}) by (namespace, pod) / sum(jvm_memory_max_bytes{application="rest-java"}) by (namespace, pod) > 0.8
     for: 5m
     labels:
-      application: hedera-mirror-rest-java
+      application: rest-java
       area: resource
       severity: critical
 
@@ -240,10 +240,10 @@ prometheusRules:
       description: "Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ $value }} error messages/s in a 3m period"
       summary: "High rate of log errors"
     enabled: true
-    expr: sum(increase(logback_events_total{application="hedera-mirror-rest-java", level="error"}[1m])) by (namespace, pod) >= 2
+    expr: sum(increase(logback_events_total{application="rest-java", level="error"}[1m])) by (namespace, pod) >= 2
     for: 3m
     labels:
-      application: hedera-mirror-rest-java
+      application: rest-java
       severity: critical
 
   RestJavaNoPodsReady:
@@ -254,7 +254,7 @@ prometheusRules:
     expr: sum(kube_pod_status_ready{pod=~".*-rest-java-.*",condition="true"}) by (namespace) < 1
     for: 2m
     labels:
-      application: hedera-mirror-rest-java
+      application: rest-java
       area: resource
       severity: critical
 
@@ -263,10 +263,10 @@ prometheusRules:
       description: "Java REST API has not seen any requests to {{ $labels.namespace }} for 5m"
       summary: "No Java REST API requests seen for awhile"
     enabled: true
-    expr: sum(rate(http_server_requests_seconds_count{application="hedera-mirror-rest-java"}[3m])) by (namespace) <= 0
+    expr: sum(rate(http_server_requests_seconds_count{application="rest-java"}[3m])) by (namespace) <= 0
     for: 5m
     labels:
-      application: hedera-mirror-rest-java
+      application: rest-java
       severity: warning
 
   RestJavaQueryLatency:
@@ -274,10 +274,10 @@ prometheusRules:
       description: "High average database query latency of {{ $value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "Mirror Java REST API query latency exceeds 1s"
     enabled: true
-    expr: sum(rate(spring_data_repository_invocations_seconds_sum{application="hedera-mirror-rest-java"}[5m])) by (namespace, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application="hedera-mirror-rest-java"}[5m])) by (namespace, pod) > 1
+    expr: sum(rate(spring_data_repository_invocations_seconds_sum{application="rest-java"}[5m])) by (namespace, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application="rest-java"}[5m])) by (namespace, pod) > 1
     for: 1m
     labels:
-      application: hedera-mirror-rest-java
+      application: rest-java
       severity: warning
 
   RestJavaRequestLatency:
@@ -285,10 +285,10 @@ prometheusRules:
       description: "High average request latency of {{ $value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "Mirror Rest Java API request latency exceeds 2s"
     enabled: true
-    expr: sum(rate(http_server_requests_seconds_sum{application="hedera-mirror-rest-java"}[5m])) by (namespace, pod) / sum(rate(http_server_requests_seconds_count{application="hedera-mirror-rest-java"}[5m])) by (namespace, pod) > 2
+    expr: sum(rate(http_server_requests_seconds_sum{application="rest-java"}[5m])) by (namespace, pod) / sum(rate(http_server_requests_seconds_count{application="rest-java"}[5m])) by (namespace, pod) > 2
     for: 1m
     labels:
-      application: hedera-mirror-rest-java
+      application: rest-java
       severity: warning
 
 rbac:
@@ -360,7 +360,7 @@ updateStrategy:
 # Volumes to add to the container. The key is the volume name and the value is the volume mount definition. The same keys should also appear in volumes below.
 volumeMounts:
   config:
-    mountPath: /usr/etc/hedera
+    mountPath: /usr/etc/hiero
   temp:
     mountPath: /tmp
 

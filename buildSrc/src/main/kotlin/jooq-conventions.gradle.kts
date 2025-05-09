@@ -55,7 +55,7 @@ jooq {
             }
             target {
                 directory = jooqTargetDir
-                packageName = "com.hedera.mirror.restjava.jooq.domain"
+                packageName = "org.hiero.mirror.restjava.jooq.domain"
             }
         }
     }

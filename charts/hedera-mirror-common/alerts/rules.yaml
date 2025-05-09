@@ -1280,7 +1280,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum(rate(http_server_requests_seconds_count{application="hedera-mirror-rest-java", status="SERVER_ERROR"}[5m])) by (cluster, namespace, pod) / sum(rate(http_server_requests_seconds_count{application="hedera-mirror-rest-java"}[5m])) by (cluster, namespace, pod) > 0.05
+                expr: sum(rate(http_server_requests_seconds_count{application="rest-java", status="SERVER_ERROR"}[5m])) by (cluster, namespace, pod) / sum(rate(http_server_requests_seconds_count{application="rest-java"}[5m])) by (cluster, namespace, pod) > 0.05
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1294,7 +1294,7 @@ groups:
             description: '{{ (index $values "A").Value | humanizePercentage }} Java REST API error rate for {{ $labels.namespace }}/{{ $labels.pod }}'
             summary: Mirror Java REST API error rate exceeds 5%
           labels:
-            application: hedera-mirror-rest-java
+            application: rest-java
             severity: critical
           isPaused: true
         - uid: adk8al1ym0su8d
@@ -1308,7 +1308,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum(process_cpu_usage{application="hedera-mirror-rest-java"}) by (cluster, namespace, pod) / sum(system_cpu_count{application="hedera-mirror-rest-java"}) by (cluster, namespace, pod) > 0.8
+                expr: sum(process_cpu_usage{application="rest-java"}) by (cluster, namespace, pod) / sum(system_cpu_count{application="rest-java"}) by (cluster, namespace, pod) > 0.8
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1322,7 +1322,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ (index $values "A").Value | humanizePercentage }}'
             summary: Mirror Java REST API CPU usage exceeds 80%
           labels:
-            application: hedera-mirror-rest-java
+            application: rest-java
             severity: critical
           isPaused: false
         - uid: ddk8aoomjb6dce
@@ -1336,7 +1336,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum(hikaricp_connections_active{application="hedera-mirror-rest-java"}) by (cluster, namespace, pod) / sum(hikaricp_connections_max{application="hedera-mirror-rest-java"}) by (cluster, namespace, pod) > 0.75
+                expr: sum(hikaricp_connections_active{application="rest-java"}) by (cluster, namespace, pod) / sum(hikaricp_connections_max{application="rest-java"}) by (cluster, namespace, pod) > 0.75
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1350,7 +1350,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} is using {{ (index $values "A").Value | humanizePercentage }} of available database connections'
             summary: Mirror Java REST API database connection utilization exceeds 75%
           labels:
-            application: hedera-mirror-rest-java
+            application: rest-java
             area: resource
             severity: critical
           isPaused: false
@@ -1365,7 +1365,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (process_files_open_files{application="hedera-mirror-rest-java"}) / sum by (cluster, namespace, pod) (process_files_max_files{application="hedera-mirror-rest-java"}) > 0.8
+                expr: sum by (cluster, namespace, pod) (process_files_open_files{application="rest-java"}) / sum by (cluster, namespace, pod) (process_files_max_files{application="rest-java"}) > 0.8
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1379,7 +1379,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} file descriptor usage reached {{ (index $values "A").Value | humanizePercentage }}'
             summary: Mirror Java REST API file descriptor usage exceeds 80%
           labels:
-            application: hedera-mirror-rest-java
+            application: rest-java
             area: resource
             severity: critical
           isPaused: false
@@ -1394,7 +1394,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum(jvm_memory_used_bytes{application="hedera-mirror-rest-java"}) by (cluster, namespace, pod) / sum(jvm_memory_max_bytes{application="hedera-mirror-rest-java"}) by (cluster, namespace, pod) > 0.8
+                expr: sum(jvm_memory_used_bytes{application="rest-java"}) by (cluster, namespace, pod) / sum(jvm_memory_max_bytes{application="rest-java"}) by (cluster, namespace, pod) > 0.8
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1408,7 +1408,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ (index $values "A").Value | humanizePercentage }}'
             summary: Mirror Java REST API memory usage exceeds 80%
           labels:
-            application: hedera-mirror-rest-java
+            application: rest-java
             area: resource
             severity: critical
           isPaused: false
@@ -1423,7 +1423,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum(increase(logback_events_total{application="hedera-mirror-rest-java", level="error"}[1m])) by (cluster, namespace, pod) >= 2
+                expr: sum(increase(logback_events_total{application="rest-java", level="error"}[1m])) by (cluster, namespace, pod) >= 2
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1437,7 +1437,7 @@ groups:
             description: Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ index $values "A" }} error messages/s in a 3m period
             summary: High rate of log errors
           labels:
-            application: hedera-mirror-rest-java
+            application: rest-java
             severity: critical
           isPaused: false
         - uid: ddk8b6b3eubk0a
@@ -1451,7 +1451,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum(rate(http_server_requests_seconds_count{application="hedera-mirror-rest-java"}[3m])) by (cluster, namespace) <= 0
+                expr: sum(rate(http_server_requests_seconds_count{application="rest-java"}[3m])) by (cluster, namespace) <= 0
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1465,7 +1465,7 @@ groups:
             description: Java REST API has not seen any requests to {{ $labels.namespace }} for 5m
             summary: No Java REST API requests seen for a while
           labels:
-            application: hedera-mirror-rest-java
+            application: rest-java
             severity: warning
           isPaused: false
         - uid: fdk8balhgvbi8b
@@ -1479,7 +1479,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum(rate(spring_data_repository_invocations_seconds_sum{application="hedera-mirror-rest-java"}[5m])) by (cluster, namespace, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application="hedera-mirror-rest-java"}[5m])) by (cluster, namespace, pod) > 1
+                expr: sum(rate(spring_data_repository_invocations_seconds_sum{application="rest-java"}[5m])) by (cluster, namespace, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application="rest-java"}[5m])) by (cluster, namespace, pod) > 1
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1493,7 +1493,7 @@ groups:
             description: High average database query latency of {{ (index $values "A").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}
             summary: Mirror Java REST API query latency exceeds 1s
           labels:
-            application: hedera-mirror-rest-java
+            application: rest-java
             severity: warning
           isPaused: false
         - uid: cdk8bcbpouhhcc
@@ -1507,7 +1507,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum(rate(http_server_requests_seconds_sum{application="hedera-mirror-rest-java"}[5m])) by (cluster, namespace, pod) / sum(rate(http_server_requests_seconds_count{application="hedera-mirror-rest-java"}[5m])) by (cluster, namespace, pod) > 2
+                expr: sum(rate(http_server_requests_seconds_sum{application="rest-java"}[5m])) by (cluster, namespace, pod) / sum(rate(http_server_requests_seconds_count{application="rest-java"}[5m])) by (cluster, namespace, pod) > 2
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1521,7 +1521,7 @@ groups:
             description: High average request latency of {{ (index $values "A").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}
             summary: Mirror Rest Java API request latency exceeds 2s
           labels:
-            application: hedera-mirror-rest-java
+            application: rest-java
             severity: warning
           isPaused: false
     - orgId: 1

@@ -125,7 +125,7 @@ services:
         uid: "1000"
         gid: "1000"
     environment:
-      HEDERA_MIRROR_RESTJAVA_DB_HOST: db
+      HIERO_MIRROR_RESTJAVA_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
     image: gcr.io/mirrornode/hedera-mirror-rest-java:0.130.0-SNAPSHOT
     pull_policy: always
