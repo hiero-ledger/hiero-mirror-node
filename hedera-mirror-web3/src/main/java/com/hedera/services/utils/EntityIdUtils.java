@@ -191,16 +191,6 @@ public final class EntityIdUtils {
                 .build();
     }
 
-    public static com.hedera.hapi.node.base.ScheduleID toScheduleId(final Long scheduleId) {
-        final var decodedEntityId = EntityId.of(scheduleId);
-
-        return com.hedera.hapi.node.base.ScheduleID.newBuilder()
-                .shardNum(decodedEntityId.getShard())
-                .realmNum(decodedEntityId.getRealm())
-                .scheduleNum(decodedEntityId.getNum())
-                .build();
-    }
-
     public static com.hedera.hapi.node.base.ContractID toContractID(final Address address) {
         var entity = fromEvmAddress(address.toArrayUnsafe());
         return entity == null

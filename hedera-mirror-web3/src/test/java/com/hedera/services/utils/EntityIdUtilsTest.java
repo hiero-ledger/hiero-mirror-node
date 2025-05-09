@@ -205,6 +205,17 @@ class EntityIdUtilsTest {
     }
 
     @Test
+    void toEntityIdFromScheduleId() {
+        final var scheduleId = com.hedera.hapi.node.base.ScheduleID.newBuilder()
+                .shardNum(SHARD)
+                .realmNum(REALM)
+                .scheduleNum(NUM)
+                .build();
+
+        assertEquals(EntityId.of(SHARD, REALM, NUM), EntityIdUtils.toEntityId(scheduleId));
+    }
+
+    @Test
     void toEntityIdFromFileId() {
         final var fileId = com.hedera.hapi.node.base.FileID.newBuilder()
                 .shardNum(SHARD)
