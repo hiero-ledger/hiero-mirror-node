@@ -11,7 +11,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-@ConfigurationProperties("hedera.mirror.common")
+@ConfigurationProperties("hiero.mirror.common")
 public class CommonProperties {
 
     private static final AtomicReference<CommonProperties> INSTANCE = new AtomicReference<>();

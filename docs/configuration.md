@@ -20,10 +20,10 @@ support automatic generation of random [passwords](/charts/README.md#passwords).
 
 Some variables are common to more than one module.
 
-| Name                         | Default | Description                                                |
-| ---------------------------- | ------- | ---------------------------------------------------------- |
-| `hedera.mirror.common.realm` | 0       | The default base realm the mirror node participates in.    |
-| `hedera.mirror.common.shard` | 0       | The default shard number this mirror node participates in. |
+| Name                        | Default | Description                                                |
+| --------------------------- | ------- | ---------------------------------------------------------- |
+| `hiero.mirror.common.realm` | 0       | The default base realm the mirror node participates in.    |
+| `hiero.mirror.common.shard` | 0       | The default shard number this mirror node participates in. |
 
 ## Importer
 

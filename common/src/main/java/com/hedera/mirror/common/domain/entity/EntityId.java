@@ -40,7 +40,7 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
     private static final long SHARD_MASK = (1L << SHARD_BITS) - 1;
 
     private static final String CACHE_DEFAULT = "expireAfterAccess=60m,maximumSize=500000,recordStats";
-    private static final String CACHE_PROPERTY = "HEDERA_MIRROR_COMMON_CACHE_ENTITYID";
+    private static final String CACHE_PROPERTY = "HIERO_MIRROR_COMMON_CACHE_ENTITYID";
     private static final String CACHE_SPEC = System.getProperty(CACHE_PROPERTY, CACHE_DEFAULT);
     private static final Cache<Long, EntityId> CACHE = Caffeine.from(CACHE_SPEC).build();
 

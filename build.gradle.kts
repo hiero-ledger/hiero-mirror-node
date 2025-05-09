@@ -261,7 +261,7 @@ spotless {
         leadingTabsToSpaces()
         licenseHeader(licenseHeader.replaceFirst("//", "--"), "^[^-\\s]")
         target(
-            "hedera-mirror-common/src/test/resources/*.sql",
+            "common/src/test/resources/*.sql",
             "importer/**/*.sql",
             "rest/__tests__/data/**/*.sql",
         )

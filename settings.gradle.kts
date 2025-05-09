@@ -4,7 +4,7 @@ plugins { id("com.gradle.develocity") version ("3.17") }
 
 rootProject.name = "hiero-mirror-node"
 
-include(":hedera-mirror-common")
+include(":common")
 
 include(":graphql")
 

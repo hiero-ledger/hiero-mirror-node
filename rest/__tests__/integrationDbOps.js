@@ -24,16 +24,7 @@ const v1DatabaseImage = 'postgres:16-alpine';
 const v2DatabaseImage = 'gcr.io/mirrornode/citus:12.1.1';
 
 const cleanupSql = fs.readFileSync(
-  path.join(
-    getModuleDirname(import.meta),
-    '..',
-    '..',
-    'hedera-mirror-common',
-    'src',
-    'test',
-    'resources',
-    'cleanup.sql'
-  ),
+  path.join(getModuleDirname(import.meta), '..', '..', 'common', 'src', 'test', 'resources', 'cleanup.sql'),
   'utf8'
 );
 
@@ -54,7 +45,7 @@ const cleanUp = async () => {
 
 const createDbContainer = async () => {
   const image = isV2Schema() ? v2DatabaseImage : v1DatabaseImage;
-  const initSqlPath = path.join('..', 'hedera-mirror-common', 'src', 'test', 'resources', 'init.sql');
+  const initSqlPath = path.join('..', 'common', 'src', 'test', 'resources', 'init.sql');
   const initSqlCopy = {
     source: initSqlPath,
     target: '/docker-entrypoint-initdb.d/init.sql',
