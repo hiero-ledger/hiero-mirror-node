@@ -20,7 +20,6 @@ import com.hedera.mirror.common.domain.entity.CryptoAllowance;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.NftAllowance;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
-import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.repository.AccountBalanceRepository;
 import com.hedera.mirror.web3.repository.CryptoAllowanceRepository;
@@ -35,7 +34,6 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.Nonnull;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -71,10 +69,6 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
         this.tokenAccountRepository = tokenAccountRepository;
         this.tokenAllowanceRepository = tokenAllowanceRepository;
         this.mirrorNodeEvmProperties = mirrorNodeEvmProperties;
-    }
-
-    protected Map<Object, Object> getReadCache(final String readCacheKey) {
-        return ContractCallContext.get().getReadCacheState(readCacheKey);
     }
 
     protected Account accountFromEntity(Entity entity, final Optional<Long> timestamp) {
