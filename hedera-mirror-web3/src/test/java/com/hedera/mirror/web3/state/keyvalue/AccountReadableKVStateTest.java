@@ -42,6 +42,7 @@ import com.hedera.mirror.web3.repository.NftRepository;
 import com.hedera.mirror.web3.repository.TokenAccountRepository;
 import com.hedera.mirror.web3.repository.TokenAllowanceRepository;
 import com.hedera.mirror.web3.repository.projections.TokenAccountAssociationsCount;
+import com.hedera.mirror.web3.state.CacheManager;
 import com.hedera.mirror.web3.state.CommonEntityAccessor;
 import com.hedera.node.config.VersionedConfiguration;
 import com.hedera.node.config.data.ContractsConfig;
@@ -143,6 +144,9 @@ class AccountReadableKVStateTest {
 
     @Mock
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
+
+    @Spy
+    private CacheManager cacheManager;
 
     @Spy
     private ContractCallContext contractCallContext;
@@ -607,15 +611,15 @@ class AccountReadableKVStateTest {
     void whenAccountNumIsReadPutAliasInCache() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
-        assertThat(accountReadableKVState
-                        .getReadCache(AliasesReadableKVState.KEY)
+        assertThat(contractCallContext
+                        .getReadCacheState(AliasesReadableKVState.KEY)
                         .containsKey(EVM_ADDRESS_BYTES))
                 .isFalse();
         assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
                 .returns(ACCOUNT_ID, Account::accountId)
                 .returns(EVM_ADDRESS_BYTES.value(), Account::alias));
-        assertThat(accountReadableKVState
-                        .getReadCache(AliasesReadableKVState.KEY)
+        assertThat(contractCallContext
+                        .getReadCacheState(AliasesReadableKVState.KEY)
                         .containsKey(EVM_ADDRESS_BYTES))
                 .isTrue();
     }

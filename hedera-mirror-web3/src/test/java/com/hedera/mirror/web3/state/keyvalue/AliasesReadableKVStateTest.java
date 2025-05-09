@@ -13,6 +13,7 @@ import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.common.ContractCallContext;
+import com.hedera.mirror.web3.state.CacheManager;
 import com.hedera.mirror.web3.state.CommonEntityAccessor;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.Collections;
@@ -41,6 +42,9 @@ class AliasesReadableKVStateTest {
 
     @Mock
     private CommonEntityAccessor commonEntityAccessor;
+
+    @Spy
+    private CacheManager cacheManager;
 
     private static final ProtoBytes EVM_ADDRESS_BYTES =
             new ProtoBytes(Bytes.wrap("67d8d32e9bf1a9968a5ff53b87d777aa8ebbee69".getBytes()));
@@ -161,14 +165,14 @@ class AliasesReadableKVStateTest {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ALIAS_BYTES.value(), Optional.empty()))
                 .thenReturn(Optional.of(ENTITY_WITH_ALIAS));
-        assertThat(aliasesReadableKVState
-                        .getReadCache(AccountReadableKVState.KEY)
+        assertThat(contractCallContext
+                        .getReadCacheState(AccountReadableKVState.KEY)
                         .containsKey(ACCOUNT_ID))
                 .isFalse();
         assertThat(aliasesReadableKVState.get(ALIAS_BYTES))
                 .satisfies(accountID -> assertThat(accountID).isEqualTo(ACCOUNT_ID));
-        assertThat(aliasesReadableKVState
-                        .getReadCache(AccountReadableKVState.KEY)
+        assertThat(contractCallContext
+                        .getReadCacheState(AccountReadableKVState.KEY)
                         .containsKey(ACCOUNT_ID))
                 .isTrue();
     }
