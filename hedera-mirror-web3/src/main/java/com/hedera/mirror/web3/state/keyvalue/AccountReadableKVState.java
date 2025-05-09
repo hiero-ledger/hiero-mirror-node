@@ -5,7 +5,6 @@ package com.hedera.mirror.web3.state.keyvalue;
 import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
 
 import com.hedera.hapi.node.base.AccountID;
-import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.web3.common.ContractCallContext;
@@ -16,8 +15,8 @@ import com.hedera.mirror.web3.repository.NftAllowanceRepository;
 import com.hedera.mirror.web3.repository.NftRepository;
 import com.hedera.mirror.web3.repository.TokenAccountRepository;
 import com.hedera.mirror.web3.repository.TokenAllowanceRepository;
+import com.hedera.mirror.web3.state.CacheManager;
 import com.hedera.mirror.web3.state.CommonEntityAccessor;
-import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 
@@ -32,6 +31,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
     public static final String KEY = "ACCOUNTS";
 
     private final CommonEntityAccessor commonEntityAccessor;
+    private final CacheManager cacheManager;
 
     public AccountReadableKVState(
             @Nonnull CommonEntityAccessor commonEntityAccessor,
@@ -42,7 +42,8 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             @Nonnull CryptoAllowanceRepository cryptoAllowanceRepository,
             @Nonnull TokenAccountRepository tokenAccountRepository,
             @Nonnull AccountBalanceRepository accountBalanceRepository,
-            @Nonnull MirrorNodeEvmProperties mirrorNodeEvmProperties) {
+            @Nonnull MirrorNodeEvmProperties mirrorNodeEvmProperties,
+            @Nonnull CacheManager cacheManager) {
         super(
                 KEY,
                 accountBalanceRepository,
@@ -54,6 +55,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                 tokenAllowanceRepository,
                 mirrorNodeEvmProperties);
         this.commonEntityAccessor = commonEntityAccessor;
+        this.cacheManager = cacheManager;
     }
 
     @Override
@@ -66,15 +68,10 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     final var account = accountFromEntity(entity, timestamp);
                     // Associate the account alias with this entity in the cache, if any.
                     if (account.alias().length() > 0) {
-                        putAccountAliasInCache(account.alias(), key);
+                        cacheManager.putAccountAlias(account.alias(), key);
                     }
                     return account;
                 })
                 .orElse(null);
-    }
-
-    private void putAccountAliasInCache(final Bytes accountAlias, final AccountID accountID) {
-        getReadCache(AliasesReadableKVState.KEY)
-                .putIfAbsent(ProtoBytes.newBuilder().value(accountAlias).build(), accountID);
     }
 }
