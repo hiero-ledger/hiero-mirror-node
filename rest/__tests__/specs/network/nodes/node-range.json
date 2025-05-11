@@ -157,6 +157,7 @@
     "nodes": [
       {
         "admin_key": "324a0a233a210344e18efe4e069846adb25b98ec1c4cef088503807245916bcd51876fe28fc69a0a233a210277167b71f33743f8b626ab0162f90f791f84d6e40a8d395c8a5f29d322d61d13",
+        "grpc_proxy_endpoint": null,
         "node_id": 3,
         "created_timestamp": 1664365660048674966,
         "deleted": false,
@@ -179,6 +180,7 @@
         "decline_reward": false,
         "description": "description",
         "file_id": "0.0.102",
+        "grpc_proxy_endpoint": null,
         "max_stake": 2000,
         "memo": "0.0.6",
         "min_stake": 1,
@@ -211,6 +213,7 @@
         "decline_reward": null,
         "description": "description",
         "file_id": "0.0.102",
+        "grpc_proxy_endpoint": null,
         "max_stake": 2000,
         "memo": "0.0.7",
         "min_stake": 1,

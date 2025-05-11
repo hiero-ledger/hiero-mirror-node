@@ -30,6 +30,7 @@ import NftHistory from './nftHistory';
 import NftTransfer from './nftTransfer';
 import NodeStake from './nodeStake';
 import RecordFile from './recordFile';
+import ServiceEndpoint from './serviceEndpoint';
 import SignatureType from './signatureType';
 import StakingRewardTransfer from './stakingRewardTransfer';
 import Token from './token';
@@ -81,6 +82,7 @@ export {
   NftTransfer,
   NodeStake,
   RecordFile,
+  ServiceEndpoint,
   SignatureType,
   StakingRewardTransfer,
   Token,

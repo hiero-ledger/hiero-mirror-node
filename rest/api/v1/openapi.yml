@@ -2795,6 +2795,7 @@ components:
         - decline_reward
         - description
         - file_id
+        - grpc_proxy_endpoint
         - max_stake
         - memo
         - min_stake
@@ -2822,6 +2823,8 @@ components:
           type: string
         file_id:
           $ref: "#/components/schemas/EntityId"
+        grpc_proxy_endpoint:
+          $ref: "#/components/schemas/ServiceEndpoint"
         max_stake:
           description: The maximum stake (rewarded or not rewarded) this node can have as consensus weight
           type: integer

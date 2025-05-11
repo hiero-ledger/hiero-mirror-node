@@ -4,7 +4,7 @@ package org.hiero.mirror.importer.migration;
 
 import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.entity.Node;
+import com.hedera.mirror.common.domain.node.Node;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import java.util.ArrayList;
 import java.util.List;

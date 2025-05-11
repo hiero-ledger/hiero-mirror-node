@@ -10,7 +10,8 @@ import com.google.common.collect.Range;
 import com.google.protobuf.BoolValue;
 import com.hedera.mirror.common.domain.addressbook.NetworkStake;
 import com.hedera.mirror.common.domain.addressbook.NodeStake;
-import com.hedera.mirror.common.domain.entity.Node;
+import com.hedera.mirror.common.domain.node.Node;
+import com.hedera.mirror.common.domain.node.ServiceEndpoint;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.Transaction;
 import com.hedera.mirror.common.util.DomainUtils;
@@ -99,8 +100,14 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
     void nodeCreate() {
         var recordItem = recordItemBuilder.nodeCreate().build();
         var nodeCreate = recordItem.getTransactionBody().getNodeCreate();
+        var protoEndpoint = nodeCreate.getGrpcProxyEndpoint();
         var expectedNode = getExpectedNode(recordItem)
                 .adminKey(nodeCreate.getAdminKey().toByteArray())
+                .grpcProxyEndpoint(ServiceEndpoint.builder()
+                        .domainName(protoEndpoint.getDomainName())
+                        .ipAddressV4("")
+                        .port(protoEndpoint.getPort())
+                        .build())
                 .build();
 
         parseRecordItemAndCommit(recordItem);
@@ -135,6 +142,7 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
                 .adminKey(nodeUpdate.getAdminKey().toByteArray())
                 .createdTimestamp(node.getCreatedTimestamp())
                 .declineReward(true)
+                .grpcProxyEndpoint(node.getGrpcProxyEndpoint())
                 .nodeId(node.getNodeId())
                 .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                 .build();
@@ -175,6 +183,7 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
                 .adminKey(node.getAdminKey())
                 .createdTimestamp(node.getCreatedTimestamp())
                 .declineReward(node.getDeclineReward())
+                .grpcProxyEndpoint(node.getGrpcProxyEndpoint())
                 .nodeId(node.getNodeId())
                 .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                 .build();

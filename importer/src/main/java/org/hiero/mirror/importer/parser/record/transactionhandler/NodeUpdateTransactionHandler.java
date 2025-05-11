@@ -4,7 +4,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.Node;
+import com.hedera.mirror.common.domain.node.Node;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;
@@ -43,6 +43,10 @@ class NodeUpdateTransactionHandler extends AbstractNodeTransactionHandler {
 
         if (nodeUpdate.hasDeclineReward()) {
             node.setDeclineReward(nodeUpdate.getDeclineReward().getValue());
+        }
+
+        if (nodeUpdate.hasGrpcProxyEndpoint()) {
+            node.setGrpcProxyEndpoint(toServiceEndpoint(consensusTimestamp, nodeUpdate.getGrpcProxyEndpoint()));
         }
 
         // As a special case, nodes migrated state to mirror nodes via a NodeUpdate instead of a proper NodeCreate

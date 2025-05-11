@@ -23,8 +23,9 @@ import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.entity.NftAllowance;
-import com.hedera.mirror.common.domain.entity.Node;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
+import com.hedera.mirror.common.domain.node.Node;
+import com.hedera.mirror.common.domain.node.ServiceEndpoint;
 import com.hedera.mirror.common.domain.schedule.Schedule;
 import com.hedera.mirror.common.domain.token.CustomFee;
 import com.hedera.mirror.common.domain.token.Nft;
@@ -1954,6 +1955,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         var nodeUpdate = nodeCreate.toBuilder()
                 .adminKey(domainBuilder.key())
                 .createdTimestamp(null)
+                .grpcProxyEndpoint(new ServiceEndpoint("", "127.0.0.1", 8080))
                 .timestampRange(Range.atLeast(domainBuilder.timestamp()))
                 .build();
         var nodeDelete = nodeUpdate.toBuilder()
@@ -2545,11 +2547,12 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
 
     @CsvSource(
             nullValues = "null",
-            textBlock = """
-            false, false
-            true, false
-            true, null
-            """)
+            textBlock =
+                    """
+                    false, false
+                    true, false
+                    true, null
+                    """)
     @ParameterizedTest
     void onTokenAccountClaimNoExistingAssociated(boolean database, Boolean associated) {
         var tokenAccountDissociate = domainBuilder
@@ -2582,11 +2585,12 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
 
     @CsvSource(
             nullValues = "null",
-            textBlock = """
-            false, true
-            false, null
-            true, true
-            """)
+            textBlock =
+                    """
+                    false, true
+                    false, null
+                    true, true
+                    """)
     @ParameterizedTest
     void onTokenAccountClaimExistingAssociated(boolean database, Boolean associated) {
         var tokenAccountAssociate = domainBuilder
@@ -2961,11 +2965,11 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
     @CsvSource(
             textBlock =
                     """
-            CANCELLED, 1
-            CANCELLED, 2
-            CLAIMED,   1
-            CLAIMED,   2
-            """)
+                            CANCELLED, 1
+                            CANCELLED, 2
+                            CLAIMED,   1
+                            CLAIMED,   2
+                            """)
     void onTokenAirdropUpdate(TokenAirdropStateEnum state, int commitIndex) {
         // given
         var tokenAirdrop =

@@ -40,6 +40,11 @@ describe('NetworkNodeViewModel', () => {
     },
     node: {
       adminKey: '122049cddef8b8e974b8c8862cb48bf80ffcb565b0edad096f78ba8a9ca39c43f7bc',
+      grpcProxyEndpoint: {
+        domainName: 'example.com',
+        ipAddressV4: '',
+        port: 80,
+      },
       nodeId: 0,
       created_timestamp: 1664365660048674966,
       deleted: false,
@@ -53,6 +58,11 @@ describe('NetworkNodeViewModel', () => {
     },
     description: 'desc 1',
     file_id: '0.0.102',
+    grpc_proxy_endpoint: {
+      domain_name: 'example.com',
+      ip_address_v4: '',
+      port: 80,
+    },
     max_stake: 1000,
     memo: '0.0.3',
     min_stake: 6,
@@ -112,12 +122,16 @@ describe('NetworkNodeViewModel', () => {
         },
         node: {
           adminKey: null,
+          declineReward: true,
+          grpcProxyEndpoint: null,
         },
       })
     ).toEqual({
       ...defaultExpected,
       admin_key: null,
+      decline_reward: true,
       description: null,
+      grpc_proxy_endpoint: null,
       max_stake: null,
       memo: null,
       min_stake: null,

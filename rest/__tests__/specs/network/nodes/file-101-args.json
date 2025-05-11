@@ -168,6 +168,7 @@
         "created_timestamp": 1664365660048674966,
         "decline_reward": true,
         "deleted": false,
+        "grpc_proxy_endpoint": null,
         "timestamp_range": "[0,)"
       }
     ]
@@ -184,6 +185,11 @@
         "decline_reward": false,
         "description": "description",
         "file_id": "0.0.101",
+        "grpc_proxy_endpoint": {
+          "domain_name": "localhost",
+          "ip_address_v4": "",
+          "port": 80
+        },
         "max_stake": 2000,
         "memo": null,
         "min_stake": 1,
@@ -219,6 +225,7 @@
         "decline_reward": true,
         "description": "description",
         "file_id": "0.0.101",
+        "grpc_proxy_endpoint": null,
         "max_stake": 2000,
         "memo": null,
         "min_stake": 1,

@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.importer.repository;
 
-import com.hedera.mirror.common.domain.entity.NodeHistory;
+import com.hedera.mirror.common.domain.node.NodeHistory;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;

@@ -4,7 +4,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.Node;
+import com.hedera.mirror.common.domain.node.Node;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;
@@ -34,11 +34,17 @@ class NodeCreateTransactionHandler extends AbstractNodeTransactionHandler {
 
         var nodeCreate = recordItem.getTransactionBody().getNodeCreate();
         long consensusTimestamp = recordItem.getConsensusTimestamp();
+        var grpcProxyEndpoint = nodeCreate.hasGrpcProxyEndpoint()
+                ? toServiceEndpoint(consensusTimestamp, nodeCreate.getGrpcProxyEndpoint())
+                : null;
+        var key = nodeCreate.hasAdminKey() ? nodeCreate.getAdminKey().toByteArray() : null;
+
         return Node.builder()
-                .adminKey(nodeCreate.getAdminKey().toByteArray())
+                .adminKey(key)
                 .createdTimestamp(consensusTimestamp)
                 .declineReward(nodeCreate.getDeclineReward())
                 .deleted(false)
+                .grpcProxyEndpoint(grpcProxyEndpoint)
                 .nodeId(recordItem.getTransactionRecord().getReceipt().getNodeId())
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();

@@ -19,6 +19,9 @@ class NetworkNodeViewModel {
     this.decline_reward = node.declineReward;
     this.description = addressBookEntry.description;
     this.file_id = EntityId.parse(networkNode.addressBook.fileId).toString();
+    this.grpc_proxy_endpoint = node.grpcProxyEndpoint
+      ? new AddressBookServiceEndpointViewModel(node.grpcProxyEndpoint)
+      : null;
     this.max_stake = utils.asNullIfDefault(nodeStake.maxStake, -1);
     this.memo = addressBookEntry.memo;
     this.min_stake = utils.asNullIfDefault(nodeStake.minStake, -1);

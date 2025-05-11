@@ -156,6 +156,7 @@
     "nodes": [
       {
         "admin_key": "3200",
+        "grpc_proxy_endpoint": null,
         "node_id": 0,
         "created_timestamp": 1664365660048674966,
         "deleted": false,
@@ -172,6 +173,7 @@
         "decline_reward": false,
         "description": "description",
         "file_id": "0.0.102",
+        "grpc_proxy_endpoint": null,
         "max_stake": null,
         "memo": "0.0.3",
         "min_stake": null,

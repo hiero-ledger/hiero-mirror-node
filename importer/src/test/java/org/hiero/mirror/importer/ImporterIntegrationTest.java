@@ -2,8 +2,10 @@
 
 package org.hiero.mirror.importer;
 
+import static com.hedera.mirror.common.converter.ObjectToStringSerializer.OBJECT_MAPPER;
 import static org.hiero.mirror.importer.TestUtils.getResource;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Range;
 import com.hedera.mirror.common.CommonProperties;
@@ -12,6 +14,7 @@ import com.hedera.mirror.common.config.RedisTestConfiguration;
 import com.hedera.mirror.common.converter.EntityIdConverter;
 import com.hedera.mirror.common.domain.DomainBuilder;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.node.ServiceEndpoint;
 import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import jakarta.annotation.Resource;
 import jakarta.persistence.Id;
@@ -95,17 +98,10 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
     @Value("#{environment.matchesProfiles('!v2')}")
     private boolean v1;
 
-    @BeforeEach
-    void runRequiredRepeatableMigrations() {
-        new RequiredRepeatableMigrationExecutor().run();
-    }
-
-    protected List<String> getRequiredRepeatableMigrations() {
-        return Collections.emptyList();
-    }
-
     protected static <T> RowMapper<T> rowMapper(Class<T> entityClass) {
         DefaultConversionService defaultConversionService = new DefaultConversionService();
+        defaultConversionService.addConverter(
+                PGobject.class, ServiceEndpoint.class, s -> convertJsonb(s, ServiceEndpoint.class));
         defaultConversionService.addConverter(
                 PGobject.class, Range.class, source -> PostgreSQLGuavaRangeType.longRange(source.getValue()));
         defaultConversionService.addConverter(
@@ -122,6 +118,23 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
         DataClassRowMapper<T> dataClassRowMapper = new DataClassRowMapper<>(entityClass);
         dataClassRowMapper.setConversionService(defaultConversionService);
         return dataClassRowMapper;
+    }
+
+    private static <T> T convertJsonb(PGobject pgObject, Class<T> entityClass) {
+        try {
+            return OBJECT_MAPPER.readValue(pgObject.getValue(), entityClass);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @BeforeEach
+    void runRequiredRepeatableMigrations() {
+        new RequiredRepeatableMigrationExecutor().run();
+    }
+
+    protected List<String> getRequiredRepeatableMigrations() {
+        return Collections.emptyList();
     }
 
     protected <T> Collection<T> findEntity(Class<T> entityClass, String ids, String table) {

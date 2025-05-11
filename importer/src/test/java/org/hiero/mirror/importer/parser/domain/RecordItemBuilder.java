@@ -777,6 +777,7 @@ public class RecordItemBuilder {
                 .setDeclineReward(false)
                 .setDescription("Node create")
                 .setGossipCaCertificate(bytes(4))
+                .setGrpcProxyEndpoint(serviceEndpoint().toBuilder().setPort(80))
                 .addGossipEndpoint(gossipEndpoint())
                 .setGrpcCertificateHash(bytes(48))
                 .addServiceEndpoint(serviceEndpoint());
@@ -790,6 +791,7 @@ public class RecordItemBuilder {
                 .setDeclineReward(BoolValue.of(false))
                 .setDescription(StringValue.of("Node update"))
                 .setGossipCaCertificate(BytesValue.of(bytes(4)))
+                .setGrpcProxyEndpoint(serviceEndpoint().toBuilder().setPort(80))
                 .addGossipEndpoint(gossipEndpoint())
                 .setGrpcCertificateHash(BytesValue.of(bytes(48)))
                 .setNodeId(id())
