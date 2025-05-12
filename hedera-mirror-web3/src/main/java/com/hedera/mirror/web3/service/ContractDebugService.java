@@ -22,6 +22,7 @@ import jakarta.inject.Named;
 import jakarta.validation.Valid;
 import java.util.Optional;
 import lombok.CustomLog;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 @CustomLog
@@ -53,6 +54,7 @@ public class ContractDebugService extends ContractCallService {
         this.contractActionRepository = contractActionRepository;
     }
 
+    @Transactional(readOnly = true, timeoutString = "#{@web3Properties.getTransactionTimeout().toSeconds()}")
     public OpcodesProcessingResult processOpcodeCall(
             final @Valid ContractDebugParameters params, final OpcodeTracerOptions opcodeTracerOptions) {
         return ContractCallContext.run(ctx -> {
