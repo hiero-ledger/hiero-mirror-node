@@ -347,6 +347,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("executor.maxSignedTxnSize", String.valueOf(maxDataSize.toBytes() + 1024));
         props.put("hedera.realm", String.valueOf(commonProperties.getRealm()));
         props.put("hedera.shard", String.valueOf(commonProperties.getShard()));
+        props.put("jumboTransactions.isEnabled", "false");
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
         props.put("nodes.gossipFqdnRestricted", "false");
         props.put("tss.hintsEnabled", "false");
