@@ -146,6 +146,7 @@ describe('Response cache', () => {
       vary: 'accept-encoding',
     });
     expect(response.get('cache-control')).toMatch(/^public, max-age=\d+$/);
+    expect(response.header).not.toHaveProperty('content-encoding');
   });
 
   test('GET - response with compressed body from cache', async () => {
