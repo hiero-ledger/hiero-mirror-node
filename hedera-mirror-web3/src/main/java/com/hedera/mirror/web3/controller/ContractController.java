@@ -53,8 +53,8 @@ class ContractController {
     @PostMapping(value = "/call")
     ContractCallResponse call(
             @RequestBody @Valid ContractCallRequest request,
-            HttpServletResponse response,
-            @RequestHeader(value = MODULARIZED_HEADER, required = false) String isModularizedHeader) {
+            @RequestHeader(value = MODULARIZED_HEADER, required = false) String isModularizedHeader,
+            HttpServletResponse response) {
 
         if (!rateLimitBucket.tryConsume(1)) {
             throw new RateLimitException("Requests per second rate limit exceeded.");
