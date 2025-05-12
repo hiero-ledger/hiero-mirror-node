@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.config;
 
+import static com.hedera.mirror.web3.utils.Constants.MODULARIZED_HEADER;
 import static org.springframework.http.HttpHeaders.CONTENT_LENGTH;
 import static org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE;
 
@@ -12,7 +13,6 @@ import io.micrometer.core.instrument.Tags;
 import jakarta.inject.Named;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -57,9 +57,10 @@ class MetricsFilter extends OncePerRequestFilter {
         }
     }
 
-    private void recordMetrics(HttpServletRequest request, ServletResponse response) {
+    private void recordMetrics(HttpServletRequest request, HttpServletResponse response) {
         if (request.getAttribute(BEST_MATCHING_PATTERN_ATTRIBUTE) instanceof String uri) {
-            var tags = Tags.of(METHOD, request.getMethod(), URI, uri);
+            var modularized = response.getHeader(MODULARIZED_HEADER);
+            var tags = Tags.of(METHOD, request.getMethod(), "modularized", String.valueOf(modularized), URI, uri);
 
             var contentLengthHeader = request.getHeader(CONTENT_LENGTH);
             if (contentLengthHeader != null) {
