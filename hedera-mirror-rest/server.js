@@ -38,7 +38,7 @@ import {
 // routes
 import {AccountRoutes, BlockRoutes, ContractRoutes, NetworkRoutes} from './routes';
 import {handleRejection, handleUncaughtException} from './middleware/httpErrorHandler';
-import {initializePool} from './dbpool.js';
+import {initializePool} from './dbpool';
 
 // use a dummy port for jest unit tests
 const port = isTestEnv() ? 3000 : config.port;

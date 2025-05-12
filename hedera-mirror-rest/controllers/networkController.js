@@ -4,8 +4,8 @@ import _ from 'lodash';
 import BaseController from './baseController';
 import config from '../config';
 import {
-  DECIMALS_IN_HBARS,
   contentTypeHeader,
+  DECIMALS_IN_HBARS,
   filterKeys,
   networkSupplyCurrencyFormatType,
   networkSupplyQuery,
@@ -327,8 +327,7 @@ class NetworkController extends BaseController {
 
     if (q) {
       const valueInTinyCoins = q === networkSupplyQuery.TOTALCOINS ? viewModel.total_supply : viewModel.released_supply;
-      const valueInCurrencyFormat = this.convertToCurrencyFormat(valueInTinyCoins, config.network.currencyFormat);
-      res.locals[responseDataLabel] = valueInCurrencyFormat;
+      res.locals[responseDataLabel] = this.convertToCurrencyFormat(valueInTinyCoins, config.network.currencyFormat);
       res.locals[responseHeadersLabel] = {[contentTypeHeader]: NetworkController.contentTypeTextPlain};
     } else {
       res.locals[responseDataLabel] = viewModel;
