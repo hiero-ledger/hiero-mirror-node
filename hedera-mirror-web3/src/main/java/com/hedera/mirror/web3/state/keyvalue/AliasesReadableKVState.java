@@ -2,8 +2,6 @@
 
 package com.hedera.mirror.web3.state.keyvalue;
 
-import static com.hedera.services.utils.EntityIdUtils.toAccountId;
-
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.mirror.common.domain.SystemEntity;
@@ -57,8 +55,8 @@ public class AliasesReadableKVState extends AbstractAliasedAccountReadableKVStat
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var entity = commonEntityAccessor.get(alias.value(), timestamp);
         return entity.map(e -> {
-                    final var accountID = toAccountId(e.getShard(), e.getRealm(), e.getNum());
                     final var account = accountFromEntity(e, timestamp);
+                    final var accountID = account.accountId();
                     // Put the account in the account num cache.
                     aliasedAccountCacheManager.putAccountNum(accountID, account);
                     return accountID;

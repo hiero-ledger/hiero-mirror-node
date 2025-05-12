@@ -3,7 +3,6 @@
 package com.hedera.mirror.web3.evm.config;
 
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import com.hedera.mirror.web3.state.AliasedAccountCacheManager;
 import com.hedera.mirror.web3.state.components.NoOpMetrics;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.ids.AppEntityIdFactory;
@@ -34,10 +33,5 @@ public class ModularizedConfiguration {
     @Bean
     public EntityIdFactory entityIdFactory() {
         return new AppEntityIdFactory(mirrorNodeEvmProperties.getVersionedConfiguration());
-    }
-
-    @Bean
-    public AliasedAccountCacheManager aliasedAccountCacheManager() {
-        return new AliasedAccountCacheManager();
     }
 }
