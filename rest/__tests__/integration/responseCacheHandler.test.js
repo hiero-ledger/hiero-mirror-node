@@ -45,22 +45,22 @@ describe('Response cache', () => {
       {
         account_id: '0.0.12345',
         amount: 100,
-        timestamp: '1746816110.123456800',
+        timestamp: '1746816110.123456700',
       },
       {
         account_id: '0.0.12345',
         amount: 101,
-        timestamp: '1746229911.123456800',
+        timestamp: '1746229911.123456780',
       },
       {
         account_id: '0.0.12345',
         amount: 102,
-        timestamp: '1746143511.123456800',
+        timestamp: '1746143511.123456780',
       },
       {
         account_id: '0.0.12345',
         amount: 102,
-        timestamp: '1746057111.123456800',
+        timestamp: '1746057111.123456780',
       },
     ],
     links: {next: null},
@@ -77,25 +77,25 @@ describe('Response cache', () => {
       {
         account_id: 12345,
         amount: 100,
-        consensus_timestamp: 1746816110123456700,
+        consensus_timestamp: 1746816110123456700n,
         payer_account_id: 12345,
       },
       {
         account_id: 12345,
         amount: 101,
-        consensus_timestamp: 1746229911123456780,
+        consensus_timestamp: 1746229911123456780n,
         payer_account_id: 12345,
       },
       {
         account_id: 12345,
         amount: 102,
-        consensus_timestamp: 1746143511123456780,
+        consensus_timestamp: 1746143511123456780n,
         payer_account_id: 12345,
       },
       {
         account_id: 12345,
         amount: 102,
-        consensus_timestamp: 1746057111123456780,
+        consensus_timestamp: 1746057111123456780n,
         payer_account_id: 12345,
       },
     ];
