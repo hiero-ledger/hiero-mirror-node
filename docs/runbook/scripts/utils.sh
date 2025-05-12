@@ -332,8 +332,8 @@ function updateStackgresCreds() {
   local restJavaPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_RESTJAVA_DB_PASSWORD')
   local rosettaUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_ROSETTA_DB_USERNAME')
   local rosettaPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_ROSETTA_DB_PASSWORD')
-  local web3Username=$(echo "${mirrorNodePasswords}" | jq -r '.HEDERA_MIRROR_WEB3_DB_USERNAME')
-  local web3Password=$(echo "${mirrorNodePasswords}" | jq -r '.HEDERA_MIRROR_WEB3_DB_PASSWORD')
+  local web3Username=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_USERNAME')
+  local web3Password=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_PASSWORD')
   local dbName=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_NAME')
   local sql=$(cat <<EOF
 alter user ${superuserUsername} with password '${superuserPassword}';

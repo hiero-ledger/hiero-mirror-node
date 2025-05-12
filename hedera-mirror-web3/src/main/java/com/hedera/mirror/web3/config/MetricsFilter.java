@@ -26,8 +26,8 @@ import org.springframework.web.util.WebUtils;
 @Named
 class MetricsFilter extends OncePerRequestFilter {
 
-    static final String REQUEST_BYTES = "hedera.mirror.web3.request.bytes";
-    static final String RESPONSE_BYTES = "hedera.mirror.web3.response.bytes";
+    static final String REQUEST_BYTES = "hiero.mirror.web3.request.bytes";
+    static final String RESPONSE_BYTES = "hiero.mirror.web3.response.bytes";
 
     private static final String METHOD = "method";
     private static final String MODULARIZED = "modularized";

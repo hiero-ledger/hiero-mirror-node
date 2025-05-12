@@ -12,7 +12,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Named("web3Properties")
 @Data
-@ConfigurationProperties(prefix = "hedera.mirror.web3")
+@ConfigurationProperties(prefix = "hiero.mirror.web3")
 @Validated
 public class Web3Properties {
     @Positive

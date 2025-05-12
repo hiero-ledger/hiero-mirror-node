@@ -69,7 +69,7 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform {}
     if (
         System.getenv().containsKey("CI") &&
-            !System.getenv().containsKey("HEDERA_MIRROR_WEB3_EVM_MODULARIZEDSERVICES")
+            !System.getenv().containsKey("HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES")
     ) {
         retry { maxRetries = 3 }
     }

@@ -9,7 +9,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-@ConfigurationProperties(prefix = "hedera.mirror.web3.cache")
+@ConfigurationProperties(prefix = "hiero.mirror.web3.cache")
 public class CacheProperties {
 
     /**

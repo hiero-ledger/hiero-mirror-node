@@ -19,7 +19,7 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class BytecodeUtils {
 
-    public static final String SKIP_INIT_CODE_CHECK = "HEDERA_MIRROR_WEB3_EVM_SKIPINITCODECHECK";
+    public static final String SKIP_INIT_CODE_CHECK = "HIERO_MIRROR_WEB3_EVM_SKIPINITCODECHECK";
     private static final String CODECOPY = "39";
     private static final String RETURN = "f3";
     private static final long MINIMUM_INIT_CODE_SIZE = 14L;

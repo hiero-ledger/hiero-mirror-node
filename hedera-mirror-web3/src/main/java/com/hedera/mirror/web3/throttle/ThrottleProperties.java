@@ -11,7 +11,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Setter
 @Validated
-@ConfigurationProperties(prefix = "hedera.mirror.web3.throttle")
+@ConfigurationProperties(prefix = "hiero.mirror.web3.throttle")
 public class ThrottleProperties {
 
     @Getter
