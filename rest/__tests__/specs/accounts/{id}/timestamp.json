@@ -324,7 +324,7 @@
     "bindTimestampRange=true": {
       "transactions": [],
       "links": {
-        "next": "/api/v1/accounts/0.0.8?timestamp=gt:1234567890.000000006&timestamp=lt:1240270800.020000001"
+        "next": "/api/v1/accounts/0.0.8?timestamp=gt:1234567890.000000006&timestamp=lt:1240270800.000000001"
       }
     }
   }
