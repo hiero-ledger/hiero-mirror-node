@@ -9,7 +9,7 @@ hedera:
         password: mirror_web3_pass
         port: 5432
         sslMode: DISABLE
-        statementTimeout: 10000
+        statementTimeout: 3000
         username: mirror_web3
       opcode:
         tracer:
