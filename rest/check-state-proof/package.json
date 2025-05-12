@@ -1,0 +1,58 @@
+{
+  "name": "@hiero-ledger/check-state-proof",
+  "version": "0.130.0-SNAPSHOT",
+  "description": "An example implementation of a state proof flow for a transaction utilizing the mirror node.",
+  "engines": {
+    "node": ">= 22"
+  },
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "start": "node --import=extensionless/register index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hiero-ledger/hiero-mirror-node.git"
+  },
+  "keywords": [
+    "hiero",
+    "transaction",
+    "stateproof"
+  ],
+  "author": "Mirror Node Team",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/hiero-ledger/hiero-mirror-node/issues"
+  },
+  "homepage": "https://github.com/hiero-ledger/hiero-mirror-node#readme",
+  "bin": {
+    "check-state-proof": "./index.js"
+  },
+  "dependencies": {
+    "@hashgraph/proto": "^2.17.0",
+    "abort-controller": "^3.0.0",
+    "boxen": "^8.0.1",
+    "chalk": "^5.4.1",
+    "extensionless": "^1.9.9",
+    "glob": "^11.0.2",
+    "lodash": "^4.17.21",
+    "log4js": "^6.9.1",
+    "node-fetch": "^3.3.2",
+    "word-wrap": "npm:@aashutoshrathi/word-wrap@^1.2.6",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-junit": "^16.0.0",
+    "jest-standard-reporter": "^2.0.0"
+  },
+  "jest-junit": {
+    "outputDirectory": "build/test-results/test",
+    "outputName": "TEST-jest.xml"
+  },
+  "overrides": {
+    "cross-spawn": "^7.0.6",
+    "protobufjs": "^7.2.4"
+  }
+}

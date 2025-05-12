@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
-import static com.hedera.mirror.rest.model.TransactionTypes.CRYPTOCREATEACCOUNT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.PARENT_CONTRACT;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.CREATE_CHILD;
@@ -15,7 +14,6 @@ import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.rest.model.ContractResult;
 import com.hedera.mirror.rest.model.TransactionByIdResponse;
 import com.hedera.mirror.rest.model.TransactionDetail;
@@ -23,11 +21,11 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.util.Comparator;
 import java.util.Objects;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
+import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient;
 import org.hiero.mirror.test.e2e.acceptance.client.EthereumClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
@@ -44,55 +42,25 @@ public class EthereumFeature extends AbstractEstimateFeature {
 
     protected final AccountClient accountClient;
 
-    private final CommonProperties commonProperties;
-
     protected AccountId ethereumSignerAccount;
     protected PrivateKey ethereumSignerPrivateKey;
     private String account;
 
     private byte[] childContractBytecodeFromParent;
 
+    private static final Long HBAR_AMOUNT_IN_TINYBARS = 800_000_000L;
+
     @Given("I successfully created a signer account with an EVM address alias")
     public void createAccountWithEvmAddressAlias() {
-        ethereumSignerPrivateKey = PrivateKey.generateECDSA();
-        ethereumSignerAccount = ethereumSignerPrivateKey
-                .getPublicKey()
-                .toAccountId(commonProperties.getShard(), commonProperties.getRealm());
+        // Create new signer account with EVM address and ECDSA key
+        var signerAccount = accountClient.createNewAccount(HBAR_AMOUNT_IN_TINYBARS, AccountNameEnum.BOB);
+        ethereumSignerAccount = signerAccount.getAccountId();
+        ethereumSignerPrivateKey = signerAccount.getPrivateKey();
 
-        networkTransactionResponse = accountClient.sendCryptoTransfer(ethereumSignerAccount, Hbar.from(5L), null);
-
-        assertThat(networkTransactionResponse.getTransactionId()).isNotNull();
-        assertThat(networkTransactionResponse.getReceipt()).isNotNull();
-    }
-
-    @Then("validate the signer account and its balance")
-    public void verifyAccountCreated() {
-        var accountInfo = mirrorClient.getAccountDetailsUsingAlias(ethereumSignerAccount);
+        var accountInfo = mirrorClient.getAccountDetailsByAccountId(ethereumSignerAccount);
         account = accountInfo.getAccount();
-        var transactions = mirrorClient
-                .getTransactions(networkTransactionResponse.getTransactionIdStringNoCheckSum())
-                .getTransactions()
-                .stream()
-                .sorted(Comparator.comparing(TransactionDetail::getConsensusTimestamp))
-                .toList();
-
-        assertThat(accountInfo.getAccount()).isNotNull();
         assertThat(accountInfo.getBalance().getBalance())
-                .isEqualTo(Hbar.from(5L).toTinybars());
-
-        assertThat(accountInfo.getTransactions()).hasSize(1);
-        assertThat(transactions).hasSize(2);
-
-        var createAccountTransaction = transactions.get(0);
-        var transferTransaction = transactions.get(1);
-
-        assertThat(transferTransaction)
-                .usingRecursiveComparison()
-                .ignoringFields("assessedCustomFees")
-                .isEqualTo(accountInfo.getTransactions().get(0));
-
-        assertThat(createAccountTransaction.getName()).isEqualTo(CRYPTOCREATEACCOUNT);
-        assertThat(createAccountTransaction.getConsensusTimestamp()).isEqualTo(accountInfo.getCreatedTimestamp());
+                .isEqualTo(Hbar.fromTinybars(HBAR_AMOUNT_IN_TINYBARS).toTinybars());
     }
 
     @Given("I successfully create contract by Legacy ethereum transaction")

@@ -91,7 +91,8 @@ class SystemFileLoaderTest {
         var file = systemFileLoader.load(fileId, getCurrentTimestamp());
         assertFile(file, fileId);
         var nodeAddressBook = NodeAddressBook.PROTOBUF.parse(file.contents());
-        assertThat(nodeAddressBook).isNotNull().isEqualTo(NodeAddressBook.DEFAULT);
+        assertThat(nodeAddressBook).isNotNull().isNotEqualTo(NodeAddressBook.DEFAULT);
+        assertThat(nodeAddressBook.nodeAddress()).isNotNull().hasSize(1);
     }
 
     @ParameterizedTest
@@ -102,7 +103,8 @@ class SystemFileLoaderTest {
         var file = systemFileLoader.load(fileId, getCurrentTimestamp());
         assertFile(file, fileId);
         var nodeAddressBook = NodeAddressBook.PROTOBUF.parse(file.contents());
-        assertThat(nodeAddressBook).isNotNull().isEqualTo(NodeAddressBook.DEFAULT);
+        assertThat(nodeAddressBook).isNotNull().isNotEqualTo(NodeAddressBook.DEFAULT);
+        assertThat(nodeAddressBook.nodeAddress()).isNotNull().hasSize(1);
     }
 
     @ParameterizedTest

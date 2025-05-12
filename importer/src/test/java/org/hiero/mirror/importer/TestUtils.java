@@ -161,6 +161,10 @@ public class TestUtils {
         }
     }
 
+    public static long id() {
+        return RANDOM.nextLong(0, Long.MAX_VALUE);
+    }
+
     public static <T> T merge(T previous, T current) {
         try {
             T merged = clone(previous);

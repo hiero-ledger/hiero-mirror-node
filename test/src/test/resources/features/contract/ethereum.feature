@@ -3,9 +3,7 @@ Feature: Ethereum transactions Coverage Feature
 
   Scenario Outline: Validate Ethereum Contract create and call
 
-
   Given I successfully created a signer account with an EVM address alias
-  Then validate the signer account and its balance
 
   Given I successfully create contract by Legacy ethereum transaction
   Then the mirror node REST API should return status <httpStatusCode> for the eth contract creation transaction

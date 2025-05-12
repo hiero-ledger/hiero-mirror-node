@@ -20,9 +20,9 @@ spec:
         - --env-var
         - base_url=http://{{ include "hedera-mirror-rosetta.fullname" . }}:{{ .Values.service.port }}
         - --env-var
-        - realm={{ dig "HEDERA_MIRROR_COMMON_REALM" "0" .Values.global.env }}
+        - realm={{ dig "HIERO_MIRROR_COMMON_REALM" "0" .Values.global.env }}
         - --env-var
-        - shard={{ dig "HEDERA_MIRROR_COMMON_SHARD" "0" .Values.global.env }}
+        - shard={{ dig "HIERO_MIRROR_COMMON_SHARD" "0" .Values.global.env }}
       securityContext:
         allowPrivilegeEscalation: false
         capabilities:

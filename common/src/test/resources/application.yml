@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+
+spring:
+  datasource:
+    name: mirror_node
+    password: mirror_node_pass
+    type: org.postgresql.ds.PGSimpleDataSource
+    url: jdbc:postgresql://localhost:5432/mirror_node
+    username: mirror_node
+  jpa:
+    database: PostgreSQL

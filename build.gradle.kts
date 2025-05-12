@@ -88,7 +88,7 @@ dependencies {
         api("org.springframework.cloud:spring-cloud-dependencies:2024.0.0")
         api("org.testcontainers:junit-jupiter:1.21.0")
         api("org.mockito:mockito-inline:5.2.0")
-        api("software.amazon.awssdk:bom:2.31.38")
+        api("software.amazon.awssdk:bom:2.31.39")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
         api("org.web3j:core:4.12.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
@@ -185,7 +185,7 @@ spotless {
             .npmExecutable(npmExecutable)
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
             .config(mapOf("bracketSpacing" to false, "printWidth" to 120, "singleQuote" to true))
-        target("hedera-mirror-rest/**/*.js", "tools/**/*.js")
+        target("rest/**/*.js", "tools/**/*.js")
         targetExclude(
             "**/build/**",
             "**/node_modules/**",
@@ -201,10 +201,10 @@ spotless {
         target("**/*.java")
         targetExclude(
             "**/build/**",
-            "hedera-mirror-rest/**",
+            "rest/**",
             "rosetta/**",
             // Known issue with Java 21: https://github.com/palantir/palantir-java-format/issues/933
-            "hedera-mirror-rest-java/**/EntityServiceImpl.java",
+            "rest-java/**/EntityServiceImpl.java",
             "tools/**",
         )
         toggleOffOn()
@@ -221,7 +221,7 @@ spotless {
         endWithNewline()
         ktfmt().kotlinlangStyle()
         licenseHeader(licenseHeader, "(description|import|plugins)")
-        target("*.kts", "*/*.kts", "buildSrc/**/*.kts", "hedera-mirror-rest/*/*.kts")
+        target("*.kts", "*/*.kts", "buildSrc/**/*.kts", "rest/*/*.kts")
         targetExclude("**/build/**", "**/node_modules/**")
         trimTrailingWhitespace()
     }
@@ -261,9 +261,9 @@ spotless {
         leadingTabsToSpaces()
         licenseHeader(licenseHeader.replaceFirst("//", "--"), "^[^-\\s]")
         target(
-            "hedera-mirror-common/src/test/resources/*.sql",
+            "common/src/test/resources/*.sql",
             "importer/**/*.sql",
-            "hedera-mirror-rest/__tests__/data/**/*.sql",
+            "rest/__tests__/data/**/*.sql",
         )
         targetExclude("**/build/**", "**/db/migration/**")
         trimTrailingWhitespace()
@@ -303,10 +303,10 @@ tasks.register("release") {
         replaceVersion("docker-compose.yml", "(?<=gcr.io/mirrornode/hedera-mirror-.+:).+")
         replaceVersion("gradle.properties", "(?<=^version=).+")
         replaceVersion(
-            "hedera-mirror-rest/**/package*.json",
+            "rest/**/package*.json",
             "(?<=\"@hiero-ledger/(check-state-proof|mirror-rest|mirror-monitor)\",\\s{3,7}\"version\": \")[^\"]+",
         )
-        replaceVersion("hedera-mirror-rest/**/openapi.yml", "(?<=^  version: ).+")
+        replaceVersion("rest/**/openapi.yml", "(?<=^  version: ).+")
         replaceVersion(
             "tools/traffic-replay/log-downloader/package*.json",
             "(?<=\"@hiero-ledger/mirror-log-downloader\",\\s{3,7}\"version\": \")[^\"]+",

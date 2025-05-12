@@ -134,7 +134,7 @@ loki:
             [1m])) by (cluster, namespace, pod) > 0
           labels:
             severity: critical
-    - name: hedera-mirror-rest
+    - name: rest
       rules:
         - alert: RestLogErrors
           annotations:

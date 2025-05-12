@@ -33,8 +33,8 @@ data:
       --set "ownerPassword=${HIERO_MIRROR_IMPORTER_DB_OWNERPASSWORD}" \
       --set "restPassword=${HIERO_MIRROR_IMPORTER_DB_RESTPASSWORD}" \
       --set "restUsername=${HIERO_MIRROR_IMPORTER_DB_RESTUSERNAME}" \
-      --set "restJavaPassword=${HEDERA_MIRROR_RESTJAVA_DB_PASSWORD}" \
-      --set "restJavaUsername=${HEDERA_MIRROR_RESTJAVA_DB_USERNAME}" \
+      --set "restJavaPassword=${HIERO_MIRROR_RESTJAVA_DB_PASSWORD}" \
+      --set "restJavaUsername=${HIERO_MIRROR_RESTJAVA_DB_USERNAME}" \
       --set "rosettaPassword=${HIERO_MIRROR_ROSETTA_DB_PASSWORD}" \
       --set "rosettaUsername=${HIERO_MIRROR_ROSETTA_DB_USERNAME}" \
       --set "web3Password=${HEDERA_MIRROR_WEB3_DB_PASSWORD}" \

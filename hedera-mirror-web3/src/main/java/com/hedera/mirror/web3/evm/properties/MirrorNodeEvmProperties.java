@@ -64,7 +64,9 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
 
+    @Getter
     private final CommonProperties commonProperties;
+
     private final SystemEntity systemEntity;
 
     @Getter
@@ -341,6 +343,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("contracts.maxRefundPercentOfGasLimit", String.valueOf(maxGasRefundPercentage()));
         props.put("contracts.sidecars", "");
         props.put("contracts.throttle.throttleByGas", "false");
+        props.put("executor.disableThrottles", "true");
         // The configured data in the request is currently 128 KB. In services, we have a property for the
         // max signed transaction size. We put 1 KB more here to have a buffer because the transaction has other
         // fields (apart from the data) that will increase the transaction size.

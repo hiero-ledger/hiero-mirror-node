@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	dbCleanupScript = "../hedera-mirror-common/src/test/resources/cleanup.sql"
+	dbCleanupScript = "../common/src/test/resources/cleanup.sql"
 	dbMigrationPath = "../importer/src/main/resources/db/migration/v1"
 	dbName          = "mirror_node"
 	initScript      = "../importer/src/main/resources/db/scripts/init.sh"
