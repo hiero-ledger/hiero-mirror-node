@@ -9,11 +9,15 @@ import config from '../config';
 import {getModuleDirname, isV2Schema} from './testutils';
 import {getPoolClass} from '../utils';
 import {PostgreSqlContainer} from '@testcontainers/postgresql';
+import {GenericContainer, Network} from 'testcontainers';
 
 const {db: defaultDbConfig} = config;
 const Pool = getPoolClass();
 
 const containers = new Map();
+const restJavaContainers = new Map();
+const networks = new Map();
+
 const dbName = 'mirror_node';
 const ownerUser = 'mirror_node';
 const ownerPassword = 'mirror_node_pass';
@@ -43,7 +47,7 @@ const cleanUp = async () => {
   await ownerPool.query(cleanupSql);
 };
 
-const createDbContainer = async () => {
+const createDbContainer = async (network) => {
   const image = isV2Schema() ? v2DatabaseImage : v1DatabaseImage;
   const initSqlPath = path.join('..', 'common', 'src', 'test', 'resources', 'init.sql');
   const initSqlCopy = {
@@ -61,6 +65,8 @@ const createDbContainer = async () => {
       container = await new PostgreSqlContainer(image)
         .withCopyFilesToContainer([initSqlCopy])
         .withDatabase(dbName)
+        .withNetwork(network)
+        .withNetworkAliases(`postgres-${workerId}`)
         .withPassword(ownerPassword)
         .withUsername(ownerUser)
         .start();
@@ -76,24 +82,66 @@ const createDbContainer = async () => {
   return container;
 };
 
+const createRestJavaContainer = async (network) => {
+  let psqlContainer = await getDbContainer(network);
+  return new GenericContainer('docker.io/jesseswirldslabs/hedera-mirror-rest-java:restjavatest')
+    .withEnvironment({
+      HEDERA_MIRROR_RESTJAVA_DB_HOST: `postgres-${workerId}`,
+      HEDERA_MIRROR_RESTJAVA_DB_PORT: 5432,
+      HEDERA_MIRROR_RESTJAVA_DB_NAME: dbName,
+    })
+    .withExposedPorts(8084)
+    .withNetwork(network)
+    .start();
+};
+
+const getNetwork = async () => {
+  let network = networks.get(workerId);
+  if (!network) {
+    network = await new Network().start();
+    networks.set(workerId, network);
+  }
+  return network;
+};
 /**
  * Gets the port of the container in use by the Jest worker. If the container does not exist, a new container is created
  *
  * @returns {Promise<PostgreSqlContainer>}
  */
-const getDbContainer = async () => {
+const getDbContainer = async (network) => {
   let container = containers.get(workerId);
 
   if (!container) {
-    container = await createDbContainer();
+    container = await createDbContainer(network);
     containers.set(workerId, container);
   }
 
   return container;
 };
 
-const createPool = async () => {
-  const container = await getDbContainer();
+const getRestJavaContainer = async (network) => {
+  let container = restJavaContainers.get(workerId);
+  if (!container) {
+    container = await createRestJavaContainer(network);
+    restJavaContainers.set(workerId, container);
+  }
+
+  return container;
+};
+
+const initializeContainers = async () => {
+  const network = await getNetwork();
+  const dbContainer = await getDbContainer(network);
+  await createPool(dbContainer);
+};
+
+const startRestJavaContainer = async (envSetup) => {
+  const network = await getNetwork();
+  const container = await getRestJavaContainer(network);
+  global.REST_JAVA_BASE_URL = `http://${container.getHost()}:${container.getMappedPort(8084)}`;
+};
+
+const createPool = async (container) => {
   const dbConnectionParams = {
     database: container.getDatabase(),
     host: container.getHost(),
@@ -191,5 +239,6 @@ const getMigrationScriptLocation = (locations) => {
 
 export default {
   cleanUp,
-  createPool,
+  initializeContainers,
+  startRestJavaContainer,
 };

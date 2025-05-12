@@ -3,7 +3,7 @@
 import {jest} from '@jest/globals';
 import {exec} from 'child_process';
 
-import integrationDbOps from './integrationDbOps';
+import integrationContainerOps from './integrationContainerOps.js';
 import testExports from '../timestampRange';
 import {TokenService} from '../service';
 
@@ -46,13 +46,13 @@ const setupIntegrationTest = () => {
   jest.setTimeout(40000);
 
   beforeAll(async () => {
-    return await integrationDbOps.createPool();
+    return await integrationContainerOps.initializeContainers();
   }, defaultBeforeAllTimeoutMillis);
 
   afterAll(async () => Promise.all([ownerPool.end(), pool.end()]));
 
   beforeEach(async () => {
-    await integrationDbOps.cleanUp();
+    await integrationContainerOps.cleanUp();
     TokenService.clearTokenCache();
     testExports.getFirstTransactionTimestamp.reset();
   });

@@ -31,6 +31,7 @@ import {JSONParse} from '../../utils';
 import {defaultBeforeAllTimeoutMillis, setupIntegrationTest} from '../integrationUtils';
 import {CreateBucketCommand, PutObjectCommand, S3} from '@aws-sdk/client-s3';
 import sinon from 'sinon';
+import integrationContainerOps from '../integrationContainerOps.js';
 
 const groupSpecPath = $$GROUP_SPEC_PATH$$;
 
@@ -86,6 +87,8 @@ const getSpecs = async () => {
   const modulePath = getModuleDirname(import.meta);
   specRootPath = path.resolve(path.join(modulePath, '..', 'specs', groupSpecPath));
 
+  const restJavaTests = new RegExp(process.env.REST_JAVA_INCLUDE || 'NONE');
+
   return (
     await Promise.all(
       walk(specRootPath)
@@ -103,6 +106,11 @@ const getSpecs = async () => {
             specs.push(...apply(spec));
           } else {
             specs.push(spec);
+          }
+
+          if (restJavaTests.test(spec.url)) {
+            const restJavaSpecs = specs.map((specCopy) => ({...specCopy, java: true, name: specCopy.name + '-Java'}));
+            specs.push(...restJavaSpecs);
           }
 
           return {key, specs};
@@ -220,13 +228,17 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
   };
 
   const specSetupSteps = async (spec) => {
-    overrideConfig(spec.config);
-    await integrationDomainOps.setup(spec);
-    if (spec.sql) {
-      await loadSqlScripts(spec.sql.pathprefix, spec.sql.scripts);
-      await runSqlFuncs(spec.sql.pathprefix, spec.sql.funcs);
+    const setup = spec.setup;
+    overrideConfig(setup.config);
+    await integrationDomainOps.setup(setup);
+    if (setup.sql) {
+      await loadSqlScripts(setup.sql.pathprefix, setup.sql.scripts);
+      await runSqlFuncs(setup.sql.pathprefix, setup.sql.funcs);
     }
-    setupFeatureSupport(spec.features);
+    if (spec.java) {
+      await integrationContainerOps.startRestJavaContainer();
+    }
+    setupFeatureSupport(setup.features);
   };
 
   const teardownFeatureSupport = () => {
@@ -324,12 +336,13 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
         describe(`${spec.name}`, () => {
           getTests(spec).forEach((tt) => {
             test(`${tt.url}`, async () => {
-              await specSetupSteps(spec.setup);
+              await specSetupSteps(spec);
               if (spec.postSetup) {
                 await spec.postSetup();
               }
 
-              const response = await request(server).get(tt.url);
+              const target = !spec.java ? server : global.REST_JAVA_BASE_URL;
+              const response = await request(target).get(tt.url);
 
               expect(response.status).toEqual(tt.responseStatus);
               const contentType = response.get('Content-Type');
