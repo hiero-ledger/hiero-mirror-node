@@ -89,7 +89,6 @@ const getSpecs = async () => {
 
   const javaTestEnvVar = process.env.REST_JAVA_INCLUDE;
   const javaTestRegex = new RegExp(javaTestEnvVar || 'NONE');
-
   return (
     await Promise.all(
       walk(specRootPath)
@@ -108,8 +107,7 @@ const getSpecs = async () => {
           } else {
             specs.push(spec);
           }
-
-          if (javaTestRegex.test(spec.url)) {
+          if (javaTestRegex.test(path.dirname(f))) {
             const restJavaSpecs = specs.map((specCopy) => ({...specCopy, java: true, name: specCopy.name + '-Java'}));
             specs.push(...restJavaSpecs);
           } else if (javaTestEnvVar) {
