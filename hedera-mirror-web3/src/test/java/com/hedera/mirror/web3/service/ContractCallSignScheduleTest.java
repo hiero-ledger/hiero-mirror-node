@@ -6,7 +6,6 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTE
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.AccountAmount;
 import com.hedera.hapi.node.base.Key.KeyOneOfType;
 import com.hedera.hapi.node.base.SignatureMap;
@@ -17,6 +16,7 @@ import com.hedera.hapi.node.token.CryptoTransferTransactionBody;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
+import com.hedera.mirror.common.domain.schedule.Schedule;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.web3j.generated.HRC755Contract;
 import com.hedera.node.app.hapi.utils.CommonPbjConverters;
@@ -24,20 +24,17 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
-import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.KeyPairGenerator;
-import java.security.PublicKey;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.shaded.org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
 import org.web3j.utils.Numeric;
 
 @RequiredArgsConstructor
-class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTest {
+class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
 
     @Test
     void signScheduleWithEcdsaKey() throws Exception {
@@ -48,30 +45,15 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
 
         final var keyPair = Keys.createEcKeyPair();
         final var signatureMapBytes = getSignatureMapBytesEcdsa(messageHash, keyPair);
-
-        final var ecdsaKey = Key.newBuilder()
-                .setECDSASecp256K1(convertToCompressedPublicKey(keyPair.getPublicKey()))
-                .build()
-                .toByteArray();
-        final var signerAccount = accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT)
-                .alias(null)
-                .evmAddress(null)
-                .balance(DEFAULT_ACCOUNT_BALANCE)
-                .key(ecdsaKey));
+        final var ecdsaKey = getProtobufKeyECDSA(keyPair.getPublicKey());
+        final var signerAccount = persistSignerAccount(ecdsaKey);
 
         final var receiverAccount = accountEntityPersist();
         final var scheduleTransactionBodyBytes =
                 buildDefaultScheduleTransactionBodyForCryptoTransferBytes(signerAccount, receiverAccount);
 
         final var payerAccount = persistEd25519Account();
-        final var schedule = domainBuilder
-                .schedule()
-                .customize(e -> e.scheduleId(scheduleEntity.toEntityId().getId())
-                        .transactionBody(scheduleTransactionBodyBytes)
-                        .payerAccountId(payerAccount.toEntityId())
-                        .creatorAccountId(payerAccount.toEntityId()))
-                .persist();
-
+        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
         // When
         final var functionCall = contract.send_signScheduleCall(
                 (getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))), signatureMapBytes);
@@ -94,29 +76,15 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
         final var keyPair = Keys.createEcKeyPair();
         final var signatureMapBytes = getSignatureMapBytesEcdsa(messageHash, keyPair);
 
-        final var ecdsaKey = Key.newBuilder()
-                .setECDSASecp256K1(convertToCompressedPublicKey(keyPair.getPublicKey()))
-                .build()
-                .toByteArray();
-        final var signerAccount = accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT)
-                .alias(null)
-                .evmAddress(null)
-                .balance(DEFAULT_ACCOUNT_BALANCE)
-                .key(ecdsaKey));
+        final var ecdsaKey = getProtobufKeyECDSA(keyPair.getPublicKey());
+        final var signerAccount = persistSignerAccount(ecdsaKey);
 
         final var receiverAccount = accountEntityPersist();
         final var scheduleTransactionBodyBytes =
                 buildDefaultScheduleTransactionBodyForCryptoTransferBytes(signerAccount, receiverAccount);
 
         final var payerAccount = persistEd25519Account();
-        // Persist schedule
-        final var schedule = domainBuilder
-                .schedule()
-                .customize(e -> e.scheduleId(scheduleEntity.toEntityId().getId())
-                        .transactionBody(scheduleTransactionBodyBytes)
-                        .payerAccountId(payerAccount.toEntityId())
-                        .creatorAccountId(payerAccount.toEntityId()))
-                .persist();
+        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
 
         // Persist signature
         domainBuilder
@@ -147,15 +115,8 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
         final var keyPair = Keys.createEcKeyPair();
         final var signatureMapBytes = getSignatureMapBytesEcdsa(messageHash, keyPair);
 
-        final var ecdsaKey = Key.newBuilder()
-                .setECDSASecp256K1(convertToCompressedPublicKey(keyPair.getPublicKey()))
-                .build()
-                .toByteArray();
-        final var signerAccount = accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT)
-                .alias(null)
-                .evmAddress(null)
-                .balance(DEFAULT_ACCOUNT_BALANCE)
-                .key(ecdsaKey));
+        final var ecdsaKey = getProtobufKeyECDSA(keyPair.getPublicKey());
+        final var signerAccount = persistSignerAccount(ecdsaKey);
 
         final var receiverAccount = accountEntityPersist();
         final var scheduleTransactionBodyBytes =
@@ -171,20 +132,9 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
 
         final var ed25519Key =
                 Key.newBuilder().setEd25519(publicKeyCompressed).build().toByteArray();
-        final var payerAccount = accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT)
-                .alias(null)
-                .evmAddress(null)
-                .balance(DEFAULT_ACCOUNT_BALANCE)
-                .key(ed25519Key));
+        final var payerAccount = persistSignerAccount(ed25519Key);
 
-        // Persist schedule
-        final var schedule = domainBuilder
-                .schedule()
-                .customize(e -> e.scheduleId(scheduleEntity.toEntityId().getId())
-                        .transactionBody(scheduleTransactionBodyBytes)
-                        .payerAccountId(payerAccount.toEntityId())
-                        .creatorAccountId(payerAccount.toEntityId()))
-                .persist();
+        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
 
         // Persist payer ed signature
         domainBuilder
@@ -216,15 +166,8 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
 
         // Persist expected ecdsa key signer
         final var keyPair = Keys.createEcKeyPair();
-        final var ecdsaKey = Key.newBuilder()
-                .setECDSASecp256K1(convertToCompressedPublicKey(keyPair.getPublicKey()))
-                .build()
-                .toByteArray();
-        final var signerAccount = accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT)
-                .alias(null)
-                .evmAddress(null)
-                .balance(DEFAULT_ACCOUNT_BALANCE)
-                .key(ecdsaKey));
+        final var ecdsaKey = getProtobufKeyECDSA(keyPair.getPublicKey());
+        final var signerAccount = persistSignerAccount(ecdsaKey);
 
         final var receiverAccount = accountEntityPersist();
         final var scheduleTransactionBodyBytes =
@@ -247,14 +190,7 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
                         .build())
                 .build();
 
-        // Persist schedule
-        final var schedule = domainBuilder
-                .schedule()
-                .customize(e -> e.scheduleId(scheduleEntity.toEntityId().getId())
-                        .transactionBody(scheduleTransactionBodyBytes)
-                        .payerAccountId(payerAccount.toEntityId())
-                        .creatorAccountId(payerAccount.toEntityId()))
-                .persist();
+        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
 
         // When
         final var functionCall = contract.send_signScheduleCall(
@@ -287,24 +223,14 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
 
         final var ed25519Key =
                 Key.newBuilder().setEd25519(publicKeyCompressed).build().toByteArray();
-        final var signerAccount = accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT)
-                .alias(null)
-                .evmAddress(null)
-                .balance(DEFAULT_ACCOUNT_BALANCE)
-                .key(ed25519Key));
+        final var signerAccount = persistSignerAccount(ed25519Key);
 
         final var receiverAccount = accountEntityPersist();
         final var scheduleTransactionBodyBytes =
                 buildDefaultScheduleTransactionBodyForCryptoTransferBytes(signerAccount, receiverAccount);
 
         final var payerAccount = persistEd25519Account();
-        final var schedule = domainBuilder
-                .schedule()
-                .customize(e -> e.scheduleId(scheduleEntity.toEntityId().getId())
-                        .transactionBody(scheduleTransactionBodyBytes)
-                        .payerAccountId(payerAccount.toEntityId())
-                        .creatorAccountId(payerAccount.toEntityId()))
-                .persist();
+        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
 
         // When
         final var functionCall = contract.send_signScheduleCall(
@@ -320,7 +246,7 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
     }
 
     @Test
-    void signScheduleWithЕcdsaKeyFailsWhenEd25519Expected() throws Exception {
+    void signScheduleWithEcdsaKeyFailsWhenEd25519Expected() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(HRC755Contract::deploy);
         final var scheduleEntity = persistScheduleEntity();
@@ -332,11 +258,7 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
         var publicKeyCompressed = convertToCompressedPublicKey(publicKey);
         final var ed25519Key =
                 Key.newBuilder().setEd25519(publicKeyCompressed).build().toByteArray();
-        final var signerAccount = accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT)
-                .alias(null)
-                .evmAddress(null)
-                .balance(DEFAULT_ACCOUNT_BALANCE)
-                .key(ed25519Key));
+        final var signerAccount = persistSignerAccount(ed25519Key);
 
         final var receiverAccount = accountEntityPersist();
         final var scheduleTransactionBodyBytes =
@@ -347,13 +269,7 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
         final var signatureMapBytes = getSignatureMapBytesEcdsa(getMessageHash(scheduleEntity), keyPair);
 
         final var payerAccount = persistEd25519Account();
-        final var schedule = domainBuilder
-                .schedule()
-                .customize(e -> e.scheduleId(scheduleEntity.toEntityId().getId())
-                        .transactionBody(scheduleTransactionBodyBytes)
-                        .payerAccountId(payerAccount.toEntityId())
-                        .creatorAccountId(payerAccount.toEntityId()))
-                .persist();
+        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
 
         // When
         final var functionCall = contract.send_signScheduleCall(
@@ -378,23 +294,23 @@ class ContractCallContractSignScheduleTest extends AbstractContractCallServiceTe
                 .persist();
     }
 
-    private ByteString convertToCompressedPublicKey(final BigInteger publicKey) {
-        // Convert BigInteger public key to a full 65-byte uncompressed key
-        var fullPublicKey = Numeric.hexStringToByteArray(Numeric.toHexStringWithPrefixZeroPadded(publicKey, 130));
-
-        // Convert to compressed format (33 bytes)
-        var prefix = (byte) (fullPublicKey[64] % 2 == 0 ? 0x02 : 0x03); // 0x02 for even Y, 0x03 for odd Y
-        var compressedKey = new byte[33];
-        compressedKey[0] = prefix;
-        System.arraycopy(fullPublicKey, 1, compressedKey, 1, 32); // Copy only X coordinate
-        return ByteString.copyFrom(compressedKey);
+    private Schedule persistSchedule(
+            final Entity scheduleEntity, final Entity payerAccount, final byte[] transactionBody) {
+        return domainBuilder
+                .schedule()
+                .customize(e -> e.scheduleId(scheduleEntity.toEntityId().getId())
+                        .transactionBody(transactionBody)
+                        .payerAccountId(payerAccount.toEntityId())
+                        .creatorAccountId(payerAccount.toEntityId()))
+                .persist();
     }
 
-    private ByteString convertToCompressedPublicKey(final PublicKey publicKey) {
-        var publicKeyEncoded = publicKey.getEncoded();
-        SubjectPublicKeyInfo info = SubjectPublicKeyInfo.getInstance(publicKeyEncoded);
-        var raw = info.getPublicKeyData().getOctets();
-        return ByteString.copyFrom(raw);
+    private Entity persistSignerAccount(final byte[] key) {
+        return accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT)
+                .alias(null)
+                .evmAddress(null)
+                .balance(DEFAULT_ACCOUNT_BALANCE)
+                .key(key));
     }
 
     private byte[] getMessageBytes(final Entity entity) {

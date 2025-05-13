@@ -57,6 +57,7 @@ import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.Arrays;
@@ -72,6 +73,7 @@ import org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.context.annotation.Import;
+import org.testcontainers.shaded.org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.tx.Contract;
@@ -782,17 +784,32 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     protected byte[] getProtobufKeyECDSA(BigInteger publicKey) {
+        final var compressed = convertToCompressedPublicKey(publicKey);
+        return Key.newBuilder().setECDSASecp256K1(compressed).build().toByteArray();
+    }
+
+    protected byte[] getProtobufKeyEd25519(PublicKey publicKey) {
+        ByteString keyByteString = convertToCompressedPublicKey(publicKey);
+        return Key.newBuilder().setEd25519(keyByteString).build().toByteArray();
+    }
+
+    protected ByteString convertToCompressedPublicKey(final BigInteger publicKey) {
         // Convert BigInteger public key to a full 65-byte uncompressed key
         var fullPublicKey = Numeric.hexStringToByteArray(Numeric.toHexStringWithPrefixZeroPadded(publicKey, 130));
+
         // Convert to compressed format (33 bytes)
-        // 0x02 for even Y, 0x03 for odd Y
-        var prefix = (byte) (fullPublicKey[64] % 2 == 0 ? 0x02 : 0x03);
+        var prefix = (byte) (fullPublicKey[64] % 2 == 0 ? 0x02 : 0x03); // 0x02 for even Y, 0x03 for odd Y
         var compressedKey = new byte[33];
         compressedKey[0] = prefix;
-        // Copy only X coordinate
-        System.arraycopy(fullPublicKey, 1, compressedKey, 1, 32);
-        var finalResult = ByteString.copyFrom(compressedKey);
-        return Key.newBuilder().setECDSASecp256K1(finalResult).build().toByteArray();
+        System.arraycopy(fullPublicKey, 1, compressedKey, 1, 32); // Copy only X coordinate
+        return ByteString.copyFrom(compressedKey);
+    }
+
+    protected ByteString convertToCompressedPublicKey(final PublicKey publicKey) {
+        var publicKeyEncoded = publicKey.getEncoded();
+        SubjectPublicKeyInfo info = SubjectPublicKeyInfo.getInstance(publicKeyEncoded);
+        var raw = info.getPublicKeyData().getOctets();
+        return ByteString.copyFrom(raw);
     }
 
     /**
