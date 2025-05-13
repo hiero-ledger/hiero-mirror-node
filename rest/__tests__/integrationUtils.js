@@ -3,7 +3,7 @@
 import {jest} from '@jest/globals';
 import {exec} from 'child_process';
 
-import integrationContainerOps from './integrationContainerOps.js';
+import integrationContainerOps from './integrationContainerOps';
 import testExports from '../timestampRange';
 import {TokenService} from '../service';
 

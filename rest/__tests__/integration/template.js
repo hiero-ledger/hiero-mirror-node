@@ -31,7 +31,7 @@ import {JSONParse} from '../../utils';
 import {defaultBeforeAllTimeoutMillis, setupIntegrationTest} from '../integrationUtils';
 import {CreateBucketCommand, PutObjectCommand, S3} from '@aws-sdk/client-s3';
 import sinon from 'sinon';
-import integrationContainerOps from '../integrationContainerOps.js';
+import integrationContainerOps from '../integrationContainerOps';
 
 const groupSpecPath = $$GROUP_SPEC_PATH$$;
 
@@ -87,7 +87,8 @@ const getSpecs = async () => {
   const modulePath = getModuleDirname(import.meta);
   specRootPath = path.resolve(path.join(modulePath, '..', 'specs', groupSpecPath));
 
-  const restJavaTests = new RegExp(process.env.REST_JAVA_INCLUDE || 'NONE');
+  const javaTestEnvVar = process.env.REST_JAVA_INCLUDE;
+  const javaTestRegex = new RegExp(javaTestEnvVar || 'NONE');
 
   return (
     await Promise.all(
@@ -108,9 +109,11 @@ const getSpecs = async () => {
             specs.push(spec);
           }
 
-          if (restJavaTests.test(spec.url)) {
+          if (javaTestRegex.test(spec.url)) {
             const restJavaSpecs = specs.map((specCopy) => ({...specCopy, java: true, name: specCopy.name + '-Java'}));
             specs.push(...restJavaSpecs);
+          } else if (javaTestEnvVar) {
+            return {key, specs: []};
           }
 
           return {key, specs};
@@ -341,7 +344,7 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
                 await spec.postSetup();
               }
 
-              const target = !spec.java ? server : global.REST_JAVA_BASE_URL;
+              const target = spec.java ? global.REST_JAVA_BASE_URL : server;
               const response = await request(target).get(tt.url);
 
               expect(response.status).toEqual(tt.responseStatus);
