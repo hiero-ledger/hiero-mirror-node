@@ -669,7 +669,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
             final var serialNumber = i + 1;
             nftPersistCustomizable(n -> n.accountId(sender.toEntityId())
                     .tokenId(token.getTokenId())
-                    .spender(sender.toEntityId())
+                    .spender(sender.getId())
                     .serialNumber(serialNumber));
 
             receivers.add(toAddress(receiver).toHexString());
@@ -705,7 +705,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
             final var serialNumber = i + 1;
             nftPersistCustomizable(n -> n.accountId(sender.toEntityId())
                     .tokenId(token.getTokenId())
-                    .spender(sender.toEntityId())
+                    .spender(sender.getId())
                     .serialNumber(serialNumber));
 
             receivers.add(toAddress(receiver).toHexString());
@@ -743,7 +743,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
             if (i < 4) {
                 nftPersistCustomizable(n -> n.accountId(sender.toEntityId())
                         .tokenId(token.getTokenId())
-                        .spender(sender.toEntityId())
+                        .spender(sender.getId())
                         .serialNumber(serialNumber));
             }
             receivers.add(toAddress(receiver).toHexString());
@@ -859,7 +859,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         final var nonFungible = nonFungibleTokenCustomizable(t -> t.kycKey(null).treasuryAccountId(treasury));
         final var nonFungibleTokenId = nonFungible.getTokenId();
         nftPersistCustomizable(n ->
-                n.tokenId(nonFungibleTokenId).accountId(sender.toEntityId()).spender(sender.toEntityId()));
+                n.tokenId(nonFungibleTokenId).accountId(sender.toEntityId()).spender(sender.getId()));
         tokenAccountPersist(nonFungibleTokenId, sender.getId());
         return nonFungibleTokenId;
     }
