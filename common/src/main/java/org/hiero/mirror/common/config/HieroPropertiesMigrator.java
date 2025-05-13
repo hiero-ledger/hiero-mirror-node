@@ -24,7 +24,7 @@ import org.springframework.core.env.SystemEnvironmentPropertySource;
 @CustomLog
 public class HieroPropertiesMigrator implements ApplicationListener<ApplicationEnvironmentPreparedEvent>, Ordered {
 
-    private static final String DEFAULT_ENVIRONMENT_PROPERTY_SOURCE_NAME_SUFFIX = "-hiero";
+    private static final String DEFAULT_PROPERTY_SOURCE_NAME_SUFFIX = "-hiero";
 
     // For a SystemEnvironmentPropertySource, only when its name is "systemEnvironment" or ends with
     // "-systemEnvironment", spring will use `SystemEnvironmentPropertyMapper` to map the environment variables
@@ -65,7 +65,7 @@ public class HieroPropertiesMigrator implements ApplicationListener<ApplicationE
             var sourceName = propertySource.getName()
                     + (environment
                             ? SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME_SUFFIX
-                            : DEFAULT_ENVIRONMENT_PROPERTY_SOURCE_NAME_SUFFIX);
+                            : DEFAULT_PROPERTY_SOURCE_NAME_SUFFIX);
             var migratedPropertySource = environment
                     ? new SystemEnvironmentPropertySource(sourceName, properties)
                     : new MapPropertySource(sourceName, properties);
