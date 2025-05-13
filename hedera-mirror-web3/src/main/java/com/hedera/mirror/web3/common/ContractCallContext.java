@@ -17,6 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -62,7 +64,7 @@ public class ContractCallContext {
     private CachingStateFrame<Object> stackBase;
 
     @Getter(AccessLevel.NONE)
-    private Map<String, Map<Object, Object>> readCache = new HashMap<>();
+    private Map<String, ConcurrentMap<Object, Object>> readCache = new HashMap<>();
 
     @Getter(AccessLevel.NONE)
     private Map<String, Map<Object, Object>> writeCache = new HashMap<>();
@@ -77,6 +79,10 @@ public class ContractCallContext {
 
     public static ContractCallContext get() {
         return SCOPED_VALUE.get();
+    }
+
+    public static boolean isInitialized() {
+        return SCOPED_VALUE.isBound();
     }
 
     public static <T> T run(Function<ContractCallContext, T> function) {
@@ -152,7 +158,7 @@ public class ContractCallContext {
     }
 
     public Map<Object, Object> getReadCacheState(final String stateKey) {
-        return readCache.computeIfAbsent(stateKey, k -> new HashMap<>());
+        return readCache.computeIfAbsent(stateKey, k -> new ConcurrentHashMap<>());
     }
 
     public Map<Object, Object> getWriteCacheState(final String stateKey) {
