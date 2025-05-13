@@ -12,6 +12,7 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
 
 /**
@@ -22,6 +23,14 @@ import org.springframework.core.env.SystemEnvironmentPropertySource;
  */
 @CustomLog
 public class HieroPropertiesMigrator implements ApplicationListener<ApplicationEnvironmentPreparedEvent>, Ordered {
+
+    private static final String DEFAULT_ENVIRONMENT_PROPERTY_SOURCE_NAME_SUFFIX = "-hiero";
+
+    // For a SystemEnvironmentPropertySource, only when its name is "systemEnvironment" or ends with
+    // "-systemEnvironment", spring will use `SystemEnvironmentPropertyMapper` to map the environment variables
+    // and bind the properties to configuration property beans
+    private static final String SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME_SUFFIX =
+            "-hiero-" + StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME;
 
     @Override
     public int getOrder() {
@@ -53,7 +62,10 @@ public class HieroPropertiesMigrator implements ApplicationListener<ApplicationE
         }
 
         if (!properties.isEmpty()) {
-            var sourceName = propertySource.getName() + "-hiero";
+            var sourceName = propertySource.getName()
+                    + (environment
+                            ? SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME_SUFFIX
+                            : DEFAULT_ENVIRONMENT_PROPERTY_SOURCE_NAME_SUFFIX);
             var migratedPropertySource = environment
                     ? new SystemEnvironmentPropertySource(sourceName, properties)
                     : new MapPropertySource(sourceName, properties);
