@@ -22,7 +22,7 @@ class TransactionSignatureRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
-    void findByEntityIdNotSuccessful() {
+    void findByEntityIdFailsWhenEntityIdDoesNotMatch() {
         final var transactionSignature = domainBuilder.transactionSignature().persist();
         final var wrongEntity = domainBuilder.entity().persist();
         assertThat(transactionSignatureRepository.findByEntityId(wrongEntity.toEntityId()))
@@ -42,7 +42,7 @@ class TransactionSignatureRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
-    void findByEntityIdWithTimestampNotSuccessful() {
+    void findByEntityIdWithTimestampFailsWhenTimestampIsBeforeTransaction() {
         final long timestamp = Instant.now().getEpochSecond();
         final var transactionSignature = domainBuilder
                 .transactionSignature()
