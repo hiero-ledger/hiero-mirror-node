@@ -1,0 +1,261 @@
+{
+  "description": "Network nodes API with file 101 arg",
+  "setup": {
+    "addressbooks": [
+      {
+        "start_consensus_timestamp": 1,
+        "file_id": 101,
+        "node_count": 1
+      },
+      {
+        "start_consensus_timestamp": 2,
+        "file_id": 102,
+        "node_count": 1
+      },
+      {
+        "start_consensus_timestamp": 187654000123456,
+        "file_id": 101,
+        "node_count": 2
+      },
+      {
+        "start_consensus_timestamp": 187654000123457,
+        "file_id": 102,
+        "node_count": 2
+      }
+    ],
+    "addressbookentries": [
+      {
+        "consensus_timestamp": 1,
+        "memo": null,
+        "node_id": 0,
+        "node_account_id": 3
+      },
+      {
+        "consensus_timestamp": 2,
+        "memo": "0.0.3",
+        "node_id": 0,
+        "node_account_id": 3
+      },
+      {
+        "consensus_timestamp": 187654000123456,
+        "memo": null,
+        "node_id": 0,
+        "node_account_id": 3,
+        "public_key": ""
+      },
+      {
+        "consensus_timestamp": 187654000123456,
+        "memo": null,
+        "node_id": 1,
+        "node_account_id": 4,
+        "public_key": null
+      },
+      {
+        "consensus_timestamp": 187654000123457,
+        "memo": "0.0.3",
+        "node_id": 0,
+        "node_account_id": 3
+      },
+      {
+        "consensus_timestamp": 187654000123457,
+        "memo": "0.0.4",
+        "node_id": 1,
+        "node_account_id": 4
+      }
+    ],
+    "addressbookserviceendpoints": [
+      {
+        "consensus_timestamp": 1,
+        "ip_address_v4": "127.0.0.1",
+        "node_id": 0,
+        "port": 50211
+      },
+      {
+        "consensus_timestamp": 2,
+        "ip_address_v4": "128.0.0.1",
+        "node_id": 0,
+        "port": 50212
+      },
+      {
+        "consensus_timestamp": 187654000123456,
+        "ip_address_v4": "127.0.0.3",
+        "node_id": 0,
+        "port": 50213
+      },
+      {
+        "consensus_timestamp": 187654000123456,
+        "ip_address_v4": "127.0.0.4",
+        "node_id": 1,
+        "port": 50214
+      },
+      {
+        "consensus_timestamp": 187654000123457,
+        "ip_address_v4": "128.0.0.5",
+        "node_id": 0,
+        "port": 50215
+      },
+      {
+        "consensus_timestamp": 187654000123457,
+        "ip_address_v4": "128.0.0.6",
+        "node_id": 1,
+        "port": 50216
+      }
+    ],
+    "nodestakes": [
+      {
+        "consensus_timestamp": 1,
+        "epoch_day": 1,
+        "node_id": 0,
+        "reward_rate": 5,
+        "stake": 10,
+        "stake_rewarded": 2
+      },
+      {
+        "consensus_timestamp": 2,
+        "epoch_day": 2,
+        "node_id": 0,
+        "reward_rate": 6,
+        "stake": 11,
+        "stake_rewarded": 3
+      },
+      {
+        "consensus_timestamp": 187654000123456,
+        "epoch_day": 3,
+        "node_id": 0,
+        "reward_rate": 7,
+        "stake": 12,
+        "stake_rewarded": 4
+      },
+      {
+        "consensus_timestamp": 187654000123456,
+        "epoch_day": 1,
+        "node_id": 1,
+        "reward_rate": 8,
+        "stake": 100,
+        "stake_rewarded": 20
+      },
+      {
+        "consensus_timestamp": 187654000123458,
+        "epoch_day": 4,
+        "node_id": 0,
+        "reward_rate": 9,
+        "stake": 13,
+        "stake_not_rewarded": 8,
+        "stake_rewarded": 5,
+        "staking_period": 1655164799999999999
+      },
+      {
+        "consensus_timestamp": 187654000123458,
+        "epoch_day": 2,
+        "node_id": 1,
+        "reward_rate": 10,
+        "stake": 101,
+        "stake_not_rewarded": 80,
+        "stake_rewarded": 21
+      }
+    ],
+    "nodes": [
+      {
+        "admin_key": "3a21b5b1ce6a41a2c3c147ea7c183cbabca97c519cc257ac02b673043b0482fcabd0c4",
+        "node_id": 0,
+        "created_timestamp": 1664365660048674966,
+        "deleted": false,
+        "timestamp_range": "[0,)"
+      },
+      {
+        "admin_key": "122049cddef8b8e974b8c8862cb48bf80ffcb565b0edad096f78ba8a9ca39c43f7bc",
+        "node_id": 1,
+        "created_timestamp": 1664365660048674966,
+        "decline_reward": true,
+        "deleted": false,
+        "grpc_proxy_endpoint": null,
+        "timestamp_range": "[0,)"
+      }
+    ]
+  },
+  "url": "/api/v1/network/nodes?file.id=101",
+  "responseStatus": 200,
+  "responseJson": {
+    "nodes": [
+      {
+        "admin_key": {
+          "_type": "ECDSA_SECP256K1",
+          "key": "b5b1ce6a41a2c3c147ea7c183cbabca97c519cc257ac02b673043b0482fcabd0c4"
+        },
+        "decline_reward": false,
+        "description": "description",
+        "file_id": "0.0.101",
+        "grpc_proxy_endpoint": {
+          "domain_name": "localhost",
+          "ip_address_v4": "",
+          "port": 80
+        },
+        "max_stake": 2000,
+        "memo": null,
+        "min_stake": 1,
+        "node_account_id": "0.0.3",
+        "node_cert_hash": "0x01d173753810c0aae794ba72d5443c292e9ff962b01046220dd99f5816422696e0569c977e2f169e1e5688afc8f4aa16",
+        "node_id": 0,
+        "public_key": "0x",
+        "reward_rate_start": 9,
+        "service_endpoints": [
+          {
+            "domain_name": "",
+            "ip_address_v4": "127.0.0.3",
+            "port": 50213
+          }
+        ],
+        "stake": 13,
+        "stake_not_rewarded": 8,
+        "stake_rewarded": 5,
+        "staking_period": {
+          "from": "1655164800.000000000",
+          "to": "1655251200.000000000"
+        },
+        "timestamp": {
+          "from": "187654.000123456",
+          "to": null
+        }
+      },
+      {
+        "admin_key": {
+          "_type": "ED25519",
+          "key": "49cddef8b8e974b8c8862cb48bf80ffcb565b0edad096f78ba8a9ca39c43f7bc"
+        },
+        "decline_reward": true,
+        "description": "description",
+        "file_id": "0.0.101",
+        "grpc_proxy_endpoint": null,
+        "max_stake": 2000,
+        "memo": null,
+        "min_stake": 1,
+        "node_account_id": "0.0.4",
+        "node_cert_hash": "0x01d173753810c0aae794ba72d5443c292e9ff962b01046220dd99f5816422696e0569c977e2f169e1e5688afc8f4aa16",
+        "node_id": 1,
+        "public_key": "0x",
+        "reward_rate_start": 10,
+        "service_endpoints": [
+          {
+            "domain_name": "",
+            "ip_address_v4": "127.0.0.4",
+            "port": 50214
+          }
+        ],
+        "stake": 101,
+        "stake_not_rewarded": 80,
+        "stake_rewarded": 21,
+        "staking_period": {
+          "from": "86400.000000000",
+          "to": "172800.000000000"
+        },
+        "timestamp": {
+          "from": "187654.000123456",
+          "to": null
+        }
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

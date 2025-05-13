@@ -17,7 +17,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("grpcVersion", "1.72.0")
-    set("jooq.version", "3.20.2") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.20.4") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.14.0")
     set("protobufVersion", "4.30.2")
@@ -49,16 +49,16 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:2.9")
         api("com.graphql-java:graphql-java-extended-scalars:22.0")
         api("com.graphql-java:graphql-java-extended-validation:22.0")
-        api("com.hedera.hashgraph:app:0.61.3")
+        api("com.hedera.hashgraph:app:0.62.1")
         api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.61.3")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.62.1")
         api("com.hedera.hashgraph:sdk:2.54.0")
         api("com.ongres.scram:client:2.1")
         api("com.playtika.testcontainers:embedded-google-pubsub:3.1.11")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.10.1")
         api("commons-io:commons-io:2.19.0")
-        api("io.cucumber:cucumber-bom:7.22.1")
+        api("io.cucumber:cucumber-bom:7.22.2")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.9.10")
@@ -88,7 +88,7 @@ dependencies {
         api("org.springframework.cloud:spring-cloud-dependencies:2024.0.0")
         api("org.testcontainers:junit-jupiter:1.21.0")
         api("org.mockito:mockito-inline:5.2.0")
-        api("software.amazon.awssdk:bom:2.31.25")
+        api("software.amazon.awssdk:bom:2.31.40")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
         api("org.web3j:core:4.12.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
@@ -166,7 +166,7 @@ spotless {
     format("go") {
         endWithNewline()
         licenseHeader(licenseHeader, "package")
-        target("hedera-mirror-rosetta/**/*.go")
+        target("rosetta/**/*.go")
         targetExclude("**/build/**")
         trimTrailingWhitespace()
     }
@@ -185,7 +185,7 @@ spotless {
             .npmExecutable(npmExecutable)
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
             .config(mapOf("bracketSpacing" to false, "printWidth" to 120, "singleQuote" to true))
-        target("hedera-mirror-rest/**/*.js", "hedera-mirror-test/k6/**/*.js", "tools/**/*.js")
+        target("rest/**/*.js", "tools/**/*.js")
         targetExclude(
             "**/build/**",
             "**/node_modules/**",
@@ -201,10 +201,10 @@ spotless {
         target("**/*.java")
         targetExclude(
             "**/build/**",
-            "hedera-mirror-rest/**",
-            "hedera-mirror-rosetta/**",
+            "rest/**",
+            "rosetta/**",
             // Known issue with Java 21: https://github.com/palantir/palantir-java-format/issues/933
-            "hedera-mirror-rest-java/**/EntityServiceImpl.java",
+            "rest-java/**/EntityServiceImpl.java",
             "tools/**",
         )
         toggleOffOn()
@@ -221,7 +221,7 @@ spotless {
         endWithNewline()
         ktfmt().kotlinlangStyle()
         licenseHeader(licenseHeader, "(description|import|plugins)")
-        target("*.kts", "*/*.kts", "buildSrc/**/*.kts", "hedera-mirror-rest/*/*.kts")
+        target("*.kts", "*/*.kts", "buildSrc/**/*.kts", "rest/*/*.kts")
         targetExclude("**/build/**", "**/node_modules/**")
         trimTrailingWhitespace()
     }
@@ -261,9 +261,9 @@ spotless {
         leadingTabsToSpaces()
         licenseHeader(licenseHeader.replaceFirst("//", "--"), "^[^-\\s]")
         target(
-            "hedera-mirror-common/src/test/resources/*.sql",
-            "hedera-mirror-importer/**/*.sql",
-            "hedera-mirror-rest/__tests__/data/**/*.sql",
+            "common/src/test/resources/*.sql",
+            "importer/**/*.sql",
+            "rest/__tests__/data/**/*.sql",
         )
         targetExclude("**/build/**", "**/db/migration/**")
         trimTrailingWhitespace()
@@ -303,10 +303,10 @@ tasks.register("release") {
         replaceVersion("docker-compose.yml", "(?<=gcr.io/mirrornode/hedera-mirror-.+:).+")
         replaceVersion("gradle.properties", "(?<=^version=).+")
         replaceVersion(
-            "hedera-mirror-rest/**/package*.json",
+            "rest/**/package*.json",
             "(?<=\"@hiero-ledger/(check-state-proof|mirror-rest|mirror-monitor)\",\\s{3,7}\"version\": \")[^\"]+",
         )
-        replaceVersion("hedera-mirror-rest/**/openapi.yml", "(?<=^  version: ).+")
+        replaceVersion("rest/**/openapi.yml", "(?<=^  version: ).+")
         replaceVersion(
             "tools/traffic-replay/log-downloader/package*.json",
             "(?<=\"@hiero-ledger/mirror-log-downloader\",\\s{3,7}\"version\": \")[^\"]+",

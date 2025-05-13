@@ -13,7 +13,7 @@ openApiGenerate {
         mapOf(
             "developerEmail" to "mirrornode@hedera.com",
             "developerName" to "Mirror Node Team",
-            "developerOrganization" to "Hedera Hashgraph",
+            "developerOrganization" to "Hiero",
             "developerOrganizationUrl" to "https://github.com/hiero-ledger/hiero-mirror-node",
             "interfaceOnly" to "true",
             "licenseName" to "Apache License 2.0",
@@ -29,12 +29,7 @@ openApiGenerate {
     generateModelTests = false
     generatorName = "java"
     inputSpec =
-        rootDir
-            .resolve("hedera-mirror-rest")
-            .resolve("api")
-            .resolve("v1")
-            .resolve("openapi.yml")
-            .absolutePath
+        rootDir.resolve("rest").resolve("api").resolve("v1").resolve("openapi.yml").absolutePath
     invokerPackage = "${openApiPackage}.handler"
     library = "native"
     modelPackage = "${openApiPackage}.model"

@@ -28,9 +28,9 @@ import com.hedera.services.store.contracts.precompile.PrngSystemPrecompiledContr
 import com.hedera.services.store.contracts.precompile.utils.PrecompilePricingUtils;
 import com.hedera.services.txns.crypto.AbstractAutoCreationLogic;
 import com.hedera.services.txns.util.PrngLogic;
-import com.swirlds.common.utility.CommonUtils;
 import java.time.Instant;
 import java.util.Map;
+import org.hiero.base.utility.CommonUtils;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.precompile.PrecompileContractRegistry;

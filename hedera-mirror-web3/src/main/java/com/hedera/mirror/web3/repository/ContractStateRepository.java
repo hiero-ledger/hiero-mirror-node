@@ -14,7 +14,7 @@ import org.springframework.data.repository.CrudRepository;
 public interface ContractStateRepository extends CrudRepository<ContractState, Long> {
 
     @Query(value = "select value from contract_state where contract_id = ?1 and slot =?2", nativeQuery = true)
-    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_CONTRACT_STATE, unless = "#result == null")
+    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_CONTRACT_STATE)
     Optional<byte[]> findStorage(final Long contractId, final byte[] key);
 
     /**

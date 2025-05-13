@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-hedera:
+hiero:
   mirror:
     web3:
       evm:
@@ -16,6 +16,7 @@ hedera:
       opcode:
         tracer:
           enabled: true
+      transactionTimeout: 60s
 spring:
   test:
     database:

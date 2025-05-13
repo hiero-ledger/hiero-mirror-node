@@ -9,7 +9,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-@ConfigurationProperties(prefix = "hedera.mirror.web3.cache")
+@ConfigurationProperties(prefix = "hiero.mirror.web3.cache")
 public class CacheProperties {
 
     /**
@@ -21,7 +21,7 @@ public class CacheProperties {
     private String contract = "expireAfterAccess=1h,maximumSize=1000,recordStats";
 
     @NotBlank
-    private String contractState = ENTITY_CACHE_CONFIG;
+    private String contractState = "expireAfterWrite=2s,maximumSize=10000,recordStats";
 
     @NotBlank
     private String fee = "expireAfterWrite=10m,maximumSize=20,recordStats";

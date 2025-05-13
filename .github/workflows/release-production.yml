@@ -33,7 +33,7 @@ jobs:
           - test
           - web3
     env:
-      CONTEXT: hedera-mirror-${{ matrix.project }}
+      CONTEXT: ${{ matrix.project }}
       IMAGE: gcr.io/mirrornode/hedera-mirror-${{ matrix.project }}
     name: Publish images
     runs-on: hiero-mirror-node-linux-large
@@ -49,13 +49,13 @@ jobs:
       - name: Get tag
         run: echo "TAG=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
 
+      - name: Custom context
+        if: matrix.project == 'web3'
+        run: echo "CONTEXT=hedera-mirror-web3" >> $GITHUB_ENV
+
       - name: Custom monitor path
         if: matrix.project == 'rest-monitor'
-        run: echo "CONTEXT=hedera-mirror-rest/monitoring" >> $GITHUB_ENV
-
-      - name: Custom context
-        if: contains(fromJSON('["graphql", "grpc", "monitor"]'), matrix.project)
-        run: echo "CONTEXT=${{ matrix.project }}" >> $GITHUB_ENV
+        run: echo "CONTEXT=rest/monitoring" >> $GITHUB_ENV
 
       - name: Install JDK
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1

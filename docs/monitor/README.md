@@ -14,11 +14,11 @@ the [config](/docs/configuration.md#monitor)
 documentation.
 
 First, make sure the monitor is configured to talk to the correct Hedera network by
-setting `hedera.mirror.monitor.network` to
+setting `hiero.mirror.monitor.network` to
 `MAINNET`, `PREVIEWNET` or `TESTNET`. If you are not using one of these public environments, the network can be set
-to `OTHER`, and `hedera.mirror.monitor.nodes` and `hedera.mirror.monitor.mirrorNode` properties should be filled in.
+to `OTHER`, and `hiero.mirror.monitor.nodes` and `hiero.mirror.monitor.mirrorNode` properties should be filled in.
 
-Additionally, the operator information in `hedera.mirror.monitor.operator` is required and needs to be populated with a
+Additionally, the operator information in `hiero.mirror.monitor.operator` is required and needs to be populated with a
 valid payer account ID and its private key. Ensure this account has the necessary funds to publish transactions at the
 rate you desire. The following is an example with a custom network configured:
 
@@ -57,17 +57,17 @@ a client-side rate limiter to achieve the desired rate. Additionally, a percenta
 requested for each transaction to verify transactions are reaching consensus.
 
 The monitor can be used to publish at a very high TPS, with a single monitor able to achieve 10K TPS on the Hedera
-network. To publish at higher rates, the `hedera.mirror.monitor.publish.clients` and
-`hedera.mirror.monitor.publish.responseThreads` properties can be adjusted. With the default values of four clients and
+network. To publish at higher rates, the `hiero.mirror.monitor.publish.clients` and
+`hiero.mirror.monitor.publish.responseThreads` properties can be adjusted. With the default values of four clients and
 40 response threads, the monitor can already achieve 10K TPS out of the box. The transaction publisher will round-robin
 the list of clients to send transactions to the Hedera Network, and every transaction is sent to a randomly chosen node,
 ensuring the load is distributed evenly across all nodes.
 
 The `type` property specifies which transaction type to publish. It also affects which `properties` need to be
 specified, with different transaction types requiring different properties to be set. See the
-[TransactionType](/monitor/src/main/java/com/hedera/mirror/monitor/publish/transaction/TransactionType.java)
+[TransactionType](/monitor/src/main/java/org/hiero/mirror/monitor/publish/transaction/TransactionType.java)
 enum for a list of possible values for `type`. The properties can be seen as fields on the various
-[TransactionSupplier](/monitor/src/main/java/com/hedera/mirror/monitor/publish/transaction) classes that
+[TransactionSupplier](/monitor/src/main/java/org/hiero/mirror/monitor/publish/transaction) classes that
 the `TransactionType` enum references. Most of these properties have a default and don't need to be explicitly
 specified, but some are empty and may need to be populated.
 
@@ -106,9 +106,9 @@ transactions. Due to this the monitor by default will initially support only `Sc
 inner transaction is a `CryptoCreate` with `receiverSignatureRequired` set to true.
 
 By default, all required signatures will be provided. However, this can be modified by
-setting `hedera.mirror.monitor.publish.scenarios.properties.signatoryCount` to be a number greater than 0 but smaller
-than `hedera.mirror.monitor.publish.scenarios.properties.totalSignatoryCount`
-To execute a scheduled scenario set the `hedera.mirror.monitor.publish.scenarios` properties similar to the following
+setting `hiero.mirror.monitor.publish.scenarios.properties.signatoryCount` to be a number greater than 0 but smaller
+than `hiero.mirror.monitor.publish.scenarios.properties.totalSignatoryCount`
+To execute a scheduled scenario set the `hiero.mirror.monitor.publish.scenarios` properties similar to the following
 example.
 
 ```yaml
@@ -167,8 +167,8 @@ hedera:
 
 The monitor can automatically create account, token, and topic entities on application startup using a special
 expression syntax. This is useful to avoid boilerplate configuration and manual entity creation steps that vary per
-environment. The syntax can currently only be used in `hedera.mirror.monitor.publish.scenarios.properties`
-and `hedera.mirror.monitor.subscribe.grpc.topicId`.
+environment. The syntax can currently only be used in `hiero.mirror.monitor.publish.scenarios.properties`
+and `hiero.mirror.monitor.subscribe.grpc.topicId`.
 
 The syntax takes the form of `${type.name}` where `type` is one of `account`, `schedule`, `token`, or `topic`,
 and `name` is a descriptive label. Based upon the entity type, it will create the appropriate entity on the network with
@@ -227,10 +227,10 @@ hedera:
             samplePercent: 1.0
 ```
 
-For performance testing subscribers, the `hedera.mirror.monitor.subscribe.clients` property should be adjusted higher to
+For performance testing subscribers, the `hiero.mirror.monitor.subscribe.clients` property should be adjusted higher to
 control the pool of client connections to the server. Since the communication is asynchronous, a number between 1-10
 should suffice. Additionally, the
-`hedera.mirror.monitor.subscribe.grpc.subscribers` property can be adjusted to increase the number of concurrent
+`hiero.mirror.monitor.subscribe.grpc.subscribers` property can be adjusted to increase the number of concurrent
 subscribers for that scenario.
 
 ## REST API

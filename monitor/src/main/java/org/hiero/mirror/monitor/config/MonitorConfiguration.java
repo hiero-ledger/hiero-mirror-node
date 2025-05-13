@@ -54,7 +54,7 @@ class MonitorConfiguration {
      * @return the publishing flow's Disposable
      */
     @Bean(destroyMethod = "dispose")
-    @ConditionalOnProperty(value = "hedera.mirror.monitor.publish.enabled", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty(value = "hiero.mirror.monitor.publish.enabled", havingValue = "true", matchIfMissing = true)
     Disposable publish() {
         return Flux.<List<PublishRequest>>generate(sink -> sink.next(transactionGenerator.next(0)))
                 .flatMapIterable(Function.identity())
@@ -84,7 +84,7 @@ class MonitorConfiguration {
      */
     @Bean(destroyMethod = "dispose")
     @ConditionalOnProperty(
-            value = "hedera.mirror.monitor.subscribe.enabled",
+            value = "hiero.mirror.monitor.subscribe.enabled",
             havingValue = "true",
             matchIfMissing = true)
     Disposable subscribe() {

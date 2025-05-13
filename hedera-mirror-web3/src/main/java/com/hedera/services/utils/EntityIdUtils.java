@@ -18,12 +18,11 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.TokenID;
-import com.swirlds.common.utility.CommonUtils;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.base.utility.CommonUtils;
 import org.hyperledger.besu.datatypes.Address;
 
 public final class EntityIdUtils {
-    private static final String CANNOT_PARSE_PREFIX = "Cannot parse '";
     private static final String ENTITY_ID_FORMAT = "%d.%d.%d";
 
     private EntityIdUtils() {
@@ -203,30 +202,6 @@ public final class EntityIdUtils {
         return Address.wrap(org.apache.tuweni.bytes.Bytes.wrap(evmAddressBytes));
     }
 
-    private static long[] parseLongTriple(final String dotDelimited) {
-        final long[] triple = new long[3];
-        int i = 0;
-        long v = 0;
-        for (final char c : dotDelimited.toCharArray()) {
-            if (c == '.') {
-                triple[i++] = v;
-                v = 0;
-            } else if (c < '0' || c > '9') {
-                throw new NumberFormatException(CANNOT_PARSE_PREFIX + dotDelimited + "' due to character '" + c + "'");
-            } else {
-                v = 10 * v + (c - '0');
-                if (v < 0) {
-                    throw new IllegalArgumentException(CANNOT_PARSE_PREFIX + dotDelimited + "' due to overflow");
-                }
-            }
-        }
-        if (i < 2) {
-            throw new IllegalArgumentException(CANNOT_PARSE_PREFIX + dotDelimited + "' due to only " + i + " dots");
-        }
-        triple[i] = v;
-        return triple;
-    }
-
     private static com.hedera.hapi.node.base.AccountID toAccountId(
             final Long shard, final Long realm, final byte[] alias) {
         return com.hedera.hapi.node.base.AccountID.newBuilder()
@@ -275,6 +250,14 @@ public final class EntityIdUtils {
             return null;
         }
         return EntityId.of(id.shardNum(), id.realmNum(), id.contractNum());
+    }
+
+    public static Id idFromEncodedId(Long encodedId) {
+        if (encodedId == null || encodedId == 0) {
+            return null;
+        }
+
+        return idFromEntityId(EntityId.of(encodedId));
     }
 
     public static Id idFromEntityId(EntityId entityId) {

@@ -20,7 +20,6 @@ import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
 import com.hedera.mirror.common.CommonProperties;
 import com.hedera.mirror.common.domain.SystemEntity;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.evm.contracts.execution.traceability.MirrorOperationTracer;
 import com.hedera.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
@@ -51,7 +50,8 @@ public class TransactionExecutionService {
 
     private static final Duration TRANSACTION_DURATION = new Duration(15);
     private static final long CONTRACT_CREATE_TX_FEE = 100_000_000L;
-    private static final String SENDER_NOT_FOUND = "Sender account not found";
+    private static final String SENDER_NOT_FOUND = "Sender account not found.";
+    private static final String SENDER_IS_SMART_CONTRACT = "Sender account is a smart contract.";
 
     private final AccountReadableKVState accountReadableKVState;
     private final AliasesReadableKVState aliasesReadableKVState;
@@ -195,33 +195,44 @@ public class TransactionExecutionService {
         if (params.getSender().canonicalAddress().isZero() && params.getValue() == 0L) {
             return EntityIdUtils.toAccountId(systemEntity.treasuryAccount());
         }
-
         final var senderAddress = params.getSender().canonicalAddress();
+        final var accountIDNum = getSenderAccountIDAsNum(senderAddress);
 
-        if (isMirror(senderAddress)) {
-            final var accountID = accountIdFromEvmAddress(senderAddress);
-            if (!accountReadableKVState.contains(AccountID.newBuilder()
-                    .accountNum(accountID.getAccountNum())
-                    .shardNum(accountID.getShardNum())
-                    .realmNum(accountID.getRealmNum())
-                    .build())) {
-                throwInvalidAccountIdException(SENDER_NOT_FOUND);
-            }
-
-            var entityId = DomainUtils.fromEvmAddress(senderAddress.toArrayUnsafe());
-            return EntityIdUtils.toAccountId(entityId);
+        final var account = accountReadableKVState.get(accountIDNum);
+        if (account == null) {
+            throwPayerAccountNotFoundException(SENDER_NOT_FOUND);
+        } else if (account.smartContract()) {
+            throwPayerAccountNotFoundException(SENDER_IS_SMART_CONTRACT);
         }
 
-        final var address = aliasesReadableKVState.get(convertAddressToProtoBytes(senderAddress));
-        if (address == null) {
-            throwInvalidAccountIdException(SENDER_NOT_FOUND);
-        }
-
-        return address;
+        return accountIDNum;
     }
 
-    private void throwInvalidAccountIdException(final String message) {
-        throw new MirrorEvmTransactionException(ResponseCodeEnum.INVALID_ACCOUNT_ID, message, StringUtils.EMPTY, true);
+    private AccountID getSenderAccountIDAsNum(final Address senderAddress) {
+        AccountID accountIDNum;
+        if (!isMirror(senderAddress)) {
+            // If the address is an alias we need to first check if it exists and get the AccountID as a num.
+            accountIDNum = aliasesReadableKVState.get(convertAddressToProtoBytes(senderAddress));
+            if (accountIDNum == null) {
+                throwPayerAccountNotFoundException(SENDER_NOT_FOUND);
+            }
+        } else {
+            final var senderAccountID = accountIdFromEvmAddress(senderAddress);
+            // If the address was passed as a long-zero address we need to convert it to the correct AccountID type.
+            accountIDNum = AccountID.newBuilder()
+                    .accountNum(senderAccountID.getAccountNum())
+                    .shardNum(senderAccountID.getShardNum())
+                    .realmNum(senderAccountID.getRealmNum())
+                    .build();
+        }
+        return accountIDNum;
+    }
+
+    // In services SolvencyPreCheck#getPayerAccount() in case the payer account is not found or is a smart contract the
+    // error response that is returned is PAYER_ACCOUNT_NOT_FOUND, so we use it in here for consistency.
+    private void throwPayerAccountNotFoundException(final String message) {
+        throw new MirrorEvmTransactionException(
+                ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND, message, StringUtils.EMPTY, true);
     }
 
     private OperationTracer[] getOperationTracers() {

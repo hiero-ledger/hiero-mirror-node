@@ -4605,8 +4605,8 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "hedera-mirror-importer",
-          "value": "hedera-mirror-importer"
+          "text": "importer",
+          "value": "importer"
         },
         "datasource": "${prometheus}",
         "definition": "",
@@ -4802,5 +4802,5 @@
   "timezone": "browser",
   "title": "JVM (Micrometer)",
   "uid": "3BL3ZCXWk",
-  "version": 1
+  "version": 2
 }

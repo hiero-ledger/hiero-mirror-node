@@ -10,8 +10,8 @@ import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_4
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_50;
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
-import static com.swirlds.common.utility.CommonUtils.unhex;
 import static com.swirlds.state.lifecycle.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
+import static org.hiero.base.utility.CommonUtils.unhex;
 
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.SemanticVersion;
@@ -58,13 +58,15 @@ import org.springframework.validation.annotation.Validated;
 @RequiredArgsConstructor(onConstructor_ = {@Autowired})
 @Setter
 @Validated
-@ConfigurationProperties(prefix = "hedera.mirror.web3.evm")
+@ConfigurationProperties(prefix = "hiero.mirror.web3.evm")
 public class MirrorNodeEvmProperties implements EvmProperties {
 
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
 
+    @Getter
     private final CommonProperties commonProperties;
+
     private final SystemEntity systemEntity;
 
     @Getter
@@ -341,12 +343,14 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("contracts.maxRefundPercentOfGasLimit", String.valueOf(maxGasRefundPercentage()));
         props.put("contracts.sidecars", "");
         props.put("contracts.throttle.throttleByGas", "false");
+        props.put("executor.disableThrottles", "true");
         // The configured data in the request is currently 128 KB. In services, we have a property for the
         // max signed transaction size. We put 1 KB more here to have a buffer because the transaction has other
         // fields (apart from the data) that will increase the transaction size.
         props.put("executor.maxSignedTxnSize", String.valueOf(maxDataSize.toBytes() + 1024));
         props.put("hedera.realm", String.valueOf(commonProperties.getRealm()));
         props.put("hedera.shard", String.valueOf(commonProperties.getShard()));
+        props.put("jumboTransactions.isEnabled", "false");
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
         props.put("nodes.gossipFqdnRestricted", "false");
         props.put("tss.hintsEnabled", "false");

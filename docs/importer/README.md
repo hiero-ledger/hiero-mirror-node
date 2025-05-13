@@ -24,7 +24,7 @@ table provides a compatibility matrix of the most recent changes:
 ## Initialize Entity Balance
 
 The importer tracks up-to-date entity balance by applying balance changes from crypto transfers. This relies on the
-[InitializeEntityBalanceMigration](/hedera-mirror-importer/src/main/java/com/hedera/mirror/importer/migration/InitializeEntityBalanceMigration.java)
+[InitializeEntityBalanceMigration](/importer/src/main/java/org/hiero/mirror/importer/migration/InitializeEntityBalanceMigration.java)
 to set the correct initial entity balance from the latest account balance snapshot relative to the last record stream
 file the importer has ingested and balance changes from crypto transfers not accounted in the snapshot. If the importer
 is started with a database which doesn't meet the prerequisite (e.g., an empty database) or the entity balance is
@@ -42,7 +42,7 @@ inaccurate due to bugs, follow the steps below to re-run the migration to fix it
 3. Set a different checksum (e.g., 2) for the migration and start importer
 
    ```yaml
-   hedera:
+   hiero:
      mirror:
        importer:
          migration:
@@ -60,7 +60,7 @@ should be able to ingest one month's worth of mainnet data in less than 1.5 days
 Run the importer with 4 vCPUs and 10 GB of heap. Configure the application.yml:
 
 ```yaml
-hedera:
+hiero:
   mirror:
     importer:
       downloader:
@@ -92,12 +92,12 @@ work_mem = 262144
 
 The `RecordFileParserPerformanceTest` can be used to declaratively generate a `RecordFile` with different performance
 characteristics and test how fast the importer can ingest them. To configure the performance test, populate the remote
-database information and the test scenarios in an `application.yml`. Use the standard `hedera.mirror.importer.db`
+database information and the test scenarios in an `application.yml`. Use the standard `hiero.mirror.importer.db`
 properties to target the remote database. The below config is generating a mix of crypto transfer and contract calls
 transactions at a combined 300 transactions per second (TPS) sustained for 60 seconds:
 
 ```yaml
-hedera.mirror.importer.parser.record:
+hiero.mirror.importer.parser.record:
   performance:
     duration: 60s
     transactions:

@@ -56,7 +56,7 @@ stackgres:
   podAntiAffinity: false
 web3:
   env:
-    HEDERA_MIRROR_WEB3_EVM_NETWORK: OTHER
+    HIERO_MIRROR_WEB3_EVM_NETWORK: OTHER
   resources:
     requests:
       cpu: 100m

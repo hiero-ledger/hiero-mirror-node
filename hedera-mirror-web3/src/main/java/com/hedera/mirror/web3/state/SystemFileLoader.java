@@ -6,6 +6,7 @@ import static com.hedera.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_S
 import static com.hedera.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_MODULARIZED;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
+import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.CurrentAndNextFeeSchedule;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.NodeAddressBook;
@@ -22,6 +23,9 @@ import com.hedera.node.config.data.EntitiesConfig;
 import com.hedera.pbj.runtime.Codec;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.NodeAddress;
+import com.hederahashgraph.api.proto.java.ServiceEndpoint;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
@@ -31,9 +35,11 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.retry.support.RetryTemplate;
 
@@ -54,6 +60,9 @@ public class SystemFileLoader {
 
     @Getter(lazy = true)
     private final Map<FileID, SystemFile> systemFiles = loadAll();
+
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
+    private final byte[] mockAddressBook = createMockAddressBook();
 
     @Cacheable(
             cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
@@ -89,6 +98,7 @@ public class SystemFileLoader {
         return retryTemplate.execute(
                 context -> fileDataRepository
                         .getFileAtTimestamp(fileId, nanoSeconds.get())
+                        .filter(fileData -> ArrayUtils.isNotEmpty(fileData.getFileData()))
                         .map(fileData -> {
                             try {
                                 var bytes = Bytes.wrap(fileData.getFileData());
@@ -116,10 +126,10 @@ public class SystemFileLoader {
 
     private Map<FileID, SystemFile> loadAll() {
         var configuration = properties.getVersionedConfiguration();
-
+        var addressBookMock = Bytes.wrap(getMockAddressBook());
         var files = List.of(
-                new SystemFile(load(systemEntity.addressBookFile101(), Bytes.EMPTY), NodeAddressBook.PROTOBUF),
-                new SystemFile(load(systemEntity.addressBookFile102(), Bytes.EMPTY), NodeAddressBook.PROTOBUF),
+                new SystemFile(load(systemEntity.addressBookFile101(), addressBookMock), NodeAddressBook.PROTOBUF),
+                new SystemFile(load(systemEntity.addressBookFile102(), addressBookMock), NodeAddressBook.PROTOBUF),
                 new SystemFile(
                         load(systemEntity.feeScheduleFile(), fileSchema.genesisFeeSchedules(configuration)),
                         CurrentAndNextFeeSchedule.PROTOBUF),
@@ -158,6 +168,25 @@ public class SystemFileLoader {
         var configuration = properties.getVersionedConfiguration();
         long maxLifetime = configuration.getConfigData(EntitiesConfig.class).maxLifetime();
         return Instant.now().getEpochSecond() + maxLifetime;
+    }
+
+    private byte[] createMockAddressBook() {
+        com.hederahashgraph.api.proto.java.NodeAddressBook.Builder builder =
+                com.hederahashgraph.api.proto.java.NodeAddressBook.newBuilder();
+        long nodeId = 3;
+        NodeAddress.Builder nodeAddressBuilder = NodeAddress.newBuilder()
+                .addServiceEndpoint(ServiceEndpoint.newBuilder()
+                        .setIpAddressV4(ByteString.copyFromUtf8("127.0.0." + nodeId))
+                        .setPort((int) nodeId)
+                        .build())
+                .setNodeId(nodeId)
+                .setNodeAccountId(AccountID.newBuilder()
+                        // setting the shard and realm just to be safe
+                        .setShardNum(properties.getCommonProperties().getShard())
+                        .setRealmNum(properties.getCommonProperties().getRealm())
+                        .setAccountNum(nodeId));
+        builder.addNodeAddress(nodeAddressBuilder.build());
+        return builder.build().toByteArray();
     }
 
     private record SystemFile(File genesisFile, Codec<?> codec) {}

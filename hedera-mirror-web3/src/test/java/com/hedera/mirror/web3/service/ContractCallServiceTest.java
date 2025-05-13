@@ -2,7 +2,6 @@
 
 package com.hedera.mirror.web3.service;
 
-import static com.hedera.hapi.node.base.ResponseCodeEnum.INVALID_ACCOUNT_ID;
 import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static com.hedera.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
@@ -22,6 +21,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_REVER
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_CONTRACT_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TRANSACTION;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -37,6 +37,7 @@ import static org.mockito.Mockito.when;
 
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
+import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.evm.store.Store;
@@ -578,7 +579,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
                     .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(INVALID_ACCOUNT_ID.name());
+                    .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
         } else {
             final var result = contractExecutionService.processCall(serviceParameters);
             assertThat(result).isEqualTo(HEX_PREFIX);
@@ -601,6 +602,29 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
 
         // Then
         assertThat(result).isEqualTo(HEX_PREFIX);
+        assertGasLimit(serviceParameters);
+    }
+
+    @Test
+    void ethCallWithValueAndSenderContractFails() {
+        // Given
+        final var receiverEntity = accountEntityWithEvmAddressPersist();
+        final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
+        final var contractAddress = toAddress(accountEntityPersistCustomizable(e -> e.type(EntityType.CONTRACT))
+                .toEntityId());
+        final var serviceParameters =
+                getContractExecutionParametersWithValue(Bytes.EMPTY, contractAddress, receiverAddress, 10L);
+
+        // Then
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+                    .isInstanceOf(MirrorEvmTransactionException.class)
+                    .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
+        } else {
+            final var result = contractExecutionService.processCall(serviceParameters);
+            assertThat(result).isEqualTo(HEX_PREFIX);
+        }
+
         assertGasLimit(serviceParameters);
     }
 
@@ -744,7 +768,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, senderAddress);
-        final var actualGas = 175242L;
+        final var actualGas = mirrorNodeEvmProperties.isModularizedServices() ? 1413995L : 175242L;
         persistRewardAccounts();
 
         // When
@@ -763,7 +787,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, Address.ZERO);
-        final var actualGas = 175242L;
+        final var actualGas = mirrorNodeEvmProperties.isModularizedServices() ? 1413995L : 175242L;
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);

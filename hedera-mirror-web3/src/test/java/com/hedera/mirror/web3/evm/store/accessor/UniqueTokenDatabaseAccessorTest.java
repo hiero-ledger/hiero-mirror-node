@@ -2,6 +2,7 @@
 
 package com.hedera.mirror.web3.evm.store.accessor;
 
+import static com.hedera.services.utils.EntityIdUtils.idFromEncodedId;
 import static com.hedera.services.utils.EntityIdUtils.idFromEntityId;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -54,7 +55,7 @@ class UniqueTokenDatabaseAccessorTest {
                                 new RichInstant(createdTimestampSecs, createdTimestampNanos),
                                 UniqueToken::getCreationTime)
                         .returns(idFromEntityId(nft.getAccountId()), UniqueToken::getOwner)
-                        .returns(idFromEntityId(nft.getSpender()), UniqueToken::getSpender)
+                        .returns(idFromEncodedId(nft.getSpender()), UniqueToken::getSpender)
                         .returns(nft.getMetadata(), UniqueToken::getMetadata));
     }
 
@@ -79,7 +80,7 @@ class UniqueTokenDatabaseAccessorTest {
                                 new RichInstant(createdTimestampSecs, createdTimestampNanos),
                                 UniqueToken::getCreationTime)
                         .returns(idFromEntityId(nft.getAccountId()), UniqueToken::getOwner)
-                        .returns(idFromEntityId(nft.getSpender()), UniqueToken::getSpender)
+                        .returns(idFromEncodedId(nft.getSpender()), UniqueToken::getSpender)
                         .returns(nft.getMetadata(), UniqueToken::getMetadata));
     }
 
