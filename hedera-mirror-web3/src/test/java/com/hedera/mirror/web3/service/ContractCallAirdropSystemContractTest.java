@@ -2,7 +2,7 @@
 
 package com.hedera.mirror.web3.service;
 
-import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.*;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -116,7 +116,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 DEFAULT_WEI_VALUE);
 
         // Then
-        verify(functionCall, contract);
+        verifyContractCall(functionCall, contract);
     }
 
     @ParameterizedTest(name = "Airdrop non-fungible token to a(an) {0} that is already associated to it")
@@ -140,7 +140,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 DEFAULT_WEI_VALUE);
 
         // Then
-        verify(functionCall, contract);
+        verifyContractCall(functionCall, contract);
     }
 
     @ParameterizedTest(name = "Airdrop multiple fungible tokens to a(an) {0}")
@@ -169,7 +169,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 tokens, senders, receivers, DEFAULT_TOKEN_AIRDROP_AMOUNT, DEFAULT_WEI_VALUE);
 
         // Then
-        verify(functionCall, contract);
+        verifyContractCall(functionCall, contract);
     }
 
     @ParameterizedTest(name = "Airdrop multiple non-fungible tokens to a(an) {0}")
@@ -200,7 +200,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         final var functionCall = contract.send_nftNAmountAirdrops(nfts, senders, receivers, serials, DEFAULT_WEI_VALUE);
 
         // Then
-        verify(functionCall, contract);
+        verifyContractCall(functionCall, contract);
     }
 
     @ParameterizedTest(name = "Airdrop 5 fungible and 5 non-fungible tokens to a(an) {0}")
@@ -255,7 +255,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 DEFAULT_WEI_VALUE);
 
         // Then
-        verify(functionCall, contract);
+        verifyContractCall(functionCall, contract);
     }
 
     @ParameterizedTest(
@@ -303,7 +303,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 tokens, nfts, senders, receivers, nftSenders, nftReceivers, DEFAULT_TOKEN_AIRDROP_AMOUNT, serials);
 
         // Then
-        verifyWithException(functionCall, CONTRACT_REVERT_EXECUTED);
+        verifyContractCallWithException(functionCall);
     }
 
     @ParameterizedTest(name = "Airdrop multiple tokens to contract that has {0} auto association slots and is {1}")
@@ -359,7 +359,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 DEFAULT_WEI_VALUE);
 
         // Then
-        verify(functionCall, contract);
+        verifyContractCall(functionCall, contract);
     }
 
     @ParameterizedTest(
@@ -394,7 +394,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 DEFAULT_WEI_VALUE);
 
         // Then
-        verify(functionCall, contract);
+        verifyContractCall(functionCall, contract);
     }
 
     @Test
@@ -424,7 +424,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 DEFAULT_WEI_VALUE);
 
         // Then
-        verify(functionCall, contract);
+        verifyContractCall(functionCall, contract);
     }
 
     @Test
@@ -476,7 +476,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 DEFAULT_WEI_VALUE);
 
         // Then
-        verify(functionCall, contract);
+        verifyContractCall(functionCall, contract);
     }
 
     @ParameterizedTest(
@@ -516,7 +516,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                         DEFAULT_WEI_VALUE);
 
         // Then
-        verify(functionCall, contract);
+        verifyContractCall(functionCall, contract);
     }
 
     @ParameterizedTest(name = "Airdrop with single sender and multiple {0} receivers")
@@ -555,7 +555,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 DEFAULT_WEI_VALUE);
 
         // Then
-        verify(functionCall, contract);
+        verifyContractCall(functionCall, contract);
     }
 
     @ParameterizedTest(name = "Airdrop to a(an) {0} fails when sender does not have enough balance")
@@ -580,7 +580,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 toAddress(receiver).toHexString(),
                 DEFAULT_TOKEN_AIRDROP_AMOUNT);
         // Then
-        verifyWithException(functionCall, CONTRACT_REVERT_EXECUTED);
+        verifyContractCallWithException(functionCall);
     }
 
     @Test
@@ -599,7 +599,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         final var functionCall = contract.call_tokenAirdrop(
                 tokenAddress, getAddressFromEntity(sender), receiverAddress, DEFAULT_TOKEN_AIRDROP_AMOUNT);
         // Then
-        verifyWithException(functionCall, CONTRACT_REVERT_EXECUTED);
+        verifyContractCallWithException(functionCall);
     }
 
     @ParameterizedTest(name = "Airdrop to a(an) {0} fails when token does not exist")
@@ -619,7 +619,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 toAddress(receiver).toHexString(),
                 DEFAULT_TOKEN_AIRDROP_AMOUNT);
         // Then
-        verifyWithException(functionCall, CONTRACT_REVERT_EXECUTED);
+        verifyContractCallWithException(functionCall);
     }
 
     @ParameterizedTest(
@@ -644,7 +644,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 BigInteger.valueOf(serialNumber));
 
         // Then
-        verifyWithException(functionCall, CONTRACT_REVERT_EXECUTED);
+        verifyContractCallWithException(functionCall);
     }
 
     @ParameterizedTest(name = "Distribute non-fungible tokens to a(an) {0}")
@@ -680,7 +680,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 nftAddress, getAddressFromEntity(sender), receivers, DEFAULT_WEI_VALUE);
 
         // Then
-        verify(functionCall, contract);
+        verifyContractCall(functionCall, contract);
     }
 
     @ParameterizedTest(name = "Fails to distribute non-fungible tokens to a(an) {0}, exceeds threshold of 10")
@@ -716,7 +716,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 contract.call_nftAirdropDistribute(nftAddress, getAddressFromEntity(sender), receivers);
 
         // Then
-        verifyWithException(functionCall, CONTRACT_REVERT_EXECUTED);
+        verifyContractCallWithException(functionCall);
     }
 
     @ParameterizedTest(name = "Fails to distribute non-fungible tokens with invalid id to a(an) {0} ")
@@ -754,7 +754,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 contract.call_nftAirdropDistribute(nftAddress, getAddressFromEntity(sender), receivers);
 
         // Then
-        verifyWithException(functionCall, CONTRACT_REVERT_EXECUTED);
+        verifyContractCallWithException(functionCall);
     }
 
     @Test
@@ -763,15 +763,13 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
     void airdropFrozenToken() {
         // Given
         final var sender = accountEntityPersist();
+        final var contract =
+                testWeb3jService.deployWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+        final var contractEntityId = getEntityId(contract.getContractAddress());
 
         final var receiverContractEntityId =
                 persistContractReceiver(ContractCallAirdropSystemContractTest::unlimitedMaxAutoAssociations);
         final var receiverContractAddress = toAddress(receiverContractEntityId).toHexString();
-
-        final var contract =
-                testWeb3jService.deployWithoutPersistWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
-        final var contractEntityId =
-                contractPersist(contract.getContractAddress(), Airdrop.BINARY, e -> e.balance(DEFAULT_BALANCE));
 
         final var tokenId = fungibleTokenSetup(sender);
         final var tokenAddress = toAddress(tokenId).toHexString();
@@ -790,7 +788,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 DEFAULT_WEI_VALUE);
 
         // Then
-        verifyWithException(functionCall, CONTRACT_REVERT_EXECUTED);
+        verifyContractCallWithException(functionCall);
     }
 
     private EntityId persistAirdropReceiver(String receiverType, Consumer<Entity.EntityBuilder<?, ?>> consumer) {
@@ -864,7 +862,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         return nonFungibleTokenId;
     }
 
-    private void verify(RemoteFunctionCall<TransactionReceipt> functionCall, Airdrop contract) {
+    private void verifyContractCall(RemoteFunctionCall<TransactionReceipt> functionCall, Airdrop contract) {
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(functionCall, contract);
         } else {
@@ -872,10 +870,10 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         }
     }
 
-    private void verifyWithException(RemoteFunctionCall<?> functionCall, ResponseCodeEnum expectedException) {
+    private void verifyContractCallWithException(RemoteFunctionCall<?> functionCall) {
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(expectedException.protoName());
+            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
         } else {
             assertThrows(PrecompileNotSupportedException.class, functionCall::send);
         }
