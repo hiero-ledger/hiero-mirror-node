@@ -44,8 +44,6 @@ const initializeFlyway = () => {
   }
 };
 
-export default async function (globalConfig, projectConfig) {
-  initializeFlyway();
-}
+export default initializeFlyway;
 
 export {FLYWAY_DATA_PATH, FLYWAY_EXE_PATH, FLYWAY_VERSION};
