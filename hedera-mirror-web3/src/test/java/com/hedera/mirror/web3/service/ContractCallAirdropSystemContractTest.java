@@ -8,7 +8,6 @@ import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.mirror.common.domain.entity.Entity;
 import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.token.FixedFee;
@@ -763,8 +762,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
     void airdropFrozenToken() {
         // Given
         final var sender = accountEntityPersist();
-        final var contract =
-                testWeb3jService.deployWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+        final var contract = testWeb3jService.deployWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
         final var contractEntityId = getEntityId(contract.getContractAddress());
 
         final var receiverContractEntityId =
