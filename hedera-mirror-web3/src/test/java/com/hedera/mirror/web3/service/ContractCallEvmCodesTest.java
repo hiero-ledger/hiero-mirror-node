@@ -14,8 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
@@ -26,19 +24,16 @@ import com.hedera.mirror.web3.viewmodel.BlockType;
 import com.hedera.mirror.web3.web3j.generated.EthCall;
 import com.hedera.mirror.web3.web3j.generated.EvmCodes;
 import com.hedera.mirror.web3.web3j.generated.EvmCodes.G1Point;
-import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
 import java.math.BigInteger;
-import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.assertj.core.api.AssertionsForClassTypes;
 import org.bouncycastle.util.encoders.Hex;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.web3j.abi.FunctionReturnDecoder;
 import org.web3j.abi.TypeReference;
 import org.web3j.abi.datatypes.AbiTypes;
@@ -48,12 +43,9 @@ import org.web3j.abi.datatypes.Type;
 class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
 
     private static final String EMPTY_BLOCK_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
-    private static final Long EVM_46_BLOCK = 150L;
+    private static final Long EVM_46_BLOCK_INDEX = 150L;
 
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
-
-    @MockitoSpyBean
-    private ContractExecutionService contractExecutionService;
 
     @Test
     void chainId() throws Exception {
@@ -209,29 +201,18 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     }
 
     @SuppressWarnings("unchecked")
-    @Disabled("Failing after adding @Transactional to ContractExecutionService")
     @Test
     void testNonSystemContractEthCallCodeHash() throws Exception {
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
         final var ethCallContract = testWeb3jService.deploy(EthCall::deploy);
 
-        final List<Bytes> capturedOutputs = new ArrayList<>();
-        doAnswer(invocation -> {
-                    HederaEvmTransactionProcessingResult result =
-                            (HederaEvmTransactionProcessingResult) invocation.callRealMethod();
-                    capturedOutputs.add(result.getOutput()); // Capture the result
-                    return result;
-                })
-                .when(contractExecutionService)
-                .callContract(any(), any());
+        final var result = contract.call_getCodeHash(ethCallContract.getContractAddress()).send();
 
-        final var result =
-                contract.call_getCodeHash(ethCallContract.getContractAddress()).send();
+        final var encoded = FunctionReturnDecoder.decode(
+                Bytes.wrap(result).toHexString(),
+                List.of(TypeReference.create((Class<Type>) AbiTypes.getType("bytes32"))));
 
-        final var expectedOutput = capturedOutputs.getFirst().toHexString();
-        final var byteArrOutput = FunctionReturnDecoder.decode(
-                expectedOutput, List.of(TypeReference.create((Class<Type>) AbiTypes.getType("bytes32"))));
-        assertArrayEquals(result, (byte[]) byteArrOutput.getFirst().getValue());
+        Assertions.assertArrayEquals(result, (byte[]) encoded.getFirst().getValue());
     }
 
     @Test
@@ -312,13 +293,12 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
         assertDoesNotThrow(functionCall::send);
     }
 
-    @Disabled("Failing after adding @Transactional to ContractExecutionService")
     @Test
     void testKZGCallEvm46() {
         // Given
         final var recordFile =
-                domainBuilder.recordFile().customize(f -> f.index(EVM_46_BLOCK)).persist();
-        testWeb3jService.setBlockType(BlockType.of(String.valueOf(EVM_46_BLOCK)));
+                domainBuilder.recordFile().customize(f -> f.index(EVM_46_BLOCK_INDEX)).persist();
+        testWeb3jService.setBlockType(BlockType.of(String.valueOf(EVM_46_BLOCK_INDEX)));
         testWeb3jService.setHistoricalRange(
                 Range.closedOpen(recordFile.getConsensusStart(), recordFile.getConsensusEnd()));
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
@@ -342,8 +322,8 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     void testTransientStorageEvm46() {
         // Given
         final var recordFile =
-                domainBuilder.recordFile().customize(f -> f.index(EVM_46_BLOCK)).persist();
-        testWeb3jService.setBlockType(BlockType.of(String.valueOf(EVM_46_BLOCK)));
+                domainBuilder.recordFile().customize(f -> f.index(EVM_46_BLOCK_INDEX)).persist();
+        testWeb3jService.setBlockType(BlockType.of(String.valueOf(EVM_46_BLOCK_INDEX)));
         testWeb3jService.setHistoricalRange(
                 Range.closedOpen(recordFile.getConsensusStart(), recordFile.getConsensusEnd()));
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
@@ -367,8 +347,8 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     void testMCopyEvm46() {
         // Given
         final var recordFile =
-                domainBuilder.recordFile().customize(f -> f.index(EVM_46_BLOCK)).persist();
-        testWeb3jService.setBlockType(BlockType.of(String.valueOf(EVM_46_BLOCK)));
+                domainBuilder.recordFile().customize(f -> f.index(EVM_46_BLOCK_INDEX)).persist();
+        testWeb3jService.setBlockType(BlockType.of(String.valueOf(EVM_46_BLOCK_INDEX)));
         testWeb3jService.setHistoricalRange(
                 Range.closedOpen(recordFile.getConsensusStart(), recordFile.getConsensusEnd()));
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
