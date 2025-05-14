@@ -6,23 +6,22 @@ The general handling of Maintainer rights and all groups in this GitHub org is d
 
 Maintainers are assigned the following scopes in this repository:
 
-| Scope      | Definition               | GitHub Role | GitHub Team                        |
-| ---------- | ------------------------ | ----------- | ---------------------------------- |
-| Maintainer | The GitHub Maintain role | Maintain    | `hiero-mirror-node-maintainers`    |
+| Scope      | Definition                 | GitHub Role | GitHub Team                        |
+|------------|----------------------------|-------------|------------------------------------|
+| Maintainer | The GitHub Maintain role   | Maintain    | `hiero-mirror-node-maintainers`   |
 
 ## Active Maintainers
 
 <!-- Please keep this sorted alphabetically by github -->
 
 | Name | GitHub ID | Scope | LFID | Discord ID | Email | Company Affiliation |
-|----- | --------- | ----- | ---- | ---------- | ----- | ------------------- |
+|------|-----------|-------|------|------------|-------|---------------------|
 |      |           |       |      |            |       |                     |
-
 
 ## Emeritus Maintainers
 
 | Name | GitHub ID | Scope | LFID | Discord ID | Email | Company Affiliation |
-|----- | --------- | ----- | ---- | ---------- | ----- | ------------------- |
+|------|-----------|-------|------|------------|-------|---------------------|
 |      |           |       |      |            |       |                     |
 
 ## The Duties of a Maintainer
