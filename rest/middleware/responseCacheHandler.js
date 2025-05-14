@@ -7,6 +7,7 @@ import {Cache} from '../cache';
 import {CachedApiResponse} from '../model';
 import config from '../config';
 import {
+  contentTypeHeader,
   httpStatusCodes,
   requestStartTime,
   responseBodyLabel,
@@ -20,7 +21,6 @@ const CACHE_KEY_VERSION_SUFFIX = '-v1';
 const CONDITIONAL_HEADER = 'if-none-match';
 const CONTENT_ENCODING_HEADER = 'content-encoding';
 const CONTENT_LENGTH_HEADER = 'content-length';
-const CONTENT_TYPE_HEADER = 'content-type';
 const DEFAULT_REDIS_EXPIRY = 1;
 const ETAG_HEADER = 'etag';
 const GZIP_ENCODING = 'gzip';
@@ -54,7 +54,7 @@ const responseCacheCheckHandler = async (req, res, next) => {
 
   if (isHead || clientCached) {
     if (clientCached) {
-      delete headers[CONTENT_TYPE_HEADER];
+      delete headers[contentTypeHeader];
     } else {
       // For HEAD requests when status code is not 304, negotiate the encoding and set corresponding headers
       negotiate(cachedResponse, req, res);
