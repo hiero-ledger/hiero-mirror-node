@@ -27,7 +27,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Named
-public class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedule> {
+class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedule> {
 
     private final ScheduleRepository scheduleRepository;
 
