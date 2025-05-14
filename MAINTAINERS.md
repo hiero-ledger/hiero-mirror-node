@@ -8,7 +8,7 @@ Maintainers are assigned the following scopes in this repository:
 
 | Scope      | Definition               | GitHub Role | GitHub Team                        |
 | ---------- | ------------------------ | ----------- | ---------------------------------- |
-| Maintainer | The GitHub Maintain role | Maintain    | `hiero-mirror-node-maintainers` |
+| Maintainer | The GitHub Maintain role | Maintain    | `hiero-mirror-node-maintainers`    |
 
 ## Active Maintainers
 
