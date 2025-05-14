@@ -19,6 +19,8 @@ import com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
+import com.hederahashgraph.api.proto.java.SignaturePair;
+import com.hederahashgraph.api.proto.java.SignaturePair.SignatureCase;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.List;
@@ -98,13 +100,14 @@ class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedu
 
         return signatures.stream()
                 .map(signature -> {
-                    Key.KeyOneOfType keyType = fromProtoOrdinal(signature.getType());
-                    return switch (keyType) {
-                        case ED25519 ->
+                    SignaturePair.SignatureCase signatureCase =
+                            SignaturePair.SignatureCase.forNumber(signature.getType());
+                    return switch (signatureCase) {
+                        case SignatureCase.ED25519 ->
                             Key.newBuilder()
                                     .ed25519(Bytes.wrap(signature.getPublicKeyPrefix()))
                                     .build();
-                        case ECDSA_SECP256K1 ->
+                        case SignatureCase.ECDSA_SECP256K1 ->
                             Key.newBuilder()
                                     .ecdsaSecp256k1(Bytes.wrap(signature.getPublicKeyPrefix()))
                                     .build();
@@ -113,21 +116,5 @@ class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedu
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Converts a proto ordinal to the corresponding Key.KeyOneOfType enum value.
-     *
-     * @param protoOrdinal the proto ordinal to convert
-     * @return the corresponding Key.KeyOneOfType enum value
-     * @throws IllegalArgumentException if the proto ordinal does not correspond to any Key.KeyOneOfType
-     */
-    private Key.KeyOneOfType fromProtoOrdinal(int protoOrdinal) {
-        for (Key.KeyOneOfType kind : Key.KeyOneOfType.values()) {
-            if (kind.protoOrdinal() == protoOrdinal) {
-                return kind;
-            }
-        }
-        throw new IllegalArgumentException("Unknown protoOrdinal: " + protoOrdinal);
     }
 }

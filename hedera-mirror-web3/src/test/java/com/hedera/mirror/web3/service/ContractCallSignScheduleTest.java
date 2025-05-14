@@ -7,7 +7,6 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hedera.hapi.node.base.AccountAmount;
-import com.hedera.hapi.node.base.Key.KeyOneOfType;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.base.SignaturePair;
 import com.hedera.hapi.node.base.TransferList;
@@ -24,6 +23,7 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
+import com.hederahashgraph.api.proto.java.SignaturePair.SignatureCase;
 import java.nio.ByteBuffer;
 import java.security.KeyPairGenerator;
 import lombok.RequiredArgsConstructor;
@@ -93,7 +93,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
                                 .toByteArray())
                         .signature(signMessageECDSA(messageHash, Numeric.toBytesPadded(keyPair.getPrivateKey(), 32)))
                         .entityId(EntityId.of(schedule.getScheduleId()))
-                        .type(KeyOneOfType.ECDSA_SECP256K1.protoOrdinal()))
+                        .type(SignatureCase.ECDSA_SECP256K1.getNumber()))
                 .persist();
 
         // Sign again with the same key
@@ -142,7 +142,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
                 .customize(ts -> ts.publicKeyPrefix(publicKeyCompressed.toByteArray())
                         .signature(signedBytes)
                         .entityId(EntityId.of(schedule.getScheduleId()))
-                        .type(KeyOneOfType.ED25519.protoOrdinal()))
+                        .type(SignatureCase.ED25519.getNumber()))
                 .persist();
 
         // When
