@@ -11,6 +11,7 @@ const config = {
     '<rootDir>/node_modules/',
     '<rootDir>/__tests__/',
   ],
+  globalSetup: './__tests__/globalSetup.js',
   globalTeardown: './__tests__/globalTeardown.js',
   maxWorkers,
   reporters: [['github-actions', {silent: false}], 'jest-junit', ['summary', {summaryThreshold: 0}]],
