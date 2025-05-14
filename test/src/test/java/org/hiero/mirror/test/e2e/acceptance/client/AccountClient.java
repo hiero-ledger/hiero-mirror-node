@@ -36,7 +36,7 @@ import org.springframework.retry.support.RetryTemplate;
 @Named
 public class AccountClient extends AbstractNetworkClient {
 
-    private static final long DEFAULT_INITIAL_BALANCE = 50_000_000L; // 0.5 ℏ
+    private static final long DEFAULT_INITIAL_BALANCE = 75_000_000L; // 0.75 ℏ
 
     private final Map<AccountNameEnum, ExpandedAccountId> accountMap = new ConcurrentHashMap<>();
     private final Collection<ExpandedAccountId> accountIds = new CopyOnWriteArrayList<>();
