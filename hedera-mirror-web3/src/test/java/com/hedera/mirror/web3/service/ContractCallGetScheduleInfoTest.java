@@ -21,35 +21,26 @@ import com.hedera.node.app.hapi.utils.CommonPbjConverters;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.math.BigInteger;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * This test class validates the correct results for getting schedule info for a token create transaction via smart contract calls .
  */
 class ContractCallGetScheduleInfoTest extends AbstractContractCallServiceHistoricalTest {
-
-    @Test
-    void getFungibleCreateScheduleInfoNonExisting() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void getFungibleCreateScheduleInfoNonExisting(final Boolean isFungible) {
         // Cannot get schedule info for non-existing schedule
         // Given
         final var entity = domainBuilder.entityId();
         final var nonExistingAddress = toAddress(entity).toHexString();
         final var contract = testWeb3jService.deploy(GetScheduleInfo::deploy);
         // When
-        final var functionCall = contract.call_getFungibleCreateTokenInfo(nonExistingAddress);
-        final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        // Then
-        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-    }
+        final var functionCall = isFungible
+                ? contract.call_getFungibleCreateTokenInfo(nonExistingAddress)
+                : contract.call_getNonFungibleCreateTokenInfo(nonExistingAddress);
 
-    @Test
-    void getNFTCreateScheduleInfoNonExisting() {
-        // Cannot get schedule info for non-existing schedule
-        // Given
-        final var entity = domainBuilder.entityId();
-        final var nonExistingAddress = toAddress(entity).toHexString();
-        final var contract = testWeb3jService.deploy(GetScheduleInfo::deploy);
-        // When
-        final var functionCall = contract.call_getNonFungibleCreateTokenInfo(nonExistingAddress);
         final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         // Then
         assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
