@@ -8,7 +8,7 @@ import {JSONParse, JSONStringify} from './utils';
 export class Cache {
   constructor() {
     const {redis: redisConfig} = config;
-    const {enabled, sentinel, uri} = redisConfig;
+    const {sentinel, uri} = redisConfig;
     const sentinelOptions = sentinel.enabled
       ? {
           name: sentinel.name,
@@ -23,12 +23,12 @@ export class Cache {
       enableOfflineQueue: true,
       enableReadyCheck: true,
       keepAlive: 30000,
-      lazyConnect: !enabled,
+      lazyConnect: !redisConfig.enabled,
       maxRetriesPerRequest: redisConfig.maxRetriesPerRequest,
       retryStrategy: (attempt) => {
         this.ready = false;
 
-        if (!enabled) {
+        if (!redisConfig.enabled) {
           return null;
         }
 

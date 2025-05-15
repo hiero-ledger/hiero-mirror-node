@@ -4,18 +4,23 @@ package org.hiero.mirror.importer.migration;
 
 import com.google.common.collect.Range;
 import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.entity.Node;
+import com.hedera.mirror.common.domain.node.Node;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
+import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.repository.NodeRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 @DisablePartitionMaintenance
 @DisableRepeatableSqlMigration
@@ -37,7 +42,8 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
     }
 
     @Test
-    void migrateNoHistory() {
+    @ExtendWith(OutputCaptureExtension.class)
+    void migrateNoHistory(CapturedOutput output) {
         var expectedNodes = persist();
 
         softly.assertThat(nodeRepository.count()).isZero();
@@ -46,10 +52,12 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
 
         softly.assertThat(nodeRepository.count()).isEqualTo(3);
         softly.assertThat(nodeRepository.findAll()).containsExactlyInAnyOrderElementsOf(expectedNodes);
+        verifyFailedItem(output, expectedNodes.getFirst().getCreatedTimestamp());
     }
 
     @Test
-    void migrateHistory() {
+    @ExtendWith(OutputCaptureExtension.class)
+    void migrateHistory(CapturedOutput output) {
         var originalNodes = persist();
         var historyNodes = new ArrayList<Node>();
         var newNodes = new ArrayList<Node>();
@@ -117,6 +125,17 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
 
         softly.assertThat(nodeRepository.findAll()).containsExactlyInAnyOrderElementsOf(newNodes);
         softly.assertThat(findHistory(Node.class)).containsExactlyInAnyOrderElementsOf(historyNodes);
+
+        verifyFailedItem(output, originalNodes.getFirst().getCreatedTimestamp());
+    }
+
+    private void verifyFailedItem(CapturedOutput output, Long createdTimestamp) {
+        var failedRecordItemTs = createdTimestamp + 3;
+        var failedStatus = ResponseCodeEnum.FAIL_INVALID;
+        var expectedLog = "Skipping node transaction %d with status %s as node is not parsable"
+                .formatted(failedRecordItemTs, failedStatus.name());
+
+        softly.assertThat(output).contains(expectedLog);
     }
 
     @SneakyThrows
@@ -130,14 +149,22 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
         // Update with nonce 1
         var nodeUpdateRecordItem = recordItemBuilder
                 .nodeUpdate()
-                .recordItem(ri -> ri.consensusTimestamp(nodeCreateRecordItem.getConsensusTimestamp() + 1))
                 .record(r -> r.setTransactionID(
-                        r.getTransactionID().toBuilder().setNonce(1).build()))
+                                r.getTransactionID().toBuilder().setNonce(1).build())
+                        .setConsensusTimestamp(TestUtils.toTimestamp(nodeCreateRecordItem.getConsensusTimestamp() + 1)))
                 .build();
 
         var nodeUpdateWithoutCreateRecordItem = recordItemBuilder
                 .nodeUpdate()
-                .recordItem(ri -> ri.consensusTimestamp(nodeCreateRecordItem.getConsensusTimestamp() + 2))
+                .record(r -> r.setConsensusTimestamp(
+                        TestUtils.toTimestamp(nodeCreateRecordItem.getConsensusTimestamp() + 2)))
+                .build();
+
+        var failedRecordItem = recordItemBuilder
+                .nodeUpdate()
+                .record(r -> r.setConsensusTimestamp(
+                        TestUtils.toTimestamp(nodeCreateRecordItem.getConsensusTimestamp() + 3)))
+                .receipt(r -> r.setStatus(ResponseCodeEnum.FAIL_INVALID))
                 .build();
 
         domainBuilder
@@ -172,6 +199,16 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                         .type(TransactionType.NODEUPDATE.getProtoId()))
                 .persist();
 
+        domainBuilder
+                .transaction()
+                .customize(t -> t.transactionBytes(
+                                failedRecordItem.getTransaction().toByteArray())
+                        .consensusTimestamp(failedRecordItem.getConsensusTimestamp())
+                        .transactionRecordBytes(
+                                failedRecordItem.getTransactionRecord().toByteArray())
+                        .type(TransactionType.NODEUPDATE.getProtoId()))
+                .persist();
+
         var expectedNodeCreate = Node.builder()
                 .adminKey(nodeCreateRecordItem
                         .getTransactionBody()
@@ -184,6 +221,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                 .nodeId(nodeCreateRecordItem.getTransactionRecord().getReceipt().getNodeId())
                 .timestampRange(Range.atLeast(nodeCreateRecordItem.getConsensusTimestamp()))
                 .build();
+
         var expectedNodeUpdate = Node.builder()
                 .adminKey(nodeUpdateRecordItem
                         .getTransactionBody()

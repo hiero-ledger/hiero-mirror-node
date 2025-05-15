@@ -128,6 +128,11 @@
         "created_timestamp": 1664365660048674966,
         "decline_reward": false,
         "deleted": false,
+        "grpc_proxy_endpoint": {
+          "domain_name": "node1.hedera.com",
+          "ip_address_v4": "",
+          "port": 80
+        },
         "node_id": 0,
         "timestamp_range": "[0,)"
       },
@@ -136,6 +141,11 @@
         "created_timestamp": 1664365660048674967,
         "decline_reward": true,
         "deleted": false,
+        "grpc_proxy_endpoint": {
+          "domain_name": "node2.hedera.com",
+          "ip_address_v4": "",
+          "port": 80
+        },
         "node_id": 1,
         "timestamp_range": "[0,)"
       }
@@ -150,6 +160,11 @@
         "decline_reward": false,
         "description": "description",
         "file_id": "0.0.102",
+        "grpc_proxy_endpoint": {
+          "domain_name": "node1.hedera.com",
+          "ip_address_v4": "",
+          "port": 80
+        },
         "max_stake": 5000,
         "memo": "0.0.3",
         "min_stake": 10,
@@ -182,6 +197,11 @@
         "decline_reward": true,
         "description": "description",
         "file_id": "0.0.102",
+        "grpc_proxy_endpoint": {
+          "domain_name": "node2.hedera.com",
+          "ip_address_v4": "",
+          "port": 80
+        },
         "max_stake": null,
         "memo": "0.0.4",
         "min_stake": null,

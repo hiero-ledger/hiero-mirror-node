@@ -37,13 +37,14 @@ import com.hedera.mirror.common.domain.entity.EntityStakeHistory;
 import com.hedera.mirror.common.domain.entity.EntityTransaction;
 import com.hedera.mirror.common.domain.entity.NftAllowance;
 import com.hedera.mirror.common.domain.entity.NftAllowanceHistory;
-import com.hedera.mirror.common.domain.entity.Node;
-import com.hedera.mirror.common.domain.entity.NodeHistory;
 import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.mirror.common.domain.entity.TokenAllowanceHistory;
 import com.hedera.mirror.common.domain.file.FileData;
 import com.hedera.mirror.common.domain.job.ReconciliationJob;
 import com.hedera.mirror.common.domain.job.ReconciliationStatus;
+import com.hedera.mirror.common.domain.node.Node;
+import com.hedera.mirror.common.domain.node.NodeHistory;
+import com.hedera.mirror.common.domain.node.ServiceEndpoint;
 import com.hedera.mirror.common.domain.schedule.Schedule;
 import com.hedera.mirror.common.domain.token.CustomFee;
 import com.hedera.mirror.common.domain.token.CustomFeeHistory;
@@ -679,6 +680,11 @@ public class DomainBuilder {
                 .createdTimestamp(timestamp)
                 .declineReward(false)
                 .deleted(false)
+                .grpcProxyEndpoint(ServiceEndpoint.builder()
+                        .domainName("node1.hedera.com")
+                        .ipAddressV4("")
+                        .port(80)
+                        .build())
                 .nodeId(number())
                 .timestampRange(Range.atLeast(timestamp));
 
@@ -692,6 +698,11 @@ public class DomainBuilder {
                 .createdTimestamp(timestamp)
                 .declineReward(false)
                 .deleted(false)
+                .grpcProxyEndpoint(ServiceEndpoint.builder()
+                        .domainName("node1.hedera.com")
+                        .ipAddressV4("")
+                        .port(80)
+                        .build())
                 .nodeId(number())
                 .timestampRange(Range.closedOpen(timestamp, timestamp + 10));
         return new DomainWrapperImpl<>(builder, builder::build);

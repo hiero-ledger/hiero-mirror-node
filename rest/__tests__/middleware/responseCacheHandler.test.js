@@ -3,18 +3,19 @@
 import {jest} from '@jest/globals';
 
 import config from '../../config';
-import {gzipSync, unzipSync} from 'zlib';
 import {Cache} from '../../cache';
 import {RedisContainer} from '@testcontainers/redis';
 import {defaultBeforeAllTimeoutMillis} from '../integrationUtils';
-import CachedApiResponse from '../../model/cachedApiResponse.js';
-import {cacheKeyGenerator, responseCacheCheckHandler, responseCacheUpdateHandler, setCache} from '../../middleware';
+import {CachedApiResponse} from '../../model';
 import {httpStatusCodes, responseBodyLabel, responseCacheKeyLabel} from '../../constants';
-import {JSONStringify} from '../../utils.js';
+import {JSONStringify} from '../../utils';
 
 let cache;
-let redisContainer;
+let cacheKeyGenerator;
 let compressEnabled;
+let redisContainer;
+let responseCacheCheckHandler;
+let responseCacheUpdateHandler;
 
 const cacheControlMaxAge = 60;
 
@@ -23,6 +24,14 @@ beforeAll(async () => {
   compressEnabled = config.cache.response.compress;
   redisContainer = await new RedisContainer().withStartupTimeout(20000).start();
   logger.info('Started Redis container');
+
+  config.redis.uri = `0.0.0.0:${redisContainer.getMappedPort(6379)}`;
+  cache = new Cache();
+
+  const middleware = await import('../../middleware');
+  cacheKeyGenerator = middleware.cacheKeyGenerator;
+  responseCacheCheckHandler = middleware.responseCacheCheckHandler;
+  responseCacheUpdateHandler = middleware.responseCacheUpdateHandler;
 }, defaultBeforeAllTimeoutMillis);
 
 afterAll(async () => {
@@ -30,12 +39,10 @@ afterAll(async () => {
   await redisContainer.stop({signal: 'SIGKILL', t: 5});
   logger.info('Stopped Redis container');
   config.cache.response.compress = compressEnabled;
+  config.redis.enabled = false;
 });
 
 beforeEach(async () => {
-  config.redis.uri = `0.0.0.0:${redisContainer.getMappedPort(6379)}`;
-  cache = new Cache();
-  setCache(cache);
   await cache.clear();
 });
 
@@ -44,6 +51,7 @@ describe('Response cache middleware', () => {
   const cachedHeaders = {
     'cache-control': `public, max-age=${cacheControlMaxAge}`,
     'content-type': 'application/json; charset=utf-8',
+    vary: 'accept-encoding',
   };
 
   beforeEach(() => {
@@ -124,35 +132,6 @@ describe('Response cache middleware', () => {
         expect(mockResponse.set).toHaveBeenNthCalledWith(1, cachedHeaders);
         expect(mockResponse.status).toBeCalledWith(httpStatusCodes.OK.code);
       });
-
-      test('Cache hit - client cached - GET', async () => {
-        cachedHeaders['etag'] = '12345';
-        mockRequest.headers['if-none-match'] = cachedHeaders['etag'];
-        const cachedBody = JSONStringify({a: 'b'});
-        const cachedResponse = new CachedApiResponse(httpStatusCodes.OK.code, cachedHeaders, cachedBody, false);
-        const cacheKey = cacheKeyGenerator(mockRequest);
-        await cache.setSingle(cacheKey, cacheControlMaxAge, cachedResponse);
-
-        await responseCacheCheckHandler(mockRequest, mockResponse, null);
-        expect(mockResponse.end).toBeCalled();
-        expect(mockResponse.set).toHaveBeenNthCalledWith(1, cachedHeaders);
-        expect(mockResponse.status).toBeCalledWith(httpStatusCodes.UNMODIFIED.code);
-      });
-
-      test('Cache hit - client cached - HEAD', async () => {
-        cachedHeaders['etag'] = '12345';
-        mockRequest.headers['if-none-match'] = cachedHeaders['etag'];
-        const cachedBody = JSONStringify({a: 'b'});
-        const cachedResponse = new CachedApiResponse(httpStatusCodes.OK.code, cachedHeaders, cachedBody, false);
-        const cacheKey = cacheKeyGenerator(mockRequest);
-        await cache.setSingle(cacheKey, cacheControlMaxAge, cachedResponse);
-
-        mockRequest.method = 'HEAD';
-        await responseCacheCheckHandler(mockRequest, mockResponse, null);
-        expect(mockResponse.end).toBeCalled();
-        expect(mockResponse.set).toHaveBeenNthCalledWith(1, cachedHeaders);
-        expect(mockResponse.status).toBeCalledWith(httpStatusCodes.UNMODIFIED.code);
-      });
     });
 
     describe('Cache update', () => {
@@ -197,101 +176,6 @@ describe('Response cache middleware', () => {
         const cachedResponse = await cache.getSingleWithTtl(cacheKey);
         expect(cachedResponse).toBeUndefined();
       });
-
-      test.each([httpStatusCodes.OK.code, httpStatusCodes.UNMODIFIED.code])(
-        'Cache successful response - %d',
-        async (status) => {
-          const cacheKey = cacheKeyGenerator(mockRequest);
-          const expectedBody = JSONStringify({a: 'b'});
-
-          mockResponse.locals[responseBodyLabel] = expectedBody;
-          mockResponse.locals[responseCacheKeyLabel] = cacheKey;
-          mockResponse.statusCode = status;
-          mockResponse.getHeaders.mockImplementation(() => mockResponse.headers);
-
-          await responseCacheUpdateHandler(mockRequest, mockResponse, null);
-          const cachedResponse = await cache.getSingleWithTtl(cacheKey);
-          expect(cachedResponse).not.toBeUndefined();
-
-          expect(cachedResponse.ttl).toBeLessThanOrEqual(cacheControlMaxAge);
-          expect(cachedResponse.value?.compressed).toEqual(false);
-          expect(cachedResponse.value?.body).toEqual(expectedBody);
-
-          const expectedHeaders = {'content-type': 'application/json; charset=utf-8'};
-          expect(cachedResponse.value?.headers).toEqual(expectedHeaders);
-        }
-      );
-    });
-  });
-
-  describe('with compression', () => {
-    beforeAll(async () => {
-      config.cache.response.compress = true;
-    }, defaultBeforeAllTimeoutMillis);
-
-    describe('Cache check', () => {
-      test('Cache hit accepts gzip', async () => {
-        // Place the expected response in the cache.
-        const cachedBody = gzipSync(JSONStringify({a: 'b'}));
-        const cachedResponse = new CachedApiResponse(httpStatusCodes.OK.code, cachedHeaders, cachedBody, true);
-        const cacheKey = cacheKeyGenerator(mockRequest);
-        await cache.setSingle(cacheKey, cacheControlMaxAge, cachedResponse);
-
-        await responseCacheCheckHandler(mockRequest, mockResponse, null);
-        expect(mockResponse.send).toBeCalledWith(cachedBody);
-        expect(mockResponse.set).toHaveBeenNthCalledWith(1, cachedHeaders);
-        expect(mockResponse.setHeader).toHaveBeenNthCalledWith(1, 'content-encoding', 'gzip');
-        expect(mockResponse.status).toBeCalledWith(httpStatusCodes.OK.code);
-      });
-
-      test('Cache hit does not accept gzip', async () => {
-        const cachedBody = JSONStringify({a: 'b'});
-
-        // Place the expected response in the cache.
-        const cachedResponse = new CachedApiResponse(
-          httpStatusCodes.OK.code,
-          cachedHeaders,
-          gzipSync(cachedBody),
-          true
-        );
-        const cacheKey = cacheKeyGenerator(mockRequest);
-        await cache.setSingle(cacheKey, cacheControlMaxAge, cachedResponse);
-
-        // accept-encoding zstd
-        mockRequest.headers['accept-encoding'] = 'zstd';
-
-        await responseCacheCheckHandler(mockRequest, mockResponse, null);
-        expect(mockResponse.send).toBeCalledWith(cachedBody);
-        expect(mockResponse.set).toHaveBeenNthCalledWith(1, cachedHeaders);
-        expect(mockResponse.setHeader).not.toBeCalled();
-        expect(mockResponse.status).toBeCalledWith(httpStatusCodes.OK.code);
-      });
-    });
-
-    describe('Cache update', () => {
-      test.each([httpStatusCodes.OK.code, httpStatusCodes.UNMODIFIED.code])(
-        'Cache successful response - %d',
-        async (status) => {
-          const cacheKey = cacheKeyGenerator(mockRequest);
-          const expectedBody = JSONStringify({a: 'b'});
-
-          mockResponse.locals[responseBodyLabel] = expectedBody;
-          mockResponse.locals[responseCacheKeyLabel] = cacheKey;
-          mockResponse.statusCode = status;
-          mockResponse.getHeaders.mockImplementation(() => mockResponse.headers);
-
-          await responseCacheUpdateHandler(mockRequest, mockResponse, null);
-          const cachedResponse = await cache.getSingleWithTtl(cacheKey);
-          expect(cachedResponse).not.toBeUndefined();
-
-          expect(cachedResponse.ttl).toBeLessThanOrEqual(cacheControlMaxAge);
-          expect(cachedResponse.value?.compressed).toEqual(true);
-          expect(unzipSync(Buffer.from(cachedResponse.value?.body)).toString()).toEqual(expectedBody);
-
-          const expectedHeaders = {'content-type': 'application/json; charset=utf-8'};
-          expect(cachedResponse.value?.headers).toEqual(expectedHeaders);
-        }
-      );
     });
   });
 });

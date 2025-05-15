@@ -7,7 +7,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.entity.Node;
+import com.hedera.mirror.common.domain.node.Node;
 import com.hederahashgraph.api.proto.java.NodeDeleteTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.Test;

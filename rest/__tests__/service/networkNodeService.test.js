@@ -29,7 +29,7 @@ describe('NetworkNodeService.getNetworkNodesWithFiltersQuery tests', () => {
                                          staking_period
                                   from node_stake
                                   where consensus_timestamp = (select max(consensus_timestamp) from node_stake)),
-                           n as (select admin_key, decline_reward, node_id
+                           n as (select admin_key, decline_reward, grpc_proxy_endpoint, node_id
                                  from node)
                       select abe.description,
                              abe.memo,
@@ -42,6 +42,7 @@ describe('NetworkNodeService.getNetworkNodesWithFiltersQuery tests', () => {
                              adb.end_consensus_timestamp,
                              n.admin_key,
                              n.decline_reward,
+                             n.grpc_proxy_endpoint,
                              ns.max_stake,
                              ns.min_stake,
                              ns.reward_rate,
@@ -86,7 +87,7 @@ describe('NetworkNodeService.getNetworkNodesWithFiltersQuery tests', () => {
                                          staking_period
                                   from node_stake
                                   where consensus_timestamp = (select max(consensus_timestamp) from node_stake)),
-                           n as (select admin_key, decline_reward, node_id
+                           n as (select admin_key, decline_reward, grpc_proxy_endpoint, node_id
                                  from node)
                       select abe.description,
                              abe.memo,
@@ -99,6 +100,7 @@ describe('NetworkNodeService.getNetworkNodesWithFiltersQuery tests', () => {
                              adb.end_consensus_timestamp,
                              n.admin_key,
                              n.decline_reward,
+                             n.grpc_proxy_endpoint,
                              ns.max_stake,
                              ns.min_stake,
                              ns.reward_rate,

@@ -1072,6 +1072,11 @@ const nodeDefaults = {
   created_timestamp: 1664365660048674966,
   decline_reward: false,
   deleted: false,
+  grpc_proxy_endpoint: {
+    domain_name: 'localhost',
+    ip_address_v4: '',
+    port: 80,
+  },
   node_id: 0,
   timestamp_range: '[0,)',
 };
@@ -1575,6 +1580,7 @@ const addNode = async (nodeInput) => {
   };
 
   convertByteaFields(['admin_key'], node);
+  node.grpc_proxy_endpoint = node.grpc_proxy_endpoint ? JSONStringify(node.grpc_proxy_endpoint) : null;
   await insertDomainObject('node', Object.keys(nodeDefaults), node);
 };
 

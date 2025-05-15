@@ -3,7 +3,7 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.Node;
+import com.hedera.mirror.common.domain.node.Node;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;

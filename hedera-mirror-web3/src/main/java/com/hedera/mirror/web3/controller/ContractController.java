@@ -6,6 +6,7 @@ import static com.hedera.mirror.web3.config.ThrottleConfiguration.GAS_LIMIT_BUCK
 import static com.hedera.mirror.web3.config.ThrottleConfiguration.RATE_LIMIT_BUCKET;
 import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static com.hedera.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
+import static com.hedera.mirror.web3.utils.Constants.MODULARIZED_HEADER;
 
 import com.hedera.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import com.hedera.mirror.web3.exception.InvalidParametersException;
@@ -17,6 +18,7 @@ import com.hedera.mirror.web3.viewmodel.ContractCallRequest;
 import com.hedera.mirror.web3.viewmodel.ContractCallResponse;
 import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import io.github.bucket4j.Bucket;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RestController
 class ContractController {
+
     private final ContractExecutionService contractExecutionService;
 
     @Qualifier(RATE_LIMIT_BUCKET)
@@ -50,7 +53,8 @@ class ContractController {
     @PostMapping(value = "/call")
     ContractCallResponse call(
             @RequestBody @Valid ContractCallRequest request,
-            @RequestHeader(value = "Is-Modularized", required = false) String isModularizedHeader) {
+            @RequestHeader(value = MODULARIZED_HEADER, required = false) String isModularizedHeader,
+            HttpServletResponse response) {
 
         if (!rateLimitBucket.tryConsume(1)) {
             throw new RateLimitException("Requests per second rate limit exceeded.");
@@ -63,6 +67,7 @@ class ContractController {
             validateContractMaxGasLimit(request);
 
             final var params = constructServiceParameters(request, isModularizedHeader);
+            response.addHeader(MODULARIZED_HEADER, String.valueOf(params.isModularized()));
             final var result = contractExecutionService.processCall(params);
             return new ContractCallResponse(result);
         } catch (QueryTimeoutException e) {

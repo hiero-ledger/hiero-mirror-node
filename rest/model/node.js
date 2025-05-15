@@ -1,6 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import ServiceEndpoint from './serviceEndpoint';
+
 class Node {
+  static tableAlias = 'n';
+  static tableName = 'node';
+  static ADMIN_KEY = `admin_key`;
+  static CREATED_TIMESTAMP = `created_timestamp`;
+  static DECLINE_REWARD = `decline_reward`;
+  static DELETED = `deleted`;
+  static GRPC_PROXY_ENDPOINT = `grpc_proxy_endpoint`;
+  static NODE_ID = `node_id`;
+  static TIMESTAMP_RANGE = `timestamp_range`;
+
   /**
    * Parses node table columns into object
    */
@@ -9,19 +21,10 @@ class Node {
     this.createdTimestamp = node.created_timestamp;
     this.declineReward = node.decline_reward;
     this.deleted = node.deleted;
+    this.grpcProxyEndpoint = node.grpc_proxy_endpoint != null ? new ServiceEndpoint(node.grpc_proxy_endpoint) : null;
     this.nodeId = node.node_id;
     this.timestampRange = node.timestamp_range;
   }
-
-  static tableAlias = 'n';
-  static tableName = 'node';
-
-  static ADMIN_KEY = `admin_key`;
-  static CREATED_TIMESTAMP = `created_timestamp`;
-  static DECLINE_REWARD = `decline_reward`;
-  static DELETED = `deleted`;
-  static NODE_ID = `node_id`;
-  static TIMESTAMP_RANGE = `timestamp_range`;
 
   /**
    * Gets full column name with table alias prepended.

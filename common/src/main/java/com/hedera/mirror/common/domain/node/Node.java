@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package com.hedera.mirror.common.domain.entity;
+package com.hedera.mirror.common.domain.node;
 
 import jakarta.persistence.Entity;
 import lombok.Data;
@@ -11,6 +11,6 @@ import lombok.experimental.SuperBuilder;
 @Entity
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
-public class NodeHistory extends AbstractNode {
+public class Node extends AbstractNode {
     // Only the parent class should contain fields so that they're shared with both the history and non-history tables.
 }

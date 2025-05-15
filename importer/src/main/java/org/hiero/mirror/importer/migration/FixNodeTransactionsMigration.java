@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.importer.migration;
 
-import com.hedera.mirror.common.domain.entity.Node;
+import com.hedera.mirror.common.domain.node.Node;
 import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hedera.mirror.common.domain.transaction.Transaction;
 import com.hedera.mirror.common.domain.transaction.TransactionType;
@@ -83,6 +83,14 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
 
         for (var recordItem : nodeRecordItems) {
             var nodeEntity = recordItemToNode(recordItem);
+
+            if (nodeEntity == null) {
+                log.info(
+                        "Skipping node transaction {} with status {} as node is not parsable",
+                        recordItem.getConsensusTimestamp(),
+                        recordItem.getTransactionRecord().getReceipt().getStatus());
+                continue;
+            }
 
             var state = nodeState.get(nodeEntity.getNodeId());
             if (state != null) {

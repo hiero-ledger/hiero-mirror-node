@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.entity.NodeHistory;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
@@ -27,7 +26,7 @@ class NodeHistoryRepositoryTest extends ImporterIntegrationTest {
 
     @Test
     void save() {
-        NodeHistory nodeHistory = domainBuilder.nodeHistory().persist();
+        var nodeHistory = domainBuilder.nodeHistory().persist();
         assertThat(nodeHistoryRepository.findById(nodeHistory.getNodeId()))
                 .get()
                 .isEqualTo(nodeHistory);

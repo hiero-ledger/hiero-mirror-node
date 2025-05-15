@@ -58,7 +58,7 @@ import org.springframework.validation.annotation.Validated;
 @RequiredArgsConstructor(onConstructor_ = {@Autowired})
 @Setter
 @Validated
-@ConfigurationProperties(prefix = "hedera.mirror.web3.evm")
+@ConfigurationProperties(prefix = "hiero.mirror.web3.evm")
 public class MirrorNodeEvmProperties implements EvmProperties {
 
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =

@@ -1540,7 +1540,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_count{application="hedera-mirror-web3",status="SERVER_ERROR"}[5m])) / sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_count{application="hedera-mirror-web3"}[5m])) > 0.05
+                expr: sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_count{application="web3",status="SERVER_ERROR"}[5m])) / sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_count{application="web3"}[5m])) > 0.05
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1554,7 +1554,7 @@ groups:
             description: '{{ (index $values "A").Value  | humanizePercentage }} Web3 server error rate for {{ $labels.namespace }}/{{ $labels.pod }}'
             summary: Mirror Web3 API error rate exceeds 5%
           labels:
-            application: hedera-mirror-web3
+            application: web3
             severity: critical
           isPaused: false
         - uid: edk82uxk4ykg0b
@@ -1568,7 +1568,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (process_cpu_usage{application="hedera-mirror-web3"}) / sum by (cluster, namespace, pod) (system_cpu_count{application="hedera-mirror-web3"}) > 0.8
+                expr: sum by (cluster, namespace, pod) (process_cpu_usage{application="web3"}) / sum by (cluster, namespace, pod) (system_cpu_count{application="web3"}) > 0.8
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1582,7 +1582,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ (index $values "A").Value | humanizePercentage }}'
             summary: Mirror Web3 API CPU usage exceeds 80%
           labels:
-            application: hedera-mirror-web3
+            application: web3
             severity: critical
           isPaused: false
         - uid: adk82xjk1v5s0c
@@ -1596,7 +1596,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (hikaricp_connections_active{application="hedera-mirror-web3"}) / sum by (cluster, namespace, pod) (hikaricp_connections_max{application="hedera-mirror-web3"}) > 0.75
+                expr: sum by (cluster, namespace, pod) (hikaricp_connections_active{application="web3"}) / sum by (cluster, namespace, pod) (hikaricp_connections_max{application="web3"}) > 0.75
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1610,7 +1610,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} is using {{ (index $values "A").Value | humanizePercentage }} of available database connections'
             summary: Mirror Web3 API database connection utilization exceeds 75%
           labels:
-            application: hedera-mirror-web3
+            application: web3
             area: resource
             severity: critical
           isPaused: false
@@ -1625,7 +1625,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (jvm_memory_used_bytes{application="hedera-mirror-web3"}) / sum by (cluster, namespace, pod) (jvm_memory_max_bytes{application="hedera-mirror-web3"}) > 0.8
+                expr: sum by (cluster, namespace, pod) (jvm_memory_used_bytes{application="web3"}) / sum by (cluster, namespace, pod) (jvm_memory_max_bytes{application="web3"}) > 0.8
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1639,7 +1639,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ (index $values "A").Value | humanizePercentage }}'
             summary: Mirror Web3 API memory usage exceeds 80%
           labels:
-            application: hedera-mirror-web3
+            application: web3
             area: resource
             severity: critical
           isPaused: false
@@ -1654,7 +1654,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (increase(logback_events_total{application="hedera-mirror-web3",level="error"}[1m])) >= 2
+                expr: sum by (cluster, namespace, pod) (increase(logback_events_total{application="web3",level="error"}[1m])) >= 2
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1668,7 +1668,7 @@ groups:
             description: Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ index $values "A" }} error messages/s in a 3m period
             summary: High rate of log errors
           labels:
-            application: hedera-mirror-web3
+            application: web3
             severity: critical
           isPaused: false
         - uid: ddk835wjkg5j4d
@@ -1682,7 +1682,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace) (rate(http_server_requests_seconds_count{application="hedera-mirror-web3"}[3m])) <= 0
+                expr: sum by (cluster, namespace) (rate(http_server_requests_seconds_count{application="web3"}[3m])) <= 0
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1696,7 +1696,7 @@ groups:
             description: Web3 API has not seen any requests to {{ $labels.namespace }} for 5m
             summary: No Web3 API requests seen for awhile
           labels:
-            application: hedera-mirror-web3
+            application: web3
             severity: warning
           isPaused: false
         - uid: cdk837htr4e80e
@@ -1710,7 +1710,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (rate(spring_data_repository_invocations_seconds_sum{application="hedera-mirror-web3"}[5m])) / sum by (cluster, namespace, pod) (rate(spring_data_repository_invocations_seconds_count{application="hedera-mirror-web3"}[5m])) > 1
+                expr: sum by (cluster, namespace, pod) (rate(spring_data_repository_invocations_seconds_sum{application="web3"}[5m])) / sum by (cluster, namespace, pod) (rate(spring_data_repository_invocations_seconds_count{application="web3"}[5m])) > 1
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1724,7 +1724,7 @@ groups:
             description: High average database query latency of {{ (index $values "A").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}
             summary: Mirror Web3 API query latency exceeds 1s
           labels:
-            application: hedera-mirror-web3
+            application: web3
             severity: warning
           isPaused: false
         - uid: fdk839wtkbda8f
@@ -1738,7 +1738,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_sum{application="hedera-mirror-web3"}[5m])) / sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_count{application="hedera-mirror-web3"}[5m])) > 2
+                expr: sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_sum{application="web3"}[5m])) / sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_count{application="web3"}[5m])) > 2
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1752,7 +1752,7 @@ groups:
             description: High average request latency of {{ (index $values "A").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}
             summary: Mirror Web3 API request latency exceeds 2s
           labels:
-            application: hedera-mirror-web3
+            application: web3
             severity: warning
           isPaused: false
         - uid: ddk82ztdsnvnke
@@ -1766,7 +1766,7 @@ groups:
               datasourceUid: grafanacloud-prom
               model:
                 editorMode: code
-                expr: sum by (cluster, namespace, pod) (process_files_open_files{application="hedera-mirror-web3"}) / sum by (cluster, namespace, pod) (process_files_max_files{application="hedera-mirror-web3"}) > 0.8
+                expr: sum by (cluster, namespace, pod) (process_files_open_files{application="web3"}) / sum by (cluster, namespace, pod) (process_files_max_files{application="web3"}) > 0.8
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
@@ -1780,7 +1780,7 @@ groups:
             description: '{{ $labels.namespace }}/{{ $labels.pod }} file descriptor usage reached {{ (index $values "A").Value | humanizePercentage }}'
             summary: Mirror Web3 API file descriptor usage exceeds 80%
           labels:
-            application: hedera-mirror-web3
+            application: web3
             area: resource
             severity: critical
           isPaused: false

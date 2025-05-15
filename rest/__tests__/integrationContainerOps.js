@@ -6,6 +6,7 @@ import os from 'os';
 import path from 'path';
 
 import config from '../config';
+import {FLYWAY_DATA_PATH, FLYWAY_EXE_PATH, FLYWAY_VERSION} from './globalSetup';
 import {getModuleDirname, isV2Schema} from './testutils';
 import {getPoolClass} from '../utils';
 import {PostgreSqlContainer} from '@testcontainers/postgresql';
@@ -173,8 +174,6 @@ const flywayMigrate = async (container) => {
   const containerPort = container.getPort();
   logger.info(`Using flyway CLI to construct schema for jest worker ${workerId} on port ${containerPort}`);
   const jdbcUrl = `jdbc:postgresql://${container.getHost()}:${containerPort}/${dbName}`;
-  const exePath = path.join('.', 'node_modules', 'node-flywaydb', 'bin', 'flyway');
-  const flywayDataPath = path.join('.', 'build', `${workerId}`, 'flyway');
   const flywayConfigPath = path.join(os.tmpdir(), `config_worker_${workerId}.json`); // store configs in temp dir
   const locations = getMigrationScriptLocation(schemaConfigs.locations);
 
@@ -199,13 +198,12 @@ const flywayMigrate = async (container) => {
       "url": "${jdbcUrl}",
       "user": "${ownerUser}"
     },
-    "version": "9.22.3",
+    "version": "${FLYWAY_VERSION}",
     "downloads": {
-      "storageDirectory": "${flywayDataPath}"
+      "storageDirectory": "${FLYWAY_DATA_PATH}"
     }
   }`;
 
-  fs.mkdirSync(flywayDataPath, {recursive: true});
   fs.writeFileSync(flywayConfigPath, flywayConfig);
   logger.info(`Added ${flywayConfigPath} to file system for flyway CLI`);
 
@@ -215,7 +213,7 @@ const flywayMigrate = async (container) => {
 
   while (retries-- > 0) {
     try {
-      execSync(`node ${exePath} -c ${flywayConfigPath} migrate`, {stdio: 'inherit'});
+      execSync(`node ${FLYWAY_EXE_PATH} -c ${flywayConfigPath} migrate`, {stdio: 'inherit'});
       logger.info(`Successfully executed all Flyway migrations for jest worker ${workerId}`);
       break;
     } catch (e) {
