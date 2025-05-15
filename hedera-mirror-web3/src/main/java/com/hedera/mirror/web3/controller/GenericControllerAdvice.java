@@ -6,6 +6,7 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
+import static org.springframework.http.HttpStatus.REQUEST_TIMEOUT;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST;
@@ -30,6 +31,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.lang.Nullable;
+import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.ErrorResponse;
@@ -106,6 +108,12 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     @ExceptionHandler
     private ResponseEntity<?> rateLimitException(final RateLimitException e, final WebRequest request) {
         return handleExceptionInternal(e, null, null, TOO_MANY_REQUESTS, request);
+    }
+
+    @ExceptionHandler
+    private ResponseEntity<?> transactionTimedOutException(
+            final TransactionTimedOutException e, final WebRequest request) {
+        return handleExceptionInternal(e, null, null, REQUEST_TIMEOUT, request);
     }
 
     @Nullable

@@ -66,7 +66,7 @@ Some Hedera environments get [reset](https://docs.hedera.com/hedera/testnet#test
 nodes connected to those environments will need to be reset to remain functional.
 
 1. Stop the [Importer](/docs/importer/README.md) process.
-2. Run [cleanup.sql](/hedera-mirror-importer/src/main/resources/db/scripts/cleanup.sql) as the database owner to
+2. Run [cleanup.sql](/importer/src/main/resources/db/scripts/cleanup.sql) as the database owner to
    truncate the tables.
 
    ```bash
@@ -79,15 +79,15 @@ nodes connected to those environments will need to be reset to remain functional
    a new bucket, the importer start date can be set to 1970 to ensure no data is missed.
 
    ```properties
-   hedera.mirror.importer.downloader.bucketName=hedera-testnet-streams-YYYY-MM
-   hedera.mirror.importer.startDate=1970-01-01T00:00:00Z
+   hiero.mirror.importer.downloader.bucketName=hedera-testnet-streams-YYYY-MM
+   hiero.mirror.importer.startDate=1970-01-01T00:00:00Z
    ```
 
 4. Start the Importer process and ensure it prints the new bucket on startup and successfully starts syncing.
 5. Update the REST API to the new bucket name if state proofs are enabled.
 
    ```shell
-   HEDERA_MIRROR_REST_STATEPROOF_STREAMS_BUCKETNAME: "hedera-testnet-streams-YYYY-MM"
+   HIERO_MIRROR_REST_STATEPROOF_STREAMS_BUCKETNAME: "hedera-testnet-streams-YYYY-MM"
    ```
 
 6. If any of the mirror node monitoring tools is used, ensure any hardcoded entity IDs in their configuration is updated
@@ -102,17 +102,17 @@ retention job purges historical data beyond a configured time period. By reducin
 database it will reduce operational costs and improve read/write performance. Only data associated with balance
 or transaction data is deleted. Cumulative entity information like accounts, contracts, etc. are not deleted.
 
-To enable retention, set the `hedera.mirror.importer.retention.enabled=true` property on the importer. A job will run
-every `hedera.mirror.importer.retention.frequency` with a default of one day to prune older data. To control how far
-back to remove data set the `hedera.mirror.importer.retention.period` appropriately. Keep in mind this retention period
+To enable retention, set the `hiero.mirror.importer.retention.enabled=true` property on the importer. A job will run
+every `hiero.mirror.importer.retention.frequency` with a default of one day to prune older data. To control how far
+back to remove data set the `hiero.mirror.importer.retention.period` appropriately. Keep in mind this retention period
 is relative to the timestamp of the last transaction in the database and not to the current wall-clock time. Data is
 deleted atomically one or more blocks at a time starting from the earliest block and increasing, so data should be
-consistent even when querying the earliest data. There are also `hedera.mirror.importer.retention.exclude/include`
+consistent even when querying the earliest data. There are also `hiero.mirror.importer.retention.exclude/include`
 properties that can be used to filter which tables are included or excluded from retention, defaulting to include all.
 
 The first time the job is run it may take a long time to complete due to the potentially terabytes worth of data to
 purge. Subsequent runs should be much faster as it will only have to purge the data accumulated between the last run.
-The importer database user denoted by the `hedera.mirror.importer.db.username` property will need to be altered to have
+The importer database user denoted by the `hiero.mirror.importer.db.username` property will need to be altered to have
 delete permission if it does not already have it.
 
 ## Upgrade
@@ -149,7 +149,7 @@ The time to dump the whole database usually depends on the size of the largest t
 
 ### New PostgreSQL Database Instance Configuration
 
-Run [init.sh](/hedera-mirror-importer/src/main/resources/db/scripts/init.sh) or the equivalent SQL statements to create
+Run [init.sh](/importer/src/main/resources/db/scripts/init.sh) or the equivalent SQL statements to create
 required database objects including the `mirror_node` database, the roles, the schema, and access privileges.
 
 The following configuration needs to be applied to the database instance to improve the write speed.
@@ -202,7 +202,7 @@ transactions in the balance and record streams. These issues should only appear 
 - Scope: 6949 account balance files
 - Problem: Early account balances file did not respect the invariant that all transfers less than or equal to the
   timestamp of the file are reflected within that file.
-- Solution: Fixed in Hedera Services in Sept 2020. Fixed in Mirror Node v0.53.0 by adding
+- Solution: Fixed in Consensus Node in Sept 2020. Fixed in Mirror Node v0.53.0 by adding
   a `account_balance_file.time_offset` field with a value of `-1` that is used as an adjustment to the balance file's
   consensus timestamp for use when querying transfers.
 
@@ -212,7 +212,7 @@ transactions in the balance and record streams. These issues should only appear 
 - Scope: Affected the records of 1177 transactions.
 - Problem: When a crypto transfer failed due to an insufficient account balance, the attempted transfers were
   nonetheless listed in the record.
-- Solution: Fixed in Hedera Services v0.4.0 late 2019. Fixed in Mirror Node in v0.53.0 by adding an `errata` field to
+- Solution: Fixed in Consensus Node v0.4.0 late 2019. Fixed in Mirror Node in v0.53.0 by adding an `errata` field to
   the `crypto_transfer` table and setting the spurious transfers' `errata` field to `DELETE` to indicate they should be
   omitted.
 
@@ -222,7 +222,7 @@ transactions in the balance and record streams. These issues should only appear 
 - Scope: Affected the records of 31 transactions
 - Problem: When a transaction over-bid the balance of its payer account as a fee payment, its record was omitted from
   the stream. When a transaction’s payer account could not afford the network fee, its record was omitted.
-- Solution: Fixed in Hedera Services v0.4.0 late 2019. Fixed in Mirror Node in v0.53.0 by adding an `errata` field
+- Solution: Fixed in Consensus Node v0.4.0 late 2019. Fixed in Mirror Node in v0.53.0 by adding an `errata` field
   to `crypto_transfer` and `transaction` tables and inserting the missing rows with the `errata` field set to `INSERT`.
 
 ### Record Missing for FAIL_INVALID NFT transfers
@@ -235,8 +235,8 @@ transactions in the balance and record streams. These issues should only appear 
   Under certain conditions in the 0.27.5 release, a bug in the logic maintaining these lists could cause NFT transfers
   to fail, without refunding fees. This would manifest itself as a `FAIL_INVALID` transaction that does not get written
   to the record stream.
-- Solution: Fixed in Hedera Services [v0.27.7](https://docs.hedera.com/guides/docs/release-notes/services#v0.27.7) on
-  August 9th 2022. Fixed in Mirror Node in v0.64.0 by a migration that adds the missing transactions and transfers.
+- Solution: Fixed in Consensus Node v0.27.7 on August 9th 2022. Fixed in Mirror Node in v0.64.0 by a migration that
+  adds the missing transactions and transfers.
 
 ### Record Missing for FAIL_INVALID NFT transfers
 
@@ -246,15 +246,15 @@ transactions in the balance and record streams. These issues should only appear 
   makes an account appear to own fewer NFTs than it actually does. This can subsequently prevent an NFT owner from being
   changed as part of an atomic operation. When the atomic operation fails, an errata record is required for the missing
   transactions.
-- Solution: Fixed in Hedera Services [v0.34.2](https://github.com/hashgraph/hedera-services/releases/tag/v0.34.2) on
-  February 17, 2023. Fixed in Mirror Node in v0.74.3 by a migration that adds the missing transactions.
+- Solution: Fixed in Consensus Node v0.34.2 on February 17, 2023. Fixed in Mirror Node in v0.74.3 by a migration that
+  adds the missing transactions.
 
 ## Breaking Schema Changes Introduced in 0.96.0
 
 In version 0.96.0, a new database schema was introduced to handle the processing of upsertable entities. This change
 doesn't require any manual steps for new operators that use one of our initialization scripts or helm charts to
 configure the database. However, existing operators upgrading to 0.96.0 or later are required to create the schema by
-configuring and executing the script [here](/hedera-mirror-importer/src/main/resources/db/scripts/init-temp-schema.sh)
+configuring and executing the script [here](/importer/src/main/resources/db/scripts/init-temp-schema.sh)
 before the upgrade.
 
 ```shell
@@ -291,13 +291,13 @@ is expected to migrate full mainnet data in 10 days.
    keep the importer down on the source for the length of the migration)
 7. If you created a clone in step 6, you may now restart the importer on the source.
 8. Populate correct values for the source and target configuration in the
-   [migration.config](/hedera-mirror-importer/src/main/resources/db/scripts/v2/migration.config). The source should be
+   [migration.config](/importer/src/main/resources/db/scripts/v2/migration.config). The source should be
    the source from step 5.
-9. Run the [migration.sh](/hedera-mirror-importer/src/main/resources/db/scripts/v2/migration.sh) script. Due to the time
+9. Run the [migration.sh](/importer/src/main/resources/db/scripts/v2/migration.sh) script. Due to the time
    it will take to complete the migration, it is recommended to run the script in a way that doesn't require your
    terminal session to remain open (e.g. `./migration.sh > migration.log 2> migration-error.log & disown`)
 10. Update the mirror node configuration to point to the new Citus DB and enable the importer. If you have modified the
-    configuration of any checksums for repeatable migrations under `hedera.mirror.importer.migration`, you must make
+    configuration of any checksums for repeatable migrations under `hiero.mirror.importer.migration`, you must make
     sure this configuration remains the same in the new cluster.
 11. If you did not create a clone in step 6, you may now restart the importer process on the source.
 

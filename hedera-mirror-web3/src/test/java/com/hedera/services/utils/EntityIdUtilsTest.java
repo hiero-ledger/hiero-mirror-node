@@ -29,8 +29,8 @@ import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.TokenID;
-import com.swirlds.common.utility.CommonUtils;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.base.utility.CommonUtils;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -155,6 +155,16 @@ class EntityIdUtilsTest {
     @Test
     void entityIdFromContractIdNullContractId() {
         assertThat(EntityIdUtils.entityIdFromContractId(null)).isNull();
+    }
+
+    @Test
+    void idFromEncodedId() {
+        assertThat(EntityIdUtils.idFromEncodedId(null)).isNull();
+        assertThat(EntityIdUtils.idFromEncodedId(0L)).isNull();
+        assertThat(EntityIdUtils.idFromEncodedId(EntityId.of(SHARD, REALM, NUM).getId()))
+                .returns(SHARD, Id::shard)
+                .returns(REALM, Id::realm)
+                .returns(NUM, Id::num);
     }
 
     @Test

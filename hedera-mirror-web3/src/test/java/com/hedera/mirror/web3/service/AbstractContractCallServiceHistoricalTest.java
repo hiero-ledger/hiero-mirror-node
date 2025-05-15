@@ -163,6 +163,16 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                 .persist();
     }
 
+    protected Entity tokenEntityPersistHistoricalCustomizable(
+            final Range<Long> timestampRange, final Consumer<Entity.EntityBuilder<?, ?>> customizer) {
+        return domainBuilder
+                .entity()
+                .customize(e -> {
+                    e.type(EntityType.TOKEN).timestampRange(timestampRange);
+                    customizer.accept(e);
+                })
+                .persist();
+    }
     /**
      * Method used to persist fungible TokenHistory object with no customization
      *
@@ -255,7 +265,7 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
         final var token =
                 nonFungibleTokenPersistHistoricalCustomizable(timestampRange, t -> t.treasuryAccountId(treasury));
         nftPersistHistoricalCustomizable(timestampRange, n -> n.tokenId(token.getTokenId())
-                .spender(spender)
+                .spender(spender.getId())
                 .accountId(owner)
                 .timestampRange(timestampRange));
         return token;

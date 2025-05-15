@@ -4,29 +4,29 @@ plugins { id("com.gradle.develocity") version ("3.17") }
 
 rootProject.name = "hiero-mirror-node"
 
-include(":hedera-mirror-common")
+include(":common")
 
 include(":graphql")
 
 include(":grpc")
 
-include(":hedera-mirror-importer")
+include(":importer")
 
-include(":hedera-mirror-monitor")
+include(":monitor")
 
 include(":protobuf")
 
-include(":hedera-mirror-rest")
+include(":rest")
 
-include(":hedera-mirror-rest-java")
+include(":rest-java")
 
-include(":hedera-mirror-rest:check-state-proof")
+include(":rest:check-state-proof")
 
-include(":hedera-mirror-rest:monitoring")
+include(":rest:monitoring")
 
-include(":hedera-mirror-rosetta")
+include(":rosetta")
 
-include(":hedera-mirror-test")
+include(":test")
 
 include(":hedera-mirror-web3")
 

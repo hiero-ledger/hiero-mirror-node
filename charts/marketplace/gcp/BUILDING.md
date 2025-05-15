@@ -85,9 +85,9 @@ file must be specified via the parameters flag.
 kubectl create namespace "${NAMESPACE}"
 mpdev install --deployer=gcr.io/mirror-node-public/hedera-mirror-node/deployer:${TAG} --parameters='{"name": "'${NAME}'",
     "namespace": "'${NAMESPACE}'",
-    "importer.config.hedera.mirror.importer.downloader.accessKey": "GOOG1...",
-    "importer.config.hedera.mirror.importer.downloader.secretKey": "...",
-    "importer.config.hedera.mirror.importer.network": "MAINNET"}'
+    "importer.config.hiero.mirror.importer.downloader.accessKey": "GOOG1...",
+    "importer.config.hiero.mirror.importer.downloader.secretKey": "...",
+    "importer.config.hiero.mirror.importer.network": "MAINNET"}'
 ```
 
 ## Uninstall

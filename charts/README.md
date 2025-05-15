@@ -240,7 +240,7 @@ kubectl logs -f --prefix --tail=10 -l app.kubernetes.io/name=importer
 
 To change application properties without restarting, you can create a
 [ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#create-configmaps-from-files)
-named `grpc` or `hedera-mirror-importer` and supply an `application.yaml` or `application.properties`.
+named `grpc` or `importer` and supply an `application.yaml` or `application.properties`.
 Note that some properties that are used on startup will still require a restart.
 
 ```shell script
@@ -262,7 +262,7 @@ kubectl exec -it "${RELEASE}-postgres-postgresql-0" -c postgresql -- psql -d mir
 V2:
 
 ```shell
-DB_PASSWORD="$(kubectl get secrets -o yaml ${RELEASE}-passwords |ksd | yq '.stringData.HEDERA_MIRROR_REST_DB_PASSWORD')"
+DB_PASSWORD="$(kubectl get secrets -o yaml ${RELEASE}-passwords |ksd | yq '.stringData.HIERO_MIRROR_REST_DB_PASSWORD')"
 kubectl run psql-util -it --rm --image=bitnami/postgresql:16 --env="PGPASSWORD=${DB_PASSWORD}" --command -- psql -h "${RELEASE}-citus-reads" -U mirror_rest -d mirror_node
 ```
 

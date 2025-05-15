@@ -2,8 +2,8 @@
 
 package com.hedera.services.jproto;
 
-import com.swirlds.common.utility.CommonUtils;
 import java.util.Arrays;
+import org.hiero.base.utility.CommonUtils;
 
 /**
  * Maps to proto Key of type ECDSA_secp256k1Key

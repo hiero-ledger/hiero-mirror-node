@@ -453,7 +453,7 @@ The Mirror Node should implement a subset of the standard calls used to:
 #### Setup
 
 - Create a new Maven module `hedera-mirror-web3`
-- Create a new Maven module `hedera-mirror-common` that encompasses all domain POJOs and repositories
+- Create a new Maven module `common` that encompasses all domain POJOs and repositories
 - Use Spring WebFlux to establish a JSON-RPC server
   with [JSON-RPC 2.0 specification](https://www.jsonrpc.org/specification) support to service rpc calls
 - Use `spring-boot-starter-data-jpa` for database access
@@ -462,8 +462,8 @@ The Mirror Node should implement a subset of the standard calls used to:
 
 #### Domain/Repository
 
-Existing domain classes can be utilized from the `hedera-mirror-common` dependencies. Applicable CRUD repositories can
-be created using Spring based on `hedera-mirror-common` domains to extract information from the database.
+Existing domain classes can be utilized from the `common` dependencies. Applicable CRUD repositories can
+be created using Spring based on `common` domains to extract information from the database.
 
 #### Service
 

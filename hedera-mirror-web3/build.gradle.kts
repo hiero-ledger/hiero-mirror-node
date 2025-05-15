@@ -4,7 +4,7 @@ import java.net.HttpURLConnection
 import java.net.URI
 import org.web3j.solidity.gradle.plugin.SolidityCompile
 
-description = "Hedera Mirror Node Web3"
+description = "Mirror Node Web3"
 
 plugins {
     id("openapi-conventions")
@@ -12,6 +12,8 @@ plugins {
     id("org.web3j.solidity")
     id("spring-conventions")
 }
+
+project.extra.set("dockerImageName", "hedera-mirror-web3")
 
 repositories {
     // Temporary repository added for com.hedera.cryptography snapshot dependencies

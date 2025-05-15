@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/contracts/results")
-@ConditionalOnProperty(prefix = "hedera.mirror.web3.opcode.tracer", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "hiero.mirror.web3.opcode.tracer", name = "enabled", havingValue = "true")
 class OpcodesController {
 
     private final OpcodeService opcodeService;

@@ -31,9 +31,9 @@ import org.apache.tuweni.bytes.Bytes;
 @CustomLog
 public abstract class ContractCallService {
 
-    static final String EVM_INVOCATION_METRIC = "hedera.mirror.web3.evm.invocation";
-    static final String GAS_LIMIT_METRIC = "hedera.mirror.web3.evm.gas.limit";
-    static final String GAS_USED_METRIC = "hedera.mirror.web3.evm.gas.used";
+    static final String EVM_INVOCATION_METRIC = "hiero.mirror.web3.evm.invocation";
+    static final String GAS_LIMIT_METRIC = "hiero.mirror.web3.evm.gas.limit";
+    static final String GAS_USED_METRIC = "hiero.mirror.web3.evm.gas.used";
 
     protected final Store store;
     protected final MirrorNodeEvmProperties mirrorNodeEvmProperties;

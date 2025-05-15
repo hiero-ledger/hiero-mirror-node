@@ -774,8 +774,7 @@ class OpcodesControllerTest {
                 final EthereumTransactionRepository ethereumTransactionRepository,
                 final TransactionRepository transactionRepository,
                 final ContractResultRepository contractResultRepository,
-                final EntityDatabaseAccessor entityDatabaseAccessor,
-                final MirrorNodeEvmProperties mirrorNodeEvmProperties) {
+                final EntityDatabaseAccessor entityDatabaseAccessor) {
             return new OpcodeServiceImpl(
                     recordFileService,
                     contractDebugService,
@@ -783,8 +782,7 @@ class OpcodesControllerTest {
                     ethereumTransactionRepository,
                     transactionRepository,
                     contractResultRepository,
-                    entityDatabaseAccessor,
-                    mirrorNodeEvmProperties);
+                    entityDatabaseAccessor);
         }
     }
 }

@@ -11,7 +11,9 @@ import static org.mockito.Mockito.when;
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.mirror.common.domain.entity.Entity;
+import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.web3.common.ContractCallContext;
+import com.hedera.mirror.web3.state.AliasedAccountCacheManager;
 import com.hedera.mirror.web3.state.CommonEntityAccessor;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.Collections;
@@ -41,23 +43,30 @@ class AliasesReadableKVStateTest {
     @Mock
     private CommonEntityAccessor commonEntityAccessor;
 
+    @Spy
+    private AliasedAccountCacheManager aliasedAccountCacheManager;
+
     private static final ProtoBytes EVM_ADDRESS_BYTES =
             new ProtoBytes(Bytes.wrap("67d8d32e9bf1a9968a5ff53b87d777aa8ebbee69".getBytes()));
 
     private static final ProtoBytes ALIAS_BYTES = new ProtoBytes(
             Bytes.wrap("3a2102b3c641418e89452cd5202adfd4758f459acb8e364f741fd16cd2db79835d39d2".getBytes()));
 
+    private static final EntityId ENTITY_ID = EntityId.of(1L, 2L, 3L);
+
     private static final Entity ENTITY_WITH_ALIAS = Entity.builder()
-            .shard(1L)
-            .realm(2L)
-            .num(3L)
+            .id(ENTITY_ID.getId())
+            .shard(ENTITY_ID.getShard())
+            .realm(ENTITY_ID.getRealm())
+            .num(ENTITY_ID.getNum())
             .alias(ALIAS_BYTES.value().toByteArray())
             .build();
 
     private static final Entity ENTITY_WITH_EVM_ADDRESS = Entity.builder()
-            .shard(1L)
-            .realm(2L)
-            .num(3L)
+            .id(ENTITY_ID.getId())
+            .shard(ENTITY_ID.getShard())
+            .realm(ENTITY_ID.getRealm())
+            .num(ENTITY_ID.getNum())
             .alias(EVM_ADDRESS_BYTES.value().toByteArray())
             .build();
 
@@ -149,6 +158,23 @@ class AliasesReadableKVStateTest {
                 .thenReturn(Optional.empty());
         assertThat(aliasesReadableKVState.get(EVM_ADDRESS_BYTES))
                 .satisfies(accountID -> assertThat(accountID).isNull());
+    }
+
+    @Test
+    void whenAliasIsReadPutAccountNumInCache() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ALIAS_BYTES.value(), Optional.empty()))
+                .thenReturn(Optional.of(ENTITY_WITH_ALIAS));
+        assertThat(contractCallContext
+                        .getReadCacheState(AccountReadableKVState.KEY)
+                        .containsKey(ACCOUNT_ID))
+                .isFalse();
+        assertThat(aliasesReadableKVState.get(ALIAS_BYTES))
+                .satisfies(accountID -> assertThat(accountID).isEqualTo(ACCOUNT_ID));
+        assertThat(contractCallContext
+                        .getReadCacheState(AccountReadableKVState.KEY)
+                        .containsKey(ACCOUNT_ID))
+                .isTrue();
     }
 
     @Test

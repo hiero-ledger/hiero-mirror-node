@@ -6,7 +6,6 @@ import static com.hedera.mirror.web3.state.Utils.DEFAULT_AUTO_RENEW_PERIOD;
 import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
 
-import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.Fraction;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.base.TokenSupplyType;
@@ -19,7 +18,6 @@ import com.hedera.hapi.node.transaction.FractionalFee;
 import com.hedera.hapi.node.transaction.RoyaltyFee;
 import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
 import com.hedera.mirror.common.domain.token.TokenPauseStatusEnum;
@@ -100,7 +98,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
         return Token.newBuilder()
                 .accountsFrozenByDefault(token.getFreezeDefault())
                 .adminKey(Utils.parseKey(entity.getKey()))
-                .autoRenewAccountId(getAutoRenewAccount(entity.getAutoRenewAccountId(), timestamp))
+                .autoRenewAccountId(EntityIdUtils.toAccountId(entity.getAutoRenewAccountId()))
                 .autoRenewSeconds(
                         entity.getAutoRenewPeriod() != null ? entity.getAutoRenewPeriod() : DEFAULT_AUTO_RENEW_PERIOD)
                 .customFees(getCustomFees(token.getTokenId(), timestamp))
@@ -123,7 +121,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
                 .tokenId(toTokenId(entity.getId()))
                 .tokenType(TokenType.valueOf(token.getType().name()))
                 .totalSupply(getTotalSupply(token, timestamp))
-                .treasuryAccountId(getTreasury(token.getTreasuryAccountId(), timestamp))
+                .treasuryAccountId(EntityIdUtils.toAccountId(token.getTreasuryAccountId()))
                 .wipeKey(Utils.parseKey(token.getWipeKey()))
                 .accountsKycGrantedByDefault(token.getKycStatus() == TokenKycStatusEnum.GRANTED)
                 .build();
@@ -145,28 +143,6 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
         } else {
             return nftRepository.findNftTotalSupplyByTokenIdAndTimestamp(tokenId, timestamp);
         }
-    }
-
-    private Supplier<AccountID> getAutoRenewAccount(Long autoRenewAccountId, final Optional<Long> timestamp) {
-        if (autoRenewAccountId == null) {
-            return null;
-        }
-        return Suppliers.memoize(() -> timestamp
-                .map(t -> entityRepository.findActiveByIdAndTimestamp(autoRenewAccountId, t))
-                .orElseGet(() -> entityRepository.findByIdAndDeletedIsFalse(autoRenewAccountId))
-                .map(entity -> EntityIdUtils.toAccountId(entity.toEntityId()))
-                .orElse(null));
-    }
-
-    private Supplier<AccountID> getTreasury(EntityId treasuryId, final Optional<Long> timestamp) {
-        if (treasuryId == null) {
-            return null;
-        }
-        return Suppliers.memoize(() -> timestamp
-                .map(t -> entityRepository.findActiveByIdAndTimestamp(treasuryId.getId(), t))
-                .orElseGet(() -> entityRepository.findByIdAndDeletedIsFalse(treasuryId.getId()))
-                .map(entity -> EntityIdUtils.toAccountId(entity.toEntityId()))
-                .orElse(null));
     }
 
     private Supplier<List<CustomFee>> getCustomFees(Long tokenId, final Optional<Long> timestamp) {
@@ -225,7 +201,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
             final var fractionalFee = new FractionalFee(
                     new Fraction(f.getNumerator(), f.getDenominator()),
                     f.getMinimumAmount(),
-                    f.getMaximumAmount(),
+                    f.getMaximumAmount() == null ? 0 : f.getMaximumAmount(),
                     f.isNetOfTransfers());
             var constructed = new CustomFee(
                     new OneOf<>(FeeOneOfType.FRACTIONAL_FEE, fractionalFee), collector, f.isAllCollectorsAreExempt());

@@ -5,6 +5,7 @@ package com.hedera.mirror.web3.state.components;
 import static java.util.Objects.requireNonNull;
 
 import com.hedera.hapi.block.stream.output.StateChanges.Builder;
+import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.mirror.web3.state.MirrorNodeState;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.metrics.StoreMetricsServiceImpl;
@@ -15,7 +16,6 @@ import com.swirlds.config.api.Configuration;
 import com.swirlds.metrics.api.Metrics;
 import com.swirlds.platform.state.MerkleNodeState;
 import com.swirlds.platform.state.service.PlatformStateFacade;
-import com.swirlds.platform.system.SoftwareVersion;
 import com.swirlds.state.lifecycle.StartupNetworks;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -23,7 +23,6 @@ import jakarta.inject.Named;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Named
@@ -33,8 +32,8 @@ public class ServiceMigratorImpl implements ServiceMigrator {
     public List<Builder> doMigrations(
             @Nonnull MerkleNodeState state,
             @Nonnull ServicesRegistry servicesRegistry,
-            @Nullable SoftwareVersion previousVersion,
-            @Nonnull SoftwareVersion currentVersion,
+            @Nullable SemanticVersion previousVersion,
+            @Nonnull SemanticVersion currentVersion,
             @Nonnull Configuration appConfig,
             @Nonnull Configuration platformConfig,
             @Nonnull Metrics metrics,
@@ -60,9 +59,6 @@ public class ServiceMigratorImpl implements ServiceMigrator {
         final AtomicLong prevEntityNum =
                 new AtomicLong(appConfig.getConfigData(HederaConfig.class).firstUserEntity() - 1);
         final Map<String, Object> sharedValues = new HashMap<>();
-        final var deserializedPbjVersion = Optional.ofNullable(previousVersion)
-                .map(SoftwareVersion::getPbjSemanticVersion)
-                .orElse(null);
 
         registry.registrations().stream().forEach(registration -> {
             if (!(registration.registry() instanceof SchemaRegistryImpl schemaRegistry)) {
@@ -71,7 +67,7 @@ public class ServiceMigratorImpl implements ServiceMigrator {
             schemaRegistry.migrate(
                     registration.serviceName(),
                     mirrorNodeState,
-                    deserializedPbjVersion,
+                    previousVersion,
                     appConfig,
                     platformConfig,
                     sharedValues,

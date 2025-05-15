@@ -15,7 +15,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-@ConfigurationProperties(prefix = "hedera.mirror.web3.evm.trace")
+@ConfigurationProperties(prefix = "hiero.mirror.web3.evm.trace")
 public class TraceProperties {
 
     private boolean enabled = false;

@@ -24,8 +24,6 @@ jobs:
   release:
     name: Release
     runs-on: hiero-mirror-node-linux-medium
-    env:
-      RELEASE_NOTES_FILENAME: release_notes
     outputs:
       create_pr: ${{ env.CREATE_PR }}
       next_version_snapshot: ${{ env.NEXT_VERSION_SNAPSHOT }}
@@ -114,12 +112,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release Notes
-        if: ${{ steps.milestone.outputs.milestone_id != '' }}
-        uses: step-security/release-notes-generator-action@d7cdbb310d4aab8d98f273f4ae20fdd7cb055799 # v3.1.6
-        env:
-          FILENAME: ${{ env.RELEASE_NOTES_FILENAME }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MILESTONE_NUMBER: ${{ steps.milestone.outputs.milestone_id }}
+        if: ${{ steps.version_parser.outputs.prerelease == '' }}
+        uses: spring-io/github-changelog-generator@86958813a62af8fb223b3fd3b5152035504bcb83 # v0.0.12
+        with:
+          config-file: .github/release-notes.yml
+          milestone: ${{ steps.version_parser.outputs.release }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Commit and Tag
         uses: stefanzweifel/git-auto-commit-action@b863ae1933cb653a53c021fe36dbb774e1fb9403 # v5.2.0
@@ -134,7 +132,7 @@ jobs:
       - name: Create Github Release
         uses: ncipollo/release-action@440c8c1cb0ed28b9f43e4d1d670870f059653174 # v1.16.0
         with:
-          bodyFile: ${{ env.RELEASE_NOTES_FILENAME }}.md
+          bodyFile: changelog.md
           commit: ${{ env.RELEASE_BRANCH }}
           draft: ${{ steps.version_parser.outputs.prerelease == '' }}
           name: ${{ env.RELEASE_TAG }}

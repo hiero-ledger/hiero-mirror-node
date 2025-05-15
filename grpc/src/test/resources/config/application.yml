@@ -9,7 +9,7 @@ grpc:
   server:
     enableKeepAlive: false
     inProcessName: local
-hedera:
+hiero:
   mirror:
     grpc:
       endTimeInterval: 100ms
