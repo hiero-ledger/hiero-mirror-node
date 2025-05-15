@@ -103,7 +103,7 @@ class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedu
 
             return signatures.stream()
                     .map(signature -> {
-                        SignaturePair.SignatureCase signatureCase =
+                        final var signatureCase =
                                 SignaturePair.SignatureCase.forNumber(signature.getType());
                         return switch (signatureCase) {
                             case SignatureCase.ED25519 ->
