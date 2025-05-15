@@ -15,6 +15,7 @@ import com.hedera.mirror.web3.common.ContractCallContext;
 import com.hedera.mirror.web3.repository.ScheduleRepository;
 import com.hedera.mirror.web3.repository.TransactionSignatureRepository;
 import com.hedera.mirror.web3.state.CommonEntityAccessor;
+import com.hedera.mirror.web3.utils.Suppliers;
 import com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
@@ -26,6 +27,7 @@ import jakarta.inject.Named;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Named
@@ -91,30 +93,32 @@ class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedu
                 .build();
     }
 
-    private List<Key> getSignatories(final Long scheduleId, final Optional<Long> timestamp) {
-        final var entityId = EntityId.of(scheduleId);
-        final var signatures = timestamp
-                .map(ts ->
-                        transactionSignatureRepository.findByEntityIdAndConsensusTimestampLessThanEqual(entityId, ts))
-                .orElseGet(() -> transactionSignatureRepository.findByEntityId(entityId));
+    private Supplier<List<Key>> getSignatories(final Long scheduleId, final Optional<Long> timestamp) {
+        return Suppliers.memoize(() -> {
+            final var entityId = EntityId.of(scheduleId);
+            final var signatures = timestamp
+                    .map(ts -> transactionSignatureRepository.findByEntityIdAndConsensusTimestampLessThanEqual(
+                            entityId, ts))
+                    .orElseGet(() -> transactionSignatureRepository.findByEntityId(entityId));
 
-        return signatures.stream()
-                .map(signature -> {
-                    SignaturePair.SignatureCase signatureCase =
-                            SignaturePair.SignatureCase.forNumber(signature.getType());
-                    return switch (signatureCase) {
-                        case SignatureCase.ED25519 ->
-                            Key.newBuilder()
-                                    .ed25519(Bytes.wrap(signature.getPublicKeyPrefix()))
-                                    .build();
-                        case SignatureCase.ECDSA_SECP256K1 ->
-                            Key.newBuilder()
-                                    .ecdsaSecp256k1(Bytes.wrap(signature.getPublicKeyPrefix()))
-                                    .build();
-                        default -> null; // skip unsupported key types
-                    };
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+            return signatures.stream()
+                    .map(signature -> {
+                        SignaturePair.SignatureCase signatureCase =
+                                SignaturePair.SignatureCase.forNumber(signature.getType());
+                        return switch (signatureCase) {
+                            case SignatureCase.ED25519 ->
+                                Key.newBuilder()
+                                        .ed25519(Bytes.wrap(signature.getPublicKeyPrefix()))
+                                        .build();
+                            case SignatureCase.ECDSA_SECP256K1 ->
+                                Key.newBuilder()
+                                        .ecdsaSecp256k1(Bytes.wrap(signature.getPublicKeyPrefix()))
+                                        .build();
+                            default -> null; // Skip unsupported key types
+                        };
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        });
     }
 }
