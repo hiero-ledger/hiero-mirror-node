@@ -6,16 +6,12 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTE
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.google.protobuf.ByteString;
 import com.hedera.mirror.web3.exception.MirrorEvmTransactionException;
 import com.hedera.mirror.web3.web3j.generated.HRC632Contract;
 import com.hedera.node.app.service.evm.utils.EthSigsUtils;
-import com.hederahashgraph.api.proto.java.Key;
 import java.security.KeyPairGenerator;
-import java.security.PublicKey;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.shaded.org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.web3j.crypto.Keys;
 
 class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
@@ -231,14 +227,5 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         } else {
             assertThrows(MirrorEvmTransactionException.class, result::send);
         }
-    }
-
-    private byte[] getProtobufKeyEd25519(PublicKey publicKey) {
-        var publicKeyEncoded = publicKey.getEncoded();
-        SubjectPublicKeyInfo info = SubjectPublicKeyInfo.getInstance(publicKeyEncoded);
-        var rawEd25519 = info.getPublicKeyData().getOctets();
-        // wrap in Proto
-        ByteString keyByteString = ByteString.copyFrom(rawEd25519);
-        return Key.newBuilder().setEd25519(keyByteString).build().toByteArray();
     }
 }
