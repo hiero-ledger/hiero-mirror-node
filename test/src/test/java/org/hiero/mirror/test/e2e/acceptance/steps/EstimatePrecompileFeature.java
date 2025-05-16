@@ -1019,12 +1019,12 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with WipeTokenAccount function with invalid amount")
     public void wipeTokenAccountInvalidAmountEstimateGas() {
-//        var data = encodeData(
-//                ESTIMATE_PRECOMPILE,
-//                WIPE_TOKEN_ACCOUNT,
-//                asAddress(fungibleKycUnfrozenTokenId),
-//                asAddress(receiverAccountAlias),
-//                100000000000000000L);
+        //        var data = encodeData(
+        //                ESTIMATE_PRECOMPILE,
+        //                WIPE_TOKEN_ACCOUNT,
+        //                asAddress(fungibleKycUnfrozenTokenId),
+        //                asAddress(receiverAccountAlias),
+        //                100000000000000000L);
 
         ContractFunctionParameters parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleKycUnfrozenTokenId).toString())
@@ -1032,16 +1032,16 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addInt64(100000000000000000L);
 
         assertThatThrownBy(() -> contractClient.estimateGasQuery(
-                estimatePrecompileContractId,
-                WIPE_TOKEN_ACCOUNT.getSelector(),
-                parameters,
-                senderAccountId,
-                WIPE_TOKEN_ACCOUNT.getActualGas()))
+                        estimatePrecompileContractId,
+                        WIPE_TOKEN_ACCOUNT.getSelector(),
+                        parameters,
+                        senderAccountId,
+                        WIPE_TOKEN_ACCOUNT.getActualGas()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining("CONTRACT_REVERT_EXECUTED");
 
-//        assertContractCallReturnsBadRequest(
-//                data, WIPE_TOKEN_ACCOUNT.actualGas, estimatePrecompileContractSolidityAddress);
+        //        assertContractCallReturnsBadRequest(
+        //                data, WIPE_TOKEN_ACCOUNT.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @And("I transfer NFT to receiver account")

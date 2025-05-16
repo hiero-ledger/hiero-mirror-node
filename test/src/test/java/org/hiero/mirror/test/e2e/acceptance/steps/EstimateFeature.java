@@ -336,8 +336,8 @@ public class EstimateFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with request body that contains wrong method signature")
     public void wrongMethodSignatureEstimateCall() {
-//        assertContractCallReturnsBadRequest(
-//                encodeData(WRONG_METHOD_SIGNATURE), WRONG_METHOD_SIGNATURE.actualGas, mockAddress);
+        //        assertContractCallReturnsBadRequest(
+        //                encodeData(WRONG_METHOD_SIGNATURE), WRONG_METHOD_SIGNATURE.actualGas, mockAddress);
         var mockContractId = ContractId.fromSolidityAddress(mockAddress);
 
         assertThatThrownBy(() -> contractClient.estimateGasQueryWithoutParams(
@@ -1022,7 +1022,8 @@ public class EstimateFeature extends AbstractEstimateFeature {
             var fileId =
                     persistContractBytes(compiledSolidityArtifact.getBytecode().replaceFirst("0x", ""));
             try {
-                networkTransactionResponse = contractClient.createContract(fileId, gas, Hbar.fromTinybars(6_000_000), null);
+                networkTransactionResponse =
+                        contractClient.createContract(fileId, gas, Hbar.fromTinybars(6_000_000), null);
                 return networkTransactionResponse.getTransactionIdStringNoCheckSum();
             } catch (Exception e) {
                 return extractTransactionId(e.getMessage());
