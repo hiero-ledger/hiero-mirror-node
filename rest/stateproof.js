@@ -2,6 +2,7 @@
 
 import _ from 'lodash';
 import {gunzipSync} from 'zlib';
+import {NoSuchKey} from '@aws-sdk/client-s3';
 
 import config from './config';
 import * as constants from './constants';
@@ -11,7 +12,6 @@ import s3client from './s3client';
 import {CompositeRecordFile} from './stream';
 import TransactionId from './transactionId';
 import * as utils from './utils';
-import {NoSuchKey} from '@aws-sdk/client-s3';
 
 const fileQuery = `select file_data,
                          node_count,
@@ -53,6 +53,17 @@ const transactionIdQuery = `select consensus_timestamp
                       and result = 22
                       and consensus_timestamp >= $2
                       and consensus_timestamp <= $5`;
+
+// lazy create s3client singleton
+const getS3Client = (() => {
+  let client;
+  return () => {
+    if (client === undefined) {
+      client = s3client.createS3Client();
+    }
+    return client;
+  };
+})();
 
 /**
  * Get the consensus_timestamp of the transaction. Throws exception if no such successful transaction found or multiple such
@@ -149,7 +160,7 @@ const getAddressBooksAndNodeAccountIdsByConsensusTimestamp = async (consensusTim
  */
 const downloadRecordStreamFilesFromObjectStorage = async (...partialFilePaths) => {
   const {bucketName} = config.stateproof.streams;
-  const s3Client = s3client.createS3Client();
+  const s3Client = getS3Client();
 
   const fileObjects = await Promise.all(
     _.map(partialFilePaths, async (partialFilePath) => {
@@ -159,43 +170,25 @@ const downloadRecordStreamFilesFromObjectStorage = async (...partialFilePaths) =
         RequestPayer: 'requester',
       };
 
-      return new Promise(async (resolve) => {
-        s3Client.getObject(params).then(
-          (data) => {
-            const buffers = [];
-            data.Body.on('data', (chunk) => {
-              buffers.push(Buffer.from(chunk));
-            })
-              .on('end', () => {
-                resolve({
-                  partialFilePath,
-                  data: Buffer.concat(buffers),
-                });
-              })
-              // Error may happen if there is a transient s3 error. Capture
-              // the error and return it, otherwise Promise.all will fail
-              .on('error', (error) => {
-                logger.error(`Failed to download ${utils.JSONStringify(params)}`, error);
-                resolve({
-                  partialFilePath,
-                  error,
-                });
-              });
-          },
-          // error will happen if the node does not have the requested file
-          (error) => {
-            if (error instanceof NoSuchKey) {
-              logger.warn(`Failed to download ${utils.JSONStringify(params)}`, error.message);
-            } else {
-              logger.error(`Failed to download ${utils.JSONStringify(params)}`, error);
-            }
-            resolve({
-              partialFilePath,
-              error,
-            });
-          }
-        );
-      });
+      try {
+        const response = await s3Client.getObject(params);
+        const data = Buffer.from(await response.Body.transformToByteArray());
+        return {
+          partialFilePath,
+          data,
+        };
+      } catch (error) {
+        if (error instanceof NoSuchKey) {
+          logger.warn(`Failed to download ${utils.JSONStringify(params)}`, error.message);
+        } else {
+          logger.error(`Failed to download ${utils.JSONStringify(params)}`, error);
+        }
+
+        return {
+          error,
+          partialFilePath,
+        };
+      }
     })
   );
 
