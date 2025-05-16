@@ -50,6 +50,6 @@ There are two simple steps. And step 2 can be repeated to replay the traffic wit
    
    - `--input-file-loop` to loop the input(s) indefinitely
    - Increase or decrease rate: add a percentage limiter after the replay filename, e.g., `"traffic.log|10%"` or
-     `"traffic.log|200%`
+     `"traffic.log|200%"`
 
    Please refer to the [Wiki](https://github.com/buger/goreplay/wiki) for more information.
