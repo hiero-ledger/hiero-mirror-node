@@ -3,6 +3,9 @@
 package com.hedera.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
+import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
+import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
+import static com.hedera.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -28,6 +31,7 @@ import java.nio.ByteBuffer;
 import java.security.KeyPairGenerator;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
+import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
@@ -57,6 +61,57 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         // When
         final var functionCall = contract.send_signScheduleCall(
                 (getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))), signatureMapBytes);
+        // Then
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            verifyEthCallAndEstimateGas(functionCall, contract);
+        } else {
+            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
+        }
+    }
+
+    @Test
+    void authorizeScheduleWithContract() {
+        // Given
+        final var contract = testWeb3jService.deployWithoutPersist(HRC755Contract::deploy);
+        final var scheduleContract = scheduleContractPersist(
+                testWeb3jService.getContractRuntime(), Address.fromHexString(contract.getContractAddress()));
+        final var scheduleEntity = persistScheduleEntity();
+        final var receiverAccount = accountEntityPersist();
+        final var scheduleTransactionBodyBytes =
+                buildDefaultScheduleTransactionBodyForCryptoTransferBytes(scheduleContract, receiverAccount);
+
+        final var payerAccount = persistEd25519Account();
+        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
+        // When
+        final var functionCall =
+                contract.send_authorizeScheduleCall((getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))));
+        // Then
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            verifyEthCallAndEstimateGas(functionCall, contract);
+        } else {
+            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
+        }
+    }
+
+    @Test
+    void authorizeScheduleWithContractNoExec() throws Exception {
+        // Given
+        final var contract = testWeb3jService.deploy(HRC755Contract::deploy);
+        final var scheduleEntity = persistScheduleEntity();
+        final var keyPair = Keys.createEcKeyPair();
+        final var ecdsaKey = getProtobufKeyECDSA(keyPair.getPublicKey());
+        final var signerAccount = persistSignerAccount(ecdsaKey);
+        final var receiverAccount = accountEntityPersist();
+        final var scheduleTransactionBodyBytes =
+                buildDefaultScheduleTransactionBodyForCryptoTransferBytes(signerAccount, receiverAccount);
+
+        final var payerAccount = persistEd25519Account();
+        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
+        // When
+        final var functionCall =
+                contract.send_authorizeScheduleCall((getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))));
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(functionCall, contract);
@@ -357,5 +412,33 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
                                 .build()))
                 .build();
         return CommonPbjConverters.asBytes(SchedulableTransactionBody.PROTOBUF, scheduleBody);
+    }
+
+    private Entity scheduleContractPersist(byte[] runtimeBytecode, Address contractAddress) {
+        final var contractEntityId = entityIdFromEvmAddress(contractAddress);
+        final var contractEvmAddress = toEvmAddress(contractEntityId);
+        final var key = com.hederahashgraph.api.proto.java.Key.newBuilder()
+                .setContractID(com.hederahashgraph.api.proto.java.ContractID.newBuilder()
+                        .setShardNum(contractEntityId.getShard())
+                        .setRealmNum(contractEntityId.getRealm())
+                        .setContractNum(contractEntityId.getNum()))
+                .build()
+                .toByteArray();
+
+        final var entity = domainBuilder
+                .entity()
+                .customize(e -> e.id(contractEntityId.getId())
+                        .num(contractEntityId.getNum())
+                        .evmAddress(contractEvmAddress)
+                        .type(CONTRACT)
+                        .key(key)
+                        .balance(1500L))
+                .persist();
+        domainBuilder
+                .contract()
+                .customize(c -> c.id(contractEntityId.getId()).runtimeBytecode(runtimeBytecode))
+                .persist();
+        domainBuilder.recordFile().customize(f -> f.bytes(runtimeBytecode)).persist();
+        return entity;
     }
 }
