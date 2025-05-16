@@ -58,7 +58,7 @@
     "limit": 2
   },
   "stateproof": {
-    "enabled": true,
+    "enabled": false,
     "intervalMultiplier": 10
   },
   "transaction": {
