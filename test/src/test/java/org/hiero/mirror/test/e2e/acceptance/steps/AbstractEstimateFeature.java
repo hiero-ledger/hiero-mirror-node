@@ -5,12 +5,16 @@ package org.hiero.mirror.test.e2e.acceptance.steps;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.hedera.hashgraph.sdk.AccountId;
+import com.hedera.hashgraph.sdk.ContractFunctionParameters;
+import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.mirror.rest.model.ContractAction;
 import com.hedera.mirror.rest.model.ContractActionsResponse;
 import com.hedera.mirror.rest.model.ContractCallResponse;
 import com.hedera.mirror.rest.model.ContractResult;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.tuweni.bytes.Bytes;
@@ -61,46 +65,64 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
      * This method estimates the gas cost for a given contract call, and then checks whether the actual gas used falls
      * within an acceptable deviation range. It utilizes the provided call endpoint to perform the contract call and
      * then compares the estimated gas with the actual gas used.
-     *
-     * @param data            The function signature and method data of the contract call.
-     * @param actualGasUsed   The actual gas amount that was used for the call.
-     * @param solidityAddress The address of the solidity contract.
-     * @param sender          The sender's address (optional).
-     * @throws AssertionError If the actual gas used is not within the acceptable deviation range.
+     */
+
+    // Use this method if you want to execute estimate gas query with parameters without value
+    /**
+     * @param contractId The ID of the contract to call.
+     * @param functionName The name of the function to call.
+     * @param params The parameters to pass to the function.
+     * @param sender The account ID of the sender.
+     * @param actualGas The actual gas used for the call.
      */
     protected void validateGasEstimation(
-            String data, ContractMethodInterface actualGasUsed, String solidityAddress, Optional<String> sender) {
-        var contractCallRequest = ModelBuilder.contractCallRequest(actualGasUsed.getActualGas())
-                .data(data)
-                .estimate(true)
-                .to(solidityAddress);
-        sender.ifPresent(contractCallRequest::from);
+            ContractId contractId,
+            String functionName,
+            ContractFunctionParameters params,
+            AccountId sender,
+            int actualGas)
+            throws ExecutionException, InterruptedException {
+        var estimateGasResult = contractClient.estimateGasQuery(contractId, functionName, params, sender, actualGas);
 
-        ContractCallResponse msgSenderResponse = mirrorClient.contractsCall(contractCallRequest);
-        int estimatedGas = Bytes.fromHexString(msgSenderResponse.getResult())
-                .toBigInteger()
-                .intValue();
-
-        assertWithinDeviation(actualGasUsed.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
+        assertWithinDeviation(actualGas, (int) estimateGasResult, lowerDeviation, upperDeviation);
     }
 
-    protected void validateGasEstimation(String data, ContractMethodInterface actualGasUsed, String solidityAddress) {
-        validateGasEstimation(data, actualGasUsed, solidityAddress, Optional.empty());
+    // Use this method if you want to execute query with value
+    /**
+     * @param contractId The ID of the contract to call.
+     * @param functionName The name of the function to call.
+     * @param params The parameters to pass to the function.
+     * @param sender The account ID of the sender.
+     * @param actualGas The actual gas used for the call.
+     * @param value The value to send with the call.
+     */
+    protected void validateGasEstimation(
+            ContractId contractId,
+            String functionName,
+            ContractFunctionParameters params,
+            AccountId sender,
+            int actualGas,
+            long value)
+            throws ExecutionException, InterruptedException {
+        var estimateGasResult =
+                contractClient.estimateGasQueryWithValue(contractId, functionName, params, sender, actualGas, value);
+
+        assertWithinDeviation(actualGas, (int) estimateGasResult, lowerDeviation, upperDeviation);
     }
 
-    protected void validateGasEstimationNestedCalls(
-            String data, ContractMethodInterface actualGasUsed, String solidityAddress) {
-        var contractCallRequest = ModelBuilder.contractCallRequestNestedCalls(actualGasUsed.getActualGas())
-                .data(data)
-                .estimate(true)
-                .to(solidityAddress);
+    // Use this method if you want to execute query without function parameters
+    /**
+     * @param contractId The ID of the contract to call.
+     * @param functionName The name of the function to call.
+     * @param sender The account ID of the sender.
+     * @param actualGas The actual gas used for the call.
+     */
+    protected void validateGasEstimation(ContractId contractId, String functionName, AccountId sender, int actualGas)
+            throws ExecutionException, InterruptedException {
+        var estimateGasResult =
+                contractClient.estimateGasQueryWithoutParams(contractId, functionName, sender, actualGas);
 
-        ContractCallResponse msgSenderResponse = mirrorClient.contractsCall(contractCallRequest);
-        int estimatedGas = Bytes.fromHexString(msgSenderResponse.getResult())
-                .toBigInteger()
-                .intValue();
-
-        assertWithinDeviation(actualGasUsed.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
+        assertWithinDeviation(actualGas, (int) estimateGasResult, lowerDeviation, upperDeviation);
     }
 
     /**
@@ -117,16 +139,6 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
     protected void assertContractCallReturnsBadRequest(String data, String contractAddress) {
         var contractCallRequest =
                 ModelBuilder.contractCallRequest().data(data).estimate(true).to(contractAddress);
-
-        assertThatThrownBy(() -> mirrorClient.contractsCall(contractCallRequest))
-                .isInstanceOf(HttpClientErrorException.BadRequest.class);
-    }
-
-    protected void assertContractCallReturnsBadRequest(String data, int actualGas, String contractAddress) {
-        var contractCallRequest = ModelBuilder.contractCallRequest(actualGas)
-                .data(data)
-                .estimate(true)
-                .to(contractAddress);
 
         assertThatThrownBy(() -> mirrorClient.contractsCall(contractCallRequest))
                 .isInstanceOf(HttpClientErrorException.BadRequest.class);

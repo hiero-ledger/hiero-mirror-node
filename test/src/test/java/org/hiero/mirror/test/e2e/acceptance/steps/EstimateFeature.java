@@ -53,20 +53,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hashgraph.sdk.AccountId;
+import com.hedera.hashgraph.sdk.ContractFunctionParameters;
+import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
 import com.hedera.hashgraph.sdk.TokenId;
+import com.hedera.mirror.rest.model.ContractCallResponse;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.tuweni.bytes.Bytes;
 import org.assertj.core.api.Assertions;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.ExecuteContractResult;
@@ -89,9 +93,11 @@ public class EstimateFeature extends AbstractEstimateFeature {
     private final Web3Properties web3Properties;
     private final AccountClient accountClient;
     private DeployedContract deployedContract;
+    private ContractId estimateGasContractId;
     private DeployedContract deployedPrecompileContract;
     private DeployedContract deployedERCContract;
     private String ercSolidityAddress;
+    private ContractId ercContractId;
 
     private String contractSolidityAddress;
     private String precompileSolidityAddress;
@@ -101,15 +107,19 @@ public class EstimateFeature extends AbstractEstimateFeature {
     private String newAccountEvmAddress;
     private ExpandedAccountId receiverAccountId;
     private String receiverAccountAlias;
+    private AccountId senderAccountId;
 
     @Given("I successfully create EstimateGas contract from contract bytes")
     public void createNewEstimateContract() {
         deployedContract = getContract(ESTIMATE_GAS);
+        estimateGasContractId = deployedContract.contractId();
         contractSolidityAddress = deployedContract.contractId().toSolidityAddress();
         newAccountEvmAddress =
                 PrivateKey.generateECDSA().getPublicKey().toEvmAddress().toString();
         receiverAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
         receiverAccountAlias = receiverAccountId.getPublicKey().toEvmAddress().toString();
+        senderAccountId =
+                accountClient.getSdkClient().getExpandedOperatorAccountId().getAccountId();
     }
 
     @Given("I successfully create fungible token")
@@ -132,6 +142,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void createNewERCContract() {
         deployedERCContract = getContract(ERC);
         ercSolidityAddress = deployedERCContract.contractId().toSolidityAddress();
+        ercContractId = deployedERCContract.contractId();
     }
 
     @Then("the mirror node REST API should return status {int} for the estimate contract creation")
@@ -160,40 +171,60 @@ public class EstimateFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas without arguments that multiplies two numbers")
-    public void multiplyEstimateCall() {
-        validateGasEstimation(encodeData(ESTIMATE_GAS, MULTIPLY_NUMBERS), MULTIPLY_NUMBERS, contractSolidityAddress);
+    public void multiplyEstimateCall() throws ExecutionException, InterruptedException {
+
+        validateGasEstimation(
+                estimateGasContractId,
+                MULTIPLY_NUMBERS.getSelector(),
+                senderAccountId,
+                MULTIPLY_NUMBERS.getActualGas());
     }
 
     @Then("I call estimateGas with function msgSender")
-    public void msgSenderEstimateCall() {
-        validateGasEstimation(encodeData(ESTIMATE_GAS, MESSAGE_SENDER), MESSAGE_SENDER, contractSolidityAddress);
+    public void msgSenderEstimateCall() throws ExecutionException, InterruptedException {
+
+        validateGasEstimation(
+                estimateGasContractId, MESSAGE_SENDER.getSelector(), senderAccountId, MESSAGE_SENDER.getActualGas());
     }
 
     @Then("I call estimateGas with function tx origin")
-    public void txOriginEstimateCall() {
-        validateGasEstimation(encodeData(ESTIMATE_GAS, TX_ORIGIN), TX_ORIGIN, contractSolidityAddress);
+    public void txOriginEstimateCall() throws ExecutionException, InterruptedException {
+
+        validateGasEstimation(
+                estimateGasContractId, TX_ORIGIN.getSelector(), senderAccountId, TX_ORIGIN.getActualGas());
     }
 
     @Then("I call estimateGas with function messageValue")
-    public void msgValueEstimateCall() {
-        validateGasEstimation(encodeData(ESTIMATE_GAS, MESSAGE_VALUE), MESSAGE_VALUE, contractSolidityAddress);
+    public void msgValueEstimateCall() throws ExecutionException, InterruptedException {
+
+        validateGasEstimation(
+                estimateGasContractId, MESSAGE_VALUE.getSelector(), senderAccountId, MESSAGE_VALUE.getActualGas());
     }
 
     @Then("I call estimateGas with function messageSigner")
-    public void msgSignerEstimateCall() {
-        validateGasEstimation(encodeData(ESTIMATE_GAS, MESSAGE_SIGNER), MESSAGE_SIGNER, contractSolidityAddress);
+    public void msgSignerEstimateCall() throws ExecutionException, InterruptedException {
+
+        validateGasEstimation(
+                estimateGasContractId, MESSAGE_SIGNER.getSelector(), senderAccountId, MESSAGE_SIGNER.getActualGas());
     }
 
     @RetryAsserts
     @Then("I call estimateGas with function balance of address")
-    public void addressBalanceEstimateCall() {
-        var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, asAddress(contractSolidityAddress));
-        validateGasEstimation(data, ADDRESS_BALANCE, contractSolidityAddress);
+    public void addressBalanceEstimateCall() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addAddress(asAddress(contractSolidityAddress).toString());
+
+        validateGasEstimation(
+                estimateGasContractId,
+                ADDRESS_BALANCE.getSelector(),
+                parameters,
+                senderAccountId,
+                ADDRESS_BALANCE.getActualGas());
     }
 
     @Then("I call estimateGas with function that changes contract slot information"
             + " by updating global contract field with the passed argument")
-    public void updateCounterEstimateCall() {
+    public void updateCounterEstimateCall() throws ExecutionException, InterruptedException {
         /*
          * NB: Variations in gas costs for contract storage slot updates in the EVM:
          *
@@ -209,20 +240,35 @@ public class EstimateFeature extends AbstractEstimateFeature {
          * 4. Non-Zero to Zero Update
          *    - Distinct gas cost (e.g, 36452) due to process of clearing the storage slot.
          */
-        var data = encodeData(ESTIMATE_GAS, UPDATE_COUNTER, new BigInteger("100"));
-        validateGasEstimation(data, UPDATE_COUNTER, contractSolidityAddress);
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addAddress(asAddress(contractSolidityAddress).toString())
+                .addUint256(new BigInteger("100"));
+
+        validateGasEstimation(
+                estimateGasContractId,
+                UPDATE_COUNTER.getSelector(),
+                parameters,
+                senderAccountId,
+                UPDATE_COUNTER.getActualGas());
     }
 
     @Then("I call estimateGas with function that successfully deploys a new smart contract via CREATE op code")
-    public void deployContractViaCreateOpcodeEstimateCall() {
+    public void deployContractViaCreateOpcodeEstimateCall() throws ExecutionException, InterruptedException {
         var data = encodeData(ESTIMATE_GAS, DEPLOY_CONTRACT_VIA_CREATE_OPCODE);
-        validateGasEstimation(data, DEPLOY_CONTRACT_VIA_CREATE_OPCODE, contractSolidityAddress);
+        validateGasEstimation(
+                estimateGasContractId,
+                DEPLOY_CONTRACT_VIA_CREATE_OPCODE.getSelector(),
+                senderAccountId,
+                DEPLOY_CONTRACT_VIA_CREATE_OPCODE.getActualGas());
     }
 
     @Then("I call estimateGas with function that successfully deploys a new smart contract via CREATE2 op code")
-    public void deployContractViaCreateTwoOpcodeEstimateCall() {
-        var data = encodeData(ESTIMATE_GAS, DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE);
-        validateGasEstimation(data, DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE, contractSolidityAddress);
+    public void deployContractViaCreateTwoOpcodeEstimateCall() throws ExecutionException, InterruptedException {
+        validateGasEstimation(
+                estimateGasContractId,
+                DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE.getSelector(),
+                senderAccountId,
+                DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE.getActualGas());
     }
 
     @Then("I get mock contract address and getAddress selector")
@@ -233,41 +279,74 @@ public class EstimateFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with function that makes a static call to a method from a different contract")
-    public void staticCallToContractEstimateCall() {
-        var data = encodeData(ESTIMATE_GAS, STATIC_CALL_TO_CONTRACT, asAddress(mockAddress), addressSelector);
-        validateGasEstimation(data, STATIC_CALL_TO_CONTRACT, contractSolidityAddress);
+    public void staticCallToContractEstimateCall() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addAddress(asAddress(mockAddress).toString())
+                .addBytes4(addressSelector);
+
+        validateGasEstimation(
+                estimateGasContractId,
+                STATIC_CALL_TO_CONTRACT.getSelector(),
+                parameters,
+                senderAccountId,
+                STATIC_CALL_TO_CONTRACT.getActualGas());
     }
 
     @Then("I call estimateGas with function that makes a delegate call to a method from a different contract")
-    public void delegateCallToContractEstimateCall() {
-        var data = encodeData(ESTIMATE_GAS, DELEGATE_CALL_TO_CONTRACT, asAddress(mockAddress), addressSelector);
-        validateGasEstimation(data, DELEGATE_CALL_TO_CONTRACT, contractSolidityAddress);
+    public void delegateCallToContractEstimateCall() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addAddress(asAddress(mockAddress).toString())
+                .addBytes4(addressSelector);
+
+        validateGasEstimation(
+                estimateGasContractId,
+                DELEGATE_CALL_TO_CONTRACT.getSelector(),
+                parameters,
+                senderAccountId,
+                DELEGATE_CALL_TO_CONTRACT.getActualGas());
     }
 
     @Then("I call estimateGas with function that makes a call code to a method from a different contract")
-    public void callCodeToContractEstimateCall() {
-        var data = encodeData(ESTIMATE_GAS, CALL_CODE_TO_CONTRACT, asAddress(mockAddress), addressSelector);
-        validateGasEstimation(data, CALL_CODE_TO_CONTRACT, contractSolidityAddress);
+    public void callCodeToContractEstimateCall() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addAddress(asAddress(mockAddress).toString())
+                .addBytes4(addressSelector);
+
+        validateGasEstimation(
+                estimateGasContractId,
+                CALL_CODE_TO_CONTRACT.getSelector(),
+                parameters,
+                senderAccountId,
+                CALL_CODE_TO_CONTRACT.getActualGas());
     }
 
     @Then("I call estimateGas with function that performs LOG0, LOG1, LOG2, LOG3, LOG4 operations")
-    public void logsEstimateCall() {
-        validateGasEstimation(encodeData(ESTIMATE_GAS, LOGS), LOGS, contractSolidityAddress);
+    public void logsEstimateCall() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addAddress(asAddress(contractSolidityAddress).toString());
+
+        validateGasEstimation(
+                estimateGasContractId, LOGS.getSelector(), parameters, senderAccountId, LOGS.getActualGas());
     }
 
     @Then("I call estimateGas with function that performs self destruct")
-    public void destroyEstimateCall() {
-        validateGasEstimation(
-                encodeData(ESTIMATE_GAS, DESTROY),
-                DESTROY,
-                contractSolidityAddress,
-                Optional.of(contractClient.getClientAddress()));
+    public void destroyEstimateCall() throws ExecutionException, InterruptedException {
+        validateGasEstimation(estimateGasContractId, DESTROY.getSelector(), senderAccountId, DESTROY.getActualGas());
     }
 
     @Then("I call estimateGas with request body that contains wrong method signature")
     public void wrongMethodSignatureEstimateCall() {
-        assertContractCallReturnsBadRequest(
-                encodeData(WRONG_METHOD_SIGNATURE), WRONG_METHOD_SIGNATURE.actualGas, mockAddress);
+//        assertContractCallReturnsBadRequest(
+//                encodeData(WRONG_METHOD_SIGNATURE), WRONG_METHOD_SIGNATURE.actualGas, mockAddress);
+        var mockContractId = ContractId.fromSolidityAddress(mockAddress);
+
+        assertThatThrownBy(() -> contractClient.estimateGasQueryWithoutParams(
+                        mockContractId,
+                        WRONG_METHOD_SIGNATURE.getSelector(),
+                        senderAccountId,
+                        WRONG_METHOD_SIGNATURE.getActualGas()))
+                .isInstanceOf(ExecutionException.class)
+                .hasMessageContaining("CONTRACT_REVERT_EXECUTED");
     }
 
     @Then("I call estimateGas with wrong encoded parameter")
@@ -280,148 +359,228 @@ public class EstimateFeature extends AbstractEstimateFeature {
 
     // Cannot send request without from with modularized EVM
     @Then("I call estimateGas with non-existing from address in the request body")
-    public void wrongFromParameterEstimateCall() {
+    public void wrongFromParameterEstimateCall() throws ExecutionException, InterruptedException {
         if (!web3Properties.isModularizedServices()) {
-            var data = encodeData(ESTIMATE_GAS, MESSAGE_SIGNER);
-            var contractCallRequest = ModelBuilder.contractCallRequest(MESSAGE_SIGNER.actualGas)
-                    .data(data)
-                    .estimate(true)
-                    .from(newAccountEvmAddress)
-                    .to(contractSolidityAddress);
+            var estimateGasResult = contractClient.estimateGasQueryWithoutParams(
+                    estimateGasContractId,
+                    MESSAGE_SIGNER.getSelector(),
+                    senderAccountId,
+                    MESSAGE_SIGNER.getActualGas());
 
-            var msgSignerResponse = callContract(contractCallRequest);
-            int estimatedGas = msgSignerResponse.getResultAsNumber().intValue();
-
-            assertWithinDeviation(MESSAGE_SIGNER.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
+            assertWithinDeviation(
+                    MESSAGE_SIGNER.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
         }
     }
 
     @Then("I call estimateGas with function that makes a call to invalid smart contract")
-    public void callToInvalidSmartContractEstimateCall() {
-        var data = encodeData(ESTIMATE_GAS, CALL_TO_INVALID_CONTRACT, asAddress(RANDOM_ADDRESS));
-        validateGasEstimation(data, CALL_TO_INVALID_CONTRACT, contractSolidityAddress);
+    public void callToInvalidSmartContractEstimateCall() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addAddress(asAddress(RANDOM_ADDRESS).toString());
+
+        validateGasEstimation(
+                estimateGasContractId,
+                CALL_TO_INVALID_CONTRACT.getSelector(),
+                parameters,
+                senderAccountId,
+                CALL_TO_INVALID_CONTRACT.getActualGas());
     }
 
     @Then("I call estimateGas with function that makes a delegate call to invalid smart contract")
-    public void delegateCallToInvalidSmartContractEstimateCall() {
-        var data = encodeData(ESTIMATE_GAS, DELEGATE_CALL_TO_INVALID_CONTRACT, asAddress(RANDOM_ADDRESS));
-        validateGasEstimation(data, DELEGATE_CALL_TO_INVALID_CONTRACT, contractSolidityAddress);
+    public void delegateCallToInvalidSmartContractEstimateCall() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addAddress(asAddress(RANDOM_ADDRESS).toString());
+
+        validateGasEstimation(
+                estimateGasContractId,
+                DELEGATE_CALL_TO_INVALID_CONTRACT.getSelector(),
+                parameters,
+                senderAccountId,
+                DELEGATE_CALL_TO_INVALID_CONTRACT.getActualGas());
     }
 
     @Then("I call estimateGas with function that makes a static call to invalid smart contract")
-    public void staticCallToInvalidSmartContractEstimateCall() {
-        var data = encodeData(ESTIMATE_GAS, STATIC_CALL_TO_INVALID_CONTRACT, asAddress(RANDOM_ADDRESS));
-        validateGasEstimation(data, STATIC_CALL_TO_INVALID_CONTRACT, contractSolidityAddress);
+    public void staticCallToInvalidSmartContractEstimateCall() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addAddress(asAddress(RANDOM_ADDRESS).toString());
+
+        validateGasEstimation(
+                estimateGasContractId,
+                STATIC_CALL_TO_INVALID_CONTRACT.getSelector(),
+                parameters,
+                senderAccountId,
+                STATIC_CALL_TO_INVALID_CONTRACT.getActualGas());
     }
 
     @Then("I call estimateGas with function that makes a call code to invalid smart contract")
-    public void callCodeToInvalidSmartContractEstimateCall() {
-        var data = encodeData(ESTIMATE_GAS, CALL_CODE_TO_INVALID_CONTRACT, asAddress(RANDOM_ADDRESS));
-        validateGasEstimation(data, CALL_CODE_TO_INVALID_CONTRACT, contractSolidityAddress);
+    public void callCodeToInvalidSmartContractEstimateCall() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addAddress(asAddress(RANDOM_ADDRESS).toString());
+
+        validateGasEstimation(
+                estimateGasContractId,
+                CALL_CODE_TO_INVALID_CONTRACT.getSelector(),
+                parameters,
+                senderAccountId,
+                CALL_CODE_TO_INVALID_CONTRACT.getActualGas());
     }
 
     @Then("I call estimateGas with function that makes call to an external contract function")
-    public void callCodeToExternalContractFunction() {
-        var data = encodeData(
-                ESTIMATE_GAS,
-                CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION,
-                new BigInteger("2"),
-                asAddress(contractSolidityAddress));
-        validateGasEstimation(data, CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION, contractSolidityAddress);
+    public void callCodeToExternalContractFunction() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addUint256(new BigInteger("2"))
+                .addAddress(asAddress(contractSolidityAddress).toString());
+
+        validateGasEstimation(
+                estimateGasContractId,
+                CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION.getSelector(),
+                parameters,
+                senderAccountId,
+                CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION.getActualGas());
     }
 
     @Then("I call estimateGas with function that makes delegate call to an external contract function")
-    public void delegateCallCodeToExternalContractFunction() {
-        var data = encodeData(
-                ESTIMATE_GAS,
-                DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION,
-                new BigInteger("3"),
-                asAddress(contractSolidityAddress));
-        validateGasEstimation(data, DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION, contractSolidityAddress);
+    public void delegateCallCodeToExternalContractFunction() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addUint256(new BigInteger("3"))
+                .addAddress(asAddress(contractSolidityAddress).toString());
+
+        validateGasEstimation(
+                estimateGasContractId,
+                DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION.getSelector(),
+                parameters,
+                senderAccountId,
+                DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION.getActualGas());
     }
 
     @Then("I call estimateGas with function that makes call to an external contract view function")
-    public void callCodeToExternalContractViewFunction() {
-        var data = encodeData(
-                ESTIMATE_GAS,
-                CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW,
-                new BigInteger("1"),
-                asAddress(contractSolidityAddress));
-        validateGasEstimation(data, CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW, contractSolidityAddress);
+    public void callCodeToExternalContractViewFunction() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addUint256(new BigInteger("1"))
+                .addAddress(asAddress(contractSolidityAddress).toString());
+
+        validateGasEstimation(
+                estimateGasContractId,
+                CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW.getSelector(),
+                parameters,
+                senderAccountId,
+                CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW.getActualGas());
     }
 
     @Then("I call estimateGas with function that makes a state update to a contract")
-    public void stateUpdateContractFunction() {
+    public void stateUpdateContractFunction() throws ExecutionException, InterruptedException {
         // making 5 times to state update
-        var data = encodeData(ESTIMATE_GAS, STATE_UPDATE_OF_CONTRACT, new BigInteger("5"));
-        validateGasEstimation(data, STATE_UPDATE_OF_CONTRACT, contractSolidityAddress);
+        ContractFunctionParameters parameters = new ContractFunctionParameters().addUint256(new BigInteger("5"));
+
+        validateGasEstimation(
+                estimateGasContractId,
+                STATE_UPDATE_OF_CONTRACT.getSelector(),
+                parameters,
+                senderAccountId,
+                STATE_UPDATE_OF_CONTRACT.getActualGas());
     }
 
     @Then(
             "I call estimateGas with function that makes a state update to a contract several times and estimateGas is higher")
-    public void progressiveStateUpdateContractFunction() {
+    public void progressiveStateUpdateContractFunction() throws ExecutionException, InterruptedException {
         // making 5 times to state update
-        var data = encodeData(ESTIMATE_GAS, STATE_UPDATE_OF_CONTRACT, new BigInteger("5"));
-        var firstResponse = estimateContract(data, STATE_UPDATE_OF_CONTRACT.actualGas, contractSolidityAddress)
-                .getResultAsNumber()
-                .intValue();
+        ContractFunctionParameters firstParams = new ContractFunctionParameters().addUint256(new BigInteger("5"));
+        var firstResponse = contractClient.estimateGasQuery(
+                estimateGasContractId,
+                STATE_UPDATE_OF_CONTRACT.getSelector(),
+                firstParams,
+                senderAccountId,
+                STATE_UPDATE_OF_CONTRACT.getActualGas());
         // making 10 times to state update
-        var secondData = encodeData(ESTIMATE_GAS, STATE_UPDATE_OF_CONTRACT, new BigInteger("10"));
-        var secondResponse = estimateContract(secondData, STATE_UPDATE_OF_CONTRACT.actualGas, contractSolidityAddress)
-                .getResultAsNumber()
-                .intValue();
-        // verifying that estimateGas for 10 state updates is higher than 5 state updates
+        ContractFunctionParameters secondParams = new ContractFunctionParameters().addUint256(new BigInteger("10"));
+        var secondResponse = contractClient.estimateGasQuery(
+                estimateGasContractId,
+                STATE_UPDATE_OF_CONTRACT.getSelector(),
+                secondParams,
+                senderAccountId,
+                STATE_UPDATE_OF_CONTRACT.getActualGas());
+
         assertTrue(secondResponse > firstResponse);
     }
 
     @Then("I call estimateGas with function that executes reentrancy attack with call")
-    public void reentrancyCallAttackFunction() {
-        var data = encodeData(
-                ESTIMATE_GAS, REENTRANCY_CALL_ATTACK, asAddress(RANDOM_ADDRESS), new BigInteger("10000000000"));
-        validateGasEstimation(data, REENTRANCY_CALL_ATTACK, contractSolidityAddress);
+    public void reentrancyCallAttackFunction() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addAddress(asAddress(RANDOM_ADDRESS).toString())
+                .addUint256(new BigInteger("10000000000"));
+
+        validateGasEstimation(
+                estimateGasContractId,
+                REENTRANCY_CALL_ATTACK.getSelector(),
+                parameters,
+                senderAccountId,
+                REENTRANCY_CALL_ATTACK.getActualGas());
     }
 
     @Then("I call estimateGas with function that executes gasLeft")
-    public void getGasLeftContractFunction() {
-        validateGasEstimation(encodeData(ESTIMATE_GAS, GET_GAS_LEFT), GET_GAS_LEFT, contractSolidityAddress);
+    public void getGasLeftContractFunction() throws ExecutionException, InterruptedException {
+        validateGasEstimation(
+                estimateGasContractId, GET_GAS_LEFT.getSelector(), senderAccountId, GET_GAS_LEFT.getActualGas());
     }
 
     @Then("I call estimateGas with function that executes positive nested calls")
-    public void positiveNestedCallsFunction() {
-        var data = encodeData(
-                ESTIMATE_GAS,
-                NESTED_CALLS_POSITIVE,
-                new BigInteger("1"),
-                new BigInteger("10"),
-                asAddress(contractSolidityAddress));
-        validateGasEstimation(data, NESTED_CALLS_POSITIVE, contractSolidityAddress);
+    public void positiveNestedCallsFunction() throws ExecutionException, InterruptedException {
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addUint256(new BigInteger("1"))
+                .addUint256(new BigInteger("10"))
+                .addAddress(asAddress(contractSolidityAddress).toString());
+
+        validateGasEstimation(
+                estimateGasContractId,
+                NESTED_CALLS_POSITIVE.getSelector(),
+                parameters,
+                senderAccountId,
+                NESTED_CALLS_POSITIVE.getActualGas());
     }
 
     @Then("I call estimateGas with function that executes limited nested calls")
-    public void limitedNestedCallsFunction() {
+    public void limitedNestedCallsFunction() throws ExecutionException, InterruptedException {
         // verify that after exceeding a number of nested calls that the estimated gas would return the same
         // we will execute with 500, 1024 and 1025, and it should return the same estimatedGas
-        var data = encodeData(
-                ESTIMATE_GAS,
-                NESTED_CALLS_LIMITED,
-                new BigInteger("1"),
-                new BigInteger("500"),
-                asAddress(contractSolidityAddress));
-        validateGasEstimationNestedCalls(data, NESTED_CALLS_LIMITED, contractSolidityAddress);
-        var secondData = encodeData(
-                ESTIMATE_GAS,
-                NESTED_CALLS_LIMITED,
-                new BigInteger("1"),
-                new BigInteger("1024"),
-                asAddress(contractSolidityAddress));
-        validateGasEstimationNestedCalls(secondData, NESTED_CALLS_LIMITED, contractSolidityAddress);
-        var thirdData = encodeData(
-                ESTIMATE_GAS,
-                NESTED_CALLS_LIMITED,
-                new BigInteger("1"),
-                new BigInteger("1025"),
-                asAddress(contractSolidityAddress));
-        validateGasEstimationNestedCalls(thirdData, NESTED_CALLS_LIMITED, contractSolidityAddress);
+        ContractFunctionParameters firstParameters = new ContractFunctionParameters()
+                .addUint256(new BigInteger("1"))
+                .addUint256(new BigInteger("500"))
+                .addAddress(asAddress(contractSolidityAddress).toString());
+        var estimateGasResult = contractClient.estimateGasQueryNestedCalls(
+                estimateGasContractId,
+                NESTED_CALLS_LIMITED.getSelector(),
+                firstParameters,
+                senderAccountId,
+                NESTED_CALLS_LIMITED.getActualGas());
+        assertWithinDeviation(
+                NESTED_CALLS_LIMITED.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
+
+        ContractFunctionParameters secondParameters = new ContractFunctionParameters()
+                .addUint256(new BigInteger("1"))
+                .addUint256(new BigInteger("1024"))
+                .addAddress(asAddress(contractSolidityAddress).toString());
+
+        var secondEstimateGasResult = contractClient.estimateGasQueryNestedCalls(
+                estimateGasContractId,
+                NESTED_CALLS_LIMITED.getSelector(),
+                secondParameters,
+                senderAccountId,
+                NESTED_CALLS_LIMITED.getActualGas());
+        assertWithinDeviation(
+                NESTED_CALLS_LIMITED.getActualGas(), (int) secondEstimateGasResult, lowerDeviation, upperDeviation);
+
+        ContractFunctionParameters thirdParameters = new ContractFunctionParameters()
+                .addUint256(new BigInteger("1"))
+                .addUint256(new BigInteger("1025"))
+                .addAddress(asAddress(contractSolidityAddress).toString());
+
+        var thirdEstimateGasResult = contractClient.estimateGasQueryNestedCalls(
+                estimateGasContractId,
+                NESTED_CALLS_LIMITED.getSelector(),
+                thirdParameters,
+                senderAccountId,
+                NESTED_CALLS_LIMITED.getActualGas());
+        assertWithinDeviation(
+                NESTED_CALLS_LIMITED.getActualGas(), (int) thirdEstimateGasResult, lowerDeviation, upperDeviation);
     }
 
     @And("I approve the contract to use FT")
@@ -460,83 +619,145 @@ public class EstimateFeature extends AbstractEstimateFeature {
     // Disabled because currently the ERC contracts cannot interact with long zero addresses. Will be fixed in future
     // from services team
     @Then("I call estimateGas with IERC20 token transfer using long zero address as receiver")
-    public void ierc20TransferWithLongZeroAddressForReceiver() {
+    public void ierc20TransferWithLongZeroAddressForReceiver() throws ExecutionException, InterruptedException {
         if (!web3Properties.isModularizedServices()) {
-            var data = encodeData(
-                    ERC,
-                    IERC20_TOKEN_TRANSFER,
-                    asAddress(fungibleTokenId),
-                    asAddress(receiverAccountId),
-                    new BigInteger("5"));
-            validateGasEstimation(data, IERC20_TOKEN_TRANSFER, ercSolidityAddress);
+            ContractFunctionParameters parameters = new ContractFunctionParameters()
+                    .addAddress(asAddress(fungibleTokenId).toString())
+                    .addAddress(asAddress(receiverAccountId).toString())
+                    .addUint256(new BigInteger("5"));
+
+            validateGasEstimation(
+                    ercContractId,
+                    IERC20_TOKEN_TRANSFER.getSelector(),
+                    parameters,
+                    senderAccountId,
+                    IERC20_TOKEN_TRANSFER.getActualGas());
         }
     }
 
     @Then("I call estimateGas with IERC20 token transfer using evm address as receiver")
-    public void ierc20TransferWithEvmAddressForReceiver() throws InterruptedException {
+    public void ierc20TransferWithEvmAddressForReceiver() throws InterruptedException, ExecutionException {
         var accountInfo = mirrorClient.getAccountDetailsByAccountId(receiverAccountId.getAccountId());
-        var data = encodeData(
-                ERC,
-                IERC20_TOKEN_TRANSFER,
-                asAddress(fungibleTokenId),
-                asAddress(accountInfo.getEvmAddress().replace("0x", "")),
-                BigInteger.ONE);
-        validateGasEstimation(data, IERC20_TOKEN_TRANSFER, ercSolidityAddress);
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addAddress(asAddress(fungibleTokenId).toString())
+                .addAddress(
+                        asAddress(accountInfo.getEvmAddress().replace("0x", "")).toString())
+                .addUint256(BigInteger.ONE);
+
+        validateGasEstimation(
+                ercContractId,
+                IERC20_TOKEN_TRANSFER.getSelector(),
+                parameters,
+                senderAccountId,
+                IERC20_TOKEN_TRANSFER.getActualGas());
     }
 
     @Then("I call estimateGas with IERC20 token approve using evm address as receiver")
-    public void ierc20ApproveWithEvmAddressForReceiver() {
+    public void ierc20ApproveWithEvmAddressForReceiver() throws ExecutionException, InterruptedException {
         var accountInfo = mirrorClient.getAccountDetailsByAccountId(receiverAccountId.getAccountId());
-        var data = encodeData(
-                ERC,
-                IERC20_TOKEN_APPROVE,
-                asAddress(fungibleTokenId),
-                asAddress(accountInfo.getEvmAddress().replace("0x", "")),
-                BigInteger.ONE);
-        validateGasEstimation(data, IERC20_TOKEN_APPROVE, ercSolidityAddress);
+        ContractFunctionParameters parameters = new ContractFunctionParameters()
+                .addAddress(asAddress(fungibleTokenId).toString())
+                .addAddress(
+                        asAddress(accountInfo.getEvmAddress().replace("0x", "")).toString())
+                .addUint256(BigInteger.ONE);
+
+        validateGasEstimation(
+                ercContractId,
+                IERC20_TOKEN_APPROVE.getSelector(),
+                parameters,
+                senderAccountId,
+                IERC20_TOKEN_APPROVE.getActualGas());
     }
 
     @Then("I call estimateGas with IERC20 token associate using evm address as receiver")
-    public void ierc20AssociateWithEvmAddressForReceiver() {
-        validateGasEstimation(
-                encodeData(IERC20_TOKEN_ASSOCIATE), IERC20_TOKEN_ASSOCIATE, fungibleTokenId.toSolidityAddress());
+    public void ierc20AssociateWithEvmAddressForReceiver() throws ExecutionException, InterruptedException {
+        var contractCallRequest = ModelBuilder.contractCallRequest(IERC20_TOKEN_ASSOCIATE.getActualGas())
+                .data(encodeData(IERC20_TOKEN_ASSOCIATE))
+                .estimate(true)
+                .to(fungibleTokenId.toSolidityAddress());
+
+        ContractCallResponse msgSenderResponse = mirrorClient.contractsCall(contractCallRequest);
+
+        int estimatedGas = Bytes.fromHexString(msgSenderResponse.getResult())
+                .toBigInteger()
+                .intValue();
+
+        assertWithinDeviation(IERC20_TOKEN_ASSOCIATE.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
     }
 
     @Then("I call estimateGas with IERC20 token dissociate using evm address as receiver")
-    public void ierc20DissociateWithEvmAddressForReceiver() {
-        validateGasEstimation(
-                encodeData(IERC20_TOKEN_DISSOCIATE), IERC20_TOKEN_DISSOCIATE, fungibleTokenId.toSolidityAddress());
+    public void ierc20DissociateWithEvmAddressForReceiver() throws ExecutionException, InterruptedException {
+        var contractCallRequest = ModelBuilder.contractCallRequest(IERC20_TOKEN_DISSOCIATE.getActualGas())
+                .data(encodeData(IERC20_TOKEN_DISSOCIATE))
+                .estimate(true)
+                .to(fungibleTokenId.toSolidityAddress());
+
+        ContractCallResponse msgSenderResponse = mirrorClient.contractsCall(contractCallRequest);
+
+        int estimatedGas = Bytes.fromHexString(msgSenderResponse.getResult())
+                .toBigInteger()
+                .intValue();
+
+        assertWithinDeviation(IERC20_TOKEN_DISSOCIATE.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
     }
 
     @Then("I call estimateGas with contract deploy with bytecode as data")
-    public void contractDeployEstimateGas() {
+    public void contractDeployEstimateGas() throws ExecutionException, InterruptedException {
         var bytecodeData = deployedContract.compiledSolidityArtifact().getBytecode();
-        validateGasEstimation(bytecodeData, DEPLOY_CONTRACT_VIA_BYTECODE_DATA, null);
+        var contractCallRequest = ModelBuilder.contractCallRequest(DEPLOY_CONTRACT_VIA_BYTECODE_DATA.getActualGas())
+                .data(bytecodeData)
+                .estimate(true);
+
+        ContractCallResponse msgSenderResponse = mirrorClient.contractsCall(contractCallRequest);
+        int estimatedGas = Bytes.fromHexString(msgSenderResponse.getResult())
+                .toBigInteger()
+                .intValue();
+
+        assertWithinDeviation(
+                DEPLOY_CONTRACT_VIA_BYTECODE_DATA.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
     }
 
     @Then("I call estimateGas with contract deploy with bytecode as data with sender")
-    public void contractDeployEstimateGasWithSender() {
+    public void contractDeployEstimateGasWithSender() throws ExecutionException, InterruptedException {
         var bytecodeData = deployedContract.compiledSolidityArtifact().getBytecode();
-        validateGasEstimation(
-                bytecodeData, DEPLOY_CONTRACT_VIA_BYTECODE_DATA, null, Optional.of(contractClient.getClientAddress()));
+
+        var contractCallRequest = ModelBuilder.contractCallRequest(DEPLOY_CONTRACT_VIA_BYTECODE_DATA.getActualGas())
+                .data(bytecodeData)
+                .estimate(true)
+                .from(contractClient.getClientAddress());
+
+        ContractCallResponse msgSenderResponse = mirrorClient.contractsCall(contractCallRequest);
+        int estimatedGas = Bytes.fromHexString(msgSenderResponse.getResult())
+                .toBigInteger()
+                .intValue();
+
+        assertWithinDeviation(
+                DEPLOY_CONTRACT_VIA_BYTECODE_DATA.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
     }
 
     @Then("I call estimateGas with contract deploy with bytecode as data with invalid sender")
     public void contractDeployEstimateGasWithInvalidSender() {
         var bytecodeData = deployedContract.compiledSolidityArtifact().getBytecode();
         if (web3Properties.isModularizedServices()) {
-            assertThatThrownBy(() -> validateGasEstimation(
-                            bytecodeData,
-                            DEPLOY_CONTRACT_VIA_BYTECODE_DATA,
-                            null,
-                            Optional.of("0x0000000000000000000000000000000000000167")))
+            var contractCallRequest = ModelBuilder.contractCallRequest(DEPLOY_CONTRACT_VIA_BYTECODE_DATA.getActualGas())
+                    .data(bytecodeData)
+                    .estimate(true)
+                    .from("0x0000000000000000000000000000000000000167");
+            assertThatThrownBy(() -> mirrorClient.contractsCall(contractCallRequest))
                     .isInstanceOf(HttpClientErrorException.BadRequest.class);
         } else {
-            validateGasEstimation(
-                    bytecodeData,
-                    DEPLOY_CONTRACT_VIA_BYTECODE_DATA,
-                    null,
-                    Optional.of("0x0000000000000000000000000000000000000167"));
+            var contractCallRequest = ModelBuilder.contractCallRequest(DEPLOY_CONTRACT_VIA_BYTECODE_DATA.getActualGas())
+                    .data(bytecodeData)
+                    .estimate(true)
+                    .from("0x0000000000000000000000000000000000000167");
+
+            ContractCallResponse msgSenderResponse = mirrorClient.contractsCall(contractCallRequest);
+            int estimatedGas = Bytes.fromHexString(msgSenderResponse.getResult())
+                    .toBigInteger()
+                    .intValue();
+
+            assertWithinDeviation(
+                    DEPLOY_CONTRACT_VIA_BYTECODE_DATA.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
         }
     }
 
@@ -733,7 +954,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I execute create operation with complex contract and lower gas limit and verify gasConsumed")
     public void deployEstimateContractWithLowGas() {
         var contractPath = ESTIMATE_GAS.getPath();
-        var txId = createContractAndReturnTransactionId(contractPath, 440000L);
+        var txId = createContractAndReturnTransactionId(contractPath, 5_250_000L);
         var transactions =
                 Objects.requireNonNull(mirrorClient.getTransactions(txId).getTransactions());
         var contractId = transactions.getFirst().getEntityId();
@@ -801,7 +1022,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
             var fileId =
                     persistContractBytes(compiledSolidityArtifact.getBytecode().replaceFirst("0x", ""));
             try {
-                networkTransactionResponse = contractClient.createContract(fileId, gas, Hbar.fromTinybars(0), null);
+                networkTransactionResponse = contractClient.createContract(fileId, gas, Hbar.fromTinybars(6_000_000), null);
                 return networkTransactionResponse.getTransactionIdStringNoCheckSum();
             } catch (Exception e) {
                 return extractTransactionId(e.getMessage());

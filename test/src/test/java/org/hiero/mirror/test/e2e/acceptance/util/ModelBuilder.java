@@ -34,12 +34,4 @@ public class ModelBuilder {
         contractCallRequest.setGas(calculatedContractCallGas);
         return contractCallRequest;
     }
-
-    public static ContractCallRequest contractCallRequestNestedCalls(final int actualGasUsed) {
-        final Long calculatedContractCallGas =
-                Math.round(actualGasUsed * (1 + (DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS / 100.0)));
-        final ContractCallRequest contractCallRequest = contractCallRequest();
-        contractCallRequest.setGas(calculatedContractCallGas);
-        return contractCallRequest;
-    }
 }

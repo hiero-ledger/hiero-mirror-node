@@ -14,12 +14,14 @@ import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.ContractUpdateTransaction;
 import com.hedera.hashgraph.sdk.FileId;
 import com.hedera.hashgraph.sdk.Hbar;
+import com.hedera.hashgraph.sdk.MirrorNodeContractEstimateGasQuery;
 import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import com.hedera.hashgraph.sdk.TransactionRecord;
 import jakarta.inject.Named;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
@@ -27,6 +29,9 @@ import org.springframework.retry.support.RetryTemplate;
 
 @Named
 public class ContractClient extends AbstractNetworkClient {
+
+    private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED = 30;
+    private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS = 100;
 
     private final Collection<ContractId> contractIds = new CopyOnWriteArrayList<>();
 
@@ -209,6 +214,134 @@ public class ContractClient extends AbstractNetworkClient {
                 return Optional.empty();
             }
         }
+    }
+
+    public long estimateGasQuery(
+            ContractId contractId,
+            String functionName,
+            ContractFunctionParameters params,
+            AccountId sender,
+            int actualGas)
+            throws ExecutionException, InterruptedException {
+
+        final long calculatedContractCallGas =
+                Math.round(actualGas * (1 + (DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED / 100.0)));
+
+        var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
+                .setContractId(contractId)
+                .setFunction(functionName, params)
+                .setGasPrice(1_000_000L)
+                .setGasLimit(calculatedContractCallGas);
+        if (sender != null) {
+            gasEstimateQuery.setSender(sender);
+        }
+
+        return gasEstimateQuery.execute(getClient());
+    }
+
+    public long estimateGasQueryWithValue(
+            ContractId contractId,
+            String functionName,
+            ContractFunctionParameters params,
+            AccountId sender,
+            int actualGas,
+            long value)
+            throws ExecutionException, InterruptedException {
+
+        final long calculatedContractCallGas =
+                Math.round(actualGas * (1 + (DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED / 100.0)));
+
+        var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
+                .setContractId(contractId)
+                .setFunction(functionName, params)
+                .setGasPrice(1_000_000L)
+                .setGasLimit(calculatedContractCallGas)
+                .setValue(value);
+        if (sender != null) {
+            gasEstimateQuery.setSender(sender);
+        }
+
+        return gasEstimateQuery.execute(getClient());
+    }
+
+    public long estimateGasQueryWithoutParams(
+            ContractId contractId, String functionName, AccountId sender, int actualGas)
+            throws ExecutionException, InterruptedException {
+
+        final long calculatedContractCallGas =
+                Math.round(actualGas * (1 + (DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED / 100.0)));
+
+        var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
+                .setContractId(contractId)
+                .setFunction(functionName)
+                .setGasPrice(1_000_000L)
+                .setGasLimit(calculatedContractCallGas);
+        if (sender != null) {
+            gasEstimateQuery.setSender(sender);
+        }
+
+        return gasEstimateQuery.execute(getClient());
+    }
+
+    public long estimateGasQueryWithEvmAddress(
+            String contractEvmAddress, String functionName, ByteString params, AccountId sender, int actualGas)
+            throws ExecutionException, InterruptedException {
+
+        final long calculatedContractCallGas =
+                Math.round(actualGas * (1 + (DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED / 100.0)));
+
+        var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
+                .setContractEvmAddress(contractEvmAddress)
+                .setFunction(functionName)
+                .setFunctionParameters(params)
+                .setGasPrice(1_000_000L)
+                .setGasLimit(calculatedContractCallGas);
+        if (sender != null) {
+            gasEstimateQuery.setSender(sender);
+        }
+
+        return gasEstimateQuery.execute(getClient());
+    }
+
+    public long estimateGasQueryRawData(ContractId contractId, ByteString params, AccountId sender, int actualGas)
+            throws ExecutionException, InterruptedException {
+
+        final long calculatedContractCallGas =
+                Math.round(actualGas * (1 + (DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED / 100.0)));
+
+        var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
+                .setContractId(contractId)
+                .setFunctionParameters(params)
+                .setGasPrice(1_000_000L)
+                .setGasLimit(calculatedContractCallGas);
+        if (sender != null) {
+            gasEstimateQuery.setSender(sender);
+        }
+
+        return gasEstimateQuery.execute(getClient());
+    }
+
+    public long estimateGasQueryNestedCalls(
+            ContractId contractId,
+            String functionName,
+            ContractFunctionParameters params,
+            AccountId sender,
+            int actualGas)
+            throws ExecutionException, InterruptedException {
+
+        final long calculatedContractCallGas =
+                Math.round(actualGas * (1 + (DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS / 100.0)));
+
+        var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
+                .setContractId(contractId)
+                .setFunction(functionName, params)
+                .setGasPrice(1_000_000L)
+                .setGasLimit(calculatedContractCallGas);
+        if (sender != null) {
+            gasEstimateQuery.setSender(sender);
+        }
+
+        return gasEstimateQuery.execute(getClient());
     }
 
     public String getClientAddress() {
