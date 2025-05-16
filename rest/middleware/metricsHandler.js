@@ -12,6 +12,7 @@ import config from '../config';
 
 import {getV1OpenApiObject} from './openapiHandler';
 import {ipMask} from '../utils';
+import _ from 'lodash';
 
 const onMetricsAuthenticate = async (req, username, password) => {
   return new Promise(function (resolve, reject) {
@@ -36,10 +37,14 @@ const recordIpAndEndpoint = async (req, res, next) => {
 };
 
 const metricsHandler = () => {
+  // We removed stateproof from OpenAPI, but we still want to capture metrics from it
+  const openApiSpec = _.cloneDeep(getV1OpenApiObject());
+  openApiSpec.paths['/api/v1/transactions/{transactionId}/stateproof'] = {get: {}};
+
   const defaultMetricsConfig = {
     name: process.env.npm_package_name,
     onAuthenticate: onMetricsAuthenticate,
-    swaggerSpec: getV1OpenApiObject(),
+    swaggerSpec: openApiSpec,
     version: process.env.npm_package_version,
   };
 
