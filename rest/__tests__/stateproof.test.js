@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import _ from 'lodash';
-import {Readable} from 'stream';
 import sinon from 'sinon';
 
 import config from '../config';
@@ -12,9 +11,14 @@ import stateproof from '../stateproof';
 import {CompositeRecordFile} from '../stream';
 import TransactionId from '../transactionId';
 import {opsMap} from '../utils';
-import * as utils from '../utils.js';
 
 global.pool = {};
+
+const clientStub = {};
+
+beforeEach(() => {
+  sinon.stub(s3client, 'createS3Client').returns(clientStub);
+});
 
 afterEach(() => {
   global.pool = {};
@@ -343,7 +347,21 @@ describe('getQueryParamValues', () => {
 describe('downloadRecordStreamFilesFromObjectStorage', () => {
   const partialFilePaths = _.map([3, 4, 5, 6], (num) => `0.0.${num}/2020-02-09T18_30_25.001721Z.rcd_sig`);
   const extraFileContent = '123456790123456789012345678901234';
-  const sliceSize = 5;
+
+  const errorResponse = {
+    Body: {
+      transformToByteArray: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        return Promise.reject(new Error('oops'));
+      },
+    },
+  };
+
+  const getDataResponse = (key) => ({
+    Body: {
+      transformToByteArray: async () => Uint8Array.from(Buffer.from(key + extraFileContent)),
+    },
+  });
 
   beforeEach(() => {
     config.stateproof = {
@@ -354,9 +372,7 @@ describe('downloadRecordStreamFilesFromObjectStorage', () => {
   });
 
   const stubS3ClientGetObject = (stub) => {
-    sinon.stub(s3client, 'createS3Client').returns({
-      getObject: stub,
-    });
+    clientStub.getObject = stub;
   };
 
   const verifyGetObjectStubAndReturnedFileObjects = (getObjectStub, fileObjects, failedNodes) => {
@@ -381,23 +397,7 @@ describe('downloadRecordStreamFilesFromObjectStorage', () => {
   };
 
   test('with all files downloaded successfully', async () => {
-    const getObjectStub = sinon.stub().callsFake((params, callback) => {
-      const stream = new Readable({
-        objectMode: true,
-      });
-      stream._read = function (size) {
-        this.push(params.Key);
-        let start = 0;
-        while (start < extraFileContent.length) {
-          const end = start + sliceSize;
-          this.push(extraFileContent.slice(start, end));
-          start = end;
-        }
-        this.push(null);
-      };
-      return Promise.resolve({Body: stream});
-    });
-
+    const getObjectStub = sinon.stub().callsFake(async (params, callback) => getDataResponse(params.Key));
     stubS3ClientGetObject(getObjectStub);
 
     const fileObjects = await downloadRecordStreamFilesFromObjectStorage(...partialFilePaths);
@@ -405,18 +405,7 @@ describe('downloadRecordStreamFilesFromObjectStorage', () => {
   });
 
   test('with all files failed to download', async () => {
-    const getObjectStub = sinon.stub().callsFake((params, callback) => {
-      let handler;
-      const stream = new Readable();
-      stream._read = function (size) {
-        if (!handler) {
-          handler = setTimeout(() => {
-            this.emit('error', new Error('oops'));
-          }, 1000);
-        }
-      };
-      return Promise.resolve({Body: stream});
-    });
+    const getObjectStub = sinon.stub().callsFake(async (params, callback) => errorResponse);
     stubS3ClientGetObject(getObjectStub);
 
     const fileObjects = await downloadRecordStreamFilesFromObjectStorage(...partialFilePaths);
@@ -425,28 +414,9 @@ describe('downloadRecordStreamFilesFromObjectStorage', () => {
   });
 
   test('with download failed for 0.0.3', async () => {
-    const getObjectStub = sinon.stub().callsFake((params, callback) => {
-      let handler;
-      const stream = new Readable();
-      stream._read = function (size) {
-        if (params.Key.search('0.0.3') !== -1) {
-          if (!handler) {
-            handler = setTimeout(() => {
-              this.emit('error', new Error('oops'));
-            }, 1000);
-          }
-        } else {
-          this.push(params.Key);
-          let start = 0;
-          while (start < extraFileContent.length) {
-            const end = start + sliceSize;
-            this.push(extraFileContent.slice(start, end));
-            start = end;
-          }
-          this.push(null);
-        }
-      };
-      return Promise.resolve({Body: stream});
+    const getObjectStub = sinon.stub().callsFake(async (params, callback) => {
+      const {Key: key} = params;
+      return key.includes('0.0.3') ? errorResponse : getDataResponse(key);
     });
     stubS3ClientGetObject(getObjectStub);
 

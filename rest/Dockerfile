@@ -16,12 +16,13 @@ RUN npm config set update-notifier false && \
     chown -R node:node .
 COPY --chown=node:node . ./
 
-# Install OS updates
+# Install OS updates, install wget, and use jemalloc
 RUN apt-get update && \
     apt-get upgrade -y --no-install-recommends && \
-    apt-get install -y wget && \
+    apt-get install -y libjemalloc2 wget && \
     apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    echo /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 >> /etc/ld.so.preload
 USER node
 
 # Run

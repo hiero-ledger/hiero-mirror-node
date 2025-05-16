@@ -39,8 +39,18 @@ There are two simple steps. And step 2 can be repeated to replay the traffic wit
    Please refer to internal documentation for the available cluster filters.
 
 2. Replay the traffic using goreplay. Example usage:
+
    ```bash
    $ gor --input-file demo-2024-10-05-gor.log --output-http http://localhost:8080
    ```
-   By default, goreplay doesn't show progress at all, if needed, add `--verbose 3` to show logs for each replayed
-   request.
+
+   Use `--stats --output-http-stats` to show the statistics every 5 seconds. The interval can be changed with
+   `--output-http-stats-ms`.
+
+   Additional frequently used options:
+
+   - `--input-file-loop` to loop the input(s) indefinitely
+   - Increase or decrease rate: add a percentage limiter after the replay filename, e.g., `"traffic.log|10%"` or
+     `"traffic.log|200%"`
+
+   Please refer to the [Wiki](https://github.com/buger/goreplay/wiki) for more information.
