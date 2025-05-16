@@ -84,6 +84,14 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
         for (var recordItem : nodeRecordItems) {
             var nodeEntity = recordItemToNode(recordItem);
 
+            if (nodeEntity == null) {
+                log.info(
+                        "Skipping node transaction {} with status {} as node is not parsable",
+                        recordItem.getConsensusTimestamp(),
+                        recordItem.getTransactionRecord().getReceipt().getStatus());
+                continue;
+            }
+
             var state = nodeState.get(nodeEntity.getNodeId());
             if (state != null) {
                 historicalNodes.add(state);
