@@ -50,7 +50,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         final var keyPair = Keys.createEcKeyPair();
         final var signatureMapBytes = getSignatureMapBytesEcdsa(messageHash, keyPair);
         final var ecdsaKey = getProtobufKeyECDSA(keyPair.getPublicKey());
-        final var signerAccount = persistSignerAccount(ecdsaKey);
+        final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ecdsaKey);
 
         final var receiverAccount = accountEntityPersist();
         final var scheduleTransactionBodyBytes =
@@ -102,7 +102,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         final var scheduleEntity = persistScheduleEntity();
         final var keyPair = Keys.createEcKeyPair();
         final var ecdsaKey = getProtobufKeyECDSA(keyPair.getPublicKey());
-        final var signerAccount = persistSignerAccount(ecdsaKey);
+        final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ecdsaKey);
         final var receiverAccount = accountEntityPersist();
         final var scheduleTransactionBodyBytes =
                 buildDefaultScheduleTransactionBodyForCryptoTransferBytes(signerAccount, receiverAccount);
@@ -132,7 +132,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         final var signatureMapBytes = getSignatureMapBytesEcdsa(messageHash, keyPair);
 
         final var ecdsaKey = getProtobufKeyECDSA(keyPair.getPublicKey());
-        final var signerAccount = persistSignerAccount(ecdsaKey);
+        final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ecdsaKey);
 
         final var receiverAccount = accountEntityPersist();
         final var scheduleTransactionBodyBytes =
@@ -171,7 +171,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         final var signatureMapBytes = getSignatureMapBytesEcdsa(messageHash, keyPair);
 
         final var ecdsaKey = getProtobufKeyECDSA(keyPair.getPublicKey());
-        final var signerAccount = persistSignerAccount(ecdsaKey);
+        final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ecdsaKey);
 
         final var receiverAccount = accountEntityPersist();
         final var scheduleTransactionBodyBytes =
@@ -187,7 +187,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
 
         final var ed25519Key =
                 Key.newBuilder().setEd25519(publicKeyCompressed).build().toByteArray();
-        final var payerAccount = persistSignerAccount(ed25519Key);
+        final var payerAccount = persistAccountWithEvmAddressAndPublicKey(null, ed25519Key);
 
         final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
 
@@ -222,7 +222,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         // Persist expected ecdsa key signer
         final var keyPair = Keys.createEcKeyPair();
         final var ecdsaKey = getProtobufKeyECDSA(keyPair.getPublicKey());
-        final var signerAccount = persistSignerAccount(ecdsaKey);
+        final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ecdsaKey);
 
         final var receiverAccount = accountEntityPersist();
         final var scheduleTransactionBodyBytes =
@@ -278,7 +278,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
 
         final var ed25519Key =
                 Key.newBuilder().setEd25519(publicKeyCompressed).build().toByteArray();
-        final var signerAccount = persistSignerAccount(ed25519Key);
+        final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ed25519Key);
 
         final var receiverAccount = accountEntityPersist();
         final var scheduleTransactionBodyBytes =
@@ -313,7 +313,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         var publicKeyCompressed = convertToCompressedPublicKey(publicKey);
         final var ed25519Key =
                 Key.newBuilder().setEd25519(publicKeyCompressed).build().toByteArray();
-        final var signerAccount = persistSignerAccount(ed25519Key);
+        final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ed25519Key);
 
         final var receiverAccount = accountEntityPersist();
         final var scheduleTransactionBodyBytes =
@@ -358,14 +358,6 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
                         .payerAccountId(payerAccount.toEntityId())
                         .creatorAccountId(payerAccount.toEntityId()))
                 .persist();
-    }
-
-    private Entity persistSignerAccount(final byte[] key) {
-        return accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT)
-                .alias(null)
-                .evmAddress(null)
-                .balance(DEFAULT_ACCOUNT_BALANCE)
-                .key(key));
     }
 
     private byte[] getMessageBytes(final Entity entity) {
