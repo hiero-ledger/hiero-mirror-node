@@ -16,7 +16,7 @@ hiero:
       opcode:
         tracer:
           enabled: true
-      transactionTimeout: 60s
+      requestTimeout: 60s
 spring:
   test:
     database:

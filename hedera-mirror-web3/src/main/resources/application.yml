@@ -9,7 +9,7 @@ hiero:
         password: mirror_web3_pass
         port: 5432
         sslMode: DISABLE
-        statementTimeout: 3000
+        statementTimeout: 2000
         username: mirror_web3
       opcode:
         tracer:
