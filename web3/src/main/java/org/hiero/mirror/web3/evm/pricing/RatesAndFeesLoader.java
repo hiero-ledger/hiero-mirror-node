@@ -16,7 +16,6 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_FEE_S
 import static org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.HederaNetwork.OTHER;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.mirror.common.domain.SystemEntity;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
@@ -30,6 +29,7 @@ import jakarta.inject.Named;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.InvalidFileException;
 import org.hiero.mirror.web3.repository.FileDataRepository;

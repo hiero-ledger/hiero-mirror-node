@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.Transaction;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.Transaction;
 
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 abstract class AbstractTransactionHandler implements TransactionHandler {

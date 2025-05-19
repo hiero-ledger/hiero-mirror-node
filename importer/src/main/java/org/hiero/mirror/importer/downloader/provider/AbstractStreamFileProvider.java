@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.downloader.provider;
 
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.StreamType;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;

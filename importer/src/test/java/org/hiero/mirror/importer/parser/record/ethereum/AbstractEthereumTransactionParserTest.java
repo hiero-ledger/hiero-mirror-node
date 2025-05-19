@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.parser.record.ethereum;
 
-import com.hedera.mirror.common.domain.transaction.EthereumTransaction;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 

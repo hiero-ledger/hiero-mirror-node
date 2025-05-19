@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.restjava.service;
 
-import com.hedera.mirror.common.domain.token.TokenAirdrop;
 import java.util.Collection;
+import org.hiero.mirror.common.domain.token.TokenAirdrop;
 import org.hiero.mirror.restjava.dto.TokenAirdropRequest;
 
 public interface TokenAirdropService {

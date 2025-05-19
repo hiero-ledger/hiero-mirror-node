@@ -12,10 +12,10 @@ import org.mapstruct.Mapping;
 public interface EntityMapper<T extends Entity> {
 
     @Mapping(
-            expression = "java(com.hedera.mirror.common.util.DomainUtils.bytesToHex(source.getAlias()))",
+            expression = "java(org.hiero.mirror.common.util.DomainUtils.bytesToHex(source.getAlias()))",
             target = "alias")
     @Mapping(source = "ethereumNonce", target = "nonce")
     @Mapping(source = "id", target = "entityId")
     @Mapping(source = "timestampRange", target = "timestamp")
-    T map(com.hedera.mirror.common.domain.entity.Entity source);
+    T map(org.hiero.mirror.common.domain.entity.Entity source);
 }

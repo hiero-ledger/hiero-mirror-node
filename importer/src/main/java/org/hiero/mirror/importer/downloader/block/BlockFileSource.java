@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.downloader.block;
 
 import com.google.common.base.Stopwatch;
 import com.hedera.hapi.block.stream.protoc.Block;
-import com.hedera.mirror.common.domain.StreamType;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
@@ -14,6 +13,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.domain.StreamFileData;

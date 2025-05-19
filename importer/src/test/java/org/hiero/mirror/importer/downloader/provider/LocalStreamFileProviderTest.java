@@ -5,13 +5,13 @@ package org.hiero.mirror.importer.downloader.provider;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.ImporterProperties.STREAMS;
 
-import com.hedera.mirror.common.CommonProperties;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;

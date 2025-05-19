@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.repository;
 
-import com.hedera.mirror.common.domain.entity.AbstractNftAllowance;
-import com.hedera.mirror.common.domain.entity.NftAllowanceHistory;
+import org.hiero.mirror.common.domain.entity.AbstractNftAllowance;
+import org.hiero.mirror.common.domain.entity.NftAllowanceHistory;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;

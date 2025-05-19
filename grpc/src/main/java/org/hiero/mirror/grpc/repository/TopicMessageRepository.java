@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.grpc.repository;
 
-import com.hedera.mirror.common.domain.topic.TopicMessage;
 import java.util.List;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 

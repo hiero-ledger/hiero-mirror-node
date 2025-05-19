@@ -8,9 +8,6 @@ import com.hedera.hapi.node.base.TransactionID;
 import com.hedera.hapi.node.scheduled.SchedulableTransactionBody;
 import com.hedera.hapi.node.state.schedule.Schedule;
 import com.hedera.hapi.node.transaction.TransactionBody;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
@@ -24,6 +21,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ScheduleRepository;
 import org.hiero.mirror.web3.repository.TransactionSignatureRepository;
@@ -73,7 +73,7 @@ class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedu
     }
 
     private Schedule mapToSchedule(
-            final com.hedera.mirror.common.domain.schedule.Schedule schedule,
+            final org.hiero.mirror.common.domain.schedule.Schedule schedule,
             final ScheduleID scheduleID,
             final Entity entity,
             final Optional<Long> timestamp)

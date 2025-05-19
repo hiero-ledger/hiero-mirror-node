@@ -2,16 +2,16 @@
 
 package org.hiero.mirror.importer.reader.block;
 
-import static com.hedera.mirror.common.domain.DigestAlgorithm.SHA_384;
-import static com.hedera.mirror.common.util.DomainUtils.createSha384Digest;
+import static org.hiero.mirror.common.domain.DigestAlgorithm.SHA_384;
+import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 
 import com.hedera.hapi.block.stream.protoc.BlockItem;
-import com.hedera.mirror.common.util.DomainUtils;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import lombok.Data;
+import org.hiero.mirror.common.util.DomainUtils;
 
 /**
  * Calculates a block's root hash per the algorithm defined in HIP-1056. Note both the input merkle tree and the output

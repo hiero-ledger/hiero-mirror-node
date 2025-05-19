@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.converter;
 
-import com.hedera.mirror.common.CommonProperties;
 import com.hederahashgraph.api.proto.java.TopicID;
+import org.hiero.mirror.common.CommonProperties;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.converter.ArgumentConversionException;
 import org.junit.jupiter.params.converter.ArgumentConverter;

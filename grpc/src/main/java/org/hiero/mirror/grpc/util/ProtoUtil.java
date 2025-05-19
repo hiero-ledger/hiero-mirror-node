@@ -4,7 +4,6 @@ package org.hiero.mirror.grpc.util;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
-import com.hedera.mirror.common.exception.InvalidEntityException;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -13,6 +12,7 @@ import java.time.Instant;
 import java.util.concurrent.TimeoutException;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
+import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.springframework.dao.NonTransientDataAccessResourceException;
 import org.springframework.dao.TransientDataAccessException;

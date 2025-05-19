@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.parser;
 
-import com.hedera.mirror.common.domain.StreamType;
 import java.time.Duration;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.parser.AbstractParserProperties.BatchProperties;
 
 public interface ParserProperties {

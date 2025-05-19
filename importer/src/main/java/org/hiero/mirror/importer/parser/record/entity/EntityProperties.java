@@ -2,18 +2,18 @@
 
 package org.hiero.mirror.importer.parser.record.entity;
 
-import static com.hedera.mirror.common.domain.transaction.TransactionType.CONSENSUSSUBMITMESSAGE;
-import static com.hedera.mirror.common.domain.transaction.TransactionType.SCHEDULECREATE;
-import static com.hedera.mirror.common.domain.transaction.TransactionType.SCHEDULESIGN;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.CONSENSUSSUBMITMESSAGE;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.SCHEDULECREATE;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.SCHEDULESIGN;
 
-import com.hedera.mirror.common.domain.SystemEntity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.EnumSet;
 import java.util.Set;
 import lombok.Data;
+import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;

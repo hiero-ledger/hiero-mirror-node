@@ -2,16 +2,16 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
-import com.hedera.mirror.common.domain.transaction.BlockFile;
-import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.domain.transaction.BlockItem;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.downloader.StreamFileTransformer;
 import org.hiero.mirror.importer.downloader.block.transformer.BlockItemTransformerFactory;
 import org.springframework.data.util.Version;

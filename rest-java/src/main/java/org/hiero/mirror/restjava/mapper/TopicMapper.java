@@ -4,9 +4,9 @@ package org.hiero.mirror.restjava.mapper;
 
 import static org.hiero.mirror.restjava.mapper.CommonMapper.QUALIFIER_TIMESTAMP;
 
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.token.CustomFee;
 import com.hedera.mirror.rest.model.Topic;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.token.CustomFee;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -18,5 +18,5 @@ public interface TopicMapper {
     @Mapping(source = "entity.createdTimestamp", target = "createdTimestamp", qualifiedByName = QUALIFIER_TIMESTAMP)
     @Mapping(source = "entity.id", target = "topicId")
     @Mapping(source = "entity.timestampRange", target = "timestamp")
-    Topic map(CustomFee customFee, Entity entity, com.hedera.mirror.common.domain.topic.Topic topic);
+    Topic map(CustomFee customFee, Entity entity, org.hiero.mirror.common.domain.topic.Topic topic);
 }

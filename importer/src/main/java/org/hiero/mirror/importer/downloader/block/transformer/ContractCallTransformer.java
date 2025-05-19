@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
 final class ContractCallTransformer extends AbstractBlockItemTransformer {

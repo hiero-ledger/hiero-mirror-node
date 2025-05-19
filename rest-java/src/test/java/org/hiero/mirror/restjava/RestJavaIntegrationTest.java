@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.restjava;
 
-import com.hedera.mirror.common.config.CommonIntegrationTest;
 import java.util.Arrays;
+import org.hiero.mirror.common.config.CommonIntegrationTest;
 import org.hiero.mirror.restjava.common.EntityIdRangeParameter;
 
 public abstract class RestJavaIntegrationTest extends CommonIntegrationTest {

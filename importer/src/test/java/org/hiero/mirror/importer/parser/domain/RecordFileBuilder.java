@@ -4,11 +4,6 @@ package org.hiero.mirror.importer.parser.domain;
 
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.DATA;
 
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.StreamType;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -21,6 +16,11 @@ import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.StreamType;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder.TransferType;
 import org.hiero.mirror.importer.test.performance.PerformanceProperties.SubType;

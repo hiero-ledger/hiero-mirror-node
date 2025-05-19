@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.importer.parser.balance;
 
-import com.hedera.mirror.common.domain.StreamType;
 import jakarta.validation.constraints.Min;
 import java.time.Duration;
 import lombok.Data;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.parser.AbstractParserProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;

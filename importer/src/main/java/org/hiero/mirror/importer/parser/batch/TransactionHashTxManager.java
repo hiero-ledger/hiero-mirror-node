@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.parser.batch;
 
-import com.hedera.mirror.common.domain.transaction.TransactionHash;
 import jakarta.inject.Named;
 import java.sql.Connection;
 import java.util.Collection;
@@ -17,6 +16,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.ToString;
+import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;

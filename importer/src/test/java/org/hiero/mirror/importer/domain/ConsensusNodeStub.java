@@ -2,12 +2,12 @@
 
 package org.hiero.mirror.importer.domain;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import java.security.PublicKey;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 
 @Builder

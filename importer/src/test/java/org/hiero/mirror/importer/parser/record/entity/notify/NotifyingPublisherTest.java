@@ -2,15 +2,15 @@
 
 package org.hiero.mirror.importer.parser.record.entity.notify;
 
-import static com.hedera.mirror.common.converter.ObjectToStringSerializer.OBJECT_MAPPER;
-import static com.hedera.mirror.common.util.CommonUtils.nextBytes;
+import static org.hiero.mirror.common.converter.ObjectToStringSerializer.OBJECT_MAPPER;
+import static org.hiero.mirror.common.util.CommonUtils.nextBytes;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.topic.TopicMessage;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.ArrayList;
 import javax.sql.DataSource;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.importer.parser.record.entity.BatchPublisherTest;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.junit.jupiter.api.Test;

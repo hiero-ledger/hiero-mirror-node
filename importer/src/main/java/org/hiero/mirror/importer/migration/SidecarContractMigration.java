@@ -3,8 +3,6 @@
 package org.hiero.mirror.importer.migration;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.stream.proto.ContractBytecode;
 import jakarta.inject.Named;
 import java.util.Collection;
@@ -12,6 +10,8 @@ import java.util.HashSet;
 import java.util.List;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.repository.EntityHistoryRepository;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.springframework.jdbc.core.JdbcOperations;

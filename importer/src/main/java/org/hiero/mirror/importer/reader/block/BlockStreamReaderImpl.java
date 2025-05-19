@@ -16,9 +16,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
-import com.hedera.mirror.common.domain.DigestAlgorithm;
-import com.hedera.mirror.common.domain.transaction.BlockFile;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
 import com.hederahashgraph.api.proto.java.Transaction;
@@ -33,6 +30,9 @@ import lombok.CustomLog;
 import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
+import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 
 @CustomLog
@@ -152,7 +152,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
                     stateChangesList.add(stateChanges);
                 }
 
-                var blockItem = com.hedera.mirror.common.domain.transaction.BlockItem.builder()
+                var blockItem = org.hiero.mirror.common.domain.transaction.BlockItem.builder()
                         .previous(context.getLastBlockItem())
                         .stateChanges(Collections.unmodifiableList(stateChangesList))
                         .transaction(transaction)
@@ -210,7 +210,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
         private int index;
 
         @NonFinal
-        private com.hedera.mirror.common.domain.transaction.BlockItem lastBlockItem;
+        private org.hiero.mirror.common.domain.transaction.BlockItem lastBlockItem;
 
         @NonFinal
         @Setter
@@ -223,7 +223,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
             this.filename = filename;
         }
 
-        public void setLastBlockItem(com.hedera.mirror.common.domain.transaction.BlockItem lastBlockItem) {
+        public void setLastBlockItem(org.hiero.mirror.common.domain.transaction.BlockItem lastBlockItem) {
             this.lastBlockItem = lastBlockItem;
             if (lastBlockItem != null && lastBlockItem.getTransactionBody().hasAtomicBatch()) {
                 this.batchIndex = 0;

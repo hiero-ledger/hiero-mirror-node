@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.restjava.mapper;
 
-import com.hedera.mirror.common.domain.token.FixedFee;
 import com.hedera.mirror.rest.model.FixedCustomFee;
+import org.hiero.mirror.common.domain.token.FixedFee;
 import org.mapstruct.Mapper;
 
 @Mapper(config = MapperConfiguration.class)

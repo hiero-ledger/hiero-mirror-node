@@ -20,19 +20,6 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.LEDGER_ID;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.mirror.common.domain.balance.AccountBalance;
-import com.hedera.mirror.common.domain.balance.TokenBalance;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.FallbackFee;
-import com.hedera.mirror.common.domain.token.FractionalFee;
-import com.hedera.mirror.common.domain.token.RoyaltyFee;
-import com.hedera.mirror.common.domain.token.Token;
-import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenSupplyTypeEnum;
-import com.hedera.mirror.common.domain.token.TokenTransfer;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
@@ -42,6 +29,19 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.balance.TokenBalance;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.token.FallbackFee;
+import org.hiero.mirror.common.domain.token.FractionalFee;
+import org.hiero.mirror.common.domain.token.RoyaltyFee;
+import org.hiero.mirror.common.domain.token.Token;
+import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenSupplyTypeEnum;
+import org.hiero.mirror.common.domain.token.TokenTransfer;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.generated.PrecompileTestContractHistorical;
 import org.hiero.mirror.web3.web3j.generated.PrecompileTestContractHistorical.FixedFee;
@@ -322,7 +322,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var token = fungibleTokenPersistHistorical(historicalRange);
         final var tokenId = token.getTokenId();
         final var collectorAccount = accountEntityPersistWithEvmAddressHistorical(historicalRange);
-        final var fixedFee = com.hedera.mirror.common.domain.token.FixedFee.builder()
+        final var fixedFee = org.hiero.mirror.common.domain.token.FixedFee.builder()
                 .amount(DEFAULT_FEE_AMOUNT.longValue())
                 .collectorAccountId(collectorAccount.toEntityId())
                 .denominatingTokenId(EntityId.of(tokenId))
@@ -987,7 +987,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     }
 
     private PrecompileTestContractHistorical.FixedFee getFixedFee(
-            final com.hedera.mirror.common.domain.token.FixedFee fixedFee, final Entity feeCollector) {
+            final org.hiero.mirror.common.domain.token.FixedFee fixedFee, final Entity feeCollector) {
         return new PrecompileTestContractHistorical.FixedFee(
                 BigInteger.valueOf(fixedFee.getAmount()),
                 getAddressFromEntityId(fixedFee.getDenominatingTokenId()),
@@ -997,7 +997,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     }
 
     private PrecompileTestContractHistorical.FractionalFee getFractionalFee(
-            final com.hedera.mirror.common.domain.token.FractionalFee fractionalFee, final Entity feeCollector) {
+            final FractionalFee fractionalFee, final Entity feeCollector) {
         return new PrecompileTestContractHistorical.FractionalFee(
                 BigInteger.valueOf(fractionalFee.getNumerator()),
                 BigInteger.valueOf(fractionalFee.getDenominator()),
@@ -1008,7 +1008,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     }
 
     private PrecompileTestContractHistorical.RoyaltyFee getRoyaltyFee(
-            final com.hedera.mirror.common.domain.token.RoyaltyFee royaltyFee, final Entity feeCollector) {
+            final RoyaltyFee royaltyFee, final Entity feeCollector) {
         return new PrecompileTestContractHistorical.RoyaltyFee(
                 BigInteger.valueOf(royaltyFee.getNumerator()),
                 BigInteger.valueOf(royaltyFee.getDenominator()),

@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.primitives.Bytes;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.stream.proto.HashAlgorithm;
 import com.hedera.services.stream.proto.HashObject;
 import com.hedera.services.stream.proto.SignatureFile;
@@ -15,6 +14,7 @@ import com.hedera.services.stream.proto.SignatureType;
 import java.nio.file.Path;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFileSignature;

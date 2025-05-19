@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.parser.record.entity.performance;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.StringValue;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Duration;
 import com.hederahashgraph.api.proto.java.RealmID;
@@ -17,6 +16,7 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.parser.record.entity.AbstractEntityRecordItemListenerTest;
 import org.hiero.mirror.importer.util.Utility;
 import org.junit.jupiter.api.BeforeAll;

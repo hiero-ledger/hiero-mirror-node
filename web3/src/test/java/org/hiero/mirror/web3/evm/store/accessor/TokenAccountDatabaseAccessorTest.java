@@ -2,13 +2,13 @@
 
 package org.hiero.mirror.web3.evm.store.accessor;
 
-import static com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum.FROZEN;
-import static com.hedera.mirror.common.domain.token.TokenKycStatusEnum.GRANTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum.FROZEN;
+import static org.hiero.mirror.common.domain.token.TokenKycStatusEnum.GRANTED;
 
-import com.hedera.mirror.common.domain.token.TokenAccount;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.token.TokenAccount;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
 

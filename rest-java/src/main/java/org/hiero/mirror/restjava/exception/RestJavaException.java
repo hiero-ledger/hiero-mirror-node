@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.restjava.exception;
 
-import com.hedera.mirror.common.exception.MirrorNodeException;
 import java.io.Serial;
+import org.hiero.mirror.common.exception.MirrorNodeException;
 
 abstract class RestJavaException extends MirrorNodeException {
 

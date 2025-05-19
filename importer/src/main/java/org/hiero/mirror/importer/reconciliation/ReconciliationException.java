@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.reconciliation;
 
-import com.hedera.mirror.common.domain.job.ReconciliationStatus;
 import lombok.Getter;
+import org.hiero.mirror.common.domain.job.ReconciliationStatus;
 import org.hiero.mirror.importer.exception.ImporterException;
 
 @Getter

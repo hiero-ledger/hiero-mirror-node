@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.restjava.mapper;
 
-import com.hedera.mirror.common.domain.token.TokenAirdrop;
+import org.hiero.mirror.common.domain.token.TokenAirdrop;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;

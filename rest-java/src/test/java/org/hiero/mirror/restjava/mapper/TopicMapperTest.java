@@ -4,15 +4,15 @@ package org.hiero.mirror.restjava.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.mirror.rest.model.ConsensusCustomFees;
 import com.hedera.mirror.rest.model.Key.TypeEnum;
 import com.hedera.mirror.rest.model.Topic;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
 import java.util.Collections;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -81,7 +81,7 @@ class TopicMapperTest {
                 .customize(
                         c -> c.entityId(topicEntity.getId()).fixedFees(nullFixedFees ? null : Collections.emptyList()))
                 .get();
-        var topic = new com.hedera.mirror.common.domain.topic.Topic();
+        var topic = new org.hiero.mirror.common.domain.topic.Topic();
         var expectedCustomFees = new ConsensusCustomFees()
                 .createdTimestamp(commonMapper.mapLowerRange(customFee.getTimestampRange()))
                 .fixedFees(Collections.emptyList());

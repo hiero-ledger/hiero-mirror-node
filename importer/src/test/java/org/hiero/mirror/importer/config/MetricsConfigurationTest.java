@@ -4,9 +4,9 @@ package org.hiero.mirror.importer.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.DomainBuilder;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.importer.EnabledIfV2;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.config.MetricsConfiguration.TableMetric;

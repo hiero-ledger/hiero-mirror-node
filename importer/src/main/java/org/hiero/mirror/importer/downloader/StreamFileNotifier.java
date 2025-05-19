@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.downloader;
 
-import com.hedera.mirror.common.domain.StreamFile;
 import jakarta.annotation.Nonnull;
+import org.hiero.mirror.common.domain.StreamFile;
 
 public interface StreamFileNotifier {
 

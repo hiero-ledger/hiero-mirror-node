@@ -2,17 +2,17 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
-import static com.hedera.mirror.common.util.DomainUtils.createSha384Digest;
+import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
-import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import java.security.MessageDigest;
+import org.hiero.mirror.common.domain.transaction.BlockItem;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

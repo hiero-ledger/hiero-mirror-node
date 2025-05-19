@@ -5,17 +5,17 @@ package org.hiero.mirror.importer.parser.record.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.parser.record.entity.DomainClassComparator.ORDER;
 
-import com.hedera.mirror.common.domain.contract.Contract;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.token.DissociateTokenTransfer;
-import com.hedera.mirror.common.domain.token.Token;
-import com.hedera.mirror.common.domain.token.TokenAccount;
-import com.hedera.mirror.common.domain.transaction.CryptoTransfer;
-import com.hedera.mirror.common.domain.transaction.TransactionSignature;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.token.DissociateTokenTransfer;
+import org.hiero.mirror.common.domain.token.Token;
+import org.hiero.mirror.common.domain.token.TokenAccount;
+import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
+import org.hiero.mirror.common.domain.transaction.TransactionSignature;
 import org.junit.jupiter.api.Test;
 
 class DomainClassComparatorTest {

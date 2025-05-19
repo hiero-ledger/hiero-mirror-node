@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.grpc.service;
 
-import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import jakarta.validation.Valid;
+import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import reactor.core.publisher.Flux;
 

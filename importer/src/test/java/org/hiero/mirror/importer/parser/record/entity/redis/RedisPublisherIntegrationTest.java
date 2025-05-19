@@ -4,10 +4,10 @@ package org.hiero.mirror.importer.parser.record.entity.redis;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.topic.StreamMessage;
-import com.hedera.mirror.common.domain.topic.TopicMessage;
 import java.util.List;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.topic.StreamMessage;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 import org.hiero.mirror.importer.parser.record.entity.BatchPublisherTest;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;

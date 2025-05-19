@@ -7,9 +7,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.restjava.mapper.CommonMapper.NANO_DIGITS;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.mirror.rest.model.Key.TypeEnum;
 import com.hedera.mirror.rest.model.TimestampRange;
 import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
@@ -19,6 +16,9 @@ import java.util.List;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.restjava.exception.InvalidMappingException;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
@@ -30,9 +30,8 @@ class CommonMapperTest {
 
     @Test
     void mapEntityId() {
-        var entityId = com.hedera.mirror.common.domain.entity.EntityId.of("1.2.3");
-        assertThat(commonMapper.mapEntityId((com.hedera.mirror.common.domain.entity.EntityId) null))
-                .isNull();
+        var entityId = EntityId.of("1.2.3");
+        assertThat(commonMapper.mapEntityId((EntityId) null)).isNull();
         assertThat(commonMapper.mapEntityId(entityId))
                 .isEqualTo(EntityId.of(1L, 2L, 3L).toString());
     }

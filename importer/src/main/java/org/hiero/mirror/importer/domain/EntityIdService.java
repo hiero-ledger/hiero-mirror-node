@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.importer.domain;
 
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 
 /**
  * This service is used to centralize the conversion logic from protobuf-based HAPI entities to its internal EntityId

@@ -5,9 +5,9 @@ package org.hiero.mirror.importer.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.token.Nft;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.token.Nft;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 

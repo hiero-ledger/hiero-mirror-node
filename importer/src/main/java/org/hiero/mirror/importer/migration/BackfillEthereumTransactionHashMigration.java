@@ -2,11 +2,9 @@
 
 package org.hiero.mirror.importer.migration;
 
-import static com.hedera.mirror.common.domain.transaction.TransactionType.ETHEREUMTRANSACTION;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.ETHEREUMTRANSACTION;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.transaction.TransactionHash;
 import jakarta.inject.Named;
 import java.io.IOException;
 import java.util.List;
@@ -15,6 +13,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Data;
 import org.apache.commons.lang3.ArrayUtils;
 import org.flywaydb.core.api.MigrationVersion;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;

@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.importer.repository;
 
-import com.hedera.mirror.common.domain.file.FileData;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.file.FileData;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 

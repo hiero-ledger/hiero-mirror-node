@@ -7,7 +7,6 @@ import static org.hiero.mirror.importer.migration.ContractResultMigration.Migrat
 import static org.hiero.mirror.importer.migration.ContractResultMigration.MigrationContractResult;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractLoginfo;
@@ -16,6 +15,7 @@ import java.sql.PreparedStatement;
 import java.util.List;
 import java.util.Objects;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;

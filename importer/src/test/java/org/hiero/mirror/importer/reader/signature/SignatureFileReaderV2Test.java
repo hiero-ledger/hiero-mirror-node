@@ -8,12 +8,12 @@ import static org.hiero.mirror.importer.reader.signature.SignatureFileReaderV2.S
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.primitives.Ints;
-import com.hedera.mirror.common.domain.DigestAlgorithm;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.commons.codec.binary.Base64;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFileSignature;

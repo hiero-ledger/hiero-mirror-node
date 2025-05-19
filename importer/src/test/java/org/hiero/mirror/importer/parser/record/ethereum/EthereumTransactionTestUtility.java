@@ -4,13 +4,13 @@ package org.hiero.mirror.importer.parser.record.ethereum;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hedera.mirror.common.domain.transaction.EthereumTransaction;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.io.FileUtils;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.util.ResourceUtils;
 

@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.domain;
 
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.Transaction;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.Transaction;
 
 /**
  * This service is used to centralize the conversion logic from record stream items to its internal ContractResult

@@ -9,7 +9,6 @@ import static org.hiero.mirror.graphql.mapper.CommonMapper.THRESHOLD;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
@@ -18,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.graphql.viewmodel.EntityId;
 import org.hiero.mirror.graphql.viewmodel.TimestampRange;
 import org.junit.jupiter.api.Test;
@@ -37,8 +37,8 @@ class CommonMapperTest {
 
     @Test
     void mapEntityId() {
-        var entityId = com.hedera.mirror.common.domain.entity.EntityId.of("1.2.3");
-        assertThat(commonMapper.mapEntityId((com.hedera.mirror.common.domain.entity.EntityId) null))
+        var entityId = org.hiero.mirror.common.domain.entity.EntityId.of("1.2.3");
+        assertThat(commonMapper.mapEntityId((org.hiero.mirror.common.domain.entity.EntityId) null))
                 .isNull();
         assertThat(commonMapper.mapEntityId(entityId))
                 .usingRecursiveComparison()

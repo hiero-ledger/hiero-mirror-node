@@ -4,9 +4,9 @@ package org.hiero.mirror.grpc.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.annotation.Transactional;

@@ -2,9 +2,8 @@
 
 package org.hiero.mirror.web3.evm.config;
 
-import static com.hedera.mirror.common.util.DomainUtils.fromEvmAddress;
+import static org.hiero.mirror.common.util.DomainUtils.fromEvmAddress;
 
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases;
 import com.hedera.node.app.service.evm.contracts.execution.EvmProperties;
 import com.hedera.node.app.service.evm.contracts.operations.HederaExtCodeHashOperation;
@@ -106,6 +105,7 @@ import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.account.MirrorEvmContractAliases;
 import org.hiero.mirror.web3.evm.pricing.RatesAndFeesLoader;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;

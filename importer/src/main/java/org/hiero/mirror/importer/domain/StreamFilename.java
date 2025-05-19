@@ -8,8 +8,6 @@ import static org.hiero.mirror.importer.domain.StreamFilename.FileType.SIDECAR;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.SIGNATURE;
 
 import com.google.common.base.Splitter;
-import com.hedera.mirror.common.domain.StreamType;
-import com.hedera.mirror.common.domain.transaction.BlockFile;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.Collections;
@@ -25,6 +23,8 @@ import lombok.NonNull;
 import lombok.Value;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.StreamType;
+import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 

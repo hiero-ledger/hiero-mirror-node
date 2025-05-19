@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.grpc.domain;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Value;
+import org.hiero.mirror.common.domain.entity.EntityId;
 
 @Builder
 @Value

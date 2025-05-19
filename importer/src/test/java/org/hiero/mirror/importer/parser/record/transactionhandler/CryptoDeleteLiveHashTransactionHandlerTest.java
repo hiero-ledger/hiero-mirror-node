@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hederahashgraph.api.proto.java.CryptoDeleteLiveHashTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import org.hiero.mirror.common.domain.entity.EntityType;
 
 class CryptoDeleteLiveHashTransactionHandlerTest extends AbstractTransactionHandlerTest {
 

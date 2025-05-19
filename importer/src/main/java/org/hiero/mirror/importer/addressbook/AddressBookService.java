@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.addressbook;
 
-import com.hedera.mirror.common.domain.addressbook.AddressBook;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.domain.addressbook.AddressBook;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.file.FileData;
 
 public interface AddressBookService extends ConsensusNodeService {
 

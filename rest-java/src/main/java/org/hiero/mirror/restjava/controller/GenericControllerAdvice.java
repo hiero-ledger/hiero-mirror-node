@@ -8,7 +8,6 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST;
 
-import com.hedera.mirror.common.exception.InvalidEntityException;
 import com.hedera.mirror.rest.model.Error;
 import com.hedera.mirror.rest.model.ErrorStatus;
 import com.hedera.mirror.rest.model.ErrorStatusMessagesInner;
@@ -20,6 +19,7 @@ import java.util.Locale;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.restjava.RestJavaProperties;
 import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceResolvable;

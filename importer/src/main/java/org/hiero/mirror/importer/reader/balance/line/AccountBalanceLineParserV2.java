@@ -4,9 +4,6 @@ package org.hiero.mirror.importer.reader.balance.line;
 
 import com.google.common.base.Splitter;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.mirror.common.domain.balance.AccountBalance;
-import com.hedera.mirror.common.domain.balance.TokenBalance;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hederahashgraph.api.proto.java.TokenBalances;
 import com.hederahashgraph.api.proto.java.TokenID;
 import jakarta.inject.Named;
@@ -15,6 +12,9 @@ import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Base64;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.balance.TokenBalance;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 
 @Named

@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.reader;
 
-import com.hedera.mirror.common.domain.StreamFile;
-import com.hedera.mirror.common.domain.StreamItem;
+import org.hiero.mirror.common.domain.StreamFile;
+import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.importer.domain.StreamFileData;
 
 public interface StreamFileReader<S extends StreamFile<I>, I extends StreamItem> {

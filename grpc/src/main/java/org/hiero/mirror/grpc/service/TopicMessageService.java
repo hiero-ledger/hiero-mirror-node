@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.grpc.service;
 
-import com.hedera.mirror.common.domain.topic.TopicMessage;
 import jakarta.validation.Valid;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
 import reactor.core.publisher.Flux;
 

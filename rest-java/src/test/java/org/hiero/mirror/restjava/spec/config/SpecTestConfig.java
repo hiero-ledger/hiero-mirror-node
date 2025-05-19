@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.restjava.spec.config;
 
-import static com.hedera.mirror.common.config.CommonTestConfiguration.POSTGRESQL;
+import static org.hiero.mirror.common.config.CommonTestConfiguration.POSTGRESQL;
 
 import com.google.common.collect.ImmutableMap;
-import com.hedera.mirror.common.config.CommonTestConfiguration.FilteringConsumer;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.config.CommonTestConfiguration.FilteringConsumer;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.TestConfiguration;

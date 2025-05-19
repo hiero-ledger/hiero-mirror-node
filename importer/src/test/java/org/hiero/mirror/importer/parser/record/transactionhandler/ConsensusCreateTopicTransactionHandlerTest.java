@@ -2,17 +2,12 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.TOPIC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransactions;
 import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.CustomFee;
-import com.hedera.mirror.common.domain.topic.Topic;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
 import com.hederahashgraph.api.proto.java.FixedCustomFee;
@@ -22,6 +17,11 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import java.util.Collections;
 import java.util.List;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.token.CustomFee;
+import org.hiero.mirror.common.domain.topic.Topic;
 import org.junit.jupiter.api.Test;
 
 class ConsensusCreateTopicTransactionHandlerTest extends AbstractTransactionHandlerTest {
@@ -90,12 +90,12 @@ class ConsensusCreateTopicTransactionHandlerTest extends AbstractTransactionHand
         var expectedCustomFee = CustomFee.builder()
                 .entityId(topicId.getId())
                 .fixedFees(List.of(
-                        com.hedera.mirror.common.domain.token.FixedFee.builder()
+                        org.hiero.mirror.common.domain.token.FixedFee.builder()
                                 .amount(100L)
                                 .collectorAccountId(EntityId.of(feeCollector))
                                 .denominatingTokenId(EntityId.of(feeTokenId))
                                 .build(),
-                        com.hedera.mirror.common.domain.token.FixedFee.builder()
+                        org.hiero.mirror.common.domain.token.FixedFee.builder()
                                 .amount(200L)
                                 .collectorAccountId(EntityId.of(feeCollector))
                                 .build()))

@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.web3.common;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import java.time.Instant;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 
 public record TransactionIdParameter(EntityId payerAccountId, Instant validStart)

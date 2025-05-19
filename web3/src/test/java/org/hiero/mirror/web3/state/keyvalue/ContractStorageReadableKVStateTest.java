@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
-import static com.hedera.mirror.common.util.DomainUtils.leftPadBytes;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mockStatic;
@@ -13,12 +13,12 @@ import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.base.ContractID.ContractOneOfType;
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.Collections;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes32;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.junit.jupiter.api.AfterAll;

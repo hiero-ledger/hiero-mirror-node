@@ -2,15 +2,13 @@
 
 package org.hiero.mirror.web3.state;
 
-import static com.hedera.mirror.common.domain.transaction.TransactionType.FILECREATE;
-import static com.hedera.mirror.common.domain.transaction.TransactionType.FILEUPDATE;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.FILECREATE;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.FILEUPDATE;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.FileID;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
@@ -26,6 +24,8 @@ import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;

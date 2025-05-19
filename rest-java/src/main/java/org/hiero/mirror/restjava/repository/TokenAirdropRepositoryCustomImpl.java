@@ -7,13 +7,13 @@ import static org.hiero.mirror.restjava.dto.TokenAirdropRequest.AirdropRequestTy
 import static org.hiero.mirror.restjava.dto.TokenAirdropRequest.AirdropRequestType.PENDING;
 import static org.hiero.mirror.restjava.jooq.domain.Tables.TOKEN_AIRDROP;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.TokenAirdrop;
 import jakarta.inject.Named;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.token.TokenAirdrop;
 import org.hiero.mirror.restjava.dto.TokenAirdropRequest;
 import org.hiero.mirror.restjava.dto.TokenAirdropRequest.AirdropRequestType;
 import org.hiero.mirror.restjava.jooq.domain.enums.AirdropState;

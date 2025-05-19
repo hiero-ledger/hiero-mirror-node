@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.grpc.listener;
 
-import com.hedera.mirror.common.domain.topic.TopicMessage;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
@@ -10,6 +9,7 @@ import jakarta.inject.Named;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
 import org.hiero.mirror.grpc.listener.ListenerProperties.ListenerType;
 import org.springframework.context.annotation.Primary;

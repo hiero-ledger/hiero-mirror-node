@@ -2,12 +2,12 @@
 
 package org.hiero.mirror.web3.evm.store.accessor;
 
-import com.hedera.mirror.common.domain.token.AbstractTokenAccount;
-import com.hedera.mirror.common.domain.token.TokenAccount;
 import jakarta.inject.Named;
 import java.util.Optional;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.token.AbstractTokenAccount;
+import org.hiero.mirror.common.domain.token.TokenAccount;
 import org.hiero.mirror.web3.evm.store.DatabaseBackedStateFrame.DatabaseAccessIncorrectKeyTypeException;
 import org.hiero.mirror.web3.repository.TokenAccountRepository;
 

@@ -7,13 +7,13 @@ import static org.hiero.mirror.importer.ImporterProperties.HederaNetwork.PREVIEW
 import static org.hiero.mirror.importer.ImporterProperties.HederaNetwork.TESTNET;
 import static org.hiero.mirror.importer.migration.BlockNumberMigration.BLOCK_NUMBER_MAPPING;
 
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.groups.Tuple;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
