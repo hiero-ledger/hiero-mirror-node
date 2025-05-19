@@ -2,6 +2,7 @@
 
 import {GetObjectCommand, S3} from '@aws-sdk/client-s3';
 import {NodeHttpHandler} from '@smithy/node-http-handler';
+import https from 'https';
 
 import config from './config';
 import {cloudProviders, defaultCloudProviderEndpoints} from './constants';
@@ -53,6 +54,9 @@ const buildS3ConfigFromStreamsConfig = () => {
   const endpoint = hasEndpointOverride ? endpointOverride : defaultCloudProviderEndpoints[cloudProvider];
   const forcePathStyle = hasEndpointOverride || isGCP;
   const requestHandler = new NodeHttpHandler({
+    httpsAgent: new https.Agent({
+      keepAlive: true,
+    }),
     connectionTimeout: httpOptions.connectTimeout,
     requestTimeout: httpOptions.timeout,
   });
