@@ -208,7 +208,7 @@ public class TestUtil {
         }
     }
 
-    public static Range<Instant> convertRange(com.hedera.mirror.rest.model.TimestampRange timestampRange) {
+    public static Range<Instant> convertRange(org.hiero.mirror.rest.model.TimestampRange timestampRange) {
         if (timestampRange == null) {
             return null;
         }

@@ -7,13 +7,13 @@ import static org.hiero.mirror.restjava.common.Constants.ACCOUNT_ID;
 import static org.hiero.mirror.restjava.common.Constants.TOKEN_ID;
 import static org.mockito.Mockito.when;
 
-import com.hedera.mirror.rest.model.Links;
-import com.hedera.mirror.rest.model.NftAllowance;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.hiero.mirror.rest.model.Links;
+import org.hiero.mirror.rest.model.NftAllowance;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

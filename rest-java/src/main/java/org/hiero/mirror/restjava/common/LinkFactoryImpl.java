@@ -3,7 +3,6 @@
 package org.hiero.mirror.restjava.common;
 
 import com.google.common.collect.Iterables;
-import com.hedera.mirror.rest.model.Links;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,6 +12,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.rest.model.Links;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;

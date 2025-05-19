@@ -7,13 +7,13 @@ import static org.hiero.mirror.common.domain.token.TokenTypeEnum.FUNGIBLE_COMMON
 import static org.hiero.mirror.common.domain.token.TokenTypeEnum.NON_FUNGIBLE_UNIQUE;
 
 import com.google.common.io.BaseEncoding;
-import com.hedera.mirror.rest.model.Links;
-import com.hedera.mirror.rest.model.TokenAirdropsResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.hiero.mirror.common.domain.token.TokenAirdrop;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.rest.model.Links;
+import org.hiero.mirror.rest.model.TokenAirdropsResponse;
 import org.hiero.mirror.restjava.mapper.TokenAirdropMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

@@ -2,14 +2,14 @@
 
 package org.hiero.mirror.monitor.subscribe.rest;
 
-import com.hedera.mirror.rest.model.NetworkNode;
-import com.hedera.mirror.rest.model.NetworkNodesResponse;
 import jakarta.inject.Named;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.monitor.MonitorProperties;
+import org.hiero.mirror.rest.model.NetworkNode;
+import org.hiero.mirror.rest.model.NetworkNodesResponse;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;

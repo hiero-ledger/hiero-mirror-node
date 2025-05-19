@@ -4,15 +4,15 @@ package org.hiero.mirror.restjava.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.rest.model.ConsensusCustomFees;
-import com.hedera.mirror.rest.model.Key.TypeEnum;
-import com.hedera.mirror.rest.model.Topic;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
 import java.util.Collections;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.rest.model.ConsensusCustomFees;
+import org.hiero.mirror.rest.model.Key.TypeEnum;
+import org.hiero.mirror.rest.model.Topic;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

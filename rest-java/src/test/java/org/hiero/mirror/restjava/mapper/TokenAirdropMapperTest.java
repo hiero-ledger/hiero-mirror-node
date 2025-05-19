@@ -6,12 +6,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.token.TokenTypeEnum.FUNGIBLE_COMMON;
 import static org.hiero.mirror.common.domain.token.TokenTypeEnum.NON_FUNGIBLE_UNIQUE;
 
-import com.hedera.mirror.rest.model.TimestampRange;
-import com.hedera.mirror.rest.model.TokenAirdrop;
 import java.util.List;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.rest.model.TimestampRange;
+import org.hiero.mirror.rest.model.TokenAirdrop;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

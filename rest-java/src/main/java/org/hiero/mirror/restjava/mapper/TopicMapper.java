@@ -4,9 +4,9 @@ package org.hiero.mirror.restjava.mapper;
 
 import static org.hiero.mirror.restjava.mapper.CommonMapper.QUALIFIER_TIMESTAMP;
 
-import com.hedera.mirror.rest.model.Topic;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.token.CustomFee;
+import org.hiero.mirror.rest.model.Topic;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

@@ -7,8 +7,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.restjava.mapper.CommonMapper.NANO_DIGITS;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.rest.model.Key.TypeEnum;
-import com.hedera.mirror.rest.model.TimestampRange;
 import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
@@ -19,6 +17,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.rest.model.Key.TypeEnum;
+import org.hiero.mirror.rest.model.TimestampRange;
 import org.hiero.mirror.restjava.exception.InvalidMappingException;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
@@ -59,13 +59,13 @@ class CommonMapperTest {
         var feeExemptKeyList =
                 FeeExemptKeyList.newBuilder().addAllKeys(keyList.getKeysList()).build();
         var expectedKeyList = List.of(
-                new com.hedera.mirror.rest.model.Key()
+                new org.hiero.mirror.rest.model.Key()
                         .key(Hex.encodeHexString(bytesEcdsa))
                         .type(TypeEnum.ECDSA_SECP256_K1),
-                new com.hedera.mirror.rest.model.Key()
+                new org.hiero.mirror.rest.model.Key()
                         .key(Hex.encodeHexString(bytesEd25519))
                         .type(TypeEnum.ED25519),
-                new com.hedera.mirror.rest.model.Key()
+                new org.hiero.mirror.rest.model.Key()
                         .key(Hex.encodeHexString(bytesInnerKeyListKey))
                         .type(TypeEnum.PROTOBUF_ENCODED));
 
@@ -172,8 +172,8 @@ class CommonMapperTest {
                 .isEqualTo(range);
     }
 
-    private com.hedera.mirror.rest.model.Key toKey(byte[] bytes, TypeEnum type) {
-        return new com.hedera.mirror.rest.model.Key()
+    private org.hiero.mirror.rest.model.Key toKey(byte[] bytes, TypeEnum type) {
+        return new org.hiero.mirror.rest.model.Key()
                 .key(Hex.encodeHexString(bytes))
                 .type(type);
     }

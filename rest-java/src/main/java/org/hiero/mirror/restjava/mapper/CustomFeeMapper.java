@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.restjava.mapper;
 
-import com.hedera.mirror.rest.model.ConsensusCustomFees;
 import org.hiero.mirror.common.domain.token.CustomFee;
+import org.hiero.mirror.rest.model.ConsensusCustomFees;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

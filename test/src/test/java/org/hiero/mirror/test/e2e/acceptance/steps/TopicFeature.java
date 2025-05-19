@@ -20,9 +20,6 @@ import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.TopicId;
 import com.hedera.hashgraph.sdk.TopicMessageQuery;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
-import com.hedera.mirror.rest.model.FixedCustomFee;
-import com.hedera.mirror.rest.model.Key.TypeEnum;
-import com.hedera.mirror.rest.model.Topic;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
@@ -39,6 +36,9 @@ import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.rest.model.FixedCustomFee;
+import org.hiero.mirror.rest.model.Key.TypeEnum;
+import org.hiero.mirror.rest.model.Topic;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
@@ -544,23 +544,23 @@ public class TopicFeature extends AbstractFeature {
         var mirrorTransactionsResponse =
                 mirrorClient.getTransactions(transactionId).getTransactions().getFirst();
         // Create expected Max fees
-        var expectedMaxHtsLimit = new com.hedera.mirror.rest.model.CustomFeeLimit();
+        var expectedMaxHtsLimit = new org.hiero.mirror.rest.model.CustomFeeLimit();
         expectedMaxHtsLimit.setAccountId(payerAccount);
         expectedMaxHtsLimit.setAmount(FIXED_FEE_AMOUNT + 1);
         expectedMaxHtsLimit.setDenominatingTokenId(fungibleToken);
-        var expectedMaxHbarLimit = new com.hedera.mirror.rest.model.CustomFeeLimit();
+        var expectedMaxHbarLimit = new org.hiero.mirror.rest.model.CustomFeeLimit();
         expectedMaxHbarLimit.setAccountId(payerAccount);
         expectedMaxHbarLimit.setAmount(FIXED_FEE_AMOUNT + 1);
         expectedMaxHbarLimit.setDenominatingTokenId(null);
         var expectedMaxFees = List.of(expectedMaxHtsLimit, expectedMaxHbarLimit);
         assertThat(mirrorTransactionsResponse.getMaxCustomFees()).containsExactlyInAnyOrderElementsOf(expectedMaxFees);
         // Create expected Assessed fees
-        var expectedAssessedHtsFee = new com.hedera.mirror.rest.model.AssessedCustomFee();
+        var expectedAssessedHtsFee = new org.hiero.mirror.rest.model.AssessedCustomFee();
         expectedAssessedHtsFee.setAmount(FIXED_FEE_AMOUNT);
         expectedAssessedHtsFee.setCollectorAccountId(collectorAccount);
         expectedAssessedHtsFee.setEffectivePayerAccountIds(List.of(payerAccount));
         expectedAssessedHtsFee.setTokenId(fungibleToken);
-        var expectedAssessedHbarFee = new com.hedera.mirror.rest.model.AssessedCustomFee();
+        var expectedAssessedHbarFee = new org.hiero.mirror.rest.model.AssessedCustomFee();
         expectedAssessedHbarFee.setAmount(FIXED_FEE_AMOUNT);
         expectedAssessedHbarFee.setCollectorAccountId(collectorAccount);
         expectedAssessedHbarFee.setEffectivePayerAccountIds(List.of(payerAccount));

@@ -4,11 +4,11 @@ package org.hiero.mirror.restjava.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.rest.model.NftAllowance;
-import com.hedera.mirror.rest.model.TimestampRange;
 import java.util.List;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.rest.model.NftAllowance;
+import org.hiero.mirror.rest.model.TimestampRange;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

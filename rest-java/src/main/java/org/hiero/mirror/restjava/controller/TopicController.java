@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.restjava.controller;
 
-import com.hedera.mirror.rest.model.Topic;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.rest.model.Topic;
 import org.hiero.mirror.restjava.common.EntityIdNumParameter;
 import org.hiero.mirror.restjava.mapper.TopicMapper;
 import org.hiero.mirror.restjava.service.CustomFeeService;

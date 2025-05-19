@@ -5,8 +5,6 @@ package org.hiero.mirror.restjava.controller;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import com.google.common.io.BaseEncoding;
-import com.hedera.mirror.rest.model.Links;
-import com.hedera.mirror.rest.model.NftAllowancesResponse;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -16,6 +14,8 @@ import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.rest.model.Links;
+import org.hiero.mirror.rest.model.NftAllowancesResponse;
 import org.hiero.mirror.restjava.mapper.NftAllowanceMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

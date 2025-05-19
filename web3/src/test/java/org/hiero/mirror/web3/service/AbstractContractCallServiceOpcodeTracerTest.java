@@ -14,7 +14,6 @@ import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.gasComparator;
 import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.toHumanReadableMessage;
 import static org.mockito.Mockito.doAnswer;
 
-import com.hedera.mirror.rest.model.OpcodesResponse;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
 import jakarta.annotation.Resource;
 import java.util.List;
@@ -25,6 +24,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
@@ -194,7 +194,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                 .failed(!result.isSuccessful())
                 .gas(result.getGasUsed())
                 .opcodes(opcodes.stream()
-                        .map(opcode -> new com.hedera.mirror.rest.model.Opcode()
+                        .map(opcode -> new org.hiero.mirror.rest.model.Opcode()
                                 .depth(opcode.depth())
                                 .gas(opcode.gas())
                                 .gasCost(opcode.gasCost())

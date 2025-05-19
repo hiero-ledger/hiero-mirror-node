@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.test.e2e.acceptance;
 
-import com.hedera.mirror.rest.model.TokenInfo.PauseStatusEnum;
 import io.cucumber.java.ParameterType;
 import io.cucumber.spring.CucumberContextConfiguration;
+import org.hiero.mirror.rest.model.TokenInfo.PauseStatusEnum;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.NodeNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum;
