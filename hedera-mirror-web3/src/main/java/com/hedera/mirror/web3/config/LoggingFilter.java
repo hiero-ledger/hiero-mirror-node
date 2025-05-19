@@ -10,6 +10,10 @@ import jakarta.inject.Named;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.zip.GZIPOutputStream;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -23,9 +27,7 @@ import org.springframework.web.util.WebUtils;
 @RequiredArgsConstructor
 class LoggingFilter extends OncePerRequestFilter {
 
-    @SuppressWarnings("java:S1075")
     private static final String ACTUATOR_PATH = "/actuator/";
-
     private static final String LOG_FORMAT = "{} {} {} in {} ms (mod={}): {} {} - {}";
     private static final String SUCCESS = "Success";
 
@@ -37,7 +39,7 @@ class LoggingFilter extends OncePerRequestFilter {
         Exception cause = null;
 
         if (!(request instanceof ContentCachingRequestWrapper)) {
-            request = new ContentCachingRequestWrapper(request, web3Properties.getMaxPayloadLogSize());
+            request = new ContentCachingRequestWrapper(request, web3Properties.getMaxPayloadLogSize() * 10);
         }
 
         try {
@@ -76,13 +78,34 @@ class LoggingFilter extends OncePerRequestFilter {
     }
 
     private String getContent(HttpServletRequest request) {
+        var content = StringUtils.EMPTY;
+        int maxPayloadLogSize = web3Properties.getMaxPayloadLogSize();
         var wrapper = WebUtils.getNativeRequest(request, ContentCachingRequestWrapper.class);
 
         if (wrapper != null) {
-            return StringUtils.deleteWhitespace(wrapper.getContentAsString());
+            content = StringUtils.deleteWhitespace(wrapper.getContentAsString());
         }
 
-        return "";
+        if (content.length() > maxPayloadLogSize) {
+            var bos = new ByteArrayOutputStream();
+            try (var out = new GZIPOutputStream(bos)) {
+                out.write(content.getBytes(StandardCharsets.UTF_8));
+                out.finish();
+                var compressed = Base64.getEncoder().encodeToString(bos.toByteArray());
+
+                if (compressed.length() <= maxPayloadLogSize) {
+                    content = compressed;
+                }
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+
+        if (content.length() > maxPayloadLogSize) {
+            content = StringUtils.substring(content, 0, maxPayloadLogSize);
+        }
+
+        return content;
     }
 
     private String getMessage(HttpServletRequest request, Exception e) {

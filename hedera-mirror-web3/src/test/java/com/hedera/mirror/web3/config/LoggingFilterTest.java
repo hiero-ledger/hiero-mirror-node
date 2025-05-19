@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import lombok.SneakyThrows;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -126,9 +127,24 @@ class LoggingFilterTest {
 
     @Test
     @SneakyThrows
-    void postLargeContent(CapturedOutput output) {
+    void postLargeCompressedContent(CapturedOutput output) {
         int maxSize = web3Properties.getMaxPayloadLogSize();
-        var content = RandomStringUtils.secure().next(maxSize + 1, "abcdef0123456789");
+        var content = StringUtils.repeat("abcdefghij", maxSize / 10 + 1);
+        var request = new MockHttpServletRequest("POST", "/");
+        request.setContent(content.getBytes(StandardCharsets.UTF_8));
+        response.setStatus(HttpStatus.OK.value());
+
+        loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
+
+        var compressed = " H4sIAAAAAAAA/0tMSk5JTUvPyMxKHGURzQIAy81t7zYBAAA=";
+        assertThat(output.getOut()).contains(compressed).doesNotContain(content);
+    }
+
+    @Test
+    @SneakyThrows
+    void postLargeUncompressibleContent(CapturedOutput output) {
+        int maxSize = web3Properties.getMaxPayloadLogSize();
+        var content = RandomStringUtils.secure().next(maxSize + 100, "abcdef0123456789");
         var request = new MockHttpServletRequest("POST", "/");
         request.setContent(content.getBytes(StandardCharsets.UTF_8));
         response.setStatus(HttpStatus.OK.value());
