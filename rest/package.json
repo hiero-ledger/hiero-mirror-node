@@ -40,7 +40,7 @@
     "mathjs": "^14.4.0",
     "negotiator": "^1.0.0",
     "parse-duration": "^2.1.4",
-    "pg": "~8.15.6",
+    "pg": "~8.16.0",
     "pg-range": "^1.1.2",
     "prom-client": "^14.2.0",
     "qs": "^6.14.0",
