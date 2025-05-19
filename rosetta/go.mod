@@ -10,7 +10,7 @@ require (
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/go-viper/mapstructure/v2 v2.2.1
 	github.com/hellofresh/health-go/v4 v4.7.0
-	github.com/hiero-ledger/hiero-sdk-go/v2 v2.61.0
+	github.com/hiero-ledger/hiero-sdk-go/v2 v2.62.0
 	github.com/jackc/pgtype v1.14.4
 	github.com/lib/pq v1.10.9
 	github.com/onrik/gorm-logrus v0.5.0
