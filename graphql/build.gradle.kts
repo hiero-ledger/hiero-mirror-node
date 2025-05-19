@@ -85,5 +85,3 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 java.sourceSets["main"].java { srcDir(tasks.generatePojo) }
-
-project.extra.set("dockerImageName", "hedera-mirror-graphql")

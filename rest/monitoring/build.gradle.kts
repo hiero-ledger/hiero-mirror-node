@@ -6,5 +6,3 @@ plugins {
     id("docker-conventions")
     id("javascript-conventions")
 }
-
-project.extra.set("dockerImageName", "hedera-mirror-rest-monitor")

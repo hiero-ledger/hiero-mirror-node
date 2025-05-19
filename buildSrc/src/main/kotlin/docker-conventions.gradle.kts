@@ -9,12 +9,9 @@ val latest = "latest"
 
 // Get the Docker images to tag by splitting dockerTag property and adding the project version
 fun dockerImages(): Collection<String> {
-    val dockerImageName =
-        if (project.extra.has("dockerImageName")) project.extra.get("dockerImageName")
-        else projectDir.name
     val dockerRegistry: String by project
     val dockerTag: String by project
-    val dockerImage = "${dockerRegistry}/${dockerImageName}:"
+    val dockerImage = "${dockerRegistry}/hedera-mirror-${projectDir.name}:"
     val customTags = dockerTag.split(',').map { dockerImage.plus(it) }
     val versionTag = dockerImage.plus(project.version)
     val tags = customTags.plus(versionTag).toMutableSet()

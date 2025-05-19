@@ -48,10 +48,6 @@ jobs:
       - name: Get version
         run: echo "VERSION=$(grep -oP 'version=\K.+' gradle.properties)" >> $GITHUB_ENV
 
-      - name: Custom context
-        if: matrix.project == 'web3'
-        run: echo "CONTEXT=hedera-mirror-web3" >> $GITHUB_ENV
-
       - name: Custom monitor path
         if: matrix.project == 'rest-monitor'
         run: echo "CONTEXT=rest/monitoring" >> $GITHUB_ENV

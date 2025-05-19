@@ -55,5 +55,3 @@ dependencies {
     testImplementation("org.testcontainers:postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
-
-project.extra.set("dockerImageName", "hedera-mirror-importer")

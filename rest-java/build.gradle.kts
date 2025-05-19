@@ -41,5 +41,3 @@ tasks.compileJava {
         )
     )
 }
-
-project.extra.set("dockerImageName", "hedera-mirror-rest-java")

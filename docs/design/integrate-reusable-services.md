@@ -1,11 +1,11 @@
-# `Integrate reusable services in hedera-mirror-web3`
+# `Integrate reusable services in web3`
 
 ## Overview
 
 Currently in order for archive nodes to execute json-rpc calls such
 as `eth_call`, `eth_estimateGas`, `eth_debugTraceTransaction`
 via
-REST API calls they simulate the transaction via business logic nested in `hedera-mirror-web3`. It copies code base from
+REST API calls they simulate the transaction via business logic nested in web3 module. It copies code base from
 the mono `hedera-services` code
 that is now obsolete. Doing so, it has the necessary Hedera specific logic wrapping the besu evm dependency.
 
@@ -13,16 +13,16 @@ The `hedera-services` started utilizing new modularized code base and is going t
 calls over it. This makes the consensus node and
 archive node business logic diverging and have different support of precompiles.
 
-In addition, the copied mono code in `hedera-mirror-web3` required maintaining the same code base on 2 different places.
+In addition, the copied mono code in web3 module required maintaining the same code base on 2 different places.
 
 With the modularized code now in place, we are going to have a published dependency for the `hedera.app` code
 base including all services and smart contract logic, which can be
-directly integrated into `hedera-mirror-web3` with the old copied mono code base removed. This document will
+directly integrated into web3 module with the old copied mono code base removed. This document will
 describe the needed steps to achieve this goal.
 
 ## Entry point
 
-The new modularized code base will be added as a dependency to the `hedera-mirror-web3` project. The entry point for
+The new modularized code base will be added as a dependency to the web3 project. The entry point for
 simulating a transaction will be a special
 component named `TransactionExecutor`. This component will be responsible for executing the transaction and returning
 the result. It's created by a factory pattern via `TransactionExecutors` class that accepts
@@ -171,7 +171,7 @@ stack, instead of the shared single `State` that the mirror node will keep.
 
 ### Development phases
 
-The efforts of integrating the reusable services logic into `hedera-mirror-web3` will be split into different releases.
+The efforts of integrating the reusable services logic into web3 module will be split into different releases.
 Thus, we should
 temporarily keep the old copied mono code base for execution, so that calls
 for `eth_call`, `eth_estimateGas`, `eth_debugTraceTransaction` are
@@ -191,7 +191,7 @@ After the new code base is fully integrated and tested, we will remove the old m
 The testing of the new code base from services will include only checks for potential regression. This covers the
 following tests:
 
-- Integration tests inside `hedera-mirror-web3` testing the behaviour of `ContractCallService`
+- Integration tests inside web3 testing the behaviour of `ContractCallService`
 - Acceptance tests covering web3 logic
 
 In all cases - the existing behaviour and expected results should remain the same.
@@ -203,7 +203,7 @@ anymore. This will include the following packages and files:
 
 - com.hedera.node.app.service
 - com.hedera.services
-- com.hedera.mirror.web3.evm, without the following files (they can be moved in different packages):
+- org.hiero.mirror.web3.evm, without the following files (they can be moved in different packages):
   - EvmConfiguration
   - Opcode
   - OpcodeTracerOptions
