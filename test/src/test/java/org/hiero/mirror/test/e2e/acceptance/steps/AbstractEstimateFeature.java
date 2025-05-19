@@ -58,15 +58,11 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
     }
 
     /**
-     * Validates the gas estimation for a specific contract call.
+     * Validates the gas estimation for a specific contract call without value.
      * <p>
      * This method estimates the gas cost for a given contract call, and then checks whether the actual gas used falls
      * within an acceptable deviation range. It utilizes the provided call endpoint to perform the contract call and
      * then compares the estimated gas with the actual gas used.
-     */
-
-    // Use this method if you want to execute estimate gas query with parameters without value
-    /**
      * @param contractId The ID of the contract to call.
      * @param functionName The name of the function to call.
      * @param params The parameters to pass to the function.
@@ -80,13 +76,15 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
             AccountId sender,
             int actualGas)
             throws ExecutionException, InterruptedException {
-        var estimateGasResult = contractClient.estimateGasQuery(contractId, functionName, params, sender, actualGas);
+        var estimateGasResult =
+                contractClient.estimateGasQuery(contractId, functionName, params, sender, actualGas, Optional.empty());
 
         assertWithinDeviation(actualGas, (int) estimateGasResult, lowerDeviation, upperDeviation);
     }
 
-    // Use this method if you want to execute query with value
+    //
     /**
+     * Validates the gas estimation for a specific contract call with value
      * @param contractId The ID of the contract to call.
      * @param functionName The name of the function to call.
      * @param params The parameters to pass to the function.
@@ -100,16 +98,16 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
             ContractFunctionParameters params,
             AccountId sender,
             int actualGas,
-            long value)
+            Optional<java.lang.Long> value)
             throws ExecutionException, InterruptedException {
         var estimateGasResult =
-                contractClient.estimateGasQueryWithValue(contractId, functionName, params, sender, actualGas, value);
+                contractClient.estimateGasQuery(contractId, functionName, params, sender, actualGas, value);
 
         assertWithinDeviation(actualGas, (int) estimateGasResult, lowerDeviation, upperDeviation);
     }
 
-    // Use this method if you want to execute query without function parameters
     /**
+     * Validates the gas estimation for a specific contract call without function parameters
      * @param contractId The ID of the contract to call.
      * @param functionName The name of the function to call.
      * @param sender The account ID of the sender.

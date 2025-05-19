@@ -58,6 +58,7 @@ import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
 import com.hedera.hashgraph.sdk.TokenId;
+import com.hedera.hashgraph.sdk.proto.ResponseCodeEnum;
 import com.hedera.mirror.rest.model.ContractCallResponse;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
@@ -65,6 +66,7 @@ import io.cucumber.java.en.Then;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -336,8 +338,6 @@ public class EstimateFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with request body that contains wrong method signature")
     public void wrongMethodSignatureEstimateCall() {
-        //        assertContractCallReturnsBadRequest(
-        //                encodeData(WRONG_METHOD_SIGNATURE), WRONG_METHOD_SIGNATURE.actualGas, mockAddress);
         var mockContractId = ContractId.fromSolidityAddress(mockAddress);
 
         assertThatThrownBy(() -> contractClient.estimateGasQueryWithoutParams(
@@ -346,7 +346,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                         senderAccountId,
                         WRONG_METHOD_SIGNATURE.getActualGas()))
                 .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining("CONTRACT_REVERT_EXECUTED");
+                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
 
     @Then("I call estimateGas with wrong encoded parameter")
@@ -489,7 +489,8 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 STATE_UPDATE_OF_CONTRACT.getSelector(),
                 firstParams,
                 senderAccountId,
-                STATE_UPDATE_OF_CONTRACT.getActualGas());
+                STATE_UPDATE_OF_CONTRACT.getActualGas(),
+                Optional.empty());
         // making 10 times to state update
         ContractFunctionParameters secondParams = new ContractFunctionParameters().addUint256(new BigInteger("10"));
         var secondResponse = contractClient.estimateGasQuery(
@@ -497,7 +498,8 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 STATE_UPDATE_OF_CONTRACT.getSelector(),
                 secondParams,
                 senderAccountId,
-                STATE_UPDATE_OF_CONTRACT.getActualGas());
+                STATE_UPDATE_OF_CONTRACT.getActualGas(),
+                Optional.empty());
 
         assertTrue(secondResponse > firstResponse);
     }
