@@ -22,7 +22,7 @@ extra.apply {
     set("nodeJsVersion", "22.14.0")
     set("protobufVersion", "4.30.2")
     set("reactorGrpcVersion", "1.2.4")
-    set("vertxVersion", "4.5.14")
+    set("vertxVersion", "5.0.0")
     set("tuweniVersion", "2.3.1")
 }
 
