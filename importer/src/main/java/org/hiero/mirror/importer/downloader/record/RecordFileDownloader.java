@@ -101,7 +101,9 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
     }
 
     private void downloadSidecars(StreamFilename recordFilename, RecordFile recordFile, ConsensusNode node) {
-        if (!sidecarProperties.isEnabled() || recordFile.getSidecars().isEmpty()) {
+        // do nothing if both writing files and parsing sidecars options are disabled, or sidecars are empty
+        if (!((RecordDownloaderProperties) downloaderProperties).isWriteFiles() && !sidecarProperties.isEnabled()
+                || recordFile.getSidecars().isEmpty()) {
             return;
         }
 
@@ -119,6 +121,10 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
                         Function.identity(),
                         ArrayListMultimap::create))
                 .block();
+
+        if (records == null) {
+            return;
+        }
 
         recordFile.getItems().forEach(recordItem -> {
             var timestamp = recordItem.getTransactionRecord().getConsensusTimestamp();
@@ -139,7 +145,7 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
             }
 
             if (downloaderProperties.isWriteFiles()) {
-                var streamPath = importerProperties.getStreamPath();
+                var streamPath = importerProperties.getArchiveDestinationFolderPath(streamFileData);
                 Utility.archiveFile(streamFileData.getFilePath(), sidecar.getBytes(), streamPath);
             }
 
