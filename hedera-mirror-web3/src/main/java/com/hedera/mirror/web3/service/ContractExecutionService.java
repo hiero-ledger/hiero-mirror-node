@@ -17,7 +17,6 @@ import jakarta.inject.Named;
 import java.util.Objects;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
-import org.springframework.transaction.annotation.Transactional;
 
 @CustomLog
 @Named
@@ -48,7 +47,6 @@ public class ContractExecutionService extends ContractCallService {
         this.binaryGasEstimator = binaryGasEstimator;
     }
 
-    @Transactional(readOnly = true, timeoutString = "#{@web3Properties.getTransactionTimeout().toSeconds()}")
     public String processCall(final ContractExecutionParameters params) {
         return ContractCallContext.run(ctx -> {
             var stopwatch = Stopwatch.createStarted();

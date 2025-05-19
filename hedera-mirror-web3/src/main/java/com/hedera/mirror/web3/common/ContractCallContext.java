@@ -28,6 +28,15 @@ public class ContractCallContext {
     public static final String CONTEXT_NAME = "ContractCallContext";
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
 
+    @Getter(AccessLevel.NONE)
+    private final Map<String, Map<Object, Object>> readCache = new HashMap<>();
+
+    @Getter
+    private final long startTime = System.currentTimeMillis();
+
+    @Getter(AccessLevel.NONE)
+    private final Map<String, Map<Object, Object>> writeCache = new HashMap<>();
+
     @Setter
     private List<ContractAction> contractActions = List.of();
 
@@ -61,12 +70,6 @@ public class ContractCallContext {
     /** Fixed "base" of stack: a R/O cache frame on top of the DB-backed cache frame */
     private CachingStateFrame<Object> stackBase;
 
-    @Getter(AccessLevel.NONE)
-    private Map<String, Map<Object, Object>> readCache = new HashMap<>();
-
-    @Getter(AccessLevel.NONE)
-    private Map<String, Map<Object, Object>> writeCache = new HashMap<>();
-
     /**
      * The timestamp used to fetch the state from the stackedStateFrames.
      */
@@ -77,6 +80,10 @@ public class ContractCallContext {
 
     public static ContractCallContext get() {
         return SCOPED_VALUE.get();
+    }
+
+    public static boolean isInitialized() {
+        return SCOPED_VALUE.isBound();
     }
 
     public static <T> T run(Function<ContractCallContext, T> function) {
@@ -138,8 +145,9 @@ public class ContractCallContext {
     }
 
     /**
-     * Returns the set timestamp or the consensus end timestamp from the set record file only if we are in a historical context. If not - an empty optional is returned.
-     * */
+     * Returns the set timestamp or the consensus end timestamp from the set record file only if we are in a historical
+     * context. If not - an empty optional is returned.
+     */
     public Optional<Long> getTimestamp() {
         if (useHistorical()) {
             return getTimestampOrDefaultFromRecordFile();
