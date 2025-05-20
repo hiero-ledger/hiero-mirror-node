@@ -363,9 +363,17 @@ prometheus:
             interval: 1m
             metricRelabelings:
               - action: drop
-                regex: ^(pg_stat.*_user.*|pg_table.*|pgbouncer_show_clients.*)$
+                regex: ^(go_|node_file_system|pg_index|pg_long|pg_roles|pg_postmaster|pg_scrape_collector|pg_settings|pg_slow_queries|pg_stat_activity|pg_stat.*_user|pg_stat_progress|pg_statements|pg_table|pg_total_relation_size_bytes|pgbouncer_show_clients|pgbouncer_show_databases|process|promhttp|scrape).*$
                 sourceLabels:
                   - __name__
+              - action: replace
+                regex: ^.*(postgres-exporter)$
+                replacement: $1
+                sourceLabels: [job]
+                targetLabel: job
+              - action: keep
+                regex: postgres-exporter;(mirror_node|);(mirror_node|)
+                sourceLabels: [job, database, datname]
             scrapeTimeout: 30s
             path: /metrics
             port: prom-http
