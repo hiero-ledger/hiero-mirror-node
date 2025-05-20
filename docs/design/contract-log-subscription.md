@@ -52,7 +52,7 @@ in order to provide contract log notifications in almost real time.
 #### GraphQL Schema
 
 ```graphql
-"Represents a Hedera Contract Log event"
+"Represents a Contract Log event"
 type ContractLogEvent {
   "The evm address (if available, otherwise the account-num alias) from which this log originated"
   address: String!
@@ -114,7 +114,7 @@ input ContractLogSubscription {
   topic3: [String!] @Pattern(regexp: "^(0x)?[a-fA-F0-9]{64}$")
 }
 
-"Subscription root of the Hedera GraphQL API"
+"Subscription root of the GraphQL API"
 type Subscription {
   contractLogs(subscription: ContractLogSubscription!): ContractLogEvent
 }
@@ -184,7 +184,7 @@ public class ContractLogTopicListener {
 #### application.yml
 
 ```yaml
-hedera:
+hiero:
   mirror:
     graphql:
       listener:
