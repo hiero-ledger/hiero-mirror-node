@@ -82,6 +82,7 @@ const getDbConnectionParams = async () => {
   const response = await fetch(process.env.DB_CONTAINER_SERVER_URL + '/connectionParams', {
     method: 'POST',
     headers: {
+      Connection: 'close', // close the connection to avoid ECONNRESET
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({workerId}),
