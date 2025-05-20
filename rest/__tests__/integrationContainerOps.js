@@ -43,10 +43,11 @@ const cleanUp = async () => {
 const createRestJavaContainer = async () => {
   const connectionParams = await getDbConnectionParams();
   await flywayMigrate(connectionParams);
+  const bridgeHost = os.type() === 'Linux' ? '127.0.0.1' : 'host.docker.internal';
   return new GenericContainer('gcr.io/mirrornode/hedera-mirror-rest-java:latest')
     .withEnvironment({
-      HEDERA_MIRROR_RESTJAVA_DB_HOST: `postgres-${workerId}`,
-      HEDERA_MIRROR_RESTJAVA_DB_PORT: 5432,
+      HEDERA_MIRROR_RESTJAVA_DB_HOST: bridgeHost,
+      HEDERA_MIRROR_RESTJAVA_DB_PORT: connectionParams.port,
       HEDERA_MIRROR_RESTJAVA_DB_NAME: connectionParams.database,
     })
     .withExposedPorts(8084)
