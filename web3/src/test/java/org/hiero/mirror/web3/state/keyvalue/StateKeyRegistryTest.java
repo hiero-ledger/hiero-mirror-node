@@ -62,16 +62,17 @@ class StateKeyRegistryTest {
     @Test
     @DisplayName("Lookup returns existing ReadableKVState")
     void returnsExistingKVState() {
-        final var def =
+        final var stateDefinition =
                 new StateDefinition<>(READABLE_KV_STATE_KEY, mockCodec, mockCodec, MAX_KEYS_HINT, true, false, false);
-        assertSame(kvState, registry.lookup(def));
+        assertSame(kvState, registry.lookup(stateDefinition));
     }
 
     @Test
     @DisplayName("Lookup returns existing SingletonState")
     void returnsExistingSingleton() {
-        final var def = new StateDefinition<>(SINGLETON_KEY, mockCodec, mockCodec, MAX_KEYS_HINT, false, true, false);
-        assertSame(singleton, registry.lookup(def));
+        final var stateDefinition =
+                new StateDefinition<>(SINGLETON_KEY, mockCodec, mockCodec, MAX_KEYS_HINT, false, true, false);
+        assertSame(singleton, registry.lookup(stateDefinition));
     }
 
     @ParameterizedTest(
@@ -84,9 +85,9 @@ class StateKeyRegistryTest {
             final Class<?> type,
             final String description) {
         final var stateKey = "UPGRADE_DATA[FileID[shardNum=0, realmNum=0, fileNum=150]]";
-        final var def =
+        final var stateDefinition =
                 new StateDefinition<>(stateKey, mockCodec, mockCodec, MAX_KEYS_HINT, isOnDisk, isSingleton, isQueue);
-        final var state = registry.lookup(def);
+        final var state = registry.lookup(stateDefinition);
         assertThat(state).isNotNull().isInstanceOf(type);
     }
 
@@ -94,8 +95,9 @@ class StateKeyRegistryTest {
     @DisplayName("Lookup throws exceptions when key is not present")
     void throwsExceptionWhenKeyNotPresent() {
         final var stateKey = "MISSING_KEY";
-        final var def = new StateDefinition<>(stateKey, mockCodec, mockCodec, MAX_KEYS_HINT, false, true, false);
-        final var exception = assertThrows(UnsupportedOperationException.class, () -> registry.lookup(def));
+        final var stateDefinition =
+                new StateDefinition<>(stateKey, mockCodec, mockCodec, MAX_KEYS_HINT, false, true, false);
+        final var exception = assertThrows(UnsupportedOperationException.class, () -> registry.lookup(stateDefinition));
         assertThat(exception.getMessage()).isEqualTo("Unsupported state key: " + stateKey);
     }
 
@@ -106,9 +108,9 @@ class StateKeyRegistryTest {
     void throwsWhenEmptyStateAndNotInDefaultImpl(
             final boolean isOnDisk, final boolean isSingleton, final boolean isQueue) {
         registry = new StateKeyRegistry(List.of(), List.of());
-        final var def = new StateDefinition<>(
+        final var stateDefinition = new StateDefinition<>(
                 READABLE_KV_STATE_KEY, mockCodec, mockCodec, MAX_KEYS_HINT, isOnDisk, isSingleton, isQueue);
-        final var exception = assertThrows(UnsupportedOperationException.class, () -> registry.lookup(def));
+        final var exception = assertThrows(UnsupportedOperationException.class, () -> registry.lookup(stateDefinition));
         assertThat(exception.getMessage()).isEqualTo("Unsupported state key: " + READABLE_KV_STATE_KEY);
     }
 
@@ -123,9 +125,9 @@ class StateKeyRegistryTest {
             final Class<?> type,
             final String description) {
         registry = new StateKeyRegistry(List.of(), List.of());
-        final var def = new StateDefinition<>(
+        final var stateDefinition = new StateDefinition<>(
                 V0490TokenSchema.STAKING_INFO_KEY, mockCodec, mockCodec, MAX_KEYS_HINT, isOnDisk, isSingleton, isQueue);
-        final var result = registry.lookup(def);
+        final var result = registry.lookup(stateDefinition);
         assertThat(result).isInstanceOf(type);
     }
 }

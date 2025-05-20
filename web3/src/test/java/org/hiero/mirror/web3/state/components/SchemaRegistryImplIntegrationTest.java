@@ -38,7 +38,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @RequiredArgsConstructor
-public class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
+class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
 
     private static final String SERVICE_NAME = "testService";
 
@@ -77,7 +77,7 @@ public class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
         config = new ConfigProviderImpl().getConfiguration();
     }
 
-    @ParameterizedTest(name = "Migrate adds state when state keys are present {2}")
+    @ParameterizedTest(name = "Migrate adds state when state keys are present in {2}")
     @MethodSource("stateDefinition")
     void migrateWithStateKeysPresent(
             final Set<StateDefinition<?, ?>> stateDef, final String serviceName, final String description) {

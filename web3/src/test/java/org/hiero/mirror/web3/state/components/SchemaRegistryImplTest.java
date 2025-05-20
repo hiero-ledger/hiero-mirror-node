@@ -27,6 +27,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hiero.mirror.web3.state.core.MapReadableKVState;
@@ -138,7 +139,7 @@ class SchemaRegistryImplTest {
                 .thenReturn(new DefaultSingleton(V0490TokenSchema.STAKING_NETWORK_REWARDS_KEY));
         when(stateKeyRegistry.lookup(stateDefinitionQueue)).thenReturn(new ConcurrentLinkedDeque<>());
         when(stateKeyRegistry.lookup(stateDefinition))
-                .thenReturn(new MapReadableKVState<>(AccountReadableKVState.KEY, new HashMap<>()));
+                .thenReturn(new MapReadableKVState<>(AccountReadableKVState.KEY, new ConcurrentHashMap<>()));
 
         schemaRegistry.register(schema);
         schemaRegistry.migrate(
