@@ -6,15 +6,24 @@ import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema;
 import com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema;
 import com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema;
+import com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema;
 import com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSchema;
 import com.hedera.node.app.state.recordcache.schemas.V0540RecordCacheSchema;
+import com.swirlds.state.lifecycle.StateDefinition;
 import com.swirlds.state.spi.ReadableKVState;
+import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.hiero.mirror.web3.state.core.MapReadableKVState;
+import org.hiero.mirror.web3.state.singleton.DefaultSingleton;
+import org.hiero.mirror.web3.state.singleton.SingletonState;
 
 @Named
 public class StateKeyRegistry {
@@ -30,21 +39,59 @@ public class StateKeyRegistry {
                     V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_KEY,
                     V0570ScheduleSchema.SCHEDULED_USAGES_KEY,
                     // Not implemented but needed
-                    V0490ScheduleSchema.SCHEDULES_BY_ID_KEY)
+                    V0490ScheduleSchema.SCHEDULES_BY_ID_KEY,
+                    V0490TokenSchema.STAKING_NETWORK_REWARDS_KEY,
+                    V0610TokenSchema.NODE_REWARDS_KEY)
             .collect(Collectors.toSet());
 
-    private final Set<String> stateKeys;
+    private final Map<String, Object> states = new HashMap<>();
 
-    public StateKeyRegistry(final Collection<ReadableKVState<?, ?>> keyValues) {
-        this.stateKeys = keyValues.stream()
-                .map(ReadableKVState::getStateKey)
-                .collect(Collectors.toCollection(() -> new HashSet<>(DEFAULT_IMPLEMENTATIONS)));
+    public StateKeyRegistry(
+            @Nonnull final Collection<ReadableKVState<?, ?>> keyValues,
+            @Nonnull final Collection<SingletonState<?>> singletons) {
+        keyValues.forEach(kvState -> states.put(kvState.getStateKey(), kvState));
+        singletons.forEach(singleton -> states.put(singleton.getKey(), singleton));
     }
 
-    public boolean contains(final String stateKey) {
-        if (stateKey != null && stateKey.startsWith("UPGRADE_DATA")) {
-            return stateKeys.contains(V0490FileSchema.UPGRADE_DATA_KEY);
+    /**
+     * Looks up or creates a default implementation for the given {@link StateDefinition}.
+     * <p>
+     * The method first checks if an existing state is registered for the provided state key.
+     * If not, and the state key is among the {@code DEFAULT_IMPLEMENTATIONS}, it returns
+     * a default instance depending on the state's structure (queue, singleton, or key-value).
+     * <p>
+     * Special handling is applied for keys that start with {@code "UPGRADE_DATA"}:
+     * these are normalized to {@link V0490FileSchema#UPGRADE_DATA_KEY} for validation
+     * against default implementations, but the original key is still used when instantiating
+     * the state object.
+     *
+     * @param definition the state definition containing the key and type information
+     * @return the existing state object or a default implementation if available
+     * @throws UnsupportedOperationException if the state key is not registered and no default exists
+     */
+    public Object lookup(StateDefinition<?, ?> definition) {
+        final var stateKey = definition.stateKey();
+
+        final var state = states.get(stateKey);
+
+        if (state != null) {
+            return state;
         }
-        return stateKeys.contains(stateKey);
+
+        // var to handle keys that start with UPGRADE_DATA - need to be validated against default impl with `normalized`
+        // upgrade data key that has no concrete shard/realm/num
+        final String effectiveKey = stateKey.startsWith("UPGRADE_DATA") ? V0490FileSchema.UPGRADE_DATA_KEY : stateKey;
+
+        if (!DEFAULT_IMPLEMENTATIONS.contains(effectiveKey)) {
+            throw new UnsupportedOperationException("Unsupported state key: " + effectiveKey);
+        }
+
+        if (definition.queue()) {
+            return new ConcurrentLinkedDeque<>();
+        } else if (definition.singleton()) {
+            return new DefaultSingleton(stateKey);
+        }
+
+        return new MapReadableKVState<>(stateKey, new ConcurrentHashMap<>());
     }
 }

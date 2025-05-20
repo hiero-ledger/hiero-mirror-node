@@ -85,7 +85,6 @@ import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.state.components.NoOpMetrics;
 import org.hiero.mirror.web3.state.core.ListReadableQueueState;
 import org.hiero.mirror.web3.state.core.ListWritableQueueState;
-import org.hiero.mirror.web3.state.core.MapReadableKVState;
 import org.hiero.mirror.web3.state.core.MapReadableStates;
 import org.hiero.mirror.web3.state.core.MapWritableKVState;
 import org.hiero.mirror.web3.state.core.MapWritableStates;
@@ -223,7 +222,7 @@ public class MirrorNodeState implements MerkleNodeState {
                 final var state = entry.getValue();
                 if (state instanceof Queue queue) {
                     data.put(stateName, new ListReadableQueueState(stateName, queue));
-                } else if (state instanceof Map map) {
+                } else if (state instanceof ReadableKVState<?, ?> kvState) {
                     final var readableKVState = readableKVStates.stream()
                             .filter(r -> r.getStateKey().equals(stateName))
                             .findFirst();
@@ -231,7 +230,7 @@ public class MirrorNodeState implements MerkleNodeState {
                     if (readableKVState.isPresent()) {
                         data.put(stateName, readableKVState.get());
                     } else {
-                        data.put(stateName, new MapReadableKVState(stateName, map));
+                        data.put(stateName, kvState);
                     }
                 } else if (state instanceof SingletonState<?> singleton) {
                     data.put(stateName, new ReadableSingletonStateBase<>(stateName, singleton));
@@ -257,7 +256,7 @@ public class MirrorNodeState implements MerkleNodeState {
                     data.put(
                             stateName,
                             withAnyRegisteredListeners(serviceName, new ListWritableQueueState<>(stateName, queue)));
-                } else if (state instanceof Map<?, ?>) {
+                } else if (state instanceof ReadableKVState<?, ?>) {
                     data.put(
                             stateName,
                             withAnyRegisteredListeners(

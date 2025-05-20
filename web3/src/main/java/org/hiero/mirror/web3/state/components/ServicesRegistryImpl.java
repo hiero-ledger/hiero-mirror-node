@@ -7,21 +7,18 @@ import com.hedera.node.app.state.merkle.SchemaApplications;
 import com.swirlds.state.lifecycle.Service;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.state.keyvalue.StateKeyRegistry;
-import org.hiero.mirror.web3.state.singleton.SingletonState;
 
 @Named
 @RequiredArgsConstructor
 public class ServicesRegistryImpl implements ServicesRegistry {
 
     private final SortedSet<Registration> entries = new TreeSet<>();
-    private final Collection<SingletonState<?>> singletons;
     private final StateKeyRegistry stateKeyRegistry;
 
     @Nonnull
@@ -32,7 +29,7 @@ public class ServicesRegistryImpl implements ServicesRegistry {
 
     @Override
     public void register(@Nonnull Service service) {
-        final var registry = new SchemaRegistryImpl(singletons, new SchemaApplications(), stateKeyRegistry);
+        final var registry = new SchemaRegistryImpl(new SchemaApplications(), stateKeyRegistry);
         service.registerSchemas(registry);
         entries.add(new ServicesRegistryImpl.Registration(service, registry));
     }
@@ -41,7 +38,7 @@ public class ServicesRegistryImpl implements ServicesRegistry {
     @Override
     public ServicesRegistry subRegistryFor(@Nonnull String... serviceNames) {
         final var selections = Set.of(serviceNames);
-        final var subRegistry = new ServicesRegistryImpl(singletons, stateKeyRegistry);
+        final var subRegistry = new ServicesRegistryImpl(stateKeyRegistry);
         subRegistry.entries.addAll(entries.stream()
                 .filter(registration -> selections.contains(registration.serviceName()))
                 .toList());

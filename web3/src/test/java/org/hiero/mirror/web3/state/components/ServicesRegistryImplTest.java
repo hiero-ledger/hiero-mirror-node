@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.hedera.node.app.ids.EntityIdService;
 import com.hedera.node.app.service.file.impl.FileServiceImpl;
 import com.swirlds.state.lifecycle.Service;
-import java.util.List;
 import org.hiero.mirror.web3.state.keyvalue.StateKeyRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,7 +21,7 @@ class ServicesRegistryImplTest {
 
     @BeforeEach
     void setUp() {
-        servicesRegistry = new ServicesRegistryImpl(List.of(), stateKeyRegistry);
+        servicesRegistry = new ServicesRegistryImpl(stateKeyRegistry);
     }
 
     @Test

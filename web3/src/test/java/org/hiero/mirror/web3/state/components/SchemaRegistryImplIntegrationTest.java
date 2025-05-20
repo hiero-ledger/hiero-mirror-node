@@ -1,0 +1,123 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package org.hiero.mirror.web3.state.components;
+
+import static com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema.SCHEDULES_BY_EXPIRY_SEC_KEY;
+import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.TOKENS_KEY;
+import static com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema.NODE_REWARDS_KEY;
+import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema.CONGESTION_LEVEL_STARTS_STATE_KEY;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.hedera.hapi.node.base.SemanticVersion;
+import com.hedera.hapi.node.base.TokenID;
+import com.hedera.hapi.node.state.congestion.CongestionLevelStarts;
+import com.hedera.hapi.node.state.primitives.ProtoBytes;
+import com.hedera.hapi.node.state.primitives.ProtoLong;
+import com.hedera.hapi.node.state.schedule.ScheduleList;
+import com.hedera.hapi.node.state.token.NetworkStakingRewards;
+import com.hedera.hapi.node.state.token.Token;
+import com.hedera.node.app.config.ConfigProviderImpl;
+import com.hedera.node.app.state.merkle.SchemaApplications;
+import com.swirlds.config.api.Configuration;
+import com.swirlds.state.lifecycle.StartupNetworks;
+import com.swirlds.state.lifecycle.StateDefinition;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.state.MirrorNodeState;
+import org.hiero.mirror.web3.state.keyvalue.StateKeyRegistry;
+import org.hiero.mirror.web3.utils.TestSchemaBuilder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+@RequiredArgsConstructor
+public class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
+
+    private static final String SERVICE_NAME = "testService";
+
+    private static Stream<Arguments> stateDefinition() {
+        return Stream.of(
+                Arguments.of(
+                        Set.of(
+                                StateDefinition.singleton(
+                                        CONGESTION_LEVEL_STARTS_STATE_KEY, CongestionLevelStarts.PROTOBUF),
+                                StateDefinition.onDisk(TOKENS_KEY, TokenID.PROTOBUF, Token.PROTOBUF, 1)),
+                        SERVICE_NAME,
+                        "states"),
+                Arguments.of(
+                        Set.of(
+                                StateDefinition.queue(
+                                        "UPGRADE_DATA[FileID[shardNum=0, realmNum=0, fileNum=112]]",
+                                        ProtoBytes.PROTOBUF),
+                                StateDefinition.onDisk(
+                                        SCHEDULES_BY_EXPIRY_SEC_KEY, ProtoLong.PROTOBUF, ScheduleList.PROTOBUF, 1)),
+                        "otherService",
+                        "default implementations"));
+    }
+
+    private final SemanticVersion previousVersion = new SemanticVersion(0, 46, 0, "", "");
+    private final StateKeyRegistry stateKeyRegistry;
+    private final MirrorNodeState mirrorNodeState;
+    private final StartupNetworks startupNetworks;
+
+    private SchemaRegistryImpl schemaRegistry;
+
+    private Configuration config;
+
+    @BeforeEach
+    void setup() {
+        schemaRegistry = new SchemaRegistryImpl(new SchemaApplications(), stateKeyRegistry);
+        config = new ConfigProviderImpl().getConfiguration();
+    }
+
+    @ParameterizedTest(name = "Migrate adds state when state keys are present {2}")
+    @MethodSource("stateDefinition")
+    void migrateWithStateKeysPresent(
+            final Set<StateDefinition<?, ?>> stateDef, final String serviceName, final String description) {
+        final var expectedKeys =
+                stateDef.stream().map(StateDefinition::stateKey).collect(Collectors.toSet());
+
+        final var schema =
+                new TestSchemaBuilder(previousVersion).withStates(stateDef).build();
+        schemaRegistry.register(schema);
+        migrate(serviceName);
+        final var result = mirrorNodeState.getReadableStates(serviceName);
+        assertThat(result).isNotNull();
+        assertThat(result.stateKeys()).hasSize(stateDef.size()).containsExactlyInAnyOrderElementsOf(expectedKeys);
+    }
+
+    @Test
+    @DisplayName("Migrate removes state keys listed in statesToRemove")
+    void migrateRemovesObsoleteStates() {
+        final var stateDefSet = Set.of(StateDefinition.singleton(NODE_REWARDS_KEY, NetworkStakingRewards.PROTOBUF));
+        final var schema = new TestSchemaBuilder(previousVersion)
+                .withStates(stateDefSet)
+                .withStatesToRemove(Set.of(NODE_REWARDS_KEY))
+                .build();
+        schemaRegistry.register(schema);
+        migrate(SERVICE_NAME);
+
+        final var result = mirrorNodeState.getReadableStates(SERVICE_NAME);
+        assertThat(result.stateKeys()).doesNotContain(NODE_REWARDS_KEY);
+    }
+
+    @Test
+    @DisplayName("Migrate is skipped when no schemas are present")
+    void migrateSkipWhenNoSchemasPresent() {
+        final var emptyService = "emptyService";
+        migrate(emptyService);
+        assertThat(mirrorNodeState.getReadableStates(emptyService).stateKeys()).isEmpty();
+    }
+
+    private void migrate(String serviceName) {
+        schemaRegistry.migrate(
+                serviceName, mirrorNodeState, previousVersion, config, config, new HashMap<>(), startupNetworks);
+    }
+}
