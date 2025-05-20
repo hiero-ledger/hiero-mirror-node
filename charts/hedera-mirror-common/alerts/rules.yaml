@@ -1637,263 +1637,263 @@ groups:
         annotations:
           summary: PgBouncer average query duration more than 3 seconds on {{ $labels.pod }} in pool {{ $labels.pool_mode }} for user {{$labels.user}}
           description: "PgBouncer average query duration more than 5 seconds = {{ $value }}"
-      - orgId: 1
-        name: Web3
-        folder: Mirror
-        interval: 1m
-        rules:
-          - uid: fdk82sw37h3pcc
-            title: Web3Errors
-            condition: A
-            data:
-              - refId: A
-                relativeTimeRange:
-                  from: 600
-                  to: 0
-                datasourceUid: grafanacloud-prom
-                model:
-                  editorMode: code
-                  expr: sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_count{application="web3",status="SERVER_ERROR"}[5m])) / sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_count{application="web3"}[5m])) > 0.05
-                  instant: true
-                  intervalMs: 1000
-                  legendFormat: __auto
-                  maxDataPoints: 43200
-                  range: false
-                  refId: A
-            noDataState: NoData
-            execErrState: Error
-            for: 2m
-            annotations:
-              description: '{{ (index $values "A").Value  | humanizePercentage }} Web3 server error rate for {{ $labels.namespace }}/{{ $labels.pod }}'
-              summary: Mirror Web3 API error rate exceeds 5%
-            labels:
-              application: web3
-              severity: critical
-            isPaused: false
-          - uid: edk82uxk4ykg0b
-            title: Web3HighCPU
-            condition: A
-            data:
-              - refId: A
-                relativeTimeRange:
-                  from: 600
-                  to: 0
-                datasourceUid: grafanacloud-prom
-                model:
-                  editorMode: code
-                  expr: sum by (cluster, namespace, pod) (process_cpu_usage{application="web3"}) / sum by (cluster, namespace, pod) (system_cpu_count{application="web3"}) > 0.8
-                  instant: true
-                  intervalMs: 1000
-                  legendFormat: __auto
-                  maxDataPoints: 43200
-                  range: false
-                  refId: A
-            noDataState: NoData
-            execErrState: Error
-            for: 5m
-            annotations:
-              description: '{{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ (index $values "A").Value | humanizePercentage }}'
-              summary: Mirror Web3 API CPU usage exceeds 80%
-            labels:
-              application: web3
-              severity: critical
-            isPaused: false
-          - uid: adk82xjk1v5s0c
-            title: Web3HighDBConnections
-            condition: A
-            data:
-              - refId: A
-                relativeTimeRange:
-                  from: 600
-                  to: 0
-                datasourceUid: grafanacloud-prom
-                model:
-                  editorMode: code
-                  expr: sum by (cluster, namespace, pod) (hikaricp_connections_active{application="web3"}) / sum by (cluster, namespace, pod) (hikaricp_connections_max{application="web3"}) > 0.75
-                  instant: true
-                  intervalMs: 1000
-                  legendFormat: __auto
-                  maxDataPoints: 43200
-                  range: false
-                  refId: A
-            noDataState: NoData
-            execErrState: Error
-            for: 5m
-            annotations:
-              description: '{{ $labels.namespace }}/{{ $labels.pod }} is using {{ (index $values "A").Value | humanizePercentage }} of available database connections'
-              summary: Mirror Web3 API database connection utilization exceeds 75%
-            labels:
-              application: web3
-              area: resource
-              severity: critical
-            isPaused: false
-          - uid: adk831h8xk3k0a
-            title: Web3HighMemory
-            condition: A
-            data:
-              - refId: A
-                relativeTimeRange:
-                  from: 600
-                  to: 0
-                datasourceUid: grafanacloud-prom
-                model:
-                  editorMode: code
-                  expr: sum by (cluster, namespace, pod) (jvm_memory_used_bytes{application="web3"}) / sum by (cluster, namespace, pod) (jvm_memory_max_bytes{application="web3"}) > 0.8
-                  instant: true
-                  intervalMs: 1000
-                  legendFormat: __auto
-                  maxDataPoints: 43200
-                  range: false
-                  refId: A
-            noDataState: NoData
-            execErrState: Error
-            for: 5m
-            annotations:
-              description: '{{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ (index $values "A").Value | humanizePercentage }}'
-              summary: Mirror Web3 API memory usage exceeds 80%
-            labels:
-              application: web3
-              area: resource
-              severity: critical
-            isPaused: false
-          - uid: adk833z7hwum8c
-            title: Web3LogErrors
-            condition: A
-            data:
-              - refId: A
-                relativeTimeRange:
-                  from: 600
-                  to: 0
-                datasourceUid: grafanacloud-prom
-                model:
-                  editorMode: code
-                  expr: sum by (cluster, namespace, pod) (increase(logback_events_total{application="web3",level="error"}[1m])) >= 2
-                  instant: true
-                  intervalMs: 1000
-                  legendFormat: __auto
-                  maxDataPoints: 43200
-                  range: false
-                  refId: A
-            noDataState: NoData
-            execErrState: Error
-            for: 3m
-            annotations:
-              description: Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ index $values "A" }} error messages/s in a 3m period
-              summary: High rate of log errors
-            labels:
-              application: web3
-              severity: critical
-            isPaused: false
-          - uid: ddk835wjkg5j4d
-            title: Web3NoRequests
-            condition: A
-            data:
-              - refId: A
-                relativeTimeRange:
-                  from: 600
-                  to: 0
-                datasourceUid: grafanacloud-prom
-                model:
-                  editorMode: code
-                  expr: sum by (cluster, namespace) (rate(http_server_requests_seconds_count{application="web3"}[3m])) <= 0
-                  instant: true
-                  intervalMs: 1000
-                  legendFormat: __auto
-                  maxDataPoints: 43200
-                  range: false
-                  refId: A
-            noDataState: NoData
-            execErrState: Error
-            for: 5m
-            annotations:
-              description: Web3 API has not seen any requests to {{ $labels.namespace }} for 5m
-              summary: No Web3 API requests seen for awhile
-            labels:
-              application: web3
-              severity: warning
-            isPaused: false
-          - uid: cdk837htr4e80e
-            title: Web3QueryLatency
-            condition: A
-            data:
-              - refId: A
-                relativeTimeRange:
-                  from: 600
-                  to: 0
-                datasourceUid: grafanacloud-prom
-                model:
-                  editorMode: code
-                  expr: sum by (cluster, namespace, pod) (rate(spring_data_repository_invocations_seconds_sum{application="web3"}[5m])) / sum by (cluster, namespace, pod) (rate(spring_data_repository_invocations_seconds_count{application="web3"}[5m])) > 1
-                  instant: true
-                  intervalMs: 1000
-                  legendFormat: __auto
-                  maxDataPoints: 43200
-                  range: false
-                  refId: A
-            noDataState: NoData
-            execErrState: Error
-            for: 1m
-            annotations:
-              description: High average database query latency of {{ (index $values "A").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}
-              summary: Mirror Web3 API query latency exceeds 1s
-            labels:
-              application: web3
-              severity: warning
-            isPaused: false
-          - uid: fdk839wtkbda8f
-            title: Web3RequestLatency
-            condition: A
-            data:
-              - refId: A
-                relativeTimeRange:
-                  from: 600
-                  to: 0
-                datasourceUid: grafanacloud-prom
-                model:
-                  editorMode: code
-                  expr: sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_sum{application="web3"}[5m])) / sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_count{application="web3"}[5m])) > 2
-                  instant: true
-                  intervalMs: 1000
-                  legendFormat: __auto
-                  maxDataPoints: 43200
-                  range: false
-                  refId: A
-            noDataState: NoData
-            execErrState: Error
-            for: 1m
-            annotations:
-              description: High average request latency of {{ (index $values "A").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}
-              summary: Mirror Web3 API request latency exceeds 2s
-            labels:
-              application: web3
-              severity: warning
-            isPaused: false
-          - uid: ddk82ztdsnvnke
-            title: Web3HighFileDescriptors
-            condition: A
-            data:
-              - refId: A
-                relativeTimeRange:
-                  from: 600
-                  to: 0
-                datasourceUid: grafanacloud-prom
-                model:
-                  editorMode: code
-                  expr: sum by (cluster, namespace, pod) (process_files_open_files{application="web3"}) / sum by (cluster, namespace, pod) (process_files_max_files{application="web3"}) > 0.8
-                  instant: true
-                  intervalMs: 1000
-                  legendFormat: __auto
-                  maxDataPoints: 43200
-                  range: false
-                  refId: A
-            noDataState: NoData
-            execErrState: Error
-            for: 5m
-            annotations:
-              description: '{{ $labels.namespace }}/{{ $labels.pod }} file descriptor usage reached {{ (index $values "A").Value | humanizePercentage }}'
-              summary: Mirror Web3 API file descriptor usage exceeds 80%
-            labels:
-              application: web3
-              area: resource
-              severity: critical
-            isPaused: false
+    - orgId: 1
+      name: Web3
+      folder: Mirror
+      interval: 1m
+      rules:
+        - uid: fdk82sw37h3pcc
+          title: Web3Errors
+          condition: A
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: grafanacloud-prom
+              model:
+                editorMode: code
+                expr: sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_count{application="web3",status="SERVER_ERROR"}[5m])) / sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_count{application="web3"}[5m])) > 0.05
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+          noDataState: NoData
+          execErrState: Error
+          for: 2m
+          annotations:
+            description: '{{ (index $values "A").Value  | humanizePercentage }} Web3 server error rate for {{ $labels.namespace }}/{{ $labels.pod }}'
+            summary: Mirror Web3 API error rate exceeds 5%
+          labels:
+            application: web3
+            severity: critical
+          isPaused: false
+        - uid: edk82uxk4ykg0b
+          title: Web3HighCPU
+          condition: A
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: grafanacloud-prom
+              model:
+                editorMode: code
+                expr: sum by (cluster, namespace, pod) (process_cpu_usage{application="web3"}) / sum by (cluster, namespace, pod) (system_cpu_count{application="web3"}) > 0.8
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+          noDataState: NoData
+          execErrState: Error
+          for: 5m
+          annotations:
+            description: '{{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ (index $values "A").Value | humanizePercentage }}'
+            summary: Mirror Web3 API CPU usage exceeds 80%
+          labels:
+            application: web3
+            severity: critical
+          isPaused: false
+        - uid: adk82xjk1v5s0c
+          title: Web3HighDBConnections
+          condition: A
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: grafanacloud-prom
+              model:
+                editorMode: code
+                expr: sum by (cluster, namespace, pod) (hikaricp_connections_active{application="web3"}) / sum by (cluster, namespace, pod) (hikaricp_connections_max{application="web3"}) > 0.75
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+          noDataState: NoData
+          execErrState: Error
+          for: 5m
+          annotations:
+            description: '{{ $labels.namespace }}/{{ $labels.pod }} is using {{ (index $values "A").Value | humanizePercentage }} of available database connections'
+            summary: Mirror Web3 API database connection utilization exceeds 75%
+          labels:
+            application: web3
+            area: resource
+            severity: critical
+          isPaused: false
+        - uid: adk831h8xk3k0a
+          title: Web3HighMemory
+          condition: A
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: grafanacloud-prom
+              model:
+                editorMode: code
+                expr: sum by (cluster, namespace, pod) (jvm_memory_used_bytes{application="web3"}) / sum by (cluster, namespace, pod) (jvm_memory_max_bytes{application="web3"}) > 0.8
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+          noDataState: NoData
+          execErrState: Error
+          for: 5m
+          annotations:
+            description: '{{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ (index $values "A").Value | humanizePercentage }}'
+            summary: Mirror Web3 API memory usage exceeds 80%
+          labels:
+            application: web3
+            area: resource
+            severity: critical
+          isPaused: false
+        - uid: adk833z7hwum8c
+          title: Web3LogErrors
+          condition: A
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: grafanacloud-prom
+              model:
+                editorMode: code
+                expr: sum by (cluster, namespace, pod) (increase(logback_events_total{application="web3",level="error"}[1m])) >= 2
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+          noDataState: NoData
+          execErrState: Error
+          for: 3m
+          annotations:
+            description: Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ index $values "A" }} error messages/s in a 3m period
+            summary: High rate of log errors
+          labels:
+            application: web3
+            severity: critical
+          isPaused: false
+        - uid: ddk835wjkg5j4d
+          title: Web3NoRequests
+          condition: A
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: grafanacloud-prom
+              model:
+                editorMode: code
+                expr: sum by (cluster, namespace) (rate(http_server_requests_seconds_count{application="web3"}[3m])) <= 0
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+          noDataState: NoData
+          execErrState: Error
+          for: 5m
+          annotations:
+            description: Web3 API has not seen any requests to {{ $labels.namespace }} for 5m
+            summary: No Web3 API requests seen for awhile
+          labels:
+            application: web3
+            severity: warning
+          isPaused: false
+        - uid: cdk837htr4e80e
+          title: Web3QueryLatency
+          condition: A
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: grafanacloud-prom
+              model:
+                editorMode: code
+                expr: sum by (cluster, namespace, pod) (rate(spring_data_repository_invocations_seconds_sum{application="web3"}[5m])) / sum by (cluster, namespace, pod) (rate(spring_data_repository_invocations_seconds_count{application="web3"}[5m])) > 1
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+          noDataState: NoData
+          execErrState: Error
+          for: 1m
+          annotations:
+            description: High average database query latency of {{ (index $values "A").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}
+            summary: Mirror Web3 API query latency exceeds 1s
+          labels:
+            application: web3
+            severity: warning
+          isPaused: false
+        - uid: fdk839wtkbda8f
+          title: Web3RequestLatency
+          condition: A
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: grafanacloud-prom
+              model:
+                editorMode: code
+                expr: sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_sum{application="web3"}[5m])) / sum by (cluster, namespace, pod) (rate(http_server_requests_seconds_count{application="web3"}[5m])) > 2
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+          noDataState: NoData
+          execErrState: Error
+          for: 1m
+          annotations:
+            description: High average request latency of {{ (index $values "A").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}
+            summary: Mirror Web3 API request latency exceeds 2s
+          labels:
+            application: web3
+            severity: warning
+          isPaused: false
+        - uid: ddk82ztdsnvnke
+          title: Web3HighFileDescriptors
+          condition: A
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: grafanacloud-prom
+              model:
+                editorMode: code
+                expr: sum by (cluster, namespace, pod) (process_files_open_files{application="web3"}) / sum by (cluster, namespace, pod) (process_files_max_files{application="web3"}) > 0.8
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+          noDataState: NoData
+          execErrState: Error
+          for: 5m
+          annotations:
+            description: '{{ $labels.namespace }}/{{ $labels.pod }} file descriptor usage reached {{ (index $values "A").Value | humanizePercentage }}'
+            summary: Mirror Web3 API file descriptor usage exceeds 80%
+          labels:
+            application: web3
+            area: resource
+            severity: critical
+          isPaused: false
