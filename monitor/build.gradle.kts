@@ -45,5 +45,3 @@ dependencies {
     testImplementation("uk.org.webcompere:system-stubs-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
-
-project.extra.set("dockerImageName", "hedera-mirror-monitor")

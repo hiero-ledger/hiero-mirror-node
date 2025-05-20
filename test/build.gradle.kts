@@ -99,5 +99,3 @@ tasks.shadowJar {
 }
 
 tasks.dockerBuild { dependsOn(tasks.shadowJar) }
-
-project.extra.set("dockerImageName", "hedera-mirror-test")

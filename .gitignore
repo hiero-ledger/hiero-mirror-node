@@ -164,4 +164,4 @@ rest/report.*
 rest/monitoring/config/serverlist.json
 report-*.csv
 
-hedera-mirror-web3/src/testHistorical/solidity/openzeppelin
+web3/src/testHistorical/solidity/openzeppelin

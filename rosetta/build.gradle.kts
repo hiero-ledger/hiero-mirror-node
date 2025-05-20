@@ -11,5 +11,3 @@ go {
     pkg = "./app/..."
     version = "1.24.1"
 }
-
-project.extra.set("dockerImageName", "hedera-mirror-rosetta")

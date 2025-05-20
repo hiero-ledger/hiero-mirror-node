@@ -1,0 +1,1 @@
+drop index if exists transaction_signature__timestamp_public_key_prefix;

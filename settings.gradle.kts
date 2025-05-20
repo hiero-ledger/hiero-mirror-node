@@ -28,17 +28,7 @@ include(":rosetta")
 
 include(":test")
 
-include(":hedera-mirror-web3")
-
-shortenProjectName(rootProject)
-
-// Shorten project name to remove verbose "hedera-mirror-" prefix
-fun shortenProjectName(project: ProjectDescriptor) {
-    if (project != rootProject) {
-        project.name = project.name.removePrefix("hedera-mirror-")
-    }
-    project.children.forEach(this::shortenProjectName)
-}
+include(":web3")
 
 develocity {
     buildScan {

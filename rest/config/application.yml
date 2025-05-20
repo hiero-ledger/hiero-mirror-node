@@ -13,6 +13,7 @@ hiero:
         response:
           enabled: false
           compress: true
+          compressThreshold: 150
         token:
           maxSize: 100000
       db:

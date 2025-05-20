@@ -4,7 +4,7 @@ import {assertSqlQueryEqual} from '../testutils';
 import {TokenService} from '../../service';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
-import integrationDbOps from '../integrationDbOps';
+import integrationContainerOps from '../integrationContainerOps';
 import {CachedToken} from '../../model';
 
 setupIntegrationTest();
@@ -142,7 +142,7 @@ describe('getCachedTokens', () => {
     await expect(TokenService.getCachedTokens(new Set([300]))).resolves.toStrictEqual(expected);
 
     // cache hit
-    await integrationDbOps.cleanUp();
+    await integrationContainerOps.cleanUp();
     await expect(TokenService.getCachedTokens(new Set([300]))).resolves.toStrictEqual(expected);
   });
 

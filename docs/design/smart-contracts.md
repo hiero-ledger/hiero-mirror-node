@@ -452,7 +452,7 @@ The Mirror Node should implement a subset of the standard calls used to:
 
 #### Setup
 
-- Create a new Maven module `hedera-mirror-web3`
+- Create a new Maven module `web3`
 - Create a new Maven module `common` that encompasses all domain POJOs and repositories
 - Use Spring WebFlux to establish a JSON-RPC server
   with [JSON-RPC 2.0 specification](https://www.jsonrpc.org/specification) support to service rpc calls
@@ -488,10 +488,10 @@ Its corresponding model:
 
 ```java
 class JsonRpcRequest<T> {
-  private Long id;
-  private String jsonrpc;
-  private String method;
-  private T params;
+    private Long id;
+    private String jsonrpc;
+    private String method;
+    private T params;
 }
 ```
 
