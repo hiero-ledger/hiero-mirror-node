@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.common;
 
+import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.mirror.common.domain.contract.ContractAction;
 import com.hedera.mirror.common.domain.transaction.RecordFile;
 import java.util.ArrayList;
@@ -22,6 +23,7 @@ import org.hiero.mirror.web3.evm.store.StackedStateFrames;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 
+@SuppressWarnings("deprecation")
 @Getter
 public class ContractCallContext {
 
@@ -64,6 +66,8 @@ public class ContractCallContext {
     @Setter
     private RecordFile recordFile;
 
+    @Setter
+    private EntityNumber entityNumber;
     /** Current top of stack (which is all linked together) */
     private CachingStateFrame<Object> stack;
 

@@ -199,6 +199,9 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @DecimalMax("1.0")
     private double modularizedTrafficPercent = 0.0;
 
+    @Getter
+    private long entityIdReservationHeadroom = 10L;
+
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);
     }

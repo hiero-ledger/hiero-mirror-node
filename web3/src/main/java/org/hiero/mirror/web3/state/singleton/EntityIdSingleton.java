@@ -10,6 +10,7 @@ import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.node.config.data.HederaConfig;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.EntityRepository;
 
@@ -28,6 +29,11 @@ public class EntityIdSingleton implements SingletonState<EntityNumber> {
 
     @Override
     public EntityNumber get() {
+        final var context = ContractCallContext.get();
+        final var cachedNumber = context.getEntityNumber();
+        if (cachedNumber != null) {
+            return cachedNumber;
+        }
         final long firstUserEntity = mirrorNodeEvmProperties
                 .getVersionedConfiguration()
                 .getConfigData(HederaConfig.class)
@@ -39,8 +45,11 @@ public class EntityIdSingleton implements SingletonState<EntityNumber> {
             return new EntityNumber(EntityId.of(firstUserEntity).getNum());
         }
 
+        final long entityIdReservationHeadroom = mirrorNodeEvmProperties.getEntityIdReservationHeadroom();
         final var maxEntityId = EntityId.of(maxId);
-        final var nextId = Math.max(maxEntityId.getNum() + 1, firstUserEntity);
-        return new EntityNumber(nextId);
+        final var nextId = Math.max(maxEntityId.getNum() + entityIdReservationHeadroom + 1, firstUserEntity);
+        final var entityNumber = new EntityNumber(nextId);
+        context.setEntityNumber(entityNumber);
+        return entityNumber;
     }
 }
