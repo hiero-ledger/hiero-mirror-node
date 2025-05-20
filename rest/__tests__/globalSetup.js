@@ -15,7 +15,6 @@ const FLYWAY_VERSION = '11.8.2';
 
 const DB_NAME = 'mirror_node';
 const OWNER_USER = 'mirror_node';
-const OWNER_PASSWORD = 'mirror_node_pass';
 const DATABASE_IMAGES = {
   v1: 'postgres:16-alpine',
   v2: 'gcr.io/mirrornode/citus:12.1.1',
@@ -41,7 +40,6 @@ const createDbContainer = async (workerId) => {
       container = await new PostgreSqlContainer(image)
         .withCopyFilesToContainer([initSqlCopy])
         .withDatabase(DB_NAME)
-        .withPassword(OWNER_PASSWORD)
         .withUsername(OWNER_USER)
         .start();
       console.info(`Started PostgreSQL container for worker ${workerId} with image ${image}`);
