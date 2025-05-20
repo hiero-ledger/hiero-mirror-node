@@ -1535,8 +1535,8 @@ groups:
           cluster: "StackGres"
         annotations:
           summary: "Postgres server instance is down"
-          description: "Postgres has not been responding for the past 1 minutes on {{ $labels.instance }}"
-          title: "Postgres server instance {{ $labels.instance }} is down "
+          description: "Postgres has not been responding for the past 1 minutes on {{ $labels.pod }}"
+          title: "Postgres server instance {{ $labels.pod }} is down "
       - alert: PostgresExporterErrors
         expr: pg_exporter_last_scrape_error == 1
         for: 10m
@@ -1577,16 +1577,6 @@ groups:
         annotations:
           summary: "There are more than one instance in read-write mode"
           description: "Split Brain: too many postgres databases in cluster {{$labels.cluster_name}} in read-write mode"
-      - alert: PostgresTooManyConnections
-        expr: pgbouncer_show_pools_cl_waiting{database!~"template.*|postgres"}) > 0
-        for: 5m
-        labels:
-          severity: critical
-          service: "PostgreSQL"
-          cluster: "StackGres"
-        annotations:
-          summary: Postgresql too many connections (instance {{ $labels.pod }} for pool {{ $labels.pool_mode }} for user {{$labels.user}})
-          description: "PostgreSQL instance has too many pending connections\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
       - alert: PostgresPromotedNode
         expr: pg_replication_is_replica and changes(pg_replication_is_replica[1m]) > 0
         for: 1m
@@ -1605,28 +1595,8 @@ groups:
           service: "PgBouncer"
           cluster: "StackGres"
         annotations:
-          summary: PgBouncer has waiting clients on instance {{ $labels.pod }} for pool {{ $labels.pool_mode }} and user {{$labels.user}}
+          summary: PgBouncer has waiting clients on instance {{ $labels.pod }} in pool {{ $labels.pool_mode }} for user {{$labels.user}}
           description: "PgBouncer instance has waiting clients\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
-      - alert: PgBouncerPoolFillingUp
-        expr: (sum by (database,instance) (pgbouncer_show_databases_pool_size{database!~"template.*|postgres|pgbouncer"})  - on (database,instance) pgbouncer_show_databases_current_connections)  <= 15
-        for: 5m
-        labels:
-          severity: warning
-          service: "PgBouncer"
-          cluster: "StackGres"
-        annotations:
-          summary: PgBouncer pool is filling up on {{ $labels.instance }} in cluster {{$labels.cluster_name}})
-          description: "PgBouncer pool is filling up, remaining connections = {{ $value }}"
-      - alert: PgBouncerAvgWaitTimeTooHigh
-        expr: pgbouncer_show_stats_avg_wait_time > 1e+6
-        for: 5m
-        labels:
-          severity: warning
-          service: "PgBouncer"
-          cluster: "StackGres"
-        annotations:
-          summary: PgBouncer time spent by clients waiting for a connections is too high on {{ $labels.pod }} in pool {{ $labels.pool_mode }} for user {{$labels.user}}
-          description: "PgBouncer wait for a server connections is too high = {{ $value }}"
       - alert: PgBouncerQueryTimeTooHigh
         expr: pgbouncer_show_stats_avg_query_time > 3e+6
         for: 5m
@@ -1636,7 +1606,7 @@ groups:
           cluster: "StackGres"
         annotations:
           summary: PgBouncer average query duration more than 3 seconds on {{ $labels.pod }} in pool {{ $labels.pool_mode }} for user {{$labels.user}}
-          description: "PgBouncer average query duration more than 5 seconds = {{ $value }}"
+          description: "PgBouncer average query duration more than 3 seconds = {{ $value }}"
     - orgId: 1
       name: Web3
       folder: Mirror
