@@ -77,6 +77,14 @@
         "receiver_sig_required": true,
         "staked_node_id": 3,
         "stake_period_start": 2000
+      },
+      {
+        "balance": 150,
+        "expiration_timestamp": "9223372036854775808",
+        "memo": "SENTINEL_AUTO_GENERATED",
+        "num": 12,
+        "staked_node_id": 3,
+        "stake_period_start": 2000
       }
     ],
     "contracts": [

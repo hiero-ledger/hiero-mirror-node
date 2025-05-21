@@ -21,6 +21,7 @@ import org.hiero.mirror.importer.downloader.balance.BalanceDownloaderProperties;
 import org.hiero.mirror.importer.parser.record.RecordFileParsedEvent;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.hiero.mirror.importer.repository.AccountBalanceRepository;
+import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.TokenBalanceRepository;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,7 @@ class HistoricalBalanceServiceTest {
             var recordFileRepository = mock(RecordFileRepository.class);
             var timePartitionService = mock(TimePartitionService.class);
             var tokenBalanceRepository = mock(TokenBalanceRepository.class);
+            var entityRepository = mock(EntityRepository.class);
 
             long lastBalanceTimestamp = 100;
             when(accountBalanceFileRepository.findLatest())
@@ -63,7 +65,8 @@ class HistoricalBalanceServiceTest {
                     recordFileRepository,
                     new SystemEntity(new CommonProperties()),
                     timePartitionService,
-                    tokenBalanceRepository);
+                    tokenBalanceRepository,
+                    entityRepository);
 
             // when
             var event = new RecordFileParsedEvent(

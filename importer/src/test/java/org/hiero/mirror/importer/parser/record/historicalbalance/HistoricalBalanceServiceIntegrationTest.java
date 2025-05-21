@@ -215,6 +215,77 @@ class HistoricalBalanceServiceIntegrationTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void generateWhenTreasuryAccountDoesntExist() {
+        // given
+        setup();
+
+        // treasury account will be auto created with 0 balance
+        entityRepository.delete(treasuryAccount);
+        treasuryAccount.setBalance(0L);
+
+        var existinigAccountBalanceFile = domainBuilder
+                .accountBalanceFile()
+                .customize(abf -> abf.consensusTimestamp(prevPartitionBalanceTimestamp))
+                .persist();
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new Id(prevPartitionBalanceTimestamp, treasuryAccount.toEntityId())))
+                .persist();
+
+        // when, process a record file whose consensusEnd is partitionLowerBound, which is before last account balance
+        // file timestamp + min frequency
+        parseRecordFile(partitionLowerBound);
+
+        // then
+        verifyNoNewAccountBalanceFile(List.of(existinigAccountBalanceFile));
+
+        // when, then
+        long balanceTimestamp =
+                prevPartitionBalanceTimestamp + properties.getMinFrequency().toNanos();
+        // this is the first snapshot in a partition, so it includes all non-deleted entities, and those deleted after
+        // prevPartitionBalanceTimestamp
+        var updatedEntities = entities.stream()
+                .filter(e ->
+                        !Boolean.TRUE.equals(e.getDeleted()) || e.getBalanceTimestamp() > prevPartitionBalanceTimestamp)
+                .toList();
+
+        verifyGeneratedBalances(balanceTimestamp, updatedEntities, tokenAccounts);
+
+        // when
+        // balance changes
+        account.setBalance(account.getBalance() + 5);
+        account.setBalanceTimestamp(balanceTimestamp + 1);
+        entityRepository.save(account);
+        tokenAccount.setBalance(tokenAccount.getBalance() + 5);
+        tokenAccount.setBalanceTimestamp(balanceTimestamp + 1);
+        tokenAccountRepository.save(tokenAccount);
+        // new entity, tokenAccount
+        var newAccount = domainBuilder
+                .entity()
+                .customize(e -> e.balanceTimestamp(account.getBalanceTimestamp()))
+                .persist();
+        var newTokenAccount = domainBuilder
+                .tokenAccount()
+                .customize(ta -> ta.accountId(account.getId()).balanceTimestamp(account.getBalanceTimestamp()))
+                .persist();
+        updatedEntities = List.of(treasuryAccount, account, newAccount);
+        var updatedTokenAccounts = List.of(tokenAccount, newTokenAccount);
+
+        // process a record file which doesn't reach the next balances snapshot interval
+        var existingAccountBalanceFiles = Lists.newArrayList(accountBalanceFileRepository.findAll());
+        parseRecordFile(
+                balanceTimestamp + properties.getMinFrequency().minusSeconds(2).toNanos());
+
+        // then
+        verifyNoNewAccountBalanceFile(existingAccountBalanceFiles);
+
+        // when, then
+        // process a record file which should trigger the next balance snapshot
+        balanceTimestamp += properties.getMinFrequency().plusSeconds(1).toNanos();
+        verifyGeneratedBalances(balanceTimestamp, updatedEntities, updatedTokenAccounts);
+    }
+
+    @Test
     void generateWhenAccountBalanceFileTableNotEmpty() {
         // given
         setup();

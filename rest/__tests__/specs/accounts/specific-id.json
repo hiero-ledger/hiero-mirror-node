@@ -16,6 +16,7 @@
       },
       {
         "balance": 90,
+        "memo": "SENTINEL_AUTO_GENERATED",
         "num": 9,
         "staked_node_id": 5
       }
@@ -44,7 +45,8 @@
   "urls": [
     "/api/v1/accounts?account.id=0.0.8",
     "/api/v1/accounts?account.id=0.8",
-    "/api/v1/accounts?account.id=8"
+    "/api/v1/accounts?account.id=8",
+    "/api/v1/accounts?account.id=gte:8&account.id=lte:9"
   ],
   "responseStatus": 200,
   "responseJson": {

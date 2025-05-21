@@ -136,7 +136,7 @@ const getEntityBalanceQuery = (
   const {query: limitQuery, params: limitParams, order} = limitAndOrderQuery;
 
   const whereCondition = [
-    `e.type in ('ACCOUNT', 'CONTRACT')`,
+    `e.type in ('ACCOUNT', 'CONTRACT') and e.memo != 'SENTINEL_AUTO_GENERATED'`,
     entityBalanceQuery.query,
     entityAccountQuery.query,
     pubKeyQuery.query,

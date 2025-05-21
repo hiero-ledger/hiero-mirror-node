@@ -27,6 +27,10 @@
       {
         "num": 21,
         "public_key": "5f58f33c65992676de86ac8f5b4b8b4b45c636f12cec8a274d820a3fe1778a3e"
+      },
+      {
+        "num": 22,
+        "memo": "SENTINEL_AUTO_GENERATED"
       }
     ],
     "balances": [
@@ -64,7 +68,8 @@
       "urls": [
         "/api/v1/accounts/7",
         "/api/v1/accounts/0.7",
-        "/api/v1/accounts/0.0.7"
+        "/api/v1/accounts/0.0.7",
+        "/api/v1/accounts/0.0.22"
       ],
       "responseStatus": 404,
       "responseJson": {
