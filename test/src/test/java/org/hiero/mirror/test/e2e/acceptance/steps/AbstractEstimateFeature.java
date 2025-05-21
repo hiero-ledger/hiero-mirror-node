@@ -8,15 +8,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
-import org.hiero.mirror.rest.model.ContractAction;
-import org.hiero.mirror.rest.model.ContractActionsResponse;
-import org.hiero.mirror.rest.model.ContractResult;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.assertj.core.api.AssertionsForClassTypes;
+import org.hiero.mirror.rest.model.ContractAction;
+import org.hiero.mirror.rest.model.ContractActionsResponse;
+import org.hiero.mirror.rest.model.ContractResult;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -113,7 +113,8 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
      * @param sender The account ID of the sender.
      * @param actualGas The actual gas used for the call.
      */
-    protected void validateGasEstimation(final ContractId contractId, final String functionName, final AccountId sender, final int actualGas)
+    protected void validateGasEstimation(
+            final ContractId contractId, final String functionName, final AccountId sender, final int actualGas)
             throws ExecutionException, InterruptedException {
         var estimateGasResult =
                 contractClient.estimateGasQueryWithoutParams(contractId, functionName, sender, actualGas);

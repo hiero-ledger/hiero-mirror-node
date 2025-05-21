@@ -256,7 +256,8 @@ public class ContractClient extends AbstractNetworkClient {
         return gasEstimateQuery.execute(getClient());
     }
 
-    public long estimateGasQueryRawData(final ContractId contractId, final ByteString params, final AccountId sender, final int actualGas)
+    public long estimateGasQueryRawData(
+            final ContractId contractId, final ByteString params, final AccountId sender, final int actualGas)
             throws ExecutionException, InterruptedException {
 
         final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
