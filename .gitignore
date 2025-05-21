@@ -41,6 +41,7 @@ Chart.lock
 /data/
 /db/
 *.log
+changelog.md
 
 ### VisualStudioCode ###
 .vscode/
