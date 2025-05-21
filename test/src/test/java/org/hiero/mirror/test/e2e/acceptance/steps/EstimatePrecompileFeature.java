@@ -255,7 +255,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with associate function for fungible token")
     public void associateFunctionEstimateGas() throws ExecutionException, InterruptedException {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(fungibleTokenId).toString());
         validateGasEstimation(
@@ -268,7 +268,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with associate function for NFT")
     public void associateFunctionNFTEstimateGas() throws ExecutionException, InterruptedException {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(nonFungibleTokenId).toString());
         validateGasEstimation(
@@ -282,7 +282,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with dissociate token function without association for fungible token")
     public void dissociateFunctionEstimateGasNegative() throws ExecutionException, InterruptedException {
         // attempt to call dissociate function without having association
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(fungibleTokenId).toString());
 
@@ -300,7 +300,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with dissociate token function without association for NFT")
     public void dissociateFunctionNFTEstimateGasNegative() {
         // attempt to call dissociate function without having association
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(nonFungibleTokenId).toString());
 
@@ -319,7 +319,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void nestedAssociateFunctionEstimateGas() {
         // attempt to call associate function twice
         // expecting a revert
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(fungibleTokenId).toString());
 
@@ -338,7 +338,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void nestedAssociateFunctionNFTEstimateGas() {
         // attempt to call associate function twice
         // expecting a revert
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(nonFungibleTokenId).toString());
 
@@ -361,7 +361,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with dissociate token function for fungible token")
     public void dissociateFunctionEstimateGas() throws ExecutionException, InterruptedException {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(fungibleTokenId).toString());
         validateGasEstimation(
@@ -380,7 +380,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with dissociate token function for NFT")
     public void dissociateFunctionNFTEstimateGas() throws ExecutionException, InterruptedException {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(nonFungibleTokenId).toString());
 
@@ -396,7 +396,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void dissociateAndAssociatedEstimateGas() throws ExecutionException, InterruptedException {
         // token is already associated
         // attempting to execute nested dissociate and associate function
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(fungibleTokenId).toString());
         validateGasEstimation(
@@ -411,7 +411,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void dissociateAndAssociatedNFTEstimateGas() throws ExecutionException, InterruptedException {
         // token is already associated
         // attempting to execute nested dissociate and associate function
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(nonFungibleTokenId).toString());
         validateGasEstimation(
@@ -424,7 +424,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with approve function without association")
     public void approveWithoutAssociationEstimateGas() {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleTokenId).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("10"));
@@ -442,7 +442,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with setApprovalForAll function without association")
     public void setApprovalForAllWithoutAssociationEstimateGas() {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(nonFungibleTokenId).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addBool(true);
@@ -460,7 +460,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with approveNFT function without association")
     public void approveNonFungibleWithoutAssociationEstimateGas() {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(nonFungibleTokenId).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("1"));
@@ -494,7 +494,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with ERC approve function")
     public void ercApproveEstimateGas() throws ExecutionException, InterruptedException {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleTokenId).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("10"));
@@ -505,7 +505,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with setApprovalForAll function")
     public void setApprovalForAllEstimateGas() throws ExecutionException, InterruptedException {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(nonFungibleKycUnfrozenTokenId).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addBool(true);
@@ -519,7 +519,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with transferFrom function without approval")
     public void transferFromEstimateGasWithoutApproval() {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleKycUnfrozenTokenId).toString())
                 .addAddress(asAddress(admin).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
@@ -538,7 +538,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with ERC transferFrom function without approval")
     public void ercTransferFromEstimateGasWithoutApproval() {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleTokenId).toString())
                 .addAddress(asAddress(admin).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
@@ -565,7 +565,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with ERC transferFrom function")
     public void ercTransferFromEstimateGas() throws ExecutionException, InterruptedException {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleTokenId).toString())
                 .addAddress(asAddress(admin).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
@@ -580,7 +580,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with transferFrom function with more than the approved allowance")
     public void transferFromExceedAllowanceEstimateGas() {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleKycUnfrozenTokenId).toString())
                 .addAddress(asAddress(admin).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
@@ -599,7 +599,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with ERC transferFrom function with more than the approved allowance")
     public void ercTransferFromExceedsAllowanceEstimateGas() {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleKycUnfrozenTokenId).toString())
                 .addAddress(asAddress(admin).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
@@ -618,13 +618,13 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @And("I approve receiver account to use the NFT with id 1")
     public void approveNonFungibleWithReceiver() {
-        NftId id = new NftId(nonFungibleTokenId, FIRST_NFT_SERIAL_NUMBER);
+        var id = new NftId(nonFungibleTokenId, FIRST_NFT_SERIAL_NUMBER);
         networkTransactionResponse = accountClient.approveNft(id, receiverAccount.getAccountId());
     }
 
     @Then("I call estimateGas with transferFromNFT with invalid serial number")
     public void transferFromNFTInvalidSerialEstimateGas() {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(nonFungibleKycUnfrozenTokenId).toString())
                 .addAddress(asAddress(admin).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
@@ -644,7 +644,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with transferNFT function")
     public void transferNFTEstimateGas() throws ExecutionException, InterruptedException {
         var methodInterface = getFlaggedValue(TRANSFER_NFT);
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(nonFungibleTokenId).toString())
                 .addAddress(asAddress(admin).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
@@ -671,7 +671,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with ERC transfer function")
     public void ercTransferEstimateGas() throws ExecutionException, InterruptedException {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleTokenId).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("5"));
@@ -687,7 +687,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with associateTokens function for fungible tokens")
     public void associateTokensEstimateGas() throws ExecutionException, InterruptedException {
         var methodInterface = getFlaggedValue(ASSOCIATE_TOKENS);
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(secondReceiverAccount).toString())
                 .addAddressArray(new String[] {
                     fungibleTokenId.toSolidityAddress(), fungibleKycUnfrozenTokenId.toSolidityAddress()
@@ -704,7 +704,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with associateTokens function for NFTs")
     public void associateNFTEstimateGas() throws ExecutionException, InterruptedException {
         var methodInterface = getFlaggedValue(ASSOCIATE_TOKENS);
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(secondReceiverAccount).toString())
                 .addAddressArray(new String[] {
                     nonFungibleKycUnfrozenTokenId.toSolidityAddress(), nonFungibleTokenId.toSolidityAddress()
@@ -724,7 +724,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with dissociateTokens function for fungible tokens")
     public void dissociateTokensEstimateGas() throws ExecutionException, InterruptedException {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddressArray(new String[] {
                     fungibleTokenId.toSolidityAddress(), fungibleKycUnfrozenTokenId.toSolidityAddress()
@@ -745,7 +745,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with dissociateTokens function for NFTs")
     public void dissociateNFTEstimateGas() throws ExecutionException, InterruptedException {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddressArray(new String[] {
                     nonFungibleKycUnfrozenTokenId.toSolidityAddress(), nonFungibleTokenId.toSolidityAddress()
@@ -801,7 +801,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 asAddress(admin.getAccountId().toSolidityAddress()).toString();
 
         // In the modularized scenario the number of senders needs to correspond to the number of receivers.
-        final String[] sendersList = web3Properties.isModularizedServices()
+        final var sendersList = web3Properties.isModularizedServices()
                 ? new String[] {adminAccountAddress, adminAccountAddress}
                 : new String[] {adminAccountAddress};
 
@@ -889,7 +889,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with burnToken function for fungible token")
     public void burnFungibleTokenEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleKycUnfrozenTokenId).toString())
                 .addInt64(1L)
                 .addInt64Array(asLongArray(new ArrayList<>()));
@@ -904,7 +904,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with burnToken function for NFT")
     public void burnNFTEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(nonFungibleKycUnfrozenTokenId).toString())
                 .addInt64(0L)
                 .addInt64Array(asLongArray(List.of(1L)));
@@ -919,7 +919,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with CreateFungibleToken function")
     public void createFungibleTokenEstimateGas() {
-        var parameters =
+        final var parameters =
                 new ContractFunctionParameters().addAddress(asAddress(admin).toString());
 
         Consumer<Boolean> estimateFunction = current -> {
@@ -1029,7 +1029,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with WipeTokenAccount function with invalid amount")
     public void wipeTokenAccountInvalidAmountEstimateGas() {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleKycUnfrozenTokenId).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addInt64(100000000000000000L);
@@ -1074,7 +1074,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with WipeNFTAccount function with invalid serial number")
     public void wipeNFTAccountInvalidSerialNumberEstimateGas() {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(nonFungibleKycUnfrozenTokenId).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addInt64Array(asLongArray(List.of(66L)));
@@ -1279,7 +1279,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .putLong(new SecureRandom().nextLong(NUM_MAX_SIZE / 100, NUM_MAX_SIZE))
                 .array());
 
-        ContractFunctionParameters parameters =
+        final var parameters =
                 new ContractFunctionParameters().addAddress(asAddress(address).toString());
 
         assertThatThrownBy(() -> contractClient.estimateGasQuery(
@@ -2394,14 +2394,14 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with allowance function for fungible token and verify the estimated gas against HAPI")
     public void executeAllowanceFungibleWithLimitedGas() throws ExecutionException, InterruptedException {
         final var methodInterface = getFlaggedValue(ALLOWANCE);
-        var data = encodeDataToByteArray(
+        final var data = encodeDataToByteArray(
                 ESTIMATE_PRECOMPILE,
                 methodInterface,
                 asAddress(fungibleKycUnfrozenTokenId),
                 asAddress(admin),
                 asAddress(receiverAccountAlias));
 
-        var parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleKycUnfrozenTokenId).toString())
                 .addAddress(asAddress(admin).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString());
@@ -2447,14 +2447,14 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with approve function and verify the estimated gas against HAPI")
     public void executeApproveWithLimitedGas() throws ExecutionException, InterruptedException {
-        var data = encodeDataToByteArray(
+        final var data = encodeDataToByteArray(
                 ESTIMATE_PRECOMPILE,
                 APPROVE,
                 asAddress(fungibleTokenId),
                 asAddress(receiverAccountAlias),
                 new BigInteger("10"));
 
-        var parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleTokenId).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("10"));
@@ -2473,14 +2473,14 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with approveNFT function and verify the estimated gas against HAPI")
     public void executeApproveNftWithLimitedGas() throws ExecutionException, InterruptedException {
-        var data = encodeDataToByteArray(
+        final var data = encodeDataToByteArray(
                 ESTIMATE_PRECOMPILE,
                 APPROVE_NFT,
                 asAddress(nonFungibleKycUnfrozenTokenId),
                 asAddress(receiverAccountAlias),
                 new BigInteger("1"));
 
-        var parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(nonFungibleKycUnfrozenTokenId).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("1"));
@@ -2561,7 +2561,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
             throws ExecutionException, InterruptedException {
         final var methodInterface = getFlaggedValue(MINT_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE);
 
-        var parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(fungibleTokenId).toString())
                 .addInt64(1L)
                 .addBytesArray(new byte[][] {})
@@ -2579,7 +2579,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void estimateGasMintNftTokenGetTotalSupplyAndBalanceOfTreasury()
             throws ExecutionException, InterruptedException {
 
-        var parameters = new ContractFunctionParameters()
+        final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(nonFungibleTokenId).toString())
                 .addInt64(0L)
                 .addBytesArray(asByteArray(List.of("0x02")))
