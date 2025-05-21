@@ -225,8 +225,21 @@ public class ContractClient extends AbstractNetworkClient {
             final int actualGas,
             final Optional<Long> value)
             throws ExecutionException, InterruptedException {
+        return estimateGasQuery(
+                contractId, functionName, params, sender, actualGas, value, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
+    }
 
-        final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
+    private long estimateGasQuery(
+            final ContractId contractId,
+            final String functionName,
+            final ContractFunctionParameters params,
+            final AccountId sender,
+            final int actualGas,
+            final Optional<Long> value,
+            final int percentage)
+            throws ExecutionException, InterruptedException {
+
+        final long calculatedContractCallGas = calculateGasLimit(actualGas, percentage);
 
         var gasEstimateQuery = buildEstimateGasQueryWithParams(contractId, functionName, params);
         gasEstimateQuery.setGasLimit(calculatedContractCallGas);
@@ -282,16 +295,14 @@ public class ContractClient extends AbstractNetworkClient {
             int actualGas)
             throws ExecutionException, InterruptedException {
 
-        final long calculatedContractCallGas =
-                calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS);
-
-        var gasEstimateQuery = buildEstimateGasQueryWithParams(contractId, functionName, params);
-        gasEstimateQuery.setGasLimit(calculatedContractCallGas);
-        if (sender != null) {
-            gasEstimateQuery.setSender(sender);
-        }
-
-        return gasEstimateQuery.execute(getClient());
+        return estimateGasQuery(
+                contractId,
+                functionName,
+                params,
+                sender,
+                actualGas,
+                Optional.empty(),
+                DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS);
     }
 
     private MirrorNodeContractEstimateGasQuery buildEstimateGasQueryWithParams(

@@ -58,7 +58,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
     }
 
     /**
-     * Validates the gas estimation for a specific contract call without value.
+     * Validates the gas estimation for a specific contract call without a value.
      * <p>
      * This method estimates the gas cost for a given contract call, and then checks whether the actual gas used falls
      * within an acceptable deviation range. It utilizes the provided call endpoint to perform the contract call and
