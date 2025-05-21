@@ -77,6 +77,13 @@ spec:
         persistentVolume:
           size: 90Gi
     test:
+      config:
+        hedera:
+          mirror:
+            test:
+              acceptance:
+                web3:
+                  modularizedServices: true
       cucumberTags: "@acceptance and not @estimateprecompile"
       enabled: true
     web3:
