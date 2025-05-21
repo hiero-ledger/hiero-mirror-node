@@ -360,7 +360,7 @@ prometheus:
         podMetricsEndpoints:
           - honorLabels: true
             honorTimestamps: true
-            interval: 1m
+            interval: 30s
             metricRelabelings:
               - action: replace
                 regex: ^.*(postgres-exporter)$
@@ -486,10 +486,10 @@ stackgres:
     resources:
       limits:
         cpu: "1500m"
-        memory: "4Gi"
-      requests:
-        cpu: "1000m"
         memory: "3Gi"
+      requests:
+        cpu: "500m"
+        memory: "2Gi"
   enabled: false
   operator:
     image:
@@ -548,11 +548,11 @@ stackgres:
       annotations:
         summary: "There are inactive replications slots"
         description: "The are some inactive replication slots on {{$labels.pod}} in cluster {{$labels.cluster_name}}"
-    PostgresPromotedNode:
+    PostgresDemotedNode:
       annotations:
-        summary: "Postgresql promoted node (instance {{ $labels.pod }}, cluster {{ $labels.cluster_name }})"
+        summary: "Postgresql demoted node (instance {{ $labels.pod }}, cluster {{ $labels.cluster_name }})"
         description: "Postgresql standby server has been promoted as primary node\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
-      expr: pg_replication_is_replica and changes(pg_replication_is_replica[1m]) > 0
+      expr: pg_replication_is_replica == 1 and changes(pg_replication_is_replica[1m]) > 0
       for: 1m
       labels:
         application: hedera-mirror-common
