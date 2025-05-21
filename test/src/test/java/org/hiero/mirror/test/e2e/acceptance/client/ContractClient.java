@@ -234,7 +234,7 @@ public class ContractClient extends AbstractNetworkClient {
         }
         value.ifPresent(gasEstimateQuery::setValue);
 
-        return gasEstimateQuery.execute(getClient());
+        return gasEstimateQuery.execute(client);
     }
 
     public long estimateGasQueryWithoutParams(
