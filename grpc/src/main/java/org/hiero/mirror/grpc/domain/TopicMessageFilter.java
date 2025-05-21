@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.grpc.domain;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.util.DomainUtils;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +9,8 @@ import java.security.SecureRandom;
 import lombok.Builder;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.validation.annotation.Validated;
 
 @Builder(toBuilder = true)

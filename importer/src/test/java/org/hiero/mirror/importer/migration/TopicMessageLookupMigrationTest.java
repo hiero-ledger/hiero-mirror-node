@@ -7,8 +7,6 @@ import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.importer.TestUtils.plus;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.topic.TopicMessageLookup;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,6 +15,8 @@ import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.topic.TopicMessageLookup;
 import org.hiero.mirror.importer.EnabledIfV2;
 import org.hiero.mirror.importer.parser.record.entity.topic.AbstractTopicMessageLookupIntegrationTest;
 import org.junit.jupiter.api.AfterEach;

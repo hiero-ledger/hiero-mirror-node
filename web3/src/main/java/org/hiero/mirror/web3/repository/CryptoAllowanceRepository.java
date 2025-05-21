@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.web3.repository;
 
-import com.hedera.mirror.common.domain.entity.AbstractCryptoAllowance;
-import com.hedera.mirror.common.domain.entity.CryptoAllowance;
 import java.util.List;
+import org.hiero.mirror.common.domain.entity.AbstractCryptoAllowance;
+import org.hiero.mirror.common.domain.entity.CryptoAllowance;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 

@@ -5,13 +5,13 @@ package org.hiero.mirror.web3.state;
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.KeyList;
 import com.hedera.hapi.node.base.Timestamp;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.time.Instant;
 import java.util.Arrays;
 import lombok.experimental.UtilityClass;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hyperledger.besu.datatypes.Address;
 
 @UtilityClass

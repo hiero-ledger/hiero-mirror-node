@@ -12,13 +12,13 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.AbstractNft;
-import com.hedera.mirror.common.domain.token.AbstractToken;
-import com.hedera.mirror.common.domain.token.Nft;
-import com.hedera.mirror.common.domain.token.Token;
 import com.hederahashgraph.api.proto.java.TokenMintTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.token.AbstractNft;
+import org.hiero.mirror.common.domain.token.AbstractToken;
+import org.hiero.mirror.common.domain.token.Nft;
+import org.hiero.mirror.common.domain.token.Token;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

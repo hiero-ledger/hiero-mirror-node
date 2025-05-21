@@ -6,8 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.transaction.support.TransactionSynchronization.STATUS_COMMITTED;
 
-import com.hedera.mirror.common.domain.transaction.Transaction;
-import com.hedera.mirror.common.domain.transaction.TransactionHash;
 import java.sql.Connection;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -21,6 +19,8 @@ import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.transaction.Transaction;
+import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;

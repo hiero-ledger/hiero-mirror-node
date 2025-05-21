@@ -2,31 +2,11 @@
 
 package org.hiero.mirror.importer.parser.record.entity;
 
-import static com.hedera.mirror.common.domain.token.NftTransfer.WILDCARD_SERIAL_NUMBER;
+import static org.hiero.mirror.common.domain.token.NftTransfer.WILDCARD_SERIAL_NUMBER;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnknownFieldSet;
-import com.hedera.mirror.common.domain.entity.CryptoAllowance;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.TokenAllowance;
-import com.hedera.mirror.common.domain.schedule.Schedule;
-import com.hedera.mirror.common.domain.token.DissociateTokenTransfer;
-import com.hedera.mirror.common.domain.token.Nft;
-import com.hedera.mirror.common.domain.token.Token;
-import com.hedera.mirror.common.domain.token.TokenAccount;
-import com.hedera.mirror.common.domain.token.TokenTransfer;
-import com.hedera.mirror.common.domain.transaction.AssessedCustomFee;
-import com.hedera.mirror.common.domain.transaction.CryptoTransfer;
-import com.hedera.mirror.common.domain.transaction.ErrataType;
-import com.hedera.mirror.common.domain.transaction.ItemizedTransfer;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.StakingRewardTransfer;
-import com.hedera.mirror.common.domain.transaction.Transaction;
-import com.hedera.mirror.common.domain.transaction.TransactionSignature;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hedera.mirror.common.exception.InvalidEntityException;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.NftTransfer;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -45,6 +25,26 @@ import java.util.Set;
 import java.util.function.Predicate;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.CryptoAllowance;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.TokenAllowance;
+import org.hiero.mirror.common.domain.schedule.Schedule;
+import org.hiero.mirror.common.domain.token.DissociateTokenTransfer;
+import org.hiero.mirror.common.domain.token.Nft;
+import org.hiero.mirror.common.domain.token.Token;
+import org.hiero.mirror.common.domain.token.TokenAccount;
+import org.hiero.mirror.common.domain.token.TokenTransfer;
+import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
+import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
+import org.hiero.mirror.common.domain.transaction.ErrataType;
+import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
+import org.hiero.mirror.common.domain.transaction.Transaction;
+import org.hiero.mirror.common.domain.transaction.TransactionSignature;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.exception.InvalidEntityException;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.ContractResultService;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.domain.TransactionFilterFields;
@@ -583,7 +583,7 @@ public class EntityRecordItemListener implements RecordItemListener {
             var receiverId = EntityId.of(nftTransfer.getReceiverAccountID());
             var senderId = EntityId.of(nftTransfer.getSenderAccountID());
 
-            var nftTransferDomain = new com.hedera.mirror.common.domain.token.NftTransfer();
+            var nftTransferDomain = new org.hiero.mirror.common.domain.token.NftTransfer();
             nftTransferDomain.setIsApproval(isApprovalNftTransfer(nftTransfer, tokenId, body));
             nftTransferDomain.setReceiverAccountId(receiverId);
             nftTransferDomain.setSenderAccountId(senderId);

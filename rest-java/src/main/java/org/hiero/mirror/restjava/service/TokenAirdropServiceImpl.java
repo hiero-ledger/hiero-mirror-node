@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.restjava.service;
 
-import com.hedera.mirror.common.domain.token.TokenAirdrop;
 import jakarta.inject.Named;
 import java.util.Collection;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.token.TokenAirdrop;
 import org.hiero.mirror.restjava.dto.TokenAirdropRequest;
 import org.hiero.mirror.restjava.repository.TokenAirdropRepository;
 

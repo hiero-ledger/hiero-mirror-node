@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.migration;
 
-import static com.hedera.mirror.common.converter.WeiBarTinyBarConverter.WEIBARS_TO_TINYBARS_BIGINT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.converter.WeiBarTinyBarConverter.WEIBARS_TO_TINYBARS_BIGINT;
 
 import java.math.BigInteger;
 import java.util.ArrayList;

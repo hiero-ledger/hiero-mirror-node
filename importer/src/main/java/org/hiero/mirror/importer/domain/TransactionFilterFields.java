@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.importer.domain;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
 import java.util.Collection;
 import java.util.Set;
 import lombok.Value;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 
 /**
  * Collection of fields that can be used by Transaction Filter to filter on.

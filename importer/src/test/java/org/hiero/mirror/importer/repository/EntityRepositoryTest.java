@@ -2,15 +2,15 @@
 
 package org.hiero.mirror.importer.repository;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.domain.entity.Entity;
 import com.hederahashgraph.api.proto.java.Key;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.RowMapper;

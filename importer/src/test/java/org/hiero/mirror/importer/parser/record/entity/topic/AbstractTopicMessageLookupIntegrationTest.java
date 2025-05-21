@@ -5,10 +5,10 @@ package org.hiero.mirror.importer.parser.record.entity.topic;
 import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_TIME_PARTITION;
 import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_TIME_PARTITION_OVERLAP;
 
-import com.hedera.mirror.common.domain.StreamType;
 import jakarta.annotation.Resource;
 import java.time.Duration;
 import java.util.List;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.db.TimePartition;
 import org.hiero.mirror.importer.db.TimePartitionService;

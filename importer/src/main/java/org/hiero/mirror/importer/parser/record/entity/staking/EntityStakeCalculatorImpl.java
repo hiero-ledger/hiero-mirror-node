@@ -3,11 +3,11 @@
 package org.hiero.mirror.importer.parser.record.entity.staking;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.domain.SystemEntity;
 import jakarta.inject.Named;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.repository.EntityStakeRepository;
 import org.springframework.transaction.support.TransactionOperations;

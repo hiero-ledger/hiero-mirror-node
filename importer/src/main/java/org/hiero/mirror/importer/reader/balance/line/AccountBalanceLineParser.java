@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.importer.reader.balance.line;
 
-import com.hedera.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
 
 public interface AccountBalanceLineParser {
     String INVALID_BALANCE = "Invalid account balance line: ";

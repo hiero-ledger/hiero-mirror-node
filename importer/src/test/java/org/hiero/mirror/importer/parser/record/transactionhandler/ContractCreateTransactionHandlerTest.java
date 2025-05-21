@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,16 +12,6 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Message;
-import com.hedera.mirror.common.domain.contract.Contract;
-import com.hedera.mirror.common.domain.contract.ContractResult;
-import com.hedera.mirror.common.domain.entity.AbstractEntity;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityTransaction;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.Transaction;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
@@ -37,6 +27,16 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.commons.codec.binary.Hex;
 import org.assertj.core.api.ObjectAssert;
+import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.contract.ContractResult;
+import org.hiero.mirror.common.domain.entity.AbstractEntity;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityTransaction;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.Transaction;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.util.Utility;
 import org.junit.jupiter.api.BeforeEach;

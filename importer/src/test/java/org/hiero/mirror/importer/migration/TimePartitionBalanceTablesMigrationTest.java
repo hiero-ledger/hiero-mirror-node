@@ -5,8 +5,6 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.balance.AccountBalance;
-import com.hedera.mirror.common.domain.balance.TokenBalance;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -22,6 +20,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;

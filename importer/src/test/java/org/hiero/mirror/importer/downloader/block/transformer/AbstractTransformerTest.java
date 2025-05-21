@@ -4,9 +4,6 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.transaction.BlockFile;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
@@ -14,6 +11,9 @@ import java.util.List;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
+import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.downloader.block.BlockFileTransformer;
 import org.hiero.mirror.importer.parser.domain.BlockFileBuilder;

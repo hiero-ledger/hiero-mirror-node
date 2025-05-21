@@ -5,8 +5,8 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.junit.jupiter.api.Test;
 
 class UncheckedSubmitTransactionHandlerTest extends AbstractTransactionHandlerTest {

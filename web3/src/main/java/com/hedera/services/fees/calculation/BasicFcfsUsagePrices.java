@@ -4,7 +4,6 @@ package com.hedera.services.fees.calculation;
 
 import static com.hederahashgraph.api.proto.java.SubType.DEFAULT;
 
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.fees.pricing.RequiredPriceTypes;
 import com.hedera.services.utils.accessors.TxnAccessor;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
@@ -23,6 +22,7 @@ import java.util.Objects;
 import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.evm.pricing.RatesAndFeesLoader;
 
 /**

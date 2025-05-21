@@ -7,8 +7,6 @@ import static com.hedera.services.store.contracts.precompile.ExchangeRatePrecomp
 import static com.hedera.services.store.contracts.precompile.PrngSystemPrecompiledContract.PRNG_PRECOMPILE_ADDRESS;
 import static org.mockito.Mockito.mockStatic;
 
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.node.app.service.evm.store.contracts.precompile.EvmHTSPrecompiledContract;
 import com.hedera.node.app.service.evm.store.contracts.precompile.EvmInfrastructureFactory;
 import com.hedera.services.contracts.execution.LivePricesSource;
@@ -23,6 +21,8 @@ import com.hedera.services.txns.util.PrngLogic;
 import java.time.Instant;
 import java.util.Map;
 import org.hiero.base.utility.CommonUtils;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.account.MirrorEvmContractAliases;
 import org.hiero.mirror.web3.evm.pricing.RatesAndFeesLoader;

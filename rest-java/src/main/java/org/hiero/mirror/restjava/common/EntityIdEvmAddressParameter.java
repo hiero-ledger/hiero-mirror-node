@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.restjava.common;
 
-import com.hedera.mirror.common.CommonProperties;
 import java.util.regex.Pattern;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.CommonProperties;
 
 @SuppressWarnings("java:S6218")
 public record EntityIdEvmAddressParameter(long shard, long realm, byte[] evmAddress) implements EntityIdParameter {

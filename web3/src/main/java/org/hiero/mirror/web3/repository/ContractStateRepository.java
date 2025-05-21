@@ -5,8 +5,8 @@ package org.hiero.mirror.web3.repository;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
-import com.hedera.mirror.common.domain.contract.ContractState;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.contract.ContractState;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;

@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.restjava.repository;
 
-import com.hedera.mirror.common.domain.entity.Entity;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.entity.Entity;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 

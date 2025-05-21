@@ -6,11 +6,11 @@ import static org.hiero.mirror.graphql.util.GraphQlUtils.convertCurrency;
 import static org.hiero.mirror.graphql.util.GraphQlUtils.toEntityId;
 import static org.hiero.mirror.graphql.util.GraphQlUtils.validateOneOf;
 
-import com.hedera.mirror.common.domain.entity.EntityType;
 import jakarta.validation.Valid;
 import java.util.Optional;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.graphql.mapper.AccountMapper;
 import org.hiero.mirror.graphql.service.EntityService;
 import org.hiero.mirror.graphql.viewmodel.Account;

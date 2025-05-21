@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.grpc.retriever;
 
-import com.hedera.mirror.common.domain.topic.TopicMessage;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
 import reactor.core.publisher.Flux;
 

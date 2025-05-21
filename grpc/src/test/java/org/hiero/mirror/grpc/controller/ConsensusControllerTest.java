@@ -2,16 +2,13 @@
 
 package org.hiero.mirror.grpc.controller;
 
-import static com.hedera.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 
 import com.hedera.mirror.api.proto.ConsensusServiceGrpc;
 import com.hedera.mirror.api.proto.ConsensusTopicQuery;
 import com.hedera.mirror.api.proto.ConsensusTopicResponse;
 import com.hedera.mirror.api.proto.ReactorConsensusServiceGrpc;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.topic.TopicMessage;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.ConsensusMessageChunkInfo;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TopicID;
@@ -24,6 +21,9 @@ import java.time.Instant;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
 import net.devh.boot.grpc.client.inject.GrpcClient;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.domain.ReactiveDomainBuilder;
 import org.hiero.mirror.grpc.listener.ListenerProperties;

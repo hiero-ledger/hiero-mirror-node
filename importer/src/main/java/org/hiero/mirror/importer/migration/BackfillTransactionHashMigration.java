@@ -2,17 +2,17 @@
 
 package org.hiero.mirror.importer.migration;
 
-import static com.hedera.mirror.common.domain.transaction.TransactionType.ETHEREUMTRANSACTION;
 import static java.util.stream.Collectors.joining;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.ETHEREUMTRANSACTION;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.commons.lang3.StringUtils;
 import org.flywaydb.core.api.MigrationVersion;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.TimePartitionService;

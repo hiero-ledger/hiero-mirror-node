@@ -2,20 +2,20 @@
 
 package org.hiero.mirror.importer.domain;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
-import static com.hedera.mirror.common.domain.entity.EntityType.UNKNOWN;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.domain.entity.EntityType.UNKNOWN;
 import static org.hiero.mirror.importer.util.UtilityTest.ALIAS_ECDSA_SECP256K1;
 import static org.hiero.mirror.importer.util.UtilityTest.EVM_ADDRESS;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.junit.jupiter.api.Test;

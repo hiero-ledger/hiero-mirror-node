@@ -4,10 +4,10 @@ package org.hiero.mirror.importer.parser.balance;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.reader.balance.BalanceFileReader;

@@ -2,12 +2,12 @@
 
 package org.hiero.mirror.importer.parser.contractlog;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.util.DomainUtils;
 import lombok.Data;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.util.DomainUtils;
 
 @Data
 public abstract class AbstractSyntheticContractLog implements SyntheticContractLog {

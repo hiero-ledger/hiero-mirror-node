@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.grpc;
 
-import com.hedera.mirror.common.config.CommonIntegrationTest;
-import com.hedera.mirror.common.config.RedisTestConfiguration;
+import org.hiero.mirror.common.config.CommonIntegrationTest;
+import org.hiero.mirror.common.config.RedisTestConfiguration;
 import org.hiero.mirror.grpc.GrpcIntegrationTest.Configuration;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;

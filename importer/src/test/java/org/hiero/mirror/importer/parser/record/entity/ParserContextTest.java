@@ -5,11 +5,11 @@ package org.hiero.mirror.importer.parser.record.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.entity.Entity;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.entity.Entity;
 import org.junit.jupiter.api.Test;
 
 class ParserContextTest {

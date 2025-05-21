@@ -9,11 +9,11 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;

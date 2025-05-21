@@ -2,11 +2,6 @@
 
 package org.hiero.mirror.web3.evm.store.accessor;
 
-import com.hedera.mirror.common.domain.SystemEntity;
-import com.hedera.mirror.common.domain.token.AbstractTokenAccount;
-import com.hedera.mirror.common.domain.token.TokenAccount;
-import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
 import com.hedera.node.app.service.evm.store.tokens.TokenType;
 import com.hedera.services.store.models.Account;
 import com.hedera.services.store.models.Token;
@@ -17,6 +12,11 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.token.AbstractTokenAccount;
+import org.hiero.mirror.common.domain.token.TokenAccount;
+import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.web3.evm.store.DatabaseBackedStateFrame.DatabaseAccessIncorrectKeyTypeException;
 import org.hiero.mirror.web3.evm.store.accessor.model.TokenRelationshipKey;
 import org.hiero.mirror.web3.repository.NftRepository;

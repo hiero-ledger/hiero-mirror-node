@@ -4,9 +4,9 @@ package org.hiero.mirror.importer.downloader;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.StreamFile;
-import com.hedera.mirror.common.util.DomainUtils;
 import java.time.Instant;
+import org.hiero.mirror.common.domain.StreamFile;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

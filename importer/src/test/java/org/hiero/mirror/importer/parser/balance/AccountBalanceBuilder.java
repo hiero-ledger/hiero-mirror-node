@@ -2,14 +2,14 @@
 
 package org.hiero.mirror.importer.parser.balance;
 
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.balance.AccountBalance;
-import com.hedera.mirror.common.domain.balance.TokenBalance;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.balance.TokenBalance;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.util.Assert;
 
 @Named

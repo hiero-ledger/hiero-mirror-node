@@ -2,15 +2,13 @@
 
 package org.hiero.mirror.restjava.repository;
 
-import static com.hedera.mirror.common.domain.token.TokenTypeEnum.FUNGIBLE_COMMON;
-import static com.hedera.mirror.common.domain.token.TokenTypeEnum.NON_FUNGIBLE_UNIQUE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.token.TokenTypeEnum.FUNGIBLE_COMMON;
+import static org.hiero.mirror.common.domain.token.TokenTypeEnum.NON_FUNGIBLE_UNIQUE;
 import static org.hiero.mirror.restjava.dto.TokenAirdropRequest.AirdropRequestType.OUTSTANDING;
 import static org.hiero.mirror.restjava.dto.TokenAirdropRequest.AirdropRequestType.PENDING;
 import static org.hiero.mirror.restjava.jooq.domain.tables.TokenAirdrop.TOKEN_AIRDROP;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.TokenAirdrop;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +16,8 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.SoftAssertions;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.token.TokenAirdrop;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.Constants;
 import org.hiero.mirror.restjava.common.EntityIdNumParameter;

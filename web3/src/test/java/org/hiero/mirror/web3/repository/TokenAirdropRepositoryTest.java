@@ -5,10 +5,10 @@ package org.hiero.mirror.web3.repository;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.token.TokenAirdrop;
-import com.hedera.mirror.common.domain.token.TokenAirdropStateEnum;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.token.TokenAirdrop;
+import org.hiero.mirror.common.domain.token.TokenAirdropStateEnum;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;

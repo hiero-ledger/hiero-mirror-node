@@ -5,11 +5,11 @@ package org.hiero.mirror.web3.repository;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_TOKEN;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_TOKEN_ALLOWANCE;
 
-import com.hedera.mirror.common.domain.entity.AbstractTokenAllowance;
-import com.hedera.mirror.common.domain.entity.AbstractTokenAllowance.Id;
-import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import java.util.List;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.entity.AbstractTokenAllowance;
+import org.hiero.mirror.common.domain.entity.AbstractTokenAllowance.Id;
+import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;

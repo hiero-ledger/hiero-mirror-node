@@ -2,12 +2,12 @@
 
 package org.hiero.mirror.monitor.subscribe.rest;
 
-import com.hedera.mirror.rest.model.TransactionByIdResponse;
 import lombok.Getter;
 import lombok.Value;
 import org.hiero.mirror.monitor.AbstractScenario;
 import org.hiero.mirror.monitor.ScenarioProtocol;
 import org.hiero.mirror.monitor.publish.PublishResponse;
+import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Sinks;

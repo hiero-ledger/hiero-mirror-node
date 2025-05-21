@@ -2,12 +2,10 @@
 
 package org.hiero.mirror.importer.migration;
 
-import static com.hedera.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.token.Token;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -20,6 +18,8 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.assertj.core.util.Lists;
+import org.hiero.mirror.common.domain.token.Token;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.repository.RecordFileMigrationTest;

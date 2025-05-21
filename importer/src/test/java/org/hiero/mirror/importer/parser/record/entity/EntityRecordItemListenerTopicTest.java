@@ -11,18 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.StringValue;
-import com.hedera.mirror.common.domain.entity.AbstractEntity;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.CustomFee;
-import com.hedera.mirror.common.domain.topic.Topic;
-import com.hedera.mirror.common.domain.topic.TopicMessage;
-import com.hedera.mirror.common.domain.transaction.AssessedCustomFee;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.Transaction;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusDeleteTopicTransactionBody;
@@ -52,6 +40,18 @@ import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.hiero.mirror.common.domain.entity.AbstractEntity;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.token.CustomFee;
+import org.hiero.mirror.common.domain.topic.Topic;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
+import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.Transaction;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.converter.KeyConverter;
 import org.hiero.mirror.importer.converter.TopicIdArgumentConverter;
@@ -318,7 +318,7 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
         expectedTopicHistory.add(expectedTopic.toBuilder().timestampRange(range).build());
 
         range = Range.atLeast(updateCustomFee.getConsensusTimestamp());
-        expectedCustomFee.setFixedFees(List.of(com.hedera.mirror.common.domain.token.FixedFee.builder()
+        expectedCustomFee.setFixedFees(List.of(org.hiero.mirror.common.domain.token.FixedFee.builder()
                 .amount(100L)
                 .collectorAccountId(EntityId.of(collector))
                 .denominatingTokenId(EntityId.of(tokenId))

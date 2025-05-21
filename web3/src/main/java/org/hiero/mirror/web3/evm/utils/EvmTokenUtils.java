@@ -2,18 +2,18 @@
 
 package org.hiero.mirror.web3.evm.utils;
 
-import static com.hedera.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
-import static com.hedera.mirror.common.util.DomainUtils.fromEvmAddress;
-import static com.hedera.mirror.common.util.DomainUtils.toBytes;
-import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
+import static org.hiero.mirror.common.util.DomainUtils.fromEvmAddress;
+import static org.hiero.mirror.common.util.DomainUtils.toBytes;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.node.app.service.evm.store.contracts.precompile.codec.EvmKey;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
 import lombok.experimental.UtilityClass;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hyperledger.besu.datatypes.Address;
 
 @UtilityClass

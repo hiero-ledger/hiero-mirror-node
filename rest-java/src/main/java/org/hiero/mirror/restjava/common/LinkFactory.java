@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.restjava.common;
 
-import com.hedera.mirror.rest.model.Links;
 import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.hiero.mirror.rest.model.Links;
 import org.springframework.data.domain.Pageable;
 
 public interface LinkFactory {

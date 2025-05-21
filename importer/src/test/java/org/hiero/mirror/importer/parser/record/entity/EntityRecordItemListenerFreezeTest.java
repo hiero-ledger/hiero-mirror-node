@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.importer.parser.record.entity;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.transaction.NetworkFreeze;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.NetworkFreeze;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.repository.NetworkFreezeRepository;
 import org.junit.jupiter.api.Test;
 

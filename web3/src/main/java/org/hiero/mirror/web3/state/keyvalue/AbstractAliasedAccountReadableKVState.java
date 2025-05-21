@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
+import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_AUTO_RENEW_PERIOD;
 import static org.hiero.mirror.web3.state.Utils.EMPTY_KEY_LIST;
 import static org.hiero.mirror.web3.state.Utils.parseKey;
@@ -15,11 +15,6 @@ import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.state.token.AccountApprovalForAllAllowance;
 import com.hedera.hapi.node.state.token.AccountCryptoAllowance;
 import com.hedera.hapi.node.state.token.AccountFungibleTokenAllowance;
-import com.hedera.mirror.common.domain.SystemEntity;
-import com.hedera.mirror.common.domain.entity.CryptoAllowance;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.NftAllowance;
-import com.hedera.mirror.common.domain.entity.TokenAllowance;
 import com.hedera.node.config.data.ContractsConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
@@ -29,6 +24,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.entity.CryptoAllowance;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.NftAllowance;
+import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.CryptoAllowanceRepository;

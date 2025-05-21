@@ -3,9 +3,9 @@
 package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
-import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -15,10 +15,6 @@ import com.hedera.hapi.node.base.SignaturePair;
 import com.hedera.hapi.node.base.TransferList;
 import com.hedera.hapi.node.scheduled.SchedulableTransactionBody;
 import com.hedera.hapi.node.token.CryptoTransferTransactionBody;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.schedule.Schedule;
 import com.hedera.node.app.hapi.utils.CommonPbjConverters;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
@@ -29,6 +25,10 @@ import java.nio.ByteBuffer;
 import java.security.KeyPairGenerator;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.HRC755Contract;
 import org.hyperledger.besu.datatypes.Address;

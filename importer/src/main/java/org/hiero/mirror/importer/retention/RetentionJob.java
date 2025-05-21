@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.retention;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.Collection;
@@ -17,6 +16,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.RetentionRepository;
 import org.hiero.mirror.importer.util.Utility;

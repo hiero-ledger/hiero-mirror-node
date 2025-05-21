@@ -4,9 +4,6 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.addressbook.AddressBook;
-import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -20,6 +17,9 @@ import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FileUtils;
 import org.assertj.core.api.IterableAssert;
+import org.hiero.mirror.common.domain.addressbook.AddressBook;
+import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;

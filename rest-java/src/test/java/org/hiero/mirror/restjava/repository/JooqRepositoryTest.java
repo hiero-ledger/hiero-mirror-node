@@ -2,15 +2,15 @@
 
 package org.hiero.mirror.restjava.repository;
 
-import static com.hedera.mirror.common.domain.token.TokenTypeEnum.FUNGIBLE_COMMON;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.token.TokenTypeEnum.FUNGIBLE_COMMON;
 import static org.hiero.mirror.restjava.dto.TokenAirdropRequest.AirdropRequestType.PENDING;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.EntityIdNumParameter;
 import org.hiero.mirror.restjava.dto.TokenAirdropRequest;

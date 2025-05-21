@@ -3,10 +3,10 @@
 package org.hiero.mirror.importer.reader.balance;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
 import jakarta.inject.Named;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.springframework.context.annotation.Primary;
 

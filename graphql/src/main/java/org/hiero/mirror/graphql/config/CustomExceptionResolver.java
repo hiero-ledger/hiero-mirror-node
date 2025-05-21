@@ -2,12 +2,12 @@
 
 package org.hiero.mirror.graphql.config;
 
-import com.hedera.mirror.common.exception.MirrorNodeException;
 import graphql.ErrorType;
 import graphql.GraphQLError;
 import graphql.GraphqlErrorBuilder;
 import graphql.schema.DataFetchingEnvironment;
 import jakarta.inject.Named;
+import org.hiero.mirror.common.exception.MirrorNodeException;
 import org.springframework.graphql.execution.DataFetcherExceptionResolverAdapter;
 
 @Named

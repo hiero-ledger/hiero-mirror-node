@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.restjava.common;
 
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import java.util.regex.Pattern;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.EntityId;
 
 public record EntityIdNumParameter(EntityId id) implements EntityIdParameter {
 

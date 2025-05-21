@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.importer.reader.record.sidecar;
 
-import com.hedera.mirror.common.domain.transaction.SidecarFile;
 import jakarta.inject.Named;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
+import org.hiero.mirror.common.domain.transaction.SidecarFile;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 

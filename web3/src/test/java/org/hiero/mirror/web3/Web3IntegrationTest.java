@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.web3;
 
-import com.hedera.mirror.common.config.CommonIntegrationTest;
 import jakarta.annotation.Resource;
+import org.hiero.mirror.common.config.CommonIntegrationTest;
 import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.junit.jupiter.api.extension.ExtendWith;

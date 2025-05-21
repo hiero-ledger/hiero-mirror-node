@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.parser.record.entity;
 
-import com.hedera.mirror.common.domain.topic.TopicMessage;
 import io.micrometer.core.instrument.Timer;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 
 public interface BatchPublisher extends RecordStreamFileListener {

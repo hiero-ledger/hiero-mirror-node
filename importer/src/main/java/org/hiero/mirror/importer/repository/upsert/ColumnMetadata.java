@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.repository.upsert;
 
-import com.hedera.mirror.common.domain.UpsertColumn;
 import java.text.MessageFormat;
 import java.util.Comparator;
 import java.util.function.BiConsumer;
@@ -10,6 +9,7 @@ import java.util.function.Function;
 import lombok.ToString;
 import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.UpsertColumn;
 
 @Value
 class ColumnMetadata implements Comparable<ColumnMetadata> {

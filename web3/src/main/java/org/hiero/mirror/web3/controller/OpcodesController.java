@@ -4,10 +4,10 @@ package org.hiero.mirror.web3.controller;
 
 import static org.hiero.mirror.web3.config.ThrottleConfiguration.RATE_LIMIT_BUCKET;
 
-import com.hedera.mirror.rest.model.OpcodesResponse;
 import io.github.bucket4j.Bucket;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;

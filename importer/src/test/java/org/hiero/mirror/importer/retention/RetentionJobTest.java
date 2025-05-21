@@ -4,11 +4,11 @@ package org.hiero.mirror.importer.retention;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.TransactionRepository;

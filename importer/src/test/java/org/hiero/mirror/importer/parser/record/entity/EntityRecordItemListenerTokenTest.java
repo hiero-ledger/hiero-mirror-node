@@ -2,12 +2,12 @@
 
 package org.hiero.mirror.importer.parser.record.entity;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
-import static com.hedera.mirror.common.domain.token.NftTransfer.WILDCARD_SERIAL_NUMBER;
 import static com.hederahashgraph.api.proto.java.TokenType.FUNGIBLE_COMMON;
 import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.from;
+import static org.hiero.mirror.common.domain.entity.EntityType.TOKEN;
+import static org.hiero.mirror.common.domain.token.NftTransfer.WILDCARD_SERIAL_NUMBER;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransactions;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -17,27 +17,6 @@ import com.google.common.collect.Streams;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.StringValue;
-import com.hedera.mirror.common.domain.contract.ContractLog;
-import com.hedera.mirror.common.domain.contract.ContractResult;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityTransaction;
-import com.hedera.mirror.common.domain.token.AbstractNft;
-import com.hedera.mirror.common.domain.token.AbstractNft.Id;
-import com.hedera.mirror.common.domain.token.CustomFee;
-import com.hedera.mirror.common.domain.token.Nft;
-import com.hedera.mirror.common.domain.token.Token;
-import com.hedera.mirror.common.domain.token.TokenAccount;
-import com.hedera.mirror.common.domain.token.TokenAirdrop;
-import com.hedera.mirror.common.domain.token.TokenAirdropStateEnum;
-import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenPauseStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenTransfer;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
-import com.hedera.mirror.common.domain.transaction.AssessedCustomFee;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
@@ -84,6 +63,28 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ObjectAssert;
+import org.hiero.mirror.common.domain.contract.ContractLog;
+import org.hiero.mirror.common.domain.contract.ContractResult;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityTransaction;
+import org.hiero.mirror.common.domain.token.AbstractNft;
+import org.hiero.mirror.common.domain.token.AbstractNft.Id;
+import org.hiero.mirror.common.domain.token.CustomFee;
+import org.hiero.mirror.common.domain.token.FallbackFee;
+import org.hiero.mirror.common.domain.token.Nft;
+import org.hiero.mirror.common.domain.token.Token;
+import org.hiero.mirror.common.domain.token.TokenAccount;
+import org.hiero.mirror.common.domain.token.TokenAirdrop;
+import org.hiero.mirror.common.domain.token.TokenAirdropStateEnum;
+import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenTransfer;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
@@ -166,20 +167,20 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         customFee.setEntityId(tokenId.getId());
         EntityId treasury = PAYER_ACCOUNT_ID;
 
-        var fixedFee1 = new com.hedera.mirror.common.domain.token.FixedFee();
+        var fixedFee1 = new org.hiero.mirror.common.domain.token.FixedFee();
         fixedFee1.setAllCollectorsAreExempt(false);
         fixedFee1.setAmount(11L);
         fixedFee1.setCollectorAccountId(FEE_COLLECTOR_ACCOUNT_ID_1);
         customFee.addFixedFee(fixedFee1);
 
-        var fixedFee2 = new com.hedera.mirror.common.domain.token.FixedFee();
+        var fixedFee2 = new org.hiero.mirror.common.domain.token.FixedFee();
         fixedFee2.setAllCollectorsAreExempt(false);
         fixedFee2.setAmount(12L);
         fixedFee2.setCollectorAccountId(FEE_COLLECTOR_ACCOUNT_ID_2);
         fixedFee2.setDenominatingTokenId(FEE_DOMAIN_TOKEN_ID);
         customFee.addFixedFee(fixedFee2);
 
-        var fixedFee3 = new com.hedera.mirror.common.domain.token.FixedFee();
+        var fixedFee3 = new org.hiero.mirror.common.domain.token.FixedFee();
         fixedFee3.setAllCollectorsAreExempt(true);
         fixedFee3.setAmount(13L);
         fixedFee3.setCollectorAccountId(FEE_COLLECTOR_ACCOUNT_ID_2);
@@ -188,7 +189,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
 
         if (tokenType == FUNGIBLE_COMMON) {
             // fractional fees only apply for fungible tokens
-            var fractionalFee1 = new com.hedera.mirror.common.domain.token.FractionalFee();
+            var fractionalFee1 = new org.hiero.mirror.common.domain.token.FractionalFee();
             fractionalFee1.setAllCollectorsAreExempt(false);
             fractionalFee1.setCollectorAccountId(FEE_COLLECTOR_ACCOUNT_ID_3);
             fractionalFee1.setDenominator(31L);
@@ -198,7 +199,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
             fractionalFee1.setNumerator(14L);
             customFee.addFractionalFee(fractionalFee1);
 
-            var fractionalFee2 = new com.hedera.mirror.common.domain.token.FractionalFee();
+            var fractionalFee2 = new org.hiero.mirror.common.domain.token.FractionalFee();
             fractionalFee2.setAllCollectorsAreExempt(true);
             fractionalFee2.setCollectorAccountId(treasury);
             fractionalFee2.setDenominator(32L);
@@ -209,7 +210,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
             customFee.addFractionalFee(fractionalFee2);
         } else {
             // royalty fees only apply for non-fungible tokens
-            var royaltyFee1 = new com.hedera.mirror.common.domain.token.RoyaltyFee();
+            var royaltyFee1 = new org.hiero.mirror.common.domain.token.RoyaltyFee();
             royaltyFee1.setAllCollectorsAreExempt(false);
             royaltyFee1.setCollectorAccountId(FEE_COLLECTOR_ACCOUNT_ID_3);
             royaltyFee1.setDenominator(31L);
@@ -217,13 +218,13 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
             customFee.addRoyaltyFee(royaltyFee1);
 
             // with fallback fee
-            var royaltyFee2 = new com.hedera.mirror.common.domain.token.RoyaltyFee();
+            var royaltyFee2 = new org.hiero.mirror.common.domain.token.RoyaltyFee();
             royaltyFee2.setAllCollectorsAreExempt(true);
             royaltyFee2.setCollectorAccountId(treasury);
             royaltyFee2.setDenominator(32L);
             royaltyFee2.setNumerator(15L);
 
-            var fallBackFee = new com.hedera.mirror.common.domain.token.FallbackFee();
+            var fallBackFee = new FallbackFee();
             fallBackFee.setAmount(103L);
             fallBackFee.setDenominatingTokenId(FEE_DOMAIN_TOKEN_ID);
             royaltyFee2.setFallbackFee(fallBackFee);
@@ -4288,17 +4289,17 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         return recordItem;
     }
 
-    private com.hedera.mirror.common.domain.token.NftTransfer domainNftTransfer(
+    private org.hiero.mirror.common.domain.token.NftTransfer domainNftTransfer(
             AccountID receiver, AccountID sender, long serialNumber, TokenID tokenId) {
         return domainNftTransfer(receiver, sender, serialNumber, tokenId, false);
     }
 
-    private com.hedera.mirror.common.domain.token.NftTransfer domainNftTransfer(
+    private org.hiero.mirror.common.domain.token.NftTransfer domainNftTransfer(
             AccountID receiver, AccountID sender, long serialNumber, TokenID tokenId, boolean isApproval) {
         var receiverEntityId = receiver.equals(DEFAULT_ACCOUNT_ID) ? null : EntityId.of(receiver);
         var senderEntityId = sender.equals(DEFAULT_ACCOUNT_ID) ? null : EntityId.of(sender);
 
-        return com.hedera.mirror.common.domain.token.NftTransfer.builder()
+        return org.hiero.mirror.common.domain.token.NftTransfer.builder()
                 .isApproval(isApproval)
                 .receiverAccountId(receiverEntityId)
                 .senderAccountId(senderEntityId)
@@ -4479,10 +4480,10 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
     }
 
     private void assertNftTransferInRepository(
-            long consensusTimestamp, com.hedera.mirror.common.domain.token.NftTransfer... nftTransfers) {
+            long consensusTimestamp, org.hiero.mirror.common.domain.token.NftTransfer... nftTransfers) {
         assertThat(transactionRepository.findById(consensusTimestamp))
                 .get()
-                .extracting(com.hedera.mirror.common.domain.transaction.Transaction::getNftTransfer)
+                .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getNftTransfer)
                 .asInstanceOf(InstanceOfAssertFactories.LIST)
                 .containsExactlyInAnyOrderElementsOf(Arrays.asList(nftTransfers));
     }

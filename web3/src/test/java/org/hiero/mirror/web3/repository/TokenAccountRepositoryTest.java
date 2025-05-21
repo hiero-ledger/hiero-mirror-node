@@ -5,11 +5,11 @@ package org.hiero.mirror.web3.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
-import com.hedera.mirror.common.domain.token.TokenAccount;
-import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.token.TokenAccount;
+import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.repository.projections.TokenAccountAssociationsCount;
 import org.junit.jupiter.api.Test;

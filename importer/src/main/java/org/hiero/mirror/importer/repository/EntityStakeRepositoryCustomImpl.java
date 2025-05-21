@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.importer.repository;
 
-import com.hedera.mirror.common.domain.SystemEntity;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.jdbc.core.JdbcTemplate;

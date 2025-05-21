@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.grpc.listener;
 
-import com.hedera.mirror.common.domain.topic.TopicMessage;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

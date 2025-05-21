@@ -3,12 +3,12 @@
 package org.hiero.mirror.importer;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hederahashgraph.api.proto.java.NodeAddressBook;
 import java.nio.file.Files;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.junit.platform.launcher.LauncherSession;
 import org.junit.platform.launcher.LauncherSessionListener;
 import org.junit.platform.launcher.TestExecutionListener;
@@ -18,7 +18,7 @@ import org.springframework.util.ResourceUtils;
 @CustomLog
 public class GlobalTestSetup implements LauncherSessionListener {
 
-    private final TestExecutionListener commonTestSetup = new com.hedera.mirror.common.GlobalTestSetup();
+    private final TestExecutionListener commonTestSetup = new org.hiero.mirror.common.GlobalTestSetup();
 
     @Override
     public void launcherSessionOpened(LauncherSession session) {

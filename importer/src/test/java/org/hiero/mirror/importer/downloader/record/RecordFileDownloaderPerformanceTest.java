@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.Uninterruptibles;
-import com.hedera.mirror.common.domain.StreamType;
 import java.nio.file.Path;
 import java.security.KeyFactory;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -18,6 +17,7 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;

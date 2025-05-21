@@ -2,10 +2,6 @@
 
 package org.hiero.mirror.importer.migration;
 
-import com.hedera.mirror.common.domain.node.Node;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.Transaction;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import jakarta.inject.Named;
@@ -17,6 +13,10 @@ import java.util.List;
 import java.util.Map;
 import lombok.SneakyThrows;
 import org.flywaydb.core.api.MigrationVersion;
+import org.hiero.mirror.common.domain.node.Node;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.Transaction;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.parser.record.transactionhandler.AbstractNodeTransactionHandler;

@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.web3.repository;
 
-import com.hedera.mirror.common.domain.balance.TokenBalance;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 

@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.importer.repository;
 
-import com.hedera.mirror.common.domain.contract.ContractState;
+import org.hiero.mirror.common.domain.contract.ContractState;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.transaction.annotation.Transactional;
 

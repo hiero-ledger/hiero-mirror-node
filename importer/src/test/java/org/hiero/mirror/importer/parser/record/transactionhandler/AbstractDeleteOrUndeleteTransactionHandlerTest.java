@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import com.hedera.mirror.common.domain.entity.AbstractEntity;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.AbstractEntity;
 
 @RequiredArgsConstructor
 abstract class AbstractDeleteOrUndeleteTransactionHandlerTest extends AbstractTransactionHandlerTest {

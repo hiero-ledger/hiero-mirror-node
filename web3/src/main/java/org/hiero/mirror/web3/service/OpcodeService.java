@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.service;
 
-import com.hedera.mirror.rest.model.OpcodesResponse;
+import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.springframework.lang.NonNull;

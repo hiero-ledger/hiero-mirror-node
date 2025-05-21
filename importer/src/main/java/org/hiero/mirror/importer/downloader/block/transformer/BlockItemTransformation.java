@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import org.hiero.mirror.common.domain.transaction.BlockItem;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 
 record BlockItemTransformation(
         BlockItem blockItem, RecordItem.RecordItemBuilder recordItemBuilder, TransactionBody transactionBody) {}

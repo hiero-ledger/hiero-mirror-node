@@ -2,12 +2,11 @@
 
 package org.hiero.mirror.importer.downloader.provider;
 
-import static com.hedera.mirror.common.domain.StreamType.SIGNATURE_SUFFIX;
 import static java.util.Objects.requireNonNullElse;
+import static org.hiero.mirror.common.domain.StreamType.SIGNATURE_SUFFIX;
 import static org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType.NODE_ID;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.CommonProperties;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,6 +15,7 @@ import java.time.ZoneOffset;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;

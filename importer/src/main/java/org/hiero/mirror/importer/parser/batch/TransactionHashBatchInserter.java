@@ -2,13 +2,12 @@
 
 package org.hiero.mirror.importer.parser.batch;
 
-import static com.hedera.mirror.common.domain.transaction.TransactionHash.V1_SHARD_COUNT;
+import static org.hiero.mirror.common.domain.transaction.TransactionHash.V1_SHARD_COUNT;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CaseFormat;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
-import com.hedera.mirror.common.domain.transaction.TransactionHash;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.util.Collection;
@@ -20,6 +19,7 @@ import java.util.stream.IntStream;
 import javax.sql.DataSource;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.CommonParserProperties;
 import org.springframework.context.annotation.Profile;

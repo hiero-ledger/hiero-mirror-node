@@ -7,8 +7,6 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddre
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.evmKey;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.node.app.service.evm.store.contracts.precompile.codec.CustomFee;
 import com.hedera.node.app.service.evm.store.contracts.precompile.codec.EvmKey;
 import com.hedera.node.app.service.evm.store.contracts.precompile.codec.EvmNftInfo;
@@ -28,6 +26,8 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.evm.account.MirrorEvmContractAliases;
 import org.hiero.mirror.web3.evm.exception.ParsingException;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;

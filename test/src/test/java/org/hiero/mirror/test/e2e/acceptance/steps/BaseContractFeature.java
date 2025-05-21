@@ -4,9 +4,9 @@ package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.rest.model.ContractResponse;
-import com.hedera.mirror.rest.model.ContractResult;
 import java.util.List;
+import org.hiero.mirror.rest.model.ContractResponse;
+import org.hiero.mirror.rest.model.ContractResult;
 import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
 
 public abstract class BaseContractFeature extends AbstractFeature {

@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.parser;
 
-import com.hedera.mirror.common.domain.StreamFile;
 import java.util.List;
+import org.hiero.mirror.common.domain.StreamFile;
 
 public interface StreamFileParser<T extends StreamFile<?>> {
 

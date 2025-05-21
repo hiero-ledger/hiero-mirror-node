@@ -5,13 +5,13 @@ package org.hiero.mirror.graphql.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.entity.Entity;
 import com.hederahashgraph.api.proto.java.Key;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.graphql.viewmodel.Account;
 import org.hiero.mirror.graphql.viewmodel.EntityId;
 import org.hiero.mirror.graphql.viewmodel.EntityType;

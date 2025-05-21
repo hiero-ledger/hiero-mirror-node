@@ -16,12 +16,6 @@ import com.hedera.hapi.node.transaction.CustomFee.FeeOneOfType;
 import com.hedera.hapi.node.transaction.FixedFee;
 import com.hedera.hapi.node.transaction.FractionalFee;
 import com.hedera.hapi.node.transaction.RoyaltyFee;
-import com.hedera.mirror.common.domain.SystemEntity;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenPauseStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
@@ -33,6 +27,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.CustomFeeRepository;
 import org.hiero.mirror.web3.repository.EntityRepository;
@@ -93,7 +93,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
 
     private Token tokenFromEntities(
             final Entity entity,
-            final com.hedera.mirror.common.domain.token.Token token,
+            final org.hiero.mirror.common.domain.token.Token token,
             final Optional<Long> timestamp) {
         return Token.newBuilder()
                 .accountsFrozenByDefault(token.getFreezeDefault())
@@ -128,7 +128,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
     }
 
     private Supplier<Long> getTotalSupply(
-            final com.hedera.mirror.common.domain.token.Token token, final Optional<Long> timestamp) {
+            final org.hiero.mirror.common.domain.token.Token token, final Optional<Long> timestamp) {
         return Suppliers.memoize(() -> timestamp
                 .map(t -> getTotalSupplyHistorical(
                         token.getType().equals(TokenTypeEnum.FUNGIBLE_COMMON), token.getTokenId(), t))
@@ -157,7 +157,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
     }
 
     private List<CustomFee> convertCustomFees(
-            final com.hedera.mirror.common.domain.token.CustomFee customFees, final Optional<Long> timestamp) {
+            final org.hiero.mirror.common.domain.token.CustomFee customFees, final Optional<Long> timestamp) {
         var customFeesConstructed = new ArrayList<CustomFee>();
         customFeesConstructed.addAll(mapFixedFees(customFees, timestamp));
         customFeesConstructed.addAll(mapFractionalFees(customFees, timestamp));
@@ -166,7 +166,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
     }
 
     private List<CustomFee> mapFixedFees(
-            final com.hedera.mirror.common.domain.token.CustomFee customFee, final Optional<Long> timestamp) {
+            final org.hiero.mirror.common.domain.token.CustomFee customFee, final Optional<Long> timestamp) {
         if (CollectionUtils.isEmpty(customFee.getFixedFees())) {
             return Collections.emptyList();
         }
@@ -188,7 +188,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
     }
 
     private List<CustomFee> mapFractionalFees(
-            final com.hedera.mirror.common.domain.token.CustomFee customFee, final Optional<Long> timestamp) {
+            final org.hiero.mirror.common.domain.token.CustomFee customFee, final Optional<Long> timestamp) {
         if (CollectionUtils.isEmpty(customFee.getFractionalFees())) {
             return Collections.emptyList();
         }
@@ -212,7 +212,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
     }
 
     private List<CustomFee> mapRoyaltyFees(
-            com.hedera.mirror.common.domain.token.CustomFee customFee, final Optional<Long> timestamp) {
+            org.hiero.mirror.common.domain.token.CustomFee customFee, final Optional<Long> timestamp) {
         if (CollectionUtils.isEmpty(customFee.getRoyaltyFees())) {
             return Collections.emptyList();
         }

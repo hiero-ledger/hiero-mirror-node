@@ -4,8 +4,6 @@ package org.hiero.mirror.importer.domain;
 
 import static org.hiero.mirror.importer.reader.signature.ProtoSignatureFileReader.VERSION;
 
-import com.hedera.mirror.common.domain.StreamType;
-import com.hedera.mirror.common.util.DomainUtils;
 import java.util.Comparator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,6 +13,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
+import org.hiero.mirror.common.domain.StreamType;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 
 @AllArgsConstructor

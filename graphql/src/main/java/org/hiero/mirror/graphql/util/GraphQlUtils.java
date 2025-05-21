@@ -3,7 +3,6 @@
 package org.hiero.mirror.graphql.util;
 
 import com.google.common.base.Splitter;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
@@ -14,6 +13,7 @@ import org.apache.commons.codec.binary.Base32;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.graphql.viewmodel.EntityIdInput;
 import org.hiero.mirror.graphql.viewmodel.HbarUnit;
 import org.hiero.mirror.graphql.viewmodel.Node;

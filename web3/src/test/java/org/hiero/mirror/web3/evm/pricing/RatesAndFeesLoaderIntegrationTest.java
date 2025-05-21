@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.web3.evm.pricing;
 
-import static com.hedera.mirror.common.domain.transaction.TransactionType.FILEAPPEND;
-import static com.hedera.mirror.common.domain.transaction.TransactionType.FILECREATE;
-import static com.hedera.mirror.common.domain.transaction.TransactionType.FILEUPDATE;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCall;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.FILEAPPEND;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.FILECREATE;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.FILEUPDATE;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;

@@ -2,12 +2,12 @@
 
 package com.hedera.services.fees.calculation.utils;
 
-import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
 import static com.hedera.services.fees.usage.token.TokenOpsUsageUtils.TOKEN_OPS_USAGE_UTILS;
 import static com.hedera.services.txns.crypto.helpers.AllowanceHelpers.getCryptoAllowancesList;
 import static com.hedera.services.txns.crypto.helpers.AllowanceHelpers.getFungibleTokenAllowancesList;
 import static com.hedera.services.txns.crypto.helpers.AllowanceHelpers.getNftApprovedForAll;
 import static com.hedera.services.utils.MiscUtils.asKeyUnchecked;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 
 import com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases;
 import com.hedera.services.fees.usage.token.meta.TokenMintMeta;

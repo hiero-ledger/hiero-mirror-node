@@ -5,7 +5,6 @@ package org.hiero.mirror.test.e2e.acceptance.util;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.hexToAscii;
 
 import com.google.common.base.Splitter;
-import com.hedera.mirror.rest.model.ContractCallResponse;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -14,6 +13,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.rest.model.ContractCallResponse;
 
 /**
  * Wraps an instance of OpenAPI model object {@link ContractCallResponse} and provides additional convenience

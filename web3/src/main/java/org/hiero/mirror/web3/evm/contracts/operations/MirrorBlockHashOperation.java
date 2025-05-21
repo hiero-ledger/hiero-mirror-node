@@ -2,12 +2,12 @@
 
 package org.hiero.mirror.web3.evm.contracts.operations;
 
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import jakarta.inject.Named;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.config.ModularizedOperation;
 import org.hiero.mirror.web3.repository.RecordFileRepository;

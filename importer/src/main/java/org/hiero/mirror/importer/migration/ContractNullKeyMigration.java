@@ -2,12 +2,12 @@
 
 package org.hiero.mirror.importer.migration;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hederahashgraph.api.proto.java.Key;
 import jakarta.inject.Named;
 import java.io.IOException;
 import java.util.Map;
 import org.flywaydb.core.api.MigrationVersion;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;

@@ -2,17 +2,17 @@
 
 package org.hiero.mirror.web3.service;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
-import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.util.DomainUtils;
 import java.math.BigInteger;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.web3j.generated.StorageContract;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;

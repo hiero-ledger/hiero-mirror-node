@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.test.e2e.acceptance.util;
 
-import com.hedera.mirror.rest.model.ContractCallRequest;
+import org.hiero.mirror.rest.model.ContractCallRequest;
 
 /**
  * Utility class for building instances of some of the more involved OpenAPI generated model classes. The previous

@@ -16,7 +16,6 @@ import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
 
 import com.esaulpaugh.headlong.abi.TupleType;
 import com.hedera.hashgraph.sdk.AccountId;
-import com.hedera.mirror.common.CommonProperties;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.math.BigInteger;
@@ -24,6 +23,7 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.NodeNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 

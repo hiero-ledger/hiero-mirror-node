@@ -4,10 +4,6 @@ package org.hiero.mirror.importer.parser.balance;
 
 import static org.hiero.mirror.importer.config.DateRangeCalculator.DateRangeFilter;
 
-import com.hedera.mirror.common.domain.StreamType;
-import com.hedera.mirror.common.domain.balance.AccountBalance;
-import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
-import com.hedera.mirror.common.domain.balance.TokenBalance;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.util.ArrayList;
@@ -15,6 +11,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import org.hiero.mirror.common.domain.StreamType;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
+import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.leader.Leader;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParser;

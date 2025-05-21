@@ -4,10 +4,10 @@ package org.hiero.mirror.restjava.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.rest.model.Topic;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.rest.model.Topic;
 import org.hiero.mirror.restjava.mapper.TopicMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

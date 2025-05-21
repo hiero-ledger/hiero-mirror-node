@@ -4,18 +4,6 @@ package org.hiero.mirror.importer.domain;
 
 import com.google.common.base.Stopwatch;
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.domain.contract.Contract;
-import com.hedera.mirror.common.domain.contract.ContractLog;
-import com.hedera.mirror.common.domain.contract.ContractResult;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.Transaction;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hedera.mirror.common.exception.InvalidEntityException;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
 import com.hedera.services.stream.proto.ContractBytecode;
@@ -30,6 +18,18 @@ import java.util.Optional;
 import lombok.CustomLog;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.contract.ContractLog;
+import org.hiero.mirror.common.domain.contract.ContractResult;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.Transaction;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.exception.InvalidEntityException;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.migration.SidecarContractMigration;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
@@ -129,7 +129,7 @@ public class ContractResultServiceImpl implements ContractResultService {
 
     private void processContractAction(ContractAction action, int index, RecordItem recordItem) {
         long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var contractAction = new com.hedera.mirror.common.domain.contract.ContractAction();
+        var contractAction = new org.hiero.mirror.common.domain.contract.ContractAction();
 
         try {
             switch (action.getCallerCase()) {
@@ -310,7 +310,7 @@ public class ContractResultServiceImpl implements ContractResultService {
         var contractId = EntityId.of(stateChange.getContractId());
         var payerAccountId = recordItem.getPayerAccountId();
         for (var storageChange : stateChange.getStorageChangesList()) {
-            var contractStateChange = new com.hedera.mirror.common.domain.contract.ContractStateChange();
+            var contractStateChange = new org.hiero.mirror.common.domain.contract.ContractStateChange();
             contractStateChange.setConsensusTimestamp(consensusTimestamp);
             contractStateChange.setContractId(contractId);
             contractStateChange.setMigration(migration);

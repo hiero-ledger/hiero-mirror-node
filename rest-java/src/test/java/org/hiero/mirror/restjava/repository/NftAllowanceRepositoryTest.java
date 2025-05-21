@@ -10,14 +10,14 @@ import static org.hiero.mirror.restjava.common.RangeOperator.LT;
 import static org.hiero.mirror.restjava.common.RangeOperator.LTE;
 import static org.hiero.mirror.restjava.jooq.domain.Tables.NFT_ALLOWANCE;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.NftAllowance;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.SoftAssertions;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.Constants;
 import org.hiero.mirror.restjava.common.EntityIdNumParameter;

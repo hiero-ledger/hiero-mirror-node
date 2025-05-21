@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.restjava.service;
 
-import com.hedera.mirror.common.domain.entity.NftAllowance;
 import jakarta.inject.Named;
 import java.util.Collection;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.restjava.common.Constants;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.NftAllowanceRequest;

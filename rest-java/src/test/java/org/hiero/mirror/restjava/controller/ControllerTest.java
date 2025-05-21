@@ -6,13 +6,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.list;
 
-import com.hedera.mirror.rest.model.Error;
-import com.hedera.mirror.rest.model.ErrorStatusMessagesInner;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ThrowableAssert;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
+import org.hiero.mirror.rest.model.Error;
+import org.hiero.mirror.rest.model.ErrorStatusMessagesInner;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.RestJavaProperties;
 import org.junit.jupiter.api.BeforeEach;

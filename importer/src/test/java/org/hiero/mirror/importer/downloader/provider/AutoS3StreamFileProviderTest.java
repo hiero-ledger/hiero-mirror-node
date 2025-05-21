@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.downloader.provider;
 
-import com.hedera.mirror.common.domain.StreamType;
 import java.nio.file.Path;
 import java.time.Duration;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.FileCopier;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;

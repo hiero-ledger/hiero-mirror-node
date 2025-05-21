@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.web3j;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
@@ -11,8 +11,6 @@ import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.web3j.crypto.TransactionUtils.generateTransactionHashHexEncoded;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
 import io.reactivex.Flowable;
@@ -26,6 +24,8 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;

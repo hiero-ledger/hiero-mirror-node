@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.repository;
 
-import com.hedera.mirror.common.domain.balance.AccountBalance;
 import java.util.List;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

@@ -6,12 +6,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.domain.transaction.Prng;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.transaction.Prng;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.repository.PrngRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.util.Version;
@@ -91,7 +91,7 @@ class EntityRecordItemListenerUtilTest extends AbstractEntityRecordItemListenerT
                 () -> assertThat(transactionRepository.findAll())
                         .hasSize(1)
                         .first()
-                        .extracting(com.hedera.mirror.common.domain.transaction.Transaction::getType)
+                        .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getType)
                         .isEqualTo(TransactionBody.DataCase.DATA_NOT_SET.getNumber()));
     }
 }

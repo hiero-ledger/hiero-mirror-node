@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.config;
 
-import com.hedera.mirror.common.CommonProperties;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -10,6 +9,7 @@ import java.util.List;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.StreamSourceProperties;
 import org.hiero.mirror.importer.downloader.provider.LocalStreamFileProperties;

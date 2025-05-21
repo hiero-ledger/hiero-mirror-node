@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.grpc.listener;
 
-import com.hedera.mirror.common.domain.topic.TopicMessage;
 import jakarta.annotation.Resource;
 import lombok.CustomLog;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.springframework.data.redis.core.ReactiveRedisOperations;
 import reactor.core.publisher.Flux;
 

@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.restjava.service;
 
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.restjava.common.EntityIdAliasParameter;
 import org.hiero.mirror.restjava.common.EntityIdEvmAddressParameter;
 import org.hiero.mirror.restjava.common.EntityIdNumParameter;

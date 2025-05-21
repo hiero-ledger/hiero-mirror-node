@@ -6,9 +6,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.FIRST_USER_ENTITY_ID;
 import static org.mockito.Mockito.when;
 
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.SystemEntity;
 import java.util.stream.Stream;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.junit.jupiter.api.BeforeEach;

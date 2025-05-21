@@ -13,7 +13,6 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.when;
 import static org.mockito.Mockito.verify;
 
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.utils.accessors.TxnAccessor;
 import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
@@ -27,6 +26,7 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import java.util.Map;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.evm.pricing.RatesAndFeesLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

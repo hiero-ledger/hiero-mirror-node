@@ -3,13 +3,13 @@
 package org.hiero.mirror.importer.reader.record;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import jakarta.inject.Named;
 import java.io.DataInputStream;
 import java.io.IOException;
 import lombok.CustomLog;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.exception.StreamFileReaderException;

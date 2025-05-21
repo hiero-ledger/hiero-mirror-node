@@ -7,11 +7,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.node.Node;
-import com.hedera.mirror.common.domain.node.ServiceEndpoint;
 import com.hederahashgraph.api.proto.java.NodeCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.node.Node;
+import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.junit.jupiter.api.Test;
 
 class NodeCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {

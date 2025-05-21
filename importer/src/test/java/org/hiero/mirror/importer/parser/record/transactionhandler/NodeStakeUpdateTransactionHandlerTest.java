@@ -2,23 +2,23 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import static com.hedera.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import com.hedera.mirror.common.domain.addressbook.NetworkStake;
-import com.hedera.mirror.common.domain.addressbook.NodeStake;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.NodeStakeUpdateTransactionBody;
 import com.hederahashgraph.api.proto.java.NodeStakeUpdateTransactionBody.Builder;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.List;
+import org.hiero.mirror.common.domain.addressbook.NetworkStake;
+import org.hiero.mirror.common.domain.addressbook.NodeStake;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.util.Utility;
 import org.junit.jupiter.api.Test;

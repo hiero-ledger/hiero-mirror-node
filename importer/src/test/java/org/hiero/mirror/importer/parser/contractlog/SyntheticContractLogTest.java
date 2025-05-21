@@ -4,8 +4,8 @@ package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;

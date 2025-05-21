@@ -6,9 +6,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.restjava.common.RangeOperator.EQ;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.exception.InvalidEntityException;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

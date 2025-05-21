@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
-import static com.hedera.mirror.common.util.DomainUtils.leftPadBytes;
+import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
 
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
