@@ -32,6 +32,7 @@ public class ContractClient extends AbstractNetworkClient {
 
     private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED = 30;
     private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS = 100;
+    private static final long GAS_PRICE = 1_000_000L;
 
     private final Collection<ContractId> contractIds = new CopyOnWriteArrayList<>();
 
@@ -217,12 +218,12 @@ public class ContractClient extends AbstractNetworkClient {
     }
 
     public long estimateGasQuery(
-            ContractId contractId,
-            String functionName,
-            ContractFunctionParameters params,
-            AccountId sender,
-            int actualGas,
-            Optional<Long> value)
+            final ContractId contractId,
+            final String functionName,
+            final ContractFunctionParameters params,
+            final AccountId sender,
+            final int actualGas,
+            final Optional<Long> value)
             throws ExecutionException, InterruptedException {
 
         final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
@@ -238,7 +239,7 @@ public class ContractClient extends AbstractNetworkClient {
     }
 
     public long estimateGasQueryWithoutParams(
-            ContractId contractId, String functionName, AccountId sender, int actualGas)
+            final ContractId contractId, final String functionName, final AccountId sender, final int actualGas)
             throws ExecutionException, InterruptedException {
 
         final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
@@ -246,7 +247,7 @@ public class ContractClient extends AbstractNetworkClient {
         var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
                 .setContractId(contractId)
                 .setFunction(functionName)
-                .setGasPrice(1_000_000L)
+                .setGasPrice(GAS_PRICE)
                 .setGasLimit(calculatedContractCallGas);
         if (sender != null) {
             gasEstimateQuery.setSender(sender);
@@ -255,7 +256,7 @@ public class ContractClient extends AbstractNetworkClient {
         return gasEstimateQuery.execute(getClient());
     }
 
-    public long estimateGasQueryRawData(ContractId contractId, ByteString params, AccountId sender, int actualGas)
+    public long estimateGasQueryRawData(final ContractId contractId, final ByteString params, final AccountId sender, final int actualGas)
             throws ExecutionException, InterruptedException {
 
         final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
@@ -263,7 +264,7 @@ public class ContractClient extends AbstractNetworkClient {
         var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
                 .setContractId(contractId)
                 .setFunctionParameters(params)
-                .setGasPrice(1_000_000L)
+                .setGasPrice(GAS_PRICE)
                 .setGasLimit(calculatedContractCallGas);
         if (sender != null) {
             gasEstimateQuery.setSender(sender);
@@ -297,7 +298,7 @@ public class ContractClient extends AbstractNetworkClient {
         return new MirrorNodeContractEstimateGasQuery()
                 .setContractId(contractId)
                 .setFunction(functionName, params)
-                .setGasPrice(1_000_000L);
+                .setGasPrice(GAS_PRICE);
     }
 
     private long calculateGasLimit(int actualGas, int percentage) {

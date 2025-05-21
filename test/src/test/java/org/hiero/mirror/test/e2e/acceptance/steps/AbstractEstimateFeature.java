@@ -8,9 +8,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
-import com.hedera.mirror.rest.model.ContractAction;
-import com.hedera.mirror.rest.model.ContractActionsResponse;
-import com.hedera.mirror.rest.model.ContractResult;
+import org.hiero.mirror.rest.model.ContractAction;
+import org.hiero.mirror.rest.model.ContractActionsResponse;
+import org.hiero.mirror.rest.model.ContractResult;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -70,11 +70,11 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
      * @param actualGas The actual gas used for the call.
      */
     protected void validateGasEstimation(
-            ContractId contractId,
-            String functionName,
-            ContractFunctionParameters params,
-            AccountId sender,
-            int actualGas)
+            final ContractId contractId,
+            final String functionName,
+            final ContractFunctionParameters params,
+            final AccountId sender,
+            final int actualGas)
             throws ExecutionException, InterruptedException {
         var estimateGasResult =
                 contractClient.estimateGasQuery(contractId, functionName, params, sender, actualGas, Optional.empty());
@@ -93,12 +93,12 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
      * @param value The value to send with the call.
      */
     protected void validateGasEstimation(
-            ContractId contractId,
-            String functionName,
-            ContractFunctionParameters params,
-            AccountId sender,
-            int actualGas,
-            Optional<java.lang.Long> value)
+            final ContractId contractId,
+            final String functionName,
+            final ContractFunctionParameters params,
+            final AccountId sender,
+            final int actualGas,
+            final Optional<java.lang.Long> value)
             throws ExecutionException, InterruptedException {
         var estimateGasResult =
                 contractClient.estimateGasQuery(contractId, functionName, params, sender, actualGas, value);
@@ -113,7 +113,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
      * @param sender The account ID of the sender.
      * @param actualGas The actual gas used for the call.
      */
-    protected void validateGasEstimation(ContractId contractId, String functionName, AccountId sender, int actualGas)
+    protected void validateGasEstimation(final ContractId contractId, final String functionName, final AccountId sender, final int actualGas)
             throws ExecutionException, InterruptedException {
         var estimateGasResult =
                 contractClient.estimateGasQueryWithoutParams(contractId, functionName, sender, actualGas);

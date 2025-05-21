@@ -59,7 +59,7 @@ import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.proto.ResponseCodeEnum;
-import com.hedera.mirror.rest.model.ContractCallResponse;
+import org.hiero.mirror.rest.model.ContractCallResponse;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
