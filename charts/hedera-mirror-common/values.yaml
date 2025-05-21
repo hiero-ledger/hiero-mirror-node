@@ -362,10 +362,6 @@ prometheus:
             honorTimestamps: true
             interval: 1m
             metricRelabelings:
-              - action: drop
-                regex: ^(go_|node_file_system|pg_index|pg_long|pg_roles|pg_postmaster|pg_scrape_collector|pg_settings|pg_slow_queries|pg_stat_activity|pg_stat.*_user|pg_stat_progress|pg_statements|pg_table|pg_total_relation_size_bytes|pgbouncer_show_clients|pgbouncer_show_databases|process|promhttp|scrape).*$
-                sourceLabels:
-                  - __name__
               - action: replace
                 regex: ^.*(postgres-exporter)$
                 replacement: $1
@@ -450,9 +446,37 @@ stackgres:
       exporters:
         prometheus:
           metric_expiration: 2m
+      processors:
+        filter/drop_metrics:
+          metrics:
+            exclude:
+              match_type: regexp
+              metric_names:
+                - ^go_.*$
+                - ^node_file_system.*$
+                - ^pg_index.*$
+                - ^pg_long.*$
+                - ^pg_roles.*$
+                - ^pg_postmaster.*$
+                - ^pg_scrape_collector.*$
+                - ^pg_settings.*$
+                - ^pg_slow_queries.*$
+                - ^pg_stat_activity.*$
+                - ^pg_stat.*_user.*$
+                - ^pg_stat_progress.*$
+                - ^pg_statements.*$
+                - ^pg_table.*$
+                - ^pg_total_relation_size_bytes.*$
+                - ^pgbouncer_show_clients.*$
+                - ^pgbouncer_show_databases.*$
+                - ^process.*$
+                - ^promhttp.*$
+                - ^scrape.*$
       service:
         pipelines:
           metrics:
+            processors:
+              - filter/drop_metrics
             receivers:
               - prometheus
     name: stackgres-collector
@@ -483,6 +507,77 @@ stackgres:
         severity: critical
         application: hedera-mirror-common
         area: resource
+    PostgresInstanceDown:
+      annotations:
+        summary: "Postgres server instance is down"
+        description: "Postgres has not been responding for the past 1 minutes on {{ $labels.pod }}"
+        title: "Postgres server instance {{ $labels.pod }} is down "
+      expr: pg_up == 0
+      for: 1m
+      labels:
+        severity: critical
+        application: hedera-mirror-common
+        area: resource
+    PostgresExporterErrors:
+      expr: pg_exporter_last_scrape_error == 1
+      for: 10m
+      labels:
+        severity: warning
+        application: hedera-mirror-common
+        area: resource
+      annotations:
+        summary: "Postgres Exporter is down or is showing errors"
+        description: "postgres-exporter is not running or it is showing errors {{ $labels.pod }}"
+    PostgresReplicationLagSizeTooLarge:
+      expr: pg_replication_status_lag_size > 1e+09
+      for: 5m
+      labels:
+        severity: critical
+        application: hedera-mirror-common
+        area: resource
+      annotations:
+        summary: "Postgres replication lag size is to large"
+        description: "Replication lag size on server {{$labels.pod}} is currently {{ $value | humanize1024}}B behind the leader in cluster {{$labels.cluster_name}}"
+    PostgresInactiveReplicationSlots:
+      expr: pg_replication_slots_active == 0
+      for: 30m
+      labels:
+        severity: warning
+        application: hedera-mirror-common
+        area: resource
+      annotations:
+        summary: "There are inactive replications slots"
+        description: "The are some inactive replication slots on {{$labels.pod}} in cluster {{$labels.cluster_name}}"
+    PostgresPromotedNode:
+      annotations:
+        summary: "Postgresql promoted node (instance {{ $labels.pod }}, cluster {{ $labels.cluster_name }})"
+        description: "Postgresql standby server has been promoted as primary node\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+      expr: pg_replication_is_replica and changes(pg_replication_is_replica[1m]) > 0
+      for: 1m
+      labels:
+        application: hedera-mirror-common
+        area: resource
+        severity: warning
+    PgBouncerWaitingClients:
+      annotations:
+        summary: PgBouncer has waiting clients on instance {{ $labels.pod }} in pool {{ $labels.pool_mode }} for user {{$labels.user}}
+        description: "PgBouncer instance has waiting clients\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+      expr: pgbouncer_show_pools_cl_waiting > 0
+      for: 5m
+      labels:
+        application: hedera-mirror-common
+        area: resource
+        severity: critical
+    PgBouncerQueryTimeTooHigh:
+      annotations:
+        summary: PgBouncer average query duration more than 3 seconds on {{ $labels.pod }} in pool {{ $labels.pool_mode }} for user {{$labels.user}}
+        description: "PgBouncer average query duration more than 3 seconds = {{ $value }}"
+      expr: pgbouncer_show_stats_avg_query_time > 3e+6
+      for: 5m
+      labels:
+        application: hedera-mirror-common
+        area: resource
+        severity: critical
 
 testkube:
   enabled: false
