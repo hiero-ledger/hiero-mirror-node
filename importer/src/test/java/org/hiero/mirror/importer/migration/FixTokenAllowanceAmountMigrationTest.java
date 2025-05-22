@@ -6,12 +6,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.migration.GasConsumedMigrationTest.createMigrationContractResult;
 import static org.hiero.mirror.importer.migration.GasConsumedMigrationTest.persistMigrationContractResult;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.TokenTransfer.Id;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.token.TokenTransfer.Id;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;

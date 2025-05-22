@@ -4,8 +4,8 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
 final class ScheduleSignTransformer extends AbstractBlockItemTransformer {

@@ -9,13 +9,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.transaction.support.TransactionSynchronization.STATUS_COMMITTED;
 
-import com.hedera.mirror.common.domain.DomainBuilder;
 import java.sql.Connection;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;

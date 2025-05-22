@@ -7,11 +7,11 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.ClaimAirdrop;

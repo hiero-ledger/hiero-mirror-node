@@ -2,20 +2,20 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import static com.hedera.mirror.common.domain.token.TokenAirdropStateEnum.PENDING;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.token.TokenAirdropStateEnum.PENDING;
 import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.TokenAirdrop;
 import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropRecord;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
 import com.hederahashgraph.api.proto.java.TokenAirdropTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.token.TokenAirdrop;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

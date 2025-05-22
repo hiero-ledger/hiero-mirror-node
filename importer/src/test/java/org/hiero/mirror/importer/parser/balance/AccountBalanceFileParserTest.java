@@ -5,13 +5,13 @@ package org.hiero.mirror.importer.parser.balance;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.migration.ErrataMigrationTest.BAD_TIMESTAMP1;
 
-import com.hedera.mirror.common.domain.balance.AccountBalance;
-import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
-import com.hedera.mirror.common.domain.balance.TokenBalance;
 import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
+import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;

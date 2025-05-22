@@ -8,7 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
+import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

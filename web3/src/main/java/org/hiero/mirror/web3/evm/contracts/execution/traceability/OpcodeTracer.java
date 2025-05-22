@@ -11,7 +11,6 @@ import static org.hyperledger.besu.evm.frame.MessageFrame.Type.MESSAGE_CALL;
 
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
-import com.hedera.mirror.common.domain.contract.ContractAction;
 import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.node.app.service.evm.contracts.operations.HederaExceptionalHaltReason;
 import com.hedera.node.app.service.mono.contracts.execution.traceability.HederaOperationTracer;
@@ -30,6 +29,7 @@ import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.config.PrecompiledContractProvider;

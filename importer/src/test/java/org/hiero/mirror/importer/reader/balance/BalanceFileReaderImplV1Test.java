@@ -4,11 +4,11 @@ package org.hiero.mirror.importer.reader.balance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.io.FileUtils;
+import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.reader.balance.line.AccountBalanceLineParserV1;
 import org.junit.jupiter.api.Test;

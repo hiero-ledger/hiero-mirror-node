@@ -31,7 +31,7 @@ transform record streams into block streams to allow the mirror node to continue
 #### BlockItem
 
 ```java
-package com.hedera.mirror.common.domain.transaction;
+package org.hiero.mirror.common.domain.transaction;
 
 // Multiple protobuf BlockItems will be combined into a single BlockItem
 public class BlockItem implements StreamItem {
@@ -51,7 +51,7 @@ public class BlockItem implements StreamItem {
 #### BlockFile
 
 ```java
-package com.hedera.mirror.common.domain.transaction;
+package org.hiero.mirror.common.domain.transaction;
 
 public class BlockFile implements StreamFile<BlockItem> {
 }

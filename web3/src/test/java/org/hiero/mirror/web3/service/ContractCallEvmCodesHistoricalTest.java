@@ -10,8 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import java.math.BigInteger;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.EvmCodesHistorical;
 import org.junit.jupiter.api.BeforeEach;

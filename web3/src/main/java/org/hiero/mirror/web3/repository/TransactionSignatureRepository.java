@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.web3.repository;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.transaction.TransactionSignature;
 import java.util.List;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.TransactionSignature;
 import org.springframework.data.repository.CrudRepository;
 
 public interface TransactionSignatureRepository extends CrudRepository<TransactionSignature, TransactionSignature.Id> {

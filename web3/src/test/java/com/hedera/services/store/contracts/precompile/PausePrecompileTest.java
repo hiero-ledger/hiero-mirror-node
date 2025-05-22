@@ -14,7 +14,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import com.esaulpaugh.headlong.util.Integers;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.node.app.service.evm.store.contracts.precompile.EvmInfrastructureFactory;
 import com.hedera.node.app.service.evm.store.tokens.TokenAccessor;
 import com.hedera.services.fees.FeeCalculator;
@@ -36,6 +35,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.web3.common.PrecompileContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.evm.store.Store;

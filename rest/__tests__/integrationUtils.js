@@ -49,7 +49,10 @@ const setupIntegrationTest = () => {
     return await integrationContainerOps.initializeContainers();
   }, defaultBeforeAllTimeoutMillis);
 
-  afterAll(async () => Promise.all([ownerPool.end(), pool.end()]));
+  afterAll(async () => {
+    await ownerPool?.end();
+    await pool?.end();
+  });
 
   beforeEach(async () => {
     await integrationContainerOps.cleanUp();

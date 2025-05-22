@@ -4,11 +4,11 @@ package org.hiero.mirror.importer.reader.signature;
 
 import static java.lang.String.format;
 
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.stream.proto.SignatureFile;
 import jakarta.inject.Named;
 import java.io.DataInputStream;
 import java.io.IOException;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFileSignature;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;

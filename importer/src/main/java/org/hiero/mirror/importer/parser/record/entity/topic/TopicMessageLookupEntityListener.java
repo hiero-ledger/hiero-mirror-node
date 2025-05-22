@@ -2,13 +2,13 @@
 
 package org.hiero.mirror.importer.parser.record.entity.topic;
 
-import com.hedera.mirror.common.domain.StreamType;
-import com.hedera.mirror.common.domain.topic.TopicMessage;
-import com.hedera.mirror.common.domain.topic.TopicMessageLookup;
-import com.hedera.mirror.common.util.DomainUtils;
 import jakarta.inject.Named;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.StreamType;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
+import org.hiero.mirror.common.domain.topic.TopicMessageLookup;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.db.TimePartitionService;
 import org.hiero.mirror.importer.exception.ImporterException;
 import org.hiero.mirror.importer.parser.record.entity.ConditionOnEntityRecordParser;

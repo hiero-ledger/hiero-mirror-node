@@ -2,21 +2,21 @@
 
 package org.hiero.mirror.importer.downloader;
 
-import static com.hedera.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 import static org.hiero.mirror.importer.domain.StreamFileSignature.SignatureStatus.CONSENSUS_REACHED;
 import static org.hiero.mirror.importer.domain.StreamFileSignature.SignatureStatus.DOWNLOADED;
 import static org.hiero.mirror.importer.domain.StreamFileSignature.SignatureStatus.VERIFIED;
 
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.StreamType;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.domain.ConsensusNodeStub;
 import org.hiero.mirror.importer.domain.StreamFileSignature;

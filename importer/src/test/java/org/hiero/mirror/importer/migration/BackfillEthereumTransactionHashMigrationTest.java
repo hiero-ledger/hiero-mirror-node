@@ -2,17 +2,12 @@
 
 package org.hiero.mirror.importer.migration;
 
-import static com.hedera.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
+import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA_OFFLOADED;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.loadEthereumTransactions;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.populateFileData;
 
 import com.google.common.collect.Lists;
-import com.hedera.mirror.common.domain.contract.ContractResult;
-import com.hedera.mirror.common.domain.contract.ContractTransactionHash;
-import com.hedera.mirror.common.domain.transaction.EthereumTransaction;
-import com.hedera.mirror.common.domain.transaction.TransactionHash;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +15,11 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.mirror.common.domain.contract.ContractResult;
+import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
+import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
+import org.hiero.mirror.common.domain.transaction.TransactionHash;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.repository.ContractResultRepository;

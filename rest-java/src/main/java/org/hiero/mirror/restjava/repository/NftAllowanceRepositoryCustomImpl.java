@@ -5,14 +5,14 @@ package org.hiero.mirror.restjava.repository;
 import static org.hiero.mirror.restjava.common.RangeOperator.EQ;
 import static org.hiero.mirror.restjava.jooq.domain.Tables.NFT_ALLOWANCE;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.NftAllowance;
 import jakarta.inject.Named;
 import jakarta.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.restjava.dto.NftAllowanceRequest;
 import org.jooq.Condition;
 import org.jooq.DSLContext;

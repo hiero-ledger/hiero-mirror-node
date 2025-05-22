@@ -5,15 +5,15 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.TokenAllowance;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.tuple.Pair;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.TokenAllowance;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.TokenAllowanceRepository;
 import org.junit.jupiter.api.AfterEach;

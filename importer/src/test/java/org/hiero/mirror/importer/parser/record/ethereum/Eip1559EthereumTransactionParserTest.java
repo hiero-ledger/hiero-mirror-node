@@ -2,16 +2,16 @@
 
 package org.hiero.mirror.importer.parser.record.ethereum;
 
-import static com.hedera.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.hiero.mirror.importer.parser.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.importer.parser.record.ethereum.Eip2930EthereumTransactionParserTest.EIP_2930_RAW_TX;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
-import com.hedera.mirror.common.domain.transaction.EthereumTransaction;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

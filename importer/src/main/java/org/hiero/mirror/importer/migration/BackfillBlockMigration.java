@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.migration;
 
-import com.hedera.mirror.common.aggregator.LogsBloomAggregator;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Map;
@@ -10,6 +9,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Getter;
 import org.flywaydb.core.api.MigrationVersion;
+import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.repository.RecordFileRepository;

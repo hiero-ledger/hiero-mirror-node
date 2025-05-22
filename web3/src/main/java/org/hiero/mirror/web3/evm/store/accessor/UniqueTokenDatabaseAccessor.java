@@ -5,8 +5,6 @@ package org.hiero.mirror.web3.evm.store.accessor;
 import static com.hedera.services.utils.EntityIdUtils.idFromEncodedId;
 import static com.hedera.services.utils.EntityIdUtils.idFromEntityId;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.Nft;
 import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.store.models.NftId;
 import com.hedera.services.store.models.UniqueToken;
@@ -16,6 +14,8 @@ import java.time.Instant;
 import java.util.Optional;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.token.Nft;
 import org.hiero.mirror.web3.evm.store.DatabaseBackedStateFrame.DatabaseAccessIncorrectKeyTypeException;
 import org.hiero.mirror.web3.repository.NftRepository;
 

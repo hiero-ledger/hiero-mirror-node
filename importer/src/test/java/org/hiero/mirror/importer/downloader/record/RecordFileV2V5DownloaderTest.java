@@ -2,12 +2,12 @@
 
 package org.hiero.mirror.importer.downloader.record;
 
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.TestRecordFiles;
 
 // test v2 record file followed by a v5 record file, the start object running hash in v5 record file should match the

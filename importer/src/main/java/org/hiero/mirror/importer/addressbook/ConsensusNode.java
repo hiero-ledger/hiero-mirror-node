@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.addressbook;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import jakarta.annotation.Nonnull;
 import java.security.PublicKey;
+import org.hiero.mirror.common.domain.entity.EntityId;
 
 /**
  * Represents a consensus node while abstracting away the possible different sources of node information.

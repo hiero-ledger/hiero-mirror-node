@@ -21,21 +21,6 @@ import com.google.protobuf.BoolValue;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.StringValue;
-import com.hedera.mirror.common.domain.contract.Contract;
-import com.hedera.mirror.common.domain.entity.AbstractCryptoAllowance.Id;
-import com.hedera.mirror.common.domain.entity.AbstractEntity;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.Nft;
-import com.hedera.mirror.common.domain.transaction.CryptoTransfer;
-import com.hedera.mirror.common.domain.transaction.ErrataType;
-import com.hedera.mirror.common.domain.transaction.ItemizedTransfer;
-import com.hedera.mirror.common.domain.transaction.LiveHash;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.StakingRewardTransfer;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoAddLiveHashTransactionBody;
@@ -68,6 +53,21 @@ import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.Condition;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.IterableAssert;
+import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.entity.AbstractCryptoAllowance.Id;
+import org.hiero.mirror.common.domain.entity.AbstractEntity;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.token.Nft;
+import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
+import org.hiero.mirror.common.domain.transaction.ErrataType;
+import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
+import org.hiero.mirror.common.domain.transaction.LiveHash;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.repository.ContractRepository;
 import org.hiero.mirror.importer.repository.CryptoAllowanceRepository;
@@ -451,7 +451,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 payerAccount.getShard(), payerAccount.getRealm(), EVM_ADDRESS))
                         .hasValue(hollowAccount.getId()),
                 () -> assertThat(transactionRepository.findAll())
-                        .map(com.hedera.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
+                        .map(org.hiero.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
                         .containsExactlyInAnyOrderElementsOf(expectedItemizedTransfers));
     }
 
@@ -737,8 +737,8 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         assertThat(transactionRepository.findById(DomainUtils.timestampInNanosMax(txnRecord.getConsensusTimestamp())))
                 .get()
                 .extracting(
-                        com.hedera.mirror.common.domain.transaction.Transaction::getPayerAccountId,
-                        com.hedera.mirror.common.domain.transaction.Transaction::getEntityId)
+                        org.hiero.mirror.common.domain.transaction.Transaction::getPayerAccountId,
+                        org.hiero.mirror.common.domain.transaction.Transaction::getEntityId)
                 .containsOnly(accountId1);
     }
 
@@ -1217,7 +1217,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertCryptoTransfers(3),
                 () -> assertThat(transactionRepository.findById(recordItem.getConsensusTimestamp()))
                         .get()
-                        .extracting(com.hedera.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
+                        .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
                         .isNull(),
                 () -> assertTransactionAndRecord(transactionBody, txnRecord));
     }
@@ -1259,7 +1259,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertEquals(4, cryptoTransferRepository.count(), "Node, network fee & errata"),
                 () -> assertThat(transactionRepository.findById(recordItem.getConsensusTimestamp()))
                         .get()
-                        .extracting(com.hedera.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
+                        .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
                         .isNull(),
                 () -> assertThat(tokenTransferRepository.findAll())
                         .hasSize(1)
@@ -1467,11 +1467,11 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertTransactionAndRecord(transactionBody, recordTransfer),
                 () -> assertThat(transactionRepository.findById(recordItem1.getConsensusTimestamp()))
                         .get()
-                        .extracting(com.hedera.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
+                        .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
                         .isNull(),
                 () -> assertThat(transactionRepository.findById(recordItem2.getConsensusTimestamp()))
                         .get()
-                        .extracting(com.hedera.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
+                        .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
                         .asInstanceOf(InstanceOfAssertFactories.LIST)
                         .map(transfer ->
                                 ((ItemizedTransfer) transfer).getEntityId().getId())
@@ -1507,7 +1507,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertTransactionAndRecord(transactionBody, transactionRecord),
                 () -> assertThat(transactionRepository.findById(recordItem.getConsensusTimestamp()))
                         .get()
-                        .extracting(com.hedera.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
+                        .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
                         .asInstanceOf(InstanceOfAssertFactories.LIST)
                         .hasSize(1)
                         .allSatisfy(transfer -> {
@@ -1555,7 +1555,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertTransactionAndRecord(transactionBody, transactionRecord),
                 () -> assertThat(transactionRepository.findById(recordItem.getConsensusTimestamp()))
                         .get()
-                        .extracting(com.hedera.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
+                        .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
                         .asInstanceOf(InstanceOfAssertFactories.LIST)
                         .map(transfer -> ((ItemizedTransfer) transfer).getEntityId())
                         .asInstanceOf(InstanceOfAssertFactories.LIST)
@@ -1715,7 +1715,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         // then
         assertThat(transactionRepository.findAll())
                 .hasSize(1)
-                .extracting(com.hedera.mirror.common.domain.transaction.Transaction::getTransactionRecordBytes)
+                .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getTransactionRecordBytes)
                 .containsOnly(transactionRecordBytes);
     }
 
@@ -1827,7 +1827,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
 
         assertThat(transactionRepository.findAll())
                 .hasSize(1)
-                .extracting(com.hedera.mirror.common.domain.transaction.Transaction::getResult)
+                .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getResult)
                 .containsOnly(unknownResult);
     }
 

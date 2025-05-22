@@ -8,12 +8,12 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.TokenAllowance;
-import com.hedera.mirror.common.domain.token.Token;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.TokenAllowance;
+import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.ERCTestContract;
 import org.hiero.mirror.web3.web3j.generated.RedirectTestContract;

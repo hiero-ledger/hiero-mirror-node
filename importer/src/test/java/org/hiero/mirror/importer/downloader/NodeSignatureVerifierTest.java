@@ -7,8 +7,6 @@ import static org.hiero.mirror.importer.domain.StreamFileSignature.SignatureStat
 import static org.hiero.mirror.importer.domain.StreamFileSignature.SignatureStatus.VERIFIED;
 import static org.mockito.ArgumentMatchers.any;
 
-import com.hedera.mirror.common.domain.StreamType;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.KeyPair;
@@ -18,6 +16,8 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.util.List;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.StreamType;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.ConsensusNodeStub;

@@ -4,10 +4,10 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.util.List;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 

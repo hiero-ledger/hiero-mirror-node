@@ -2,23 +2,23 @@
 
 package org.hiero.mirror.importer.config;
 
-import static com.hedera.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.apache.commons.lang3.ObjectUtils.max;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.importer.TestUtils.plus;
 import static org.hiero.mirror.importer.config.DateRangeCalculator.DateRangeFilter;
 import static org.hiero.mirror.importer.config.DateRangeCalculator.STARTUP_TIME;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.DATA;
 import static org.mockito.Mockito.doReturn;
 
-import com.hedera.mirror.common.domain.StreamFile;
-import com.hedera.mirror.common.domain.StreamType;
 import java.time.Instant;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.StreamFile;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;

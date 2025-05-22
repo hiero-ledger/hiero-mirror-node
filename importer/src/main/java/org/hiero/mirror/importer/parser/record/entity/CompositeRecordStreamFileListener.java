@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.importer.parser.record.entity;
 
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.exception.ImporterException;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 import org.springframework.context.annotation.Primary;

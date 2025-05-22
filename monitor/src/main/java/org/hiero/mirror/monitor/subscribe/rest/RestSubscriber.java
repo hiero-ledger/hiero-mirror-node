@@ -4,7 +4,6 @@ package org.hiero.mirror.monitor.subscribe.rest;
 
 import com.google.common.collect.Iterables;
 import com.hedera.hashgraph.sdk.TransactionId;
-import com.hedera.mirror.rest.model.TransactionByIdResponse;
 import jakarta.inject.Named;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -18,6 +17,7 @@ import org.hiero.mirror.monitor.publish.PublishResponse;
 import org.hiero.mirror.monitor.subscribe.MirrorSubscriber;
 import org.hiero.mirror.monitor.subscribe.SubscribeProperties;
 import org.hiero.mirror.monitor.subscribe.SubscribeResponse;
+import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;

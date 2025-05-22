@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.reader.record;
 
-import com.hedera.mirror.common.domain.transaction.RecordFile;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.reader.StreamFileReader;
 
 public interface RecordFileReader extends StreamFileReader<RecordFile, RecordItem> {

@@ -4,8 +4,6 @@ package org.hiero.mirror.monitor;
 
 import static org.hiero.mirror.monitor.OperatorProperties.DEFAULT_OPERATOR_ACCOUNT_ID;
 
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
@@ -15,6 +13,8 @@ import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
 import lombok.Data;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.validation.annotation.Validated;

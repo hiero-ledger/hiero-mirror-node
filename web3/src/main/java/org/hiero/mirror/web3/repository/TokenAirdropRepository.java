@@ -5,9 +5,9 @@ package org.hiero.mirror.web3.repository;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_TOKEN;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_TOKEN_AIRDROP;
 
-import com.hedera.mirror.common.domain.token.AbstractTokenAirdrop;
-import com.hedera.mirror.common.domain.token.TokenAirdrop;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.token.AbstractTokenAirdrop;
+import org.hiero.mirror.common.domain.token.TokenAirdrop;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;

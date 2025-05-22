@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.importer.downloader;
 
-import static com.hedera.mirror.common.domain.DigestAlgorithm.SHA_384;
+import static org.hiero.mirror.common.domain.DigestAlgorithm.SHA_384;
 import static org.hiero.mirror.importer.domain.StreamFileSignature.SignatureStatus;
 
 import com.google.common.base.Stopwatch;
@@ -10,9 +10,6 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
-import com.hedera.mirror.common.domain.StreamFile;
-import com.hedera.mirror.common.domain.StreamItem;
-import com.hedera.mirror.common.domain.StreamType;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -34,6 +31,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.hiero.mirror.common.domain.StreamFile;
+import org.hiero.mirror.common.domain.StreamItem;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
@@ -333,15 +333,15 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
 
                 verify(streamFile, signature);
 
+                var archiveDestinationFolder = importerProperties.getArchiveDestinationFolderPath(streamFileData);
+
                 if (downloaderProperties.isWriteFiles()) {
-                    Utility.archiveFile(
-                            streamFileData.getFilePath(), streamFile.getBytes(), importerProperties.getStreamPath());
+                    Utility.archiveFile(streamFileData.getFilePath(), streamFile.getBytes(), archiveDestinationFolder);
                 }
 
                 if (downloaderProperties.isWriteSignatures()) {
-                    var destination = importerProperties.getStreamPath();
-                    signatures.forEach(
-                            s -> Utility.archiveFile(s.getFilename().getFilePath(), s.getBytes(), destination));
+                    signatures.forEach(s ->
+                            Utility.archiveFile(s.getFilename().getFilePath(), s.getBytes(), archiveDestinationFolder));
                 }
 
                 if (!downloaderProperties.isPersistBytes()) {

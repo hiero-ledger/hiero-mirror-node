@@ -2,12 +2,12 @@
 
 package org.hiero.mirror.importer.addressbook;
 
-import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
-import com.hedera.mirror.common.domain.addressbook.NodeStake;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import java.security.PublicKey;
 import java.util.Objects;
 import lombok.Value;
+import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
+import org.hiero.mirror.common.domain.addressbook.NodeStake;
+import org.hiero.mirror.common.domain.entity.EntityId;
 
 @Value
 final class ConsensusNodeWrapper implements ConsensusNode {

@@ -2,11 +2,6 @@
 
 package org.hiero.mirror.importer.reader.balance;
 
-import com.hedera.mirror.common.domain.balance.AccountBalance;
-import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
-import com.hedera.mirror.common.domain.balance.TokenBalance;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.stream.proto.AllAccountBalances;
 import com.hedera.services.stream.proto.SingleAccountBalances;
 import jakarta.inject.Named;
@@ -14,6 +9,11 @@ import java.io.IOException;
 import java.util.List;
 import lombok.CustomLog;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
+import org.hiero.mirror.common.domain.balance.TokenBalance;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.exception.StreamFileReaderException;

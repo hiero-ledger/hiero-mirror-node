@@ -4,10 +4,6 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityHistory;
-import com.hedera.mirror.common.domain.token.TokenAccount;
-import com.hedera.mirror.common.domain.token.TokenAccountHistory;
 import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.io.File;
 import java.util.List;
@@ -15,6 +11,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.assertj.core.api.IterableAssert;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityHistory;
+import org.hiero.mirror.common.domain.token.TokenAccount;
+import org.hiero.mirror.common.domain.token.TokenAccountHistory;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.repository.EntityHistoryRepository;

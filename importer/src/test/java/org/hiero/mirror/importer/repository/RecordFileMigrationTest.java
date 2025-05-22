@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.repository;
 
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import lombok.Builder;
 import lombok.Data;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 
 public abstract class RecordFileMigrationTest extends ImporterIntegrationTest {

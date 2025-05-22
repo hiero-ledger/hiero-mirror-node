@@ -2,17 +2,17 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import static com.hedera.mirror.common.util.DomainUtils.toBytes;
+import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 import static org.hiero.mirror.importer.util.Utility.DEFAULT_RUNNING_HASH_VERSION;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.topic.TopicMessage;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.Transaction;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.ConsensusMessageChunkInfo;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.Transaction;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 

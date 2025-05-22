@@ -10,11 +10,11 @@ import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.Collections;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;

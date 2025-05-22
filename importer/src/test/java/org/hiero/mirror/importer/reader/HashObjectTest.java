@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.reader;
 
-import static com.hedera.mirror.common.domain.DigestAlgorithm.SHA_384;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.DigestAlgorithm.SHA_384;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayInputStream;

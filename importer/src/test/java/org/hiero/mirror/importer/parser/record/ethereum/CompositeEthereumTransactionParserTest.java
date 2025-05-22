@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.parser.record.ethereum;
 
-import static com.hedera.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.hiero.mirror.importer.parser.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA;
@@ -15,12 +15,12 @@ import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransacti
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
-import com.hedera.mirror.common.domain.transaction.EthereumTransaction;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Stream;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.importer.reader.signature;
 
-import static com.hedera.mirror.common.domain.DigestAlgorithm.SHA_384;
+import static org.hiero.mirror.common.domain.DigestAlgorithm.SHA_384;
 
 import jakarta.inject.Named;
 import java.io.IOException;

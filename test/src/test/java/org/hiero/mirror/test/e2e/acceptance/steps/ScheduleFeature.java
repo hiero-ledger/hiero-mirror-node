@@ -12,10 +12,6 @@ import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.ScheduleId;
 import com.hedera.hashgraph.sdk.Transaction;
 import com.hedera.hashgraph.sdk.TransactionId;
-import com.hedera.mirror.rest.model.ScheduleSignature;
-import com.hedera.mirror.rest.model.TransactionByIdResponse;
-import com.hedera.mirror.rest.model.TransactionDetail;
-import com.hedera.mirror.rest.model.TransactionsResponse;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -27,6 +23,10 @@ import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.rest.model.ScheduleSignature;
+import org.hiero.mirror.rest.model.TransactionByIdResponse;
+import org.hiero.mirror.rest.model.TransactionDetail;
+import org.hiero.mirror.rest.model.TransactionsResponse;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
@@ -219,7 +219,7 @@ public class ScheduleFeature extends AbstractFeature {
                 assertThat(mirrorTransactionsResponse.getTransactions())
                         .hasSize(1)
                         .first()
-                        .returns("SUCCESS", com.hedera.mirror.rest.model.Transaction::getResult);
+                        .returns("SUCCESS", org.hiero.mirror.rest.model.Transaction::getResult);
                 verifyScheduledTransaction(mirrorSchedule.getExecutedTimestamp());
                 assertThat(mirrorSchedule.getExecutedTimestamp()).isNotNull();
                 assertThat(mirrorSchedule.getCreatorAccountId())
@@ -234,7 +234,7 @@ public class ScheduleFeature extends AbstractFeature {
                 assertThat(mirrorTransactionsResponse.getTransactions())
                         .hasSize(1)
                         .first()
-                        .returns("INVALID_SIGNATURE", com.hedera.mirror.rest.model.Transaction::getResult);
+                        .returns("INVALID_SIGNATURE", org.hiero.mirror.rest.model.Transaction::getResult);
                 assertThat(mirrorSchedule.getExecutedTimestamp()).isNotNull();
                 assertThat(mirrorSchedule.getDeleted()).isFalse();
                 assertThat(mirrorSchedule.getCreatorAccountId())
@@ -250,7 +250,7 @@ public class ScheduleFeature extends AbstractFeature {
     private void verifyScheduledTransaction(String timestamp) {
         TransactionsResponse mirrorTransactionsResponse = mirrorClient.getTransactionInfoByTimestamp(timestamp);
 
-        com.hedera.mirror.rest.model.Transaction mirrorTransaction =
+        org.hiero.mirror.rest.model.Transaction mirrorTransaction =
                 verifyMirrorTransactionsResponse(mirrorTransactionsResponse, HttpStatus.OK.value(), false);
 
         assertThat(mirrorTransaction.getConsensusTimestamp()).isEqualTo(timestamp);
@@ -280,12 +280,12 @@ public class ScheduleFeature extends AbstractFeature {
         return mirrorTransaction;
     }
 
-    private com.hedera.mirror.rest.model.Transaction verifyMirrorTransactionsResponse(
+    private org.hiero.mirror.rest.model.Transaction verifyMirrorTransactionsResponse(
             TransactionsResponse mirrorTransactionsResponse, int status, boolean verifyEntityId) {
-        List<com.hedera.mirror.rest.model.Transaction> transactions = mirrorTransactionsResponse.getTransactions();
+        List<org.hiero.mirror.rest.model.Transaction> transactions = mirrorTransactionsResponse.getTransactions();
         assertNotNull(transactions);
         assertThat(transactions).isNotEmpty();
-        com.hedera.mirror.rest.model.Transaction mirrorTransaction = transactions.getFirst();
+        org.hiero.mirror.rest.model.Transaction mirrorTransaction = transactions.getFirst();
 
         if (status == HttpStatus.OK.value()) {
             assertThat(mirrorTransaction.getResult()).isEqualTo("SUCCESS");

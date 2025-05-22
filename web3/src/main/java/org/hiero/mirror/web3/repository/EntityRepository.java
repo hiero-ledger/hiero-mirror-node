@@ -7,8 +7,8 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_ALIAS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_EVM_ADDRESS;
 
-import com.hedera.mirror.common.domain.entity.Entity;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.entity.Entity;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;

@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.parser.contractresult;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 
 public class TransferContractResult extends AbstractSyntheticContractResult {
     public TransferContractResult(RecordItem recordItem, EntityId entityId, EntityId senderId) {

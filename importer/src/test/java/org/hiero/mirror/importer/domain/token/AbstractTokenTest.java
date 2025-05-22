@@ -4,7 +4,7 @@ package org.hiero.mirror.importer.domain.token;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.token.Token;
+import org.hiero.mirror.common.domain.token.Token;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 

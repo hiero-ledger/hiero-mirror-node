@@ -13,11 +13,12 @@ import com.hedera.hapi.node.base.TokenSupplyType;
 import com.hedera.hapi.node.base.TokenType;
 import com.hedera.hapi.node.scheduled.SchedulableTransactionBody;
 import com.hedera.hapi.node.token.TokenCreateTransactionBody;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hedera.node.app.hapi.utils.CommonPbjConverters;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.math.BigInteger;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.GetScheduleInfo;
 import org.junit.jupiter.api.Test;
@@ -146,7 +147,7 @@ class ContractCallGetScheduleInfoTest extends AbstractContractCallServiceHistori
      * @return The schedule transaction body for token create transaction in bytes
      */
     private byte[] buildScheduledTokenCreateTransactionBody(
-            com.hedera.mirror.common.domain.entity.Entity treasuryAccount,
+            Entity treasuryAccount,
             String name,
             String symbol,
             TokenType tokenType,

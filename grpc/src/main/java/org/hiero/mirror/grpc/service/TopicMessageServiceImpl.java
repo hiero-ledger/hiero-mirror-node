@@ -3,11 +3,6 @@
 package org.hiero.mirror.grpc.service;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.topic.TopicMessage;
-import com.hedera.mirror.common.util.DomainUtils;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
@@ -19,6 +14,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.grpc.GrpcProperties;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;

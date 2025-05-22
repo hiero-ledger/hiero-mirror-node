@@ -7,11 +7,11 @@ import static com.hedera.services.utils.IdUtils.asToken;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.ContractID;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 

@@ -3,25 +3,26 @@
 package org.hiero.mirror.web3.service;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.balance.AccountBalance;
-import com.hedera.mirror.common.domain.balance.TokenBalance;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.AbstractCustomFee;
-import com.hedera.mirror.common.domain.token.FallbackFee;
-import com.hedera.mirror.common.domain.token.FractionalFee;
-import com.hedera.mirror.common.domain.token.NftHistory;
-import com.hedera.mirror.common.domain.token.RoyaltyFee;
-import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenHistory;
-import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.tuple.Pair;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.balance.TokenBalance;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.token.AbstractCustomFee;
+import org.hiero.mirror.common.domain.token.FallbackFee;
+import org.hiero.mirror.common.domain.token.FixedFee;
+import org.hiero.mirror.common.domain.token.FractionalFee;
+import org.hiero.mirror.common.domain.token.NftHistory;
+import org.hiero.mirror.common.domain.token.RoyaltyFee;
+import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenHistory;
+import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 
 public abstract class AbstractContractCallServiceHistoricalTest extends AbstractContractCallServiceTest {
@@ -345,7 +346,7 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
             final EntityId tokenEntity,
             final TokenTypeEnum tokenType,
             final Range<Long> timestampRange) {
-        final var fixedFee = com.hedera.mirror.common.domain.token.FixedFee.builder()
+        final var fixedFee = FixedFee.builder()
                 .allCollectorsAreExempt(true)
                 .amount(domainBuilder.number())
                 .collectorAccountId(feeCollector)

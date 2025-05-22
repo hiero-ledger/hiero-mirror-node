@@ -2,12 +2,10 @@
 
 package org.hiero.mirror.importer.migration;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.History;
-import com.hedera.mirror.common.domain.entity.EntityType;
 import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.io.File;
 import java.util.ArrayList;
@@ -18,6 +16,8 @@ import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FileUtils;
+import org.hiero.mirror.common.domain.History;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;

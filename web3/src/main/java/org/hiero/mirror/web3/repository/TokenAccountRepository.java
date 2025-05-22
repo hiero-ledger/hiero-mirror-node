@@ -6,10 +6,10 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_TO
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_TOKEN_ACCOUNT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_TOKEN_ACCOUNT_COUNT;
 
-import com.hedera.mirror.common.domain.token.AbstractTokenAccount;
-import com.hedera.mirror.common.domain.token.TokenAccount;
 import java.util.List;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.token.AbstractTokenAccount;
+import org.hiero.mirror.common.domain.token.TokenAccount;
 import org.hiero.mirror.web3.repository.projections.TokenAccountAssociationsCount;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.Query;

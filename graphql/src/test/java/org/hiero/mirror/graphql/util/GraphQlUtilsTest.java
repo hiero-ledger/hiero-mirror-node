@@ -5,11 +5,11 @@ package org.hiero.mirror.graphql.util;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import org.apache.commons.codec.binary.Base32;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.graphql.viewmodel.Account;
 import org.hiero.mirror.graphql.viewmodel.EntityIdInput;
 import org.hiero.mirror.graphql.viewmodel.HbarUnit;

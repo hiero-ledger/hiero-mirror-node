@@ -52,7 +52,7 @@ This guide provides step-by-step instructions for setting up a fresh PostgreSQL 
    gcloud auth login
    ```
 
-5. A Google Cloud Platform (GCP) account with a valid billing account attached (required for downloading data from a Requester Pays bucket). For detailed instructions on obtaining the necessary GCP information, refer to [Hedera's documentation](https://docs.hedera.com/hedera/core-concepts/mirror-nodes/run-your-own-beta-mirror-node/run-your-own-mirror-node-gcs#id-1.-obtain-google-cloud-platform-requester-pay-information).
+5. A Google Cloud Platform (GCP) account with a valid billing account attached (required for downloading data from a Requester Pays bucket). For detailed instructions on obtaining the necessary GCP information, refer to the [documentation](https://docs.hedera.com/hedera/core-concepts/mirror-nodes/run-your-own-beta-mirror-node/run-your-own-mirror-node-gcs#id-1.-obtain-google-cloud-platform-requester-pay-information).
 
    ### 1. Optional High-Performance Decompressors
 

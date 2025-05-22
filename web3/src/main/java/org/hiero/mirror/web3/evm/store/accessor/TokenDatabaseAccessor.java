@@ -2,17 +2,11 @@
 
 package org.hiero.mirror.web3.evm.store.accessor;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
 import static com.hedera.services.utils.MiscUtils.asFcKeyUnchecked;
+import static org.hiero.mirror.common.domain.entity.EntityType.TOKEN;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.mirror.common.domain.SystemEntity;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.TokenPauseStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.node.app.service.evm.store.contracts.precompile.codec.CustomFee;
 import com.hedera.node.app.service.evm.store.tokens.TokenType;
 import com.hedera.services.jproto.JKey;
@@ -30,6 +24,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.evm.exception.WrongTypeException;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.NftRepository;
@@ -106,7 +106,7 @@ public class TokenDatabaseAccessor extends DatabaseAccessor<Object, Token> {
     }
 
     private Supplier<Long> getTotalSupply(
-            final com.hedera.mirror.common.domain.token.Token token, final Optional<Long> timestamp) {
+            final org.hiero.mirror.common.domain.token.Token token, final Optional<Long> timestamp) {
         return Suppliers.memoize(() -> timestamp
                 .map(t -> getTotalSupplyHistorical(
                         token.getType().equals(TokenTypeEnum.FUNGIBLE_COMMON), token.getTokenId(), t))

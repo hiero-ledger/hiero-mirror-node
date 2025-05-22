@@ -2,21 +2,14 @@
 
 package org.hiero.mirror.importer.parser.record.entity;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.SCHEDULE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.from;
+import static org.hiero.mirror.common.domain.entity.EntityType.SCHEDULE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnknownFieldSet;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.schedule.Schedule;
-import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.TransactionSignature;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -35,6 +28,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.schedule.Schedule;
+import org.hiero.mirror.common.domain.transaction.BlockItem;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.TransactionSignature;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.downloader.block.BlockFileTransformer;
 import org.hiero.mirror.importer.parser.domain.BlockFileBuilder;
@@ -604,10 +604,10 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
             long consensusTimestamp, boolean scheduled, ResponseCodeEnum responseCode) {
         assertThat(transactionRepository.findById(consensusTimestamp))
                 .get()
-                .returns(scheduled, from(com.hedera.mirror.common.domain.transaction.Transaction::isScheduled))
+                .returns(scheduled, from(org.hiero.mirror.common.domain.transaction.Transaction::isScheduled))
                 .returns(
                         responseCode.getNumber(),
-                        from(com.hedera.mirror.common.domain.transaction.Transaction::getResult));
+                        from(org.hiero.mirror.common.domain.transaction.Transaction::getResult));
     }
 
     public RecordItem transformBlockItemToRecordItem(BlockItem blockItem) {

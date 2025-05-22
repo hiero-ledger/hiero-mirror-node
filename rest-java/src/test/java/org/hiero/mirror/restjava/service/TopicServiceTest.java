@@ -5,9 +5,9 @@ package org.hiero.mirror.restjava.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.junit.jupiter.api.Test;
 

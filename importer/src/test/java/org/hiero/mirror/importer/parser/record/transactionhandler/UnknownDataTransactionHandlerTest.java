@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import com.hedera.mirror.common.domain.entity.EntityType;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.domain.entity.EntityType;
 
 class UnknownDataTransactionHandlerTest extends AbstractTransactionHandlerTest {
     // TransactionBody containing an unknown field with a field id = 9999

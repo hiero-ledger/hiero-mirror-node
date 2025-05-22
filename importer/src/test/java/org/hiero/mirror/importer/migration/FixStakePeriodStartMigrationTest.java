@@ -5,14 +5,14 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityHistory;
 import java.io.File;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.assertj.core.api.IterableAssert;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityHistory;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.util.Utility;

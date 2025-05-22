@@ -3,10 +3,6 @@
 package org.hiero.mirror.importer.migration;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.CryptoGetInfoResponse.AccountInfo;
 import jakarta.inject.Named;
 import java.io.BufferedReader;
@@ -24,6 +20,10 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.flywaydb.core.api.configuration.Configuration;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.springframework.beans.factory.annotation.Value;

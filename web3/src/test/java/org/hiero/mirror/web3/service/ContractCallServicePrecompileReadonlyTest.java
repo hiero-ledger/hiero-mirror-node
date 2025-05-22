@@ -19,18 +19,6 @@ import static org.hiero.mirror.web3.web3j.generated.PrecompileTestContract.Heder
 import static org.hiero.mirror.web3.web3j.generated.PrecompileTestContract.TokenKey;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.CustomFee;
-import com.hedera.mirror.common.domain.token.FallbackFee;
-import com.hedera.mirror.common.domain.token.FractionalFee;
-import com.hedera.mirror.common.domain.token.RoyaltyFee;
-import com.hedera.mirror.common.domain.token.Token;
-import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenSupplyTypeEnum;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
 import com.hedera.services.store.models.Id;
@@ -40,6 +28,18 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.token.CustomFee;
+import org.hiero.mirror.common.domain.token.FallbackFee;
+import org.hiero.mirror.common.domain.token.FractionalFee;
+import org.hiero.mirror.common.domain.token.RoyaltyFee;
+import org.hiero.mirror.common.domain.token.Token;
+import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenSupplyTypeEnum;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -433,7 +433,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var token = fungibleTokenPersist();
         final var tokenId = token.getTokenId();
         final var entityId = EntityId.of(tokenId);
-        final var fixedFee = com.hedera.mirror.common.domain.token.FixedFee.builder()
+        final var fixedFee = org.hiero.mirror.common.domain.token.FixedFee.builder()
                 .amount(DEFAULT_FEE_AMOUNT.longValue())
                 .collectorAccountId(collectorAccount.toEntityId())
                 .denominatingTokenId(entityId)
@@ -1140,7 +1140,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
 
     private CustomFee persistCustomFeesWithFeeCollector(
             final Entity feeCollector, final Entity tokenEntity, final TokenTypeEnum tokenType) {
-        final var fixedFee = com.hedera.mirror.common.domain.token.FixedFee.builder()
+        final var fixedFee = org.hiero.mirror.common.domain.token.FixedFee.builder()
                 .allCollectorsAreExempt(true)
                 .amount(domainBuilder.number())
                 .collectorAccountId(feeCollector.toEntityId())
@@ -1228,7 +1228,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     }
 
     private FixedFee getFixedFee(
-            final com.hedera.mirror.common.domain.token.FixedFee fixedFee, final Entity feeCollector) {
+            final org.hiero.mirror.common.domain.token.FixedFee fixedFee, final Entity feeCollector) {
         return new FixedFee(
                 BigInteger.valueOf(fixedFee.getAmount()),
                 getAddressFromEntityId(fixedFee.getDenominatingTokenId()),

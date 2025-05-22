@@ -2,13 +2,13 @@
 
 package org.hiero.mirror.importer.parser.record.entity;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.ACCOUNT;
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
-import static com.hedera.mirror.common.util.DomainUtils.fromBytes;
-import static com.hedera.mirror.common.util.DomainUtils.toBytes;
 import static com.hedera.services.stream.proto.ContractAction.CallerCase.CALLING_CONTRACT;
 import static com.hederahashgraph.api.proto.java.ContractUpdateTransactionBody.StakedIdCase.STAKEDID_NOT_SET;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
+import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
+import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransaction;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransactions;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -22,18 +22,6 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.StringValue;
-import com.hedera.mirror.common.domain.contract.Contract;
-import com.hedera.mirror.common.domain.contract.ContractAction;
-import com.hedera.mirror.common.domain.contract.ContractLog;
-import com.hedera.mirror.common.domain.contract.ContractResult;
-import com.hedera.mirror.common.domain.contract.ContractState;
-import com.hedera.mirror.common.domain.contract.ContractStateChange;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityTransaction;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.stream.proto.ContractBytecode;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
@@ -67,6 +55,18 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.assertj.core.api.ObjectAssert;
+import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.contract.ContractAction;
+import org.hiero.mirror.common.domain.contract.ContractLog;
+import org.hiero.mirror.common.domain.contract.ContractResult;
+import org.hiero.mirror.common.domain.contract.ContractState;
+import org.hiero.mirror.common.domain.contract.ContractStateChange;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityTransaction;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.repository.ContractActionRepository;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
@@ -271,7 +271,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                 () -> assertThat(transactionRepository.findAll())
                         .hasSize(1)
                         .first()
-                        .returns(null, com.hedera.mirror.common.domain.transaction.Transaction::getEntityId),
+                        .returns(null, org.hiero.mirror.common.domain.transaction.Transaction::getEntityId),
                 () -> assertThat(contractResultRepository.findAll())
                         .hasSize(1)
                         .first()
@@ -948,19 +948,19 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
         assertEquals(2, transactionRepository.count());
         assertThat(transactionRepository.findById(recordItemCall.getConsensusTimestamp()))
                 .get()
-                .returns(payerAccount, com.hedera.mirror.common.domain.transaction.Transaction::getPayerAccountId)
-                .returns(validStart, com.hedera.mirror.common.domain.transaction.Transaction::getValidStartNs)
-                .returns(0, com.hedera.mirror.common.domain.transaction.Transaction::getNonce)
-                .returns(null, com.hedera.mirror.common.domain.transaction.Transaction::getParentConsensusTimestamp);
+                .returns(payerAccount, org.hiero.mirror.common.domain.transaction.Transaction::getPayerAccountId)
+                .returns(validStart, org.hiero.mirror.common.domain.transaction.Transaction::getValidStartNs)
+                .returns(0, org.hiero.mirror.common.domain.transaction.Transaction::getNonce)
+                .returns(null, org.hiero.mirror.common.domain.transaction.Transaction::getParentConsensusTimestamp);
 
         assertThat(transactionRepository.findById(recordItemMint.getConsensusTimestamp()))
                 .get()
-                .returns(payerAccount, com.hedera.mirror.common.domain.transaction.Transaction::getPayerAccountId)
-                .returns(validStart, com.hedera.mirror.common.domain.transaction.Transaction::getValidStartNs)
-                .returns(1, com.hedera.mirror.common.domain.transaction.Transaction::getNonce)
+                .returns(payerAccount, org.hiero.mirror.common.domain.transaction.Transaction::getPayerAccountId)
+                .returns(validStart, org.hiero.mirror.common.domain.transaction.Transaction::getValidStartNs)
+                .returns(1, org.hiero.mirror.common.domain.transaction.Transaction::getNonce)
                 .returns(
                         recordItemCall.getConsensusTimestamp(),
-                        com.hedera.mirror.common.domain.transaction.Transaction::getParentConsensusTimestamp);
+                        org.hiero.mirror.common.domain.transaction.Transaction::getParentConsensusTimestamp);
         assertThat(entityTransactionRepository.findAll())
                 .containsExactlyInAnyOrderElementsOf(expectedEntityTransactions);
     }

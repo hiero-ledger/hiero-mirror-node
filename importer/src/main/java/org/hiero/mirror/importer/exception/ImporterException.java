@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.importer.exception;
 
-import com.hedera.mirror.common.exception.MirrorNodeException;
+import org.hiero.mirror.common.exception.MirrorNodeException;
 
 public abstract class ImporterException extends MirrorNodeException {
 

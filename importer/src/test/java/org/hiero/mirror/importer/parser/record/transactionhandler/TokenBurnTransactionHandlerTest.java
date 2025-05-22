@@ -7,12 +7,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.AbstractNft;
-import com.hedera.mirror.common.domain.token.Nft;
-import com.hedera.mirror.common.domain.token.Token;
 import com.hederahashgraph.api.proto.java.TokenBurnTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.token.AbstractNft;
+import org.hiero.mirror.common.domain.token.Nft;
+import org.hiero.mirror.common.domain.token.Token;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

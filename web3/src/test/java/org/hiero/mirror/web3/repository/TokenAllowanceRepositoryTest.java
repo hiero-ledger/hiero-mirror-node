@@ -5,10 +5,10 @@ package org.hiero.mirror.web3.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.TokenAllowance;
-import com.hedera.mirror.common.domain.token.TokenTransfer;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.TokenAllowance;
+import org.hiero.mirror.common.domain.token.TokenTransfer;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
 

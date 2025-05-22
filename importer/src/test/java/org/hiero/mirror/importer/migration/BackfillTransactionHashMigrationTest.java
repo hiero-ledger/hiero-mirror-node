@@ -2,15 +2,13 @@
 
 package org.hiero.mirror.importer.migration;
 
-import static com.hedera.mirror.common.domain.transaction.TransactionType.CONSENSUSSUBMITMESSAGE;
-import static com.hedera.mirror.common.domain.transaction.TransactionType.ETHEREUMTRANSACTION;
-import static com.hedera.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.CONSENSUSSUBMITMESSAGE;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.ETHEREUMTRANSACTION;
+import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 
 import com.google.common.collect.Lists;
-import com.hedera.mirror.common.domain.transaction.TransactionHash;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -21,6 +19,8 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.transaction.TransactionHash;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.db.TimePartitionService;

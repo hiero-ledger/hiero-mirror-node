@@ -2,19 +2,19 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import static com.hedera.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_27_0;
-import static com.hedera.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_27_0;
+import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.Transaction;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hedera.mirror.common.util.DomainUtils;
 import jakarta.inject.Named;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.Transaction;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.util.Utility;

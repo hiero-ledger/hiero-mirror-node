@@ -6,10 +6,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.node.Node;
 import com.hederahashgraph.api.proto.java.NodeDeleteTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.node.Node;
 import org.junit.jupiter.api.Test;
 
 class NodeDeleteTransactionHandlerTest extends AbstractTransactionHandlerTest {

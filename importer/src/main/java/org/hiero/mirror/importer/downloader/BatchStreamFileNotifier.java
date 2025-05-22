@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.importer.downloader;
 
-import com.hedera.mirror.common.domain.StreamFile;
-import com.hedera.mirror.common.util.DomainUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.io.Closeable;
@@ -20,6 +18,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.StreamFile;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.AbstractParserProperties.BatchProperties;
 import org.hiero.mirror.importer.parser.StreamFileParser;
 import org.hiero.mirror.importer.parser.balance.AccountBalanceFileParser;

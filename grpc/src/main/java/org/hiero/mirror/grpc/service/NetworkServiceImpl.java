@@ -2,9 +2,6 @@
 
 package org.hiero.mirror.grpc.service;
 
-import com.hedera.mirror.common.domain.SystemEntity;
-import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import jakarta.inject.Named;
 import java.util.Map;
 import java.util.Set;
@@ -17,6 +14,9 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;

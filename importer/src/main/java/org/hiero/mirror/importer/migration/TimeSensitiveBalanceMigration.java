@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.importer.migration;
 
-import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.exception.ImporterException;
 import org.hiero.mirror.importer.parser.balance.BalanceStreamFileListener;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;

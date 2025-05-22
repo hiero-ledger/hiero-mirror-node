@@ -1,15 +1,15 @@
-# Hedera Mirror Node Development Guide
+# Development Guide
 
-This document outlines the process to set up a development environment for the Hedera Mirror Node project. It covers the
+This document outlines the process to set up a development environment for the mirror node. It covers the
 required software, environment setup, IDE configurations, project compilation, and how to run tests.
 
 ## Prerequisites
 
-To contribute to the Hedera Mirror Node project, you need to install the following software and tools:
+To contribute to the mirror node project, you need to install the following software and tools:
 
 ### 1. **Java 21**
 
-Hedera Mirror Node requires **Java 21** or a later version for development.
+Requires **Java 21** or a later version for development.
 
 - **Install Java 21**:
 
@@ -79,8 +79,7 @@ to follow:
 
 ## IDE Setup
 
-We recommend using **IntelliJ IDEA** or **Eclipse** for developing the Hedera Mirror Node. Below are configuration steps
-for IntelliJ IDEA.
+We recommend using **IntelliJ IDEA** or **Eclipse** for development.
 
 ### IntelliJ IDEA Setup
 
@@ -125,7 +124,7 @@ for IntelliJ IDEA.
 
 ## Compiling the Project
 
-The Hedera Mirror Node uses **Gradle** for building and managing dependencies.
+This project uses [Gradle](https://gradle.org) for building and managing dependencies.
 
 1. **Clean and Build the Project**:
    Run the following command to clean and build the project:

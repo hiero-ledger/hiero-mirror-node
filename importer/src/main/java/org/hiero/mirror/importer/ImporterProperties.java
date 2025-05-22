@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import org.apache.commons.collections4.map.CaseInsensitiveMap;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.migration.MigrationProperties;
 import org.hiero.mirror.importer.util.Utility;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -35,12 +36,10 @@ public class ImporterProperties {
     @NotNull
     private Path dataPath = Paths.get(".", "data");
 
-    @EqualsAndHashCode.Exclude
-    @Getter(lazy = true)
-    private final Path streamPath = dataPath.resolve(STREAMS);
-
     @NotNull
     private Instant endDate = Utility.MAX_INSTANT_LONG;
+
+    private boolean groupByDay = true;
 
     private boolean importHistoricalAccountInfo = true;
 
@@ -60,7 +59,17 @@ public class ImporterProperties {
     @Min(0)
     private Long startBlockNumber;
 
+    @EqualsAndHashCode.Exclude
+    @Getter(lazy = true)
+    private final Path streamPath = dataPath.resolve(STREAMS);
+
     private Long topicRunningHashV2AddedTimestamp;
+
+    public Path getArchiveDestinationFolderPath(StreamFileData streamFileData) {
+        if (groupByDay)
+            return getStreamPath().resolve(streamFileData.getFilename().substring(0, 10));
+        return getStreamPath().resolve(streamFileData.getFilename());
+    }
 
     public String getNetwork() {
         return StringUtils.substringBefore(this.network, NETWORK_PREFIX_DELIMITER)

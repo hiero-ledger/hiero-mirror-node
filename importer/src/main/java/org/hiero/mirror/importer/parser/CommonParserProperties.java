@@ -2,9 +2,6 @@
 
 package org.hiero.mirror.importer.parser;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -18,6 +15,9 @@ import java.util.function.Predicate;
 import lombok.Data;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.domain.TransactionFilterFields;
 import org.hiero.mirror.importer.exception.InvalidConfigurationException;
 import org.springframework.boot.context.properties.ConfigurationProperties;

@@ -4,12 +4,12 @@ package org.hiero.mirror.grpc.retriever;
 
 import static org.hiero.mirror.grpc.domain.ReactiveDomainBuilder.TOPIC_ID;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.topic.TopicMessage;
-import com.hedera.mirror.common.util.DomainUtils;
 import java.time.Duration;
 import java.util.stream.LongStream;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.domain.ReactiveDomainBuilder;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;

@@ -2,13 +2,13 @@
 
 package com.hedera.services.fees;
 
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import jakarta.inject.Named;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.evm.pricing.RatesAndFeesLoader;
 
 /**

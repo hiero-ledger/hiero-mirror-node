@@ -4,9 +4,9 @@ package org.hiero.mirror.importer.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.transaction.RecordFile;
-import com.hedera.mirror.common.util.DomainUtils;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 

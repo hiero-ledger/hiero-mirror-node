@@ -3,12 +3,12 @@
 package org.hiero.mirror.importer.parser.record.ethereum;
 
 import com.esaulpaugh.headlong.rlp.RLPDecoder;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.transaction.EthereumTransaction;
 import jakarta.inject.Named;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.springframework.context.annotation.Primary;
 

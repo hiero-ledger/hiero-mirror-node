@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.web3.exception;
 
-import com.hedera.mirror.common.exception.MirrorNodeException;
 import java.io.Serial;
+import org.hiero.mirror.common.exception.MirrorNodeException;
 
 public abstract class Web3Exception extends MirrorNodeException {
 

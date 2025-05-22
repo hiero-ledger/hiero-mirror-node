@@ -12,7 +12,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.services.store.models.Account;
 import com.hedera.services.store.models.FcTokenAllowanceId;
 import com.hedera.services.store.models.Id;
@@ -33,6 +32,7 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.account.MirrorEvmContractAliases;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.junit.jupiter.api.BeforeEach;

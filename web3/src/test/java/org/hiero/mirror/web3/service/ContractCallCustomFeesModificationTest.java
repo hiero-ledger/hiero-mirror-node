@@ -5,12 +5,12 @@ package org.hiero.mirror.web3.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ZERO_VALUE;
 
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.token.Token;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.FixedFee;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.FractionalFee;
@@ -451,14 +451,14 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
                 getAccountEvmAddress(collectorAccount));
     }
 
-    private com.hedera.mirror.common.domain.token.FixedFee getFixedFeeInHBAR(Entity collectorAccount, Long amount) {
-        return com.hedera.mirror.common.domain.token.FixedFee.builder()
+    private org.hiero.mirror.common.domain.token.FixedFee getFixedFeeInHBAR(Entity collectorAccount, Long amount) {
+        return org.hiero.mirror.common.domain.token.FixedFee.builder()
                 .amount(amount)
                 .collectorAccountId(collectorAccount.toEntityId())
                 .build();
     }
 
-    private com.hedera.mirror.common.domain.token.FixedFee fixedFeeInHbarPersist(
+    private org.hiero.mirror.common.domain.token.FixedFee fixedFeeInHbarPersist(
             Token token, Entity collectorAccount, Long amount) {
         final var fixedFee = getFixedFeeInHBAR(collectorAccount, amount);
 

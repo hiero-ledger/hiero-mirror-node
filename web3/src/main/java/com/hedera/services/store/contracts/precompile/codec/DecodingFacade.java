@@ -13,7 +13,6 @@ import static com.hedera.services.utils.IdUtils.asContract;
 import com.esaulpaugh.headlong.abi.Tuple;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.hapi.utils.ByteStringUtils;
 import com.hedera.services.store.contracts.precompile.FungibleTokenTransfer;
 import com.hedera.services.store.contracts.precompile.HbarTransfer;
@@ -29,6 +28,7 @@ import java.util.List;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hyperledger.besu.datatypes.Address;
 
 public class DecodingFacade {

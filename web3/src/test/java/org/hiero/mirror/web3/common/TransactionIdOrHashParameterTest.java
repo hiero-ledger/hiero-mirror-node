@@ -6,10 +6,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import java.time.Instant;
 import java.util.stream.Stream;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;

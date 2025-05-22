@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.grpc.repository;
 
-import com.hedera.mirror.common.domain.addressbook.AddressBook;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 

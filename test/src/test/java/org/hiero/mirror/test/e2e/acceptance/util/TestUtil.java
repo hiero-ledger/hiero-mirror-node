@@ -14,8 +14,6 @@ import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.PublicKey;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.proto.Key;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.util.DomainUtils;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -33,6 +31,8 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
@@ -208,7 +208,7 @@ public class TestUtil {
         }
     }
 
-    public static Range<Instant> convertRange(com.hedera.mirror.rest.model.TimestampRange timestampRange) {
+    public static Range<Instant> convertRange(org.hiero.mirror.rest.model.TimestampRange timestampRange) {
         if (timestampRange == null) {
             return null;
         }

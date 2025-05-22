@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import static com.hedera.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -12,18 +12,6 @@ import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.CustomFee;
-import com.hedera.mirror.common.domain.token.FixedFee;
-import com.hedera.mirror.common.domain.token.Token;
-import com.hedera.mirror.common.domain.token.TokenAccount;
-import com.hedera.mirror.common.domain.token.TokenFreezeStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenPauseStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenSupplyTypeEnum;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -31,6 +19,18 @@ import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.token.CustomFee;
+import org.hiero.mirror.common.domain.token.FixedFee;
+import org.hiero.mirror.common.domain.token.Token;
+import org.hiero.mirror.common.domain.token.TokenAccount;
+import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenSupplyTypeEnum;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.converter.VersionConverter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

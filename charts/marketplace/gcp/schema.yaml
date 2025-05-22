@@ -3,7 +3,7 @@
 form:
   - widget: help
     description: |
-      Hedera Mirror Node retrieves transaction data from Google Cloud Stroage. The Mirror Node operator is
+      Mirror Node retrieves transaction data from Google Cloud Stroage. The Mirror Node operator is
       responsible for the operational costs of reading and retrieving data from the Google Cloud bucket. See our
       <a href="https://docs.hedera.com/guides/mirrornet/run-your-own-beta-mirror-node#1-obtain-google-cloud-platform-requester-pay-information">documentation</a>
       for information on how to obtain a GCP account and use it to populate the importer access key, secret key and

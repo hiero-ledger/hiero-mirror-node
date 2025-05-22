@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.downloader;
 
-import com.hedera.mirror.common.domain.StreamType;
 import java.time.Duration;
+import org.hiero.mirror.common.domain.StreamType;
 
 public interface DownloaderProperties {
 

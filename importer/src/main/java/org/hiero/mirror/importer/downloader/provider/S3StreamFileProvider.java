@@ -6,8 +6,6 @@ import static org.apache.commons.lang3.StringUtils.isNumeric;
 import static org.hiero.mirror.importer.domain.StreamFilename.EPOCH;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.SIGNATURE;
 
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.StreamType;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,6 +13,8 @@ import javax.annotation.Nullable;
 import lombok.CustomLog;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;

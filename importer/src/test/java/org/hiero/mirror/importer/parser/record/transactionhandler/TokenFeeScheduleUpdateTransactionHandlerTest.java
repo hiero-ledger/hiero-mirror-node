@@ -12,14 +12,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.CustomFee;
-import com.hedera.mirror.common.domain.token.FixedFee;
-import com.hedera.mirror.common.domain.token.FractionalFee;
-import com.hedera.mirror.common.domain.token.RoyaltyFee;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.assertj.core.api.Assertions;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.token.CustomFee;
+import org.hiero.mirror.common.domain.token.FixedFee;
+import org.hiero.mirror.common.domain.token.FractionalFee;
+import org.hiero.mirror.common.domain.token.RoyaltyFee;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

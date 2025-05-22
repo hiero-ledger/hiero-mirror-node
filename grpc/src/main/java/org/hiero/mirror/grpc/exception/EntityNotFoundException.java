@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.grpc.exception;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.exception.MirrorNodeException;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.exception.MirrorNodeException;
 
 public class EntityNotFoundException extends MirrorNodeException {
 

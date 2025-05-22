@@ -7,12 +7,12 @@ import static org.hiero.mirror.restjava.jooq.domain.Tables.NFT_ALLOWANCE;
 import static org.hiero.mirror.restjava.jooq.domain.Tables.TOKEN;
 import static org.hiero.mirror.restjava.jooq.domain.Tables.TRANSACTION;
 
-import com.hedera.mirror.common.domain.entity.NftAllowance;
-import com.hedera.mirror.common.domain.token.Token;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
-import com.hedera.mirror.common.domain.transaction.Transaction;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.NftAllowance;
+import org.hiero.mirror.common.domain.token.Token;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.jooq.DSLContext;
 import org.junit.jupiter.api.Test;

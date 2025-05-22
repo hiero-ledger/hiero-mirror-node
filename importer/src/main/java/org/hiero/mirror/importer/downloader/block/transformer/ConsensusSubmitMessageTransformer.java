@@ -4,9 +4,9 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 
 import static org.hiero.mirror.importer.util.Utility.DEFAULT_RUNNING_HASH_VERSION;
 
-import com.hedera.mirror.common.domain.transaction.TransactionType;
-import com.hedera.mirror.common.util.DomainUtils;
 import jakarta.inject.Named;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.util.DomainUtils;
 
 @Named
 final class ConsensusSubmitMessageTransformer extends AbstractBlockItemTransformer {

@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import com.hederahashgraph.api.proto.java.Key;
@@ -23,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.junit.jupiter.api.AfterEach;

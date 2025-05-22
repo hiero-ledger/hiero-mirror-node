@@ -2,12 +2,12 @@
 
 package org.hiero.mirror.importer.downloader.record;
 
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.FileCopier;
 import org.hiero.mirror.importer.TestRecordFiles;
 import org.hiero.mirror.importer.TestUtils;

@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.reader.signature;
 
-import com.hedera.mirror.common.domain.DigestAlgorithm;
 import jakarta.inject.Named;
 import java.io.IOException;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFileSignature;
 import org.hiero.mirror.importer.domain.StreamFileSignature.SignatureType;

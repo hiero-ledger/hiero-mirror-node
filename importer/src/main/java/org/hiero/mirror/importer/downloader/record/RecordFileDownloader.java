@@ -4,9 +4,6 @@ package org.hiero.mirror.importer.downloader.record;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimaps;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.SidecarFile;
 import com.hedera.services.stream.proto.SidecarType;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -14,6 +11,9 @@ import jakarta.inject.Named;
 import java.util.Arrays;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.SidecarFile;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
@@ -101,7 +101,9 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
     }
 
     private void downloadSidecars(StreamFilename recordFilename, RecordFile recordFile, ConsensusNode node) {
-        if (!sidecarProperties.isEnabled() || recordFile.getSidecars().isEmpty()) {
+        // do nothing if both writing files and parsing sidecars options are disabled, or sidecars are empty
+        if (!((RecordDownloaderProperties) downloaderProperties).isWriteFiles() && !sidecarProperties.isEnabled()
+                || recordFile.getSidecars().isEmpty()) {
             return;
         }
 
@@ -119,6 +121,10 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
                         Function.identity(),
                         ArrayListMultimap::create))
                 .block();
+
+        if (records == null) {
+            return;
+        }
 
         recordFile.getItems().forEach(recordItem -> {
             var timestamp = recordItem.getTransactionRecord().getConsensusTimestamp();
@@ -139,7 +145,7 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
             }
 
             if (downloaderProperties.isWriteFiles()) {
-                var streamPath = importerProperties.getStreamPath();
+                var streamPath = importerProperties.getArchiveDestinationFolderPath(streamFileData);
                 Utility.archiveFile(streamFileData.getFilePath(), sidecar.getBytes(), streamPath);
             }
 

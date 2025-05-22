@@ -136,7 +136,7 @@ To configure:
 ```yaml
 test:
   config:
-    hedera:
+    hiero:
       mirror:
         test:
           acceptance:

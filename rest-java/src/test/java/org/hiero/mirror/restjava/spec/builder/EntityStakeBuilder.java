@@ -3,14 +3,14 @@
 package org.hiero.mirror.restjava.spec.builder;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.AbstractEntityStake;
-import com.hedera.mirror.common.domain.entity.EntityStake;
-import com.hedera.mirror.common.domain.entity.EntityStakeHistory;
-import com.hedera.mirror.common.util.DomainUtils;
 import jakarta.inject.Named;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import org.hiero.mirror.common.domain.entity.AbstractEntityStake;
+import org.hiero.mirror.common.domain.entity.EntityStake;
+import org.hiero.mirror.common.domain.entity.EntityStakeHistory;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.restjava.spec.model.SpecSetup;
 
 @Named

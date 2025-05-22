@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3;
 
-import com.hedera.mirror.common.CommonConfiguration;
+import org.hiero.mirror.common.CommonConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;

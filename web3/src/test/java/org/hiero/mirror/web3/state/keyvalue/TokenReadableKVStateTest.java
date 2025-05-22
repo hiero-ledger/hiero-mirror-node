@@ -17,25 +17,25 @@ import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.base.TokenSupplyType;
 import com.hedera.hapi.node.base.TokenType;
 import com.hedera.hapi.node.state.token.Token;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.SystemEntity;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.token.CustomFee;
-import com.hedera.mirror.common.domain.token.FallbackFee;
-import com.hedera.mirror.common.domain.token.FixedFee;
-import com.hedera.mirror.common.domain.token.FractionalFee;
-import com.hedera.mirror.common.domain.token.RoyaltyFee;
-import com.hedera.mirror.common.domain.token.TokenKycStatusEnum;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import com.hedera.pbj.runtime.OneOf;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.token.CustomFee;
+import org.hiero.mirror.common.domain.token.FallbackFee;
+import org.hiero.mirror.common.domain.token.FixedFee;
+import org.hiero.mirror.common.domain.token.FractionalFee;
+import org.hiero.mirror.common.domain.token.RoyaltyFee;
+import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.CustomFeeRepository;
 import org.hiero.mirror.web3.repository.EntityRepository;
@@ -78,7 +78,7 @@ class TokenReadableKVStateTest {
             new OneOf<>(AccountOneOfType.ACCOUNT_NUM, collectorId.getNum()));
     private final EntityId denominatingTokenId = EntityId.of(11L, 12L, 13L);
 
-    private com.hedera.mirror.common.domain.token.Token databaseToken;
+    private org.hiero.mirror.common.domain.token.Token databaseToken;
     private CustomFee customFee;
 
     @InjectMocks

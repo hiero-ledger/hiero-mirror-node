@@ -16,8 +16,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import com.esaulpaugh.headlong.util.Integers;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.SystemEntity;
 import com.hedera.node.app.service.evm.exceptions.InvalidTransactionException;
 import com.hedera.node.app.service.evm.store.contracts.HederaEvmWorldStateTokenAccount;
 import com.hedera.node.app.service.evm.store.contracts.precompile.EvmInfrastructureFactory;
@@ -40,6 +38,8 @@ import java.util.Optional;
 import java.util.Set;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.PrecompileContext;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;

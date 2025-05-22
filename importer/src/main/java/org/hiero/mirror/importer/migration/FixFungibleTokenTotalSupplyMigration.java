@@ -3,11 +3,11 @@
 package org.hiero.mirror.importer.migration;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.domain.SystemEntity;
 import jakarta.inject.Named;
 import java.io.IOException;
 import lombok.CustomLog;
 import org.flywaydb.core.api.MigrationVersion;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;

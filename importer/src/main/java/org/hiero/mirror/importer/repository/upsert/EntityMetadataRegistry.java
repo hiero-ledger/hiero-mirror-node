@@ -5,8 +5,6 @@ package org.hiero.mirror.importer.repository.upsert;
 import static java.lang.invoke.MethodType.methodType;
 import static org.hiero.mirror.importer.util.Utility.toSnakeCase;
 
-import com.hedera.mirror.common.domain.UpsertColumn;
-import com.hedera.mirror.common.domain.Upsertable;
 import jakarta.inject.Named;
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityManager;
@@ -32,6 +30,8 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.metamodel.model.domain.SingularPersistentAttribute;
+import org.hiero.mirror.common.domain.UpsertColumn;
+import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.importer.exception.FieldInaccessibleException;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.jdbc.core.JdbcOperations;

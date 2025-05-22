@@ -18,7 +18,6 @@ import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.SemanticVersion;
-import com.hedera.mirror.common.CommonProperties;
 import com.hedera.node.app.service.evm.contracts.execution.BlockMetaSource;
 import com.hedera.node.app.service.evm.contracts.execution.HederaBlockValues;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
@@ -35,6 +34,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import javax.inject.Provider;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.account.MirrorEvmContractAliases;

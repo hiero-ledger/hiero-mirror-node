@@ -2,20 +2,15 @@
 
 package org.hiero.mirror.importer.parser.batch;
 
-import static com.hedera.mirror.common.util.CommonUtils.nextBytes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.common.util.CommonUtils.nextBytes;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.TokenTransfer;
-import com.hedera.mirror.common.domain.topic.TopicMessage;
-import com.hedera.mirror.common.domain.transaction.AssessedCustomFee;
-import com.hedera.mirror.common.domain.transaction.CryptoTransfer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.io.Reader;
@@ -26,6 +21,11 @@ import java.util.HashSet;
 import java.util.List;
 import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.token.TokenTransfer;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
+import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
+import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.CommonParserProperties;

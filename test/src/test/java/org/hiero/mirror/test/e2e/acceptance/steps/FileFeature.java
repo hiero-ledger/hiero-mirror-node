@@ -7,14 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.hedera.hashgraph.sdk.FileId;
 import com.hedera.hashgraph.sdk.FileInfo;
-import com.hedera.mirror.rest.model.TransactionByIdResponse;
-import com.hedera.mirror.rest.model.TransactionDetail;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.rest.model.TransactionByIdResponse;
+import org.hiero.mirror.rest.model.TransactionDetail;
 import org.hiero.mirror.test.e2e.acceptance.client.FileClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;

@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.grpc.listener;
 
-import static com.hedera.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
+import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 
-import com.hedera.mirror.common.domain.topic.TopicMessage;
 import java.time.Duration;
 import java.util.stream.LongStream;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
