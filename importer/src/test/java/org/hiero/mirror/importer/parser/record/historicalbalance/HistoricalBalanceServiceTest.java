@@ -204,7 +204,8 @@ class HistoricalBalanceServiceTest {
         assertFalse(service.getTreasuryExists().get());
         assertTrue(capture.getOut().contains("Simulated failure"));
         assertTrue(capture.getOut().contains("Failed to generate historical balances in"));
-        assertTrue(capture.getOut().contains("Failed to auto create treasury account " + systemEntity.treasuryAccount()));
+        assertTrue(
+                capture.getOut().contains("Failed to auto create treasury account " + systemEntity.treasuryAccount()));
 
         // second call is successful and sets treasuryExists to true
         service.onRecordFileParsed(event);
