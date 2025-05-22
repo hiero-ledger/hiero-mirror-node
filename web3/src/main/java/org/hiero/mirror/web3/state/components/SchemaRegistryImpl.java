@@ -28,13 +28,13 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hiero.mirror.web3.state.core.MapWritableStates;
-import org.hiero.mirror.web3.state.keyvalue.StateKeyRegistry;
+import org.hiero.mirror.web3.state.keyvalue.StateRegistry;
 
 @RequiredArgsConstructor
 public class SchemaRegistryImpl implements SchemaRegistry {
 
     private final SchemaApplications schemaApplications;
-    private final StateKeyRegistry stateKeyRegistry;
+    private final StateRegistry stateRegistry;
 
     /**
      * The ordered set of all schemas registered by the service
@@ -178,7 +178,7 @@ public class SchemaRegistryImpl implements SchemaRegistry {
             @Nonnull final MirrorNodeState state) {
         final Map<String, Object> stateDataSources = new HashMap<>();
         schema.statesToCreate(configuration)
-                .forEach(def -> stateDataSources.put(def.stateKey(), stateKeyRegistry.lookup(def)));
+                .forEach(def -> stateDataSources.put(def.stateKey(), stateRegistry.lookup(def)));
 
         state.addService(serviceName, stateDataSources);
 

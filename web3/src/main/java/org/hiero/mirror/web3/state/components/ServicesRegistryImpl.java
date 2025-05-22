@@ -12,14 +12,14 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.web3.state.keyvalue.StateKeyRegistry;
+import org.hiero.mirror.web3.state.keyvalue.StateRegistry;
 
 @Named
 @RequiredArgsConstructor
 public class ServicesRegistryImpl implements ServicesRegistry {
 
     private final SortedSet<Registration> entries = new TreeSet<>();
-    private final StateKeyRegistry stateKeyRegistry;
+    private final StateRegistry stateRegistry;
 
     @Nonnull
     @Override
@@ -29,7 +29,7 @@ public class ServicesRegistryImpl implements ServicesRegistry {
 
     @Override
     public void register(@Nonnull Service service) {
-        final var registry = new SchemaRegistryImpl(new SchemaApplications(), stateKeyRegistry);
+        final var registry = new SchemaRegistryImpl(new SchemaApplications(), stateRegistry);
         service.registerSchemas(registry);
         entries.add(new ServicesRegistryImpl.Registration(service, registry));
     }
@@ -38,7 +38,7 @@ public class ServicesRegistryImpl implements ServicesRegistry {
     @Override
     public ServicesRegistry subRegistryFor(@Nonnull String... serviceNames) {
         final var selections = Set.of(serviceNames);
-        final var subRegistry = new ServicesRegistryImpl(stateKeyRegistry);
+        final var subRegistry = new ServicesRegistryImpl(stateRegistry);
         subRegistry.entries.addAll(entries.stream()
                 .filter(registration -> selections.contains(registration.serviceName()))
                 .toList());

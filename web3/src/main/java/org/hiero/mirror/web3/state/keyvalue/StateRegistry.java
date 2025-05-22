@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import com.google.common.collect.ImmutableMap;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema;
 import com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema;
@@ -14,8 +15,6 @@ import com.swirlds.state.spi.ReadableKVState;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -26,7 +25,7 @@ import org.hiero.mirror.web3.state.singleton.DefaultSingleton;
 import org.hiero.mirror.web3.state.singleton.SingletonState;
 
 @Named
-public class StateKeyRegistry {
+public final class StateRegistry {
     private static final Set<String> DEFAULT_IMPLEMENTATIONS = Stream.of(
                     V0490TokenSchema.STAKING_INFO_KEY,
                     V0490FileSchema.UPGRADE_DATA_KEY,
@@ -38,19 +37,20 @@ public class StateKeyRegistry {
                     V0570ScheduleSchema.SCHEDULED_ORDERS_KEY,
                     V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_KEY,
                     V0570ScheduleSchema.SCHEDULED_USAGES_KEY,
-                    // Not implemented but needed
-                    V0490ScheduleSchema.SCHEDULES_BY_ID_KEY,
                     V0490TokenSchema.STAKING_NETWORK_REWARDS_KEY,
                     V0610TokenSchema.NODE_REWARDS_KEY)
             .collect(Collectors.toSet());
 
-    private final Map<String, Object> states = new HashMap<>();
+    private final ImmutableMap<String, Object> states;
 
-    public StateKeyRegistry(
+    public StateRegistry(
             @Nonnull final Collection<ReadableKVState<?, ?>> keyValues,
             @Nonnull final Collection<SingletonState<?>> singletons) {
-        keyValues.forEach(kvState -> states.put(kvState.getStateKey(), kvState));
-        singletons.forEach(singleton -> states.put(singleton.getKey(), singleton));
+
+        this.states = ImmutableMap.<String, Object>builder()
+                .putAll(keyValues.stream().collect(Collectors.toMap(ReadableKVState::getStateKey, kv -> kv)))
+                .putAll(singletons.stream().collect(Collectors.toMap(SingletonState::getKey, s -> s)))
+                .build();
     }
 
     /**

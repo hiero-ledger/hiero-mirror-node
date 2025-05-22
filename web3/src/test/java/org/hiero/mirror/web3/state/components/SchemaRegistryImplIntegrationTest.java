@@ -14,13 +14,14 @@ import com.hedera.hapi.node.state.congestion.CongestionLevelStarts;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.state.primitives.ProtoLong;
 import com.hedera.hapi.node.state.schedule.ScheduleList;
-import com.hedera.hapi.node.state.token.NetworkStakingRewards;
+import com.hedera.hapi.node.state.token.NodeRewards;
 import com.hedera.hapi.node.state.token.Token;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.state.merkle.SchemaApplications;
 import com.swirlds.config.api.Configuration;
 import com.swirlds.state.lifecycle.StartupNetworks;
 import com.swirlds.state.lifecycle.StateDefinition;
+import com.swirlds.state.spi.ReadableStates;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -28,7 +29,7 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.state.MirrorNodeState;
-import org.hiero.mirror.web3.state.keyvalue.StateKeyRegistry;
+import org.hiero.mirror.web3.state.keyvalue.StateRegistry;
 import org.hiero.mirror.web3.utils.TestSchemaBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -63,7 +64,7 @@ class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
     }
 
     private final SemanticVersion previousVersion = new SemanticVersion(0, 46, 0, "", "");
-    private final StateKeyRegistry stateKeyRegistry;
+    private final StateRegistry stateRegistry;
     private final MirrorNodeState mirrorNodeState;
     private final StartupNetworks startupNetworks;
 
@@ -73,7 +74,7 @@ class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
 
     @BeforeEach
     void setup() {
-        schemaRegistry = new SchemaRegistryImpl(new SchemaApplications(), stateKeyRegistry);
+        schemaRegistry = new SchemaRegistryImpl(new SchemaApplications(), stateRegistry);
         config = new ConfigProviderImpl().getConfiguration();
     }
 
@@ -88,24 +89,28 @@ class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
                 new TestSchemaBuilder(previousVersion).withStates(stateDef).build();
         schemaRegistry.register(schema);
         migrate(serviceName);
-        final var result = mirrorNodeState.getReadableStates(serviceName);
-        assertThat(result).isNotNull();
-        assertThat(result.stateKeys()).hasSize(stateDef.size()).containsExactlyInAnyOrderElementsOf(expectedKeys);
+        final var readableStates = mirrorNodeState.getReadableStates(serviceName);
+        final var writableStates = mirrorNodeState.getWritableStates(serviceName);
+        validateState(stateDef, readableStates, expectedKeys);
+        validateState(stateDef, writableStates, expectedKeys);
     }
 
     @Test
     @DisplayName("Migrate removes state keys listed in statesToRemove")
     void migrateRemovesObsoleteStates() {
-        final var stateDefSet = Set.of(StateDefinition.singleton(NODE_REWARDS_KEY, NetworkStakingRewards.PROTOBUF));
+        final var stateKey = NODE_REWARDS_KEY;
+        final var stateDefSet = Set.of(StateDefinition.singleton(stateKey, NodeRewards.PROTOBUF));
         final var schema = new TestSchemaBuilder(previousVersion)
                 .withStates(stateDefSet)
-                .withStatesToRemove(Set.of(NODE_REWARDS_KEY))
+                .withStatesToRemove(Set.of(stateKey))
                 .build();
         schemaRegistry.register(schema);
         migrate(SERVICE_NAME);
 
-        final var result = mirrorNodeState.getReadableStates(SERVICE_NAME);
-        assertThat(result.stateKeys()).doesNotContain(NODE_REWARDS_KEY);
+        final var readableStates = mirrorNodeState.getReadableStates(SERVICE_NAME);
+        final var writableStates = mirrorNodeState.getWritableStates(SERVICE_NAME);
+        assertThat(readableStates.stateKeys()).doesNotContain(stateKey);
+        assertThat(writableStates.stateKeys()).doesNotContain(stateKey);
     }
 
     @Test
@@ -113,11 +118,20 @@ class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
     void migrateSkipWhenNoSchemasPresent() {
         final var emptyService = "emptyService";
         migrate(emptyService);
-        assertThat(mirrorNodeState.getReadableStates(emptyService).stateKeys()).isEmpty();
+        final var readableStates = mirrorNodeState.getReadableStates(emptyService);
+        final var writableStates = mirrorNodeState.getWritableStates(emptyService);
+        assertThat(readableStates.stateKeys()).isEmpty();
+        assertThat(writableStates.stateKeys()).isEmpty();
     }
 
-    private void migrate(String serviceName) {
+    private void migrate(final String serviceName) {
         schemaRegistry.migrate(
                 serviceName, mirrorNodeState, previousVersion, config, config, new HashMap<>(), startupNetworks);
+    }
+
+    private void validateState(
+            final Set<StateDefinition<?, ?>> stateDef, final ReadableStates states, final Set<String> expectedKeys) {
+        assertThat(states).isNotNull();
+        assertThat(states.stateKeys()).hasSize(stateDef.size()).containsExactlyInAnyOrderElementsOf(expectedKeys);
     }
 }

@@ -28,7 +28,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class StateKeyRegistryTest {
+class StateRegistryTest {
     private static final int MAX_KEYS_HINT = 123;
     private static final String READABLE_KV_STATE_KEY = "KV_KEY";
     private static final String SINGLETON_KEY = "SINGLETON_KEY";
@@ -46,7 +46,7 @@ class StateKeyRegistryTest {
 
     private ReadableKVState<?, ?> kvState;
     private SingletonState<?> singleton;
-    private StateKeyRegistry registry;
+    private StateRegistry registry;
 
     @BeforeEach
     void setUp() {
@@ -56,7 +56,7 @@ class StateKeyRegistryTest {
         singleton = mock(SingletonState.class);
         when(singleton.getKey()).thenReturn(SINGLETON_KEY);
 
-        registry = new StateKeyRegistry(List.of(kvState), List.of(singleton));
+        registry = new StateRegistry(List.of(kvState), List.of(singleton));
     }
 
     @Test
@@ -107,7 +107,7 @@ class StateKeyRegistryTest {
     @MethodSource("stateDefinition")
     void throwsWhenEmptyStateAndNotInDefaultImpl(
             final boolean isOnDisk, final boolean isSingleton, final boolean isQueue) {
-        registry = new StateKeyRegistry(List.of(), List.of());
+        registry = new StateRegistry(List.of(), List.of());
         final var stateDefinition = new StateDefinition<>(
                 READABLE_KV_STATE_KEY, mockCodec, mockCodec, MAX_KEYS_HINT, isOnDisk, isSingleton, isQueue);
         final var exception = assertThrows(UnsupportedOperationException.class, () -> registry.lookup(stateDefinition));
@@ -124,7 +124,7 @@ class StateKeyRegistryTest {
             final boolean isQueue,
             final Class<?> type,
             final String description) {
-        registry = new StateKeyRegistry(List.of(), List.of());
+        registry = new StateRegistry(List.of(), List.of());
         final var stateDefinition = new StateDefinition<>(
                 V0490TokenSchema.STAKING_INFO_KEY, mockCodec, mockCodec, MAX_KEYS_HINT, isOnDisk, isSingleton, isQueue);
         final var result = registry.lookup(stateDefinition);
