@@ -37,6 +37,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @ExtendWith(MockitoExtension.class)
@@ -166,7 +168,8 @@ class HistoricalBalanceServiceTest {
     }
 
     @Test
-    void shouldResetTreasuryExistsOnFailureAndSucceedOnNextCall() {
+    @ExtendWith(OutputCaptureExtension.class)
+    void shouldResetTreasuryExistsOnFailureAndSucceedOnNextCall(CapturedOutput capture) {
         var recordFile = RecordFile.builder().consensusEnd(300L).build();
         when(recordFileRepository.findLatest()).thenReturn(Optional.of(recordFile));
         when(entityRepository.existsById(systemEntity.treasuryAccount().getId()))
@@ -199,6 +202,9 @@ class HistoricalBalanceServiceTest {
                 .existsById(systemEntity.treasuryAccount().getId());
         verify(entityRepository, times(1)).save(any());
         assertFalse(service.getTreasuryExists().get());
+        assertTrue(capture.getOut().contains("Simulated failure"));
+        assertTrue(capture.getOut().contains("Failed to generate historical balances in"));
+        assertTrue(capture.getOut().contains("Failed to auto create treasury account " + systemEntity.treasuryAccount()));
 
         // second call is successful and sets treasuryExists to true
         service.onRecordFileParsed(event);

@@ -236,8 +236,9 @@ public class HistoricalBalanceService {
                     log.info("Created sentinel treasury account: {}", savedTreasuryAccount);
                 }
             } catch (Exception e) {
-                log.error("Failed to auto create treasury account {}", treasuryAccountEntityId, e);
+                log.error("Failed to auto create treasury account {}", treasuryAccountEntityId);
                 treasuryExists.set(false);
+                throw e;
             }
         }
     }
