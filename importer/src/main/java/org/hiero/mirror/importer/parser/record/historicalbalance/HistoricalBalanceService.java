@@ -13,11 +13,12 @@ import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.AccessLevel;
 import lombok.CustomLog;
+import lombok.Getter;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
-import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.db.TimePartitionService;
@@ -46,8 +47,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 @CustomLog
 @Named
 public class HistoricalBalanceService {
-    private static final AtomicBoolean TREASURY_EXISTS = new AtomicBoolean(false);
     private static final String ACCOUNT_BALANCE_TABLE_NAME = "account_balance";
+
+    @Getter(AccessLevel.PACKAGE)
+    private final AtomicBoolean treasuryExists = new AtomicBoolean(false);
 
     private final AccountBalanceFileRepository accountBalanceFileRepository;
     private final AccountBalanceRepository accountBalanceRepository;
@@ -120,11 +123,7 @@ public class HistoricalBalanceService {
             }
 
             final long treasuryAccountId = systemEntity.treasuryAccount().getId();
-
-            if (!TREASURY_EXISTS.get()) {
-                checkTreasuryAccount();
-                TREASURY_EXISTS.set(true);
-            }
+            checkTreasuryAccount();
 
             log.info("Generating historical balances after processing record file with consensusEnd {}", consensusEnd);
             transactionTemplate.executeWithoutResult(t -> {
@@ -221,23 +220,25 @@ public class HistoricalBalanceService {
     }
 
     private void checkTreasuryAccount() {
-        var treasuryAccountEntityId = systemEntity.treasuryAccount();
-        var treasuryAccount = entityRepository.findById(treasuryAccountEntityId.getId());
-        if (treasuryAccount.isEmpty()) {
-            log.warn("Treasury account {} not found in entity table, creating it", treasuryAccountEntityId);
-            entityRepository.save(Entity.builder()
-                    .balance(0L)
-                    .createdTimestamp(0L)
-                    .declineReward(true)
-                    .deleted(false)
-                    .id(treasuryAccountEntityId.getId())
-                    .memo("SENTINEL_AUTO_GENERATED")
-                    .num(treasuryAccountEntityId.getNum())
-                    .realm(treasuryAccountEntityId.getRealm())
-                    .shard(treasuryAccountEntityId.getShard())
-                    .type(EntityType.ACCOUNT)
-                    .timestampRange(Range.atLeast(0L))
-                    .build());
+        if (treasuryExists.compareAndSet(false, true)) {
+            var treasuryAccountEntityId = systemEntity.treasuryAccount();
+            try {
+                if (!entityRepository.existsById(treasuryAccountEntityId.getId())) {
+                    var savedTreasuryAccount = entityRepository.save(treasuryAccountEntityId.toEntity().toBuilder()
+                            .balance(0L)
+                            .createdTimestamp(0L)
+                            .declineReward(true)
+                            .deleted(false)
+                            .memo("Mirror node created synthetic treasury account")
+                            .type(EntityType.ACCOUNT)
+                            .timestampRange(Range.atLeast(0L))
+                            .build());
+                    log.info("Created sentinel treasury account: {}", savedTreasuryAccount);
+                }
+            } catch (Exception e) {
+                log.error("Failed to auto create treasury account {}", treasuryAccountEntityId, e);
+                treasuryExists.set(false);
+            }
         }
     }
 }

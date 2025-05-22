@@ -16,6 +16,7 @@
         "balance": "9223372036847275807",
         "balance_timestamp": "2001",
         "created_timestamp": "10000123456789",
+        "memo": "Mirror node created synthetic treasury account",
         "num": 2,
         "key": "32240a221220bfc9d4a344389324119eed485eb3a875b1e5a54bd189d2fd5ad88ce1d3473dee",
         "staked_account_id": 0
@@ -80,9 +81,8 @@
       },
       {
         "balance": 150,
-        "expiration_timestamp": "9223372036854775808",
-        "memo": "SENTINEL_AUTO_GENERATED",
-        "num": 12,
+        "memo": "Mirror node created synthetic treasury account",
+        "num": 11,
         "staked_node_id": 3,
         "stake_period_start": 2000
       }
@@ -232,42 +232,6 @@
         "receiver_sig_required": false,
         "staked_account_id": null,
         "staked_node_id": 2,
-        "stake_period_start": null
-      },
-      {
-        "balance": {
-          "balance": 9223372036847275807,
-          "timestamp": "0.000002001",
-          "tokens": [
-            {
-              "token_id": "0.0.90001",
-              "balance": 9223372036847275807
-            },
-            {
-              "token_id": "0.0.90010",
-              "balance": 22
-            }
-          ]
-        },
-        "account": "0.0.2",
-        "alias": null,
-        "auto_renew_period": null,
-        "created_timestamp": "10000.123456789",
-        "decline_reward": false,
-        "deleted": false,
-        "ethereum_nonce": null,
-        "evm_address": "0x0000000000000000000000000000000000000002",
-        "expiry_timestamp": null,
-        "key": {
-          "_type": "ED25519",
-          "key": "bfc9d4a344389324119eed485eb3a875b1e5a54bd189d2fd5ad88ce1d3473dee"
-        },
-        "max_automatic_token_associations": 0,
-        "memo": "entity memo",
-        "pending_reward": 0,
-        "receiver_sig_required": false,
-        "staked_account_id": null,
-        "staked_node_id": null,
         "stake_period_start": null
       },
       {
@@ -482,6 +446,30 @@
         "staked_account_id": null,
         "staked_node_id": 3,
         "stake_period_start": "172800000.000000000"
+      },
+      {
+        "account": "0.0.11",
+        "alias": null,
+        "auto_renew_period": null,
+        "balance": {
+          "balance": 150,
+          "timestamp": null,
+          "tokens": []
+        },
+        "created_timestamp": null,
+        "decline_reward": false,
+        "deleted": false,
+        "ethereum_nonce": null,
+        "evm_address": "0x000000000000000000000000000000000000000b",
+        "expiry_timestamp": null,
+        "key": null,
+        "max_automatic_token_associations": 0,
+        "memo": "Mirror node created synthetic treasury account",
+        "pending_reward": 0,
+        "receiver_sig_required": false,
+        "stake_period_start": "172800000.000000000",
+        "staked_account_id": null,
+        "staked_node_id": 3
       }
     ],
     "links": {

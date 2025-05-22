@@ -67,6 +67,7 @@ class HistoricalBalanceServiceIntegrationTest extends ImporterIntegrationTest {
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenBalanceRepository tokenBalanceRepository;
     private final TransactionTemplate transactionTemplate;
+    private final HistoricalBalanceService historicalBalanceService;
 
     private Entity account;
     private long prevPartitionBalanceTimestamp;
@@ -140,6 +141,9 @@ class HistoricalBalanceServiceIntegrationTest extends ImporterIntegrationTest {
                 deletedAccount1,
                 deletedAccount2);
         tokenAccounts = List.of(tokenAccount, dissociatedTokenAccount);
+
+        // Reset the bean state
+        historicalBalanceService.getTreasuryExists().set(false);
     }
 
     @AfterEach

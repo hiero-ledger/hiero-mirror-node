@@ -5,7 +5,7 @@
       {
         "balance": 70,
         "decline_reward": true,
-        "num": 7
+        "num": 9
       },
       {
         "balance": 80,
@@ -16,8 +16,8 @@
       },
       {
         "balance": 90,
-        "memo": "SENTINEL_AUTO_GENERATED",
-        "num": 9,
+        "memo": "Mirror node created synthetic treasury account",
+        "num": 2,
         "staked_node_id": 5
       }
     ],
@@ -46,7 +46,7 @@
     "/api/v1/accounts?account.id=0.0.8",
     "/api/v1/accounts?account.id=0.8",
     "/api/v1/accounts?account.id=8",
-    "/api/v1/accounts?account.id=gte:8&account.id=lte:9"
+    "/api/v1/accounts?account.id=lte:8"
   ],
   "responseStatus": 200,
   "responseJson": {
