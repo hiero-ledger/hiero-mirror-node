@@ -17,10 +17,6 @@ import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.hapi.block.stream.protoc.RecordFileItem;
 import com.hedera.hapi.platform.event.legacy.EventTransaction;
-import com.hedera.mirror.common.domain.DigestAlgorithm;
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.transaction.BlockFile;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -32,6 +28,10 @@ import java.util.List;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
@@ -112,8 +112,8 @@ public class BlockStreamReaderTest {
                 .extracting(
                         BlockFile::getItems,
                         InstanceOfAssertFactories.collection(
-                                com.hedera.mirror.common.domain.transaction.BlockItem.class))
-                .map(com.hedera.mirror.common.domain.transaction.BlockItem::getPrevious)
+                                org.hiero.mirror.common.domain.transaction.BlockItem.class))
+                .map(org.hiero.mirror.common.domain.transaction.BlockItem::getPrevious)
                 .containsExactlyElementsOf(expectedPreviousItems);
     }
 
@@ -230,7 +230,7 @@ public class BlockStreamReaderTest {
         var child = blockFile.getItems().get(4);
         var innerTransaction2 = blockFile.getItems().get(5);
 
-        var expectedParents = new ArrayList<com.hedera.mirror.common.domain.transaction.BlockItem>();
+        var expectedParents = new ArrayList<org.hiero.mirror.common.domain.transaction.BlockItem>();
         var expectedPrevious = new ArrayList<>(items);
 
         expectedPrevious.addFirst(null);
@@ -248,10 +248,10 @@ public class BlockStreamReaderTest {
         assertThat(TestUtils.toTimestamp(batchParentItem.getConsensusTimestamp()))
                 .isEqualTo(batchTransactionTimestamp);
         assertThat(items)
-                .map(com.hedera.mirror.common.domain.transaction.BlockItem::getParent)
+                .map(org.hiero.mirror.common.domain.transaction.BlockItem::getParent)
                 .containsExactlyElementsOf(expectedParents);
         assertThat(items)
-                .map(com.hedera.mirror.common.domain.transaction.BlockItem::getPrevious)
+                .map(org.hiero.mirror.common.domain.transaction.BlockItem::getPrevious)
                 .containsExactlyElementsOf(expectedPrevious);
         assertThat(batchParentItem.getStateChangeContext())
                 .isEqualTo(precedingChild.getStateChangeContext())
@@ -401,11 +401,11 @@ public class BlockStreamReaderTest {
                 .extracting(
                         BlockFile::getItems,
                         InstanceOfAssertFactories.collection(
-                                com.hedera.mirror.common.domain.transaction.BlockItem.class))
+                                org.hiero.mirror.common.domain.transaction.BlockItem.class))
                 .hasSize(1)
                 .first()
                 .extracting(
-                        com.hedera.mirror.common.domain.transaction.BlockItem::getStateChanges,
+                        org.hiero.mirror.common.domain.transaction.BlockItem::getStateChanges,
                         InstanceOfAssertFactories.collection(StateChanges.class))
                 .hasSize(1)
                 .first()

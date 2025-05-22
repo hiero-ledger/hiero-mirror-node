@@ -8,12 +8,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.Timestamp;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
 import java.time.Instant;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -8,8 +8,6 @@ import static org.hiero.mirror.grpc.util.ProtoUtil.OVERFLOW_ERROR;
 import static org.hiero.mirror.grpc.util.ProtoUtil.UNKNOWN_ERROR;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.exception.InvalidEntityException;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import io.grpc.Status;
@@ -17,6 +15,8 @@ import io.grpc.StatusRuntimeException;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.concurrent.TimeoutException;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

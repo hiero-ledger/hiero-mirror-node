@@ -5,7 +5,7 @@ plugins {
     id("org.openapi.generator")
 }
 
-val openApiPackage = "com.hedera.mirror.rest"
+val openApiPackage = "org.hiero.mirror.rest"
 
 openApiGenerate {
     apiPackage = "${openApiPackage}.api"

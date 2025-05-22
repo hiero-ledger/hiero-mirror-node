@@ -3,9 +3,9 @@
 ## Purpose
 
 The Hedera Consensus Service (HCS) provides decentralized consensus on the validity and order of messages submitted to a
-topic on the network and transparency into the history of these events over time. Since the Hedera mainnet does not
-store history, the persistence and retrieval of these messages needs to be handled by the Mirror Node. This document
-attempts to design a scalable solution to provide such functionality.
+topic on the network and transparency into the history of these events over time. Since mainnet does not store history,
+the persistence and retrieval of these messages needs to be handled by the Mirror Node. This document attempts to design
+a scalable solution to provide such functionality.
 
 ## Goals
 

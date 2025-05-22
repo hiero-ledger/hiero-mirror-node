@@ -4,12 +4,12 @@ package com.hedera.services.hapi.fees.usage.crypto;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import java.util.HashMap;
 import java.util.Map;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.junit.jupiter.api.Test;
 
 class CryptoContextUtilsTest {

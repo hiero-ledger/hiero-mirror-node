@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 interface BlockItemTransformer {
 

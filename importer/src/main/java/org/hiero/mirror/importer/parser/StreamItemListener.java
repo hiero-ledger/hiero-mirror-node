@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.importer.parser;
 
-import com.hedera.mirror.common.domain.StreamItem;
+import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.importer.exception.ImporterException;
 
 public interface StreamItemListener<T extends StreamItem> {

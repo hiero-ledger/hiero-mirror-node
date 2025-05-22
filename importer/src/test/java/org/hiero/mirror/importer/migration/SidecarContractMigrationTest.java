@@ -2,15 +2,11 @@
 
 package org.hiero.mirror.importer.migration;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
-import static com.hedera.mirror.common.util.DomainUtils.fromBytes;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
 import static org.hiero.mirror.importer.TestUtils.toContractId;
 
-import com.hedera.mirror.common.domain.contract.Contract;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityHistory;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.stream.proto.ContractBytecode;
 import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.util.ArrayList;
@@ -19,6 +15,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityHistory;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.ContractRepository;
 import org.hiero.mirror.importer.repository.EntityHistoryRepository;

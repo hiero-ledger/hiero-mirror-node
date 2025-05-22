@@ -3,7 +3,7 @@
 ## Purpose
 
 [HIP-18](https://github.com/hashgraph/hedera-improvement-proposal/blob/master/HIP/hip-18.md) proposes changes to support
-Custom Hedera Token Service Fees. This document explains how the mirror node can be updated to support it.
+custom token service fees. This document explains how the mirror node can be updated to support it.
 
 ## Goals
 
@@ -132,7 +132,7 @@ Both new domain objects are insert-only.
 
 - Update `/api/v1/transactions/{id}` response to add assessed custom fees. Note:
   - if an assessed custom fee have a `null` `token_id`, it's charged in HBAR; otherwise it's charged in the `token_id`
-  - prior to Hedera Service 0.17.1, there is no `effective_payer_account_id`, so the `effective_payer_account_ids` will
+  - prior to Consensus Node 0.17.1, there is no `effective_payer_account_id`, so the `effective_payer_account_ids` will
     be an empty array for those transactions with assessed custom fees
 
 ```json

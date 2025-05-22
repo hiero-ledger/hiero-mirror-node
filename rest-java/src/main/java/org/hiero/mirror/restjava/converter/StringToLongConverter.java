@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.restjava.converter;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
 import jakarta.inject.Named;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.boot.context.properties.ConfigurationPropertiesBinding;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.util.StringUtils;

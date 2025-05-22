@@ -2,9 +2,9 @@
 
 package com.hedera.node.app.service.evm.accounts;
 
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.util.DomainUtils;
 import java.util.Arrays;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hyperledger.besu.datatypes.Address;
 
 public abstract class HederaEvmContractAliases {

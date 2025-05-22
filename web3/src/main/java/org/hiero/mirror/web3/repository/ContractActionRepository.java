@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.web3.repository;
 
-import com.hedera.mirror.common.domain.contract.ContractAction;
 import java.util.List;
+import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 

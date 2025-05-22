@@ -4,10 +4,6 @@ package org.hiero.mirror.importer.migration;
 
 import static org.hiero.mirror.importer.reader.record.RecordFileReader.MAX_TRANSACTION_LENGTH;
 
-import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.TokenTransfer;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
@@ -20,6 +16,10 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.token.TokenTransfer;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.DateRangeCalculator.DateRangeFilter;
 import org.hiero.mirror.importer.exception.FileOperationException;

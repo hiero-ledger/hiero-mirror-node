@@ -5,8 +5,8 @@ package org.hiero.mirror.grpc.repository;
 import static org.hiero.mirror.grpc.config.CacheConfiguration.ADDRESS_BOOK_ENTRY_CACHE;
 import static org.hiero.mirror.grpc.config.CacheConfiguration.CACHE_NAME;
 
-import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
 import java.util.List;
+import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;

@@ -13,12 +13,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.SystemEntity;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import org.awaitility.Durations;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.repository.EntityStakeRepository;
 import org.junit.jupiter.api.BeforeEach;

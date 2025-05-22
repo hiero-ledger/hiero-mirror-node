@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
-import com.hedera.mirror.common.domain.StreamType;
-import com.hedera.mirror.common.domain.transaction.BlockFile;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
@@ -14,6 +12,8 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.io.FilenameUtils;
+import org.hiero.mirror.common.domain.StreamType;
+import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;

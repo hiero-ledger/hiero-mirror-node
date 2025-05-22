@@ -2,16 +2,16 @@
 
 package org.hiero.mirror.importer.migration;
 
-import static com.hedera.mirror.common.domain.token.TokenTypeEnum.NON_FUNGIBLE_UNIQUE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.token.TokenTypeEnum.NON_FUNGIBLE_UNIQUE;
 
-import com.hedera.mirror.common.domain.balance.AccountBalance.Id;
-import com.hedera.mirror.common.domain.balance.TokenBalance;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.TokenTransfer;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.balance.AccountBalance.Id;
+import org.hiero.mirror.common.domain.balance.TokenBalance;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.token.TokenTransfer;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.TokenRepository;
 import org.junit.jupiter.api.Tag;

@@ -3,10 +3,6 @@
 package org.hiero.mirror.restjava.spec.builder;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.entity.AbstractEntity;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityHistory;
-import com.hedera.mirror.common.domain.entity.EntityType;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.hiero.mirror.common.domain.entity.AbstractEntity;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityHistory;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.restjava.spec.model.SpecSetup;
 
 @Named

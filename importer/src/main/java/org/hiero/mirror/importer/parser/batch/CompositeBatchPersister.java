@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.importer.parser.batch;
 
-import com.hedera.mirror.common.domain.Upsertable;
-import com.hedera.mirror.common.domain.transaction.TransactionHash;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import jakarta.persistence.Entity;
@@ -12,6 +10,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.sql.DataSource;
+import org.hiero.mirror.common.domain.Upsertable;
+import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.hiero.mirror.importer.parser.CommonParserProperties;
 import org.hiero.mirror.importer.repository.upsert.UpsertQueryGenerator;
 import org.hiero.mirror.importer.repository.upsert.UpsertQueryGeneratorFactory;

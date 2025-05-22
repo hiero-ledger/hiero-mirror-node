@@ -9,11 +9,11 @@ import static org.hiero.mirror.web3.exception.BlockNumberNotFoundException.UNKNO
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.EVM_V_34_BLOCK;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.domain.balance.TokenBalance;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.NftHistory;
 import java.math.BigInteger;
+import org.hiero.mirror.common.domain.balance.TokenBalance;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.token.NftHistory;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.generated.ERCTestContractHistorical;

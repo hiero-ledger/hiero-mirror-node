@@ -2,15 +2,15 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.BlockItem;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.hiero.mirror.common.domain.transaction.BlockItem;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
 public class BlockItemTransformerFactory {

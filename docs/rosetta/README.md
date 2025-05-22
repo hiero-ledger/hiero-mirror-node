@@ -4,9 +4,9 @@
 
 The Rosetta API is a REST API complying with
 the [Rosetta API Specification](https://www.rosetta-api.org/docs/welcome.html) with a focus on blockchain data
-integration. This server enables exchanges to be able to integrate and work with the Hedera Hashgraph network. The
+integration. This server enables exchanges to be able to integrate and work with the network. The
 server is written in Golang and is largely based on the [rosetta-sdk-go](https://github.com/coinbase/rosetta-sdk-go).
-Its main job is to respond to Rosetta requests, to the extent allowed by Hedera, while fetching information from the
+Its main job is to respond to Rosetta requests, to the extent allowed by Hiero, while fetching information from the
 mirror node database.
 
 ## Architecture
@@ -42,7 +42,7 @@ the data, and triggering the business logic services.
 ### Running Locally
 
 The recommended way to run Rosetta locally is to use the all-in-one docker image. Below are the steps to build the image
-for a Hedera mirror node release. Please replace the example release `v0.60.0` with the latest release from
+for a mirror node release. Please replace the example release `v0.60.0` with the latest release from
 our releases page.
 
 1. Download the [Dockerfile](/rosetta/build/Dockerfile).
@@ -52,7 +52,7 @@ our releases page.
 Configure and run the server in online mode:
 
 1. Follow the [guide](https://docs.hedera.com/guides/mirrornet/run-your-own-beta-mirror-node) to configure requester
-   pays for Hedera testnet.
+   pays for testnet.
 
 2. Set the desired configuration for both the [Importer](/docs/configuration.md#importer)
    and [Rosetta API](/docs/configuration.md#rosetta-api) in a new `application.yml` file to be mounted to the container.
@@ -104,7 +104,7 @@ The `get-genesis-balance.sh` script takes the following form
 
 `./get-genesis-balance.sh <network> <account_limit> <transfer_window_ns>`
 
-- `network` - The Hedera network to validate against. Options include `demo` or `testnet` with a default of `demo`
+- `network` - The network to validate against. Options include `demo` or `testnet` with a default of `demo`
 - `account_limit` - The max number of accounts to list in the file. Default is 20.
 - `transfer_window_ns` - The additional ns duration added to the `starting_timestamp` to search for accounts when an
   account limit is used. Default is 1 week i.e. 604800000000000 ns

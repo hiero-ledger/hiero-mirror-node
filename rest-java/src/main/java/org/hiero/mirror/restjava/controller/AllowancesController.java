@@ -9,8 +9,6 @@ import static org.hiero.mirror.restjava.common.Constants.TOKEN_ID;
 import static org.hiero.mirror.restjava.jooq.domain.Tables.NFT_ALLOWANCE;
 
 import com.google.common.collect.ImmutableSortedMap;
-import com.hedera.mirror.rest.model.NftAllowance;
-import com.hedera.mirror.rest.model.NftAllowancesResponse;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -18,6 +16,8 @@ import java.util.Map;
 import java.util.function.Function;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.rest.model.NftAllowance;
+import org.hiero.mirror.rest.model.NftAllowancesResponse;
 import org.hiero.mirror.restjava.common.EntityIdParameter;
 import org.hiero.mirror.restjava.common.EntityIdRangeParameter;
 import org.hiero.mirror.restjava.common.LinkFactory;

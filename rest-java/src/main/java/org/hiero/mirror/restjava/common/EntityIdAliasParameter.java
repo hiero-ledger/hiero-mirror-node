@@ -3,8 +3,8 @@
 package org.hiero.mirror.restjava.common;
 
 import com.google.common.io.BaseEncoding;
-import com.hedera.mirror.common.CommonProperties;
 import java.util.regex.Pattern;
+import org.hiero.mirror.common.CommonProperties;
 
 @SuppressWarnings("java:S6218")
 public record EntityIdAliasParameter(long shard, long realm, byte[] alias) implements EntityIdParameter {

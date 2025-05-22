@@ -7,7 +7,6 @@ import static org.awaitility.Awaitility.await;
 
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -18,6 +17,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.awaitility.Durations;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.PubSubIntegrationTest;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.parser.record.RecordFileParser;

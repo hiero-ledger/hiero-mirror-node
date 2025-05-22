@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.importer.downloader.record;
 
-import com.hedera.mirror.common.domain.StreamType;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.DownloaderProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;

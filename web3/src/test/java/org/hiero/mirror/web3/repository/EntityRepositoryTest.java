@@ -5,11 +5,11 @@ package org.hiero.mirror.web3.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityHistory;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityHistory;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;

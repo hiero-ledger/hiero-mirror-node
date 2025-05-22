@@ -3,15 +3,13 @@
 package org.hiero.mirror.web3.evm.store.contract;
 
 import static com.google.protobuf.ByteString.EMPTY;
-import static com.hedera.mirror.common.domain.entity.AbstractEntity.DEFAULT_EXPIRY_TIMESTAMP;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.common.domain.entity.AbstractEntity.DEFAULT_EXPIRY_TIMESTAMP;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hyperledger.besu.datatypes.Address.ZERO;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.services.store.models.Account;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.store.models.Token;
@@ -19,6 +17,8 @@ import java.time.Instant;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.evm.store.Store.OnMissing;
 import org.hiero.mirror.web3.repository.ContractRepository;

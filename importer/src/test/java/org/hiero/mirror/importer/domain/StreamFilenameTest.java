@@ -8,10 +8,10 @@ import static org.hiero.mirror.importer.domain.StreamFilename.FileType.DATA;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.SIDECAR;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.hedera.mirror.common.domain.StreamType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

@@ -2,19 +2,17 @@
 
 package org.hiero.mirror.importer.migration;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.ACCOUNT;
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
-import static com.hedera.mirror.common.domain.entity.EntityType.FILE;
-import static com.hedera.mirror.common.domain.entity.EntityType.SCHEDULE;
-import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
-import static com.hedera.mirror.common.domain.entity.EntityType.TOPIC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
+import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.domain.entity.EntityType.FILE;
+import static org.hiero.mirror.common.domain.entity.EntityType.SCHEDULE;
+import static org.hiero.mirror.common.domain.entity.EntityType.TOKEN;
+import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.Range;
-import com.hedera.mirror.common.converter.RangeToStringSerializer;
-import com.hedera.mirror.common.domain.entity.EntityType;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,6 +21,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
+import org.hiero.mirror.common.converter.RangeToStringSerializer;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;

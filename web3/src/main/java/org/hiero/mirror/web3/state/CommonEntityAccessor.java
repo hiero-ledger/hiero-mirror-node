@@ -6,14 +6,14 @@ import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.TokenID;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.repository.EntityRepository;
 
 @Named

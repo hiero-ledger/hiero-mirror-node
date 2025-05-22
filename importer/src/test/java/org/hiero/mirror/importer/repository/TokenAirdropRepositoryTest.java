@@ -4,9 +4,9 @@ package org.hiero.mirror.importer.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.token.TokenAirdrop;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.token.TokenAirdrop;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 

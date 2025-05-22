@@ -4,8 +4,8 @@ package org.hiero.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.contract.Contract;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
 

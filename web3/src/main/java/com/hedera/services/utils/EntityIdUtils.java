@@ -2,15 +2,12 @@
 
 package com.hedera.services.utils;
 
-import static com.hedera.mirror.common.util.DomainUtils.fromEvmAddress;
-import static com.hedera.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.common.util.DomainUtils.fromEvmAddress;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.evm.account.AccountAccessorImpl.EVM_ADDRESS_SIZE;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.AccountID.AccountOneOfType;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.exception.InvalidEntityException;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.store.models.NftId;
@@ -20,6 +17,9 @@ import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.base.utility.CommonUtils;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hyperledger.besu.datatypes.Address;
 
 public final class EntityIdUtils {

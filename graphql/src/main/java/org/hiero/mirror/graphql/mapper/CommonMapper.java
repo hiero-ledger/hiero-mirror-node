@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.graphql.mapper;
 
-import static com.hedera.mirror.common.util.DomainUtils.toBytes;
 import static org.apache.commons.codec.binary.Base64.encodeBase64String;
+import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
 import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -53,11 +53,11 @@ public interface CommonMapper {
             return null;
         }
 
-        var eid = com.hedera.mirror.common.domain.entity.EntityId.of(source);
+        var eid = org.hiero.mirror.common.domain.entity.EntityId.of(source);
         return mapEntityId(eid);
     }
 
-    default EntityId mapEntityId(com.hedera.mirror.common.domain.entity.EntityId source) {
+    default EntityId mapEntityId(org.hiero.mirror.common.domain.entity.EntityId source) {
         if (source == null) {
             return null;
         }

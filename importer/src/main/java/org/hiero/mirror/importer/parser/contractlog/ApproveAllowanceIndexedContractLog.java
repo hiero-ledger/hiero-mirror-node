@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.parser.contractlog;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 
 public class ApproveAllowanceIndexedContractLog extends AbstractSyntheticContractLog {
     public ApproveAllowanceIndexedContractLog(

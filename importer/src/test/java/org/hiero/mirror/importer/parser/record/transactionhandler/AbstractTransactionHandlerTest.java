@@ -18,17 +18,6 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Message;
 import com.google.protobuf.StringValue;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.SystemEntity;
-import com.hedera.mirror.common.domain.entity.AbstractEntity;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityOperation;
-import com.hedera.mirror.common.domain.entity.EntityTransaction;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Duration;
@@ -53,6 +42,17 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 import lombok.Builder;
 import lombok.Value;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.entity.AbstractEntity;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityOperation;
+import org.hiero.mirror.common.domain.entity.EntityTransaction;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogService;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
@@ -171,7 +171,7 @@ abstract class AbstractTransactionHandlerTest {
 
     protected Map<Long, EntityTransaction> getExpectedEntityTransactions(
             RecordItem recordItem,
-            com.hedera.mirror.common.domain.transaction.Transaction transaction,
+            org.hiero.mirror.common.domain.transaction.Transaction transaction,
             EntityId... entityIds) {
         var entityIdList = Lists.newArrayList(entityIds);
         entityIdList.add(transaction.getEntityId());
@@ -257,7 +257,7 @@ abstract class AbstractTransactionHandlerTest {
 
         return DynamicTest.stream(testSpecs.iterator(), UpdateEntityTestSpec::getDescription, testSpec -> {
             // when
-            var transaction = new com.hedera.mirror.common.domain.transaction.Transaction();
+            var transaction = new org.hiero.mirror.common.domain.transaction.Transaction();
             transaction.setEntityId(testSpec.getExpected().toEntityId());
             transaction.setConsensusTimestamp(CREATED_TIMESTAMP_NS);
             Mockito.reset(entityListener);

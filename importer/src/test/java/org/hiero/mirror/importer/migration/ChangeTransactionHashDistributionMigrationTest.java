@@ -4,12 +4,12 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.transaction.TransactionHash;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV2;
 import org.hiero.mirror.importer.ImporterIntegrationTest;

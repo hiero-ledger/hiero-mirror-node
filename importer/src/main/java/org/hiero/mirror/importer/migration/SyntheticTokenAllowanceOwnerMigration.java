@@ -3,10 +3,10 @@
 package org.hiero.mirror.importer.migration;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import jakarta.inject.Named;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.flywaydb.core.api.MigrationVersion;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.exception.ImporterException;

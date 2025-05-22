@@ -11,11 +11,11 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.EVM_V_34_BLOCK;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.EVM_V_38_BLOCK;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.EvmCodesHistorical;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract;

@@ -5,9 +5,9 @@ package org.hiero.mirror.importer.parser.record.ethereum;
 import com.esaulpaugh.headlong.rlp.RLPDecoder;
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
-import com.hedera.mirror.common.domain.transaction.EthereumTransaction;
 import jakarta.inject.Named;
 import java.math.BigInteger;
+import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
 import org.hiero.mirror.importer.repository.FileDataRepository;
 

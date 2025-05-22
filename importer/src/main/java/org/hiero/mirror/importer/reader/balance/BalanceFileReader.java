@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.reader.balance;
 
-import com.hedera.mirror.common.domain.balance.AccountBalance;
-import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.reader.StreamFileReader;
 

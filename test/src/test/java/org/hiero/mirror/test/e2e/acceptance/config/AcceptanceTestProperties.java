@@ -4,7 +4,6 @@ package org.hiero.mirror.test.e2e.acceptance.config;
 
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Hbar;
-import com.hedera.mirror.common.CommonProperties;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
@@ -21,6 +20,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.validator.constraints.time.DurationMin;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.NodeNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.props.NodeProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;

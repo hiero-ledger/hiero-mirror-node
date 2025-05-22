@@ -5,13 +5,13 @@ package org.hiero.mirror.graphql.service;
 import static org.hiero.mirror.graphql.util.GraphQlUtils.decodeBase32;
 import static org.hiero.mirror.graphql.util.GraphQlUtils.decodeEvmAddress;
 
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
 import jakarta.inject.Named;
 import java.nio.ByteBuffer;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.graphql.repository.EntityRepository;
 
 @Named

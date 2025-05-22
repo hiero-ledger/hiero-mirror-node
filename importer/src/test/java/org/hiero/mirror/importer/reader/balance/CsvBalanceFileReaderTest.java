@@ -2,15 +2,11 @@
 
 package org.hiero.mirror.importer.reader.balance;
 
-import static com.hedera.mirror.common.util.DomainUtils.createSha384Digest;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.collect.Collections2;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.balance.AccountBalance;
-import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
-import com.hedera.mirror.common.util.DomainUtils;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,6 +20,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import org.apache.commons.io.FileUtils;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;

@@ -5,11 +5,11 @@ package org.hiero.mirror.grpc.repository;
 import static org.hiero.mirror.grpc.config.CacheConfiguration.CACHE_NAME;
 import static org.hiero.mirror.grpc.config.CacheConfiguration.NODE_STAKE_CACHE;
 
-import com.hedera.mirror.common.domain.addressbook.NodeStake;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;

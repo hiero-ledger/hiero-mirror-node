@@ -3,8 +3,6 @@
 package org.hiero.mirror.importer.migration;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import com.hederahashgraph.api.proto.java.Key;
 import jakarta.inject.Named;
 import java.io.IOException;
@@ -16,6 +14,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Data;
 import lombok.Getter;
 import org.flywaydb.core.api.MigrationVersion;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.exception.ImporterException;

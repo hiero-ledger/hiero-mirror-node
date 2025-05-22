@@ -6,8 +6,8 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.IDENTICAL_SCHE
 
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
 final class ScheduleCreateTransformer extends AbstractBlockItemTransformer {

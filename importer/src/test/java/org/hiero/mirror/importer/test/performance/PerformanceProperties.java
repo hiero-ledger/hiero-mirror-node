@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.test.performance;
 
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -13,6 +12,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.Data;
 import org.hibernate.validator.constraints.time.DurationMin;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 

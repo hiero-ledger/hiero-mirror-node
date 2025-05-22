@@ -4,12 +4,12 @@ package org.hiero.mirror.importer.parser.domain;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import lombok.Value;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.parser.serializer.ProtoJsonSerializer;
 import org.hiero.mirror.importer.parser.serializer.PubSubEntityIdSerializer;
 

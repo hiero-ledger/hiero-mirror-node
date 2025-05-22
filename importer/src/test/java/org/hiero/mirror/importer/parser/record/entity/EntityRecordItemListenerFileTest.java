@@ -13,12 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.StringValue;
-import com.hedera.mirror.common.domain.addressbook.AddressBook;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.file.FileData;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.FileAppendTransactionBody;
 import com.hederahashgraph.api.proto.java.FileCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.FileID;
@@ -39,6 +33,12 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
+import org.hiero.mirror.common.domain.addressbook.AddressBook;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.addressbook.AddressBookService;
 import org.hiero.mirror.importer.repository.AddressBookEntryRepository;
 import org.hiero.mirror.importer.repository.AddressBookRepository;
@@ -852,7 +852,7 @@ class EntityRecordItemListenerFileTest extends AbstractEntityRecordItemListenerT
     }
 
     private void assertFailedFileTransaction(TransactionBody transactionBody, TransactionRecord txnRecord) {
-        com.hedera.mirror.common.domain.transaction.Transaction transaction =
+        org.hiero.mirror.common.domain.transaction.Transaction transaction =
                 getDbTransaction(txnRecord.getConsensusTimestamp());
         assertAll(() -> assertTransactionAndRecord(transactionBody, txnRecord), () -> assertThat(
                         transaction.getEntityId())

@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.restjava.service;
 
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import jakarta.annotation.Nonnull;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.restjava.common.EntityIdParameter;
 
 public interface EntityService {

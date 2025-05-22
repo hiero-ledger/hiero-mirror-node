@@ -4,14 +4,14 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.contract.ContractState;
-import com.hedera.mirror.common.domain.contract.ContractStateChange;
-import com.hedera.mirror.common.util.DomainUtils;
 import java.io.File;
 import java.util.ArrayList;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
+import org.hiero.mirror.common.domain.contract.ContractState;
+import org.hiero.mirror.common.domain.contract.ContractStateChange;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;

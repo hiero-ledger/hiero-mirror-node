@@ -2,14 +2,14 @@
 
 package org.hiero.mirror.importer.migration;
 
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityHistory;
 import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.util.Arrays;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityHistory;
 import org.hiero.mirror.importer.repository.RecordFileMigrationTest;
 import org.springframework.jdbc.core.RowMapper;
 

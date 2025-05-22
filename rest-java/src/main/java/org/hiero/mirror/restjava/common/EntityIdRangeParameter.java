@@ -3,11 +3,11 @@
 package org.hiero.mirror.restjava.common;
 
 import com.google.common.base.Splitter;
-import com.hedera.mirror.common.CommonProperties;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import java.util.List;
 import java.util.Objects;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.EntityId;
 
 public record EntityIdRangeParameter(RangeOperator operator, Long value) implements RangeParameter<Long> {
 

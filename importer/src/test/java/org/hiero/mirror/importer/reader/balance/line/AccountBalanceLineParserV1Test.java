@@ -5,7 +5,7 @@ package org.hiero.mirror.importer.reader.balance.line;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.hedera.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

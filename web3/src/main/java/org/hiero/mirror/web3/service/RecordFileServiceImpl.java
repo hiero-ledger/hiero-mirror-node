@@ -4,9 +4,9 @@ package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
 
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.exception.BlockNumberOutOfRangeException;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.viewmodel.BlockType;

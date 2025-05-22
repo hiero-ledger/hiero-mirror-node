@@ -3,8 +3,6 @@
 package org.hiero.mirror.web3.common;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
-import com.hedera.mirror.common.domain.contract.ContractAction;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import java.util.ArrayList;
 import java.util.EmptyStackException;
 import java.util.HashMap;
@@ -15,6 +13,8 @@ import java.util.function.Function;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import org.hiero.mirror.common.domain.contract.ContractAction;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;

@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.importer.reader;
 
-import com.hedera.mirror.common.domain.DigestAlgorithm;
 import java.io.IOException;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 
 @EqualsAndHashCode(callSuper = true)

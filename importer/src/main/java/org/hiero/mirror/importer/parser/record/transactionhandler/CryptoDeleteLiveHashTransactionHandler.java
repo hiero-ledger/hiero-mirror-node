@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
 class CryptoDeleteLiveHashTransactionHandler extends AbstractTransactionHandler {

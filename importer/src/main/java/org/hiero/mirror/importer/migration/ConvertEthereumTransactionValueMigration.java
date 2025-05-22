@@ -3,12 +3,12 @@
 package org.hiero.mirror.importer.migration;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.converter.WeiBarTinyBarConverter;
 import jakarta.inject.Named;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import org.flywaydb.core.api.MigrationVersion;
+import org.hiero.mirror.common.converter.WeiBarTinyBarConverter;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 

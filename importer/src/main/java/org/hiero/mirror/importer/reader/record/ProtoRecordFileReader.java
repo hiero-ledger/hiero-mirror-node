@@ -2,14 +2,9 @@
 
 package org.hiero.mirror.importer.reader.record;
 
-import static com.hedera.mirror.common.util.DomainUtils.createSha384Digest;
 import static java.lang.String.format;
+import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 
-import com.hedera.mirror.common.domain.DigestAlgorithm;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.SidecarFile;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.stream.proto.HashAlgorithm;
 import com.hedera.services.stream.proto.RecordStreamFile;
 import jakarta.inject.Named;
@@ -24,6 +19,11 @@ import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.CustomLog;
 import org.apache.commons.io.output.NullOutputStream;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.SidecarFile;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;

@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.parser;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
-import com.hedera.mirror.common.domain.StreamFile;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Duration;
@@ -12,6 +11,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.slf4j.Logger;

@@ -4,9 +4,9 @@ package org.hiero.mirror.web3.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import java.util.List;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.evm.store.StackedStateFrames;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;

@@ -16,7 +16,7 @@ environment.
 
 ### Application Configuration
 
-Create application.yml in {HEDERA_REPO}/importer/config/
+Create application.yml in `importer/config`
 
 1. Configure Network
 2. Configure start date
@@ -70,9 +70,8 @@ hiero:
 
 ## Run the application
 
-1. cd {HEDERA_REPO}
-2. `./gradlew importer:bootRun`
-3. Optionally, run in an IDE and run the bootrun gradle task on the importer module
+1. `./gradlew importer:bootRun`
+2. Optionally, run in an IDE and run the bootrun Gradle task on the importer module
 
 ## Verification
 

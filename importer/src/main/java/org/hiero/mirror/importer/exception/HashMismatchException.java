@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.exception;
 
-import com.hedera.mirror.common.util.DomainUtils;
 import java.io.Serial;
+import org.hiero.mirror.common.util.DomainUtils;
 
 @SuppressWarnings("java:S110")
 public class HashMismatchException extends ImporterException {

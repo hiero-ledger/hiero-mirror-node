@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.importer.repository.upsert;
 
-import com.hedera.mirror.common.domain.Upsertable;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.Value;
+import org.hiero.mirror.common.domain.Upsertable;
 
 /**
  * Contains the metadata associated with an @Upsertable entity. Used to generate dynamic upsert SQL.

@@ -2,13 +2,13 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.TOKEN;
+import static org.hiero.mirror.common.domain.entity.EntityType.TOKEN;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
-import com.hedera.mirror.common.domain.SystemEntity;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;

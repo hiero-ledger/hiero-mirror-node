@@ -8,13 +8,13 @@ import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.NftID;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.token.Nft;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.AbstractToken;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.token.AbstractToken;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.NftRepository;
 import org.hiero.mirror.web3.repository.TokenRepository;
@@ -55,7 +55,7 @@ public class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
     }
 
     private Nft mapToNft(
-            final com.hedera.mirror.common.domain.token.Nft nft,
+            final org.hiero.mirror.common.domain.token.Nft nft,
             final TokenID tokenID,
             final EntityId treasuryAccountId) {
         return Nft.newBuilder()

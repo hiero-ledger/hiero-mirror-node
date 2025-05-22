@@ -2,12 +2,12 @@
 
 package org.hiero.mirror.importer.repository;
 
-import static com.hedera.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 
-import com.hedera.mirror.common.domain.entity.EntityHistory;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityHistory;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 

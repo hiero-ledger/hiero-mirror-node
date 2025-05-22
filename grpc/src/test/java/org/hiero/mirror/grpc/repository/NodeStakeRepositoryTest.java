@@ -4,9 +4,9 @@ package org.hiero.mirror.grpc.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.addressbook.NodeStake;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.junit.jupiter.api.Test;
 

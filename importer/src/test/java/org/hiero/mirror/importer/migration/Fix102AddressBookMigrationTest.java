@@ -4,12 +4,12 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.addressbook.AddressBook;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import jakarta.annotation.Resource;
 import java.io.File;
 import java.io.IOException;
 import org.apache.commons.io.FileUtils;
+import org.hiero.mirror.common.domain.addressbook.AddressBook;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.AddressBookRepository;

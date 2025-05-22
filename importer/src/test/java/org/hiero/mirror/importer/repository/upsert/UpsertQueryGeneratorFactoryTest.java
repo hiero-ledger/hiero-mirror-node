@@ -5,9 +5,9 @@ package org.hiero.mirror.importer.repository.upsert;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.token.DissociateTokenTransfer;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.token.DissociateTokenTransfer;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 

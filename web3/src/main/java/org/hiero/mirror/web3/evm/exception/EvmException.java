@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.web3.evm.exception;
 
-import com.hedera.mirror.common.exception.MirrorNodeException;
 import java.io.Serial;
+import org.hiero.mirror.common.exception.MirrorNodeException;
 
 @SuppressWarnings("java:S110")
 public abstract class EvmException extends MirrorNodeException {

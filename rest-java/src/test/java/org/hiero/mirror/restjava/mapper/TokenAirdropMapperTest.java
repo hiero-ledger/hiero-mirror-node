@@ -2,16 +2,16 @@
 
 package org.hiero.mirror.restjava.mapper;
 
-import static com.hedera.mirror.common.domain.token.TokenTypeEnum.FUNGIBLE_COMMON;
-import static com.hedera.mirror.common.domain.token.TokenTypeEnum.NON_FUNGIBLE_UNIQUE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.token.TokenTypeEnum.FUNGIBLE_COMMON;
+import static org.hiero.mirror.common.domain.token.TokenTypeEnum.NON_FUNGIBLE_UNIQUE;
 
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.token.TokenTypeEnum;
-import com.hedera.mirror.rest.model.TimestampRange;
-import com.hedera.mirror.rest.model.TokenAirdrop;
 import java.util.List;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.rest.model.TimestampRange;
+import org.hiero.mirror.rest.model.TokenAirdrop;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -52,7 +52,7 @@ class TokenAirdropMapperTest {
 
     @Test
     void mapNulls() {
-        var tokenAirdrop = new com.hedera.mirror.common.domain.token.TokenAirdrop();
+        var tokenAirdrop = new org.hiero.mirror.common.domain.token.TokenAirdrop();
         assertThat(mapper.map(tokenAirdrop))
                 .returns(null, TokenAirdrop::getAmount)
                 .returns(null, TokenAirdrop::getReceiverId)

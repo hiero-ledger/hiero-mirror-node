@@ -2,15 +2,15 @@
 
 package org.hiero.mirror.restjava.spec.builder;
 
-import static com.hedera.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
+import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 
-import com.hedera.mirror.common.domain.DigestAlgorithm;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
 import jakarta.inject.Named;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.restjava.spec.model.SpecSetup;
 
 @Named

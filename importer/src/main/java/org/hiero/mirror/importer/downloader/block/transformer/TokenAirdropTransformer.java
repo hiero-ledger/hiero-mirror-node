@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.downloader.block.transformer;
 
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NftID;
@@ -17,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
 final class TokenAirdropTransformer extends AbstractBlockItemTransformer {

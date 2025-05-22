@@ -2,24 +2,14 @@
 
 package org.hiero.mirror.web3.utils;
 
-import static com.hedera.mirror.common.domain.transaction.TransactionType.CONTRACTCALL;
-import static com.hedera.mirror.common.domain.transaction.TransactionType.CONTRACTCREATEINSTANCE;
-import static com.hedera.mirror.common.domain.transaction.TransactionType.ETHEREUMTRANSACTION;
-import static com.hedera.mirror.common.util.CommonUtils.nextBytes;
-import static com.hedera.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
-import static com.hedera.mirror.common.util.DomainUtils.convertToNanosMax;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCALL;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCREATEINSTANCE;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.ETHEREUMTRANSACTION;
+import static org.hiero.mirror.common.util.CommonUtils.nextBytes;
+import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
+import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
-import com.hedera.mirror.common.domain.DomainBuilder;
-import com.hedera.mirror.common.domain.DomainWrapper;
-import com.hedera.mirror.common.domain.contract.ContractResult;
-import com.hedera.mirror.common.domain.contract.ContractTransactionHash;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.transaction.EthereumTransaction;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
-import com.hedera.mirror.common.domain.transaction.Transaction;
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.nio.ByteBuffer;
 import java.time.Instant;
@@ -30,6 +20,16 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.DomainWrapper;
+import org.hiero.mirror.common.domain.contract.ContractResult;
+import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.Transaction;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hyperledger.besu.datatypes.Address;
 
 @Getter

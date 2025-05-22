@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.repository;
 
-import com.hedera.mirror.common.domain.balance.AccountBalanceFile;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.springframework.data.jpa.repository.Query;
 
 public interface AccountBalanceFileRepository extends StreamFileRepository<AccountBalanceFile, Long> {

@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.StateChangeContext;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext;
+import org.hiero.mirror.common.util.DomainUtils;
 
 abstract class AbstractContractTransformer extends AbstractBlockItemTransformer {
 

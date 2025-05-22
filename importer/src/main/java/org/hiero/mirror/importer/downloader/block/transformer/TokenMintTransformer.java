@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.TransactionType;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
 final class TokenMintTransformer extends AbstractTokenTransformer {

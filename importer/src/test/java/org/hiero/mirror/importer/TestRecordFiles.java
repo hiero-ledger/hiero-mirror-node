@@ -3,10 +3,6 @@
 package org.hiero.mirror.importer;
 
 import com.google.protobuf.BytesValue;
-import com.hedera.mirror.common.domain.DigestAlgorithm;
-import com.hedera.mirror.common.domain.transaction.RecordFile;
-import com.hedera.mirror.common.domain.transaction.SidecarFile;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hedera.services.stream.proto.ContractBytecode;
 import com.hedera.services.stream.proto.ContractStateChange;
 import com.hedera.services.stream.proto.ContractStateChanges;
@@ -20,6 +16,10 @@ import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.SidecarFile;
+import org.hiero.mirror.common.util.DomainUtils;
 
 @UtilityClass
 public class TestRecordFiles {

@@ -1,14 +1,14 @@
 # `StackedStateFrames` and `UpdatableReferenceCache`
 
-## The `StackedStateFrames` for caching Hedera objects during contract execution
+## The `StackedStateFrames` for caching objects during contract execution
 
 ## Overview
 
-The purpose of this is to support `eth_call` and `eth_estimateGas`, both of which can update Hedera domain objects while executing contracts, but that updated Hedera state is never persisted past a contract's execution (and certainly _not_ to the database).
+The purpose of this is to support `eth_call` and `eth_estimateGas`, both of which can update domain objects while executing contracts, but that updated state is never persisted past a contract's execution (and certainly _not_ to the database).
 
-As each contract executes its changes to Hedera state must be kept: later execution may refer to the same Hedera object and want the updated state. This also applies as contracts call other contracts. However, in a call to another contract, that call can either succeed or fail. In the success case changes to Hedera objects made by the _called_ contract are kept so that the caller can see them. But in the failure case ("revert") those changes must be thrown away so that the caller does _not_ see them.
+As each contract executes its changes to state must be kept: later execution may refer to the same object and want the updated state. This also applies as contracts call other contracts. However, in a call to another contract, that call can either succeed or fail. In the success case changes to objects made by the _called_ contract are kept so that the caller can see them. But in the failure case ("revert") those changes must be thrown away so that the caller does _not_ see them.
 
-The `eth_estimateGas` call is more complicated: It must do a search for the proper amount of gas (for various complicated reasons) and it does that by calling the contract multiple times with the same arguments but different amount of allowable gas, in order to search for the closest gas estimate it can find that works. Each of those calls must access the same Hedera state no matter how many blocks have come in during the multiple executions of the same contract.
+The `eth_estimateGas` call is more complicated: It must do a search for the proper amount of gas (for various complicated reasons) and it does that by calling the contract multiple times with the same arguments but different amount of allowable gas, in order to search for the closest gas estimate it can find that works. Each of those calls must access the same state no matter how many blocks have come in during the multiple executions of the same contract.
 
 ## The Stacked State Frames: Principles of Operation
 
@@ -18,13 +18,13 @@ The most **up**stream cache is simply a pass-through-only accessor of ground tru
 
 The database layer does no caching at all, but stacked on top of it is a _read only_ cache that passed through missing reads to the upstream database layer and then holds the returned value. All subsequent reads of that key will be returned directly from the RO cache.
 
-These two layers form the stack base. This base is _reused_ over the multiple-calls to the same contract with the same parameters and the same Hedera state during a single call to `eth_estimateGas`.
+These two layers form the stack base. This base is _reused_ over the multiple-calls to the same contract with the same parameters and the same state during a single call to `eth_estimateGas`.
 
-Above the stack base comes read-write cache levels, one for each contract call in progress. They're like call-frames, but hold only Hedera state objects. As each nested contract call is made a new empty one is pushed onto the stack, using the previous top-of-stack as its upstream cache.
+Above the stack base comes read-write cache levels, one for each contract call in progress. They're like call-frames, but hold only state objects. As each nested contract call is made a new empty one is pushed onto the stack, using the previous top-of-stack as its upstream cache.
 
 At any time the cache can return values that it holds, or, if it knows that it has never been asked for a value, it will call its upstream asking for that value, and on return, store it.
 
-When a contract call completes successfully you commit its Hedera state changes to its upstream. If the contract call fails you simply pop the top of the stack and throw it away. You never commit to the stack base (the RO cache frame there) - or if you do, it will fail.
+When a contract call completes successfully you commit its state changes to its upstream. If the contract call fails you simply pop the top of the stack and throw it away. You never commit to the stack base (the RO cache frame there) - or if you do, it will fail.
 
 ## What are the allowable states of a cache line?
 

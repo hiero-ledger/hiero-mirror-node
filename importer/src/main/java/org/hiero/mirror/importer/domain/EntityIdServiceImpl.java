@@ -2,19 +2,15 @@
 
 package org.hiero.mirror.importer.domain;
 
-import static com.hedera.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
-import static com.hedera.mirror.common.util.DomainUtils.fromBytes;
-import static com.hedera.mirror.common.util.DomainUtils.toBytes;
+import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
+import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
+import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_ALIAS;
 import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 import static org.hiero.mirror.importer.util.Utility.aliasToEvmAddress;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.GeneratedMessage;
-import com.hedera.mirror.common.domain.entity.Entity;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.entity.EntityType;
-import com.hedera.mirror.common.util.DomainUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import jakarta.annotation.Nonnull;
@@ -25,6 +21,10 @@ import java.util.concurrent.Callable;
 import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.util.Utility;
 import org.springframework.beans.factory.annotation.Qualifier;

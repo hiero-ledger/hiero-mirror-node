@@ -6,12 +6,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.base.Splitter;
-import com.hedera.mirror.common.domain.balance.AccountBalance;
-import com.hedera.mirror.common.domain.balance.TokenBalance;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

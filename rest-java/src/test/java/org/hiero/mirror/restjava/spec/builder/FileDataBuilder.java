@@ -2,12 +2,12 @@
 
 package org.hiero.mirror.restjava.spec.builder;
 
-import com.hedera.mirror.common.domain.file.FileData;
 import jakarta.inject.Named;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.restjava.spec.model.SpecSetup;
 
 @Named

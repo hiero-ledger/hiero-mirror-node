@@ -15,7 +15,7 @@ import org.jooq.impl.DefaultRecordMapper;
 @Named
 public class DomainRecordMapperProvider implements RecordMapperProvider {
 
-    private static final String PACKAGE_PREFIX = "com.hedera.mirror";
+    private static final String PACKAGE_PREFIX = "org.hiero.mirror";
 
     private final Map<MapperKey, RecordMapper<?, ?>> mappers = new ConcurrentHashMap<>();
 

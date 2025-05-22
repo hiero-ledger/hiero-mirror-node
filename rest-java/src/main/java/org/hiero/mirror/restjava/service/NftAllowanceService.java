@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.restjava.service;
 
-import com.hedera.mirror.common.domain.entity.NftAllowance;
 import java.util.Collection;
+import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.restjava.dto.NftAllowanceRequest;
 
 public interface NftAllowanceService {

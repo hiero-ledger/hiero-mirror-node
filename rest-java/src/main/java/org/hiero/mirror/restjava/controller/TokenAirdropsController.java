@@ -14,8 +14,6 @@ import static org.hiero.mirror.restjava.dto.TokenAirdropRequest.AirdropRequestTy
 import static org.hiero.mirror.restjava.jooq.domain.Tables.TOKEN_AIRDROP;
 
 import com.google.common.collect.ImmutableSortedMap;
-import com.hedera.mirror.rest.model.TokenAirdrop;
-import com.hedera.mirror.rest.model.TokenAirdropsResponse;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -24,6 +22,8 @@ import java.util.Map;
 import java.util.function.Function;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.rest.model.TokenAirdrop;
+import org.hiero.mirror.rest.model.TokenAirdropsResponse;
 import org.hiero.mirror.restjava.common.EntityIdParameter;
 import org.hiero.mirror.restjava.common.EntityIdRangeParameter;
 import org.hiero.mirror.restjava.common.LinkFactory;

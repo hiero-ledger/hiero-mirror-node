@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
-import com.hedera.mirror.common.domain.transaction.RecordItem;
-import com.hedera.mirror.common.domain.transaction.StateChangeContext;
 import com.hederahashgraph.api.proto.java.TokenID;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext;
 
 abstract class AbstractTokenTransformer extends AbstractBlockItemTransformer {
 

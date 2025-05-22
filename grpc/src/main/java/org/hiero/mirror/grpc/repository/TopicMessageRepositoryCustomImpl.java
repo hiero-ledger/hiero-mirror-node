@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.grpc.repository;
 
-import com.hedera.mirror.common.domain.topic.TopicMessage;
 import jakarta.inject.Named;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -14,6 +13,7 @@ import java.util.stream.Stream;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.jpa.HibernateHints;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
 
 @CustomLog

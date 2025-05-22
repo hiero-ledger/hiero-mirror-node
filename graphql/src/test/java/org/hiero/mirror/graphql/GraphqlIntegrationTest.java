@@ -2,6 +2,6 @@
 
 package org.hiero.mirror.graphql;
 
-import com.hedera.mirror.common.config.CommonIntegrationTest;
+import org.hiero.mirror.common.config.CommonIntegrationTest;
 
 public abstract class GraphqlIntegrationTest extends CommonIntegrationTest {}

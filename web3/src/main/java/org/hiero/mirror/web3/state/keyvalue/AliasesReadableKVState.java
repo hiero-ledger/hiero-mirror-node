@@ -4,9 +4,9 @@ package org.hiero.mirror.web3.state.keyvalue;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
-import com.hedera.mirror.common.domain.SystemEntity;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;

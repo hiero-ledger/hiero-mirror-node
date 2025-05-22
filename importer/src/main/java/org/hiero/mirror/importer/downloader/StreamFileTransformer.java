@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.importer.downloader;
 
-import com.hedera.mirror.common.domain.StreamFile;
+import org.hiero.mirror.common.domain.StreamFile;
 
 public interface StreamFileTransformer<T extends StreamFile<?>, S extends StreamFile<?>> {
     T transform(S s);

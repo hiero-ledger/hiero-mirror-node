@@ -4,10 +4,6 @@ package org.hiero.mirror.restjava.mapper;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.rest.model.Key;
-import com.hedera.mirror.rest.model.Key.TypeEnum;
-import com.hedera.mirror.rest.model.TimestampRange;
 import com.hederahashgraph.api.proto.java.KeyList;
 import java.util.Collections;
 import java.util.List;
@@ -15,6 +11,10 @@ import java.util.regex.Pattern;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.rest.model.Key;
+import org.hiero.mirror.rest.model.Key.TypeEnum;
+import org.hiero.mirror.rest.model.TimestampRange;
 import org.hiero.mirror.restjava.exception.InvalidMappingException;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingInheritanceStrategy;
@@ -37,7 +37,7 @@ public interface CommonMapper {
         return mapEntityId(eid);
     }
 
-    default String mapEntityId(com.hedera.mirror.common.domain.entity.EntityId source) {
+    default String mapEntityId(EntityId source) {
         return source != null ? source.toString() : null;
     }
 

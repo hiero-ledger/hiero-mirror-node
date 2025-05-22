@@ -9,24 +9,16 @@ import config from '../config';
 import {FLYWAY_DATA_PATH, FLYWAY_EXE_PATH, FLYWAY_VERSION} from './globalSetup';
 import {getModuleDirname, isV2Schema} from './testutils';
 import {getPoolClass} from '../utils';
-import {PostgreSqlContainer} from '@testcontainers/postgresql';
-import {GenericContainer, Network, PullPolicy} from 'testcontainers';
+import {GenericContainer, PullPolicy} from 'testcontainers';
 
 const {db: defaultDbConfig} = config;
 const Pool = getPoolClass();
 
-const containers = new Map();
 const restJavaContainers = new Map();
-const networks = new Map();
 
-const dbName = 'mirror_node';
-const ownerUser = 'mirror_node';
-const ownerPassword = 'mirror_node_pass';
 const readOnlyUser = 'mirror_rest';
 const readOnlyPassword = 'mirror_rest_pass';
 const workerId = process.env.JEST_WORKER_ID;
-const v1DatabaseImage = 'postgres:16-alpine';
-const v2DatabaseImage = 'gcr.io/mirrornode/citus:12.1.1';
 
 const cleanupSql = fs.readFileSync(
   path.join(getModuleDirname(import.meta), '..', '..', 'common', 'src', 'test', 'resources', 'cleanup.sql'),
@@ -48,92 +40,43 @@ const cleanUp = async () => {
   await ownerPool.query(cleanupSql);
 };
 
-const createDbContainer = async () => {
-  const image = isV2Schema() ? v2DatabaseImage : v1DatabaseImage;
-  const initSqlPath = path.join('..', 'common', 'src', 'test', 'resources', 'init.sql');
-  const initSqlCopy = {
-    source: initSqlPath,
-    target: '/docker-entrypoint-initdb.d/init.sql',
-  };
-
-  const maxRetries = 10;
-  let retries = maxRetries;
-  const retryMsDelay = 2000;
-  let container;
-
-  while (retries-- > 0) {
-    try {
-      container = new PostgreSqlContainer(image)
-        .withCopyFilesToContainer([initSqlCopy])
-        .withDatabase(dbName)
-        .withPassword(ownerPassword)
-        .withUsername(ownerUser);
-      const network = await getNetwork();
-      if (network) {
-        container = container.withNetwork(network).withNetworkAliases(`postgres-${workerId}`);
-      }
-      container = await container.start();
-      break;
-    } catch (e) {
-      logger.warn(`Error start PostgreSQL container worker ${workerId} during attempt #${maxRetries - retries}: ${e}`);
-      await new Promise((resolve) => setTimeout(resolve, retryMsDelay));
-    }
-  }
-
-  logger.info(`Started PostgreSQL container for jest worker ${workerId} with image ${image}`);
-  await flywayMigrate(container);
-  return container;
-};
-
 const createRestJavaContainer = async () => {
-  const psqlContainer = await getDbContainer();
-  const network = await getNetwork();
-  if (!network) {
-    throw new Error('Network not found');
-  }
+  const connectionParams = await getDbConnectionParams();
+  await flywayMigrate(connectionParams);
+  const bridgeHost = os.type() === 'Linux' ? '127.0.0.1' : 'host.docker.internal';
   return new GenericContainer('gcr.io/mirrornode/hedera-mirror-rest-java:latest')
     .withEnvironment({
-      HEDERA_MIRROR_RESTJAVA_DB_HOST: `postgres-${workerId}`,
-      HEDERA_MIRROR_RESTJAVA_DB_PORT: 5432,
-      HEDERA_MIRROR_RESTJAVA_DB_NAME: dbName,
+      HEDERA_MIRROR_RESTJAVA_DB_HOST: bridgeHost,
+      HEDERA_MIRROR_RESTJAVA_DB_PORT: connectionParams.port,
+      HEDERA_MIRROR_RESTJAVA_DB_NAME: connectionParams.database,
     })
     .withExposedPorts(8084)
-    .withNetwork(network)
     .withPullPolicy(PullPolicy.defaultPolicy())
     .start();
 };
 
-const getNetwork = async () => {
-  if (!process.env.REST_JAVA_INCLUDE) {
-    return null;
-  }
-
-  let network = networks.get(workerId);
-  if (!network) {
-    network = await new Network().start();
-    networks.set(workerId, network);
-  }
-  return network;
-};
 /**
- * Gets the port of the container in use by the Jest worker. If the container does not exist, a new container is created
+ * Gets connection parameters of the db container created for this jest worker
  *
- * @returns {Promise<PostgreSqlContainer>}
+ * @returns {Promise<{}>}
  */
-const getDbContainer = async () => {
-  let container = containers.get(workerId);
+const getDbConnectionParams = async () => {
+  const response = await fetch(process.env.DB_CONTAINER_SERVER_URL + '/connectionParams', {
+    method: 'POST',
+    headers: {
+      Connection: 'close', // close the connection to avoid ECONNRESET
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({workerId}),
+  });
 
-  if (!container) {
-    container = await createDbContainer();
-    containers.set(workerId, container);
-  }
-
-  return container;
+  return await response.json();
 };
 
 const initializeContainers = async () => {
-  const dbContainer = await getDbContainer();
-  await createPool(dbContainer);
+  const connectionParams = await getDbConnectionParams();
+  await flywayMigrate(connectionParams);
+  await createPool(connectionParams);
 };
 
 const startRestJavaContainer = async (envSetup) => {
@@ -148,19 +91,10 @@ const startRestJavaContainer = async (envSetup) => {
   return container;
 };
 
-const createPool = async (container) => {
-  const dbConnectionParams = {
-    database: container.getDatabase(),
-    host: container.getHost(),
-    password: container.getPassword(),
-    port: container.getPort(),
-    sslmode: 'DISABLE',
-    user: container.getUsername(),
-  };
-
-  global.ownerPool = new Pool(dbConnectionParams);
+const createPool = async (connectionParams) => {
+  global.ownerPool = new Pool(connectionParams);
   global.pool = new Pool({
-    ...dbConnectionParams,
+    ...connectionParams,
     password: readOnlyPassword,
     user: readOnlyUser,
   });
@@ -170,10 +104,10 @@ const createPool = async (container) => {
 /**
  * Run the SQL (non-java) based migrations stored in the Importer project against the target database.
  */
-const flywayMigrate = async (container) => {
-  const containerPort = container.getPort();
-  logger.info(`Using flyway CLI to construct schema for jest worker ${workerId} on port ${containerPort}`);
-  const jdbcUrl = `jdbc:postgresql://${container.getHost()}:${containerPort}/${dbName}`;
+const flywayMigrate = async (connectionParams) => {
+  const {database, host, password, port, user} = connectionParams;
+  logger.info(`Using flyway CLI to construct schema for jest worker ${workerId} on port ${port}`);
+  const jdbcUrl = `jdbc:postgresql://${host}:${port}/${database}`;
   const flywayConfigPath = path.join(os.tmpdir(), `config_worker_${workerId}.json`); // store configs in temp dir
   const locations = getMigrationScriptLocation(schemaConfigs.locations);
 
@@ -182,11 +116,11 @@ const flywayMigrate = async (container) => {
       "baselineOnMigrate": "true",
       "baselineVersion": "${schemaConfigs.baselineVersion}",
       "locations": "filesystem:${locations}",
-      "password": "${ownerPassword}",
+      "password": "${password}",
       "placeholders.api-password": "${defaultDbConfig.password}",
       "placeholders.api-user": "${defaultDbConfig.user}",
-      "placeholders.db-name": "${dbName}",
-      "placeholders.db-user": "${ownerUser}",
+      "placeholders.db-name": "${database}",
+      "placeholders.db-user": "${user}",
       "placeholders.hashShardCount": 2,
       "placeholders.partitionStartDate": "'1970-01-01'",
       "placeholders.partitionTimeInterval": "'10 years'",
@@ -196,7 +130,7 @@ const flywayMigrate = async (container) => {
       "placeholders.tempSchema": "temporary",
       "target": "latest",
       "url": "${jdbcUrl}",
-      "user": "${ownerUser}"
+      "user": "${user}"
     },
     "version": "${FLYWAY_VERSION}",
     "downloads": {
@@ -223,6 +157,10 @@ const flywayMigrate = async (container) => {
   }
 
   fs.rmSync(locations, {force: true, recursive: true});
+
+  if (retries < 0) {
+    throw new Error('Failed to run flyway migrate');
+  }
 };
 
 const getMigrationScriptLocation = (locations) => {

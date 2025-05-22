@@ -132,7 +132,7 @@ spring:
         order_inserts: true
         order_updates: true
         type:
-          json_format_mapper: com.hedera.mirror.common.converter.CustomJsonFormatMapper
+          json_format_mapper: org.hiero.mirror.common.converter.CustomJsonFormatMapper
     show-sql: false
   lifecycle:
     timeout-per-shutdown-phase: 20s

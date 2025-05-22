@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.importer.repository;
 
-import com.hedera.mirror.common.domain.token.AbstractNft;
-import com.hedera.mirror.common.domain.token.NftHistory;
+import org.hiero.mirror.common.domain.token.AbstractNft;
+import org.hiero.mirror.common.domain.token.NftHistory;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;

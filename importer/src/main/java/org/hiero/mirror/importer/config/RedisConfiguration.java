@@ -4,10 +4,10 @@ package org.hiero.mirror.importer.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.hedera.mirror.common.converter.EntityIdDeserializer;
-import com.hedera.mirror.common.converter.EntityIdSerializer;
-import com.hedera.mirror.common.domain.entity.EntityId;
-import com.hedera.mirror.common.domain.topic.StreamMessage;
+import org.hiero.mirror.common.converter.EntityIdDeserializer;
+import org.hiero.mirror.common.converter.EntityIdSerializer;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.topic.StreamMessage;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.springframework.boot.actuate.autoconfigure.metrics.CompositeMeterRegistryAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration;

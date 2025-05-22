@@ -4,10 +4,6 @@ package org.hiero.mirror.importer.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.mirror.common.domain.addressbook.AddressBook;
-import com.hedera.mirror.common.domain.addressbook.AddressBookEntry;
-import com.hedera.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
-import com.hedera.mirror.common.domain.entity.EntityId;
 import jakarta.annotation.Resource;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -16,6 +12,10 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.hiero.mirror.common.domain.addressbook.AddressBook;
+import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
+import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.util.CollectionUtils;
