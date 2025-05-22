@@ -7,7 +7,6 @@ broader operation support and better alignment with consensus node behavior but 
 introduce breaking changes due to differences between the new modularized logic and
 the old monolithic implementation, which is being deprecated.
 
-
 ## Breaking Changes
 
 ### 1. Contract Call Behavior on Invalid Input
@@ -26,13 +25,12 @@ and `MAX_CHILD_RECORDS_EXCEEDED`, providing clearer failure reasons.
 **Resolution**: Update client-side logic to handle a wider range of status codes and to expect HTTP
 `400` responses with more descriptive error messages.
 
-
 ### 2. Gas Estimation Logic
 
 **Impact**: Gas estimation may now return slightly different results due to improved modeling
 especially for contract deploy.
 
-**Reason for change**: Estimation logic has been updated to better reflect actual execution cost as in consensus node.  
+**Reason for change**: Estimation logic has been updated to better reflect actual execution cost as in consensus node.
 **Resolution**: If comparing to old estimates, expect minor differences except for contract deployment.
 
 ### 3. Default KYC Status Behavior
@@ -60,7 +58,7 @@ consensus node state and returns `INVALID_CONTRACT_ID`, while the monolithic flo
 `INVALID_TRANSACTION` in this scenario.
 
 **Details**: Client applications relying on a specific error code for missing contracts may behave
-differently depending on the flow used. 
+differently depending on the flow used.
 
 **Resolution**: Update any error handling logic or tests expecting `INVALID_TRANSACTION` to also
 handle `INVALID_CONTRACT_ID` when running against the modularized flow.
@@ -68,15 +66,17 @@ handle `INVALID_CONTRACT_ID` when running against the modularized flow.
 ### 5. Negative Redirect Calls Return Different Errors
 
 **Impact**: Contract calls that redirect and fail due to invalid input may produce
-different error statuses between the monolithic and modularized flows.  
+different error statuses between the monolithic and modularized flows.
 **Reason for change**: The modularized flow executes logic is resulting in standard EVM reverts
-(e.g., `CONTRACT_REVERT_EXECUTED`) instead mono errors result in `INVALID_TOKEN_ID`.  
+(e.g., `CONTRACT_REVERT_EXECUTED`) instead mono errors result in `INVALID_TOKEN_ID`.
 **Details**: Affected functions include:
+
 - `decimalsRedirect`
 - `ownerOfRedirect`
 - `tokenURIRedirect`
 
 In these and similar cases:
+
 - **Modularized**: Failing redirects result in `CONTRACT_REVERT_EXECUTED`
 - **Monolithic**: Returned specific status codes such as `INVALID_TOKEN_ID`
 
@@ -85,13 +85,8 @@ In these and similar cases:
 
 ### 6. Exchange Rate Precompile Called With Value Fails Differently
 
-**Impact**: Sending non-zero `value` to the exchange rate precompile results in different errors.  
+**Impact**: Sending non-zero `value` to the exchange rate precompile results in different errors.
 **Reason for change**: The modularized flow rejects the call early with `INVALID_CONTRACT_ID`, while the
-monolithic flow returns `CONTRACT_REVERT_EXECUTED`.  
+monolithic flow returns `CONTRACT_REVERT_EXECUTED`.
 **Resolution**: Update tests and client logic to expect `INVALID_CONTRACT_ID` when calling precompiles
 with a non-zero value in the modularized flow.
-
-
-
-
-
