@@ -45,7 +45,7 @@ public class EntityIdSingleton implements SingletonState<EntityNumber> {
             return new EntityNumber(EntityId.of(firstUserEntity).getNum());
         }
 
-        final long entityIdReservationHeadroom = mirrorNodeEvmProperties.getEntityIdReservationHeadroom();
+        final long entityIdReservationHeadroom = mirrorNodeEvmProperties.getEntityNumBuffer();
         final var maxEntityId = EntityId.of(maxId);
         final var nextId = Math.max(maxEntityId.getNum() + entityIdReservationHeadroom + 1, firstUserEntity);
         final var entityNumber = new EntityNumber(nextId);

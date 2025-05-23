@@ -23,7 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith({MockitoExtension.class, ContextExtension.class})
 class EntityIdSingletonTest {
 
-    private static final long DEFAULT_ENTITY_ID_RESERVATION_HEADROOM = 10L;
+    private static final long DEFAULT_ENTITY_NUM_BUFFER = 1000L;
 
     private EntityIdSingleton entityIdSingleton;
 
@@ -48,10 +48,12 @@ class EntityIdSingletonTest {
     @ParameterizedTest
     @MethodSource("shardAndRealmData")
     void shouldReturnFirstUserEntityIdWhenMaxIdIsLessThanLastSystemAccount(long shard, long realm) {
+        long maxId = 900L;
+        long expectedId = Math.max(FIRST_USER_ENTITY_ID, maxId + DEFAULT_ENTITY_NUM_BUFFER + 1);
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findMaxId(shard, realm)).thenReturn(900L);
-        assertThat(entityIdSingleton.get().number()).isEqualTo(FIRST_USER_ENTITY_ID);
+        when(entityRepository.findMaxId(shard, realm)).thenReturn(maxId);
+        assertThat(entityIdSingleton.get().number()).isEqualTo(expectedId);
     }
 
     @ParameterizedTest
@@ -70,14 +72,14 @@ class EntityIdSingletonTest {
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
         when(entityRepository.findMaxId(shard, realm)).thenReturn(maxId);
-        assertThat(entityIdSingleton.get().number()).isEqualTo(maxId + DEFAULT_ENTITY_ID_RESERVATION_HEADROOM + 1);
+        assertThat(entityIdSingleton.get().number()).isEqualTo(maxId + DEFAULT_ENTITY_NUM_BUFFER + 1);
     }
 
     @ParameterizedTest
     @MethodSource("shardAndRealmData")
     void shouldIncrementIdMultipleTimesWithCache(long shard, long realm) {
         long currentMaxId = 1001L;
-        long expected = currentMaxId + 1 + DEFAULT_ENTITY_ID_RESERVATION_HEADROOM;
+        long expected = currentMaxId + 1 + DEFAULT_ENTITY_NUM_BUFFER;
         long end = 1005L;
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
@@ -95,6 +97,6 @@ class EntityIdSingletonTest {
         when(commonProperties.getShard()).thenReturn(shard);
         when(commonProperties.getRealm()).thenReturn(realm);
         when(entityRepository.findMaxId(shard, realm)).thenReturn(maxId);
-        assertThat(entityIdSingleton.get().number()).isEqualTo(maxId + DEFAULT_ENTITY_ID_RESERVATION_HEADROOM + 1);
+        assertThat(entityIdSingleton.get().number()).isEqualTo(maxId + DEFAULT_ENTITY_NUM_BUFFER + 1);
     }
 }

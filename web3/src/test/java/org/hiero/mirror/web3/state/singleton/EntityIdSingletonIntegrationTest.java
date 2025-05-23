@@ -53,16 +53,12 @@ class EntityIdSingletonIntegrationTest extends Web3IntegrationTest {
         final var entityNumber3 = entityIdSingleton.get();
 
         assertThat(entityNumberBeforeConfig.number())
-                .isNotEqualTo(entityWithShardAndRealm.getNum()
-                        + mirrorNodeEvmProperties.getEntityIdReservationHeadroom()
-                        + 1);
+                .isNotEqualTo(entityWithShardAndRealm.getNum() + mirrorNodeEvmProperties.getEntityNumBuffer() + 1);
         assertThat(entityNumberAfterConfig.number())
-                .isEqualTo(entityWithShardAndRealm.getNum()
-                        + mirrorNodeEvmProperties.getEntityIdReservationHeadroom()
-                        + 1);
+                .isEqualTo(entityWithShardAndRealm.getNum() + mirrorNodeEvmProperties.getEntityNumBuffer() + 1);
         assertThat(entityNumber2.number())
-                .isEqualTo(entity2.getNum() + mirrorNodeEvmProperties.getEntityIdReservationHeadroom() + 1);
+                .isEqualTo(entity2.getNum() + mirrorNodeEvmProperties.getEntityNumBuffer() + 1);
         assertThat(entityNumber3.number())
-                .isEqualTo(entity3.getNum() + mirrorNodeEvmProperties.getEntityIdReservationHeadroom() + 1);
+                .isEqualTo(entity3.getNum() + mirrorNodeEvmProperties.getEntityNumBuffer() + 1);
     }
 }
