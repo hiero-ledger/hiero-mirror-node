@@ -312,7 +312,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     @ParameterizedTest(name = "Associate {0} token")
     @MethodSource("tokenData")
     void associateToken(final String tokenType, final boolean isFungible) throws Exception {
-        final var token = getToken(isFungible);
+        final var token = persistToken(isFungible);
         final var tokenAddress = getTokenAddress(token);
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         final var functionCall = contract.call_associate(tokenAddress);
@@ -323,7 +323,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     @ParameterizedTest(name = "Associate {0} token twice fails")
     @MethodSource("tokenData")
     void associateTokenTwiceFails(final String tokenType, final boolean isFungible) throws Exception {
-        final var token = getToken(isFungible);
+        final var token = persistToken(isFungible);
         final var tokenAddress = getTokenAddress(token);
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         final var contractEntityId = getEntityId(contract.getContractAddress());
@@ -341,7 +341,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     @ParameterizedTest(name = "Dissociate {0} token")
     @MethodSource("tokenData")
     void dissociateToken(final String tokenType, final boolean isFungible) throws Exception {
-        final var token = getToken(isFungible);
+        final var token = persistToken(isFungible);
         final var tokenAddress = getTokenAddress(token);
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         final var contractEntityId = getEntityId(contract.getContractAddress());
@@ -358,7 +358,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     @ParameterizedTest(name = "Dissociate fails for {0} token when no association is present")
     @MethodSource("tokenData")
     void dissociateWhenNotAssociatedFails(final String tokenType, final boolean isFungible) throws Exception {
-        final var token = getToken(isFungible);
+        final var token = persistToken(isFungible);
         final var tokenAddress = getTokenAddress(token);
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         final var functionCall = contract.call_dissociate(tokenAddress);
@@ -373,7 +373,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     @ParameterizedTest(name = "Dissociate fails for {0} token when balance is not zero")
     @MethodSource("tokenData")
     void dissociateWhenBalanceNotZeroFails(final String tokenType, final boolean isFungible) throws Exception {
-        final var token = getToken(isFungible);
+        final var token = persistToken(isFungible);
         final var tokenAddress = getTokenAddress(token);
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         final var contractEntityId = getEntityId(contract.getContractAddress());
@@ -395,7 +395,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     @ParameterizedTest(name = "isAssociated returns true for {0} token when association exists")
     @MethodSource("tokenData")
     void isAssociated(final String tokenType, final boolean isFungible) throws Exception {
-        final var token = getToken(isFungible);
+        final var token = persistToken(isFungible);
         final var tokenAddress = getTokenAddress(token);
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         final var contractEntityId = getEntityId(contract.getContractAddress());
@@ -414,7 +414,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     @ParameterizedTest(name = "isAssociated returns false for {0} token when no association exists")
     @MethodSource("tokenData")
     void isAssociatedWhenNoAssociation(final String tokenType, final boolean isFungible) throws Exception {
-        final var token = getToken(isFungible);
+        final var token = persistToken(isFungible);
         final var tokenAddress = getTokenAddress(token);
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         final var functionCall = contract.call_isAssociated(tokenAddress);
@@ -1689,7 +1689,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 .persist();
     }
 
-    private Token getToken(boolean isFungible) {
+    private Token persistToken(final boolean isFungible) {
         return isFungible ? fungibleTokenPersist() : nonFungibleTokenPersist();
     }
 }
