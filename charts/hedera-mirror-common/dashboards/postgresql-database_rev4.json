@@ -16,11 +16,224 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 44,
+  "id": 46,
   "links": [],
   "panels": [
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "The average query duration",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "null": {
+                  "index": 0,
+                  "text": "N/A"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "#EAB839",
+                "value": 300000
+              },
+              {
+                "color": "light-red",
+                "value": 500000
+              }
+            ]
+          },
+          "unit": "µs"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "id": 81,
+      "maxPerRow": 6,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "max(pgbouncer_show_stats_avg_query_time{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"})",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Query Latency",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Number of queries per second",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "id": 80,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(irate(pgbouncer_show_stats_total_query_count{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Querries Per Second",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Total number of active pg bouncer client connections",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "null": {
+                  "index": 0,
+                  "text": "N/A"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "id": 79,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(pgbouncer_show_pools_cl_active{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"})",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Active Clients",
+      "type": "stat"
+    },
+    {
       "datasource": "Prometheus",
+      "description": "Total fetched tuples from the database",
       "fieldConfig": {
         "defaults": {
           "mappings": [
@@ -39,10 +252,6 @@
             "steps": [
               {
                 "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
@@ -51,16 +260,16 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 3,
-        "w": 8,
-        "x": 0,
+        "h": 5,
+        "w": 4,
+        "x": 12,
         "y": 0
       },
       "id": 10,
       "maxDataPoints": 100,
       "options": {
-        "colorMode": "none",
-        "graphMode": "none",
+        "colorMode": "background",
+        "graphMode": "ara",
         "justifyMode": "auto",
         "orientation": "horizontal",
         "percentChangeColorMode": "standard",
@@ -80,10 +289,10 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(irate(pg_stat_database_tup_fetched_total{cluster=~\"$cluster\", datname=~\"$db\", pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "sum(irate(pg_stat_database_tup_fetched_total{cluster=~\"$cluster\", datname=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
           "format": "time_series",
           "intervalFactor": 2,
           "range": true,
@@ -91,11 +300,15 @@
           "step": 4
         }
       ],
-      "title": "Current fetch data",
+      "title": "Fetch",
       "type": "stat"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Total inserted tuples in the database",
       "fieldConfig": {
         "defaults": {
           "mappings": [
@@ -114,10 +327,6 @@
             "steps": [
               {
                 "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
@@ -126,16 +335,16 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 3,
-        "w": 8,
-        "x": 8,
+        "h": 5,
+        "w": 4,
+        "x": 16,
         "y": 0
       },
       "id": 11,
       "maxDataPoints": 100,
       "options": {
-        "colorMode": "none",
-        "graphMode": "none",
+        "colorMode": "background",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "horizontal",
         "percentChangeColorMode": "standard",
@@ -155,10 +364,10 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(irate(pg_stat_database_tup_inserted_total{cluster=~\"$cluster\", datname=~\"$db\", pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "sum(irate(pg_stat_database_tup_inserted_total{cluster=~\"$cluster\", datname=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
           "format": "time_series",
           "intervalFactor": 2,
           "range": true,
@@ -166,11 +375,15 @@
           "step": 4
         }
       ],
-      "title": "Current insert data",
+      "title": "Insert",
       "type": "stat"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Total updated tuples in the database",
       "fieldConfig": {
         "defaults": {
           "mappings": [
@@ -189,10 +402,6 @@
             "steps": [
               {
                 "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
@@ -201,16 +410,16 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 3,
-        "w": 8,
-        "x": 16,
+        "h": 5,
+        "w": 4,
+        "x": 20,
         "y": 0
       },
       "id": 12,
       "maxDataPoints": 100,
       "options": {
-        "colorMode": "none",
-        "graphMode": "none",
+        "colorMode": "background",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "horizontal",
         "percentChangeColorMode": "standard",
@@ -230,10 +439,10 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(irate(pg_stat_database_tup_updated_total{cluster=~\"$cluster\", datname=~\"$db\", pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "sum(irate(pg_stat_database_tup_updated_total{cluster=~\"$cluster\", datname=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
           "format": "time_series",
           "intervalFactor": 2,
           "range": true,
@@ -250,7 +459,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 3
+        "y": 5
       },
       "id": 71,
       "panels": [],
@@ -258,7 +467,11 @@
       "type": "row"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "PG bouncer active client and server connections",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -268,6 +481,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -288,7 +502,7 @@
               "type": "linear"
             },
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": false,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -317,27 +531,29 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 8,
+        "w": 12,
         "x": 0,
-        "y": 4
+        "y": 6
       },
       "id": 1,
       "options": {
         "dataLinks": [],
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
-          "hideZeros": false,
+          "hideZeros": true,
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.6.0",
@@ -345,14 +561,14 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "pgbouncer_show_pools_cl_active{cluster=~\"$cluster\", pod=~\"$pod\", database=\"$db\"} != 0",
+          "expr": "sum(pgbouncer_show_pools_cl_active{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"} != 0) by (user, pool_mode)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
-          "legendFormat": "{{pod}}-{{pool_mode}}-{{user}}-client",
+          "legendFormat": "{{pool_mode}}-{{user}}-client",
           "range": true,
           "refId": "A",
           "step": 2
@@ -360,22 +576,52 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "pgbouncer_show_pools_sv_active{cluster=~\"$cluster\", pod=~\"$pod\", database=\"$db\"} != 0",
+          "expr": "sum(pgbouncer_show_pools_sv_active{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"} != 0) by (user, pool_mode)",
           "hide": false,
           "instant": false,
-          "legendFormat": "{{pod}}-{{pool_mode}}-{{user}}-server",
+          "legendFormat": "{{pool_mode}}-{{user}}-server",
           "range": true,
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(pgbouncer_show_pools_cl_active{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"} != 0)",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Total Client",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(pgbouncer_show_pools_sv_active{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"} != 0)",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Total Server",
+          "range": true,
+          "refId": "D"
         }
       ],
       "title": "Active Connections",
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "PG bouncer waiting client connections",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -385,6 +631,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -433,21 +680,23 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 8,
-        "x": 8,
-        "y": 4
+        "w": 12,
+        "x": 12,
+        "y": 6
       },
       "id": 72,
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -459,17 +708,34 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "pgbouncer_show_pools_cl_waiting{cluster=~\"$cluster\", pod=~\"$pod\", database=~\"$db\"}",
-          "legendFormat": "{{pod}}-{{pool_mode}}-{{user}}",
+          "expr": "sum(pgbouncer_show_pools_cl_waiting{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (user, pool_mode)",
+          "legendFormat": "{{pool_mode}}-{{user}}",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(pgbouncer_show_pools_cl_waiting{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"})",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Total",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Waiting Connections",
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "PG bouncer idle server connections",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -479,6 +745,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -527,27 +794,29 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 8,
-        "x": 16,
-        "y": 4
+        "w": 12,
+        "x": 0,
+        "y": 15
       },
       "id": 4,
       "options": {
         "dataLinks": [],
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.6.0",
@@ -555,23 +824,40 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "pgbouncer_show_pools_sv_idle{cluster=~\"$cluster\", pod=~\"$pod\", database=\"$db\"} != 0",
+          "expr": "sum(pgbouncer_show_pools_sv_idle{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"} != 0) by (user, pool_mode)",
           "format": "time_series",
           "intervalFactor": 2,
-          "legendFormat": "{{pod}}-{{pool_mode}}-{{user}}",
+          "legendFormat": "{{pool_mode}}-{{user}}",
           "range": true,
           "refId": "A",
           "step": 2
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(pgbouncer_show_pools_sv_idle{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"} != 0)",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Total",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Idle Connections",
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Average query time for PG bouncer pool connections",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -581,6 +867,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -628,22 +915,24 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 12,
-        "x": 0,
-        "y": 13
+        "x": 12,
+        "y": 15
       },
       "id": 73,
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -655,9 +944,9 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "pgbouncer_show_stats_avg_query_time{cluster=~\"$cluster\", pod=~\"$pod\", database=~\"$db\"}",
+          "expr": "sum(pgbouncer_show_stats_avg_query_time{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (database)",
           "hide": false,
-          "legendFormat": "{{pod}}",
+          "legendFormat": "{{database}}",
           "range": true,
           "refId": "A"
         }
@@ -666,7 +955,11 @@
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "PG bouncer bind connection count",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -676,6 +969,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -722,44 +1016,50 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 12,
-        "x": 12,
-        "y": 13
+        "x": 0,
+        "y": 24
       },
-      "id": 74,
+      "id": 78,
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.6.0",
       "targets": [
         {
           "editorMode": "code",
-          "expr": "irate(pgbouncer_show_stats_total_query_count{cluster=~\"$cluster\", pod=~\"$pod\", database=~\"$db\"}[$__rate_interval])",
-          "legendFormat": "{{pod}}",
+          "expr": "sum(irate(pgbouncer_show_stats_total_bind_count{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval])) by (database)",
+          "legendFormat": "{{database}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Queries Per Second",
+      "title": "Connection Bind",
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "PG bouncer connection assignment count",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -769,6 +1069,308 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "id": 77,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(irate(pgbouncer_show_stats_total_server_assignment_count{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval])) by (database)",
+          "legendFormat": "{{database}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Client Assignment",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "PG bouncer queries per second",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 33
+      },
+      "id": 74,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(irate(pgbouncer_show_stats_total_query_count{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval])) by (database)",
+          "legendFormat": "{{database}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Queries Per Second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "PG bouncer prepared statement parse count",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 33
+      },
+      "id": 76,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(irate(pgbouncer_show_stats_total_server_parse_count{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval])) by (database)",
+          "legendFormat": "{{database}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Statement Parse Count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "PG bouncer total transferred/received bytes",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -816,48 +1418,50 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 12,
         "x": 0,
-        "y": 21
+        "y": 42
       },
       "id": 75,
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.6.0",
       "targets": [
         {
           "editorMode": "code",
-          "expr": "irate(pgbouncer_show_stats_total_received{cluster=~\"$cluster\", pod=~\"$pod\", database=~\"$db\"}[$__rate_interval])",
-          "legendFormat": "{{pod}}-received",
+          "expr": "sum(irate(pgbouncer_show_stats_total_received{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "legendFormat": "received",
           "range": true,
           "refId": "A"
         },
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "irate(pgbouncer_show_stats_total_sent{cluster=~\"$cluster\", pod=~\"$pod\", database=~\"$db\"}[$__rate_interval])",
+          "expr": "sum(irate(pgbouncer_show_stats_total_sent{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
           "hide": false,
           "instant": false,
-          "legendFormat": "{{pod}}-sent",
+          "legendFormat": "sent",
           "range": true,
           "refId": "B"
         }
@@ -871,7 +1475,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 51
       },
       "id": 30,
       "panels": [],
@@ -879,7 +1483,11 @@
       "type": "row"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Transaction commit/rollback count",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -889,6 +1497,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -937,238 +1546,24 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
+        "w": 12,
         "x": 0,
-        "y": 30
-      },
-      "id": 66,
-      "options": {
-        "dataLinks": [],
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "irate(pg_stat_database_conflicts_total{cluster=~\"$cluster\", pod=~\"$pod\", datname=~\"$db\"}[$__rate_interval])",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "{{pod}}-conflicts",
-          "range": true,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "irate(pg_stat_database_deadlocks_total{cluster=~\"$cluster\", pod=~\"$pod\", datname=~\"$db\"}[$__rate_interval])",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "{{pod}}-deadlocks",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Conflicts/Deadlocks",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "Prometheus",
-      "description": "Total amount of data written to temporary files by queries in this database. All temporary files are counted, regardless of why the temporary file was created, and regardless of the log_temp_files setting.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "decbytes"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 8,
-        "y": 30
-      },
-      "id": 68,
-      "options": {
-        "dataLinks": [],
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "irate(pg_stat_database_temp_bytes_total{cluster=~\"$cluster\", pod=~\"$pod\", datname=~\"$db\"}[5m])",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "{{pod}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Temp File (Bytes)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "Prometheus",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 16,
-        "y": 30
+        "y": 52
       },
       "id": 60,
       "options": {
         "dataLinks": [],
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "sum"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -1181,26 +1576,26 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "irate(pg_stat_database_xact_commit_total{cluster=~\"\", pod=~\"$pod\", datname=~\"$db\"}[$__rate_interval]) ",
+          "expr": "sum(irate(pg_stat_database_xact_commit_total{cluster=~\"$cluster\", datname=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{pod}}-commits",
+          "legendFormat": "commits",
           "range": true,
           "refId": "A"
         },
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "irate(pg_stat_database_xact_rollback_total{cluster=~\"\", pod=~\"$pod\", datname=~\"$db\"}[$__rate_interval]) != 0",
+          "expr": "sum(irate(pg_stat_database_xact_rollback_total{cluster=~\"$cluster\", datname=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]) != 0)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{pod}}-rollbacks",
+          "legendFormat": "rollbacks",
           "range": true,
           "refId": "B"
         }
@@ -1209,7 +1604,11 @@
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Count of buffer writes by backends, background writer, and checkpoints, and new buffer allocations",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1219,120 +1618,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 0,
-        "y": 37
-      },
-      "id": 70,
-      "options": {
-        "dataLinks": [],
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "irate(pg_stat_bgwriter_checkpoint_write_time_total{cluster=~\"$cluster\", pod=~\"$pod\"}[$__rate_interval])",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "{{pod}}-write",
-          "range": true,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "irate(pg_stat_bgwriter_checkpoint_sync_time_total{cluster=~\"$cluster\", pod=~\"$pod\"}[$__rate_interval])",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "{{pod}}-sync",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Checkpoint Stats",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "Prometheus",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1380,27 +1666,29 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
-        "x": 8,
-        "y": 37
+        "w": 12,
+        "x": 12,
+        "y": 52
       },
       "id": 64,
       "options": {
         "dataLinks": [],
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
+          "hideZeros": true,
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.6.0",
@@ -1408,52 +1696,52 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "irate(pg_stat_bgwriter_buffers_backend_total{cluster=~\"$cluster\", pod=~\"$pod\"}[$__rate_interval])",
+          "expr": "sum(irate(pg_stat_bgwriter_buffers_backend_total{cluster=~\"$cluster\", pod=~\"$pod\"}[$__rate_interval]))",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{pod}}-buffers_backend",
+          "legendFormat": "buffers_backend",
           "range": true,
           "refId": "A"
         },
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "irate(pg_stat_bgwriter_buffers_alloc_total{cluster=~\"$cluster\", pod=~\"$pod\"}[$__rate_interval])",
+          "expr": "sum(irate(pg_stat_bgwriter_buffers_alloc_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{pod}}-buffers_alloc",
+          "legendFormat": "buffers_alloc",
           "range": true,
           "refId": "B"
         },
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "irate(pg_stat_bgwriter_buffers_checkpoint_total{cluster=~\"$cluster\", pod=~\"$pod\"}[$__rate_interval])",
+          "expr": "sum(irate(pg_stat_bgwriter_buffers_checkpoint_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{pod}}-buffers_checkpoint",
+          "legendFormat": "buffers_checkpoint",
           "range": true,
           "refId": "D"
         },
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "irate(pg_stat_bgwriter_buffers_clean_total{cluster=~\"$cluster\", pod=~\"$pod\"}[$__rate_interval])",
+          "expr": "sum(irate(pg_stat_bgwriter_buffers_clean_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{pod}}-buffers_clean",
+          "legendFormat": "buffers_clean",
           "range": true,
           "refId": "E"
         }
@@ -1462,7 +1750,11 @@
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Count of conflicts and deadlocks",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1472,6 +1764,128 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 59
+      },
+      "id": 66,
+      "options": {
+        "dataLinks": [],
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(irate(pg_stat_database_conflicts_total{cluster=~\"$cluster\", datname=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "conflicts",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(irate(pg_stat_database_deadlocks_total{cluster=~\"$cluster\", datname=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "deadlocks",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Conflicts/Deadlocks",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Count of active locks broken down by lock type",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1522,27 +1936,29 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
-        "x": 16,
-        "y": 37
+        "w": 12,
+        "x": 12,
+        "y": 59
       },
       "id": 3,
       "options": {
         "dataLinks": [],
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "sum"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.6.0",
@@ -1550,13 +1966,13 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "pg_locks_count{datname=~\"$db\", pod=~\"$pod\"} != 0",
+          "expr": "sum(pg_locks_count{cluster=~\"$cluster\", datname=~\"$database\",  namespace=~\"$namespace\",  pod=~\"$pod\"} != 0) by (mode)",
           "format": "time_series",
           "intervalFactor": 2,
-          "legendFormat": "{{pod}}-{{mode}}",
+          "legendFormat": "{{mode}}",
           "range": true,
           "refId": "A",
           "step": 2
@@ -1566,7 +1982,11 @@
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Time spent writing buffers to disk",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1576,6 +1996,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1618,33 +2039,35 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "ms"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
+        "w": 12,
         "x": 0,
-        "y": 44
+        "y": 66
       },
-      "id": 6,
+      "id": 70,
       "options": {
         "dataLinks": [],
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "sum"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.6.0",
@@ -1652,23 +2075,39 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "irate(pg_stat_database_tup_inserted_total{cluster=~\"$cluster\", datname=~\"$db\", pod=~\"$pod\"}[$__rate_interval]) != 0",
+          "expr": "sum(irate(pg_stat_bgwriter_checkpoint_write_time_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
           "format": "time_series",
-          "intervalFactor": 2,
-          "legendFormat": "{{pod}}",
+          "intervalFactor": 1,
+          "legendFormat": "write",
           "range": true,
-          "refId": "A",
-          "step": 2
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(irate(pg_stat_bgwriter_checkpoint_sync_time_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "sync",
+          "range": true,
+          "refId": "A"
         }
       ],
-      "title": "Insert data",
+      "title": "Checkpoint Stats",
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Bytes of data written to temporary files by queries",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1678,6 +2117,115 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "decbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 66
+      },
+      "id": 68,
+      "options": {
+        "dataLinks": [],
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(irate(pg_stat_database_temp_bytes_total{cluster=~\"$cluster\", datname=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval])) by (datname)",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "{{datname}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Temp File (Bytes) Per Second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Total fetched tuples from the database",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1726,27 +2274,29 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
-        "x": 8,
-        "y": 44
+        "w": 12,
+        "x": 0,
+        "y": 73
       },
       "id": 5,
       "options": {
         "dataLinks": [],
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "sum"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
-          "hideZeros": false,
+          "hideZeros": true,
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.6.0",
@@ -1754,13 +2304,13 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "irate(pg_stat_database_tup_fetched_total{cluster=~\"$cluster\", datname=~\"$db\", pod=~\"$pod\"}[$__rate_interval]) != 0",
+          "expr": "sum(irate(pg_stat_database_tup_fetched_total{cluster=~\"$cluster\", datname=~\"$database\",  namespace=~\"$namespace\",  pod=~\"$pod\"}[$__rate_interval])) by (datname)",
           "format": "time_series",
           "intervalFactor": 2,
-          "legendFormat": "{{pod}}",
+          "legendFormat": "{{datname}}",
           "range": true,
           "refId": "A",
           "step": 2
@@ -1770,7 +2320,11 @@
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Total returned tuples from the database",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1780,6 +2334,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1828,27 +2383,29 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
-        "x": 16,
-        "y": 44
+        "w": 12,
+        "x": 12,
+        "y": 73
       },
       "id": 14,
       "options": {
         "dataLinks": [],
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "sum"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
+          "hideZeros": true,
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.6.0",
@@ -1856,13 +2413,13 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "irate(pg_stat_database_tup_returned_total{cluster=~\"$cluster\", datname=~\"$db\", pod=~\"$pod\"}[$__rate_interval]) != 0",
+          "expr": "sum(irate(pg_stat_database_tup_returned_total{cluster=~\"$cluster\", datname=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval])) by (datname)",
           "format": "time_series",
           "intervalFactor": 2,
-          "legendFormat": "{{pod}}",
+          "legendFormat": "{{datname}}",
           "range": true,
           "refId": "A",
           "step": 2
@@ -1872,7 +2429,11 @@
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Total inserted tuples in the database",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1882,6 +2443,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1930,27 +2492,29 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
+        "w": 12,
         "x": 0,
-        "y": 51
+        "y": 80
       },
-      "id": 8,
+      "id": 6,
       "options": {
         "dataLinks": [],
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "sum"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
-          "hideZeros": false,
+          "hideZeros": true,
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.6.0",
@@ -1958,10 +2522,119 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "irate(pg_stat_database_tup_updated_total{cluster=~\"$cluster\", datname=~\"$db\", pod=~\"$pod\"}[$__rate_interval]) != 0",
+          "expr": "sum(irate(pg_stat_database_tup_inserted_total{cluster=~\"$cluster\", datname=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval])) by (datname)",
+          "format": "time_series",
+          "intervalFactor": 2,
+          "legendFormat": "{{datname}}",
+          "range": true,
+          "refId": "A",
+          "step": 2
+        }
+      ],
+      "title": "Insert data",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Total updated tuples in the database",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 80
+      },
+      "id": 8,
+      "options": {
+        "dataLinks": [],
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": true,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(irate(pg_stat_database_tup_updated_total{cluster=~\"$cluster\", datname=~\"$database\",  namespace=~\"$namespace\",  pod=~\"$pod\"}[$__rate_interval])) by (datname)",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "{{pod}}",
@@ -1974,7 +2647,11 @@
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Total deleted tuples from the database",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1984,6 +2661,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -2032,27 +2710,29 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
-        "x": 8,
-        "y": 51
+        "w": 12,
+        "x": 0,
+        "y": 87
       },
       "id": 7,
       "options": {
         "dataLinks": [],
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "sum"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
+          "hideZeros": true,
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.6.0",
@@ -2060,13 +2740,13 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "irate(pg_stat_database_tup_deleted_total{cluster=~\"$cluster\", datname=~\"$db\", pod=~\"$pod\"}[$__rate_interval]) != 0",
+          "expr": "sum(irate(pg_stat_database_tup_deleted_total{cluster=~\"$cluster\", datname=~\"$database\",  namespace=~\"$namespace\",  pod=~\"$pod\"}[$__rate_interval])) by (datname)",
           "format": "time_series",
           "intervalFactor": 2,
-          "legendFormat": "{{pod}}",
+          "legendFormat": "{{datname}}",
           "range": true,
           "refId": "A",
           "step": 2
@@ -2076,7 +2756,11 @@
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Percentage of disk blocks accessed directly from shared_buffer cache",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2086,6 +2770,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -2134,27 +2819,29 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
-        "x": 16,
-        "y": 51
+        "w": 12,
+        "x": 12,
+        "y": 87
       },
       "id": 62,
       "options": {
         "dataLinks": [],
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "min"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
+          "hideZeros": true,
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.6.0",
@@ -2162,13 +2849,13 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "pg_stat_database_blks_hit_total{cluster=~\"$cluster\", pod=~\"$pod\", datname=~\"$db\"} / (pg_stat_database_blks_read_total{cluster=~\"$cluster\", pod=~\"$pod\", datname=~\"$db\"} + pg_stat_database_blks_hit_total{cluster=~\"$cluster\", pod=~\"$pod\", datname=~\"$db\"})",
+          "expr": "avg(pg_stat_database_blks_hit_total{cluster=~\"$cluster\", datname=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}/ (pg_stat_database_blks_read_total{cluster=~\"$cluster\", datname=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}+ pg_stat_database_blks_hit_total{cluster=~\"$cluster\", datname=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"})) by (datname)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{pod}}",
+          "legendFormat": "{{datname}}",
           "range": true,
           "refId": "A"
         }
@@ -2185,27 +2872,17 @@
     "list": [
       {
         "current": {
-          "text": "All",
-          "value": [
-            "$__all"
-          ]
+          "text": "default",
+          "value": "default"
         },
-        "datasource": "Prometheus",
-        "definition": "label_values(pg_exporter_last_scrape_duration_seconds,pod)",
-        "includeAll": true,
-        "label": "Pod",
-        "multi": true,
-        "name": "pod",
+        "description": "Name of the Prometheus datasource to use",
+        "label": "Prometheus",
+        "name": "prometheus",
         "options": [],
-        "query": {
-          "qryType": 1,
-          "query": "label_values(pg_exporter_last_scrape_duration_seconds,pod)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
+        "query": "prometheus",
         "refresh": 1,
-        "regex": "",
-        "sort": 1,
-        "type": "query"
+        "regex": ".*(?<!usage)",
+        "type": "datasource"
       },
       {
         "current": {
@@ -2229,11 +2906,60 @@
       },
       {
         "current": {
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "definition": "label_values(pg_up,namespace)",
+        "includeAll": true,
+        "label": "Namespace",
+        "multi": true,
+        "name": "namespace",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(pg_up,namespace)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "current": {
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${prometheus}"
+        },
+        "definition": "label_values(pg_exporter_last_scrape_duration_seconds,pod)",
+        "includeAll": true,
+        "label": "Pod",
+        "multi": true,
+        "name": "pod",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(pg_exporter_last_scrape_duration_seconds,pod)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
           "text": "mirror_node",
           "value": "mirror_node"
         },
         "hide": 2,
-        "name": "db",
+        "name": "database",
         "query": "mirror_node",
         "skipUrlSync": true,
         "type": "constant"
@@ -2246,7 +2972,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "PostgreSQL / Detail",
-  "uid": "000000039",
-  "version": 3
+  "title": "PostgreSQL",
+  "uid": "a7X9kQb3Z",
+  "version": 1
 }
