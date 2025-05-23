@@ -217,7 +217,7 @@ public class ContractClient extends AbstractNetworkClient {
         }
     }
 
-    public long estimateGasQuery(
+    public long estimateGasQueryTopLevelCall(
             final ContractId contractId,
             final String functionName,
             final ContractFunctionParameters params,
@@ -287,12 +287,12 @@ public class ContractClient extends AbstractNetworkClient {
         return gasEstimateQuery.execute(getClient());
     }
 
-    public long estimateGasQueryNestedCalls(
-            ContractId contractId,
-            String functionName,
-            ContractFunctionParameters params,
-            AccountId sender,
-            int actualGas)
+    public long estimateGasQueryNestedCall(
+            final ContractId contractId,
+            final String functionName,
+            final ContractFunctionParameters params,
+            final AccountId sender,
+            final int actualGas)
             throws ExecutionException, InterruptedException {
 
         return estimateGasQuery(

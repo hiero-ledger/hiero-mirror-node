@@ -77,7 +77,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
             final int actualGas)
             throws ExecutionException, InterruptedException {
         var estimateGasResult =
-                contractClient.estimateGasQuery(contractId, functionName, params, sender, actualGas, Optional.empty());
+                contractClient.estimateGasQueryTopLevelCall(contractId, functionName, params, sender, actualGas, Optional.empty());
 
         assertWithinDeviation(actualGas, (int) estimateGasResult, lowerDeviation, upperDeviation);
     }
@@ -101,7 +101,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
             final Optional<java.lang.Long> value)
             throws ExecutionException, InterruptedException {
         var estimateGasResult =
-                contractClient.estimateGasQuery(contractId, functionName, params, sender, actualGas, value);
+                contractClient.estimateGasQueryTopLevelCall(contractId, functionName, params, sender, actualGas, value);
 
         assertWithinDeviation(actualGas, (int) estimateGasResult, lowerDeviation, upperDeviation);
     }

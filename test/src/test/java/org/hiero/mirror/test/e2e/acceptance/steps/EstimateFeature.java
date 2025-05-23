@@ -483,7 +483,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void progressiveStateUpdateContractFunction() throws ExecutionException, InterruptedException {
         // making 5 times to state update
         final var firstParams = new ContractFunctionParameters().addUint256(new BigInteger("5"));
-        var firstResponse = contractClient.estimateGasQuery(
+        var firstResponse = contractClient.estimateGasQueryTopLevelCall(
                 estimateGasContractId,
                 STATE_UPDATE_OF_CONTRACT.getSelector(),
                 firstParams,
@@ -492,7 +492,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 Optional.empty());
         // making 10 times to state update
         final var secondParams = new ContractFunctionParameters().addUint256(new BigInteger("10"));
-        var secondResponse = contractClient.estimateGasQuery(
+        var secondResponse = contractClient.estimateGasQueryTopLevelCall(
                 estimateGasContractId,
                 STATE_UPDATE_OF_CONTRACT.getSelector(),
                 secondParams,
@@ -546,7 +546,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 .addUint256(new BigInteger("1"))
                 .addUint256(new BigInteger("500"))
                 .addAddress(asAddress(contractSolidityAddress).toString());
-        var estimateGasResult = contractClient.estimateGasQueryNestedCalls(
+        var estimateGasResult = contractClient.estimateGasQueryNestedCall(
                 estimateGasContractId,
                 NESTED_CALLS_LIMITED.getSelector(),
                 firstParameters,
@@ -560,7 +560,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 .addUint256(new BigInteger("1024"))
                 .addAddress(asAddress(contractSolidityAddress).toString());
 
-        final var secondEstimateGasResult = contractClient.estimateGasQueryNestedCalls(
+        final var secondEstimateGasResult = contractClient.estimateGasQueryNestedCall(
                 estimateGasContractId,
                 NESTED_CALLS_LIMITED.getSelector(),
                 secondParameters,
@@ -574,7 +574,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 .addUint256(new BigInteger("1025"))
                 .addAddress(asAddress(contractSolidityAddress).toString());
 
-        final var thirdEstimateGasResult = contractClient.estimateGasQueryNestedCalls(
+        final var thirdEstimateGasResult = contractClient.estimateGasQueryNestedCall(
                 estimateGasContractId,
                 NESTED_CALLS_LIMITED.getSelector(),
                 thirdParameters,
