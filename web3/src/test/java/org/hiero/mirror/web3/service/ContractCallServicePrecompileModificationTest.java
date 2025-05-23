@@ -2,6 +2,13 @@
 
 package org.hiero.mirror.web3.service;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.ACCOUNT_STILL_OWNS_NFTS;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
+import static com.hedera.hapi.node.base.TokenType.FUNGIBLE_COMMON;
+import static com.hedera.hapi.node.base.TokenType.NON_FUNGIBLE_UNIQUE;
 import static com.hedera.services.utils.EntityIdUtils.asHexedEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.entityIdFromContractId;
 import static com.hedera.services.utils.EntityIdUtils.toContractID;
@@ -15,7 +22,11 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.EMPTY_UNTRIMMED_A
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.NEW_ECDSA_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ZERO_VALUE;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
 import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
@@ -24,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -34,6 +46,7 @@ import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenSupplyTypeEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
@@ -53,10 +66,16 @@ import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ContractCallServicePrecompileModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
+
+    private static Stream<Arguments> tokenData() {
+        return Stream.of(Arguments.of(FUNGIBLE_COMMON.name(), true), Arguments.of(NON_FUNGIBLE_UNIQUE.name(), false));
+    }
 
     @Test
     void transferFrom() throws Exception {
@@ -288,6 +307,125 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
+    @ParameterizedTest(name = "Associate {0} token")
+    @MethodSource("tokenData")
+    void associateToken(final String tokenType, final boolean isFungible) throws Exception {
+        final var token = getToken(isFungible);
+        final var tokenAddress = getTokenAddress(token);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var functionCall = contract.call_associate(tokenAddress);
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
+    @ParameterizedTest(name = "Associate {0} token twice fails")
+    @MethodSource("tokenData")
+    void associateTokenTwiceFails(final String tokenType, final boolean isFungible) throws Exception {
+        final var token = getToken(isFungible);
+        final var tokenAddress = getTokenAddress(token);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contractEntityId = getEntityId(contract.getContractAddress());
+        tokenAccountPersist(token.getTokenId(), contractEntityId.getId());
+
+        final var functionCall = contract.call_associate(tokenAddress);
+        assertThat(functionCall.send())
+                .isNotNull()
+                .isEqualTo(BigInteger.valueOf(TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT.protoOrdinal()));
+
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
+    @ParameterizedTest(name = "Dissociate {0} token")
+    @MethodSource("tokenData")
+    void dissociateToken(final String tokenType, final boolean isFungible) throws Exception {
+        final var token = getToken(isFungible);
+        final var tokenAddress = getTokenAddress(token);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contractEntityId = getEntityId(contract.getContractAddress());
+        tokenAccount(ta -> ta.tokenId(token.getTokenId())
+                .accountId(contractEntityId.getId())
+                .balance(0));
+
+        final var functionCall = contract.call_dissociate(tokenAddress);
+
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
+    @ParameterizedTest(name = "Dissociate fails for {0} token when no association is present")
+    @MethodSource("tokenData")
+    void dissociateWhenNotAssociatedFails(final String tokenType, final boolean isFungible) throws Exception {
+        final var token = getToken(isFungible);
+        final var tokenAddress = getTokenAddress(token);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var functionCall = contract.call_dissociate(tokenAddress);
+        assertThat(functionCall.send())
+                .isNotNull()
+                .isEqualTo(BigInteger.valueOf(TOKEN_NOT_ASSOCIATED_TO_ACCOUNT.protoOrdinal()));
+
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
+    @ParameterizedTest(name = "Dissociate fails for {0} token when balance is not zero")
+    @MethodSource("tokenData")
+    void dissociateWhenBalanceNotZeroFails(final String tokenType, final boolean isFungible) throws Exception {
+        final var token = getToken(isFungible);
+        final var tokenAddress = getTokenAddress(token);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contractEntityId = getEntityId(contract.getContractAddress());
+        tokenAccountPersist(token.getTokenId(), contractEntityId.getId());
+        final var functionCall = contract.call_dissociate(tokenAddress);
+
+        ResponseCodeEnum statusCode;
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            statusCode = isFungible ? TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES : ACCOUNT_STILL_OWNS_NFTS;
+        } else {
+            statusCode = isFungible ? SUCCESS : ACCOUNT_STILL_OWNS_NFTS;
+        }
+        final var expected = BigInteger.valueOf(statusCode.protoOrdinal());
+        assertThat(functionCall.send()).isNotNull().isEqualTo(expected);
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
+    @ParameterizedTest(name = "isAssociated returns true for {0} token when association exists")
+    @MethodSource("tokenData")
+    void isAssociated(final String tokenType, final boolean isFungible) throws Exception {
+        final var token = getToken(isFungible);
+        final var tokenAddress = getTokenAddress(token);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contractEntityId = getEntityId(contract.getContractAddress());
+        tokenAccountPersist(token.getTokenId(), contractEntityId.getId());
+        final var functionCall = contract.call_isAssociated(tokenAddress);
+
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            assertTrue(functionCall.send());
+            verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+            verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+        } else {
+            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
+        }
+    }
+
+    @ParameterizedTest(name = "isAssociated returns false for {0} token when no association exists")
+    @MethodSource("tokenData")
+    void isAssociatedWhenNoAssociation(final String tokenType, final boolean isFungible) throws Exception {
+        final var token = getToken(isFungible);
+        final var tokenAddress = getTokenAddress(token);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var functionCall = contract.call_isAssociated(tokenAddress);
+
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            assertFalse(functionCall.send());
+            verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+            verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+        } else {
+            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
+        }
     }
 
     @Test
@@ -1549,5 +1687,9 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 .contractState()
                 .customize(c -> c.contractId(entity.getId()))
                 .persist();
+    }
+
+    private Token getToken(boolean isFungible) {
+        return isFungible ? fungibleTokenPersist() : nonFungibleTokenPersist();
     }
 }
