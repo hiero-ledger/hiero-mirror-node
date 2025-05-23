@@ -77,6 +77,7 @@ public class EvmConfiguration {
 
     public static final String CACHE_MANAGER_CONTRACT = "contract";
     public static final String CACHE_MANAGER_CONTRACT_STATE = "contractState";
+    public static final String CACHE_MANAGER_CONTRACT_STATES = "contractStates";
     public static final String CACHE_MANAGER_ENTITY = "entity";
     public static final String CACHE_MANAGER_RECORD_FILE_LATEST = "recordFileLatest";
     public static final String CACHE_MANAGER_RECORD_FILE_EARLIEST = "recordFileEarliest";
@@ -88,6 +89,7 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_TOKEN_TYPE = "tokenType";
     public static final String CACHE_NAME = "default";
     public static final String CACHE_NAME_CONTRACT = "contract";
+    public static final String CACHE_NAME_CONTRACT_STATES = "contractStates";
     public static final String CACHE_NAME_EVM_ADDRESS = "evmAddress";
     public static final String CACHE_NAME_ALIAS = "alias";
     public static final String CACHE_NAME_EXCHANGE_RATE = "exchangeRate";
@@ -134,6 +136,14 @@ public class EvmConfiguration {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getContractState());
+        return caffeineCacheManager;
+    }
+
+    @Bean(CACHE_MANAGER_CONTRACT_STATES)
+    CacheManager cacheManagerContractStates() {
+        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_CONTRACT_STATES));
+        caffeineCacheManager.setCacheSpecification(cacheProperties.getContractStates());
         return caffeineCacheManager;
     }
 
