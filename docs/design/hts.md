@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The Hedera Token Service (HTS) builds upon the Cryptocurrency Service to provide decentralized issuance of custom tokens on the Hedera Network.
+The Hedera Token Service (HTS) builds upon the Cryptocurrency Service to provide decentralized issuance of custom tokens on the Network.
 The behavior will be similar to that of the native HBAR token and as such the Mirror Node will persist token balances and transfer lists and support the retrieval of information through its APIs.
 
 This document highlights the architecture and design changes to be made to support HTS.

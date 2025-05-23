@@ -1398,18 +1398,18 @@ tags:
   - name: tokens
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
-  title: Hedera Mirror Node REST API
+  title: Mirror Node REST API
   version: 0.131.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
-  description: "The Mirror Node REST API offers the ability to query cryptocurrency transactions and account information from a Hedera managed mirror node.\n\nBase url: [/api/v1](/api/v1)\n\nOpenAPI Spec: [/api/v1/docs/openapi.yml](/api/v1/docs/openapi.yml)"
+  description: "The REST API offers the ability to query transactions and entity information from a mirror node.\n\nBase url: [/api/v1](/api/v1)\n\nOpenAPI Spec: [/api/v1/docs/openapi.yml](/api/v1/docs/openapi.yml)"
   contact:
-    name: Hedera Mirror Node Team
+    name: Mirror Node Team
     email: mirrornode@hedera.com
     url: "https://github.com/hiero-ledger/hiero-mirror-node"
 externalDocs:
-  description: Hedera REST API Docs
+  description: REST API Docs
   url: "https://docs.hedera.com/guides/docs/mirror-node-api/cryptocurrency-api"
 servers:
   - description: The current REST API server

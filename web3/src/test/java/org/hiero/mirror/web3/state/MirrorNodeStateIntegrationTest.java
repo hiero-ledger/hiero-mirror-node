@@ -18,6 +18,7 @@ import com.hedera.node.app.services.ServicesRegistry;
 import com.hedera.node.app.state.recordcache.RecordCacheService;
 import com.hedera.node.app.throttle.CongestionThrottleService;
 import com.swirlds.state.lifecycle.Service;
+import com.swirlds.state.spi.ReadableKVState;
 import jakarta.annotation.PostConstruct;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -81,7 +82,7 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
         verifyServiceDataSources(states, BlockRecordService.NAME, blockRecordServiceDataSources);
 
         // FileService
-        Map<String, Class<?>> fileServiceDataSources = Map.of(FileReadableKVState.KEY, Map.class);
+        Map<String, Class<?>> fileServiceDataSources = Map.of(FileReadableKVState.KEY, ReadableKVState.class);
         verifyServiceDataSources(states, FileService.NAME, fileServiceDataSources);
 
         // CongestionThrottleService
@@ -96,8 +97,8 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
 
         // ContractService
         Map<String, Class<?>> contractServiceDataSources = Map.of(
-                ContractBytecodeReadableKVState.KEY, Map.class,
-                ContractStorageReadableKVState.KEY, Map.class);
+                ContractBytecodeReadableKVState.KEY, ReadableKVState.class,
+                ContractStorageReadableKVState.KEY, ReadableKVState.class);
         verifyServiceDataSources(states, ContractService.NAME, contractServiceDataSources);
 
         // RecordCacheService
@@ -111,17 +112,17 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
         // TokenService
         Map<String, Class<?>> tokenServiceDataSources = Map.of(
                 AccountReadableKVState.KEY,
-                Map.class,
+                ReadableKVState.class,
                 "PENDING_AIRDROPS",
-                Map.class,
+                ReadableKVState.class,
                 AliasesReadableKVState.KEY,
-                Map.class,
+                ReadableKVState.class,
                 NftReadableKVState.KEY,
-                Map.class,
+                ReadableKVState.class,
                 TokenReadableKVState.KEY,
-                Map.class,
+                ReadableKVState.class,
                 TokenRelationshipReadableKVState.KEY,
-                Map.class,
+                ReadableKVState.class,
                 "STAKING_NETWORK_REWARDS",
                 AtomicReference.class);
         verifyServiceDataSources(states, TokenService.NAME, tokenServiceDataSources);

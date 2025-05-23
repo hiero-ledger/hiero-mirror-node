@@ -19,30 +19,22 @@ import com.swirlds.state.spi.ReadableStates;
 import com.swirlds.state.spi.WritableStates;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hiero.mirror.web3.state.core.MapWritableStates;
-import org.hiero.mirror.web3.state.keyvalue.StateKeyRegistry;
-import org.hiero.mirror.web3.state.singleton.DefaultSingleton;
-import org.hiero.mirror.web3.state.singleton.SingletonState;
+import org.hiero.mirror.web3.state.keyvalue.StateRegistry;
 
 @RequiredArgsConstructor
 public class SchemaRegistryImpl implements SchemaRegistry {
 
-    private final Collection<SingletonState<?>> singletons;
     private final SchemaApplications schemaApplications;
-    private final StateKeyRegistry stateKeyRegistry;
+    private final StateRegistry stateRegistry;
 
     /**
      * The ordered set of all schemas registered by the service
@@ -185,25 +177,8 @@ public class SchemaRegistryImpl implements SchemaRegistry {
             @Nonnull final Configuration configuration,
             @Nonnull final MirrorNodeState state) {
         final Map<String, Object> stateDataSources = new HashMap<>();
-        var singletonMap = singletons.stream().collect(Collectors.toMap(SingletonState::getKey, Function.identity()));
-        schema.statesToCreate(configuration).forEach(def -> {
-            if (def.singleton()) {
-                var singleton = singletonMap.computeIfAbsent(def.stateKey(), DefaultSingleton::new);
-                stateDataSources.put(singleton.getKey(), singleton);
-            } else if (def.queue()) {
-                if (stateKeyRegistry.contains(def.stateKey())) {
-                    stateDataSources.put(def.stateKey(), new ConcurrentLinkedDeque<>());
-                } else {
-                    throw new UnsupportedOperationException("Unsupported state key for queue: " + def.stateKey());
-                }
-            } else {
-                if (stateKeyRegistry.contains(def.stateKey())) {
-                    stateDataSources.put(def.stateKey(), new ConcurrentHashMap<>());
-                } else {
-                    throw new UnsupportedOperationException("Unsupported state key: " + def.stateKey());
-                }
-            }
-        });
+        schema.statesToCreate(configuration)
+                .forEach(def -> stateDataSources.put(def.stateKey(), stateRegistry.lookup(def)));
 
         state.addService(serviceName, stateDataSources);
 

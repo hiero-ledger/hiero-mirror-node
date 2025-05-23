@@ -82,7 +82,7 @@ redis:
 
 rest:
   config:
-    hedera:
+    hiero:
       mirror:
         rest:
           metrics:

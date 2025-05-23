@@ -1,5 +1,5 @@
 {
-  "author": "Hedera Mirror Node Team",
+  "author": "Mirror Node Team",
   "bin": {
     "mirror": "index.js"
   },

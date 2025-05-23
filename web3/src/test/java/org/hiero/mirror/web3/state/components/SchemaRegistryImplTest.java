@@ -25,13 +25,16 @@ import com.swirlds.state.lifecycle.StateDefinition;
 import com.swirlds.state.spi.ReadableStates;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import org.hiero.mirror.web3.state.MirrorNodeState;
+import org.hiero.mirror.web3.state.core.MapReadableKVState;
 import org.hiero.mirror.web3.state.core.MapWritableStates;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.StateKeyRegistry;
+import org.hiero.mirror.web3.state.keyvalue.StateRegistry;
+import org.hiero.mirror.web3.state.singleton.DefaultSingleton;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,6 +44,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SchemaRegistryImplTest {
 
+    private static final String UNSUPPORTED_STATE_KEY_MESSAGE = "Unsupported state key: ";
     private final String serviceName = "testService";
     private final SemanticVersion previousVersion = new SemanticVersion(0, 46, 0, "", "");
 
@@ -66,14 +70,14 @@ class SchemaRegistryImplTest {
     private Codec<String> mockCodec;
 
     @Mock
-    private StateKeyRegistry stateKeyRegistry;
+    private StateRegistry stateRegistry;
 
     private Configuration config;
     private SchemaRegistryImpl schemaRegistry;
 
     @BeforeEach
     void initialize() {
-        schemaRegistry = new SchemaRegistryImpl(List.of(), schemaApplications, stateKeyRegistry);
+        schemaRegistry = new SchemaRegistryImpl(schemaApplications, stateRegistry);
         config = new ConfigProviderImpl().getConfiguration();
     }
 
@@ -130,8 +134,12 @@ class SchemaRegistryImplTest {
 
         when(schema.statesToCreate(config))
                 .thenReturn(Set.of(stateDefinitionSingleton, stateDefinitionQueue, stateDefinition));
-        when(stateKeyRegistry.contains(V0490TokenSchema.STAKING_INFO_KEY)).thenReturn(true);
-        when(stateKeyRegistry.contains(AccountReadableKVState.KEY)).thenReturn(true);
+
+        when(stateRegistry.lookup(stateDefinitionSingleton))
+                .thenReturn(new DefaultSingleton(V0490TokenSchema.STAKING_NETWORK_REWARDS_KEY));
+        when(stateRegistry.lookup(stateDefinitionQueue)).thenReturn(new ConcurrentLinkedDeque<>());
+        when(stateRegistry.lookup(stateDefinition))
+                .thenReturn(new MapReadableKVState<>(AccountReadableKVState.KEY, new ConcurrentHashMap<>()));
 
         schemaRegistry.register(schema);
         schemaRegistry.migrate(
@@ -149,12 +157,12 @@ class SchemaRegistryImplTest {
         when(schemaApplications.computeApplications(any(), any(), any(), any()))
                 .thenReturn(EnumSet.of(SchemaApplicationType.STATE_DEFINITIONS, SchemaApplicationType.MIGRATION));
 
-        final var singletonKey = "KEY";
-        var stateDefinitionSingleton =
-                new StateDefinition<>(singletonKey, mockCodec, mockCodec, 123, false, true, false);
+        final var stateKey = "KEY";
+        var stateDefinitionSingleton = new StateDefinition<>(stateKey, mockCodec, mockCodec, 123, false, true, false);
 
         when(schema.statesToCreate(config)).thenReturn(Set.of(stateDefinitionSingleton));
-
+        when(stateRegistry.lookup(stateDefinitionSingleton))
+                .thenThrow(new UnsupportedOperationException(UNSUPPORTED_STATE_KEY_MESSAGE + stateKey));
         schemaRegistry.register(schema);
         UnsupportedOperationException exception = assertThrows(
                 UnsupportedOperationException.class,
@@ -166,7 +174,7 @@ class SchemaRegistryImplTest {
                         config,
                         new HashMap<>(),
                         startupNetworks));
-        assertThat(exception.getMessage()).isEqualTo("Unsupported singleton key: " + singletonKey);
+        assertThat(exception.getMessage()).isEqualTo(UNSUPPORTED_STATE_KEY_MESSAGE + stateKey);
     }
 
     @Test
@@ -179,7 +187,8 @@ class SchemaRegistryImplTest {
         var stateDefinitionSingleton = new StateDefinition<>(stateKey, mockCodec, mockCodec, 123, false, false, true);
 
         when(schema.statesToCreate(config)).thenReturn(Set.of(stateDefinitionSingleton));
-
+        when(stateRegistry.lookup(stateDefinitionSingleton))
+                .thenThrow(new UnsupportedOperationException(UNSUPPORTED_STATE_KEY_MESSAGE + stateKey));
         schemaRegistry.register(schema);
         UnsupportedOperationException exception = assertThrows(
                 UnsupportedOperationException.class,
@@ -191,7 +200,7 @@ class SchemaRegistryImplTest {
                         config,
                         new HashMap<>(),
                         startupNetworks));
-        assertThat(exception.getMessage()).isEqualTo("Unsupported state key for queue: " + stateKey);
+        assertThat(exception.getMessage()).isEqualTo(UNSUPPORTED_STATE_KEY_MESSAGE + stateKey);
     }
 
     @Test
@@ -204,7 +213,8 @@ class SchemaRegistryImplTest {
         var stateDefinitionSingleton = new StateDefinition<>(stateKey, mockCodec, mockCodec, 123, false, false, false);
 
         when(schema.statesToCreate(config)).thenReturn(Set.of(stateDefinitionSingleton));
-
+        when(stateRegistry.lookup(stateDefinitionSingleton))
+                .thenThrow(new UnsupportedOperationException(UNSUPPORTED_STATE_KEY_MESSAGE + stateKey));
         schemaRegistry.register(schema);
         UnsupportedOperationException exception = assertThrows(
                 UnsupportedOperationException.class,
@@ -216,7 +226,7 @@ class SchemaRegistryImplTest {
                         config,
                         new HashMap<>(),
                         startupNetworks));
-        assertThat(exception.getMessage()).isEqualTo("Unsupported state key: " + stateKey);
+        assertThat(exception.getMessage()).isEqualTo(UNSUPPORTED_STATE_KEY_MESSAGE + stateKey);
     }
 
     @Test

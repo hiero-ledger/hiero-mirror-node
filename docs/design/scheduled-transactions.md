@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Scheduled transactions allow users to submit transactions to Hedera that will execute once all required signatures are
+Scheduled transactions allow users to submit transactions that will execute once all required signatures are
 acquired. This document explains how the mirror node can be updated to support scheduled transactions.
 
 ## Goals

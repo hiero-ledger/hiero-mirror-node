@@ -1,15 +1,16 @@
 # Contributing
 
-Hedera strives for decentralization and that includes in its development process. As such, outside contributions are
-welcomed and encouraged. For general guidelines on how to contribute to Hedera projects, please read the organization's
-[contributing guide](https://github.com/hashgraph/.github/blob/main/CONTRIBUTING.md). This document outlines additional
-processes that the mirror node uses for its development.
+Hiero strives for decentralization and that includes in its development process. As such, outside contributions are
+welcomed and encouraged. For general guidelines on how to contribute to Hiero projects, please read the organization's
+[contributing guide](https://github.com/hiero-ledger/.github/blob/main/CONTRIBUTING.md). This document outlines
+additional processes that the mirror node uses for its development.
 
 ## Issues
 
 Issues should be created using one of the issue templates. GitHub allows these templates to be bypassed in some areas
 of its user interface, but users should refrain from doing so and ensure all fields of the template are filled.
-Any issues that have been addressed on main or a release branch are required to have a milestone associated with them.
+Any issues that have been addressed on the `main` branch or a release branch are required to have a milestone associated
+with them.
 
 ### Labels
 
