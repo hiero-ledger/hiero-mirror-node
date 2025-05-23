@@ -157,7 +157,7 @@
           "refId": "A"
         }
       ],
-      "title": "Querries Per Second",
+      "title": "Queries Per Second",
       "type": "stat"
     },
     {

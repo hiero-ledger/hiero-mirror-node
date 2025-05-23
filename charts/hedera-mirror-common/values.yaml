@@ -507,19 +507,19 @@ stackgres:
         severity: critical
         application: hedera-mirror-common
         area: resource
-    PostgresInstanceDown:
+    DatabaseInstanceDown:
       annotations:
         summary: "Postgres server instance is down"
         description: "Postgres has not been responding for the past 1 minutes on {{ $labels.pod }}"
         title: "Postgres server instance {{ $labels.pod }} is down "
-      expr: pg_up == 0
+      expr: sum(pg_up) by (namespace, pod) == 0
       for: 1m
       labels:
         severity: critical
         application: hedera-mirror-common
         area: resource
-    PostgresExporterErrors:
-      expr: pg_exporter_last_scrape_error == 1
+    DatabaseExporterErrors:
+      expr: sum(pg_exporter_last_scrape_error) by (namespace, pod) == 1
       for: 10m
       labels:
         severity: warning
@@ -528,8 +528,8 @@ stackgres:
       annotations:
         summary: "Postgres Exporter is down or is showing errors"
         description: "postgres-exporter is not running or it is showing errors {{ $labels.pod }}"
-    PostgresReplicationLagSizeTooLarge:
-      expr: pg_replication_status_lag_size > 1e+09
+    DatabaseReplicationLagSizeTooLarge:
+      expr: sum(pg_replication_status_lag_size) by (namespace, pod) > 1e+09
       for: 5m
       labels:
         severity: critical
@@ -538,8 +538,8 @@ stackgres:
       annotations:
         summary: "Postgres replication lag size is to large"
         description: "Replication lag size on server {{$labels.pod}} is currently {{ $value | humanize1024}}B behind the leader in cluster {{$labels.cluster_name}}"
-    PostgresInactiveReplicationSlots:
-      expr: pg_replication_slots_active == 0
+    DatabaseInactiveReplicationSlots:
+      expr: sum(pg_replication_slots_active) by (namespace, pod) == 0
       for: 30m
       labels:
         severity: warning
@@ -548,31 +548,31 @@ stackgres:
       annotations:
         summary: "There are inactive replications slots"
         description: "The are some inactive replication slots on {{$labels.pod}} in cluster {{$labels.cluster_name}}"
-    PostgresDemotedNode:
+    DatabaseDemotedNode:
       annotations:
         summary: "Postgresql demoted node (instance {{ $labels.pod }}, cluster {{ $labels.cluster_name }})"
         description: "Postgresql standby server has been promoted as primary node\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
-      expr: pg_replication_is_replica == 1 and changes(pg_replication_is_replica[1m]) > 0
+      expr: sum(pg_replication_is_replica) by (namespace, pod) == 1 and sum(changes(pg_replication_is_replica[1m])) by (namespace, pod) > 0
       for: 1m
       labels:
         application: hedera-mirror-common
         area: resource
         severity: warning
-    PgBouncerWaitingClients:
+    DatabaseWaitingClients:
       annotations:
         summary: PgBouncer has waiting clients on instance {{ $labels.pod }} in pool {{ $labels.pool_mode }} for user {{$labels.user}}
         description: "PgBouncer instance has waiting clients\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
-      expr: pgbouncer_show_pools_cl_waiting > 0
+      expr: sum(pgbouncer_show_pools_cl_waiting) by (namespace, pod) > 0
       for: 5m
       labels:
         application: hedera-mirror-common
         area: resource
         severity: critical
-    PgBouncerQueryTimeTooHigh:
+    DatabaseQueryTimeTooHigh:
       annotations:
         summary: PgBouncer average query duration more than 3 seconds on {{ $labels.pod }} in pool {{ $labels.pool_mode }} for user {{$labels.user}}
         description: "PgBouncer average query duration more than 3 seconds = {{ $value }}"
-      expr: pgbouncer_show_stats_avg_query_time > 3e+6
+      expr: sum(pgbouncer_show_stats_avg_query_time) by (namespace, pod) > 3e+6
       for: 5m
       labels:
         application: hedera-mirror-common
