@@ -11,7 +11,7 @@ import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.exception.RateLimitException;
+import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.OpcodeService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -59,7 +59,7 @@ class OpcodesController {
             @RequestParam(required = false, defaultValue = "false") boolean memory,
             @RequestParam(required = false, defaultValue = "false") boolean storage) {
         if (!rateLimitBucket.tryConsume(1)) {
-            throw new RateLimitException("Requests per second rate limit exceeded.");
+            throw new ThrottleException("Requests per second rate limit exceeded.");
         }
 
         final boolean isModularized = evmProperties.directTrafficThroughTransactionExecutionService();

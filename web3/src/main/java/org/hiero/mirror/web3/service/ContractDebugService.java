@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.service;
 import static org.hiero.mirror.web3.evm.exception.ResponseCodeUtil.getStatusOrDefault;
 
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
-import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
@@ -21,6 +20,7 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
+import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -36,14 +36,14 @@ public class ContractDebugService extends ContractCallService {
             RecordFileService recordFileService,
             Store store,
             MirrorEvmTxProcessor mirrorEvmTxProcessor,
-            Bucket gasLimitBucket,
+            ThrottleManager throttleManager,
             ThrottleProperties throttleProperties,
             MeterRegistry meterRegistry,
             MirrorNodeEvmProperties mirrorNodeEvmProperties,
             TransactionExecutionService transactionExecutionService) {
         super(
                 mirrorEvmTxProcessor,
-                gasLimitBucket,
+                throttleManager,
                 throttleProperties,
                 meterRegistry,
                 recordFileService,

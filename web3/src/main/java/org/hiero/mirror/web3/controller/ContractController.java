@@ -2,14 +2,11 @@
 
 package org.hiero.mirror.web3.controller;
 
-import static org.hiero.mirror.web3.config.ThrottleConfiguration.GAS_LIMIT_BUCKET;
-import static org.hiero.mirror.web3.config.ThrottleConfiguration.RATE_LIMIT_BUCKET;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
 import static org.hiero.mirror.web3.utils.Constants.MODULARIZED_HEADER;
 
 import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
-import io.github.bucket4j.Bucket;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
@@ -17,15 +14,12 @@ import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
-import org.hiero.mirror.web3.exception.RateLimitException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
-import org.hiero.mirror.web3.throttle.ThrottleProperties;
+import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hyperledger.besu.datatypes.Address;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.dao.QueryTimeoutException;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -39,30 +33,16 @@ import org.springframework.web.bind.annotation.RestController;
 class ContractController {
 
     private final ContractExecutionService contractExecutionService;
-
-    @Qualifier(RATE_LIMIT_BUCKET)
-    private final Bucket rateLimitBucket;
-
-    @Qualifier(GAS_LIMIT_BUCKET)
-    private final Bucket gasLimitBucket;
-
     private final MirrorNodeEvmProperties evmProperties;
-
-    private final ThrottleProperties throttleProperties;
+    private final ThrottleManager throttleManager;
 
     @PostMapping(value = "/call")
     ContractCallResponse call(
             @RequestBody @Valid ContractCallRequest request,
             @RequestHeader(value = MODULARIZED_HEADER, required = false) String isModularizedHeader,
             HttpServletResponse response) {
-
-        if (!rateLimitBucket.tryConsume(1)) {
-            throw new RateLimitException("Requests per second rate limit exceeded.");
-        } else if (!gasLimitBucket.tryConsume(Math.floorDiv(request.getGas(), throttleProperties.getGasUnit()))) {
-            throw new RateLimitException("Gas per second rate limit exceeded.");
-        }
-
         try {
+            throttleManager.throttle(request);
             validateContractData(request);
             validateContractMaxGasLimit(request);
 
@@ -70,12 +50,9 @@ class ContractController {
             response.addHeader(MODULARIZED_HEADER, String.valueOf(params.isModularized()));
             final var result = contractExecutionService.processCall(params);
             return new ContractCallResponse(result);
-        } catch (QueryTimeoutException e) {
-            log.error("Query timed out: {} request: {}", e.getMessage(), request);
-            throw e;
         } catch (InvalidParametersException e) {
-            // The validation failed but no processing was made - restore the consumed gas back to the bucket.
-            gasLimitBucket.addTokens(request.getGas());
+            // The validation failed, but no processing occurred so restore the consumed tokens.
+            throttleManager.restore(request.getGas());
             throw e;
         }
     }
@@ -112,6 +89,10 @@ class ContractController {
         // can distribute traffic between the old and new logic.
         if (isModularizedHeader != null && evmProperties.isModularizedServices()) {
             isModularized = Boolean.parseBoolean(isModularizedHeader);
+        }
+
+        if (request.getModularized() != null) {
+            isModularized = request.getModularized();
         }
 
         return ContractExecutionParameters.builder()

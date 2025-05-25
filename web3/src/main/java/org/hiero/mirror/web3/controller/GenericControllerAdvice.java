@@ -16,7 +16,7 @@ import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidInputException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
-import org.hiero.mirror.web3.exception.RateLimitException;
+import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse.ErrorMessage;
 import org.springframework.beans.TypeMismatchException;
@@ -104,7 +104,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler
-    private ResponseEntity<?> rateLimitException(final RateLimitException e, final WebRequest request) {
+    private ResponseEntity<?> throttleException(final ThrottleException e, final WebRequest request) {
         return handleExceptionInternal(e, null, null, TOO_MANY_REQUESTS, request);
     }
 

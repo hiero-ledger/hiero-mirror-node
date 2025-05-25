@@ -4,31 +4,42 @@ package org.hiero.mirror.web3.throttle;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import lombok.Getter;
-import lombok.Setter;
+import jakarta.validation.constraints.NotNull;
+import java.util.List;
+import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
-@Setter
+@ConfigurationProperties("hiero.mirror.web3.throttle")
+@Data
 @Validated
-@ConfigurationProperties(prefix = "hiero.mirror.web3.throttle")
 public class ThrottleProperties {
 
-    @Getter
-    @Min(1)
-    private long requestsPerSecond = 500;
+    private static final long GAS_SCALE_FACTOR = 10_000L;
 
-    @Getter
-    @Min(21_000)
-    @Max(1_000_000_000)
-    private long gasPerSecond = 1_000_000_000L;
-
-    @Getter
-    @Min(1)
-    private int gasUnit = 1;
-
-    @Getter
     @Min(0)
     @Max(100)
     private float gasLimitRefundPercent = 100;
+
+    @Min(21_000)
+    @Max(10_000_000_000_000L)
+    private long gasPerSecond = 1_500_000_000L;
+
+    @NotNull
+    private List<RequestProperties> request = List.of();
+
+    @Min(1)
+    private long requestsPerSecond = 500;
+
+    // Necessary since bucket4j has a max capacity and fill rate of 1 token per nanosecond
+    public long getGasPerSecond() {
+        return scaleGas(gasPerSecond);
+    }
+
+    public long scaleGas(long gas) {
+        if (gas <= GAS_SCALE_FACTOR) {
+            return 0L;
+        }
+        return Math.floorDiv(gas, GAS_SCALE_FACTOR);
+    }
 }
