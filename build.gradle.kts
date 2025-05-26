@@ -49,7 +49,7 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:2.9")
         api("com.graphql-java:graphql-java-extended-scalars:22.0")
         api("com.graphql-java:graphql-java-extended-validation:22.0")
-        api("com.hedera.hashgraph:app:0.62.2")
+        api("com.hedera.hashgraph:app:0.62.3")
         api("com.hedera.evm:hedera-evm:0.54.2")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:0.62.3")
         api("com.hedera.hashgraph:sdk:2.56.1")
