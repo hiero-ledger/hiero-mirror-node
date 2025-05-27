@@ -31,6 +31,7 @@ and `MAX_CHILD_RECORDS_EXCEEDED`, providing clearer failure reasons.
 especially for contract deploy.
 
 **Reason for change**: Estimation logic has been updated to better reflect actual execution cost as in consensus node.
+
 **Resolution**: If comparing to old estimates, expect minor differences except for contract deployment.
 
 ### 3. Default KYC Status Behavior
@@ -67,8 +68,10 @@ handle `INVALID_CONTRACT_ID` when running against the modularized flow.
 
 **Impact**: Contract calls that redirect and fail due to invalid input may produce
 different error statuses between the monolithic and modularized flows.
-**Reason for change**: The modularized flow executes logic is resulting in standard EVM reverts
+
+**Reason for change**: The modularized flow execution logic results in standard EVM reverts
 (e.g., `CONTRACT_REVERT_EXECUTED`) instead mono errors result in `INVALID_TOKEN_ID`.
+
 **Details**: Affected functions include:
 
 - `decimalsRedirect`
@@ -86,7 +89,9 @@ In these and similar cases:
 ### 6. Exchange Rate Precompile Called With Value Fails Differently
 
 **Impact**: Sending non-zero `value` to the exchange rate precompile results in different errors.
+
 **Reason for change**: The modularized flow rejects the call early with `INVALID_CONTRACT_ID`, while the
 monolithic flow returns `CONTRACT_REVERT_EXECUTED`.
+
 **Resolution**: Update tests and client logic to expect `INVALID_CONTRACT_ID` when calling precompiles
 with a non-zero value in the modularized flow.
