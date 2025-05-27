@@ -46,7 +46,10 @@ final class ThrottleManagerImpl implements ThrottleManager {
 
     @Override
     public void restore(long gas) {
-        gasLimitBucket.addTokens(throttleProperties.scaleGas(gas));
+        long tokens = throttleProperties.scaleGas(gas);
+        if (tokens > 0) {
+            gasLimitBucket.addTokens(tokens);
+        }
     }
 
     private void action(RequestProperties filter, ContractCallRequest request) {
