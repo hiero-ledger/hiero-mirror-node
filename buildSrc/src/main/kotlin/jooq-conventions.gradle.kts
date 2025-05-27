@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension
+import org.flywaydb.gradle.task.AbstractFlywayTask
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.images.builder.Transferable
 
@@ -23,16 +24,10 @@ val dbContainerProvider =
     project.gradle.sharedServices.registerIfAbsent("postgres", PostgresService::class.java) {
         parameters.getRootDir().set(rootDir.absolutePath)
     }
-val dbName = "mirror_node"
 val dbPassword = "mirror_node_pass"
 val dbSchema = "public"
 val dbUser = "mirror_node"
 val jooqTargetDir = "build/generated-sources/jooq"
-
-fun getJdbcUrl(container: PostgreSQLContainer<Nothing>): String {
-    val port = container.getMappedPort(5432).toString()
-    return "jdbc:postgresql://" + container.host + ":" + port + "/" + dbName
-}
 
 java.sourceSets["main"].java { srcDir(jooqTargetDir) }
 
@@ -74,7 +69,7 @@ tasks.flywayMigrate {
         mapOf(
             "api-password" to "mirror_api_password",
             "api-user" to "mirror_api_user",
-            "db-name" to dbName,
+            "db-name" to dbContainerProvider.get().getDatabaseName(),
             "db-user" to dbUser,
             "partitionStartDate" to "'1970-01-01'",
             "partitionTimeInterval" to "'100 years'",
@@ -86,7 +81,13 @@ tasks.flywayMigrate {
 
     usesService(dbContainerProvider)
 
-    doFirst { url = getJdbcUrl(dbContainerProvider.get().getContainer()) }
+    doFirst { url = dbContainerProvider.get().getJdbcUrl() }
+}
+
+tasks.withType<AbstractFlywayTask>().configureEach {
+    notCompatibleWithConfigurationCache(
+        "Flyway plugin is not compatible with the configuration cache"
+    )
 }
 
 tasks.jooqCodegen {
@@ -99,7 +100,7 @@ tasks.jooqCodegen {
                 jdbc {
                     driver = "org.postgresql.Driver"
                     password = dbPassword
-                    url = getJdbcUrl(dbContainerProvider.get().getContainer())
+                    url = dbContainerProvider.get().getJdbcUrl()
                     user = dbUser
                 }
             }
@@ -114,6 +115,7 @@ abstract class PostgresService : BuildService<PostgresService.Params>, AutoClose
     }
 
     private var container: PostgreSQLContainer<Nothing>
+    private val databaseName = "mirror_node"
 
     init {
         val initScript =
@@ -136,7 +138,12 @@ abstract class PostgresService : BuildService<PostgresService.Params>, AutoClose
         container.stop()
     }
 
-    fun getContainer(): PostgreSQLContainer<Nothing> {
-        return container
+    fun getDatabaseName(): String {
+        return databaseName
+    }
+
+    fun getJdbcUrl(): String {
+        val port = container.getMappedPort(5432)
+        return "jdbc:postgresql://${container.host}:$port/$databaseName"
     }
 }
