@@ -3326,7 +3326,7 @@
           "text": "All",
           "value": "$__all"
         },
-        "definition": "label_values(system_cpu_count,cluster)",
+        "definition": "label_values(pg_up,cluster)",
         "description": "Kubernetes cluster",
         "includeAll": true,
         "label": "Cluster",
@@ -3335,7 +3335,7 @@
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(system_cpu_count,cluster)",
+          "query": "label_values(pg_up,cluster)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
