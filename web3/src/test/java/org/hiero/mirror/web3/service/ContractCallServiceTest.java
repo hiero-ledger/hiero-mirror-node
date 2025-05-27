@@ -769,7 +769,6 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, senderAddress);
         final var actualGas = mirrorNodeEvmProperties.isModularizedServices() ? 1413995L : 175242L;
-        persistRewardAccounts();
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);

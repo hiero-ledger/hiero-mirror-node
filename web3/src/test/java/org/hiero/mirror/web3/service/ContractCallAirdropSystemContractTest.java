@@ -25,7 +25,6 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.web3j.generated.Airdrop;
 import org.hiero.mirror.web3.web3j.generated.ClaimAirdrop;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -84,11 +83,6 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
 
     private static void unlimitedMaxAutoAssociations(Entity.EntityBuilder<?, ?> e) {
         e.maxAutomaticTokenAssociations(UNLIMITED_AUTOMATIC_TOKEN_ASSOCIATIONS);
-    }
-
-    @BeforeEach
-    void setUp() {
-        persistRewardAccounts();
     }
 
     @ParameterizedTest(name = "Airdrop fungible token to a(an) {0} that is already associated to it")
