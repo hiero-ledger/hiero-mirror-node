@@ -61,8 +61,16 @@ reporting aligned with consensus node behavior.
 specific statuses such as `INVALID_ALIAS_KEY`, `INVALID_CONTRACT_ID`,
 and `MAX_CHILD_RECORDS_EXCEEDED`, providing clearer failure reasons.
 
-**Resolution**: Update client-side logic to handle a wider range of status codes and to expect HTTP
-`400` responses with more descriptive error messages.
+One example is when sending a non-zero value to the exchange rate precompile:
+
+- **Modularized**: fails with `INVALID_CONTRACT_ID`
+- **Monolithic**: fails with `CONTRACT_REVERT_EXECUTED`
+
+**Resolution**:
+Update client-side logic to handle a wider range of status codes and to expect HTTP `400` responses
+with more descriptive error messages.
+Ensure precompile calls like the exchange rate query are made with no value,
+or expect `INVALID_CONTRACT_ID` under modularized behavior.
 
 ### 4. Gas Estimation Logic
 
@@ -153,13 +161,3 @@ In these and similar cases:
 
 **Resolution**: Update tests and error handling logic to account for `CONTRACT_REVERT_EXECUTED` and
 `INVALID_TOKEN_ID`
-
-### 9. Exchange Rate Precompile Called With Value Fails Differently
-
-**Impact**: Sending non-zero `value` to the exchange rate precompile results in different errors.
-
-**Reason for change**: The modularized flow rejects the call early with `INVALID_CONTRACT_ID`, while the
-monolithic flow returns `CONTRACT_REVERT_EXECUTED`.
-
-**Resolution**: Update tests and client logic to expect `INVALID_CONTRACT_ID` when calling precompiles
-with a non-zero value in the modularized flow.
