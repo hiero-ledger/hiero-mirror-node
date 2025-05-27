@@ -9,7 +9,24 @@ the old monolithic implementation, which is being deprecated.
 
 ## Breaking Changes
 
-### 1. Contract Call Behavior on Invalid Input
+### 1. Address Representation and Resolution
+
+**Impact**:
+Contract calls that previously succeeded may now fail with `CONTRACT_REVERT_EXECUTED` or other execution-related errors
+when addresses are provided in the long-zero format **and the referenced account has an alias**.
+
+**Reason for change**:
+The modularized flow introduces stricter address resolution logic that prioritizes EVM aliases
+over long-zero format addresses when the target account has an alias.
+This change aligns with consensus node behavior and ensures consistent and accurate address resolution.
+
+**Resolution**:
+When passing account or contract addresses in **any part of the request payload**—such as calldata,
+constructor arguments, or encoded function parameters—clients must use the **EVM alias format** (e.g., `0xc5b7…`)
+rather than the long-zero format (e.g., `0x0000000000000000000000000000000000abc123`) **if the account has an alias**.
+Using the long-zero format in such cases could result in failed execution under the modularized flow.
+
+### 2. Contract Call Behavior on Invalid Input
 
 **Impact**: Error responses may differ from the previous monolithic flow when handling malformed or
 invalid input.
@@ -22,10 +39,16 @@ reporting aligned with consensus node behavior.
 specific statuses such as `INSUFFICIENT_PAYER_BALANCE`, `INVALID_ALIAS_KEY`, `INVALID_CONTRACT_ID`,
 and `MAX_CHILD_RECORDS_EXCEEDED`, providing clearer failure reasons.
 
+One notable change is that the modularized flow enforces a strict check on the payer account's balance.
+In the monolithic flow, this check was more lenient,
+which means some contract calls that previously succeeded
+may now fail with INSUFFICIENT_PAYER_BALANCE unless the payer account has sufficient funds upfront.
+
 **Resolution**: Update client-side logic to handle a wider range of status codes and to expect HTTP
 `400` responses with more descriptive error messages.
+Ensure that payer accounts have adequate balances to avoid failures under the new modularized flow.
 
-### 2. Gas Estimation Logic
+### 3. Gas Estimation Logic
 
 **Impact**: Gas estimation may now return slightly different results due to improved modeling
 especially for contract deploy.
@@ -34,7 +57,7 @@ especially for contract deploy.
 
 **Resolution**: If comparing to old estimates, expect minor differences except for contract deployment.
 
-### 3. Default KYC Status Behavior
+### 4. Default KYC Status Behavior
 
 **Impact**: The result of `getDefaultKycStatus` may differ between the monolithic and modularized
 flows, potentially affecting token-related contract interactions.
@@ -49,7 +72,7 @@ may now return `true` (or vice versa) based on the actual token configuration in
 contract calls and adjust expectations to reflect the consensus-backed behavior in the modularized
 flow.
 
-### 4. Error on Call to Non-Existent Contract
+### 5. Error on Call to Non-Existent Contract
 
 **Impact**: Calling a contract that does not exist may return a different status in the modularized
 flow compared to the monolithic implementation.
@@ -64,7 +87,7 @@ differently depending on the flow used.
 **Resolution**: Update any error handling logic or tests expecting `INVALID_TRANSACTION` to also
 handle `INVALID_CONTRACT_ID` when running against the modularized flow.
 
-### 5. Negative Redirect Calls Return Different Errors
+### 6. Negative Redirect Calls Return Different Errors
 
 **Impact**: Contract calls that redirect and fail due to invalid input may produce
 different error statuses between the monolithic and modularized flows.
@@ -86,7 +109,7 @@ In these and similar cases:
 **Resolution**: Update tests and error handling logic to account for `CONTRACT_REVERT_EXECUTED` and
 `INVALID_TOKEN_ID`
 
-### 6. Exchange Rate Precompile Called With Value Fails Differently
+### 7. Exchange Rate Precompile Called With Value Fails Differently
 
 **Impact**: Sending non-zero `value` to the exchange rate precompile results in different errors.
 
