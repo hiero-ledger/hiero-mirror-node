@@ -13,7 +13,7 @@
     ]
   },
   "description": "This dashboard works with postgres_exporter for prometheus",
-  "editable": true,
+  "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 54,
