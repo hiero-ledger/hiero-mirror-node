@@ -8,12 +8,16 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAd
 import com.google.protobuf.ByteString;
 import com.hedera.node.app.service.evm.store.contracts.HederaEvmEntityAccess;
 import jakarta.inject.Named;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.evm.store.Store.OnMissing;
 import org.hiero.mirror.web3.repository.ContractRepository;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
+import org.hiero.mirror.web3.service.model.ContractSlotValue;
 import org.hyperledger.besu.datatypes.Address;
 
 @RequiredArgsConstructor
@@ -107,9 +111,20 @@ public class MirrorEntityAccess implements HederaEvmEntityAccess {
         return store.getHistoricalTimestamp()
                 .map(t -> contractStateRepository.findStorageByBlockTimestamp(
                         entityId, key.trimLeadingZeros().toArrayUnsafe(), t))
-                .orElseGet(() -> contractStateRepository.findStorage(entityId, key.toArrayUnsafe()))
+                .orElseGet(() -> findSlotValue(entityId, key.toArrayUnsafe()))
                 .map(Bytes::wrap)
                 .orElse(Bytes.EMPTY);
+    }
+
+    private Optional<byte[]> findSlotValue(Long entityId, byte[] slotKeyByteArray) {
+        List<ContractSlotValue> contractSlotsValues = contractStateRepository.findSlotsValuesByContractId(entityId);
+        Optional<ContractSlotValue> contractSlotValue = contractSlotsValues.stream()
+                .filter(sv -> Arrays.equals(sv.slot(), slotKeyByteArray))
+                .findFirst();
+        if (contractSlotValue.isPresent()) {
+            return Optional.of(contractSlotValue.get().value());
+        }
+        return contractStateRepository.findStorage(entityId, slotKeyByteArray);
     }
 
     @Override

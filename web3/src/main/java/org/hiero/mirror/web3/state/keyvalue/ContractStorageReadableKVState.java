@@ -11,9 +11,7 @@ import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -25,7 +23,6 @@ public class ContractStorageReadableKVState extends AbstractReadableKVState<Slot
 
     public static final String KEY = "STORAGE";
     private final ContractStateRepository contractStateRepository;
-    private Map<Long, List<ContractSlotValue>> contractsSlotsValues = new HashMap<>();
 
     protected ContractStorageReadableKVState(final ContractStateRepository contractStateRepository) {
         super(KEY);
@@ -51,20 +48,8 @@ public class ContractStorageReadableKVState extends AbstractReadableKVState<Slot
                 .orElse(null);
     }
 
-    private List<ContractSlotValue> findContractSlotsValues(Long entityId) {
-        ContractCallContext context = ContractCallContext.get();
-        contractsSlotsValues = context.getContractsSlotsValues();
-        if (!contractsSlotsValues.containsKey(entityId)) {
-            List<ContractSlotValue> contractSlotValues = contractStateRepository.findSlotsValuesByContractId(entityId);
-            contractsSlotsValues.put(entityId, contractSlotValues);
-            return contractSlotValues;
-        } else {
-            return contractsSlotsValues.get(entityId);
-        }
-    }
-
     private Optional<byte[]> findSlotValue(Long entityId, byte[] slotKeyByteArray) {
-        List<ContractSlotValue> contractSlotsValues = findContractSlotsValues(entityId);
+        List<ContractSlotValue> contractSlotsValues = contractStateRepository.findSlotsValuesByContractId(entityId);
         Optional<ContractSlotValue> contractSlotValue = contractSlotsValues.stream()
                 .filter(sv -> Arrays.equals(sv.slot(), slotKeyByteArray))
                 .findFirst();

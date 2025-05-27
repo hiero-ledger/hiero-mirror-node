@@ -20,7 +20,6 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOp
 import org.hiero.mirror.web3.evm.store.CachingStateFrame;
 import org.hiero.mirror.web3.evm.store.StackedStateFrames;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
-import org.hiero.mirror.web3.service.model.ContractSlotValue;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 
 @Getter
@@ -31,9 +30,6 @@ public class ContractCallContext {
 
     @Getter(AccessLevel.NONE)
     private final Map<String, Map<Object, Object>> readCache = new HashMap<>();
-
-    @Getter
-    private final Map<Long, List<ContractSlotValue>> contractsSlotsValues = new HashMap<>();
 
     @Getter
     private final long startTime = System.currentTimeMillis();

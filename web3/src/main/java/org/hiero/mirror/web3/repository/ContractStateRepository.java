@@ -3,9 +3,7 @@
 package org.hiero.mirror.web3.repository;
 
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATES;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_CONTRACT_STATES;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,7 +20,7 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
     Optional<byte[]> findStorage(final Long contractId, final byte[] key);
 
     @Query(value = "select slot, value from contract_state where contract_id = ?1 limit 10000", nativeQuery = true)
-    @Cacheable(cacheNames = CACHE_NAME_CONTRACT_STATES, cacheManager = CACHE_MANAGER_CONTRACT_STATES)
+    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_CONTRACT_STATE)
     List<ContractSlotValue> findSlotsValuesByContractId(Long contractId);
 
     /**
