@@ -96,7 +96,7 @@ class BlockFileSourceTest {
     private FileCopier fileCopier;
     private ImporterProperties importerProperties;
     private List<ConsensusNode> nodes;
-    private BlockStreamProperties properties;
+    private BlockProperties properties;
     private MeterRegistry meterRegistry;
 
     @Mock
@@ -118,7 +118,7 @@ class BlockFileSourceTest {
         importerProperties.setDataPath(archivePath);
         commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
         commonDownloaderProperties.setPathType(PathType.NODE_ID);
-        properties = new BlockStreamProperties();
+        properties = new BlockProperties();
         properties.setEnabled(true);
         meterRegistry = new SimpleMeterRegistry();
 
@@ -236,7 +236,7 @@ class BlockFileSourceTest {
     @Test
     void genesisNotFound(CapturedOutput output) {
         // given, when
-        String filename = BlockFile.getBlockStreamFilename(0L);
+        String filename = BlockFile.getFilename(0L, true);
         assertThatThrownBy(blockFileSource::get)
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("Failed to download block file " + filename);
@@ -260,7 +260,7 @@ class BlockFileSourceTest {
     @Test
     void readerFailure(CapturedOutput output) {
         // given
-        var filename = BlockFile.getBlockStreamFilename(0L);
+        var filename = BlockFile.getFilename(0L, true);
         var genesisBlockFile = fileCopier.getTo().resolve("0").resolve(filename).toFile();
         FileUtils.writeByteArrayToFile(genesisBlockFile, gzip(generateRandomByteArray(1024)));
 
@@ -312,7 +312,7 @@ class BlockFileSourceTest {
     @Test
     void timeout(CapturedOutput output) {
         // given
-        String filename = BlockFile.getBlockStreamFilename(0L);
+        String filename = BlockFile.getFilename(0L, true);
         commonDownloaderProperties.setTimeout(Duration.ofMillis(100L));
         var streamFileProvider = mock(StreamFileProvider.class);
         when(streamFileProvider.get(any(), any()))

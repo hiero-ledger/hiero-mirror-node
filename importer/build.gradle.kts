@@ -14,6 +14,7 @@ dependencies {
     implementation("com.google.cloud:spring-cloud-gcp-starter-pubsub")
     implementation("commons-io:commons-io")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
+    implementation("io.grpc:grpc-core")
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("io.projectreactor:reactor-core")
     implementation("jakarta.inject:jakarta.inject-api")
@@ -22,6 +23,7 @@ dependencies {
     implementation("org.apache.commons:commons-collections4")
     implementation("org.apache.velocity:velocity-engine-core")
     implementation("org.flywaydb:flyway-database-postgresql")
+    implementation("org.hiero.block:block-node-protobuf")
     implementation("org.hyperledger.besu:secp256k1")
     implementation("org.msgpack:jackson-dataformat-msgpack")
     implementation("org.postgresql:postgresql")
@@ -42,6 +44,7 @@ dependencies {
         classifier = "osx-aarch_64",
     )
     testImplementation(project(path = ":common", configuration = "testClasses"))
+    testImplementation("com.asarkar.grpc:grpc-test")
     testImplementation("com.github.vertical-blank:sql-formatter")
     testImplementation("com.playtika.testcontainers:embedded-google-pubsub")
     testImplementation("commons-beanutils:commons-beanutils")
@@ -54,4 +57,9 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+repositories {
+    // Temporary repository added for org.hiero.block snapshot dependencies
+    maven { url = uri("https://oss.sonatype.org/content/repositories/snapshots") }
 }

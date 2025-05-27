@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import lombok.CustomLog;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
@@ -38,6 +39,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
 @SuppressWarnings("java:S5786")
+@CustomLog
 @ExtendWith(OutputCaptureExtension.class)
 public class UtilityTest {
 

@@ -55,6 +55,10 @@ public class BlockStreamVerifier {
                 .register(meterRegistry);
     }
 
+    public Optional<String> getLastBlockFilename() {
+        return getLastBlockFile().map(BlockFile::getName);
+    }
+
     public Optional<Long> getLastBlockNumber() {
         return getLastBlockFile().map(BlockFile::getIndex);
     }
@@ -96,9 +100,10 @@ public class BlockStreamVerifier {
             var last = recordFileRepository
                     .findLatest()
                     .map(r -> BlockFile.builder()
+                            .consensusStart(r.getConsensusStart())
                             .hash(r.getHash())
                             .index(r.getIndex())
-                            .consensusStart(r.getConsensusStart())
+                            .name(r.getName())
                             .build())
                     .or(() -> Optional.of(EMPTY));
             lastBlockFile.compareAndSet(Optional.empty(), last);

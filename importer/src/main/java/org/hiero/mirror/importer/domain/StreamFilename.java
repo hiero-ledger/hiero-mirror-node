@@ -113,7 +113,7 @@ public class StreamFilename implements Comparable<StreamFilename> {
     }
 
     public static StreamFilename from(long blockNumber) {
-        return from(BlockFile.getBlockStreamFilename(blockNumber));
+        return from(BlockFile.getFilename(blockNumber, true));
     }
 
     public static StreamFilename from(String filePath) {
