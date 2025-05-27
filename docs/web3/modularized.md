@@ -88,16 +88,14 @@ modularized flow may return fallback values when appropriate.
 **Examples**:
 
 - `eth_call` with a sender address that does not exist:
-
   - **Modularized**: Throws a `PAYER_ACCOUNT_NOT_FOUND` error
   - **Monolithic**: Returns `0x`
 
 - Precompiled HTS contract call (e.g., `isToken`) on a token that has not yet been persisted:
-  - Modularized: returns `false` or an empty result
-  - Monolithic: throws a `MirrorEvmTransactionException`
+  - **Modularized**: returns `false` or an empty result
+  - **Monolithic**: throws a `MirrorEvmTransactionException`
 
 **Resolution**: Update error handling logic to support both patterns.
-
 - When using `eth_call`, handle both exception-based and value-based responses,
   depending on the context and behavior in the modularized flow.
 
