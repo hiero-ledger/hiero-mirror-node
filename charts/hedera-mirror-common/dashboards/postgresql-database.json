@@ -16,7 +16,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 49,
+  "id": 52,
   "links": [],
   "panels": [
     {
@@ -529,8 +529,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 12,
+        "h": 10,
+        "w": 24,
         "x": 0,
         "y": 6
       },
@@ -678,10 +678,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 6
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 16
       },
       "id": 72,
       "options": {
@@ -699,8 +699,8 @@
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.6.0",
@@ -792,10 +792,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 12,
+        "h": 10,
+        "w": 24,
         "x": 0,
-        "y": 15
+        "y": 26
       },
       "id": 4,
       "options": {
@@ -856,108 +856,6 @@
         "type": "prometheus",
         "uid": "${prometheus}"
       },
-      "description": "Average query time for PG bouncer pool connections",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisGridShow": false,
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "µs"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 15
-      },
-      "id": 73,
-      "options": {
-        "legend": {
-          "calcs": [
-            "min",
-            "max",
-            "mean"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "sortBy": "Mean",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "sum(pgbouncer_show_stats_avg_query_time{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (database)",
-          "hide": false,
-          "legendFormat": "{{database}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Average Query Time",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${prometheus}"
-      },
       "description": "PG bouncer bind connection count",
       "fieldConfig": {
         "defaults": {
@@ -1010,7 +908,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": []
       },
@@ -1018,7 +917,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 36
       },
       "id": 78,
       "options": {
@@ -1110,7 +1009,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": []
       },
@@ -1118,7 +1018,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 36
       },
       "id": 77,
       "options": {
@@ -1210,7 +1110,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": []
       },
@@ -1218,7 +1119,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 33
+        "y": 45
       },
       "id": 74,
       "options": {
@@ -1319,7 +1220,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 33
+        "y": 45
       },
       "id": 76,
       "options": {
@@ -1352,6 +1253,108 @@
         }
       ],
       "title": "Statement Parse Count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "Average query time for PG bouncer pool connections",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "µs"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 54
+      },
+      "id": 73,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(pgbouncer_show_stats_avg_query_time{cluster=~\"$cluster\", database=~\"$database\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (database)",
+          "hide": false,
+          "legendFormat": "{{database}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Average Query Time",
       "type": "timeseries"
     },
     {
@@ -1419,8 +1422,8 @@
       "gridPos": {
         "h": 9,
         "w": 12,
-        "x": 0,
-        "y": 42
+        "x": 12,
+        "y": 54
       },
       "id": 75,
       "options": {
@@ -1474,7 +1477,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 51
+        "y": 63
       },
       "id": 30,
       "panels": [],
@@ -1547,7 +1550,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 52
+        "y": 64
       },
       "id": 60,
       "options": {
@@ -1667,7 +1670,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 52
+        "y": 64
       },
       "id": 64,
       "options": {
@@ -1814,7 +1817,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 59
+        "y": 71
       },
       "id": 66,
       "options": {
@@ -1937,7 +1940,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 59
+        "y": 71
       },
       "id": 3,
       "options": {
@@ -2046,7 +2049,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 66
+        "y": 78
       },
       "id": 70,
       "options": {
@@ -2167,7 +2170,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 66
+        "y": 78
       },
       "id": 68,
       "options": {
@@ -2275,7 +2278,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 73
+        "y": 85
       },
       "id": 5,
       "options": {
@@ -2384,7 +2387,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 73
+        "y": 85
       },
       "id": 14,
       "options": {
@@ -2493,7 +2496,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 80
+        "y": 92
       },
       "id": 6,
       "options": {
@@ -2602,7 +2605,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 80
+        "y": 92
       },
       "id": 8,
       "options": {
@@ -2711,7 +2714,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 87
+        "y": 99
       },
       "id": 7,
       "options": {
@@ -2820,7 +2823,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 87
+        "y": 99
       },
       "id": 62,
       "options": {
@@ -2868,7 +2871,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 94
+        "y": 106
       },
       "id": 82,
       "panels": [],
@@ -2880,6 +2883,182 @@
         "type": "loki",
         "uid": "${loki}"
       },
+      "description": "The rate of log events written by the database",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 1,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "warn"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "light-orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "error"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "info"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "light-green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 107
+      },
+      "id": 84,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "sum(rate({cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} !~ \"WARNING|ERROR\" [$__interval]))",
+          "hide": false,
+          "legendFormat": "info",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "sum(rate({cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} |= \"WARNING\" [$__interval]))",
+          "legendFormat": "warn",
+          "queryType": "range",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "sum(rate({cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} |= \"ERROR\" [$__interval]))",
+          "hide": false,
+          "legendFormat": "error",
+          "queryType": "range",
+          "refId": "C"
+        }
+      ],
+      "title": "Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${loki}"
+      },
+      "description": "The log events",
       "fieldConfig": {
         "defaults": {},
         "overrides": []
@@ -2888,7 +3067,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 95
+        "y": 115
       },
       "id": 83,
       "options": {
