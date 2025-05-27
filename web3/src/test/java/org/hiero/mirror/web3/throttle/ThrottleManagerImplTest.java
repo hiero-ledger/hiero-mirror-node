@@ -86,7 +86,6 @@ final class ThrottleManagerImplTest {
         throttleManager.throttle(request);
     }
 
-
     @Test
     void restoreZero() {
         throttleManager.restore(0);
