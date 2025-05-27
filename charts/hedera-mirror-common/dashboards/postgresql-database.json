@@ -16,7 +16,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 46,
+  "id": 49,
   "links": [],
   "panels": [
     {
@@ -87,7 +87,6 @@
         "wideLayout": true
       },
       "pluginVersion": "11.6.0",
-      "repeatDirection": "h",
       "targets": [
         {
           "editorMode": "code",
@@ -2862,6 +2861,63 @@
       ],
       "title": "Cache Hit Rate",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 94
+      },
+      "id": 82,
+      "panels": [],
+      "title": "Logs",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${loki}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 95
+      },
+      "id": 83,
+      "options": {
+        "dedupStrategy": "none",
+        "enableInfiniteScrolling": false,
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": false,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki}"
+          },
+          "direction": "backward",
+          "editorMode": "builder",
+          "expr": "{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Messages",
+      "type": "logs"
     }
   ],
   "preload": false,
@@ -2890,6 +2946,7 @@
           "value": "$__all"
         },
         "definition": "label_values(system_cpu_count,cluster)",
+        "description": "Kubernetes cluster",
         "includeAll": true,
         "label": "Cluster",
         "multi": true,
@@ -2911,7 +2968,7 @@
             "$__all"
           ]
         },
-        "definition": "label_values(pg_up,namespace)",
+        "definition": "label_values(pg_up{cluster=~\"$cluster\"},namespace)",
         "includeAll": true,
         "label": "Namespace",
         "multi": true,
@@ -2919,7 +2976,7 @@
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(pg_up,namespace)",
+          "query": "label_values(pg_up{cluster=~\"$cluster\"},namespace)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
@@ -2937,7 +2994,7 @@
           "type": "prometheus",
           "uid": "${prometheus}"
         },
-        "definition": "label_values(pg_exporter_last_scrape_duration_seconds,pod)",
+        "definition": "label_values(pg_exporter_last_scrape_duration_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"},pod)",
         "includeAll": true,
         "label": "Pod",
         "multi": true,
@@ -2945,7 +3002,7 @@
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(pg_exporter_last_scrape_duration_seconds,pod)",
+          "query": "label_values(pg_exporter_last_scrape_duration_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"},pod)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
@@ -2963,6 +3020,22 @@
         "query": "mirror_node",
         "skipUrlSync": true,
         "type": "constant"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "",
+          "value": ""
+        },
+        "description": "Name of the Loki datasource to use",
+        "hide": 2,
+        "label": "Loki",
+        "name": "loki",
+        "options": [],
+        "query": "loki",
+        "refresh": 1,
+        "regex": ".*(Loki|logs)$",
+        "type": "datasource"
       }
     ]
   },

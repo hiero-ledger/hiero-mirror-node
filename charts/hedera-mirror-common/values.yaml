@@ -510,10 +510,10 @@ stackgres:
     DatabaseInstanceDown:
       annotations:
         summary: "Postgres server instance is down"
-        description: "Postgres has not been responding for the past 1 minutes on {{ $labels.pod }}"
-        title: "Postgres server instance {{ $labels.pod }} is down "
+        description: "Postgres has not been responding for the past minute on {{ $labels.pod }}"
+        title: "Postgres server instance {{ $labels.pod }} is down"
       expr: sum(pg_up) by (namespace, pod) == 0
-      for: 1m
+      for: 5m
       labels:
         severity: critical
         application: hedera-mirror-common
@@ -536,8 +536,8 @@ stackgres:
         application: hedera-mirror-common
         area: resource
       annotations:
-        summary: "Postgres replication lag size is to large"
-        description: "Replication lag size on server {{$labels.pod}} is currently {{ $value | humanize1024}}B behind the leader in cluster {{$labels.cluster_name}}"
+        summary: "Postgres replication lag size is too large"
+        description: "Replication lag size on {{$labels.pod}} is currently {{ $value | humanize1024 }}B behind the leader"
     DatabaseInactiveReplicationSlots:
       expr: sum(pg_replication_slots_active) by (namespace, pod) == 0
       for: 30m
@@ -547,12 +547,12 @@ stackgres:
         area: resource
       annotations:
         summary: "There are inactive replications slots"
-        description: "The are some inactive replication slots on {{$labels.pod}} in cluster {{$labels.cluster_name}}"
+        description: "The are some inactive replication slots on {{$labels.pod}}"
     DatabaseDemotedNode:
       annotations:
-        summary: "Postgresql demoted node (instance {{ $labels.pod }}, cluster {{ $labels.cluster_name }})"
-        description: "Postgresql standby server has been promoted as primary node\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
-      expr: sum(pg_replication_is_replica) by (namespace, pod) == 1 and sum(changes(pg_replication_is_replica[1m])) by (namespace, pod) > 0
+        summary: "Postgresql demoted node"
+        description: "Instance {{ $labels.pod }} has been demoted to a replica"
+      expr: sum(pg_replication_is_replica) by (namespace, pod) == 1 and sum(changes(pg_replication_is_replica[2m])) by (namespace, pod) > 0
       for: 1m
       labels:
         application: hedera-mirror-common
@@ -560,8 +560,8 @@ stackgres:
         severity: warning
     DatabaseWaitingClients:
       annotations:
-        summary: PgBouncer has waiting clients on instance {{ $labels.pod }} in pool {{ $labels.pool_mode }} for user {{$labels.user}}
-        description: "PgBouncer instance has waiting clients\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+        summary: PgBouncer has waiting clients on instance {{ $labels.pod }}
+        description: "PgBouncer instance has {{ $value }} waiting clients"
       expr: sum(pgbouncer_show_pools_cl_waiting) by (namespace, pod) > 0
       for: 5m
       labels:
@@ -571,7 +571,7 @@ stackgres:
     DatabaseQueryTimeTooHigh:
       annotations:
         summary: PgBouncer average query duration more than 3 seconds on {{ $labels.pod }} in pool {{ $labels.pool_mode }} for user {{$labels.user}}
-        description: "PgBouncer average query duration more than 3 seconds = {{ $value }}"
+        description: "PgBouncer average query duration {{ $value }} is more than 3 seconds"
       expr: sum(pgbouncer_show_stats_avg_query_time) by (namespace, pod) > 3e+6
       for: 5m
       labels:
