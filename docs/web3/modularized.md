@@ -72,7 +72,36 @@ may now return `true` (or vice versa) based on the actual token configuration in
 contract calls and adjust expectations to reflect the consensus-backed behavior in the modularized
 flow.
 
-### 5. Error on Call to Non-Existent Contract
+### 5. Behavior Change: Return Values vs Exceptions
+
+**Impact**:
+In some scenarios, contract calls that previously returned a default value (e.g., `0x`) may now result in an error,
+or conversely, calls that previously threw an error may now return a benign fallback value (e.g., `false` or `0x`),
+depending on the modularized flow’s interpretation of the state.
+
+**Reason for change**:
+The modularized flow improves internal consistency with the consensus node by aligning behavior
+with smart contract execution semantics, particularly for missing or uninitialized state entries.
+Rather than throwing exceptions for all unexpected conditions,
+modularized flow may return fallback values when appropriate.
+
+**Examples**:
+
+- `eth_call` with a sender address that does not exist:
+
+  - **Modularized**: Throws a `PAYER_ACCOUNT_NOT_FOUND` error
+  - **Monolithic**: Returns `0x`
+
+- Precompiled HTS contract call (e.g., `isToken`) on a token that has not yet been persisted:
+  - Modularized: returns `false` or an empty result
+  - Monolithic: throws a `MirrorEvmTransactionException`
+
+**Resolution**: Update error handling logic to support both patterns.
+
+- When using `eth_call`, handle both exception-based and value-based responses,
+  depending on the context and behavior in the modularized flow.
+
+### 6. Error on Call to Non-Existent Contract
 
 **Impact**: Calling a contract that does not exist may return a different status in the modularized
 flow compared to the monolithic implementation.
@@ -87,7 +116,7 @@ differently depending on the flow used.
 **Resolution**: Update any error handling logic or tests expecting `INVALID_TRANSACTION` to also
 handle `INVALID_CONTRACT_ID` when running against the modularized flow.
 
-### 6. Negative Redirect Calls Return Different Errors
+### 7. Negative Redirect Calls Return Different Errors
 
 **Impact**: Contract calls that redirect and fail due to invalid input may produce
 different error statuses between the monolithic and modularized flows.
@@ -109,7 +138,7 @@ In these and similar cases:
 **Resolution**: Update tests and error handling logic to account for `CONTRACT_REVERT_EXECUTED` and
 `INVALID_TOKEN_ID`
 
-### 7. Exchange Rate Precompile Called With Value Fails Differently
+### 8. Exchange Rate Precompile Called With Value Fails Differently
 
 **Impact**: Sending non-zero `value` to the exchange rate precompile results in different errors.
 
