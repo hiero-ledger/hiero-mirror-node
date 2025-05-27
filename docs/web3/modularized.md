@@ -110,7 +110,7 @@ modularized flow may return fallback values when appropriate.
 
 - Precompiled HTS contract call (e.g., `isToken`) on a token that has not yet been persisted:
   - **Modularized**: returns `false` or an empty result
-  - **Monolithic**: throws a `MirrorEvmTransactionException`
+  - **Monolithic**: reverts the call with `CONTRACT_REVERT_EXECUTED`
 
 **Resolution**: Update error handling logic to support both patterns.
 
