@@ -123,8 +123,6 @@ spec:
       cucumberTags: "@critical"
       enabled: true
     web3:
-      image:
-        tag: 0.129.0
       ingress:
         enabled: true
       env:
