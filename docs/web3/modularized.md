@@ -26,7 +26,29 @@ constructor arguments, or encoded function parameters—clients must use the **E
 rather than the long-zero format (e.g., `0x0000000000000000000000000000000000abc123`) **if the account has an alias**.
 Using the long-zero format in such cases could result in failed execution under the modularized flow.
 
-### 2. Contract Call Behavior on Invalid Input
+### 2. Payer Balance Validation
+
+**Impact**:
+Contract calls that previously succeeded under the monolithic flow may now fail in the modularized flow
+with `INSUFFICIENT_PAYER_BALANCE` if the payer account does not have sufficient funds,
+even when the call is a simulation (e.g., using `eth_call`).
+
+**Reason for change**:
+The modularized execution flow enforces a stricter validation of the payer's balance before executing contract calls.
+This change aligns with consensus node behavior,
+ensuring that contract calls fail early if the payer cannot cover the required cost.
+
+**Details**:
+In the monolithic flow, balance checks were more lenient or deferred, allowing some calls to succeed
+even when the payer lacked sufficient balance.
+Under the modularized flow, the same calls now fail immediately if the balance check fails,
+resulting in `INSUFFICIENT_PAYER_BALANCE` being returned.
+
+**Resolution**:
+Ensure that payer accounts have sufficient balances to cover contract call costs.
+Update client-side logic and test cases to account for stricter balance validation in the modularized flow.
+
+### 3. Contract Call Behavior on Invalid Input
 
 **Impact**: Error responses may differ from the previous monolithic flow when handling malformed or
 invalid input.
@@ -36,19 +58,13 @@ reporting aligned with consensus node behavior.
 
 **Details**: Some statuses like `CONTRACT_REVERT_EXECUTED`, `INSUFFICIENT_GAS`, and
 `INVALID_SOLIDITY_ADDRESS` are common to both flows. However, the modularized flow introduces more
-specific statuses such as `INSUFFICIENT_PAYER_BALANCE`, `INVALID_ALIAS_KEY`, `INVALID_CONTRACT_ID`,
+specific statuses such as `INVALID_ALIAS_KEY`, `INVALID_CONTRACT_ID`,
 and `MAX_CHILD_RECORDS_EXCEEDED`, providing clearer failure reasons.
-
-One notable change is that the modularized flow enforces a strict check on the payer account's balance.
-In the monolithic flow, this check was more lenient,
-which means some contract calls that previously succeeded
-may now fail with INSUFFICIENT_PAYER_BALANCE unless the payer account has sufficient funds upfront.
 
 **Resolution**: Update client-side logic to handle a wider range of status codes and to expect HTTP
 `400` responses with more descriptive error messages.
-Ensure that payer accounts have adequate balances to avoid failures under the new modularized flow.
 
-### 3. Gas Estimation Logic
+### 4. Gas Estimation Logic
 
 **Impact**: Gas estimation may now return slightly different results due to improved modeling
 especially for contract deploy.
@@ -57,7 +73,7 @@ especially for contract deploy.
 
 **Resolution**: If comparing to old estimates, expect minor differences except for contract deployment.
 
-### 4. Default KYC Status Behavior
+### 5. Default KYC Status Behavior
 
 **Impact**: The result of `getDefaultKycStatus` may differ between the monolithic and modularized
 flows, potentially affecting token-related contract interactions.
@@ -72,7 +88,7 @@ may now return `true` (or vice versa) based on the actual token configuration in
 contract calls and adjust expectations to reflect the consensus-backed behavior in the modularized
 flow.
 
-### 5. Behavior Change: Return Values vs Exceptions
+### 6. Behavior Change: Return Values vs Exceptions
 
 **Impact**:
 In some scenarios, contract calls that previously returned a default value (e.g., `0x`) may now result in an error,
@@ -101,7 +117,7 @@ modularized flow may return fallback values when appropriate.
 - When using `eth_call`, handle both exception-based and value-based responses,
   depending on the context and behavior in the modularized flow.
 
-### 6. Error on Call to Non-Existent Contract
+### 7. Error on Call to Non-Existent Contract
 
 **Impact**: Calling a contract that does not exist may return a different status in the modularized
 flow compared to the monolithic implementation.
@@ -116,7 +132,7 @@ differently depending on the flow used.
 **Resolution**: Update any error handling logic or tests expecting `INVALID_TRANSACTION` to also
 handle `INVALID_CONTRACT_ID` when running against the modularized flow.
 
-### 7. Negative Redirect Calls Return Different Errors
+### 8. Negative Redirect Calls Return Different Errors
 
 **Impact**: Contract calls that redirect and fail due to invalid input may produce
 different error statuses between the monolithic and modularized flows.
@@ -138,7 +154,7 @@ In these and similar cases:
 **Resolution**: Update tests and error handling logic to account for `CONTRACT_REVERT_EXECUTED` and
 `INVALID_TOKEN_ID`
 
-### 8. Exchange Rate Precompile Called With Value Fails Differently
+### 9. Exchange Rate Precompile Called With Value Fails Differently
 
 **Impact**: Sending non-zero `value` to the exchange rate precompile results in different errors.
 
