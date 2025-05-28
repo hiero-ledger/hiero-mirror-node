@@ -19,21 +19,27 @@ import org.junit.jupiter.api.Test;
  */
 class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHistoricalTest {
 
-
     @Test
     void scheduleCreateFungibleTokenTest() throws Exception {
         final var contract = testWeb3jService.deploy(HIP756Contract::deploy);
         final var treasury = accountEntityPersist();
         final var autoRenew = accountEntityPersist();
 
-        final var sendFunction = contract.send_scheduleCreateFT(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), BigInteger.valueOf(0));
-        final var callFunction = contract.call_scheduleCreateFT(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury));
+        final var sendFunction = contract.send_scheduleCreateFT(
+                getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), BigInteger.valueOf(0));
+        final var callFunction =
+                contract.call_scheduleCreateFT(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
             final var callFunctionResult = callFunction.send();
-            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the format and the status of the result
-            assertThat(callFunctionResult.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(callFunctionResult.component2()).startsWith("0x").hasSize(42).matches("^0x[0-9a-fA-F]+$");
+            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
+            // format and the status of the result
+            assertThat(callFunctionResult.component1())
+                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+            assertThat(callFunctionResult.component2())
+                    .startsWith("0x")
+                    .hasSize(42)
+                    .matches("^0x[0-9a-fA-F]+$");
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -47,14 +53,24 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         final var autoRenew = accountEntityPersist();
         final var designatedPayer = accountEntityPersist();
 
-        final var sendFunction = contract.send_scheduleCreateFTWithDesignatedPayer(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), getAddressFromEntity(designatedPayer), BigInteger.valueOf(0));
-        final var callFunction = contract.call_scheduleCreateFTWithDesignatedPayer(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), getAddressFromEntity(designatedPayer));
+        final var sendFunction = contract.send_scheduleCreateFTWithDesignatedPayer(
+                getAddressFromEntity(autoRenew),
+                getAddressFromEntity(treasury),
+                getAddressFromEntity(designatedPayer),
+                BigInteger.valueOf(0));
+        final var callFunction = contract.call_scheduleCreateFTWithDesignatedPayer(
+                getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), getAddressFromEntity(designatedPayer));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
             final var callFunctionResult = callFunction.send();
-            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the format and the status of the result
-            assertThat(callFunctionResult.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(callFunctionResult.component2()).startsWith("0x").hasSize(42).matches("^0x[0-9a-fA-F]+$");
+            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
+            // format and the status of the result
+            assertThat(callFunctionResult.component1())
+                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+            assertThat(callFunctionResult.component2())
+                    .startsWith("0x")
+                    .hasSize(42)
+                    .matches("^0x[0-9a-fA-F]+$");
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -67,14 +83,21 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         final var treasury = accountEntityPersist();
         final var autoRenew = accountEntityPersist();
 
-        final var sendFunction = contract.send_scheduleCreateNFT(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), BigInteger.valueOf(0));
-        final var callFunction = contract.call_scheduleCreateNFT(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury));
+        final var sendFunction = contract.send_scheduleCreateNFT(
+                getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), BigInteger.valueOf(0));
+        final var callFunction =
+                contract.call_scheduleCreateNFT(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
             final var callFunctionResult = callFunction.send();
-            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the format and the status of the result
-            assertThat(callFunctionResult.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(callFunctionResult.component2()).startsWith("0x").hasSize(42).matches("^0x[0-9a-fA-F]+$");
+            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
+            // format and the status of the result
+            assertThat(callFunctionResult.component1())
+                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+            assertThat(callFunctionResult.component2())
+                    .startsWith("0x")
+                    .hasSize(42)
+                    .matches("^0x[0-9a-fA-F]+$");
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -88,14 +111,24 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         final var autoRenew = accountEntityPersist();
         final var designatedPayer = accountEntityPersist();
 
-        final var sendFunction = contract.send_scheduleCreateNFTWithDesignatedPayer(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), getAddressFromEntity(designatedPayer), BigInteger.valueOf(0));
-        final var callFunction = contract.call_scheduleCreateNFTWithDesignatedPayer(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), getAddressFromEntity(designatedPayer));
+        final var sendFunction = contract.send_scheduleCreateNFTWithDesignatedPayer(
+                getAddressFromEntity(autoRenew),
+                getAddressFromEntity(treasury),
+                getAddressFromEntity(designatedPayer),
+                BigInteger.valueOf(0));
+        final var callFunction = contract.call_scheduleCreateNFTWithDesignatedPayer(
+                getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), getAddressFromEntity(designatedPayer));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
             final var callFunctionResult = callFunction.send();
-            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the format and the status of the result
-            assertThat(callFunctionResult.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(callFunctionResult.component2()).startsWith("0x").hasSize(42).matches("^0x[0-9a-fA-F]+$");
+            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
+            // format and the status of the result
+            assertThat(callFunctionResult.component1())
+                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+            assertThat(callFunctionResult.component2())
+                    .startsWith("0x")
+                    .hasSize(42)
+                    .matches("^0x[0-9a-fA-F]+$");
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -109,14 +142,31 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         final var autoRenew = accountEntityPersist();
         final var token = fungibleTokenPersistWithTreasuryAccount(treasury.toEntityId());
 
-        final var sendFunction = contract.send_scheduleUpdateTreasuryAndAutoRenewAcc(toAddress(token.getTokenId()).toHexString(), getAddressFromEntity(treasury), getAddressFromEntity(autoRenew), token.getName(), "FUNG", "Memo");
-        final var callFunction = contract.call_scheduleUpdateTreasuryAndAutoRenewAcc(toAddress(token.getTokenId()).toHexString(), getAddressFromEntity(treasury), getAddressFromEntity(autoRenew), token.getName(), "FUNG", "Memo");
+        final var sendFunction = contract.send_scheduleUpdateTreasuryAndAutoRenewAcc(
+                toAddress(token.getTokenId()).toHexString(),
+                getAddressFromEntity(treasury),
+                getAddressFromEntity(autoRenew),
+                token.getName(),
+                "FUNG",
+                "Memo");
+        final var callFunction = contract.call_scheduleUpdateTreasuryAndAutoRenewAcc(
+                toAddress(token.getTokenId()).toHexString(),
+                getAddressFromEntity(treasury),
+                getAddressFromEntity(autoRenew),
+                token.getName(),
+                "FUNG",
+                "Memo");
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
             final var callFunctionResult = callFunction.send();
-            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the format and the status of the result
-            assertThat(callFunctionResult.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(callFunctionResult.component2()).startsWith("0x").hasSize(42).matches("^0x[0-9a-fA-F]+$");
+            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
+            // format and the status of the result
+            assertThat(callFunctionResult.component1())
+                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+            assertThat(callFunctionResult.component2())
+                    .startsWith("0x")
+                    .hasSize(42)
+                    .matches("^0x[0-9a-fA-F]+$");
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -131,14 +181,33 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         final var token = fungibleTokenPersistWithTreasuryAccount(treasury.toEntityId());
         final var designatedPayer = accountEntityPersist();
 
-        final var sendFunction = contract.send_scheduleUpdateTreasuryAndAutoRenewAccWithDesignatedPayer(toAddress(token.getTokenId()).toHexString(), getAddressFromEntity(treasury), getAddressFromEntity(autoRenew), token.getName(), "FUNG", "Memo", getAddressFromEntity(designatedPayer));
-        final var callFunction = contract.call_scheduleUpdateTreasuryAndAutoRenewAccWithDesignatedPayer(toAddress(token.getTokenId()).toHexString(), getAddressFromEntity(treasury), getAddressFromEntity(autoRenew), token.getName(), "FUNG", "Memo", getAddressFromEntity(designatedPayer));
+        final var sendFunction = contract.send_scheduleUpdateTreasuryAndAutoRenewAccWithDesignatedPayer(
+                toAddress(token.getTokenId()).toHexString(),
+                getAddressFromEntity(treasury),
+                getAddressFromEntity(autoRenew),
+                token.getName(),
+                "FUNG",
+                "Memo",
+                getAddressFromEntity(designatedPayer));
+        final var callFunction = contract.call_scheduleUpdateTreasuryAndAutoRenewAccWithDesignatedPayer(
+                toAddress(token.getTokenId()).toHexString(),
+                getAddressFromEntity(treasury),
+                getAddressFromEntity(autoRenew),
+                token.getName(),
+                "FUNG",
+                "Memo",
+                getAddressFromEntity(designatedPayer));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
             final var callFunctionResult = callFunction.send();
-            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the format and the status of the result
-            assertThat(callFunctionResult.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(callFunctionResult.component2()).startsWith("0x").hasSize(42).matches("^0x[0-9a-fA-F]+$");
+            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
+            // format and the status of the result
+            assertThat(callFunctionResult.component1())
+                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+            assertThat(callFunctionResult.component2())
+                    .startsWith("0x")
+                    .hasSize(42)
+                    .matches("^0x[0-9a-fA-F]+$");
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
