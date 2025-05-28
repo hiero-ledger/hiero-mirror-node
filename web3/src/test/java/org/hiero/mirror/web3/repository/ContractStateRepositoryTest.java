@@ -4,10 +4,12 @@ package org.hiero.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.contract.ContractStateChange;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.state.ContractSlotValue;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
@@ -85,5 +87,15 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
         ContractState contractState = domainBuilder.contractState().persist();
         assertThat(contractStateRepository.findStorage(contractState.getContractId(), new byte[32]))
                 .isEmpty();
+    }
+
+    @Test
+    void findSlotsValuesByContractId() {
+        ContractState contractState = domainBuilder.contractState().persist();
+        byte[] actualSlot = contractState.getSlot();
+        List<ContractSlotValue> expectedSlots =
+                contractStateRepository.findSlotsValuesByContractId(contractState.getContractId());
+        assertThat(expectedSlots.size()).isEqualTo(1);
+        assertThat(expectedSlots.getFirst().slot()).isEqualTo(actualSlot);
     }
 }

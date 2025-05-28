@@ -3,6 +3,8 @@
 package org.hiero.mirror.web3.evm.store.contract;
 
 import static com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases.isMirror;
+import static java.util.Objects.requireNonNull;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
 
@@ -10,25 +12,34 @@ import com.google.protobuf.ByteString;
 import com.hedera.node.app.service.evm.store.contracts.HederaEvmEntityAccess;
 import jakarta.inject.Named;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.evm.store.Store.OnMissing;
 import org.hiero.mirror.web3.repository.ContractRepository;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
-import org.hiero.mirror.web3.service.model.ContractSlotValue;
 import org.hiero.mirror.web3.state.ContractStateKey;
 import org.hyperledger.besu.datatypes.Address;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 
-@RequiredArgsConstructor
 @Named
 public class MirrorEntityAccess implements HederaEvmEntityAccess {
     private final ContractStateRepository contractStateRepository;
     private final ContractRepository contractRepository;
-    private final CacheManager contractStateCacheManager;
+    private final Cache cache;
     private final Store store;
 
+    public MirrorEntityAccess(
+            ContractStateRepository contractStateRepository,
+            ContractRepository contractRepository,
+            @Qualifier(CACHE_MANAGER_CONTRACT_STATE) CacheManager contractStateCacheManager,
+            Store store) {
+        this.cache = requireNonNull(contractStateCacheManager.getCache(CACHE_NAME), "Cache not found: " + CACHE_NAME);
+        this.contractStateRepository = contractStateRepository;
+        this.contractRepository = contractRepository;
+        this.store = store;
+    }
     // An account is usable if it isn't deleted or if it has balance==0 but is not the 0-address
     // or the empty account.  (This allows the special case where a synthetic 0-address account
     // is used in eth_estimateGas.)
@@ -119,11 +130,6 @@ public class MirrorEntityAccess implements HederaEvmEntityAccess {
     }
 
     private Optional<byte[]> findSlotValue(final Long entityId, final byte[] slotKeyByteArray) {
-        final var cache = contractStateCacheManager.getCache(CACHE_NAME);
-        if (cache == null) {
-            return contractStateRepository.findStorage(entityId, slotKeyByteArray);
-        }
-
         final var cacheKey = new ContractStateKey(entityId, slotKeyByteArray);
 
         final byte[] cachedValue = cache.get(cacheKey, byte[].class);
@@ -134,7 +140,7 @@ public class MirrorEntityAccess implements HederaEvmEntityAccess {
         final var slotValues = contractStateRepository.findSlotsValuesByContractId(entityId);
 
         byte[] matchedValue = null;
-        for (ContractSlotValue slotValue : slotValues) {
+        for (final var slotValue : slotValues) {
             final byte[] slot = slotValue.slot();
             final byte[] value = slotValue.value();
             final var generatedKey = new ContractStateKey(entityId, slot);
