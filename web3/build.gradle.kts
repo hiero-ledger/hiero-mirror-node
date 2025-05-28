@@ -126,8 +126,13 @@ val moveTestHistoricalFiles =
         dependsOn(tasks.withType<GenerateContractWrappers>())
     }
 
+val debugFiles = tasks.register<Exec>("debugFiles") {
+    commandLine = listOf("find", "build", "-type", "f")
+    dependsOn(moveTestHistoricalFiles)
+}
+
 tasks.compileTestJava {
     options.compilerArgs.add("-Xlint:-unchecked") // Web3j generates code with unchecked
     options.compilerArgs.removeIf { it == "-Werror" }
-    dependsOn(moveTestHistoricalFiles)
+    dependsOn(debugFiles)
 }
