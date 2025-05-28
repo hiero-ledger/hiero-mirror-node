@@ -2,18 +2,25 @@
 
 package org.hiero.mirror.web3.state;
 
-import org.apache.tuweni.bytes.Bytes32;
+import java.util.Arrays;
 
-public record ContractStateKey(Long contractId, Bytes32 slot) {
+public record ContractStateKey(Long contractId, byte[] slot) {
 
-    public ContractStateKey(Long contractId, byte[] slotBytes) {
-        this(contractId, validateAndWrap(slotBytes));
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        ContractStateKey that = (ContractStateKey) o;
+
+        if (!contractId.equals(that.contractId)) return false;
+        return Arrays.equals(slot, that.slot);
     }
 
-    private static Bytes32 validateAndWrap(byte[] slotBytes) {
-        if (slotBytes == null || slotBytes.length != 32) {
-            throw new IllegalArgumentException("Slot must be exactly 32 bytes");
-        }
-        return Bytes32.wrap(slotBytes);
+    @Override
+    public int hashCode() {
+        int result = contractId.hashCode();
+        result = 31 * result + Arrays.hashCode(slot);
+        return result;
     }
 }
