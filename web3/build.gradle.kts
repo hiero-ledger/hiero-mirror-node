@@ -134,5 +134,5 @@ val debugFiles = tasks.register<Exec>("debugFiles") {
 tasks.compileTestJava {
     options.compilerArgs.add("-Xlint:-unchecked") // Web3j generates code with unchecked
     options.compilerArgs.removeIf { it == "-Werror" }
-    dependsOn(debugFiles)
+    dependsOn(debugFiles, extractContracts)
 }
