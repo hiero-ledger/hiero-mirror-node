@@ -60,7 +60,11 @@ public class ContractStateService {
         if (matchedValue != null) {
             return Optional.of(matchedValue);
         }
-        return contractStateRepository.findStorage(entityId, slotKeyByteArray);
+
+        final var optionalStorage = contractStateRepository.findStorage(entityId, slotKeyByteArray);
+        optionalStorage.ifPresent(value -> cache.put(cacheKey, value));
+
+        return optionalStorage;
     }
 
     public Optional<byte[]> findStorageByBlockTimestamp(
