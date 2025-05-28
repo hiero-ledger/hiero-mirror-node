@@ -7,12 +7,9 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CO
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import jakarta.inject.Named;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
-import org.hiero.mirror.web3.state.ContractSlotValue;
 import org.hiero.mirror.web3.state.ContractStateKey;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.Cache;
@@ -39,11 +36,27 @@ public class ContractStateService {
             return Optional.of(cachedValue);
         }
 
-        List<ContractSlotValue> slotValues = new ArrayList<>();
         if (!ContractCallContext.get().isHasLoadedAllContractSlots()) {
-            slotValues = contractStateRepository.findByContractId(entityId);
-            ContractCallContext.get().setHasLoadedAllContractSlots(true);
+            final var optionalMatchedSlotValue = loadValueFromBatch(entityId, cacheKey);
+            if (optionalMatchedSlotValue.isPresent()) {
+                return optionalMatchedSlotValue;
+            }
         }
+
+        final var optionalStorage = contractStateRepository.findStorage(entityId, slotKeyByteArray);
+        optionalStorage.ifPresent(value -> cache.put(cacheKey, value));
+
+        return optionalStorage;
+    }
+
+    public Optional<byte[]> findStorageByBlockTimestamp(
+            final Long entityId, final byte[] slotKeyByteArray, final long blockTimestamp) {
+        return contractStateRepository.findStorageByBlockTimestamp(entityId, slotKeyByteArray, blockTimestamp);
+    }
+
+    private Optional<byte[]> loadValueFromBatch(final Long entityId, final ContractStateKey cacheKey) {
+        final var slotValues = contractStateRepository.findByContractId(entityId);
+        ContractCallContext.get().setHasLoadedAllContractSlots(true);
 
         byte[] matchedValue = null;
         for (final var slotValue : slotValues) {
@@ -61,14 +74,6 @@ public class ContractStateService {
             return Optional.of(matchedValue);
         }
 
-        final var optionalStorage = contractStateRepository.findStorage(entityId, slotKeyByteArray);
-        optionalStorage.ifPresent(value -> cache.put(cacheKey, value));
-
-        return optionalStorage;
-    }
-
-    public Optional<byte[]> findStorageByBlockTimestamp(
-            final Long entityId, final byte[] slotKeyByteArray, final long blockTimestamp) {
-        return contractStateRepository.findStorageByBlockTimestamp(entityId, slotKeyByteArray, blockTimestamp);
+        return Optional.empty();
     }
 }
