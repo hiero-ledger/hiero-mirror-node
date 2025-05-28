@@ -9,7 +9,7 @@ public class ContractStateKey {
     private final Long contractId;
     private final Bytes32 slot;
 
-    public ContractStateKey(Long contractId, byte[] slotBytes) {
+    public ContractStateKey(final Long contractId, final byte[] slotBytes) {
         if (slotBytes.length != 32) {
             throw new IllegalArgumentException("Slot must be exactly 32 bytes");
         }

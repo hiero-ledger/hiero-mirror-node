@@ -451,8 +451,8 @@ public class EvmConfiguration {
     @Bean
     public KeyGenerator contractStateKeyGenerator() {
         return (target, method, params) -> {
-            Long contractId = (Long) params[0];
-            byte[] slotBytes = (byte[]) params[1];
+            final Long contractId = (Long) params[0];
+            final byte[] slotBytes = (byte[]) params[1];
             return new ContractStateKey(contractId, slotBytes);
         };
     }

@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
 
 @ExtendWith(MockitoExtension.class)
 class MirrorEntityAccessTest {
@@ -55,6 +56,9 @@ class MirrorEntityAccessTest {
     private Account account;
 
     @Mock
+    private CacheManager contractStateCacheManager;
+
+    @Mock
     private Token token;
 
     @Mock
@@ -64,7 +68,8 @@ class MirrorEntityAccessTest {
 
     @BeforeEach
     void setUp() {
-        mirrorEntityAccess = new MirrorEntityAccess(contractStateRepository, contractRepository, store);
+        mirrorEntityAccess =
+                new MirrorEntityAccess(contractStateRepository, contractRepository, contractStateCacheManager, store);
     }
 
     @Test

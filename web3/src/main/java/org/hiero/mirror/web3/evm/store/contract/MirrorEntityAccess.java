@@ -9,8 +9,6 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAd
 import com.google.protobuf.ByteString;
 import com.hedera.node.app.service.evm.store.contracts.HederaEvmEntityAccess;
 import jakarta.inject.Named;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
@@ -21,7 +19,6 @@ import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.service.model.ContractSlotValue;
 import org.hiero.mirror.web3.state.ContractStateKey;
 import org.hyperledger.besu.datatypes.Address;
-import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 
 @RequiredArgsConstructor
@@ -121,26 +118,26 @@ public class MirrorEntityAccess implements HederaEvmEntityAccess {
                 .orElse(Bytes.EMPTY);
     }
 
-    private Optional<byte[]> findSlotValue(Long entityId, byte[] slotKeyByteArray) {
-        Cache cache = contractStateCacheManager.getCache(CACHE_NAME);
+    private Optional<byte[]> findSlotValue(final Long entityId, final byte[] slotKeyByteArray) {
+        final var cache = contractStateCacheManager.getCache(CACHE_NAME);
         if (cache == null) {
             return contractStateRepository.findStorage(entityId, slotKeyByteArray);
         }
 
-        Object cacheKey = new ContractStateKey(entityId, slotKeyByteArray);
+        final var cacheKey = new ContractStateKey(entityId, slotKeyByteArray);
 
-        byte[] cachedValue = cache.get(cacheKey, byte[].class);
+        final byte[] cachedValue = cache.get(cacheKey, byte[].class);
         if (cachedValue != null) {
             return Optional.of(cachedValue);
         }
 
-        List<ContractSlotValue> slotValues = contractStateRepository.findSlotsValuesByContractId(entityId);
+        final var slotValues = contractStateRepository.findSlotsValuesByContractId(entityId);
 
         byte[] matchedValue = null;
         for (ContractSlotValue slotValue : slotValues) {
-            byte[] slot = slotValue.slot();
-            byte[] value = slotValue.value();
-            Object generatedKey = new ContractStateKey(entityId, slot);
+            final byte[] slot = slotValue.slot();
+            final byte[] value = slotValue.value();
+            final var generatedKey = new ContractStateKey(entityId, slot);
             cache.put(generatedKey, value);
 
             if (generatedKey.equals(cacheKey)) {

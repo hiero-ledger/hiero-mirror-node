@@ -23,7 +23,7 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
     Optional<byte[]> findStorage(final Long contractId, final byte[] key);
 
     @Query(value = "select slot, value from contract_state where contract_id = ?1 limit 10000", nativeQuery = true)
-    List<ContractSlotValue> findSlotsValuesByContractId(Long contractId);
+    List<ContractSlotValue> findSlotsValuesByContractId(final Long contractId);
 
     /**
      * This method retrieves the most recent contract state storage value up to given block timestamp.
