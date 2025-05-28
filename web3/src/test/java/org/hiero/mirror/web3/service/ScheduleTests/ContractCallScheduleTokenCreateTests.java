@@ -1,30 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.web3.service;
+package org.hiero.mirror.web3.service.ScheduleTests;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.hedera.hapi.node.base.AccountID;
-import com.hedera.hapi.node.base.Timestamp;
-import com.hedera.hapi.node.base.TokenSupplyType;
-import com.hedera.hapi.node.base.TokenType;
-import com.hedera.hapi.node.scheduled.SchedulableTransactionBody;
-import com.hedera.hapi.node.token.TokenCreateTransactionBody;
-import com.hedera.node.app.hapi.utils.CommonPbjConverters;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.math.BigInteger;
-import org.hiero.mirror.common.domain.entity.Entity;
-import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
-import org.hiero.mirror.web3.web3j.generated.GetScheduleInfo;
+import org.hiero.mirror.web3.service.AbstractContractCallServiceHistoricalTest;
 import org.hiero.mirror.web3.web3j.generated.HIP756Contract;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * This test class validates the correct results for schedule create token transactions via smart contract calls.
