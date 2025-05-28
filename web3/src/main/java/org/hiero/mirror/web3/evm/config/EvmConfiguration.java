@@ -48,7 +48,6 @@ import org.hiero.mirror.web3.evm.contracts.operations.HederaBlockHashOperation;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.evm.store.contract.EntityAddressSequencer;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
-import org.hiero.mirror.web3.state.ContractStateKey;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.EvmSpecVersion;
@@ -67,7 +66,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
-import org.springframework.cache.interceptor.KeyGenerator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -446,15 +444,6 @@ public class EvmConfiguration {
     @Bean
     public ContractCreationProcessor contractCreationProcessor50(@Qualifier("evm050") EVM evm) {
         return contractCreationProcessor(evm);
-    }
-
-    @Bean
-    public KeyGenerator contractStateKeyGenerator() {
-        return (target, method, params) -> {
-            final Long contractId = (Long) params[0];
-            final byte[] slotBytes = (byte[]) params[1];
-            return new ContractStateKey(contractId, slotBytes);
-        };
     }
 
     @Bean
