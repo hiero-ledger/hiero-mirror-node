@@ -18,7 +18,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     @Test
     void testFindSlotValueHappyPath() {
         // Given
-        final var contractId = domainBuilder
+        final var contract = domainBuilder
                 .entity()
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
@@ -27,11 +27,11 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
         domainBuilder
                 .contractState()
-                .customize(cs -> cs.contractId(contractId.getId()).slot(slotKey).value(value))
+                .customize(cs -> cs.contractId(contract.getId()).slot(slotKey).value(value))
                 .persist();
 
         // When
-        Optional<byte[]> result = contractStateService.findSlotValue(contractId.getId(), slotKey);
+        Optional<byte[]> result = contractStateService.findSlotValue(contract.getId(), slotKey);
 
         // Then
         assertThat(result).isPresent().contains(value);
@@ -40,7 +40,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     @Test
     void testFindSlotValueNotPresentInBulkLoad() {
         // Given
-        final var contractId = domainBuilder
+        final var contract = domainBuilder
                 .entity()
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
@@ -51,11 +51,11 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractState()
                 .customize(
-                        cs -> cs.contractId(contractId.getId()).slot(slotKey1).value(value))
+                        cs -> cs.contractId(contract.getId()).slot(slotKey1).value(value))
                 .persist();
 
         // When
-        Optional<byte[]> result = contractStateService.findSlotValue(contractId.getId(), slotKey1);
+        Optional<byte[]> result = contractStateService.findSlotValue(contract.getId(), slotKey1);
 
         // Add new cache value after the bulk has already passed
         final byte[] value2 = "test-value2".getBytes();
@@ -64,9 +64,9 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractState()
                 .customize(
-                        cs -> cs.contractId(contractId.getId()).slot(slotKey2).value(value2))
+                        cs -> cs.contractId(contract.getId()).slot(slotKey2).value(value2))
                 .persist();
-        Optional<byte[]> result2 = contractStateService.findSlotValue(contractId.getId(), slotKey2);
+        Optional<byte[]> result2 = contractStateService.findSlotValue(contract.getId(), slotKey2);
 
         // Then
         assertThat(result).isPresent().contains(value);
