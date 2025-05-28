@@ -8,12 +8,18 @@ public record ContractStateKey(Long contractId, byte[] slot) {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         ContractStateKey that = (ContractStateKey) o;
 
-        if (!contractId.equals(that.contractId)) return false;
+        if (!contractId.equals(that.contractId)) {
+            return false;
+        }
         return Arrays.equals(slot, that.slot);
     }
 

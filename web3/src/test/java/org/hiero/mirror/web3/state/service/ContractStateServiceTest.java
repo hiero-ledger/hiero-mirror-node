@@ -50,8 +50,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
         domainBuilder
                 .contractState()
-                .customize(
-                        cs -> cs.contractId(contract.getId()).slot(slotKey1).value(value))
+                .customize(cs -> cs.contractId(contract.getId()).slot(slotKey1).value(value))
                 .persist();
 
         // When
@@ -63,8 +62,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         slotKey1[0] = 0x02;
         domainBuilder
                 .contractState()
-                .customize(
-                        cs -> cs.contractId(contract.getId()).slot(slotKey2).value(value2))
+                .customize(cs -> cs.contractId(contract.getId()).slot(slotKey2).value(value2))
                 .persist();
         Optional<byte[]> result2 = contractStateService.findSlotValue(contract.getId(), slotKey2);
 
