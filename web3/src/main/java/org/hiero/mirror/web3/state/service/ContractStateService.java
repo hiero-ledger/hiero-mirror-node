@@ -21,15 +21,12 @@ import org.springframework.cache.CacheManager;
 @Named
 public class ContractStateService {
 
-    private final ContractCallContext contractCallContext;
     private final Cache cache;
     private final ContractStateRepository contractStateRepository;
 
     protected ContractStateService(
-            final ContractCallContext contractCallContext,
             final @Qualifier(CACHE_MANAGER_CONTRACT_STATE) CacheManager contractStateCacheManager,
             final ContractStateRepository contractStateRepository) {
-        this.contractCallContext = contractCallContext;
         this.cache = requireNonNull(contractStateCacheManager.getCache(CACHE_NAME), "Cache not found: " + CACHE_NAME);
         this.contractStateRepository = contractStateRepository;
     }
@@ -43,9 +40,9 @@ public class ContractStateService {
         }
 
         List<ContractSlotValue> slotValues = new ArrayList<>();
-        if (!contractCallContext.isHasLoadedAllContractSlots()) {
+        if (!ContractCallContext.get().isHasLoadedAllContractSlots()) {
             slotValues = contractStateRepository.findByContractId(entityId);
-            contractCallContext.setHasLoadedAllContractSlots(true);
+            ContractCallContext.get().setHasLoadedAllContractSlots(true);
         }
 
         byte[] matchedValue = null;
