@@ -35,7 +35,7 @@ public class ContractStateService {
             return Optional.of(cachedValue);
         }
 
-        final var slotValues = contractStateRepository.findSlotsValuesByContractId(entityId);
+        final var slotValues = contractStateRepository.findByContractId(entityId);
 
         byte[] matchedValue = null;
         for (final var slotValue : slotValues) {

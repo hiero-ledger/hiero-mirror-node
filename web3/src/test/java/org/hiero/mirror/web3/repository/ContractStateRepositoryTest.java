@@ -93,8 +93,7 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
     void findSlotsValuesByContractId() {
         ContractState contractState = domainBuilder.contractState().persist();
         byte[] actualSlot = contractState.getSlot();
-        List<ContractSlotValue> expectedSlots =
-                contractStateRepository.findSlotsValuesByContractId(contractState.getContractId());
+        List<ContractSlotValue> expectedSlots = contractStateRepository.findByContractId(contractState.getContractId());
         assertThat(expectedSlots.size()).isEqualTo(1);
         assertThat(expectedSlots.getFirst().slot()).isEqualTo(actualSlot);
     }

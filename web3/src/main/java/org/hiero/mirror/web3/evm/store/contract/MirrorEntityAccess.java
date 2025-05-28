@@ -8,6 +8,7 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAd
 import com.google.protobuf.ByteString;
 import com.hedera.node.app.service.evm.store.contracts.HederaEvmEntityAccess;
 import jakarta.inject.Named;
+import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.evm.store.Store.OnMissing;
@@ -16,18 +17,13 @@ import org.hiero.mirror.web3.state.service.ContractStateService;
 import org.hyperledger.besu.datatypes.Address;
 
 @Named
+@RequiredArgsConstructor
 public class MirrorEntityAccess implements HederaEvmEntityAccess {
 
     private final ContractRepository contractRepository;
     private final ContractStateService contractStateService;
     private final Store store;
 
-    public MirrorEntityAccess(
-            ContractRepository contractRepository, ContractStateService contractStateService, Store store) {
-        this.contractRepository = contractRepository;
-        this.contractStateService = contractStateService;
-        this.store = store;
-    }
     // An account is usable if it isn't deleted or if it has balance==0 but is not the 0-address
     // or the empty account.  (This allows the special case where a synthetic 0-address account
     // is used in eth_estimateGas.)
