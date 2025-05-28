@@ -7,8 +7,12 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CO
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import jakarta.inject.Named;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
+import org.hiero.mirror.web3.state.ContractSlotValue;
 import org.hiero.mirror.web3.state.ContractStateKey;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.Cache;
@@ -17,12 +21,15 @@ import org.springframework.cache.CacheManager;
 @Named
 public class ContractStateService {
 
+    private final ContractCallContext contractCallContext;
     private final Cache cache;
     private final ContractStateRepository contractStateRepository;
 
     protected ContractStateService(
+            final ContractCallContext contractCallContext,
             final @Qualifier(CACHE_MANAGER_CONTRACT_STATE) CacheManager contractStateCacheManager,
             final ContractStateRepository contractStateRepository) {
+        this.contractCallContext = contractCallContext;
         this.cache = requireNonNull(contractStateCacheManager.getCache(CACHE_NAME), "Cache not found: " + CACHE_NAME);
         this.contractStateRepository = contractStateRepository;
     }
@@ -35,7 +42,11 @@ public class ContractStateService {
             return Optional.of(cachedValue);
         }
 
-        final var slotValues = contractStateRepository.findByContractId(entityId);
+        List<ContractSlotValue> slotValues = new ArrayList<>();
+        if (!contractCallContext.isHasLoadedAllContractSlots()) {
+            slotValues = contractStateRepository.findByContractId(entityId);
+            contractCallContext.setHasLoadedAllContractSlots(true);
+        }
 
         byte[] matchedValue = null;
         for (final var slotValue : slotValues) {

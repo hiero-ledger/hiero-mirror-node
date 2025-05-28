@@ -76,6 +76,10 @@ public class ContractCallContext {
     @Setter
     private Optional<Long> timestamp = Optional.empty();
 
+    @Setter
+    @Getter
+    private boolean hasLoadedAllContractSlots = false;
+
     private ContractCallContext() {}
 
     public static ContractCallContext get() {
