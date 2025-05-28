@@ -16,11 +16,13 @@ import org.springframework.data.repository.CrudRepository;
 public interface ContractStateRepository extends CrudRepository<ContractState, Long> {
 
     @Query(value = "select value from contract_state where contract_id = ?1 and slot =?2", nativeQuery = true)
-    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_CONTRACT_STATE)
+    @Cacheable(
+            cacheNames = CACHE_NAME,
+            cacheManager = CACHE_MANAGER_CONTRACT_STATE,
+            keyGenerator = "contractStateKeyGenerator")
     Optional<byte[]> findStorage(final Long contractId, final byte[] key);
 
     @Query(value = "select slot, value from contract_state where contract_id = ?1 limit 10000", nativeQuery = true)
-    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_CONTRACT_STATE)
     List<ContractSlotValue> findSlotsValuesByContractId(Long contractId);
 
     /**

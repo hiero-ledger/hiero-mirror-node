@@ -3,6 +3,8 @@
 package org.hiero.mirror.web3.state.keyvalue;
 
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
@@ -10,23 +12,30 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.service.model.ContractSlotValue;
+import org.hiero.mirror.web3.state.ContractStateKey;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 
 @Named
 public class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
 
     public static final String KEY = "STORAGE";
     private final ContractStateRepository contractStateRepository;
+    private final CacheManager contractStateCacheManager;
 
-    protected ContractStorageReadableKVState(final ContractStateRepository contractStateRepository) {
+    protected ContractStorageReadableKVState(
+            final ContractStateRepository contractStateRepository,
+            @Qualifier(CACHE_MANAGER_CONTRACT_STATE) CacheManager contractStateCacheManager) {
         super(KEY);
         this.contractStateRepository = contractStateRepository;
+        this.contractStateCacheManager = contractStateCacheManager;
     }
 
     @Override
@@ -49,12 +58,34 @@ public class ContractStorageReadableKVState extends AbstractReadableKVState<Slot
     }
 
     private Optional<byte[]> findSlotValue(Long entityId, byte[] slotKeyByteArray) {
-        List<ContractSlotValue> contractSlotsValues = contractStateRepository.findSlotsValuesByContractId(entityId);
-        Optional<ContractSlotValue> contractSlotValue = contractSlotsValues.stream()
-                .filter(sv -> Arrays.equals(sv.slot(), slotKeyByteArray))
-                .findFirst();
-        if (contractSlotValue.isPresent()) {
-            return Optional.of(contractSlotValue.get().value());
+        Cache cache = contractStateCacheManager.getCache(CACHE_NAME);
+        if (cache == null) {
+            return contractStateRepository.findStorage(entityId, slotKeyByteArray);
+        }
+
+        Object cacheKey = new ContractStateKey(entityId, slotKeyByteArray);
+
+        byte[] cachedValue = cache.get(cacheKey, byte[].class);
+        if (cachedValue != null) {
+            return Optional.of(cachedValue);
+        }
+
+        List<ContractSlotValue> slotValues = contractStateRepository.findSlotsValuesByContractId(entityId);
+
+        byte[] matchedValue = null;
+        for (ContractSlotValue slotValue : slotValues) {
+            byte[] slot = slotValue.slot();
+            byte[] value = slotValue.value();
+            Object generatedKey = new ContractStateKey(entityId, slot);
+            cache.put(generatedKey, value);
+
+            if (generatedKey.equals(cacheKey)) {
+                matchedValue = value;
+            }
+        }
+
+        if (matchedValue != null) {
+            return Optional.of(matchedValue);
         }
         return contractStateRepository.findStorage(entityId, slotKeyByteArray);
     }

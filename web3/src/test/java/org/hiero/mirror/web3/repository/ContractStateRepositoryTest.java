@@ -83,7 +83,7 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
     @Test
     void findStorageDifferentSlotCall() {
         ContractState contractState = domainBuilder.contractState().persist();
-        assertThat(contractStateRepository.findStorage(contractState.getContractId(), new byte[20]))
+        assertThat(contractStateRepository.findStorage(contractState.getContractId(), new byte[32]))
                 .isEmpty();
     }
 }
