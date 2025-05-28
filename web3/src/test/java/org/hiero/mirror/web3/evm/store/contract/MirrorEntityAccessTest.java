@@ -22,7 +22,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.evm.store.Store.OnMissing;
 import org.hiero.mirror.web3.repository.ContractRepository;
-import org.hiero.mirror.web3.repository.ContractStateRepository;
+import org.hiero.mirror.web3.state.service.ContractStateService;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -30,7 +30,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.cache.CacheManager;
 
 @ExtendWith(MockitoExtension.class)
 class MirrorEntityAccessTest {
@@ -41,8 +40,8 @@ class MirrorEntityAccessTest {
     private static final String HEX = ADDRESS.toHexString();
     private static final Bytes BYTES = Bytes.fromHexString(HEX);
     private static final byte[] DATA = BYTES.toArrayUnsafe();
-    private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final Long ENTITY_ID = ENTITY.getId();
+    private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final Address NON_MIRROR_ADDRESS =
             Address.fromHexString("0x23f5e49569a835d7bf9aefd30e4f60cdd570f225");
 
@@ -50,13 +49,10 @@ class MirrorEntityAccessTest {
     private ContractRepository contractRepository;
 
     @Mock
-    private ContractStateRepository contractStateRepository;
+    private ContractStateService contractStateService;
 
     @Mock
     private Account account;
-
-    @Mock
-    private CacheManager contractStateCacheManager;
 
     @Mock
     private Token token;
@@ -68,8 +64,7 @@ class MirrorEntityAccessTest {
 
     @BeforeEach
     void setUp() {
-        mirrorEntityAccess =
-                new MirrorEntityAccess(contractStateRepository, contractRepository, contractStateCacheManager, store);
+        mirrorEntityAccess = new MirrorEntityAccess(contractRepository, contractStateService, store);
     }
 
     @Test
@@ -223,7 +218,7 @@ class MirrorEntityAccessTest {
     @Test
     void getStorage() {
         when(store.getHistoricalTimestamp()).thenReturn(Optional.empty());
-        when(contractStateRepository.findStorage(ENTITY_ID, BYTES.toArrayUnsafe()))
+        when(contractStateService.findSlotValue(ENTITY_ID, BYTES.toArrayUnsafe()))
                 .thenReturn(Optional.of(DATA));
         final var result = UInt256.fromBytes(mirrorEntityAccess.getStorage(ADDRESS, BYTES));
         assertThat(result).isEqualTo(UInt256.fromHexString(HEX));
@@ -233,7 +228,7 @@ class MirrorEntityAccessTest {
     void getStorageHistorical() {
         byte[] trimmedKey = ADDRESS.trimLeadingZeros().toArrayUnsafe();
         when(store.getHistoricalTimestamp()).thenReturn(timestamp);
-        when(contractStateRepository.findStorageByBlockTimestamp(ENTITY_ID, trimmedKey, timestamp.get()))
+        when(contractStateService.findStorageByBlockTimestamp(ENTITY_ID, trimmedKey, timestamp.get()))
                 .thenReturn(Optional.of(DATA));
         final var result = UInt256.fromBytes(mirrorEntityAccess.getStorage(ADDRESS, BYTES));
         assertThat(result).isEqualTo(UInt256.fromHexString(HEX));

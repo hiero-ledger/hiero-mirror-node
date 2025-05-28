@@ -3,41 +3,29 @@
 package org.hiero.mirror.web3.evm.store.contract;
 
 import static com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases.isMirror;
-import static java.util.Objects.requireNonNull;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
 
 import com.google.protobuf.ByteString;
 import com.hedera.node.app.service.evm.store.contracts.HederaEvmEntityAccess;
 import jakarta.inject.Named;
-import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.evm.store.Store.OnMissing;
 import org.hiero.mirror.web3.repository.ContractRepository;
-import org.hiero.mirror.web3.repository.ContractStateRepository;
-import org.hiero.mirror.web3.state.ContractStateKey;
+import org.hiero.mirror.web3.state.service.ContractStateService;
 import org.hyperledger.besu.datatypes.Address;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 
 @Named
 public class MirrorEntityAccess implements HederaEvmEntityAccess {
-    private final ContractStateRepository contractStateRepository;
+
     private final ContractRepository contractRepository;
-    private final Cache cache;
+    private final ContractStateService contractStateService;
     private final Store store;
 
     public MirrorEntityAccess(
-            ContractStateRepository contractStateRepository,
-            ContractRepository contractRepository,
-            @Qualifier(CACHE_MANAGER_CONTRACT_STATE) CacheManager contractStateCacheManager,
-            Store store) {
-        this.cache = requireNonNull(contractStateCacheManager.getCache(CACHE_NAME), "Cache not found: " + CACHE_NAME);
-        this.contractStateRepository = contractStateRepository;
+            ContractRepository contractRepository, ContractStateService contractStateService, Store store) {
         this.contractRepository = contractRepository;
+        this.contractStateService = contractStateService;
         this.store = store;
     }
     // An account is usable if it isn't deleted or if it has balance==0 but is not the 0-address
@@ -67,11 +55,7 @@ public class MirrorEntityAccess implements HederaEvmEntityAccess {
             return false;
         }
 
-        if (account.isEmptyAccount()) {
-            return false;
-        }
-
-        return true;
+        return !account.isEmptyAccount();
     }
 
     @Override
@@ -122,39 +106,11 @@ public class MirrorEntityAccess implements HederaEvmEntityAccess {
         }
 
         return store.getHistoricalTimestamp()
-                .map(t -> contractStateRepository.findStorageByBlockTimestamp(
+                .map(t -> contractStateService.findStorageByBlockTimestamp(
                         entityId, key.trimLeadingZeros().toArrayUnsafe(), t))
-                .orElseGet(() -> findSlotValue(entityId, key.toArrayUnsafe()))
+                .orElseGet(() -> contractStateService.findSlotValue(entityId, key.toArrayUnsafe()))
                 .map(Bytes::wrap)
                 .orElse(Bytes.EMPTY);
-    }
-
-    private Optional<byte[]> findSlotValue(final Long entityId, final byte[] slotKeyByteArray) {
-        final var cacheKey = new ContractStateKey(entityId, slotKeyByteArray);
-
-        final byte[] cachedValue = cache.get(cacheKey, byte[].class);
-        if (cachedValue != null) {
-            return Optional.of(cachedValue);
-        }
-
-        final var slotValues = contractStateRepository.findSlotsValuesByContractId(entityId);
-
-        byte[] matchedValue = null;
-        for (final var slotValue : slotValues) {
-            final byte[] slot = slotValue.slot();
-            final byte[] value = slotValue.value();
-            final var generatedKey = new ContractStateKey(entityId, slot);
-            cache.put(generatedKey, value);
-
-            if (generatedKey.equals(cacheKey)) {
-                matchedValue = value;
-            }
-        }
-
-        if (matchedValue != null) {
-            return Optional.of(matchedValue);
-        }
-        return contractStateRepository.findStorage(entityId, slotKeyByteArray);
     }
 
     @Override

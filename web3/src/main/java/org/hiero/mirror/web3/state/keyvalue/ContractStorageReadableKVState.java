@@ -2,10 +2,7 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
-import static java.util.Objects.requireNonNull;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
@@ -13,28 +10,19 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
-import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.repository.ContractStateRepository;
-import org.hiero.mirror.web3.state.ContractStateKey;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
+import org.hiero.mirror.web3.state.service.ContractStateService;
 
 @Named
 public class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
 
     public static final String KEY = "STORAGE";
-    private final ContractStateRepository contractStateRepository;
-    private final Cache cache;
+    private final ContractStateService contractStateService;
 
-    protected ContractStorageReadableKVState(
-            final ContractStateRepository contractStateRepository,
-            @Qualifier(CACHE_MANAGER_CONTRACT_STATE) CacheManager contractStateCacheManager) {
+    protected ContractStorageReadableKVState(ContractStateService contractStateService) {
         super(KEY);
-        this.cache = requireNonNull(contractStateCacheManager.getCache(CACHE_NAME), "Cache not found: " + CACHE_NAME);
-        this.contractStateRepository = contractStateRepository;
+        this.contractStateService = contractStateService;
     }
 
     @Override
@@ -48,39 +36,11 @@ public class ContractStorageReadableKVState extends AbstractReadableKVState<Slot
         final var entityId = EntityIdUtils.entityIdFromContractId(contractID).getId();
         final var keyBytes = slotKey.key().toByteArray();
         return timestamp
-                .map(t -> contractStateRepository.findStorageByBlockTimestamp(
+                .map(t -> contractStateService.findStorageByBlockTimestamp(
                         entityId, Bytes32.wrap(keyBytes).trimLeadingZeros().toArrayUnsafe(), t))
-                .orElse(findSlotValue(entityId, keyBytes))
+                .orElse(contractStateService.findSlotValue(entityId, keyBytes))
                 .map(byteArr ->
                         new SlotValue(Bytes.wrap(leftPadBytes(byteArr, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY))
                 .orElse(null);
-    }
-
-    private Optional<byte[]> findSlotValue(final Long entityId, final byte[] slotKeyByteArray) {
-        final var cacheKey = new ContractStateKey(entityId, slotKeyByteArray);
-
-        final byte[] cachedValue = cache.get(cacheKey, byte[].class);
-        if (cachedValue != null) {
-            return Optional.of(cachedValue);
-        }
-
-        final var slotValues = contractStateRepository.findSlotsValuesByContractId(entityId);
-
-        byte[] matchedValue = null;
-        for (final var slotValue : slotValues) {
-            final byte[] slot = slotValue.slot();
-            final byte[] value = slotValue.value();
-            final var generatedKey = new ContractStateKey(entityId, slot);
-            cache.put(generatedKey, value);
-
-            if (generatedKey.equals(cacheKey)) {
-                matchedValue = value;
-            }
-        }
-
-        if (matchedValue != null) {
-            return Optional.of(matchedValue);
-        }
-        return contractStateRepository.findStorage(entityId, slotKeyByteArray);
     }
 }
