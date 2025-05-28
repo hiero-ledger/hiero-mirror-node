@@ -31,6 +31,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
 
 @ExtendWith(MockitoExtension.class)
 class ContractStorageReadableKVStateTest {
@@ -48,6 +49,9 @@ class ContractStorageReadableKVStateTest {
 
     @Mock
     private ContractStateRepository contractStateRepository;
+
+    @Mock
+    private CacheManager contractStateCacheManager;
 
     @Spy
     private ContractCallContext contractCallContext;

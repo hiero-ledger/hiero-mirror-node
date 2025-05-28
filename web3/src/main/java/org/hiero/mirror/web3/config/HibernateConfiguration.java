@@ -13,7 +13,6 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.dao.QueryTimeoutException;
 
 @CustomLog
 @Configuration
@@ -33,13 +32,6 @@ class HibernateConfiguration implements HibernatePropertiesCustomizer {
         return sql -> {
             if (!ContractCallContext.isInitialized()) {
                 return sql;
-            }
-
-            var startTime = ContractCallContext.get().getStartTime();
-            long elapsed = System.currentTimeMillis() - startTime;
-
-            if (elapsed >= timeout) {
-                throw new QueryTimeoutException("Transaction timed out after %s ms".formatted(elapsed));
             }
 
             return sql;
