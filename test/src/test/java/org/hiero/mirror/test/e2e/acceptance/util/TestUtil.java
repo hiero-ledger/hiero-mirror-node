@@ -45,7 +45,7 @@ public class TestUtil {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final Pattern extractTransactionIdPattern = Pattern.compile("(\\d+\\.\\d+\\.\\d+)@(\\d+)\\.(\\d+)");
 
-    public static Address wrapEvmAddress(byte[] evmAddressBytes) {
+    public static Address wrapEvmAddress(final byte[] evmAddressBytes) {
         return Address.wrap(Address.toChecksumAddress(new BigInteger(evmAddressBytes)));
     }
 
@@ -78,7 +78,7 @@ public class TestUtil {
         return output.toString();
     }
 
-    public static Address asAddress(String address) {
+    public static Address asAddress(final String address) {
         final var addressBytes = Bytes.fromHexString(address.startsWith("0x") ? address : "0x" + address);
         final var addressAsInteger = addressBytes.toUnsignedBigInteger();
         return Address.wrap(Address.toChecksumAddress(addressAsInteger));
@@ -94,29 +94,29 @@ public class TestUtil {
        getClientAddress() - can be changed as well
        accountAmount(), nftAmount(), asAddressArray() - places where these are used probably should be reverted as to not have to go through asAddress 2 times
     */
-    public static Address asAddress(ExpandedAccountId accountId) {
+    public static Address asAddress(final ExpandedAccountId accountId) {
         return asAddress(accountId.getAccountId().num);
     }
 
-    public static Address asAddress(TokenId tokenId) {
+    public static Address asAddress(final TokenId tokenId) {
         return asAddress(tokenId.num);
     }
 
-    public static Address asAddress(ContractId contractId) {
+    public static Address asAddress(final ContractId contractId) {
         return asAddress(contractId.num);
     }
 
-    public static Address asAddress(AccountId accountId) {
+    public static Address asAddress(final AccountId accountId) {
         return asAddress(accountId.num);
     }
 
-    public static Address asAddress(TokenClient tokenClient) {
+    public static Address asAddress(final TokenClient tokenClient) {
         final var num =
                 tokenClient.getSdkClient().getExpandedOperatorAccountId().getAccountId().num;
         return asAddress(num);
     }
 
-    public static Address asAddress(long num) {
+    public static Address asAddress(final long num) {
         return wrapEvmAddress(DomainUtils.toEvmAddress(num));
     }
 

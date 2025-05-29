@@ -23,7 +23,6 @@ import com.hedera.hashgraph.sdk.TransactionRecordQuery;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -202,13 +201,13 @@ public abstract class AbstractNetworkClient implements Cleanable {
     public void validateAddress(final String actualAddress) {
         final var account = getSdkClient().getExpandedOperatorAccountId();
 
-        Objects.requireNonNull(assertThat(actualAddress)
+        assertThat(actualAddress)
                 .isEqualTo(
                         account.getPublicKey().isECDSA()
                                 ? account.getPublicKey().toEvmAddress().toString()
                                 : asAddress(account.getAccountId())
                                         .toString()
                                         .toLowerCase()
-                                        .replace("0x", "")));
+                                        .replace("0x", ""));
     }
 }
