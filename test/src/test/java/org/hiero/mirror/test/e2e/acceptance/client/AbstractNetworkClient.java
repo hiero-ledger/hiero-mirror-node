@@ -3,6 +3,7 @@
 package org.hiero.mirror.test.e2e.acceptance.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
 
 import com.hedera.hashgraph.sdk.AccountBalanceQuery;
 import com.hedera.hashgraph.sdk.AccountId;
@@ -22,6 +23,7 @@ import com.hedera.hashgraph.sdk.TransactionRecordQuery;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -200,10 +202,13 @@ public abstract class AbstractNetworkClient implements Cleanable {
     public void validateAddress(final String actualAddress) {
         final var account = getSdkClient().getExpandedOperatorAccountId();
 
-        assertThat(actualAddress)
+        Objects.requireNonNull(assertThat(actualAddress)
                 .isEqualTo(
                         account.getPublicKey().isECDSA()
                                 ? account.getPublicKey().toEvmAddress().toString()
-                                : account.getAccountId().toSolidityAddress());
+                                : asAddress(account.getAccountId())
+                                        .toString()
+                                        .toLowerCase()
+                                        .replace("0x", "")));
     }
 }

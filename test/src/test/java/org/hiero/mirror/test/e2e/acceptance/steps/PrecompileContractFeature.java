@@ -102,8 +102,8 @@ public class PrecompileContractFeature extends AbstractFeature {
     public void createNewContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
         precompileTestContractSolidityAddress =
-                deployedPrecompileContract.contractId().toSolidityAddress();
-        contractClientAddress = asAddress(contractClient);
+                asAddress(deployedPrecompileContract.contractId()).toString();
+        contractClientAddress = asAddress(contractClient.getClientAddress());
     }
 
     @Given("I successfully create and verify a fungible token for custom fees")
@@ -240,10 +240,8 @@ public class PrecompileContractFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 IS_TOKEN_SELECTOR,
-                asAddress(accountClient
-                        .getAccount(AccountNameEnum.TOKEN_TREASURY)
-                        .getAccountId()
-                        .toSolidityAddress()));
+                asAddress(
+                        accountClient.getAccount(AccountNameEnum.TOKEN_TREASURY).getAccountId()));
         if (web3Properties.isModularizedServices()) {
             var result = callContract(data, precompileTestContractSolidityAddress);
             assertFalse(result.getResultAsBoolean());
@@ -694,7 +692,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat((long) fractionalFee.get(3)).isEqualTo(MAX_FEE_AMOUNT);
         assertFalse((boolean) fractionalFee.get(4));
         assertThat(fractionalFee.get(5).toString().toLowerCase())
-                .isEqualTo("0x" + contractClient.getClientAddress().toLowerCase());
+                .isEqualTo(contractClient.getClientAddress().toLowerCase());
     }
 
     // ETHCALL-033
@@ -710,12 +708,12 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat((long) royaltyFee.get(0)).isEqualTo(NUMERATOR_VALUE);
         assertThat((long) royaltyFee.get(1)).isEqualTo(DENOMINATOR_VALUE);
         assertThat(royaltyFee.get(5).toString().toLowerCase())
-                .isEqualTo("0x"
-                        + tokenClient
+                .isEqualTo(asAddress(tokenClient
                                 .getSdkClient()
                                 .getExpandedOperatorAccountId()
-                                .getAccountId()
-                                .toSolidityAddress());
+                                .getAccountId())
+                        .toString()
+                        .toLowerCase());
     }
 
     // ETHCALL-034
@@ -732,12 +730,12 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat(royaltyFee.get(3).toString()).hasToString(fungibleTokenCustomFeeAddress.toString());
         assertFalse((boolean) royaltyFee.get(4));
         assertThat(royaltyFee.get(5).toString().toLowerCase())
-                .hasToString("0x"
-                        + tokenClient
+                .hasToString(asAddress(tokenClient
                                 .getSdkClient()
                                 .getExpandedOperatorAccountId()
-                                .getAccountId()
-                                .toSolidityAddress());
+                                .getAccountId())
+                        .toString()
+                        .toLowerCase());
     }
 
     private void tokenKeyCheck(final Tuple result) {

@@ -117,20 +117,21 @@ public class CallFeature extends AbstractFeature {
     @Given("I successfully create ERC contract")
     public void createNewERCtestContract() {
         deployedErcTestContract = getContract(ERC);
-        ercContractAddress = deployedErcTestContract.contractId().toSolidityAddress();
+        ercContractAddress = asAddress(deployedErcTestContract.contractId()).toString();
     }
 
     @Given("I successfully create Precompile contract")
     public void createNewPrecompileTestContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileContractAddress = deployedPrecompileContract.contractId().toSolidityAddress();
+        precompileContractAddress =
+                asAddress(deployedPrecompileContract.contractId()).toString();
     }
 
     @Given("I successfully create EstimateGas contract")
     public void createNewEstimateTestContract() throws IOException {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_GAS);
         estimateContractAddress =
-                deployedEstimatePrecompileContract.contractId().toSolidityAddress();
+                asAddress(deployedEstimatePrecompileContract.contractId()).toString();
         admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
         receiverAccountId = accountClient.getAccount(AccountNameEnum.ALICE);
         secondReceiverAccount = accountClient.getAccount(AccountNameEnum.BOB);
@@ -263,7 +264,10 @@ public class CallFeature extends AbstractFeature {
     public void ierc721MetadatagetBalanceOfTokenTokenBalanceOf() {
         var balanceOfNft = getBalanceOfToken(nonFungibleTokenId, admin.getAccountId());
         var data = encodeData(
-                ERC, IERC721_TOKEN_BALANCE_OF_SELECTOR, asAddress(nonFungibleTokenId), asAddress(contractClient));
+                ERC,
+                IERC721_TOKEN_BALANCE_OF_SELECTOR,
+                asAddress(nonFungibleTokenId),
+                asAddress(contractClient.getClientAddress()));
         var response = callContract(data, ercContractAddress);
 
         assertThat(response.getResultAsNumber()).isEqualTo(balanceOfNft);
@@ -291,8 +295,11 @@ public class CallFeature extends AbstractFeature {
     @RetryAsserts
     @Then("I call function with HederaTokenService isFrozen token FUNGIBLE, account")
     public void htsIsFrozen() {
-        var data =
-                encodeData(PRECOMPILE, HTS_IS_FROZEN_SELECTOR, asAddress(fungibleTokenId), asAddress(contractClient));
+        var data = encodeData(
+                PRECOMPILE,
+                HTS_IS_FROZEN_SELECTOR,
+                asAddress(fungibleTokenId),
+                asAddress(contractClient.getClientAddress()));
         var response = callContract(data, precompileContractAddress);
 
         assertThat(response.getResultAsBoolean()).isFalse();
@@ -303,7 +310,10 @@ public class CallFeature extends AbstractFeature {
     @Then("I call function with HederaTokenService isKyc token FUNGIBLE, account")
     public void htsIsKyc() {
         var data = encodeData(
-                PRECOMPILE, HTS_IS_KYC_GRANTED_SELECTOR, asAddress(fungibleTokenId), asAddress(contractClient));
+                PRECOMPILE,
+                HTS_IS_KYC_GRANTED_SELECTOR,
+                asAddress(fungibleTokenId),
+                asAddress(contractClient.getClientAddress()));
         var response = callContract(data, precompileContractAddress);
 
         assertThat(response.getResultAsBoolean()).isTrue();
@@ -375,7 +385,7 @@ public class CallFeature extends AbstractFeature {
     @RetryAsserts
     @Then("I successfully update the balance of an account and get the updated balance after 2 seconds")
     public void getBalance() throws InterruptedException {
-        final var receiverAddress = asAddress(receiverAccountId.getAccountId().toSolidityAddress());
+        final var receiverAddress = asAddress(receiverAccountId.getAccountId());
         var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, receiverAddress);
         var initialBalance = callContract(data, estimateContractAddress).getResultAsNumber();
         networkTransactionResponse = accountClient.sendCryptoTransfer(
@@ -460,8 +470,7 @@ public class CallFeature extends AbstractFeature {
                 asAddress(tokenClient
                         .getSdkClient()
                         .getExpandedOperatorAccountId()
-                        .getAccountId()
-                        .toSolidityAddress()));
+                        .getAccountId()));
         var response = callContract(data, precompileContractAddress);
         var results = response.getResultAsListDecimal();
         assertThat(results).isNotNull().hasSize(4);
@@ -479,7 +488,7 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 BURN_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
-                asAddress(fungibleTokenId.toSolidityAddress()),
+                asAddress(fungibleTokenId),
                 1L,
                 asLongArray(List.of()),
                 asAddress(admin));
@@ -505,7 +514,7 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 BURN_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
-                asAddress(nonFungibleTokenId.toSolidityAddress()),
+                asAddress(nonFungibleTokenId),
                 0L,
                 asLongArray(List.of(1L)),
                 asAddress(admin));
@@ -527,7 +536,7 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 WIPE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
-                asAddress(fungibleTokenId.toSolidityAddress()),
+                asAddress(fungibleTokenId),
                 1L,
                 asLongArray(List.of()),
                 asAddress(receiverAccountId));
@@ -549,7 +558,7 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 WIPE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
-                asAddress(nonFungibleTokenId.toSolidityAddress()),
+                asAddress(nonFungibleTokenId),
                 0L,
                 asLongArray(List.of(1L)),
                 asAddress(receiverAccountId));
@@ -634,7 +643,8 @@ public class CallFeature extends AbstractFeature {
 
         assertThat(approvedAddress)
                 .as("approved address should equal the spender")
-                .isEqualTo(to32BytesString(receiverAccountId.getAccountId().toSolidityAddress()));
+                .isEqualTo(to32BytesString(
+                        asAddress(receiverAccountId.getAccountId()).toString().toLowerCase()));
     }
 
     @Then("I dissociate a FUNGIBLE token and fail transfer")

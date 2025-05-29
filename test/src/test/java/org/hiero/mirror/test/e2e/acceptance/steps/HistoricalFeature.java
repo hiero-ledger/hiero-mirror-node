@@ -93,27 +93,28 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     @Given("I successfully create estimateGas contract")
     public void createNewEstimateContract() {
         deployedEstimateContract = getContract(ESTIMATE_GAS);
-        estimateContractSolidityAddress = deployedEstimateContract.contractId().toSolidityAddress();
+        estimateContractSolidityAddress =
+                asAddress(deployedEstimateContract.contractId()).toString();
     }
 
     @Given("I successfully create estimate precompile contract")
     public void createNewEstimatePrecompileContract() {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_PRECOMPILE);
         estimatePrecompileContractSolidityAddress =
-                deployedEstimatePrecompileContract.contractId().toSolidityAddress();
+                asAddress(deployedEstimatePrecompileContract.contractId()).toString();
     }
 
     @Given("I successfully create erc contract")
     public void createNewErcContract() {
         deployedErcContract = getContract(ERC);
-        ercContractSolidityAddress = deployedErcContract.contractId().toSolidityAddress();
+        ercContractSolidityAddress = asAddress(deployedErcContract.contractId()).toString();
     }
 
     @Given("I successfully create precompile contract")
     public void createNewPrecompileContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
         precompileContractSolidityAddress =
-                deployedPrecompileContract.contractId().toSolidityAddress();
+                asAddress(deployedPrecompileContract.contractId()).toString();
     }
 
     @Given("I create admin and receiver accounts")
@@ -213,10 +214,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
 
     @Then("I successfully update the balance of an account and get the initial balance via historical data")
     public void getHistoricalBalance() {
-        var data = encodeData(
-                ESTIMATE_GAS,
-                ADDRESS_BALANCE,
-                asAddress(receiverAccountId.getAccountId().toSolidityAddress()));
+        var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, asAddress(receiverAccountId.getAccountId()));
         networkTransactionResponse =
                 accountClient.sendCryptoTransfer(receiverAccountId.getAccountId(), Hbar.fromTinybars(50000000), null);
         var initialResponse = callContract(data, estimateContractSolidityAddress, ADDRESS_BALANCE.getActualGas())
@@ -234,19 +232,13 @@ public class HistoricalFeature extends AbstractEstimateFeature {
 
     @Then("I verify that historical data for negative block returns bad request")
     public void getHistoricalDataForNegativeBlock() {
-        var data = encodeData(
-                ESTIMATE_GAS,
-                ADDRESS_BALANCE,
-                asAddress(receiverAccountId.getAccountId().toSolidityAddress()));
+        var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, asAddress(receiverAccountId.getAccountId()));
         assertEthCallReturnsBadRequest("-100", data, estimateContractSolidityAddress, ADDRESS_BALANCE.getActualGas());
     }
 
     @Then("I verify that historical data for unknown block returns bad request")
     public void getHistoricalDataForUnknownBlock() {
-        var data = encodeData(
-                ESTIMATE_GAS,
-                ADDRESS_BALANCE,
-                asAddress(receiverAccountId.getAccountId().toSolidityAddress()));
+        var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, asAddress(receiverAccountId.getAccountId()));
         var currentBlock = getLastBlockNumber();
         assertEthCallReturnsBadRequest(
                 currentBlock + "0", data, estimateContractSolidityAddress, ADDRESS_BALANCE.getActualGas());
@@ -254,10 +246,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
 
     @Then("I verify that historical data for {string} block is treated as latest")
     public void getHistoricalData(String blockType) {
-        var data = encodeData(
-                ESTIMATE_GAS,
-                ADDRESS_BALANCE,
-                asAddress(receiverAccountId.getAccountId().toSolidityAddress()));
+        var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, asAddress(receiverAccountId.getAccountId()));
         var responseFromType = callContract(
                         blockType, data, estimateContractSolidityAddress, ADDRESS_BALANCE.getActualGas())
                 .getResultAsNumber();
@@ -270,10 +259,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     @Then("I verify the response from non existing account")
     public void getHistoricalDataForNonExistingAccount() {
         deletableAccountId = accountClient.getAccount(AccountNameEnum.DELETABLE);
-        var data = encodeData(
-                ESTIMATE_GAS,
-                ADDRESS_BALANCE,
-                asAddress(deletableAccountId.getAccountId().toSolidityAddress()));
+        var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, asAddress(deletableAccountId.getAccountId()));
 
         waitUntilAccountIsImported(deletableAccountId.getAccountId());
 
@@ -410,7 +396,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
 
         var data = encodeData(BALANCE_OF_SELECTOR, asAddress(admin));
         var initialBlockNumber = getLastBlockNumber();
-        var response = callContract(data, tokenId.toSolidityAddress());
+        var response = callContract(data, asAddress(tokenId).toString());
         var initialBalance = response.getResultAsNumber();
 
         waitForNextBlock();
@@ -422,7 +408,8 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         }
         verifyMirrorTransactionsResponse(mirrorClient, 200);
 
-        var historicalResponse = callContract(initialBlockNumber, data, tokenId.toSolidityAddress());
+        var historicalResponse =
+                callContract(initialBlockNumber, data, asAddress(tokenId).toString());
         var balanceOfHistorical = historicalResponse.getResultAsNumber();
         assertThat(initialBalance).isEqualTo(balanceOfHistorical);
     }
@@ -556,14 +543,15 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var tokenId = tokenClient.getToken(tokenName).tokenId();
         var data = encodeData(ALLOWANCE_DIRECT_SELECTOR, asAddress(admin), asAddress(receiverAccountId));
         var initialBlockNumber = getLastBlockNumber();
-        var response = callContract(data, tokenId.toSolidityAddress());
+        var response = callContract(data, asAddress(tokenId).toString());
         var initialAllowance = response.getResultAsNumber();
 
         waitForNextBlock();
 
         networkTransactionResponse = accountClient.approveToken(tokenId, receiverAccountId.getAccountId(), 200L);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
-        var historicalResponse = callContract(initialBlockNumber, data, tokenId.toSolidityAddress());
+        var historicalResponse =
+                callContract(initialBlockNumber, data, asAddress(tokenId).toString());
         var historicalAllowance = historicalResponse.getResultAsNumber();
         assertThat(initialAllowance).isEqualTo(historicalAllowance);
     }
@@ -576,14 +564,15 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         verifyMirrorTransactionsResponse(mirrorClient, 200);
         var initialBlockNumber = getLastBlockNumber();
         var data = encodeData(GET_APPROVED_DIRECT_SELECTOR, new BigInteger("1"));
-        var response = callContract(data, tokenId.toSolidityAddress());
+        var response = callContract(data, asAddress(tokenId).toString());
         var initialApprovedAddress = response.getResultAsAddress();
 
         waitForNextBlock();
 
         networkTransactionResponse = accountClient.approveNft(nftId, secondReceiverAccountId.getAccountId());
         verifyMirrorTransactionsResponse(mirrorClient, 200);
-        var historicalResponse = callContract(initialBlockNumber, data, tokenId.toSolidityAddress());
+        var historicalResponse =
+                callContract(initialBlockNumber, data, asAddress(tokenId).toString());
         var historicalApprovedAddress = historicalResponse.getResultAsAddress();
         assertThat(initialApprovedAddress).isEqualTo(historicalApprovedAddress);
     }
@@ -595,7 +584,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var data = encodeData(
                 ESTIMATE_PRECOMPILE,
                 IS_APPROVED_FOR_ALL,
-                asAddress(tokenId.toSolidityAddress()),
+                asAddress(tokenId),
                 asAddress(admin),
                 asAddress(receiverAccountId));
         var response =
@@ -619,7 +608,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     public void getHistoricalDataForOwnerOf(TokenNameEnum tokenName) {
         var tokenId = tokenClient.getToken(tokenName).tokenId();
         var initialBlockNumber = getLastBlockNumber();
-        var data = encodeData(ERC, GET_OWNER_OF_SELECTOR, asAddress(tokenId.toSolidityAddress()), new BigInteger("1"));
+        var data = encodeData(ERC, GET_OWNER_OF_SELECTOR, asAddress(tokenId), new BigInteger("1"));
         var response = callContract(data, ercContractSolidityAddress);
         var initialOwner = response.getResultAsAddress();
 
@@ -643,10 +632,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     public void getHistoricalDataForIsFrozenFungible(TokenNameEnum tokenName) {
         var tokenId = tokenClient.getToken(tokenName).tokenId();
         var data = encodeData(
-                PRECOMPILE,
-                IS_TOKEN_FROZEN_SELECTOR,
-                asAddress(tokenId.toSolidityAddress()),
-                asAddress(receiverAccountId.getAccountId().toSolidityAddress()));
+                PRECOMPILE, IS_TOKEN_FROZEN_SELECTOR, asAddress(tokenId), asAddress(receiverAccountId.getAccountId()));
         var response = callContract(data, precompileContractSolidityAddress);
         var initialBlockNumber = getLastBlockNumber();
         var initialFreezeStatus = response.getResultAsBoolean();
@@ -668,7 +654,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     public void getHistoricalDataForFungibleTokenInfo(TokenNameEnum tokenName, String action) {
         var tokenId = tokenClient.getToken(tokenName).tokenId();
         var initialBlockNumber = getLastBlockNumber();
-        var data = encodeData(PRECOMPILE, GET_FUNGIBLE_TOKEN_INFO, asAddress(tokenId.toSolidityAddress()));
+        var data = encodeData(PRECOMPILE, GET_FUNGIBLE_TOKEN_INFO, asAddress(tokenId));
         var response = callContract(data, precompileContractSolidityAddress, GET_FUNGIBLE_TOKEN_INFO.getActualGas());
         final var trimmedResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
         waitForNextBlock();
@@ -697,7 +683,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
             TokenNameEnum tokenName, String action, String account) {
         var tokenId = tokenClient.getToken(tokenName).tokenId();
         var initialBlockNumber = getLastBlockNumber();
-        var data = encodeData(PRECOMPILE, GET_FUNGIBLE_TOKEN_INFO, asAddress(tokenId.toSolidityAddress()));
+        var data = encodeData(PRECOMPILE, GET_FUNGIBLE_TOKEN_INFO, asAddress(tokenId));
         var response = callContract(data, precompileContractSolidityAddress, GET_FUNGIBLE_TOKEN_INFO.getActualGas());
         final var trimmedResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
 
@@ -742,9 +728,9 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var tokenId = tokenClient.getToken(tokenName).tokenId();
         var initialBlockNumber = getLastBlockNumber();
         if (action.equals("wipe")) {
-            data = encodeData(PRECOMPILE, GET_NON_FUNGIBLE_TOKEN_INFO, asAddress(tokenId.toSolidityAddress()), 5L);
+            data = encodeData(PRECOMPILE, GET_NON_FUNGIBLE_TOKEN_INFO, asAddress(tokenId), 5L);
         } else {
-            data = encodeData(PRECOMPILE, GET_NON_FUNGIBLE_TOKEN_INFO, asAddress(tokenId.toSolidityAddress()), 4L);
+            data = encodeData(PRECOMPILE, GET_NON_FUNGIBLE_TOKEN_INFO, asAddress(tokenId), 4L);
         }
         var response =
                 callContract(data, precompileContractSolidityAddress, GET_NON_FUNGIBLE_TOKEN_INFO.getActualGas());
@@ -805,7 +791,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
 
         // Collect current responses
         for (BigInteger keyValue : tokenKeyValues) {
-            var data = encodeData(ESTIMATE_PRECOMPILE, GET_TOKEN_KEY, asAddress(tokenId.toSolidityAddress()), keyValue);
+            var data = encodeData(ESTIMATE_PRECOMPILE, GET_TOKEN_KEY, asAddress(tokenId), keyValue);
             currentResponses.put(
                     keyValue,
                     callContract(data, estimatePrecompileContractSolidityAddress, GET_TOKEN_KEY.getActualGas()));
@@ -822,7 +808,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
 
         // Collect and compare historical responses
         for (BigInteger keyValue : tokenKeyValues) {
-            var data = encodeData(ESTIMATE_PRECOMPILE, GET_TOKEN_KEY, asAddress(tokenId.toSolidityAddress()), keyValue);
+            var data = encodeData(ESTIMATE_PRECOMPILE, GET_TOKEN_KEY, asAddress(tokenId), keyValue);
             var historicalResponse = callContract(
                     initialBlockNumber, data, estimatePrecompileContractSolidityAddress, GET_TOKEN_KEY.getActualGas());
             assertThat(currentResponses).containsEntry(keyValue, historicalResponse);

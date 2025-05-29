@@ -105,7 +105,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Given("I successfully create EstimateGas contract from contract bytes")
     public void createNewEstimateContract() {
         deployedContract = getContract(ESTIMATE_GAS);
-        contractSolidityAddress = deployedContract.contractId().toSolidityAddress();
+        contractSolidityAddress = asAddress(deployedContract.contractId()).toString();
         newAccountEvmAddress =
                 PrivateKey.generateECDSA().getPublicKey().toEvmAddress().toString();
         receiverAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
@@ -125,13 +125,14 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Given("I successfully create Precompile contract from contract bytes")
     public void createNewPrecompileContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileSolidityAddress = deployedPrecompileContract.contractId().toSolidityAddress();
+        precompileSolidityAddress =
+                asAddress(deployedPrecompileContract.contractId()).toString();
     }
 
     @Given("I successfully create ERC contract from contract bytes")
     public void createNewERCContract() {
         deployedERCContract = getContract(ERC);
-        ercSolidityAddress = deployedERCContract.contractId().toSolidityAddress();
+        ercSolidityAddress = asAddress(deployedERCContract.contractId()).toString();
     }
 
     @Then("the mirror node REST API should return status {int} for the estimate contract creation")
@@ -499,13 +500,17 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with IERC20 token associate using evm address as receiver")
     public void ierc20AssociateWithEvmAddressForReceiver() {
         validateGasEstimation(
-                encodeData(IERC20_TOKEN_ASSOCIATE), IERC20_TOKEN_ASSOCIATE, fungibleTokenId.toSolidityAddress());
+                encodeData(IERC20_TOKEN_ASSOCIATE),
+                IERC20_TOKEN_ASSOCIATE,
+                asAddress(fungibleTokenId).toString());
     }
 
     @Then("I call estimateGas with IERC20 token dissociate using evm address as receiver")
     public void ierc20DissociateWithEvmAddressForReceiver() {
         validateGasEstimation(
-                encodeData(IERC20_TOKEN_DISSOCIATE), IERC20_TOKEN_DISSOCIATE, fungibleTokenId.toSolidityAddress());
+                encodeData(IERC20_TOKEN_DISSOCIATE),
+                IERC20_TOKEN_DISSOCIATE,
+                asAddress(fungibleTokenId).toString());
     }
 
     @Then("I call estimateGas with contract deploy with bytecode as data")

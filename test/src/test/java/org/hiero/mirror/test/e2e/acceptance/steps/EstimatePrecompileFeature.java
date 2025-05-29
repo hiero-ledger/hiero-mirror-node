@@ -150,7 +150,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.rest.model.ContractCallResponse;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
@@ -169,7 +168,6 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     private static final Tuple[] EMPTY_TUPLE_ARRAY = new Tuple[] {};
     private static final long FIRST_NFT_SERIAL_NUMBER = 1;
     private static final long NUM_MAX_SIZE = 274877906943L;
-    private final CommonProperties commonProperties;
     private final TokenClient tokenClient;
     private final AccountClient accountClient;
     private final Web3Properties web3Properties;
@@ -193,7 +191,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void createNewEstimateContract() throws IOException {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_PRECOMPILE);
         estimatePrecompileContractSolidityAddress =
-                deployedEstimatePrecompileContract.contractId().toSolidityAddress();
+                asAddress(deployedEstimatePrecompileContract.contractId()).toString();
         admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
         receiverAccount = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
         secondReceiverAccount = accountClient.getAccount(AccountNameEnum.DAVE);
@@ -203,7 +201,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I create erc test contract with 0 balance")
     public void createNewERCContract() {
         deployedErcTestContract = getContract(ERC);
-        ercTestContractSolidityAddress = deployedErcTestContract.contractId().toSolidityAddress();
+        ercTestContractSolidityAddress =
+                asAddress(deployedErcTestContract.contractId()).toString();
     }
 
     @Given("I get exchange rates")
@@ -215,7 +214,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void createNewPrecompileTestContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
         precompileTestContractSolidityAddress =
-                deployedPrecompileContract.contractId().toSolidityAddress();
+                asAddress(deployedPrecompileContract.contractId()).toString();
     }
 
     @Given("I successfully create fungible tokens")
@@ -566,7 +565,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 methodInterface,
                 asAddress(secondReceiverAccount),
                 asAddressArray(Arrays.asList(
-                        fungibleTokenId.toSolidityAddress(), fungibleKycUnfrozenTokenId.toSolidityAddress())));
+                        asAddress(fungibleTokenId).toString(),
+                        asAddress(fungibleKycUnfrozenTokenId).toString())));
 
         validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
@@ -579,7 +579,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 methodInterface,
                 asAddress(secondReceiverAccount),
                 asAddressArray(Arrays.asList(
-                        nonFungibleKycUnfrozenTokenId.toSolidityAddress(), nonFungibleTokenId.toSolidityAddress())));
+                        asAddress(nonFungibleKycUnfrozenTokenId).toString(),
+                        asAddress(nonFungibleTokenId).toString())));
 
         validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
@@ -596,7 +597,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 DISSOCIATE_TOKENS,
                 asAddress(receiverAccountAlias),
                 asAddressArray(Arrays.asList(
-                        fungibleTokenId.toSolidityAddress(), fungibleKycUnfrozenTokenId.toSolidityAddress())));
+                        asAddress(fungibleTokenId).toString(),
+                        asAddress(fungibleKycUnfrozenTokenId).toString())));
 
         validateGasEstimation(data, DISSOCIATE_TOKENS, estimatePrecompileContractSolidityAddress);
     }
@@ -613,7 +615,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 DISSOCIATE_TOKENS,
                 asAddress(receiverAccountAlias),
                 asAddressArray(Arrays.asList(
-                        nonFungibleKycUnfrozenTokenId.toSolidityAddress(), nonFungibleTokenId.toSolidityAddress())));
+                        asAddress(nonFungibleKycUnfrozenTokenId).toString(),
+                        asAddress(nonFungibleTokenId).toString())));
 
         validateGasEstimation(data, DISSOCIATE_TOKENS, estimatePrecompileContractSolidityAddress);
     }
@@ -632,9 +635,9 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 TRANSFER_TOKENS,
                 asAddress(fungibleTokenId),
                 asAddressArray(Arrays.asList(
-                        admin.getAccountId().toSolidityAddress(),
+                        asAddress(admin.getAccountId()).toString(),
                         receiverAccountAlias,
-                        secondReceiverAccount.getAccountId().toSolidityAddress())),
+                        asAddress(secondReceiverAccount.getAccountId()).toString())),
                 new long[] {-6L, 3L, 3L});
 
         validateGasEstimation(data, TRANSFER_TOKENS, estimatePrecompileContractSolidityAddress);
@@ -651,7 +654,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with transferNFTs function")
     public void transferNFTsEstimateGas() {
-        final var adminAccountAddress = admin.getAccountId().toSolidityAddress();
+        final var adminAccountAddress = asAddress(admin.getAccountId()).toString();
         final var sendersList = new LinkedList<>(List.of(adminAccountAddress));
         if (web3Properties.isModularizedServices()) {
             // In the modularized scenario the number of senders needs to correspond to the number of receivers.
@@ -664,7 +667,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 asAddressArray(sendersList),
                 asAddressArray(Arrays.asList(
                         receiverAccountAlias,
-                        secondReceiverAccount.getAccountId().toSolidityAddress())),
+                        asAddress(secondReceiverAccount.getAccountId()).toString())),
                 new long[] {1, 2});
 
         validateGasEstimation(data, TRANSFER_NFTS, estimatePrecompileContractSolidityAddress);
@@ -672,7 +675,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with cryptoTransfer function for hbars")
     public void cryptoTransferHbarEstimateGas() {
-        var senderTransfer = accountAmount(admin.getAccountId().toSolidityAddress(), -10L, false);
+        var senderTransfer = accountAmount(asAddress(admin.getAccountId()).toString(), -10L, false);
         var receiverTransfer = accountAmount(receiverAccountAlias, 10L, false);
         var args = Tuple.of((Object) new Tuple[] {senderTransfer, receiverTransfer});
         var data = encodeData(ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER_HBARS, args, EMPTY_TUPLE_ARRAY);
@@ -688,9 +691,9 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var methodInterface = getFlaggedValue(CRYPTO_TRANSFER_NFT);
         var tokenTransferList = (Object) new Tuple[] {
             tokenTransferList()
-                    .forToken(nonFungibleTokenId.toSolidityAddress())
+                    .forToken(asAddress(nonFungibleTokenId).toString())
                     .withNftTransfers(
-                            nftAmount(admin.getAccountId().toSolidityAddress(), receiverAccountAlias, 1L, false))
+                            nftAmount(asAddress(admin.getAccountId()).toString(), receiverAccountAlias, 1L, false))
                     .build()
         };
         var data = encodeData(
@@ -702,10 +705,14 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void cryptoTransferFungibleEstimateGas() {
         var tokenTransferList = (Object) new Tuple[] {
             tokenTransferList()
-                    .forToken(fungibleTokenId.toSolidityAddress())
+                    .forToken(asAddress(fungibleTokenId).toString())
                     .withAccountAmounts(
-                            accountAmount(admin.getAccountId().toSolidityAddress(), -3L, false),
-                            accountAmount(secondReceiverAccount.getAccountId().toSolidityAddress(), 3L, false))
+                            accountAmount(asAddress(admin.getAccountId()).toString(), -3L, false),
+                            accountAmount(
+                                    asAddress(secondReceiverAccount.getAccountId())
+                                            .toString(),
+                                    3L,
+                                    false))
                     .build()
         };
         var data = encodeData(
@@ -983,8 +990,6 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with delete function for invalid token address")
     public void deleteTokenInvalidAddressEstimateGas() {
         String address = Hex.toHexString(ByteBuffer.allocate(20)
-                .putInt((int) commonProperties.getShard())
-                .putLong(commonProperties.getRealm())
                 .putLong(new SecureRandom().nextLong(NUM_MAX_SIZE / 100, NUM_MAX_SIZE))
                 .array());
 
@@ -1657,7 +1662,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 methodInterface,
                 asAddress(nonFungibleTokenId),
                 asAddress(admin),
-                asAddress(secondReceiverAccount.getAccountId().toSolidityAddress()),
+                asAddress(secondReceiverAccount.getAccountId()),
                 2L);
         var estimateGasValue = validateAndReturnGas(data, methodInterface, estimatePrecompileContractSolidityAddress);
         executeContractTransaction(deployedEstimatePrecompileContract, estimateGasValue, methodInterface, data);
@@ -1729,7 +1734,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 TRANSFER_FROM,
                 asAddress(fungibleTokenId),
                 asAddress(admin),
-                asAddress(secondReceiverAccount.getAccountId().toSolidityAddress()),
+                asAddress(secondReceiverAccount.getAccountId()),
                 new BigInteger("5"));
         var estimateGasValue = validateAndReturnGas(data, TRANSFER_FROM, estimatePrecompileContractSolidityAddress);
         executeContractTransaction(deployedEstimatePrecompileContract, estimateGasValue, TRANSFER_FROM, data);
@@ -1743,7 +1748,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 methodInterface,
                 asAddress(nonFungibleTokenId),
                 asAddress(admin),
-                asAddress(secondReceiverAccount.getAccountId().toSolidityAddress()),
+                asAddress(secondReceiverAccount.getAccountId()),
                 new BigInteger("3"));
         var estimateGasValue = validateAndReturnGas(data, methodInterface, estimatePrecompileContractSolidityAddress);
         executeContractTransaction(deployedEstimatePrecompileContract, estimateGasValue, methodInterface, data);
