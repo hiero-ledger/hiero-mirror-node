@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -103,6 +104,31 @@ class ContractStateServiceTest extends Web3IntegrationTest {
                 .asMap()
                 .size();
         assertThat(cacheSize).isEqualTo(2);
+    }
+
+    @Test
+    void testFindSlotOutsideOfBulkLoad() {
+        // Given
+        int outsideBulkLoadIndex = 5001;
+        final var contract = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT))
+                .persist();
+        persistContractStates(contract.getId(), outsideBulkLoadIndex);
+
+        final var contractStateOutsideOfRange = persistContractState(contract.getId(), outsideBulkLoadIndex);
+
+        // When
+        Optional<byte[]> result =
+                contractStateService.findSlotValue(contract.toEntityId(), contractStateOutsideOfRange.getSlot());
+        assertThat(result).isPresent().contains(("test-value" + outsideBulkLoadIndex).getBytes());
+
+        contractStateRepository.delete(contractStateOutsideOfRange);
+
+        Optional<byte[]> result2 =
+                contractStateService.findSlotValue(contract.toEntityId(), contractStateOutsideOfRange.getSlot());
+        // Then
+        assertThat(result2).isPresent().contains(("test-value" + outsideBulkLoadIndex).getBytes());
     }
 
     @Test
@@ -235,16 +261,20 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
     private void persistContractStates(final long contractId, final int size) {
         for (int i = 0; i < size; i++) {
-            final byte[] slotKey = new byte[32];
-            final byte[] indexBytes = ByteBuffer.allocate(4).putInt(i).array(); // 4-byte int
-            System.arraycopy(indexBytes, 0, slotKey, 0, indexBytes.length);
-
-            final byte[] value = ("test-value" + i).getBytes();
-
-            domainBuilder
-                    .contractState()
-                    .customize(cs -> cs.contractId(contractId).slot(slotKey).value(value))
-                    .persist();
+            persistContractState(contractId, i);
         }
+    }
+
+    private ContractState persistContractState(final long contractId, final int index) {
+        final byte[] slotKey = new byte[32];
+        final byte[] indexBytes = ByteBuffer.allocate(4).putInt(index).array();
+        System.arraycopy(indexBytes, 0, slotKey, 0, indexBytes.length);
+
+        final byte[] value = ("test-value" + index).getBytes();
+
+        return domainBuilder
+                .contractState()
+                .customize(cs -> cs.contractId(contractId).slot(slotKey).value(value))
+                .persist();
     }
 }
