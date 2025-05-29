@@ -81,7 +81,7 @@ class ContractStorageReadableKVStateTest {
         final var blockTimestamp = 1234567L;
         when(contractCallContext.getTimestamp()).thenReturn(Optional.of(blockTimestamp));
         when(contractStateService.findStorageByBlockTimestamp(
-                        ENTITY_ID.getId(),
+                        ENTITY_ID,
                         Bytes32.wrap(BYTES.toByteArray()).trimLeadingZeros().toArrayUnsafe(),
                         blockTimestamp))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
@@ -101,7 +101,7 @@ class ContractStorageReadableKVStateTest {
     void whenSlotNotFoundReturnsNullForHistoricalBlock() {
         final var blockTimestamp = 1234567L;
         when(contractCallContext.getTimestamp()).thenReturn(Optional.of(blockTimestamp));
-        when(contractStateService.findStorageByBlockTimestamp(anyLong(), any(), anyLong()))
+        when(contractStateService.findStorageByBlockTimestamp(any(), any(), anyLong()))
                 .thenReturn(Optional.empty());
         assertThat(contractStorageReadableKVState.get(SLOT_KEY))
                 .satisfies(slotValue -> assertThat(slotValue).isNull());
