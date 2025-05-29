@@ -3,17 +3,26 @@
 package org.hiero.mirror.web3.state.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import jakarta.annotation.Resource;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCache;
 
 class ContractStateServiceTest extends Web3IntegrationTest {
 
     @Resource
     private ContractStateService contractStateService;
+
+    @Resource
+    @Qualifier(CACHE_MANAGER_CONTRACT_STATE)
+    CacheManager cacheManager;
 
     @Test
     void testFindSlotValueHappyPath() {
@@ -35,6 +44,12 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
         // Then
         assertThat(result).isPresent().contains(value);
+
+        final var cacheSize = ((CaffeineCache) cacheManager.getCache(CACHE_NAME))
+                .getNativeCache()
+                .asMap()
+                .size();
+        assertThat(cacheSize).isEqualTo(1);
     }
 
     @Test
@@ -69,5 +84,11 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         // Then
         assertThat(result).isPresent().contains(value);
         assertThat(result2).isPresent().contains(value2);
+
+        final var cacheSize = ((CaffeineCache) cacheManager.getCache(CACHE_NAME))
+                .getNativeCache()
+                .asMap()
+                .size();
+        assertThat(cacheSize).isEqualTo(2);
     }
 }
