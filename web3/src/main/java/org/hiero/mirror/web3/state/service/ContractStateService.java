@@ -7,8 +7,8 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CO
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import jakarta.inject.Named;
-import java.util.HashMap;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.state.ContractStateKey;
@@ -29,25 +29,20 @@ public class ContractStateService {
         this.contractStateRepository = contractStateRepository;
     }
 
-    public Optional<byte[]> findSlotValue(final Long entityId, final byte[] slotKeyByteArray) {
-        final var cacheKey = new ContractStateKey(entityId, slotKeyByteArray);
+    public Optional<byte[]> findSlotValue(final EntityId entityId, final byte[] slotKeyByteArray) {
+        final var cacheKey = new ContractStateKey(entityId.getId(), slotKeyByteArray);
 
         final byte[] cachedValue = cache.get(cacheKey, byte[].class);
         if (cachedValue != null) {
             return Optional.of(cachedValue);
         }
 
-        final var hasLoadedAllSlotsForContract = ContractCallContext.get().getHasLoadedAllSlotsForContract();
-        if (hasLoadedAllSlotsForContract == null
-                || hasLoadedAllSlotsForContract.get(entityId) == null
-                || Boolean.FALSE.equals(hasLoadedAllSlotsForContract.get(entityId))) {
-            final var optionalMatchedSlotValue = loadValueFromBatch(entityId, cacheKey);
-            if (optionalMatchedSlotValue.isPresent()) {
-                return optionalMatchedSlotValue;
-            }
+        final var optionalMatchedSlotValue = loadValueFromBatch(entityId, cacheKey);
+        if (optionalMatchedSlotValue.isPresent()) {
+            return optionalMatchedSlotValue;
         }
 
-        final var optionalStorage = contractStateRepository.findStorage(entityId, slotKeyByteArray);
+        final var optionalStorage = contractStateRepository.findStorage(entityId.getId(), slotKeyByteArray);
         optionalStorage.ifPresent(value -> cache.put(cacheKey, value));
 
         return optionalStorage;
@@ -58,21 +53,19 @@ public class ContractStateService {
         return contractStateRepository.findStorageByBlockTimestamp(entityId, slotKeyByteArray, blockTimestamp);
     }
 
-    private Optional<byte[]> loadValueFromBatch(final Long entityId, final ContractStateKey cacheKey) {
-        final var slotValues = contractStateRepository.findByContractId(entityId);
-        if (ContractCallContext.get().getHasLoadedAllSlotsForContract() == null) {
-            ContractCallContext.get().setHasLoadedAllSlotsForContract(new HashMap<>());
+    private Optional<byte[]> loadValueFromBatch(final EntityId entityId, final ContractStateKey cacheKey) {
+        final var storageLoaded = ContractCallContext.get().getStorageLoaded();
+        if (storageLoaded.contains(entityId)) {
+            return Optional.empty();
         }
-        final var hasLoadedAllContractSlotsForContract =
-                ContractCallContext.get().getHasLoadedAllSlotsForContract();
-        hasLoadedAllContractSlotsForContract.put(entityId, true);
-        ContractCallContext.get().setHasLoadedAllSlotsForContract(hasLoadedAllContractSlotsForContract);
+        final var slotValues = contractStateRepository.findByContractId(entityId.getId());
+        storageLoaded.add(entityId);
 
         byte[] matchedValue = null;
         for (final var slotValue : slotValues) {
             final byte[] slot = slotValue.slot();
             final byte[] value = slotValue.value();
-            final var generatedKey = new ContractStateKey(entityId, slot);
+            final var generatedKey = new ContractStateKey(entityId.getId(), slot);
             cache.put(generatedKey, value);
 
             if (generatedKey.equals(cacheKey)) {

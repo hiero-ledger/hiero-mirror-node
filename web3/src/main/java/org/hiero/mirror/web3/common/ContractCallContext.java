@@ -6,14 +6,17 @@ import com.hedera.hapi.node.state.common.EntityNumber;
 import java.util.ArrayList;
 import java.util.EmptyStackException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hiero.mirror.common.domain.contract.ContractAction;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
@@ -80,9 +83,8 @@ public class ContractCallContext {
     @Setter
     private Optional<Long> timestamp = Optional.empty();
 
-    @Setter
     @Getter
-    private Map<Long, Boolean> hasLoadedAllSlotsForContract;
+    private final Set<EntityId> storageLoaded = new HashSet<>();
 
     private ContractCallContext() {}
 
