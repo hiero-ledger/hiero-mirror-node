@@ -10,6 +10,7 @@ import jakarta.annotation.Resource;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
@@ -17,12 +18,12 @@ import org.springframework.cache.caffeine.CaffeineCache;
 
 class ContractStateServiceTest extends Web3IntegrationTest {
 
-    @Resource
-    private ContractStateService contractStateService;
-
-    @Resource
     @Qualifier(CACHE_MANAGER_CONTRACT_STATE)
     CacheManager cacheManager;
+    @Resource
+    private ContractStateService contractStateService;
+    @Resource
+    private ContractStateRepository contractStateRepository;
 
     @Test
     void testFindSlotValueHappyPath() {
