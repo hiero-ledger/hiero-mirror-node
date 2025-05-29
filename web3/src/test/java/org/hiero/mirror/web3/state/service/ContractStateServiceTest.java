@@ -12,6 +12,7 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -201,6 +202,35 @@ class ContractStateServiceTest extends Web3IntegrationTest {
                 .asMap()
                 .size();
         assertThat(cacheSize).isZero();
+    }
+
+    @Test
+    void testCacheDoesNotIncreaseInSize() throws InterruptedException {
+        // Given
+        final var contract = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT))
+                .persist();
+        persistContractStates(contract.getId(), 6500);
+
+        // When
+        Optional<byte[]> result1 = contractStateService.findSlotValue(contract.toEntityId(), new byte[32]);
+
+        ContractCallContext.get().clear();
+        Thread.sleep(2500);
+
+        Optional<byte[]> result2 = contractStateService.findSlotValue(contract.toEntityId(), new byte[32]);
+
+        // Then
+        final var expectedValue = "test-value0".getBytes();
+        assertThat(result1).isPresent().contains(expectedValue);
+        assertThat(result2).isPresent().contains(expectedValue);
+
+        final var cacheSize = ((CaffeineCache) cacheManager.getCache(CACHE_NAME))
+                .getNativeCache()
+                .asMap()
+                .size();
+        assertThat(cacheSize).isEqualTo(5000);
     }
 
     private void persistContractStates(final long contractId, final int size) {

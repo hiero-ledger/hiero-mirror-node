@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.common;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.hedera.hapi.node.state.common.EntityNumber;
 import java.util.ArrayList;
 import java.util.EmptyStackException;
@@ -84,7 +85,7 @@ public class ContractCallContext {
     private Optional<Long> timestamp = Optional.empty();
 
     @Getter
-    private final Set<EntityId> storageLoaded = new HashSet<>();
+    private Set<EntityId> storageLoaded = new HashSet<>();
 
     private ContractCallContext() {}
 
@@ -175,5 +176,10 @@ public class ContractCallContext {
 
     public Map<Object, Object> getWriteCacheState(final String stateKey) {
         return writeCache.computeIfAbsent(stateKey, k -> new HashMap<>());
+    }
+
+    @VisibleForTesting
+    public void clear() {
+        storageLoaded = new HashSet<>();
     }
 }
