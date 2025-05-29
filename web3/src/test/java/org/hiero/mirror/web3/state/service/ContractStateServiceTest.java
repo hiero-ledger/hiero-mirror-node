@@ -65,31 +65,20 @@ class ContractStateServiceTest extends Web3IntegrationTest {
                 .entity()
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
-        final byte[] slotKey1 = EMPTY_BYTE_ARRAY;
-        slotKey1[0] = 0x01;
-        final byte[] value = EXPECTED_SLOT_VALUE.getBytes();
-
-        domainBuilder
-                .contractState()
-                .customize(cs -> cs.contractId(contract.getId()).slot(slotKey1).value(value))
-                .persist();
+        final var firstContractState = persistContractState(contract.getId(), 0);
 
         // When
-        Optional<byte[]> result = contractStateService.findSlotValue(contract.toEntityId(), slotKey1);
+        Optional<byte[]> result =
+                contractStateService.findSlotValue(contract.toEntityId(), firstContractState.getSlot());
 
         // Add new cache value after the bulk has already passed
-        final byte[] value2 = (EXPECTED_SLOT_VALUE + 2).getBytes();
-        final byte[] slotKey2 = EMPTY_BYTE_ARRAY;
-        slotKey1[0] = 0x02;
-        domainBuilder
-                .contractState()
-                .customize(cs -> cs.contractId(contract.getId()).slot(slotKey2).value(value2))
-                .persist();
-        Optional<byte[]> result2 = contractStateService.findSlotValue(contract.toEntityId(), slotKey2);
+        final var secondContractState = persistContractState(contract.getId(), 1);
+        Optional<byte[]> result2 =
+                contractStateService.findSlotValue(contract.toEntityId(), secondContractState.getSlot());
 
         // Then
-        assertThat(result).isPresent().contains(value);
-        assertThat(result2).isPresent().contains(value2);
+        assertThat(result).isPresent().contains(firstContractState.getValue());
+        assertThat(result2).isPresent().contains(secondContractState.getValue());
         assertThat(getCacheSize()).isEqualTo(2);
     }
 
