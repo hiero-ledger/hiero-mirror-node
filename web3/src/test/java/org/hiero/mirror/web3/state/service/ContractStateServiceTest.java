@@ -13,6 +13,7 @@ import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
@@ -27,6 +28,12 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     private final ContractStateService contractStateService;
     private final ContractStateRepository contractStateRepository;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+
+    @BeforeEach
+    void cleanUp() {
+        cacheManager.getCache(CACHE_NAME).clear();
+        mirrorNodeEvmProperties.setBulkLoadStorage(true);
+    }
 
     @Test
     void testFindSlotValueHappyPath() {
@@ -170,5 +177,39 @@ class ContractStateServiceTest extends Web3IntegrationTest {
                 .asMap()
                 .size();
         assertThat(cacheSize).isEqualTo(1);
+    }
+
+    @Test
+    void testFindSlotValueHistorical() {
+        // Given
+        final var consensusTimestamp = 123456789L;
+        final var contract = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT).createdTimestamp(consensusTimestamp))
+                .persist();
+        final byte[] slotKey = new byte[32];
+        final byte[] value = "test-value".getBytes();
+
+        domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contract.getId())
+                        .slot(slotKey)
+                        .valueRead(value)
+                        .valueWritten(null)
+                        .consensusTimestamp(consensusTimestamp))
+                .persist();
+
+        // When
+        Optional<byte[]> result =
+                contractStateService.findStorageByBlockTimestamp(contract.toEntityId(), slotKey, consensusTimestamp);
+
+        // Then
+        assertThat(result).isPresent().contains(value);
+
+        final var cacheSize = ((CaffeineCache) cacheManager.getCache(CACHE_NAME))
+                .getNativeCache()
+                .asMap()
+                .size();
+        assertThat(cacheSize).isZero();
     }
 }
