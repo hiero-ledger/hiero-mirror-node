@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.contract.ContractStateChange;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.state.ContractSlotValue;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
@@ -83,7 +84,17 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
     @Test
     void findStorageDifferentSlotCall() {
         ContractState contractState = domainBuilder.contractState().persist();
-        assertThat(contractStateRepository.findStorage(contractState.getContractId(), new byte[20]))
+        assertThat(contractStateRepository.findStorage(contractState.getContractId(), new byte[32]))
                 .isEmpty();
+    }
+
+    @Test
+    void findSlotsValuesByContractId() {
+        final var contractState = domainBuilder.contractState().persist();
+        final var slots = contractStateRepository.findByContractId(contractState.getContractId());
+        assertThat(slots)
+                .hasSize(1)
+                .first()
+                .isEqualTo(new ContractSlotValue(contractState.getSlot(), contractState.getValue()));
     }
 }

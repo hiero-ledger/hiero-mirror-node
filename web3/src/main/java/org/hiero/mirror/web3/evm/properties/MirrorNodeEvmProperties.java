@@ -202,6 +202,9 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @Getter
     private long entityNumBuffer = 1000L;
 
+    @Getter
+    private boolean bulkLoadStorage = true;
+
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);
     }

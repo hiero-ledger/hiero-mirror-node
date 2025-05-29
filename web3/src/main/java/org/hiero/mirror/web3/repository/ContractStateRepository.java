@@ -2,20 +2,20 @@
 
 package org.hiero.mirror.web3.repository;
 
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
-
+import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.contract.ContractState;
-import org.springframework.cache.annotation.Cacheable;
+import org.hiero.mirror.web3.state.ContractSlotValue;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface ContractStateRepository extends CrudRepository<ContractState, Long> {
 
     @Query(value = "select value from contract_state where contract_id = ?1 and slot =?2", nativeQuery = true)
-    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_CONTRACT_STATE)
     Optional<byte[]> findStorage(final Long contractId, final byte[] key);
+
+    @Query(value = "select slot, value from contract_state where contract_id = ?1 limit 5000", nativeQuery = true)
+    List<ContractSlotValue> findByContractId(final Long contractId);
 
     /**
      * This method retrieves the most recent contract state storage value up to given block timestamp.
