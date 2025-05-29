@@ -7,8 +7,8 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CO
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import java.util.Optional;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
-import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
@@ -97,6 +97,48 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
+    void testBulkLoadThenDeleteAllAndVerifyResultIsReturnedFromCache() {
+        // Given
+        long size = 5;
+        final var contract = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT))
+                .persist();
+        final byte[] value = "test-value".getBytes();
+        final byte[] slotKey1 = new byte[32];
+        slotKey1[0] = 0x01;
+
+        for (int i = 0; i < size; i++) {
+            final byte[] slotKey = new byte[32];
+            slotKey[0] = (byte) i;
+            domainBuilder
+                    .contractState()
+                    .customize(
+                            cs -> cs.contractId(contract.getId()).slot(slotKey).value(value))
+                    .persist();
+
+            // This will bulk load all slots in cache
+            // When
+            Optional<byte[]> result = contractStateService.findSlotValue(contract.toEntityId(), slotKey1);
+            assertThat(result).isPresent().contains(value);
+
+            final var cacheSize2 = ((CaffeineCache) cacheManager.getCache(CACHE_NAME))
+                    .getNativeCache()
+                    .asMap()
+                    .size();
+            assertThat(cacheSize2).isEqualTo(size);
+
+            contractStateRepository.deleteAll();
+            final long countAfterDeleted = StreamSupport.stream(
+                            contractStateRepository.findAll().spliterator(), false)
+                    .count();
+            assertThat(countAfterDeleted).isZero();
+            Optional<byte[]> resultFromCache = contractStateService.findSlotValue(contract.toEntityId(), slotKey1);
+            assertThat(resultFromCache).isPresent().contains(value);
+        }
+    }
+
+    @Test
     void testBulkLoadStorageWithFeatureFlagDisabled() {
         // Given
         final var contract = domainBuilder
@@ -104,8 +146,9 @@ class ContractStateServiceTest extends Web3IntegrationTest {
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
 
-        for (int i = 0; i < 10000; i++) {
-            final byte[] slotKey = (Bytes32.fromHexString("0x" + i).toArray());
+        for (int i = 0; i < 256; i++) {
+            final byte[] slotKey = new byte[32];
+            slotKey[0] = (byte) i;
             final byte[] value = ("test-value" + i).getBytes();
 
             domainBuilder
@@ -118,8 +161,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         mirrorNodeEvmProperties.setBulkLoadStorage(false);
 
         // When
-        Optional<byte[]> result = contractStateService.findSlotValue(
-                contract.toEntityId(), (Bytes32.fromHexString("0x0").toArray()));
+        Optional<byte[]> result = contractStateService.findSlotValue(contract.toEntityId(), new byte[32]);
 
         // Then
         assertThat(result).isPresent().contains(("test-value0").getBytes());
