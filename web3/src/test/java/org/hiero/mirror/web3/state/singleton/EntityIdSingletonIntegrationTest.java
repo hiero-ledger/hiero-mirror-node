@@ -6,12 +6,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
 class EntityIdSingletonIntegrationTest extends Web3IntegrationTest {
 
     private final EntityIdSingleton entityIdSingleton;
+    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Test
     void shouldReturnNextIdWithIncrementAndRealmAndShard() {
@@ -35,21 +38,27 @@ class EntityIdSingletonIntegrationTest extends Web3IntegrationTest {
         commonProperties.setRealm(currentRealm);
         commonProperties.setShard(currentShard);
 
+        ContractCallContext.get().setEntityNumber(null);
         final var entity2 = domainBuilder
                 .entity()
                 .customize(e -> e.shard(currentShard).realm(currentRealm))
                 .persist();
         final var entityNumber2 = entityIdSingleton.get();
 
+        ContractCallContext.get().setEntityNumber(null);
         final var entity3 = domainBuilder
                 .entity()
                 .customize(e -> e.shard(currentShard).realm(currentRealm))
                 .persist();
         final var entityNumber3 = entityIdSingleton.get();
 
-        assertThat(entityNumberBeforeConfig.number()).isNotEqualTo(entityWithShardAndRealm.getNum() + 1);
-        assertThat(entityNumberAfterConfig.number()).isEqualTo(entityWithShardAndRealm.getNum() + 1);
-        assertThat(entityNumber2.number()).isEqualTo(entity2.getNum() + 1);
-        assertThat(entityNumber3.number()).isEqualTo(entity3.getNum() + 1);
+        assertThat(entityNumberBeforeConfig.number())
+                .isNotEqualTo(entityWithShardAndRealm.getNum() + mirrorNodeEvmProperties.getEntityNumBuffer() + 1);
+        assertThat(entityNumberAfterConfig.number())
+                .isEqualTo(entityWithShardAndRealm.getNum() + mirrorNodeEvmProperties.getEntityNumBuffer() + 1);
+        assertThat(entityNumber2.number())
+                .isEqualTo(entity2.getNum() + mirrorNodeEvmProperties.getEntityNumBuffer() + 1);
+        assertThat(entityNumber3.number())
+                .isEqualTo(entity3.getNum() + mirrorNodeEvmProperties.getEntityNumBuffer() + 1);
     }
 }

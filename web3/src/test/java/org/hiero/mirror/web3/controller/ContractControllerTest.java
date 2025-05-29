@@ -6,8 +6,8 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_REVER
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -20,7 +20,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
@@ -39,8 +38,10 @@ import org.hiero.mirror.web3.exception.BlockNumberOutOfRangeException;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
+import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
+import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
@@ -62,7 +63,6 @@ import org.junit.jupiter.params.provider.EmptySource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -93,24 +93,15 @@ class ContractControllerTest {
     @MockitoBean
     private ContractExecutionService service;
 
-    @MockitoBean(name = "rateLimitBucket")
-    private Bucket rateLimitBucket;
-
-    @MockitoBean(name = "gasLimitBucket")
-    private Bucket gasLimitBucket;
-
-    @Autowired
+    @Resource
     private MirrorNodeEvmProperties evmProperties;
 
     @MockitoBean
-    private ThrottleProperties throttleProperties;
+    private ThrottleManager throttleManager;
 
     @BeforeEach
     void setUp() {
-        given(rateLimitBucket.tryConsume(1)).willReturn(true);
-        given(throttleProperties.getGasUnit()).willReturn(2);
-        given(gasLimitBucket.tryConsume(Math.floorDiv(THROTTLE_GAS_LIMIT, throttleProperties.getGasUnit())))
-                .willReturn(true);
+        throttleManager.throttle(any(ContractCallRequest.class));
     }
 
     @SneakyThrows
@@ -178,8 +169,6 @@ class ContractControllerTest {
         final var errorString = gas < 21000L
                 ? numberErrorString("gas", "greater", 21000L)
                 : numberErrorString("gas", "less", 15_000_000L);
-        given(gasLimitBucket.tryConsume(gas)).willReturn(true);
-        given(throttleProperties.getGasUnit()).willReturn(1);
         final var request = request();
         request.setEstimate(true);
         request.setGas(gas);
@@ -191,27 +180,9 @@ class ContractControllerTest {
 
     @Test
     void exceedingRateLimit() throws Exception {
-        for (var i = 0; i < 3; i++) {
-            contractCall(request()).andExpect(status().isOk());
-        }
-
-        given(rateLimitBucket.tryConsume(1)).willReturn(false);
-        contractCall(request()).andExpect(status().isTooManyRequests());
-    }
-
-    @Test
-    void exceedingGasLimit() throws Exception {
-        given(gasLimitBucket.tryConsume(anyLong())).willReturn(false);
-        contractCall(request()).andExpect(status().isTooManyRequests());
-    }
-
-    @Test
-    void throttleGasScaledOnConsume() throws Exception {
         var request = request();
-        request.setGas(200_000L);
-        given(gasLimitBucket.tryConsume(anyLong())).willReturn(true);
-        contractCall(request).andExpect(status().isOk());
-        verify(gasLimitBucket).tryConsume(100_000L);
+        doThrow(new ThrottleException("")).when(throttleManager).throttle(request);
+        contractCall(request).andExpect(status().isTooManyRequests());
     }
 
     @Test
@@ -219,8 +190,7 @@ class ContractControllerTest {
         var request = request();
         request.setData("With invalid symbol!");
         contractCall(request).andExpect(status().isBadRequest());
-        verify(gasLimitBucket).tryConsume(Math.floorDiv(request.getGas(), throttleProperties.getGasUnit()));
-        verify(gasLimitBucket).addTokens(request.getGas());
+        verify(throttleManager).restore(request.getGas());
     }
 
     @ValueSource(
@@ -551,9 +521,7 @@ class ContractControllerTest {
         contractCall(request)
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(content().string(convert(new GenericErrorResponse("Service Unavailable"))));
-
-        var expected = "request: " + request;
-        assertThat(capturedOutput.getOut()).contains(expected);
+        assertThat(capturedOutput.getOut()).contains("503 Query timeout");
     }
 
     @Test

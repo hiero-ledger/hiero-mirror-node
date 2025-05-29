@@ -32,6 +32,7 @@ class ContractCallNativePrecompileTest extends Web3IntegrationTest {
     void setup() {
         domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         domainBuilder.entity(systemEntity.feeCollectorAccount()).persist();
+        persistRewardAccounts();
     }
 
     @Test
@@ -255,10 +256,15 @@ class ContractCallNativePrecompileTest extends Web3IntegrationTest {
         assertThat(gasConsumed).isPositive();
     }
 
-    protected Entity accountEntityWithEvmAddressPersist() {
+    private Entity accountEntityWithEvmAddressPersist() {
         return domainBuilder
                 .entity()
                 .customize(e -> e.type(EntityType.ACCOUNT).balance(1_000_000_000_000L))
                 .persist();
+    }
+
+    private void persistRewardAccounts() {
+        domainBuilder.entity(systemEntity.nodeRewardAccount()).persist();
+        domainBuilder.entity(systemEntity.stakingRewardAccount()).persist();
     }
 }

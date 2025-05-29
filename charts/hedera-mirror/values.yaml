@@ -337,6 +337,12 @@ stackgres:
           pool_mode: session
         mirror_importer:
           pool_mode: session
+        mirror_rest:
+          max_user_client_connections: 1000
+          max_user_connections: 250
+        mirror_web3:
+          max_user_client_connections: 1000
+          max_user_connections: 250
     resources:
       cpu: 100m
       memory: 1Gi

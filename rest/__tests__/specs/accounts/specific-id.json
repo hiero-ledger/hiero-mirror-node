@@ -5,7 +5,7 @@
       {
         "balance": 70,
         "decline_reward": true,
-        "num": 7
+        "num": 9
       },
       {
         "balance": 80,
@@ -16,7 +16,8 @@
       },
       {
         "balance": 90,
-        "num": 9,
+        "memo": "Mirror node created synthetic treasury account",
+        "num": 2,
         "staked_node_id": 5
       }
     ],
@@ -44,7 +45,8 @@
   "urls": [
     "/api/v1/accounts?account.id=0.0.8",
     "/api/v1/accounts?account.id=0.8",
-    "/api/v1/accounts?account.id=8"
+    "/api/v1/accounts?account.id=8",
+    "/api/v1/accounts?account.id=lte:8"
   ],
   "responseStatus": 200,
   "responseJson": {
