@@ -82,7 +82,7 @@ public class ContractCallContext {
 
     @Setter
     @Getter
-    private boolean hasLoadedAllContractSlots = false;
+    private Map<Long, Boolean> hasLoadedAllSlotsForContract;
 
     private ContractCallContext() {}
 

@@ -7,6 +7,7 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CO
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import jakarta.inject.Named;
+import java.util.HashMap;
 import java.util.Optional;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
@@ -36,7 +37,10 @@ public class ContractStateService {
             return Optional.of(cachedValue);
         }
 
-        if (!ContractCallContext.get().isHasLoadedAllContractSlots()) {
+        final var hasLoadedAllSlotsForContract = ContractCallContext.get().getHasLoadedAllSlotsForContract();
+        if (hasLoadedAllSlotsForContract == null
+                || hasLoadedAllSlotsForContract.get(entityId) == null
+                || Boolean.FALSE.equals(hasLoadedAllSlotsForContract.get(entityId))) {
             final var optionalMatchedSlotValue = loadValueFromBatch(entityId, cacheKey);
             if (optionalMatchedSlotValue.isPresent()) {
                 return optionalMatchedSlotValue;
@@ -56,7 +60,13 @@ public class ContractStateService {
 
     private Optional<byte[]> loadValueFromBatch(final Long entityId, final ContractStateKey cacheKey) {
         final var slotValues = contractStateRepository.findByContractId(entityId);
-        ContractCallContext.get().setHasLoadedAllContractSlots(true);
+        if (ContractCallContext.get().getHasLoadedAllSlotsForContract() == null) {
+            ContractCallContext.get().setHasLoadedAllSlotsForContract(new HashMap<>());
+        }
+        final var hasLoadedAllContractSlotsForContract =
+                ContractCallContext.get().getHasLoadedAllSlotsForContract();
+        hasLoadedAllContractSlotsForContract.put(entityId, true);
+        ContractCallContext.get().setHasLoadedAllSlotsForContract(hasLoadedAllContractSlotsForContract);
 
         byte[] matchedValue = null;
         for (final var slotValue : slotValues) {
