@@ -110,29 +110,19 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     @Test
     void testBulkLoadThenDeleteAllAndVerifyResultIsReturnedFromCache() {
         // Given
-        long size = 5;
+        int size = 5;
         final var contract = domainBuilder
                 .entity()
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
-        final byte[] value = EXPECTED_SLOT_VALUE.getBytes();
-        final byte[] slotKey1 = EMPTY_BYTE_ARRAY;
-        slotKey1[0] = 0x01;
 
-        for (int i = 0; i < size; i++) {
-            final byte[] slotKey = EMPTY_BYTE_ARRAY;
-            slotKey[0] = (byte) i;
-            domainBuilder
-                    .contractState()
-                    .customize(
-                            cs -> cs.contractId(contract.getId()).slot(slotKey).value(value))
-                    .persist();
-        }
+        persistContractStates(contract.getId(), size - 1);
+        final var contractState = persistContractState(contract.getId(), size);
 
         // This will bulk load all slots in cache
         // When
-        Optional<byte[]> result = contractStateService.findSlotValue(contract.toEntityId(), slotKey1);
-        assertThat(result).isPresent().contains(value);
+        Optional<byte[]> result = contractStateService.findSlotValue(contract.toEntityId(), contractState.getSlot());
+        assertThat(result).isPresent().contains(contractState.getValue());
         assertThat(getCacheSize()).isEqualTo(size);
 
         contractStateRepository.deleteAll();
@@ -140,8 +130,9 @@ class ContractStateServiceTest extends Web3IntegrationTest {
                         contractStateRepository.findAll().spliterator(), false)
                 .count();
         assertThat(countAfterDeleted).isZero();
-        Optional<byte[]> resultFromCache = contractStateService.findSlotValue(contract.toEntityId(), slotKey1);
-        assertThat(resultFromCache).isPresent().contains(value);
+        Optional<byte[]> resultFromCache =
+                contractStateService.findSlotValue(contract.toEntityId(), contractState.getSlot());
+        assertThat(resultFromCache).isPresent().contains(contractState.getValue());
     }
 
     @Test
