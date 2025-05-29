@@ -74,14 +74,20 @@ sourceSets {
 
 val extractContracts =
     tasks.register<Copy>("extractContracts") {
-        description = "Extracts the OpenZeppelin dependencies into the configured output folder"
-        group = "historical"
-        from({
+        doLast {
+            configurations.testCompileClasspath
+                .get()
+                .forEach { System.out.println("Found2: $it")}
+        }
+        val classpath = {
             configurations.testCompileClasspath
                 .get()
                 .filter { it.name.contains("openzeppelin__contracts") }
                 .map { zipTree(it) }
-        })
+        }
+        description = "Extracts the OpenZeppelin dependencies into the configured output folder"
+        group = "historical"
+        from(classpath)
         into(layout.projectDirectory.asFile.resolve("src/testHistorical/solidity/openzeppelin"))
         include("openzeppelin-contracts-*/contracts/**/*.sol")
         eachFile { path = path.replace("openzeppelin-contracts-.+/contracts", "") }
@@ -127,6 +133,12 @@ val moveTestHistoricalFiles =
     }
 
 val debugFiles = tasks.register<Exec>("debugFiles") {
+    doFirst {
+        configurations.testCompileClasspath
+            .get()
+            .filter { it.name.contains("openzeppelin__contracts") }
+            .forEach { System.out.println("Found: $it")}
+    }
     commandLine = listOf("find", "build", "-type", "f")
     dependsOn(moveTestHistoricalFiles)
 }
