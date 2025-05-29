@@ -25,6 +25,9 @@ import org.springframework.cache.caffeine.CaffeineCache;
 @RequiredArgsConstructor
 class ContractStateServiceTest extends Web3IntegrationTest {
 
+    private static final byte[] EMPTY_BYTE_ARRAY = new byte[32];
+    private static final String EXPECTED_SLOT_VALUE = "test-value";
+
     @Qualifier(CACHE_MANAGER_CONTRACT_STATE)
     private final CacheManager cacheManager;
 
@@ -45,25 +48,14 @@ class ContractStateServiceTest extends Web3IntegrationTest {
                 .entity()
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
-        final byte[] slotKey = new byte[32];
-        final byte[] value = "test-value".getBytes();
-
-        domainBuilder
-                .contractState()
-                .customize(cs -> cs.contractId(contract.getId()).slot(slotKey).value(value))
-                .persist();
+        final var contractState = persistContractState(contract.getId(), 0);
 
         // When
-        Optional<byte[]> result = contractStateService.findSlotValue(contract.toEntityId(), slotKey);
+        Optional<byte[]> result = contractStateService.findSlotValue(contract.toEntityId(), contractState.getSlot());
 
         // Then
-        assertThat(result).isPresent().contains(value);
-
-        final var cacheSize = ((CaffeineCache) cacheManager.getCache(CACHE_NAME))
-                .getNativeCache()
-                .asMap()
-                .size();
-        assertThat(cacheSize).isEqualTo(1);
+        assertThat(result).isPresent().contains(contractState.getValue());
+        assertThat(getCacheSize()).isEqualTo(1);
     }
 
     @Test
@@ -73,9 +65,9 @@ class ContractStateServiceTest extends Web3IntegrationTest {
                 .entity()
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
-        final byte[] slotKey1 = new byte[32];
+        final byte[] slotKey1 = EMPTY_BYTE_ARRAY;
         slotKey1[0] = 0x01;
-        final byte[] value = "test-value".getBytes();
+        final byte[] value = EXPECTED_SLOT_VALUE.getBytes();
 
         domainBuilder
                 .contractState()
@@ -86,8 +78,8 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         Optional<byte[]> result = contractStateService.findSlotValue(contract.toEntityId(), slotKey1);
 
         // Add new cache value after the bulk has already passed
-        final byte[] value2 = "test-value2".getBytes();
-        final byte[] slotKey2 = new byte[32];
+        final byte[] value2 = (EXPECTED_SLOT_VALUE + 2).getBytes();
+        final byte[] slotKey2 = EMPTY_BYTE_ARRAY;
         slotKey1[0] = 0x02;
         domainBuilder
                 .contractState()
@@ -98,12 +90,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         // Then
         assertThat(result).isPresent().contains(value);
         assertThat(result2).isPresent().contains(value2);
-
-        final var cacheSize = ((CaffeineCache) cacheManager.getCache(CACHE_NAME))
-                .getNativeCache()
-                .asMap()
-                .size();
-        assertThat(cacheSize).isEqualTo(2);
+        assertThat(getCacheSize()).isEqualTo(2);
     }
 
     @Test
@@ -121,14 +108,14 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         // When
         Optional<byte[]> result =
                 contractStateService.findSlotValue(contract.toEntityId(), contractStateOutsideOfRange.getSlot());
-        assertThat(result).isPresent().contains(("test-value" + outsideBulkLoadIndex).getBytes());
+        assertThat(result).isPresent().contains((EXPECTED_SLOT_VALUE + outsideBulkLoadIndex).getBytes());
 
         contractStateRepository.delete(contractStateOutsideOfRange);
 
         Optional<byte[]> result2 =
                 contractStateService.findSlotValue(contract.toEntityId(), contractStateOutsideOfRange.getSlot());
         // Then
-        assertThat(result2).isPresent().contains(("test-value" + outsideBulkLoadIndex).getBytes());
+        assertThat(result2).isPresent().contains((EXPECTED_SLOT_VALUE + outsideBulkLoadIndex).getBytes());
     }
 
     @Test
@@ -139,12 +126,12 @@ class ContractStateServiceTest extends Web3IntegrationTest {
                 .entity()
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
-        final byte[] value = "test-value".getBytes();
-        final byte[] slotKey1 = new byte[32];
+        final byte[] value = EXPECTED_SLOT_VALUE.getBytes();
+        final byte[] slotKey1 = EMPTY_BYTE_ARRAY;
         slotKey1[0] = 0x01;
 
         for (int i = 0; i < size; i++) {
-            final byte[] slotKey = new byte[32];
+            final byte[] slotKey = EMPTY_BYTE_ARRAY;
             slotKey[0] = (byte) i;
             domainBuilder
                     .contractState()
@@ -157,12 +144,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         // When
         Optional<byte[]> result = contractStateService.findSlotValue(contract.toEntityId(), slotKey1);
         assertThat(result).isPresent().contains(value);
-
-        final var cacheSize = ((CaffeineCache) cacheManager.getCache(CACHE_NAME))
-                .getNativeCache()
-                .asMap()
-                .size();
-        assertThat(cacheSize).isEqualTo(size);
+        assertThat(getCacheSize()).isEqualTo(size);
 
         contractStateRepository.deleteAll();
         final long countAfterDeleted = StreamSupport.stream(
@@ -185,15 +167,11 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         mirrorNodeEvmProperties.setBulkLoadStorage(false);
 
         // When
-        Optional<byte[]> result = contractStateService.findSlotValue(contract.toEntityId(), new byte[32]);
+        Optional<byte[]> result = contractStateService.findSlotValue(contract.toEntityId(), generateSlotKey(0));
 
         // Then
-        assertThat(result).isPresent().contains(("test-value0").getBytes());
-        final var cacheSize = ((CaffeineCache) cacheManager.getCache(CACHE_NAME))
-                .getNativeCache()
-                .asMap()
-                .size();
-        assertThat(cacheSize).isEqualTo(1);
+        assertThat(result).isPresent().contains((EXPECTED_SLOT_VALUE + 0).getBytes());
+        assertThat(getCacheSize()).isEqualTo(1);
     }
 
     @Test
@@ -204,8 +182,8 @@ class ContractStateServiceTest extends Web3IntegrationTest {
                 .entity()
                 .customize(e -> e.type(EntityType.CONTRACT).createdTimestamp(consensusTimestamp))
                 .persist();
-        final byte[] slotKey = new byte[32];
-        final byte[] value = "test-value".getBytes();
+        final byte[] slotKey = EMPTY_BYTE_ARRAY;
+        final byte[] value = EXPECTED_SLOT_VALUE.getBytes();
 
         domainBuilder
                 .contractStateChange()
@@ -222,17 +200,13 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
         // Then
         assertThat(result).isPresent().contains(value);
-
-        final var cacheSize = ((CaffeineCache) cacheManager.getCache(CACHE_NAME))
-                .getNativeCache()
-                .asMap()
-                .size();
-        assertThat(cacheSize).isZero();
+        assertThat(getCacheSize()).isZero();
     }
 
     @Test
     void testCacheDoesNotIncreaseInSize() throws InterruptedException {
         // Given
+        final int cacheLimit = 5000;
         final var contract = domainBuilder
                 .entity()
                 .customize(e -> e.type(EntityType.CONTRACT))
@@ -240,23 +214,19 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         persistContractStates(contract.getId(), 6500);
 
         // When
-        Optional<byte[]> result1 = contractStateService.findSlotValue(contract.toEntityId(), new byte[32]);
+        Optional<byte[]> result1 = contractStateService.findSlotValue(contract.toEntityId(), generateSlotKey(0));
 
         ContractCallContext.get().clear();
         Thread.sleep(2500);
 
-        Optional<byte[]> result2 = contractStateService.findSlotValue(contract.toEntityId(), new byte[32]);
+        Optional<byte[]> result2 = contractStateService.findSlotValue(contract.toEntityId(), generateSlotKey(1));
 
         // Then
-        final var expectedValue = "test-value0".getBytes();
-        assertThat(result1).isPresent().contains(expectedValue);
-        assertThat(result2).isPresent().contains(expectedValue);
-
-        final var cacheSize = ((CaffeineCache) cacheManager.getCache(CACHE_NAME))
-                .getNativeCache()
-                .asMap()
-                .size();
-        assertThat(cacheSize).isEqualTo(5000);
+        final var expectedValue1 = (EXPECTED_SLOT_VALUE + 0).getBytes();
+        final var expectedValue2 = (EXPECTED_SLOT_VALUE + 1).getBytes();
+        assertThat(result1).isPresent().contains(expectedValue1);
+        assertThat(result2).isPresent().contains(expectedValue2);
+        assertThat(getCacheSize()).isEqualTo(cacheLimit);
     }
 
     private void persistContractStates(final long contractId, final int size) {
@@ -266,15 +236,27 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     }
 
     private ContractState persistContractState(final long contractId, final int index) {
-        final byte[] slotKey = new byte[32];
-        final byte[] indexBytes = ByteBuffer.allocate(4).putInt(index).array();
-        System.arraycopy(indexBytes, 0, slotKey, 0, indexBytes.length);
+        final var slotKey = generateSlotKey(index);
 
-        final byte[] value = ("test-value" + index).getBytes();
+        final byte[] value = (EXPECTED_SLOT_VALUE + index).getBytes();
 
         return domainBuilder
                 .contractState()
                 .customize(cs -> cs.contractId(contractId).slot(slotKey).value(value))
                 .persist();
+    }
+
+    private byte[] generateSlotKey(final int index) {
+        final byte[] slotKey = new byte[32];
+        final byte[] indexBytes = ByteBuffer.allocate(4).putInt(index).array();
+        System.arraycopy(indexBytes, 0, slotKey, 0, indexBytes.length);
+        return slotKey;
+    }
+
+    private int getCacheSize() {
+        return ((CaffeineCache) cacheManager.getCache(CACHE_NAME))
+                .getNativeCache()
+                .asMap()
+                .size();
     }
 }
