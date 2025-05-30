@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -30,18 +32,17 @@ public class ContractCallContext {
     public static final String CONTEXT_NAME = "ContractCallContext";
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
 
-    @Getter(AccessLevel.NONE)
-    private final Map<String, Map<Object, Object>> readCache = new HashMap<>();
-
     @Getter
     private final long startTime = System.currentTimeMillis();
+
+    @Getter(AccessLevel.NONE)
+    private final Map<String, ConcurrentMap<Object, Object>> readCache = new HashMap<>();
 
     @Getter(AccessLevel.NONE)
     private final Map<String, Map<Object, Object>> writeCache = new HashMap<>();
 
     @Setter
     private List<ContractAction> contractActions = List.of();
-
     /**
      * This is used to determine the contract action index of the current frame. It starts from {@code -1} because when
      * the tracer receives the initial frame, it will increment this immediately inside
@@ -58,7 +59,6 @@ public class ContractCallContext {
 
     @Setter
     private CallServiceParameters callServiceParameters;
-
     /**
      * Record file which stores the block timestamp and other historical block details used for filtering of historical
      * data.
@@ -70,10 +70,8 @@ public class ContractCallContext {
     private EntityNumber entityNumber;
     /** Current top of stack (which is all linked together) */
     private CachingStateFrame<Object> stack;
-
     /** Fixed "base" of stack: a R/O cache frame on top of the DB-backed cache frame */
     private CachingStateFrame<Object> stackBase;
-
     /**
      * The timestamp used to fetch the state from the stackedStateFrames.
      */
@@ -163,8 +161,9 @@ public class ContractCallContext {
         return timestamp.or(() -> Optional.ofNullable(recordFile).map(RecordFile::getConsensusEnd));
     }
 
-    public Map<Object, Object> getReadCacheState(final String stateKey) {
-        return readCache.computeIfAbsent(stateKey, k -> new HashMap<>());
+    @SuppressWarnings("unchecked")
+    public <K, V> ConcurrentMap<K, V> getReadCacheState(String stateKey) {
+        return (ConcurrentMap<K, V>) readCache.computeIfAbsent(stateKey, k -> new ConcurrentHashMap<>());
     }
 
     public Map<Object, Object> getWriteCacheState(final String stateKey) {
