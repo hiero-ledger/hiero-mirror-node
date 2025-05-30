@@ -393,8 +393,7 @@ public class CallFeature extends AbstractFeature {
     @RetryAsserts
     @Then("I successfully update the balance of an account and get the updated balance after 2 seconds")
     public void getBalance() throws InterruptedException {
-        final var receiverAddress = asAddress(receiverAccountId.getAccountId());
-        var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, receiverAddress);
+        var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, receiverAccountAddress);
         var initialBalance = callContract(data, estimateContractAddress).getResultAsNumber();
         networkTransactionResponse = accountClient.sendCryptoTransfer(
                 receiverAccountId.getAccountId(),
@@ -650,8 +649,7 @@ public class CallFeature extends AbstractFeature {
 
         assertThat(approvedAddress)
                 .as("approved address should equal the spender")
-                .isEqualTo(to32BytesString(
-                        asAddress(receiverAccountId.getAccountId()).toString().toLowerCase()));
+                .isEqualTo(to32BytesString(receiverAccountAddress.toString().toLowerCase()));
     }
 
     @Then("I dissociate a FUNGIBLE token and fail transfer")
