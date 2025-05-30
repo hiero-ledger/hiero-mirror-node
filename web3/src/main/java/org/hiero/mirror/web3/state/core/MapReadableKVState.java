@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.core;
 
+import com.google.common.collect.ForwardingConcurrentMap;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.ReadableKVStateBase;
 import jakarta.annotation.Nonnull;
@@ -9,6 +10,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
+import org.hiero.mirror.web3.common.ContractCallContext;
 
 /**
  * A simple implementation of {@link ReadableKVState} backed by a
@@ -33,7 +35,12 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
      * @param backingStore The backing store to use
      */
     public MapReadableKVState(@Nonnull final String stateKey, @Nonnull final Map<K, V> backingStore) {
-        super(stateKey, (ConcurrentMap<K, V>) backingStore);
+        super(stateKey, new ForwardingConcurrentMap<K, V>() {
+            @Override
+            protected ConcurrentMap<K, V> delegate() {
+                return ContractCallContext.get().getReadCacheState(stateKey);
+            }
+        });
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 

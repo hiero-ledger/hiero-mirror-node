@@ -161,8 +161,9 @@ public class ContractCallContext {
         return timestamp.or(() -> Optional.ofNullable(recordFile).map(RecordFile::getConsensusEnd));
     }
 
-    public Map<Object, Object> getReadCacheState(final String stateKey) {
-        return readCache.computeIfAbsent(stateKey, k -> new ConcurrentHashMap<>());
+    @SuppressWarnings("unchecked")
+    public <K, V> ConcurrentMap<K, V> getReadCacheState(String stateKey) {
+        return (ConcurrentMap<K, V>) readCache.computeIfAbsent(stateKey, k -> new ConcurrentHashMap<>());
     }
 
     public Map<Object, Object> getWriteCacheState(final String stateKey) {
