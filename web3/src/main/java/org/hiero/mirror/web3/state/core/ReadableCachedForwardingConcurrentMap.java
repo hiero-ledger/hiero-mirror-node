@@ -8,6 +8,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.hiero.mirror.web3.common.ContractCallContext;
 
+/**
+ * This map uses the scoped readable cache from {@link ContractCallContext} as un underlying datasource.
+ * All calls to this map are forwarded internally to the above mentioned cache.
+ */
 @SuppressWarnings("unchecked")
 public class ReadableCachedForwardingConcurrentMap<K, V> extends ForwardingConcurrentMap<K, V> {
 
