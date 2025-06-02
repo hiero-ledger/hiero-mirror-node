@@ -940,6 +940,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with delete function for invalid token address")
     public void deleteTokenInvalidAddressEstimateGas() {
         String address = Hex.toHexString(ByteBuffer.allocate(20)
+                .putInt(0)
+                .putLong(0)
                 .putLong(new SecureRandom().nextLong(NUM_MAX_SIZE / 100, NUM_MAX_SIZE))
                 .array());
 
