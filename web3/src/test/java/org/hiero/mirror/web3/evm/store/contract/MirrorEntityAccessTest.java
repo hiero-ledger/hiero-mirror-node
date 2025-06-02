@@ -22,7 +22,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.evm.store.Store.OnMissing;
 import org.hiero.mirror.web3.repository.ContractRepository;
-import org.hiero.mirror.web3.repository.ContractStateRepository;
+import org.hiero.mirror.web3.state.service.ContractStateService;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -46,10 +46,10 @@ class MirrorEntityAccessTest {
             Address.fromHexString("0x23f5e49569a835d7bf9aefd30e4f60cdd570f225");
 
     @Mock
-    private ContractRepository contractRepository;
+    private ContractStateService contractStateService;
 
     @Mock
-    private ContractStateRepository contractStateRepository;
+    private ContractRepository contractRepository;
 
     @Mock
     private Account account;
@@ -64,7 +64,7 @@ class MirrorEntityAccessTest {
 
     @BeforeEach
     void setUp() {
-        mirrorEntityAccess = new MirrorEntityAccess(contractStateRepository, contractRepository, store);
+        mirrorEntityAccess = new MirrorEntityAccess(contractRepository, contractStateService, store);
     }
 
     @Test
@@ -218,8 +218,7 @@ class MirrorEntityAccessTest {
     @Test
     void getStorage() {
         when(store.getHistoricalTimestamp()).thenReturn(Optional.empty());
-        when(contractStateRepository.findStorage(ENTITY_ID, BYTES.toArrayUnsafe()))
-                .thenReturn(Optional.of(DATA));
+        when(contractStateService.findStorage(ENTITY_ID, BYTES.toArrayUnsafe())).thenReturn(Optional.of(DATA));
         final var result = UInt256.fromBytes(mirrorEntityAccess.getStorage(ADDRESS, BYTES));
         assertThat(result).isEqualTo(UInt256.fromHexString(HEX));
     }
@@ -228,7 +227,7 @@ class MirrorEntityAccessTest {
     void getStorageHistorical() {
         byte[] trimmedKey = ADDRESS.trimLeadingZeros().toArrayUnsafe();
         when(store.getHistoricalTimestamp()).thenReturn(timestamp);
-        when(contractStateRepository.findStorageByBlockTimestamp(ENTITY_ID, trimmedKey, timestamp.get()))
+        when(contractStateService.findStorageByBlockTimestamp(ENTITY_ID, trimmedKey, timestamp.get()))
                 .thenReturn(Optional.of(DATA));
         final var result = UInt256.fromBytes(mirrorEntityAccess.getStorage(ADDRESS, BYTES));
         assertThat(result).isEqualTo(UInt256.fromHexString(HEX));

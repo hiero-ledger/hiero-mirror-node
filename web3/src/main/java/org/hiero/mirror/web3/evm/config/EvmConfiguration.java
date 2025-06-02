@@ -76,6 +76,8 @@ import org.springframework.context.annotation.Primary;
 public class EvmConfiguration {
 
     public static final String CACHE_MANAGER_CONTRACT = "contract";
+    public static final String CACHE_MANAGER_CONTRACT_SLOT_TRACKING = "contractSlotTrackingCacheManager";
+    public static final int CACHE_MANAGER_CONTRACT_SLOT_TRACKING_MAX_SLOT_CACHED = 2500;
     public static final String CACHE_MANAGER_CONTRACT_STATE = "contractState";
     public static final String CACHE_MANAGER_ENTITY = "entity";
     public static final String CACHE_MANAGER_RECORD_FILE_LATEST = "recordFileLatest";
@@ -88,6 +90,7 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_TOKEN_TYPE = "tokenType";
     public static final String CACHE_NAME = "default";
     public static final String CACHE_NAME_CONTRACT = "contract";
+    public static final String CACHE_NAME_CONTRACT_SLOT_TRACKING = "contractSlotTracking";
     public static final String CACHE_NAME_EVM_ADDRESS = "evmAddress";
     public static final String CACHE_NAME_ALIAS = "alias";
     public static final String CACHE_NAME_EXCHANGE_RATE = "exchangeRate";
@@ -143,6 +146,14 @@ public class EvmConfiguration {
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME, CACHE_NAME_EVM_ADDRESS, CACHE_NAME_ALIAS));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getEntity());
         return caffeineCacheManager;
+    }
+
+    @Bean(CACHE_MANAGER_CONTRACT_SLOT_TRACKING)
+    public CacheManager contractSlotTrackingCacheManager() {
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+        cacheManager.setCacheNames(Set.of(CACHE_NAME_CONTRACT_SLOT_TRACKING));
+        cacheManager.setCacheSpecification(cacheProperties.getContractSlots());
+        return cacheManager;
     }
 
     @Bean(CACHE_MANAGER_TOKEN)
