@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.AbstractContractCallServiceHistoricalTest;
 import org.hiero.mirror.web3.web3j.generated.HIP756Contract;
@@ -18,6 +19,9 @@ import org.junit.jupiter.api.Test;
  * This test class validates the correct results for schedule create token transactions via smart contract calls.
  */
 class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHistoricalTest {
+    private final String PREFIX = "0x";
+    private final String SCHEDULE_ADDRESS_REGEX = "^0x[0-9a-fA-F]+$";
+    private final int SCHEDULE_ADDRESS_LENGTH = 42;
 
     @Test
     void scheduleCreateFungibleTokenTest() throws Exception {
@@ -26,7 +30,7 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         final var autoRenew = accountEntityPersist();
 
         final var sendFunction = contract.send_scheduleCreateFT(
-                getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), BigInteger.valueOf(0));
+                getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), DEFAULT_WEI_VALUE);
         final var callFunction =
                 contract.call_scheduleCreateFT(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -37,9 +41,9 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
             assertThat(callFunctionResult.component1())
                     .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
             assertThat(callFunctionResult.component2())
-                    .startsWith("0x")
-                    .hasSize(42)
-                    .matches("^0x[0-9a-fA-F]+$");
+                    .startsWith(PREFIX)
+                    .hasSize(SCHEDULE_ADDRESS_LENGTH)
+                    .matches(SCHEDULE_ADDRESS_REGEX);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -57,7 +61,7 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
                 getAddressFromEntity(autoRenew),
                 getAddressFromEntity(treasury),
                 getAddressFromEntity(designatedPayer),
-                BigInteger.valueOf(0));
+                DEFAULT_WEI_VALUE);
         final var callFunction = contract.call_scheduleCreateFTWithDesignatedPayer(
                 getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), getAddressFromEntity(designatedPayer));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -68,9 +72,9 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
             assertThat(callFunctionResult.component1())
                     .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
             assertThat(callFunctionResult.component2())
-                    .startsWith("0x")
-                    .hasSize(42)
-                    .matches("^0x[0-9a-fA-F]+$");
+                    .startsWith(PREFIX)
+                    .hasSize(SCHEDULE_ADDRESS_LENGTH)
+                    .matches(SCHEDULE_ADDRESS_REGEX);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -84,7 +88,7 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         final var autoRenew = accountEntityPersist();
 
         final var sendFunction = contract.send_scheduleCreateNFT(
-                getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), BigInteger.valueOf(0));
+                getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), DEFAULT_WEI_VALUE);
         final var callFunction =
                 contract.call_scheduleCreateNFT(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -95,9 +99,9 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
             assertThat(callFunctionResult.component1())
                     .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
             assertThat(callFunctionResult.component2())
-                    .startsWith("0x")
-                    .hasSize(42)
-                    .matches("^0x[0-9a-fA-F]+$");
+                    .startsWith(PREFIX)
+                    .hasSize(SCHEDULE_ADDRESS_LENGTH)
+                    .matches(SCHEDULE_ADDRESS_REGEX);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -115,7 +119,7 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
                 getAddressFromEntity(autoRenew),
                 getAddressFromEntity(treasury),
                 getAddressFromEntity(designatedPayer),
-                BigInteger.valueOf(0));
+                DEFAULT_WEI_VALUE);
         final var callFunction = contract.call_scheduleCreateNFTWithDesignatedPayer(
                 getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), getAddressFromEntity(designatedPayer));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -126,9 +130,9 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
             assertThat(callFunctionResult.component1())
                     .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
             assertThat(callFunctionResult.component2())
-                    .startsWith("0x")
-                    .hasSize(42)
-                    .matches("^0x[0-9a-fA-F]+$");
+                    .startsWith(PREFIX)
+                    .hasSize(SCHEDULE_ADDRESS_LENGTH)
+                    .matches(SCHEDULE_ADDRESS_REGEX);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -147,15 +151,15 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
                 getAddressFromEntity(treasury),
                 getAddressFromEntity(autoRenew),
                 token.getName(),
-                "FUNG",
-                "Memo");
+                token.getSymbol(),
+                new String(token.getMetadata(), StandardCharsets.UTF_8));
         final var callFunction = contract.call_scheduleUpdateTreasuryAndAutoRenewAcc(
                 toAddress(token.getTokenId()).toHexString(),
                 getAddressFromEntity(treasury),
                 getAddressFromEntity(autoRenew),
                 token.getName(),
-                "FUNG",
-                "Memo");
+                token.getName(),
+                new String(token.getMetadata(), StandardCharsets.UTF_8));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
             final var callFunctionResult = callFunction.send();
@@ -164,9 +168,9 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
             assertThat(callFunctionResult.component1())
                     .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
             assertThat(callFunctionResult.component2())
-                    .startsWith("0x")
-                    .hasSize(42)
-                    .matches("^0x[0-9a-fA-F]+$");
+                    .startsWith(PREFIX)
+                    .hasSize(SCHEDULE_ADDRESS_LENGTH)
+                    .matches(SCHEDULE_ADDRESS_REGEX);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -186,16 +190,16 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
                 getAddressFromEntity(treasury),
                 getAddressFromEntity(autoRenew),
                 token.getName(),
-                "FUNG",
-                "Memo",
+                token.getName(),
+                new String(token.getMetadata(), StandardCharsets.UTF_8),
                 getAddressFromEntity(designatedPayer));
         final var callFunction = contract.call_scheduleUpdateTreasuryAndAutoRenewAccWithDesignatedPayer(
                 toAddress(token.getTokenId()).toHexString(),
                 getAddressFromEntity(treasury),
                 getAddressFromEntity(autoRenew),
                 token.getName(),
-                "FUNG",
-                "Memo",
+                token.getName(),
+                new String(token.getMetadata(), StandardCharsets.UTF_8),
                 getAddressFromEntity(designatedPayer));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
@@ -205,9 +209,9 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
             assertThat(callFunctionResult.component1())
                     .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
             assertThat(callFunctionResult.component2())
-                    .startsWith("0x")
-                    .hasSize(42)
-                    .matches("^0x[0-9a-fA-F]+$");
+                    .startsWith(PREFIX)
+                    .hasSize(SCHEDULE_ADDRESS_LENGTH)
+                    .matches(SCHEDULE_ADDRESS_REGEX);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());

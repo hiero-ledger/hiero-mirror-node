@@ -39,7 +39,6 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceTest {
 
-    private static final BigInteger DEFAULT_WEI_VALUE = BigInteger.ZERO;
     private static final BigInteger DEFAULT_DEPLOYED_CONTRACT_BALANCE = BigInteger.valueOf(100_000_000L);
     private static final BigInteger DEPLOYED_BALANCE_1_BILLION = BigInteger.valueOf(1_000_000_000L);
     private static final BigInteger DEPLOYED_BALANCE_10_BILLION = BigInteger.valueOf(10_000_000_000L);

@@ -99,6 +99,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final BigInteger DEFAULT_FEE_MIN_VALUE = BigInteger.valueOf(1L);
     protected static final BigInteger DEFAULT_FEE_MAX_VALUE = BigInteger.valueOf(1000L);
     protected static final String ED_25519 = "Ed25519";
+    protected static final BigInteger DEFAULT_WEI_VALUE = BigInteger.ZERO;
 
     @Resource
     protected TestWeb3jService testWeb3jService;
