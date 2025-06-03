@@ -17,7 +17,7 @@ dependencies {
     implementation("com.github.docker-java:docker-java-api:$dockerJavaVersion")
     implementation("com.github.docker-java:docker-java-core:$dockerJavaVersion")
     implementation("com.bmuschko:gradle-docker-plugin:9.4.0")
-    implementation("com.diffplug.spotless:spotless-plugin-gradle:7.0.3")
+    implementation("com.diffplug.spotless:spotless-plugin-gradle:7.0.4")
     implementation("com.gradleup.shadow:shadow-gradle-plugin:8.3.6")
     implementation("com.github.node-gradle:gradle-node-plugin:7.1.0")
     implementation("com.google.protobuf:protobuf-gradle-plugin:0.9.5")
@@ -40,7 +40,7 @@ dependencies {
     implementation("org.owasp:dependency-check-gradle:12.1.1")
     implementation("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:6.2.0.5505")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:3.5.0")
-    implementation("org.testcontainers:postgresql:1.21.0")
+    implementation("org.testcontainers:postgresql:1.21.1")
     implementation("org.web3j:web3j-gradle-plugin:4.14.0")
 }
 

@@ -16,11 +16,11 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("grpcVersion", "1.72.0")
+    set("grpcVersion", "1.73.0")
     set("jooq.version", "3.20.4") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.14.0")
-    set("protobufVersion", "4.31.0")
+    set("protobufVersion", "4.31.1")
     set("reactorGrpcVersion", "1.2.4")
     set("vertxVersion", "4.5.14")
     set("tuweniVersion", "2.3.1")
@@ -58,7 +58,7 @@ dependencies {
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.19.0")
-        api("io.cucumber:cucumber-bom:7.22.2")
+        api("io.cucumber:cucumber-bom:7.23.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.9.10")
@@ -86,9 +86,9 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.9")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.springframework.cloud:spring-cloud-dependencies:2025.0.0")
-        api("org.testcontainers:junit-jupiter:1.21.0")
+        api("org.testcontainers:junit-jupiter:1.21.1")
         api("org.mockito:mockito-inline:5.2.0")
-        api("software.amazon.awssdk:bom:2.31.50")
+        api("software.amazon.awssdk:bom:2.31.54")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
         api("org.web3j:core:4.12.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
