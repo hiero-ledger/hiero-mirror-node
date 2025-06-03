@@ -50,8 +50,8 @@ public class ContractStateService {
         updateCachedSlotKeys(contractId, key);
 
         if (cachedValue == null) {
-            Set<String> cachedSlotKeys = queriedSlotsCache.get(contractId, LinkedHashSet::new);
-            List<ContractSlotValue> slotKeyValuePairs = findStorageBatch(contractId, cachedSlotKeys);
+            final Set<String> cachedSlotKeys = queriedSlotsCache.get(contractId, LinkedHashSet::new);
+            final var slotKeyValuePairs = findStorageBatch(contractId, cachedSlotKeys);
 
             return slotKeyValuePairs.stream()
                     .filter(slotKeyValuePair -> Arrays.equals(slotKeyValuePair.slot(), key))
@@ -63,8 +63,13 @@ public class ContractStateService {
         }
     }
 
+    public Optional<byte[]> findStorageByBlockTimestamp(
+            final Long entityId, final byte[] slotKeyByteArray, final long blockTimestamp) {
+        return contractStateRepository.findStorageByBlockTimestamp(entityId, slotKeyByteArray, blockTimestamp);
+    }
+
     private void updateCachedSlotKeys(Long contractId, byte[] slotKey) {
-        String encodeSlotKey = encodeSlotKey(slotKey);
+        final var encodeSlotKey = encodeSlotKey(slotKey);
         Set<String> cachedSlotKeys = queriedSlotsCache.get(contractId, LinkedHashSet::new);
         if (cachedSlotKeys != null) {
             if (!cachedSlotKeys.contains(encodeSlotKey)) {
@@ -85,43 +90,37 @@ public class ContractStateService {
         }
     }
 
-    private List<ContractSlotValue> findStorageBatch(final Long contractId, Set<String> encodedSlotKeys) {
+    private List<ContractSlotValue> findStorageBatch(final Long contractId, final Set<String> encodedSlotKeys) {
         if (encodedSlotKeys != null && !encodedSlotKeys.isEmpty()) {
-            List<byte[]> decodedSlotKeys =
+            final var decodedSlotKeys =
                     encodedSlotKeys.stream().map(this::decodeSlotKey).toList();
 
-            List<ContractSlotValue> slotKeyValuePairs =
-                    contractStateRepository.findStorageBatch(contractId, decodedSlotKeys);
+            final var slotKeyValuePairs = contractStateRepository.findStorageBatch(contractId, decodedSlotKeys);
             cacheSlotValues(contractId, slotKeyValuePairs);
             return slotKeyValuePairs;
         }
         return new ArrayList<>();
     }
 
-    private void cacheSlotValues(Long contractId, List<ContractSlotValue> slotKeyValuePairs) {
+    private void cacheSlotValues(final Long contractId, final List<ContractSlotValue> slotKeyValuePairs) {
         for (ContractSlotValue slotKeyValuePair : slotKeyValuePairs) {
-            byte[] slotKey = slotKeyValuePair.slot();
-            byte[] slotValue = slotKeyValuePair.value();
+            final byte[] slotKey = slotKeyValuePair.slot();
+            final byte[] slotValue = slotKeyValuePair.value();
             if (slotValue != null) {
                 findStorageCache.put(generateCacheKey(contractId, slotKey), slotValue);
             }
         }
     }
 
-    private String encodeSlotKey(byte[] slotKey) {
+    private String encodeSlotKey(final byte[] slotKey) {
         return Base64.getEncoder().encodeToString(slotKey);
     }
 
-    private byte[] decodeSlotKey(String slotKeyBase64) {
+    private byte[] decodeSlotKey(final String slotKeyBase64) {
         return Base64.getDecoder().decode(slotKeyBase64);
     }
 
     private Object generateCacheKey(final Long contractId, final byte[] slotKey) {
         return SimpleKeyGenerator.generateKey(contractId, encodeSlotKey(slotKey));
-    }
-
-    public Optional<byte[]> findStorageByBlockTimestamp(
-            final Long entityId, final byte[] slotKeyByteArray, final long blockTimestamp) {
-        return contractStateRepository.findStorageByBlockTimestamp(entityId, slotKeyByteArray, blockTimestamp);
     }
 }
