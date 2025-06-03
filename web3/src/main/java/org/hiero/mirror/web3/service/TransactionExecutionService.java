@@ -19,11 +19,13 @@ import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
+import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.config.data.EntitiesConfig;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.CustomLog;
@@ -67,7 +69,7 @@ public class TransactionExecutionService {
         final var configuration = mirrorNodeEvmProperties.getVersionedConfiguration();
         final var maxLifetime =
                 configuration.getConfigData(EntitiesConfig.class).maxLifetime();
-        var executor = transactionExecutorFactory.get();
+        final var executor = transactionExecutorFactory.get();
 
         TransactionBody transactionBody;
         HederaEvmTransactionProcessingResult result = null;
@@ -77,18 +79,19 @@ public class TransactionExecutionService {
             transactionBody = buildContractCallTransactionBody(params, estimatedGas);
         }
 
-        var receipt = executor.execute(transactionBody, Instant.now(), getOperationTracers());
-        var transactionRecord = receipt.getFirst().transactionRecord();
-        if (transactionRecord.receiptOrThrow().status() == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS) {
-            result = buildSuccessResult(isContractCreate, transactionRecord, params);
+        final var receipt = executor.execute(transactionBody, Instant.now(), getOperationTracers());
+        final var parentTransactionStatus =
+                receipt.getFirst().transactionRecord().receiptOrThrow().status();
+        if (parentTransactionStatus == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS) {
+            result = buildSuccessResult(isContractCreate, receipt, params);
         } else {
-            result = handleFailedResult(transactionRecord, isContractCreate);
+            result = handleFailedResult(receipt, isContractCreate);
         }
         return result;
     }
 
     private ContractFunctionResult getTransactionResult(
-            final TransactionRecord transactionRecord, boolean isContractCreate) {
+            final TransactionRecord transactionRecord, final boolean isContractCreate) {
         return isContractCreate
                 ? transactionRecord.contractCreateResultOrThrow()
                 : transactionRecord.contractCallResultOrThrow();
@@ -96,9 +99,31 @@ public class TransactionExecutionService {
 
     private HederaEvmTransactionProcessingResult buildSuccessResult(
             final boolean isContractCreate,
-            final TransactionRecord transactionRecord,
+            final List<SingleTransactionRecord> transactionRecords,
             final CallServiceParameters params) {
-        var result = getTransactionResult(transactionRecord, isContractCreate);
+        final var parentTransaction = transactionRecords.getFirst().transactionRecord();
+        final var childTransactionErrors = new ArrayList<String>();
+        // skipping parent transaction
+        for (int i = 1; i < transactionRecords.size(); i++) {
+            final var record = transactionRecords.get(i).transactionRecord();
+
+            if (record.receipt().status() == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS) {
+                continue;
+            }
+            addErrorMessage(isContractCreate, record, childTransactionErrors);
+        }
+
+        final var result = getTransactionResult(parentTransaction, isContractCreate);
+
+        if (!childTransactionErrors.isEmpty()) {
+            // there are some child transactions that failed but parent is SUCCESS, logging a warning
+            final var contractId = result.contractID();
+            log.warn(
+                    "Child transaction errors present for contract: {} with successful parent transaction, isModularized: {}, errors: {}",
+                    contractId.hasContractNum() ? contractId.contractNum() : contractId.evmAddress(),
+                    true,
+                    childTransactionErrors);
+        }
 
         return HederaEvmTransactionProcessingResult.successful(
                 List.of(),
@@ -110,23 +135,34 @@ public class TransactionExecutionService {
     }
 
     private HederaEvmTransactionProcessingResult handleFailedResult(
-            final TransactionRecord transactionRecord, final boolean isContractCreate)
+            final List<SingleTransactionRecord> transactionRecords, final boolean isContractCreate)
             throws MirrorEvmTransactionException {
-        var result =
-                isContractCreate ? transactionRecord.contractCreateResult() : transactionRecord.contractCallResult();
-        var status = transactionRecord.receiptOrThrow().status().protoName();
+        final var parentTransactionRecord = transactionRecords.getFirst().transactionRecord();
+        final var result = isContractCreate
+                ? parentTransactionRecord.contractCreateResult()
+                : parentTransactionRecord.contractCallResult();
+        final var status = parentTransactionRecord.receiptOrThrow().status().protoName();
         if (result == null) {
             // No result - the call did not reach the EVM and probably failed at pre-checks. No metric to update in this
             // case.
             throw new MirrorEvmTransactionException(status, StringUtils.EMPTY, StringUtils.EMPTY, true);
         } else {
-            var errorMessage = getErrorMessage(result).orElse(Bytes.EMPTY);
-            var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessage);
+            final var errorMessage = getErrorMessage(result).orElse(Bytes.EMPTY);
+            final var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessage);
+
+            final var childTransactionErrors = new ArrayList<String>();
+
+            for (int i = 1; i < transactionRecords.size(); i++) {
+                final var record = transactionRecords.get(i).transactionRecord();
+                addErrorMessage(isContractCreate, record, childTransactionErrors);
+            }
+
             if (ContractCallContext.get().getOpcodeTracerOptions() == null) {
                 var processingResult = HederaEvmTransactionProcessingResult.failed(
                         result.gasUsed(), 0L, 0L, Optional.of(errorMessage), Optional.empty());
+
                 throw new MirrorEvmTransactionException(
-                        status, detail, errorMessage.toHexString(), processingResult, true);
+                        status, detail, errorMessage.toHexString(), processingResult, true, childTransactionErrors);
             } else {
                 // If we are in an opcode trace scenario, we need to return a failed result in order to get the
                 // opcode list from the ContractCallContext. If we throw an exception instead of returning a result,
@@ -154,7 +190,7 @@ public class TransactionExecutionService {
     }
 
     private TransactionBody buildContractCreateTransactionBody(
-            final CallServiceParameters params, long estimatedGas, long maxLifetime) {
+            final CallServiceParameters params, final long estimatedGas, final long maxLifetime) {
         return defaultTransactionBodyBuilder(params)
                 .contractCreateInstance(ContractCreateTransactionBody.newBuilder()
                         .initcode(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
@@ -239,5 +275,30 @@ public class TransactionExecutionService {
         return ContractCallContext.get().getOpcodeTracerOptions() != null
                 ? new OperationTracer[] {opcodeTracer}
                 : new OperationTracer[] {mirrorOperationTracer};
+    }
+
+    private String extractErrorMessage(final ContractFunctionResult contractFunctionResult) {
+        final var errorBytes = getErrorMessage(contractFunctionResult).orElse(Bytes.EMPTY);
+
+        if (errorBytes.isEmpty()) {
+            return contractFunctionResult.errorMessage();
+        }
+
+        final var decodedErrorMessage = maybeDecodeSolidityErrorStringToReadableMessage(errorBytes);
+        return StringUtils.defaultIfBlank(decodedErrorMessage, contractFunctionResult.errorMessage());
+    }
+
+    private void addErrorMessage(
+            final boolean isContractCreate, final TransactionRecord record, final List<String> childTransactionErrors) {
+        final var result = isContractCreate ? record.contractCreateResult() : record.contractCallResult();
+
+        if (result == null || StringUtils.isBlank(result.errorMessage())) {
+            return;
+        }
+
+        final var errorMessage = extractErrorMessage(result);
+        if (StringUtils.isNotBlank(errorMessage) && !childTransactionErrors.contains(errorMessage)) {
+            childTransactionErrors.add(errorMessage);
+        }
     }
 }
