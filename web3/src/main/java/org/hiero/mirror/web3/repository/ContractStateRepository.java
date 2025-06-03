@@ -23,10 +23,10 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
     @Query(
             value =
                     """
-    SELECT slot, value FROM contract_state
-    WHERE contract_id = :contractId
-    AND slot IN (:slots)
-    """,
+                    select slot, value from contract_state
+                    where contract_id = :contractId
+                    and slot in (:slots)
+                    """,
             nativeQuery = true)
     List<ContractSlotValue> findStorageBatch(@Param("contractId") Long contractId, @Param("slots") List<byte[]> slots);
 
