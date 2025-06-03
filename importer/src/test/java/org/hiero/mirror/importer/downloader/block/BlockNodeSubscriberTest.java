@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
@@ -274,12 +273,12 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         // the single get() call will get 3 blocks because the first will not stay in the backpressure buffer, and when
         // the forth block gets to the buffer, it overflows
         var shutdownLatch = new CountDownLatch(1);
-        var verifySemaphore = new Semaphore(0);
+        var verifyLatch = new CountDownLatch(1);
         doReturn(Optional.of(9L)).when(blockStreamVerifier).getLastBlockNumber();
         doReturn(new BlockFile()).when(blockStreamReader).read(any());
         doAnswer(invocation -> {
                     shutdownLatch.countDown();
-                    verifySemaphore.acquire();
+                    verifyLatch.await();
                     return null;
                 })
                 .when(blockStreamVerifier)
@@ -302,7 +301,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                         shutdownLatch.await();
                         server.shutdown();
                         server.awaitTermination();
-                        verifySemaphore.release(3);
+                        verifyLatch.countDown();
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
