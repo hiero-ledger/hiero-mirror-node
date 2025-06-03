@@ -53,7 +53,7 @@ class DomainUtilsTest {
             + "ed7495515c1e88a40f58fd6f94f8d9f14613470ba873d395293ea5542ddea56550f44d5760f57394693a889a43ab6f73b3a55448"
             + "8ecadacc328cb02594a2a5e9e46602010e2430203010001";
     private static final String EMPTY_EVM_ADDRESS = "0000000000000000000000000000000000000000";
-    private static final String MAX_LONG_EVM_ADDRESS = "000001FF000000000000FFFF0000003FFFFFFFFF";
+    private static final String MAX_LONG_EVM_ADDRESS = "0000000000000000000000000000003FFFFFFFFF";
 
     private static Stream<Arguments> paddingByteProvider() {
         return Stream.of(
@@ -330,7 +330,7 @@ class DomainUtilsTest {
     @Test
     void toEvmAddressEntityId() {
         var entityId = EntityId.of(1, 2, 255);
-        var expected = "00000001000000000000000200000000000000FF";
+        var expected = "00000000000000000000000000000000000000FF";
         assertThat(DomainUtils.toEvmAddress(entityId)).asHexString().isEqualTo(expected);
         assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((EntityId) null));
         assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress(EntityId.EMPTY));
@@ -354,12 +354,14 @@ class DomainUtilsTest {
 
     @Test
     void toEvmAddressId() {
-        assertThat(DomainUtils.toEvmAddress(Long.MAX_VALUE)).asHexString().isEqualTo(MAX_LONG_EVM_ADDRESS);
+        assertThat(DomainUtils.toEvmAddress(EntityId.of(Long.MAX_VALUE).getNum()))
+                .asHexString()
+                .isEqualTo(MAX_LONG_EVM_ADDRESS);
     }
 
     @Test
     void toEvmAddressContractID() throws Exception {
-        var expected = "00000001000000000000000200000000000000FF";
+        var expected = "00000000000000000000000000000000000000FF";
         var contractId = ContractID.newBuilder()
                 .setShardNum(1)
                 .setRealmNum(2)

@@ -7,11 +7,10 @@ import com.hedera.hapi.node.base.KeyList;
 import com.hedera.hapi.node.base.Timestamp;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.Arrays;
 import lombok.experimental.UtilityClass;
-import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hyperledger.besu.datatypes.Address;
 
 @UtilityClass
@@ -58,10 +57,8 @@ public class Utils {
             return true;
         }
 
-        var entityId = DomainUtils.fromEvmAddress(address);
-        var commonProperties = CommonProperties.getInstance();
-        return entityId != null
-                && entityId.getShard() == commonProperties.getShard()
-                && entityId.getRealm() == commonProperties.getRealm();
+        var wrapper = ByteBuffer.wrap(address);
+
+        return wrapper.getInt() == 0 && wrapper.getLong() == 0;
     }
 }

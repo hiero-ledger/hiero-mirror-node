@@ -25,6 +25,7 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -266,15 +267,16 @@ public class DomainUtils {
         return UnsafeByteOperations.unsafeWrap(bytes);
     }
 
-    // The 'shard.realm.num' form evm address has 4 bytes for shard, and 8 bytes each for realm and num.
     public static EntityId fromEvmAddress(byte[] evmAddress) {
+        var commonProperties = CommonProperties.getInstance();
+
         try {
             if (evmAddress != null && evmAddress.length == EVM_ADDRESS_LENGTH) {
-                ByteBuffer buffer = ByteBuffer.wrap(evmAddress);
-                return EntityId.of(buffer.getInt(), buffer.getLong(), buffer.getLong());
+                return EntityId.of(
+                        commonProperties.getShard(), commonProperties.getRealm(), numFromEvmAddress(evmAddress));
             }
         } catch (InvalidEntityException ex) {
-            log.debug("Failed to parse shard.realm.num form evm address into EntityId", ex);
+            log.debug("Failed to parse long zero evm address into EntityId", ex);
         }
         return null;
     }
@@ -288,7 +290,7 @@ public class DomainUtils {
             return toBytes(contractId.getEvmAddress());
         }
 
-        return toEvmAddress((int) contractId.getShardNum(), contractId.getRealmNum(), contractId.getContractNum());
+        return toEvmAddress(contractId.getContractNum());
     }
 
     public static byte[] toEvmAddress(AccountID accountId) {
@@ -296,15 +298,14 @@ public class DomainUtils {
             throw new InvalidEntityException("Invalid accountId");
         }
 
-        return toEvmAddress((int) accountId.getShardNum(), accountId.getRealmNum(), accountId.getAccountNum());
+        return toEvmAddress(accountId.getAccountNum());
     }
 
     public static byte[] toEvmAddress(TokenID tokenId) {
         if (tokenId == null) {
             throw new InvalidEntityException("Invalid tokenID");
         }
-
-        return toEvmAddress((int) tokenId.getShardNum(), tokenId.getRealmNum(), tokenId.getTokenNum());
+        return toEvmAddress(tokenId.getTokenNum());
     }
 
     public static byte[] toEvmAddress(EntityId contractId) {
@@ -312,18 +313,14 @@ public class DomainUtils {
             throw new InvalidEntityException("Empty contractId");
         }
 
-        return toEvmAddress((int) contractId.getShard(), contractId.getRealm(), contractId.getNum());
+        return toEvmAddress(contractId.getNum());
     }
 
-    public static byte[] toEvmAddress(long id) {
-        return toEvmAddress(EntityId.of(id));
-    }
-
-    private static byte[] toEvmAddress(int shard, long realm, long num) {
-        byte[] evmAddress = new byte[EVM_ADDRESS_LENGTH];
-        ByteBuffer buffer = ByteBuffer.wrap(evmAddress);
-        buffer.putInt(shard);
-        buffer.putLong(realm);
+    public static byte[] toEvmAddress(long num) {
+        var evmAddress = new byte[EVM_ADDRESS_LENGTH];
+        var buffer = ByteBuffer.wrap(evmAddress);
+        buffer.putInt(0);
+        buffer.putLong(0);
         buffer.putLong(num);
         return evmAddress;
     }
@@ -373,5 +370,16 @@ public class DomainUtils {
         public void writeLazy(ByteBuffer value) throws IOException {
             throw new UnsupportedOperationException();
         }
+    }
+
+    private static long numFromEvmAddress(final byte[] bytes) {
+        if (bytes.length != EVM_ADDRESS_LENGTH) {
+            return 0;
+        }
+
+        var wrapper = ByteBuffer.wrap(bytes);
+        wrapper.getInt();
+        wrapper.getLong();
+        return wrapper.getLong();
     }
 }

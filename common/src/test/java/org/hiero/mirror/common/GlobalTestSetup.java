@@ -2,12 +2,15 @@
 
 package org.hiero.mirror.common;
 
+import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.launcher.LauncherSession;
 import org.junit.platform.launcher.LauncherSessionListener;
 import org.junit.platform.launcher.TestExecutionListener;
+import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.TestPlan;
 
 public class GlobalTestSetup implements LauncherSessionListener, TestExecutionListener {
+    private CommonProperties originalCommonProperties;
 
     @Override
     public void launcherSessionOpened(LauncherSession session) {
@@ -23,7 +26,21 @@ public class GlobalTestSetup implements LauncherSessionListener, TestExecutionLi
         try {
             CommonProperties.getInstance();
         } catch (IllegalStateException ex) {
-            new CommonProperties().init();
+            var commonProperties = new CommonProperties();
+            commonProperties.init();
+        } finally {
+            var commonProperties = CommonProperties.getInstance();
+
+            originalCommonProperties = new CommonProperties();
+            originalCommonProperties.setShard(commonProperties.getShard());
+            originalCommonProperties.setRealm(commonProperties.getRealm());
         }
+    }
+
+    @Override
+    public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
+        var commonProperties = CommonProperties.getInstance();
+        commonProperties.setShard(originalCommonProperties.getShard());
+        commonProperties.setRealm(originalCommonProperties.getRealm());
     }
 }
