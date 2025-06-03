@@ -38,6 +38,9 @@ const encodedEntityIdRegex = /^-?\d{1,19}$/;
 const evmAddressShardRealmRegex = /^(\d{1,4}\.)?(\d{1,5}\.)?[A-Fa-f0-9]{40}$/;
 const evmAddressRegex = /^(0x)?[A-Fa-f0-9]{40}$/;
 
+// 0x prefix + 12-byte 0s
+const longFormEvmAddressPrefix = `${constants.HEX_PREFIX}${'00'.repeat(12)}`;
+
 class EntityId {
   /**
    * Creates an EntityId instance
@@ -94,14 +97,7 @@ class EntityId {
     }
 
     // shard, realm, and num take 4, 8, and 8 bytes respectively from the left
-    return this.num === null
-      ? null
-      : [
-          constants.HEX_PREFIX,
-          toHex(this.shard).padStart(8, '0'),
-          toHex(this.realm).padStart(16, '0'),
-          toHex(this.num).padStart(16, '0'),
-        ].join('');
+    return this.num === null ? null : `${longFormEvmAddressPrefix}${toHex(this.num).padStart(16, '0')}`;
   }
 
   toString() {
@@ -156,8 +152,9 @@ const isEvmAddressAlias = (evmAddress) => {
   if (!isValidEvmAddress(evmAddress)) {
     return false;
   }
+
   const parts = parseFromEvmAddress(evmAddress);
-  return parts[0] !== systemShard || parts[1] !== systemRealm || parts[2] > maxNum;
+  return parts[0] !== 0n || parts[1] !== 0n || parts[2] > maxNum;
 };
 
 /**
@@ -257,10 +254,10 @@ const parseFromString = (id, error) => {
 
     let [addressShard, addressRealm, num] = parseFromEvmAddress(numOrEvmAddress);
 
-    if (addressShard !== systemShard || addressRealm !== systemRealm || num > maxNum) {
+    if (addressShard !== 0n || addressRealm !== 0n || num > maxNum) {
       return [shard, realm, null, numOrEvmAddress]; // Opaque EVM address
     } else {
-      return [addressShard, addressRealm, num, null]; // Account num alias
+      return [shard, realm, num, null]; // Account num alias
     }
   }
 

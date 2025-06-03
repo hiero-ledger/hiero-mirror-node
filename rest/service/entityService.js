@@ -16,16 +16,12 @@ class EntityService extends BaseService {
   static entityFromAliasQuery = `select ${Entity.ID}
                                  from ${Entity.tableName}
                                  where coalesce(${Entity.DELETED}, false) <> true
-                                   and ${Entity.SHARD} = $1
-                                   and ${Entity.REALM} = $2
-                                   and ${Entity.ALIAS} = $3`;
+                                   and ${Entity.ALIAS} = $1`;
 
   static entityFromEvmAddressQuery = `select ${Entity.ID}
                                       from ${Entity.tableName}
                                       where ${Entity.DELETED} <> true
-                                        and ${Entity.SHARD} = $1
-                                        and ${Entity.REALM} = $2
-                                        and ${Entity.EVM_ADDRESS} = $3`;
+                                        and ${Entity.EVM_ADDRESS} = $1`;
 
   // use a small column in existence check to reduce return payload size
   static entityExistenceQuery = `select ${Entity.TYPE}
@@ -43,8 +39,7 @@ class EntityService extends BaseService {
    * @return {Promise<Entity>} raw entity object
    */
   async getAccountFromAlias(accountAlias) {
-    const params = [accountAlias.shard, accountAlias.realm, accountAlias.alias];
-    const rows = await super.getRows(EntityService.entityFromAliasQuery, params);
+    const rows = await super.getRows(EntityService.entityFromAliasQuery, [accountAlias.alias]);
 
     if (_.isEmpty(rows)) {
       return null;
@@ -92,8 +87,7 @@ class EntityService extends BaseService {
    * @return {Promise<BigInt|Number>}
    */
   async getEntityIdFromEvmAddress(entityId, requireResult = true) {
-    const params = [entityId.shard, entityId.realm, Buffer.from(entityId.evmAddress, 'hex')];
-    const rows = await this.getRows(EntityService.entityFromEvmAddressQuery, params);
+    const rows = await this.getRows(EntityService.entityFromEvmAddressQuery, [Buffer.from(entityId.evmAddress, 'hex')]);
     if (rows.length === 0) {
       if (requireResult) {
         throw new NotFoundError();
