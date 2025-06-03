@@ -3,17 +3,20 @@
 package org.hiero.mirror.web3.state.service;
 
 import static java.util.Objects.requireNonNull;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHED_SLOTS_MAX_SIZE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOT_TRACKING;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOT_TRACKING_MAX_SLOT_CACHED;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_CONTRACT_SLOT_TRACKING;
 
 import jakarta.inject.Named;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
@@ -43,43 +46,78 @@ public class ContractStateService {
     }
 
     public Optional<byte[]> findStorage(final Long contractId, final byte[] key) {
-        Object cacheKey = SimpleKeyGenerator.generateKey(contractId, key);
-        if (findStorageCache.get(cacheKey) == null) {
+        final var cachedValue = findStorageCache.get(generateCacheKey(contractId, key));
+        updateCachedSlotKeys(contractId, key);
+
+        if (cachedValue == null) {
             Set<String> cachedSlotKeys = queriedSlotsCache.get(contractId, LinkedHashSet::new);
-            String queriedSlotKey = Base64.getEncoder().encodeToString(key);
-            if (cachedSlotKeys != null) {
-                if (!cachedSlotKeys.contains(queriedSlotKey)) {
-                    cachedSlotKeys.add(queriedSlotKey);
-                    if (cachedSlotKeys.size() > CACHE_MANAGER_CONTRACT_SLOT_TRACKING_MAX_SLOT_CACHED) {
-                        Iterator<String> it = cachedSlotKeys.iterator();
-                        if (it.hasNext()) {
-                            it.next();
-                            it.remove();
-                        }
-                    }
-                    queriedSlotsCache.put(contractId, cachedSlotKeys);
-                }
+            List<ContractSlotValue> slotKeyValuePairs = findStorageBatch(contractId, cachedSlotKeys);
 
-                if (cachedSlotKeys.size() > 1) {
-                    List<byte[]> decodedCachedSlotKeys = cachedSlotKeys.stream()
-                            .map(Base64.getDecoder()::decode)
-                            .toList();
+            return slotKeyValuePairs.stream()
+                    .filter(slotKeyValuePair -> Arrays.equals(slotKeyValuePair.slot(), key))
+                    .map(ContractSlotValue::value)
+                    .filter(Objects::nonNull)
+                    .findFirst();
+        } else {
+            return Optional.ofNullable((byte[]) cachedValue.get());
+        }
+    }
 
-                    List<ContractSlotValue> slotKeyValuePairs =
-                            contractStateRepository.findStorageBatch(contractId, decodedCachedSlotKeys);
-                    for (ContractSlotValue slotKeyValuePair : slotKeyValuePairs) {
-                        byte[] slotKey = slotKeyValuePair.slot();
-                        byte[] slotValue = slotKeyValuePair.value();
-
-                        if (slotValue != null) {
-                            findStorageCache.put(SimpleKeyGenerator.generateKey(contractId, slotKey), slotValue);
-                        }
+    private void updateCachedSlotKeys(Long contractId, byte[] slotKey) {
+        String encodeSlotKey = encodeSlotKey(slotKey);
+        Set<String> cachedSlotKeys = queriedSlotsCache.get(contractId, LinkedHashSet::new);
+        if (cachedSlotKeys != null) {
+            if (!cachedSlotKeys.contains(encodeSlotKey)) {
+                cachedSlotKeys.add(encodeSlotKey);
+                if (cachedSlotKeys.size() > CACHED_SLOTS_MAX_SIZE) {
+                    Iterator<String> it = cachedSlotKeys.iterator();
+                    if (it.hasNext()) {
+                        it.next();
+                        it.remove();
                     }
                 }
+                queriedSlotsCache.put(contractId, cachedSlotKeys);
+            }
+        } else {
+            cachedSlotKeys = new LinkedHashSet<>();
+            cachedSlotKeys.add(encodeSlotKey);
+            queriedSlotsCache.put(contractId, cachedSlotKeys);
+        }
+    }
+
+    private List<ContractSlotValue> findStorageBatch(final Long contractId, Set<String> encodedSlotKeys) {
+        if (encodedSlotKeys != null && !encodedSlotKeys.isEmpty()) {
+            List<byte[]> decodedSlotKeys =
+                    encodedSlotKeys.stream().map(this::decodeSlotKey).toList();
+
+            List<ContractSlotValue> slotKeyValuePairs =
+                    contractStateRepository.findStorageBatch(contractId, decodedSlotKeys);
+            cacheSlotValues(contractId, slotKeyValuePairs);
+            return slotKeyValuePairs;
+        }
+        return new ArrayList<>();
+    }
+
+    private void cacheSlotValues(Long contractId, List<ContractSlotValue> slotKeyValuePairs) {
+        for (ContractSlotValue slotKeyValuePair : slotKeyValuePairs) {
+            byte[] slotKey = slotKeyValuePair.slot();
+            byte[] slotValue = slotKeyValuePair.value();
+            if (slotValue != null) {
+                findStorageCache.put(generateCacheKey(contractId, slotKey), slotValue);
             }
         }
+    }
 
-        return contractStateRepository.findStorage(contractId, key);
+    private String encodeSlotKey(byte[] slotKey) {
+        return Base64.getEncoder().encodeToString(slotKey);
+    }
+
+    private byte[] decodeSlotKey(String slotKeyBase64) {
+        return Base64.getDecoder().decode(slotKeyBase64);
+    }
+
+    private Object generateCacheKey(final Long contractId, final byte[] slotKey) {
+        return SimpleKeyGenerator.generateKey(contractId, encodeSlotKey(slotKey));
     }
 
     public Optional<byte[]> findStorageByBlockTimestamp(
