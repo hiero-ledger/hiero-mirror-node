@@ -52,7 +52,7 @@ dependencies {
         api("com.hedera.hashgraph:app:0.63.5")
         api("com.hedera.evm:hedera-evm:0.54.2")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:0.62.3")
-        api("com.hedera.hashgraph:sdk:2.56.1")
+        api("com.hedera.hashgraph:sdk:2.57.0")
         api("com.ongres.scram:client:2.1")
         api("com.playtika.testcontainers:embedded-google-pubsub:3.1.13")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
