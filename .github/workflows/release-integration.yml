@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - "main"
-      - "fix-google-github-actions-auth-config"
 
 permissions:
   contents: write
@@ -37,8 +36,8 @@ jobs:
       CONTEXT: ${{ matrix.project }}
       IMAGE: gcr.io/mirrornode/hedera-mirror-${{ matrix.project }}
     permissions:
-      contents: 'read'
-      id-token: 'write'
+      contents: "read"
+      id-token: "write"
     runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
@@ -68,9 +67,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: step-security/google-github-auth@40f6deebd366f16c782d7a0ad0844e3b96a032a6 # v2.1.10
         with:
-          project_id: "${{ secrets.GCR_PROJECT_ID }}"
-          service_account: "${{ secrets.GCR_SERVICE_ACCOUNT }}"
-          workload_identity_provider: "${{ secrets.GCR_WORKLOAD_IDENTITY_PROVIDER }}"
+          service_account: "mirrornode-gh-actions-sa@mirrornode.iam.gserviceaccount.com"
+          workload_identity_provider: "projects/521285740332/locations/global/workloadIdentityPools/mirrornode-gh-actions/providers/mirrornode-gh-actions"
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@77e7a554d41e2ee56fc945c52dfd3f33d12def9a # v2.1.4
@@ -105,41 +103,41 @@ jobs:
           platforms: linux/amd64, linux/arm64
           provenance: false
           push: true
-          tags: "${{env.IMAGE}}:main-${{ github.sha }}"
+          tags: "${{env.IMAGE}}:${{env.VERSION}},${{env.IMAGE}}:main,${{env.IMAGE}}:main-${{ github.sha }}"
 
-#  deploy:
-#    needs: publish
-#    runs-on: hiero-mirror-node-linux-medium
-#    steps:
-#      - name: Harden Runner
-#        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
-#        with:
-#          egress-policy: audit
-#
-#      - name: Checkout code
-#        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-#        with:
-#          ref: deploy
-#          token: ${{ secrets.HEDERA_BOT_TOKEN }}
-#
-#      - name: Import GPG Key
-#        id: gpg_importer
-#        uses: step-security/ghaction-import-gpg@c86c374c0659a6c2d1284bccf8af889e73ce8fe0 # v6.3.0
-#        with:
-#          git_commit_gpgsign: true
-#          git_tag_gpgsign: true
-#          git_user_signingkey: true
-#          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-#          passphrase: ${{ secrets.GPG_PASSPHRASE }}
-#
-#      - name: Update integration deployment configuration
-#        run: 'sed -i "s/git.commit: .*/git.commit: ${GITHUB_SHA}/" clusters/preprod/integration/helmrelease.yaml'
-#
-#      - name: Auto-Commit
-#        uses: stefanzweifel/git-auto-commit-action@b863ae1933cb653a53c021fe36dbb774e1fb9403 # v5.2.0
-#        with:
-#          commit_author: ${{ steps.gpg_importer.outputs.name }} <${{ steps.gpg_importer.outputs.email }}>
-#          commit_message: Upgrade integration to main ${{ github.sha }}
-#          commit_options: "--no-verify --signoff"
-#          commit_user_email: ${{ steps.gpg_importer.outputs.email }}
-#          commit_user_name: ${{ steps.gpg_importer.outputs.name }}
+  deploy:
+    needs: publish
+    runs-on: hiero-mirror-node-linux-medium
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: deploy
+          token: ${{ secrets.HEDERA_BOT_TOKEN }}
+
+      - name: Import GPG Key
+        id: gpg_importer
+        uses: step-security/ghaction-import-gpg@c86c374c0659a6c2d1284bccf8af889e73ce8fe0 # v6.3.0
+        with:
+          git_commit_gpgsign: true
+          git_tag_gpgsign: true
+          git_user_signingkey: true
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Update integration deployment configuration
+        run: 'sed -i "s/git.commit: .*/git.commit: ${GITHUB_SHA}/" clusters/preprod/integration/helmrelease.yaml'
+
+      - name: Auto-Commit
+        uses: stefanzweifel/git-auto-commit-action@b863ae1933cb653a53c021fe36dbb774e1fb9403 # v5.2.0
+        with:
+          commit_author: ${{ steps.gpg_importer.outputs.name }} <${{ steps.gpg_importer.outputs.email }}>
+          commit_message: Upgrade integration to main ${{ github.sha }}
+          commit_options: "--no-verify --signoff"
+          commit_user_email: ${{ steps.gpg_importer.outputs.email }}
+          commit_user_name: ${{ steps.gpg_importer.outputs.name }}
