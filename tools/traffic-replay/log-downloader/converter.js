@@ -2,15 +2,13 @@
 
 import fs from 'fs';
 
+import {RestParser, Web3Parser} from './parser/index.js';
+
 class GoReplayConverter {
   static #CRLF = '\r\n';
-  static #HTTP_HEADERS = ['Host: 127.0.0.1:80', 'User-Agent: curl/8.8.0', 'Accept: */*', GoReplayConverter.#CRLF].join(
-    GoReplayConverter.#CRLF
-  );
-  static #INPUT_LINE_REGEX = /^([\d\-TZ:.]+) .* GET (.*) in \d+ ms: .*$/;
+  static #HTTP_HEADERS = ['Host: 127.0.0.1:80', 'User-Agent: curl/8.8.0', 'Accept: */*'].join(GoReplayConverter.#CRLF);
   static #LOG_INTERVAL = 5; // log every 5 seconds
-  static #PAYLOAD_SEPARATOR = '\n🐵🙈🙉\n';
-  static #LOG_SUFFIX = `${GoReplayConverter.#HTTP_HEADERS}${GoReplayConverter.#PAYLOAD_SEPARATOR}`; // just hardcode it
+  static #PAYLOAD_SEPARATOR = '🐵🙈🙉\n';
   static #PAYLOAD_TYPE = 1; // request
   static #REQUEST_DURATION = 0; // hardcode it to 0 since it's not used in replay
 
@@ -19,9 +17,11 @@ class GoReplayConverter {
   #lastStatSeconds;
   #startSeconds;
   #outputStream;
+  #parser;
 
-  constructor(outputFile) {
+  constructor(outputFile, service) {
     this.#outputStream = fs.createWriteStream(outputFile);
+    this.#parser = service === 'rest' ? new RestParser() : new Web3Parser();
   }
 
   accept(line) {
@@ -45,22 +45,29 @@ class GoReplayConverter {
   }
 
   #convertLine(line) {
-    const match = line?.match(GoReplayConverter.#INPUT_LINE_REGEX);
-    if (!match) {
+    const request = this.#parser.parse(line);
+    if (!request) {
       return null;
     }
 
-    const epochMs = new Date(match[1]).getTime();
-    const requestUrl = match[2];
+    const {timestamp} = request;
     // Logs are gathered from multiple pods in a distributed fashion, so it's possible that the timestamps from the
     // ordered logs are out of order. Workaround it by make sure the timestamp doesn't go backwards and the impact to
     // traffic replay is negligible.
-    const logTimestamp = epochMs > this.#lastLogTimestamp ? epochMs : this.#lastLogTimestamp;
+    const logTimestamp = timestamp > this.#lastLogTimestamp ? timestamp : this.#lastLogTimestamp;
     this.#lastLogTimestamp = logTimestamp;
-    // The time in rest api log is at millis granularity, but goreplay requires nanos, so just suffix with 000000
-    return `${GoReplayConverter.#PAYLOAD_TYPE} ${getUUID()} ${logTimestamp}000000 ${
-      GoReplayConverter.#REQUEST_DURATION
-    }\nGET ${requestUrl} HTTP/1.1${GoReplayConverter.#CRLF}${GoReplayConverter.#LOG_SUFFIX}`;
+    const body = `${request.body ?? ''}\n`;
+    const headers = [GoReplayConverter.#HTTP_HEADERS, ...(request.headers ?? [])].join(GoReplayConverter.#CRLF);
+    // Timestamp is in millis, but goreplay requires nanos, so just suffix with 000000
+    const logTimestampNs = `${logTimestamp}000000`;
+    return (
+      `${GoReplayConverter.#PAYLOAD_TYPE} ${getUUID()} ${logTimestampNs} ${GoReplayConverter.#REQUEST_DURATION}\n` +
+      `${request.verb} ${request.url} HTTP/1.1${GoReplayConverter.#CRLF}` +
+      `${headers}${GoReplayConverter.#CRLF}` +
+      GoReplayConverter.#CRLF +
+      body +
+      GoReplayConverter.#PAYLOAD_SEPARATOR
+    );
   }
 
   #recordOne() {
