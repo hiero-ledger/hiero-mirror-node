@@ -27,7 +27,7 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         final var autoRenew = accountEntityPersist();
 
         final var sendFunction = contract.send_scheduleCreateFT(
-                getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), DEFAULT_WEI_VALUE);
+                getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), DEFAULT_TINYBAR_VALUE);
         final var callFunction =
                 contract.call_scheduleCreateFT(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -51,7 +51,7 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
                 getAddressFromEntity(autoRenew),
                 getAddressFromEntity(treasury),
                 getAddressFromEntity(designatedPayer),
-                DEFAULT_WEI_VALUE);
+                DEFAULT_TINYBAR_VALUE);
         final var callFunction = contract.call_scheduleCreateFTWithDesignatedPayer(
                 getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), getAddressFromEntity(designatedPayer));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -71,7 +71,7 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         final var autoRenew = accountEntityPersist();
 
         final var sendFunction = contract.send_scheduleCreateNFT(
-                getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), DEFAULT_WEI_VALUE);
+                getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), DEFAULT_TINYBAR_VALUE);
         final var callFunction =
                 contract.call_scheduleCreateNFT(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -95,7 +95,7 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
                 getAddressFromEntity(autoRenew),
                 getAddressFromEntity(treasury),
                 getAddressFromEntity(designatedPayer),
-                DEFAULT_WEI_VALUE);
+                DEFAULT_TINYBAR_VALUE);
         final var callFunction = contract.call_scheduleCreateNFTWithDesignatedPayer(
                 getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), getAddressFromEntity(designatedPayer));
         if (mirrorNodeEvmProperties.isModularizedServices()) {
