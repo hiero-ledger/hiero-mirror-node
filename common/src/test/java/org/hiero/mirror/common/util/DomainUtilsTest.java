@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.stream.Stream;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.junit.jupiter.api.DisplayName;
@@ -304,14 +305,14 @@ class DomainUtilsTest {
 
     @Test
     void fromEvmAddress() {
-        var shard = 1;
-        var realm = 2;
+        var commonProperties = CommonProperties.getInstance();
+        commonProperties.setShard(1);
+        commonProperties.setRealm(2);
+
         var num = 255;
         var evmAddress = new byte[20];
-        evmAddress[3] = (byte) shard;
-        evmAddress[11] = (byte) realm;
         evmAddress[19] = (byte) num;
-        EntityId expected = EntityId.of(shard, realm, num);
+        EntityId expected = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), num);
         assertThat(DomainUtils.fromEvmAddress(evmAddress)).isEqualTo(expected);
 
         evmAddress[0] = (byte) 255;

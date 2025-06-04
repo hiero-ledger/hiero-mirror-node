@@ -37,6 +37,7 @@ import org.hiero.mirror.common.exception.ProtobufException;
 public class DomainUtils {
 
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+    private static final byte[] MIRROR_PREFIX = new byte[12];
     public static final int EVM_ADDRESS_LENGTH = 20;
     public static final long TINYBARS_IN_ONE_HBAR = 100_000_000L;
 
@@ -271,7 +272,8 @@ public class DomainUtils {
         var commonProperties = CommonProperties.getInstance();
 
         try {
-            if (evmAddress != null && evmAddress.length == EVM_ADDRESS_LENGTH) {
+
+            if (isLongZeroEvmAddress(evmAddress)) {
                 return EntityId.of(
                         commonProperties.getShard(), commonProperties.getRealm(), numFromEvmAddress(evmAddress));
             }
@@ -381,5 +383,15 @@ public class DomainUtils {
         wrapper.getInt();
         wrapper.getLong();
         return wrapper.getLong();
+    }
+
+    private static boolean isLongZeroEvmAddress(final byte[] bytes) {
+        if (bytes == null || bytes.length != EVM_ADDRESS_LENGTH) {
+            return false;
+        }
+
+        var wrapper = ByteBuffer.wrap(bytes);
+
+        return wrapper.getInt() == 0 && wrapper.getLong() == 0;
     }
 }
