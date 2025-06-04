@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.downloader.block;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -27,6 +28,7 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 import lombok.SneakyThrows;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusRequest;
@@ -37,12 +39,14 @@ import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
+import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -114,7 +118,10 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         // then
         assertCalls(statusCalls, expectedStatusCalls);
         assertCalls(streamCalls, expectedStreamCalls);
-        verify(blockStreamReader).read(any());
+        verify(blockStreamReader).read(argThat(blockStream -> {
+            assertBlockStream(blockStream, lastBlockNumber + 1);
+            return true;
+        }));
         verify(blockStreamVerifier).getLastBlockNumber();
         verify(blockStreamVerifier).verify(any());
     }
@@ -204,9 +211,14 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         // then
         assertCalls(statusCalls, "3,1,0");
         assertCalls(streamCalls, "3,1,0");
-        verify(blockStreamReader, times(2)).read(any());
         verify(blockStreamVerifier, times(4)).getLastBlockNumber();
         verify(blockStreamVerifier, times(2)).verify(any());
+
+        var captor = ArgumentCaptor.forClass(BlockStream.class);
+        verify(blockStreamReader, times(2)).read(captor.capture());
+        var values = captor.getAllValues();
+        assertBlockStream(values.getFirst(), 10);
+        assertBlockStream(values.get(1), 11);
     }
 
     @Test
@@ -258,9 +270,14 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         // then
         assertCalls(statusCalls, "4,4,0");
         assertCalls(streamCalls, "3,4,0");
-        verify(blockStreamReader, times(2)).read(any());
         verify(blockStreamVerifier, times(7)).getLastBlockNumber();
         verify(blockStreamVerifier, times(2)).verify(any());
+
+        var captor = ArgumentCaptor.forClass(BlockStream.class);
+        verify(blockStreamReader, times(2)).read(captor.capture());
+        var values = captor.getAllValues();
+        assertBlockStream(values.getFirst(), 10);
+        assertBlockStream(values.get(1), 11);
     }
 
     @Test
@@ -314,9 +331,24 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         // then
         assertThat(statusCalls.get(SERVER_NAMES[0])).isEqualTo(1);
         assertThat(streamCalls.get(SERVER_NAMES[0])).isEqualTo(1);
-        verify(blockStreamReader, times(3)).read(any());
         verify(blockStreamVerifier).getLastBlockNumber();
         verify(blockStreamVerifier, times(3)).verify(any());
+
+        var captor = ArgumentCaptor.forClass(BlockStream.class);
+        verify(blockStreamReader, times(3)).read(captor.capture());
+        var values = captor.getAllValues();
+        assertBlockStream(values.getFirst(), 10);
+        assertBlockStream(values.get(1), 11);
+        assertBlockStream(values.get(2), 12);
+    }
+
+    private void assertBlockStream(BlockStream actual, long blockNumber) {
+        assertThat(actual)
+                .returns(null, BlockStream::bytes)
+                .returns(BlockFile.getFilename(blockNumber, false), BlockStream::filename)
+                .returns(-1L, BlockStream::nodeId)
+                .extracting(BlockStream::loadStart, InstanceOfAssertFactories.LONG)
+                .isGreaterThan(0L);
     }
 
     private void assertCalls(Map<String, Integer> calls, String expected) {

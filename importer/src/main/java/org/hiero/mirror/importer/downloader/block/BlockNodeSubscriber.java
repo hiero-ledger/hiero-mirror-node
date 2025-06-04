@@ -21,6 +21,8 @@ import reactor.core.scheduler.Schedulers;
 @Named
 public final class BlockNodeSubscriber extends AbstractBlockSource {
 
+    private static final long UNKNOWN_NODE_ID = -1;
+
     private final Map<Integer, List<BlockNode>> nodes = new TreeMap<>();
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
@@ -105,6 +107,6 @@ public final class BlockNodeSubscriber extends AbstractBlockSource {
         var blockItems = streamedBlock.blockItems();
         var blockHeader = blockItems.getFirst().getBlockHeader();
         var filename = BlockFile.getFilename(blockHeader.getNumber(), false);
-        return new BlockStream(blockItems, null, filename, streamedBlock.loadStart(), null);
+        return new BlockStream(blockItems, null, filename, streamedBlock.loadStart(), UNKNOWN_NODE_ID);
     }
 }
