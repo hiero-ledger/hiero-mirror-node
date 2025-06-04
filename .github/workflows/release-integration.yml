@@ -36,6 +36,9 @@ jobs:
     env:
       CONTEXT: ${{ matrix.project }}
       IMAGE: gcr.io/mirrornode/hedera-mirror-${{ matrix.project }}
+    permissions:
+      contents: 'read'
+      id-token: 'write'
     runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
