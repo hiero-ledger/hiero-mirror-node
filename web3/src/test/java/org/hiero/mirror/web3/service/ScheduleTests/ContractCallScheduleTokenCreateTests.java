@@ -19,9 +19,6 @@ import org.junit.jupiter.api.Test;
  * This test class validates the correct results for schedule create token transactions via smart contract calls.
  */
 class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHistoricalTest {
-    private final String PREFIX = "0x";
-    private final String SCHEDULE_ADDRESS_REGEX = "^0x[0-9a-fA-F]+$";
-    private final int SCHEDULE_ADDRESS_LENGTH = 42;
 
     @Test
     void scheduleCreateFungibleTokenTest() throws Exception {
@@ -36,14 +33,7 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
             final var callFunctionResult = callFunction.send();
-            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
-            // format and the status of the result
-            assertThat(callFunctionResult.component1())
-                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(callFunctionResult.component2())
-                    .startsWith(PREFIX)
-                    .hasSize(SCHEDULE_ADDRESS_LENGTH)
-                    .matches(SCHEDULE_ADDRESS_REGEX);
+            verifyCallFunctionResult(callFunctionResult);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -67,14 +57,7 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
             final var callFunctionResult = callFunction.send();
-            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
-            // format and the status of the result
-            assertThat(callFunctionResult.component1())
-                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(callFunctionResult.component2())
-                    .startsWith(PREFIX)
-                    .hasSize(SCHEDULE_ADDRESS_LENGTH)
-                    .matches(SCHEDULE_ADDRESS_REGEX);
+            verifyCallFunctionResult(callFunctionResult);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -94,14 +77,7 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
             final var callFunctionResult = callFunction.send();
-            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
-            // format and the status of the result
-            assertThat(callFunctionResult.component1())
-                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(callFunctionResult.component2())
-                    .startsWith(PREFIX)
-                    .hasSize(SCHEDULE_ADDRESS_LENGTH)
-                    .matches(SCHEDULE_ADDRESS_REGEX);
+            verifyCallFunctionResult(callFunctionResult);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -125,14 +101,7 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
             final var callFunctionResult = callFunction.send();
-            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
-            // format and the status of the result
-            assertThat(callFunctionResult.component1())
-                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(callFunctionResult.component2())
-                    .startsWith(PREFIX)
-                    .hasSize(SCHEDULE_ADDRESS_LENGTH)
-                    .matches(SCHEDULE_ADDRESS_REGEX);
+            verifyCallFunctionResult(callFunctionResult);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -163,14 +132,7 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
             final var callFunctionResult = callFunction.send();
-            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
-            // format and the status of the result
-            assertThat(callFunctionResult.component1())
-                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(callFunctionResult.component2())
-                    .startsWith(PREFIX)
-                    .hasSize(SCHEDULE_ADDRESS_LENGTH)
-                    .matches(SCHEDULE_ADDRESS_REGEX);
+            verifyCallFunctionResult(callFunctionResult);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
@@ -204,17 +166,17 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             verifyEthCallAndEstimateGas(sendFunction, contract);
             final var callFunctionResult = callFunction.send();
-            // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
-            // format and the status of the result
-            assertThat(callFunctionResult.component1())
-                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(callFunctionResult.component2())
-                    .startsWith(PREFIX)
-                    .hasSize(SCHEDULE_ADDRESS_LENGTH)
-                    .matches(SCHEDULE_ADDRESS_REGEX);
+            verifyCallFunctionResult(callFunctionResult);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
         }
+    }
+
+    protected void verifyCallFunctionResult(final org.web3j.tuples.generated.Tuple2<BigInteger, String> functionCall) {
+        // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
+        // format and the status of the result
+        assertThat(functionCall.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+        assertThat(functionCall.component2()).startsWith("0x").hasSize(42).matches("^0x[0-9a-fA-F]+$");
     }
 }
