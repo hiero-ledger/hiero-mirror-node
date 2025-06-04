@@ -339,7 +339,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void wrongMethodSignatureEstimateCall() {
         var mockContractId = ContractId.fromSolidityAddress(mockAddress);
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryWithoutParams(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryWithoutParams(
                         mockContractId,
                         WRONG_METHOD_SIGNATURE.getSelector(),
                         senderAccountId,
@@ -360,7 +360,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with non-existing from address in the request body")
     public void wrongFromParameterEstimateCall() throws ExecutionException, InterruptedException {
         if (!web3Properties.isModularizedServices()) {
-            var estimateGasResult = contractClient.estimateGasQueryWithoutParams(
+            var estimateGasResult = mirrorClient.estimateGasQueryWithoutParams(
                     estimateGasContractId,
                     MESSAGE_SIGNER.getSelector(),
                     senderAccountId,
@@ -483,7 +483,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void progressiveStateUpdateContractFunction() throws ExecutionException, InterruptedException {
         // making 5 times to state update
         final var firstParams = new ContractFunctionParameters().addUint256(new BigInteger("5"));
-        var firstResponse = contractClient.estimateGasQueryTopLevelCall(
+        var firstResponse = mirrorClient.estimateGasQueryTopLevelCall(
                 estimateGasContractId,
                 STATE_UPDATE_OF_CONTRACT.getSelector(),
                 firstParams,
@@ -492,7 +492,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 Optional.empty());
         // making 10 times to state update
         final var secondParams = new ContractFunctionParameters().addUint256(new BigInteger("10"));
-        var secondResponse = contractClient.estimateGasQueryTopLevelCall(
+        var secondResponse = mirrorClient.estimateGasQueryTopLevelCall(
                 estimateGasContractId,
                 STATE_UPDATE_OF_CONTRACT.getSelector(),
                 secondParams,
@@ -546,7 +546,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 .addUint256(new BigInteger("1"))
                 .addUint256(new BigInteger("500"))
                 .addAddress(asAddress(contractSolidityAddress).toString());
-        var estimateGasResult = contractClient.estimateGasQueryNestedCall(
+        var estimateGasResult = mirrorClient.estimateGasQueryNestedCall(
                 estimateGasContractId,
                 NESTED_CALLS_LIMITED.getSelector(),
                 firstParameters,
@@ -560,7 +560,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 .addUint256(new BigInteger("1024"))
                 .addAddress(asAddress(contractSolidityAddress).toString());
 
-        final var secondEstimateGasResult = contractClient.estimateGasQueryNestedCall(
+        final var secondEstimateGasResult = mirrorClient.estimateGasQueryNestedCall(
                 estimateGasContractId,
                 NESTED_CALLS_LIMITED.getSelector(),
                 secondParameters,
@@ -574,7 +574,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 .addUint256(new BigInteger("1025"))
                 .addAddress(asAddress(contractSolidityAddress).toString());
 
-        final var thirdEstimateGasResult = contractClient.estimateGasQueryNestedCall(
+        final var thirdEstimateGasResult = mirrorClient.estimateGasQueryNestedCall(
                 estimateGasContractId,
                 NESTED_CALLS_LIMITED.getSelector(),
                 thirdParameters,

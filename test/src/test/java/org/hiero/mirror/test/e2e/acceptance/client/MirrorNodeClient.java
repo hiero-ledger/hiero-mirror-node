@@ -3,23 +3,40 @@
 package org.hiero.mirror.test.e2e.acceptance.client;
 
 import static org.awaitility.Awaitility.await;
+import static org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties.HederaNetwork.OTHER;
 import static org.hiero.mirror.test.e2e.acceptance.config.RestProperties.URL_PREFIX;
 
 import com.google.common.base.Stopwatch;
+import com.google.protobuf.ByteString;
 import com.hedera.hashgraph.sdk.AccountId;
+import com.hedera.hashgraph.sdk.Client;
+import com.hedera.hashgraph.sdk.ContractFunctionParameters;
+import com.hedera.hashgraph.sdk.ContractId;
+import com.hedera.hashgraph.sdk.Hbar;
+import com.hedera.hashgraph.sdk.LedgerId;
+import com.hedera.hashgraph.sdk.MirrorNodeContractEstimateGasQuery;
 import com.hedera.hashgraph.sdk.SubscriptionHandle;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.TopicMessageQuery;
+import com.hedera.hashgraph.sdk.proto.AccountID;
+import com.hedera.hashgraph.sdk.proto.NodeAddress;
+import com.hedera.hashgraph.sdk.proto.NodeAddressBook;
+import com.hedera.hashgraph.sdk.proto.ServiceEndpoint;
 import jakarta.inject.Named;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.awaitility.Awaitility;
 import org.awaitility.Durations;
@@ -55,12 +72,16 @@ import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.rest.model.TransactionsResponse;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.RestJavaProperties;
+import org.hiero.mirror.test.e2e.acceptance.config.SdkProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
+import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
+import org.hiero.mirror.test.e2e.acceptance.props.NodeProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 import org.springframework.retry.RetryContext;
 import org.springframework.retry.policy.MaxAttemptsRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestClient;
 
 @CustomLog
@@ -73,12 +94,22 @@ public class MirrorNodeClient {
     private final RetryTemplate retryTemplate;
     private final RestClient web3Client;
     private final Web3Properties web3Properties;
+    private final SdkProperties sdkProperties;
+    private final Client queryClient;
+    private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED = 30;
+    private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS = 100;
+    private static final long GAS_PRICE = 1_000_000L;
+    private static final String RESET_IP = "1.0.0.0";
+    private final ExpandedAccountId defaultOperator;
 
     public MirrorNodeClient(
             AcceptanceTestProperties acceptanceTestProperties,
             RestClient.Builder restClientBuilder,
             RestJavaProperties restJavaProperties,
-            Web3Properties web3Properties) {
+            Web3Properties web3Properties)
+            throws InterruptedException {
+        defaultOperator = new ExpandedAccountId(
+                acceptanceTestProperties.getOperatorId(), acceptanceTestProperties.getOperatorKey());
         this.acceptanceTestProperties = acceptanceTestProperties;
         this.restClient = restClientBuilder.build();
         this.restJavaClient = StringUtils.isBlank(restJavaProperties.getBaseUrl())
@@ -87,6 +118,10 @@ public class MirrorNodeClient {
         this.web3Client = StringUtils.isBlank(web3Properties.getBaseUrl())
                 ? restClient
                 : restClientBuilder.baseUrl(web3Properties.getBaseUrl()).build();
+        //        this.queryClient = Client.forNetwork(Map.of()).setLedgerId(ledgerId);
+        //        queryClient.setNetworkFromAddressBook(
+        //                com.hedera.hashgraph.sdk.NodeAddressBook.fromBytes(addressBook.toByteString()));
+
         var properties = acceptanceTestProperties.getRestProperties();
         this.retryTemplate = RetryTemplate.builder()
                 .customPolicy(new MaxAttemptsRetryPolicy(properties.getMaxAttempts()) {
@@ -98,6 +133,8 @@ public class MirrorNodeClient {
                 .exponentialBackoff(properties.getMinBackoff(), 2.0, properties.getMaxBackoff())
                 .build();
         this.web3Properties = web3Properties;
+        this.sdkProperties = new SdkProperties();
+        this.queryClient = createClient();
 
         var virtualThreadFactory = Thread.ofVirtual().name("awaitility", 1).factory();
         var executorService = Executors.newThreadPerTaskExecutor(virtualThreadFactory);
@@ -424,11 +461,208 @@ public class MirrorNodeClient {
         });
     }
 
+    public long estimateGasQueryTopLevelCall(
+            final ContractId contractId,
+            final String functionName,
+            final ContractFunctionParameters params,
+            final AccountId sender,
+            final int actualGas,
+            final Optional<Long> value)
+            throws ExecutionException, InterruptedException {
+        return estimateGasQuery(
+                contractId, functionName, params, sender, actualGas, value, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
+    }
+
+    private long estimateGasQuery(
+            final ContractId contractId,
+            final String functionName,
+            final ContractFunctionParameters params,
+            final AccountId sender,
+            final int actualGas,
+            final Optional<Long> value,
+            final int percentage)
+            throws ExecutionException, InterruptedException {
+
+        final long calculatedContractCallGas = calculateGasLimit(actualGas, percentage);
+
+        var gasEstimateQuery = buildEstimateGasQueryWithParams(contractId, functionName, params);
+        gasEstimateQuery.setGasLimit(calculatedContractCallGas);
+        if (sender != null) {
+            gasEstimateQuery.setSender(sender);
+        }
+        value.ifPresent(gasEstimateQuery::setValue);
+
+        return gasEstimateQuery.execute(queryClient);
+    }
+
+    public long estimateGasQueryWithoutParams(
+            final ContractId contractId, final String functionName, final AccountId sender, final int actualGas)
+            throws ExecutionException, InterruptedException {
+
+        final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
+
+        var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
+                .setContractId(contractId)
+                .setFunction(functionName)
+                .setGasPrice(GAS_PRICE)
+                .setGasLimit(calculatedContractCallGas);
+        if (sender != null) {
+            gasEstimateQuery.setSender(sender);
+        }
+
+        return gasEstimateQuery.execute(queryClient);
+    }
+
+    public long estimateGasQueryRawData(
+            final ContractId contractId, final ByteString params, final AccountId sender, final int actualGas)
+            throws ExecutionException, InterruptedException {
+
+        final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
+
+        var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
+                .setContractId(contractId)
+                .setFunctionParameters(params)
+                .setGasPrice(GAS_PRICE)
+                .setGasLimit(calculatedContractCallGas);
+        if (sender != null) {
+            gasEstimateQuery.setSender(sender);
+        }
+
+        return gasEstimateQuery.execute(queryClient);
+    }
+
+    public long estimateGasQueryNestedCall(
+            final ContractId contractId,
+            final String functionName,
+            final ContractFunctionParameters params,
+            final AccountId sender,
+            final int actualGas)
+            throws ExecutionException, InterruptedException {
+
+        return estimateGasQuery(
+                contractId,
+                functionName,
+                params,
+                sender,
+                actualGas,
+                Optional.empty(),
+                DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS);
+    }
+
+    private MirrorNodeContractEstimateGasQuery buildEstimateGasQueryWithParams(
+            ContractId contractId, String functionName, ContractFunctionParameters params) {
+        return new MirrorNodeContractEstimateGasQuery()
+                .setContractId(contractId)
+                .setFunction(functionName, params)
+                .setGasPrice(GAS_PRICE);
+    }
+
+    private long calculateGasLimit(int actualGas, int percentage) {
+        return Math.round(actualGas * (1 + (percentage / 100.0)));
+    }
+
     private String normalizeUri(String uri) {
         if (uri == null || !uri.startsWith(URL_PREFIX)) {
             return uri;
         }
 
         return uri.substring(URL_PREFIX.length());
+    }
+
+    private Client createClient() {
+        var customNodes = acceptanceTestProperties.getNodes();
+        var network = acceptanceTestProperties.getNetwork();
+
+        if (!CollectionUtils.isEmpty(customNodes)) {
+            log.debug("Creating SDK client for {} network with nodes: {}", network, customNodes);
+            return toClient(getNetworkMap(customNodes), null);
+        }
+
+        if (acceptanceTestProperties.isRetrieveAddressBook()) {
+            try {
+                log.info("Waiting for a valid address book");
+                var addressBook = await("retrieveAddressBook")
+                        .atMost(acceptanceTestProperties.getStartupTimeout())
+                        .pollDelay(Duration.ofMillis(100))
+                        .pollInterval(Durations.FIVE_SECONDS)
+                        .until(this::getAddressBook, ab -> ab.getNodeAddressCount() > 0);
+                return toClient(addressBook, LedgerId.fromString(network.name().toLowerCase()));
+            } catch (Exception e) {
+                log.warn("Error retrieving address book", e);
+            }
+        }
+
+        if (network == OTHER && CollectionUtils.isEmpty(customNodes)) {
+            throw new IllegalArgumentException("nodes must not be empty when network is OTHER");
+        }
+
+        return configureClient(Client.forName(network.toString().toLowerCase())
+                .setLedgerId(LedgerId.fromString(network.name().toLowerCase())));
+    }
+
+    @SneakyThrows
+    private Client toClient(NodeAddressBook addressBook, LedgerId ledgerId) {
+        var client = Client.forNetwork(Map.of()).setLedgerId(ledgerId);
+        client.setNetworkFromAddressBook(
+                com.hedera.hashgraph.sdk.NodeAddressBook.fromBytes(addressBook.toByteString()));
+        // The SDK expects that the mirror network is of format "baseUrl:port", so we need to remove the protocol and
+        // trailing slash, and artificially add a dummy port that will not be used to meet the expected conditions .
+        String baseUrl =
+                web3Properties.getBaseUrl().replaceFirst("^https?://", "").replaceFirst("/api/v1/?$", "");
+        return configureClient(client).setMirrorNetwork(List.of(baseUrl + ":000"));
+    }
+
+    private Client configureClient(Client client) {
+        var maxTransactionFee = Hbar.fromTinybars(acceptanceTestProperties.getMaxTinyBarTransactionFee());
+        return client.setDefaultMaxTransactionFee(maxTransactionFee)
+                .setGrpcDeadline(sdkProperties.getGrpcDeadline())
+                .setMaxAttempts(sdkProperties.getMaxAttempts())
+                .setMaxNodeReadmitTime(Duration.ofSeconds(60L))
+                .setMaxNodesPerTransaction(sdkProperties.getMaxNodesPerTransaction())
+                .setOperator(defaultOperator.getAccountId(), defaultOperator.getPrivateKey());
+    }
+
+    private NodeAddressBook getAddressBook() {
+        var nodeAddressBook = NodeAddressBook.newBuilder();
+        var nodes = getNetworkNodes();
+        int endpoints = 0;
+
+        for (var node : nodes) {
+            var accountId = AccountId.fromString(node.getNodeAccountId());
+            var nodeAddress = NodeAddress.newBuilder()
+                    .setDescription(node.getDescription())
+                    .setNodeAccountId(AccountID.newBuilder()
+                            .setShardNum(accountId.shard)
+                            .setRealmNum(accountId.realm)
+                            .setAccountNum(accountId.num))
+                    .setNodeCertHash(ByteString.copyFromUtf8(StringUtils.remove(node.getNodeCertHash(), "0x")))
+                    .setRSAPubKey(node.getPublicKey())
+                    .setNodeId(node.getNodeId());
+
+            for (var serviceEndpoint : node.getServiceEndpoints()) {
+                var ip = serviceEndpoint.getIpAddressV4();
+                if (!RESET_IP.equals(ip)) {
+                    try {
+                        nodeAddress.addServiceEndpoint(ServiceEndpoint.newBuilder()
+                                .setDomainName(serviceEndpoint.getDomainName())
+                                .setIpAddressV4(TestUtil.toIpAddressV4(serviceEndpoint.getIpAddressV4()))
+                                .setPort(serviceEndpoint.getPort()));
+                        ++endpoints;
+                    } catch (Exception e) {
+                        log.warn("Unable to convert service endpoint {}: {}", serviceEndpoint, e.getMessage());
+                    }
+                }
+            }
+
+            nodeAddressBook.addNodeAddress(nodeAddress);
+        }
+
+        log.info("Obtained address book with {} nodes and {} endpoints", nodes.size(), endpoints);
+        return nodeAddressBook.build();
+    }
+
+    private NodeAddressBook getNetworkMap(Set<NodeProperties> nodes) {
+        var nodeAddresses = nodes.stream().map(NodeProperties::toNodeAddress).toList();
+        return NodeAddressBook.newBuilder().addAllNodeAddress(nodeAddresses).build();
     }
 }

@@ -263,7 +263,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 ASSOCIATE_TOKEN.selector,
                 parameters,
                 senderAccountId,
-                ASSOCIATE_TOKENS.getActualGas());
+                ASSOCIATE_TOKEN.getActualGas());
     }
 
     @Then("I call estimateGas with associate function for NFT")
@@ -276,7 +276,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 ASSOCIATE_TOKEN.selector,
                 parameters,
                 senderAccountId,
-                ASSOCIATE_TOKENS.getActualGas());
+                ASSOCIATE_TOKEN.getActualGas());
     }
 
     @Then("I call estimateGas with dissociate token function without association for fungible token")
@@ -286,7 +286,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(fungibleTokenId).toString());
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
                         DISSOCIATE_TOKEN.getSelector(),
                         parameters,
@@ -304,7 +304,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(nonFungibleTokenId).toString());
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
                         DISSOCIATE_TOKEN.getSelector(),
                         parameters,
@@ -323,7 +323,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(fungibleTokenId).toString());
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
                         NESTED_ASSOCIATE.getSelector(),
                         parameters,
@@ -342,7 +342,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addAddress(asAddress(nonFungibleTokenId).toString());
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
                         NESTED_ASSOCIATE.getSelector(),
                         parameters,
@@ -429,7 +429,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("10"));
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
                         APPROVE.getSelector(),
                         parameters,
@@ -447,7 +447,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addBool(true);
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
                         SET_APPROVAL_FOR_ALL.getSelector(),
                         parameters,
@@ -465,7 +465,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("1"));
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
                         APPROVE_NFT.getSelector(),
                         parameters,
@@ -525,7 +525,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("5"));
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
                         TRANSFER_FROM.getSelector(),
                         parameters,
@@ -544,7 +544,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("10"));
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         ercTestContractId,
                         TRANSFER_FROM_ERC.getSelector(),
                         parameters,
@@ -586,7 +586,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("500"));
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
                         TRANSFER_FROM.getSelector(),
                         parameters,
@@ -605,7 +605,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("500"));
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         ercTestContractId,
                         TRANSFER_FROM_ERC.getSelector(),
                         parameters,
@@ -630,7 +630,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("50"));
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
                         TRANSFER_FROM_NFT.getSelector(),
                         parameters,
@@ -829,7 +829,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var dataByteArray = encodeDataToByteArray(ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER_HBARS, args, EMPTY_TUPLE_ARRAY);
 
-        var estimateGasResult = contractClient.estimateGasQueryRawData(
+        var estimateGasResult = mirrorClient.estimateGasQueryRawData(
                 estimatePrecompileContractId,
                 ByteString.copyFrom(dataByteArray),
                 senderAccountId,
@@ -856,7 +856,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var dataByteArray = encodeDataToByteArray(
                 ESTIMATE_PRECOMPILE, methodInterface, Tuple.of((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
 
-        var estimateGasResult = contractClient.estimateGasQueryRawData(
+        var estimateGasResult = mirrorClient.estimateGasQueryRawData(
                 estimatePrecompileContractId,
                 ByteString.copyFrom(dataByteArray),
                 senderAccountId,
@@ -878,7 +878,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var dataByteArray = encodeDataToByteArray(
                 ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER, Tuple.of((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
 
-        var estimateGasResult = contractClient.estimateGasQueryRawData(
+        var estimateGasResult = mirrorClient.estimateGasQueryRawData(
                 estimatePrecompileContractId,
                 ByteString.copyFrom(dataByteArray),
                 senderAccountId,
@@ -1034,7 +1034,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addInt64(100000000000000000L);
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
                         WIPE_TOKEN_ACCOUNT.getSelector(),
                         parameters,
@@ -1079,7 +1079,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addInt64Array(asLongArray(List.of(66L)));
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
                         WIPE_NFT_ACCOUNT.getSelector(),
                         parameters,
@@ -1282,7 +1282,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         final var parameters =
                 new ContractFunctionParameters().addAddress(asAddress(address).toString());
 
-        assertThatThrownBy(() -> contractClient.estimateGasQueryTopLevelCall(
+        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
                         DELETE_TOKEN.getSelector(),
                         parameters,
@@ -2279,7 +2279,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(tokenId).toString())
                 .addAddress(asAddress(admin).toString());
-        var estimateGasResult = contractClient.estimateGasQueryTopLevelCall(
+        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
                 ercTestContractId,
                 methodInterface.getSelector(),
                 parameters,
@@ -2335,7 +2335,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(secondReceiverAccount).toString())
                 .addInt64(5L);
 
-        var estimateGasResult = contractClient.estimateGasQueryTopLevelCall(
+        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
                 estimatePrecompileContractId,
                 TRANSFER_TOKEN.getSelector(),
                 parameters,
@@ -2370,7 +2370,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                         .toString())
                 .addInt64(2L);
 
-        var estimateGasResult = contractClient.estimateGasQueryTopLevelCall(
+        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
                 estimatePrecompileContractId,
                 methodInterface.getSelector(),
                 parameters,
@@ -2406,7 +2406,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(admin).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString());
 
-        var estimateGasResult = contractClient.estimateGasQueryTopLevelCall(
+        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
                 estimatePrecompileContractId,
                 methodInterface.getSelector(),
                 parameters,
@@ -2433,7 +2433,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(admin).toString())
                 .addAddress(asAddress(receiverAccountAlias).toString());
 
-        var estimateGasResult = contractClient.estimateGasQueryTopLevelCall(
+        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
                 estimatePrecompileContractId,
                 methodInterface.getSelector(),
                 parameters,
@@ -2459,7 +2459,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("10"));
 
-        var estimateGasResult = contractClient.estimateGasQueryTopLevelCall(
+        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
                 estimatePrecompileContractId,
                 APPROVE.getSelector(),
                 parameters,
@@ -2485,7 +2485,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(receiverAccountAlias).toString())
                 .addUint256(new BigInteger("1"));
 
-        var estimateGasResult = contractClient.estimateGasQueryTopLevelCall(
+        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
                 estimatePrecompileContractId,
                 APPROVE_NFT.getSelector(),
                 parameters,
@@ -2514,7 +2514,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                         .toString())
                 .addUint256(new BigInteger("5"));
 
-        var estimateGasResult = contractClient.estimateGasQueryTopLevelCall(
+        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
                 estimatePrecompileContractId,
                 TRANSFER_FROM.getSelector(),
                 parameters,
@@ -2544,7 +2544,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                         .toString())
                 .addUint256(new BigInteger("3"));
 
-        var estimateGasResult = contractClient.estimateGasQueryTopLevelCall(
+        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
                 estimatePrecompileContractId,
                 methodInterface.getSelector(),
                 parameters,
@@ -2861,7 +2861,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addInt64(1L)
                 .addBytesArray(asByteArray(new ArrayList<>()));
 
-        var estimateGasResult = contractClient.estimateGasQueryTopLevelCall(
+        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
                 estimatePrecompileContractId,
                 MINT_TOKEN.getSelector(),
                 parameters,
@@ -2883,7 +2883,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addInt64(0L)
                 .addBytesArray(asByteArray(List.of("0x02")));
 
-        var estimateGasResult = contractClient.estimateGasQueryTopLevelCall(
+        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
                 estimatePrecompileContractId,
                 MINT_NFT.getSelector(),
                 parameters,
@@ -3048,7 +3048,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @RequiredArgsConstructor
     enum ContractMethodsModularizedServices implements ContractMethodInterface {
         TRANSFER_NFT("transferNFTExternal", 41571),
-        ASSOCIATE_TOKENS("associateTokensExternal", 1436847),
+        ASSOCIATE_TOKENS("associateTokensExternal", 1336847),
         CRYPTO_TRANSFER_NFT("cryptoTransferExternal", 47372),
         GET_TOKEN_EXPIRY_INFO("getTokenExpiryInfoExternal", 28607),
         IS_TOKEN("isTokenExternal", 27977),

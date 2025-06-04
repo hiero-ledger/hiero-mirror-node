@@ -14,14 +14,12 @@ import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.ContractUpdateTransaction;
 import com.hedera.hashgraph.sdk.FileId;
 import com.hedera.hashgraph.sdk.Hbar;
-import com.hedera.hashgraph.sdk.MirrorNodeContractEstimateGasQuery;
 import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import com.hedera.hashgraph.sdk.TransactionRecord;
 import jakarta.inject.Named;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
@@ -29,10 +27,6 @@ import org.springframework.retry.support.RetryTemplate;
 
 @Named
 public class ContractClient extends AbstractNetworkClient {
-
-    private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED = 30;
-    private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS = 100;
-    private static final long GAS_PRICE = 1_000_000L;
 
     private final Collection<ContractId> contractIds = new CopyOnWriteArrayList<>();
 
@@ -215,106 +209,6 @@ public class ContractClient extends AbstractNetworkClient {
                 return Optional.empty();
             }
         }
-    }
-
-    public long estimateGasQueryTopLevelCall(
-            final ContractId contractId,
-            final String functionName,
-            final ContractFunctionParameters params,
-            final AccountId sender,
-            final int actualGas,
-            final Optional<Long> value)
-            throws ExecutionException, InterruptedException {
-        return estimateGasQuery(
-                contractId, functionName, params, sender, actualGas, value, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
-    }
-
-    private long estimateGasQuery(
-            final ContractId contractId,
-            final String functionName,
-            final ContractFunctionParameters params,
-            final AccountId sender,
-            final int actualGas,
-            final Optional<Long> value,
-            final int percentage)
-            throws ExecutionException, InterruptedException {
-
-        final long calculatedContractCallGas = calculateGasLimit(actualGas, percentage);
-
-        var gasEstimateQuery = buildEstimateGasQueryWithParams(contractId, functionName, params);
-        gasEstimateQuery.setGasLimit(calculatedContractCallGas);
-        if (sender != null) {
-            gasEstimateQuery.setSender(sender);
-        }
-        value.ifPresent(gasEstimateQuery::setValue);
-
-        return gasEstimateQuery.execute(client);
-    }
-
-    public long estimateGasQueryWithoutParams(
-            final ContractId contractId, final String functionName, final AccountId sender, final int actualGas)
-            throws ExecutionException, InterruptedException {
-
-        final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
-
-        var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
-                .setContractId(contractId)
-                .setFunction(functionName)
-                .setGasPrice(GAS_PRICE)
-                .setGasLimit(calculatedContractCallGas);
-        if (sender != null) {
-            gasEstimateQuery.setSender(sender);
-        }
-
-        return gasEstimateQuery.execute(getClient());
-    }
-
-    public long estimateGasQueryRawData(
-            final ContractId contractId, final ByteString params, final AccountId sender, final int actualGas)
-            throws ExecutionException, InterruptedException {
-
-        final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
-
-        var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
-                .setContractId(contractId)
-                .setFunctionParameters(params)
-                .setGasPrice(GAS_PRICE)
-                .setGasLimit(calculatedContractCallGas);
-        if (sender != null) {
-            gasEstimateQuery.setSender(sender);
-        }
-
-        return gasEstimateQuery.execute(getClient());
-    }
-
-    public long estimateGasQueryNestedCall(
-            final ContractId contractId,
-            final String functionName,
-            final ContractFunctionParameters params,
-            final AccountId sender,
-            final int actualGas)
-            throws ExecutionException, InterruptedException {
-
-        return estimateGasQuery(
-                contractId,
-                functionName,
-                params,
-                sender,
-                actualGas,
-                Optional.empty(),
-                DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS);
-    }
-
-    private MirrorNodeContractEstimateGasQuery buildEstimateGasQueryWithParams(
-            ContractId contractId, String functionName, ContractFunctionParameters params) {
-        return new MirrorNodeContractEstimateGasQuery()
-                .setContractId(contractId)
-                .setFunction(functionName, params)
-                .setGasPrice(GAS_PRICE);
-    }
-
-    private long calculateGasLimit(int actualGas, int percentage) {
-        return Math.round(actualGas * (1 + (percentage / 100.0)));
     }
 
     public String getClientAddress() {

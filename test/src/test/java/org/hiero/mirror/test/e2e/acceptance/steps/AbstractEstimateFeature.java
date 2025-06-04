@@ -76,7 +76,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
             final AccountId sender,
             final int actualGas)
             throws ExecutionException, InterruptedException {
-        var estimateGasResult = contractClient.estimateGasQueryTopLevelCall(
+        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
                 contractId, functionName, params, sender, actualGas, Optional.empty());
 
         assertWithinDeviation(actualGas, (int) estimateGasResult, lowerDeviation, upperDeviation);
@@ -101,7 +101,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
             final Optional<java.lang.Long> value)
             throws ExecutionException, InterruptedException {
         var estimateGasResult =
-                contractClient.estimateGasQueryTopLevelCall(contractId, functionName, params, sender, actualGas, value);
+                mirrorClient.estimateGasQueryTopLevelCall(contractId, functionName, params, sender, actualGas, value);
 
         assertWithinDeviation(actualGas, (int) estimateGasResult, lowerDeviation, upperDeviation);
     }
@@ -116,8 +116,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
     protected void validateGasEstimation(
             final ContractId contractId, final String functionName, final AccountId sender, final int actualGas)
             throws ExecutionException, InterruptedException {
-        var estimateGasResult =
-                contractClient.estimateGasQueryWithoutParams(contractId, functionName, sender, actualGas);
+        var estimateGasResult = mirrorClient.estimateGasQueryWithoutParams(contractId, functionName, sender, actualGas);
 
         assertWithinDeviation(actualGas, (int) estimateGasResult, lowerDeviation, upperDeviation);
     }
