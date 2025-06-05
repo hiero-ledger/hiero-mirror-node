@@ -78,7 +78,7 @@ public enum BlockSourceType {
 }
 ```
 
-See [`CompositeBlockStreamSource`](#CompositeBlockStreamSource) for how `AUTO` works.
+See [`CompositeBlockSource`](#CompositeBlockSource) for how `AUTO` works.
 
 ### BlockProperties
 
@@ -235,7 +235,7 @@ final class BlockNode {
 
     public BlockNode tryReadmit(boolean force);
 
-  public record StreamedBlock(List<BlockItem> blockItems, long loadStart) {}
+    public record StreamedBlock(List<BlockItem> blockItems, long loadStart) {}
 }
 ```
 
