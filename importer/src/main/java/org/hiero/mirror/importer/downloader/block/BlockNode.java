@@ -35,6 +35,7 @@ import reactor.core.publisher.FluxSink;
 @CustomLog
 final class BlockNode {
 
+    private static final long INFINITE_END_BLOCK_NUMBER = -1;
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
 
     private final AtomicBoolean active = new AtomicBoolean(true);
@@ -96,6 +97,7 @@ final class BlockNode {
                             BlockStreamSubscribeServiceGrpc.getSubscribeBlockStreamMethod(), CallOptions.DEFAULT);
                     context.set(new SubscriptionContext(call, channel));
                     var request = SubscribeStreamRequest.newBuilder()
+                            .setEndBlockNumber(INFINITE_END_BLOCK_NUMBER)
                             .setStartBlockNumber(blockNumber)
                             .build();
                     var responseObserver = new ResponseObserver(sink);
