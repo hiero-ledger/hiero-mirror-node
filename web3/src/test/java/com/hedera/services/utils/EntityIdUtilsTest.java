@@ -86,7 +86,7 @@ class EntityIdUtilsTest {
 
     @Test
     void serializesExpectedSolidityAddress() {
-        final byte[] shardBytes = Ints.toByteArray((int) 0);
+        final byte[] shardBytes = Ints.toByteArray(0);
         final byte[] realmBytes = Longs.toByteArray(0);
         final byte[] numBytes = Longs.toByteArray(NUM);
         final byte[] expected = ArrayUtils.addAll(ArrayUtils.addAll(shardBytes, realmBytes), numBytes);
@@ -206,6 +206,11 @@ class EntityIdUtilsTest {
                 .build();
 
         assertEquals(EXPECTED_HEXED_ADDRESS, EntityIdUtils.asHexedEvmAddress(accountId));
+    }
+
+    @Test
+    void asSolidityAddressHexWorksProperlyForEncodedId() {
+        assertEquals(EXPECTED_HEXED_ADDRESS, EntityIdUtils.asHexedEvmAddress(ID));
     }
 
     @Test
