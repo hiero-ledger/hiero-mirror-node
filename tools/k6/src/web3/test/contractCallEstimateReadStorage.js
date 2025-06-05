@@ -5,7 +5,7 @@ import {ContractCallEstimateTestTemplate} from './commonContractCallEstimateTemp
 
 const contract = __ENV.STORAGE_SLOTS_CONTRACT;
 const runMode = __ENV.RUN_WITH_VARIABLES;
-const data = '0x2ef8bbe7'; // 2ef8bbe7 read 300 slots
+const data = __ENV.STORAGE_SLOTS_CALLDATA;
 const testName = 'estimateReadStorageSlots';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
