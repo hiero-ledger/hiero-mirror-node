@@ -26,8 +26,7 @@ public class GlobalTestSetup implements LauncherSessionListener, TestExecutionLi
         try {
             CommonProperties.getInstance();
         } catch (IllegalStateException ex) {
-            var commonProperties = new CommonProperties();
-            commonProperties.init();
+            new CommonProperties().init();
         } finally {
             var commonProperties = CommonProperties.getInstance();
 

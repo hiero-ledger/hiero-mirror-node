@@ -272,10 +272,13 @@ public class DomainUtils {
         var commonProperties = CommonProperties.getInstance();
 
         try {
+            if (evmAddress != null && evmAddress.length == EVM_ADDRESS_LENGTH) {
+                var wrapper = ByteBuffer.wrap(evmAddress);
+                var isLongZeroAddress = wrapper.getInt() == 0 && wrapper.getLong() == 0;
 
-            if (isLongZeroEvmAddress(evmAddress)) {
-                return EntityId.of(
-                        commonProperties.getShard(), commonProperties.getRealm(), numFromEvmAddress(evmAddress));
+                if (isLongZeroAddress) {
+                    return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), wrapper.getLong());
+                }
             }
         } catch (InvalidEntityException ex) {
             log.debug("Failed to parse long zero evm address into EntityId", ex);
@@ -372,26 +375,5 @@ public class DomainUtils {
         public void writeLazy(ByteBuffer value) throws IOException {
             throw new UnsupportedOperationException();
         }
-    }
-
-    private static long numFromEvmAddress(final byte[] bytes) {
-        if (bytes.length != EVM_ADDRESS_LENGTH) {
-            return 0;
-        }
-
-        var wrapper = ByteBuffer.wrap(bytes);
-        wrapper.getInt();
-        wrapper.getLong();
-        return wrapper.getLong();
-    }
-
-    private static boolean isLongZeroEvmAddress(final byte[] bytes) {
-        if (bytes == null || bytes.length != EVM_ADDRESS_LENGTH) {
-            return false;
-        }
-
-        var wrapper = ByteBuffer.wrap(bytes);
-
-        return wrapper.getInt() == 0 && wrapper.getLong() == 0;
     }
 }
