@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.state.service;
 
 import static java.util.Objects.requireNonNull;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHED_SLOTS_MAX_SIZE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOT_TRACKING;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
@@ -23,6 +22,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
+import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.hiero.mirror.web3.state.ContractSlotValue;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.Cache;
@@ -36,17 +36,20 @@ public class ContractStateService {
     private final ContractStateRepository contractStateRepository;
     private final Cache findStorageCache;
     private final Cache queriedSlotsCache;
+    private final CacheProperties cacheProperties;
 
     protected ContractStateService(
             final ContractStateRepository contractStateRepository,
             final @Qualifier(CACHE_MANAGER_CONTRACT_STATE) CacheManager contractStateCacheManager,
-            final @Qualifier(CACHE_MANAGER_CONTRACT_SLOT_TRACKING) CacheManager contractSlotTrackingCacheManager) {
+            final @Qualifier(CACHE_MANAGER_CONTRACT_SLOT_TRACKING) CacheManager contractSlotTrackingCacheManager,
+            final CacheProperties cacheProperties) {
         this.contractStateRepository = contractStateRepository;
         this.findStorageCache =
                 requireNonNull(contractStateCacheManager.getCache(CACHE_NAME), "Cache not found: " + CACHE_NAME);
         this.queriedSlotsCache = requireNonNull(
                 contractSlotTrackingCacheManager.getCache(CACHE_NAME_CONTRACT_SLOT_TRACKING),
                 "Cache not found: " + CACHE_NAME_CONTRACT_SLOT_TRACKING);
+        this.cacheProperties = cacheProperties;
     }
 
     /**
@@ -96,7 +99,7 @@ public class ContractStateService {
         if (cachedSlotKeys != null) {
             if (!cachedSlotKeys.contains(encodeSlotKey)) {
                 cachedSlotKeys.add(encodeSlotKey);
-                if (cachedSlotKeys.size() > CACHED_SLOTS_MAX_SIZE) {
+                if (cachedSlotKeys.size() > cacheProperties.getCachedSlotsMaxSize()) {
                     Iterator<String> it = cachedSlotKeys.iterator();
                     if (it.hasNext()) {
                         it.next();

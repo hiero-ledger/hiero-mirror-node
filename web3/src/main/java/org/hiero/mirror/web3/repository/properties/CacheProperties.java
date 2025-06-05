@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.repository.properties;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+import lombok.Getter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -37,4 +38,7 @@ public class CacheProperties {
 
     @NotBlank
     private String tokenType = "expireAfterAccess=24h,maximumSize=100000,recordStats";
+
+    @Getter
+    private int cachedSlotsMaxSize = 1500;
 }

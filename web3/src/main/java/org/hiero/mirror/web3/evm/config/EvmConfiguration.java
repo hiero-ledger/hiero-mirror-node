@@ -75,7 +75,6 @@ import org.springframework.context.annotation.Primary;
 @RequiredArgsConstructor
 public class EvmConfiguration {
 
-    public static final int CACHED_SLOTS_MAX_SIZE = 1500;
     public static final String CACHE_MANAGER_CONTRACT = "contract";
     public static final String CACHE_MANAGER_CONTRACT_SLOT_TRACKING = "contractSlotTrackingCacheManager";
     public static final String CACHE_MANAGER_CONTRACT_STATE = "contractState";
