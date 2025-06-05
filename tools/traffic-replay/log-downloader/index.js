@@ -44,6 +44,14 @@ const main = async () => {
       description: 'Google Cloud project id',
       type: 'string',
     })
+    .option('service', {
+      alias: 's',
+      choices: ['rest', 'web3'],
+      default: 'rest',
+      demandOption: true,
+      description: 'The service the log is for',
+      type: 'string',
+    })
     .parse();
 
   const fromDate = new Date(args.from);
@@ -56,7 +64,7 @@ const main = async () => {
     `timestamp<="${toDate.toISOString()}"`,
   ].join(' ');
 
-  const converter = new GoReplayConverter(args.outputFile);
+  const converter = new GoReplayConverter(args.outputFile, args.service);
   const downloader = new Downloader(filter, args.project, converter);
 
   await downloader.download();

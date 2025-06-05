@@ -62,7 +62,7 @@ import org.web3j.tx.Contract;
 class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServiceOpcodeTracerTest {
 
     @Test
-    void unsupportedPrecompileFails() {
+    void unsupportedPrecompileFails() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
@@ -71,7 +71,9 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
+            final var result = functionCall.send();
+            assertThat(result.component1()).isTrue();
+            assertThat(result.component2()).isEmpty();
         } else {
             assertThatThrownBy(functionCall::send).isInstanceOf(PrecompileNotSupportedException.class);
         }
