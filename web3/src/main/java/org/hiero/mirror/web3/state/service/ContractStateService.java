@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
@@ -63,7 +64,7 @@ public class ContractStateService {
         updateCachedSlotKeys(contractId, key);
 
         if (cachedValue == null) {
-            final Set<String> cachedSlotKeys = queriedSlotsCache.get(contractId, LinkedHashSet::new);
+            final Set<String> cachedSlotKeys = queriedSlotsCache.get(contractId, ConcurrentHashMap::newKeySet);
             final var slotKeyValuePairs = findStorageBatch(contractId, cachedSlotKeys);
 
             return slotKeyValuePairs.stream()
@@ -93,9 +94,10 @@ public class ContractStateService {
      * @param contractId id of the contract that the slot key belongs to
      * @param slotKey that will be added to the queriedSlotsCache if not already in there
      */
-    private void updateCachedSlotKeys(Long contractId, byte[] slotKey) {
+    private synchronized void updateCachedSlotKeys(Long contractId, byte[] slotKey) {
         final var encodeSlotKey = encodeSlotKey(slotKey);
         Set<String> cachedSlotKeys = queriedSlotsCache.get(contractId, LinkedHashSet::new);
+
         if (cachedSlotKeys != null) {
             if (!cachedSlotKeys.contains(encodeSlotKey)) {
                 if (cachedSlotKeys.size() >= cacheProperties.getCachedSlotsMaxSize()) {
@@ -162,7 +164,7 @@ public class ContractStateService {
      * @param contractId id of the contract that the slot values will be cached for
      * @param slotKeyValuePairs the slot key value pairs returned from the findStorageBatch query
      */
-    private void cacheSlotValues(final Long contractId, final List<ContractSlotValue> slotKeyValuePairs) {
+    private synchronized void cacheSlotValues(final Long contractId, final List<ContractSlotValue> slotKeyValuePairs) {
         for (ContractSlotValue slotKeyValuePair : slotKeyValuePairs) {
             final byte[] slotKey = slotKeyValuePair.slot();
             final byte[] slotValue = slotKeyValuePair.value();
@@ -177,7 +179,7 @@ public class ContractStateService {
      * @param contractId id of the contract that the slot keys were queried for
      * @param nonExistingSlots the slot keys queried for the contractId that were not present in the db
      */
-    private void cacheNonExistingSlots(final Long contractId, final List<byte[]> nonExistingSlots) {
+    private synchronized void cacheNonExistingSlots(final Long contractId, final List<byte[]> nonExistingSlots) {
         for (byte[] slot : nonExistingSlots) {
             findStorageCache.put(generateCacheKey(contractId, slot), Optional.empty());
         }
