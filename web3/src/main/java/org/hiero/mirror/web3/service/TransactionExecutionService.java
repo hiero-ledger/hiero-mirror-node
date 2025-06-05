@@ -25,7 +25,7 @@ import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
 import java.time.Instant;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import lombok.CustomLog;
@@ -102,16 +102,7 @@ public class TransactionExecutionService {
             final List<SingleTransactionRecord> transactionRecords,
             final CallServiceParameters params) {
         final var parentTransaction = transactionRecords.getFirst().transactionRecord();
-        final var childTransactionErrors = new ArrayList<String>();
-        // skipping parent transaction
-        for (int i = 1; i < transactionRecords.size(); i++) {
-            final var record = transactionRecords.get(i).transactionRecord();
-
-            if (record.receipt().status() == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS) {
-                continue;
-            }
-            addErrorMessage(isContractCreate, record, childTransactionErrors);
-        }
+        final var childTransactionErrors = populateChildTransactionErrors(transactionRecords, isContractCreate);
 
         final var result = getTransactionResult(parentTransaction, isContractCreate);
 
@@ -150,12 +141,7 @@ public class TransactionExecutionService {
             final var errorMessage = getErrorMessage(result).orElse(Bytes.EMPTY);
             final var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessage);
 
-            final var childTransactionErrors = new ArrayList<String>();
-
-            for (int i = 1; i < transactionRecords.size(); i++) {
-                final var record = transactionRecords.get(i).transactionRecord();
-                addErrorMessage(isContractCreate, record, childTransactionErrors);
-            }
+            final var childTransactionErrors = populateChildTransactionErrors(transactionRecords, isContractCreate);
 
             if (ContractCallContext.get().getOpcodeTracerOptions() == null) {
                 var processingResult = HederaEvmTransactionProcessingResult.failed(
@@ -300,5 +286,21 @@ public class TransactionExecutionService {
         if (StringUtils.isNotBlank(errorMessage) && !childTransactionErrors.contains(errorMessage)) {
             childTransactionErrors.add(errorMessage);
         }
+    }
+
+    private List<String> populateChildTransactionErrors(
+            List<SingleTransactionRecord> transactionRecords, boolean isContractCreate) {
+        final var childTransactionErrors = new LinkedList<String>();
+
+        for (int i = 1; i < transactionRecords.size(); i++) {
+            final var record = transactionRecords.get(i).transactionRecord();
+
+            if (record.receiptOrThrow().status() == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS) {
+                continue;
+            }
+            addErrorMessage(isContractCreate, record, childTransactionErrors);
+        }
+
+        return childTransactionErrors;
     }
 }

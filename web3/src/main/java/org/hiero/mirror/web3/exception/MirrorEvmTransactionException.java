@@ -8,7 +8,7 @@ import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionP
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.io.Serial;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import lombok.Getter;
 import org.apache.commons.codec.binary.Hex;
@@ -27,7 +27,7 @@ public class MirrorEvmTransactionException extends EvmException {
     private final String data;
     private final Boolean isCallModularized;
     private final transient HederaEvmTransactionProcessingResult result;
-    private final List<String> childTransactionErrors = new ArrayList<>();
+    private final List<String> childTransactionErrors = new LinkedList<>();
 
     public MirrorEvmTransactionException(
             final ResponseCodeEnum responseCode, final String detail, final String hexData) {
