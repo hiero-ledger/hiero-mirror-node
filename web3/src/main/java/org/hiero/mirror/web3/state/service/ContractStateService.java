@@ -13,6 +13,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -98,7 +99,9 @@ public class ContractStateService {
         if (cachedSlotKeys != null) {
             if (!cachedSlotKeys.contains(encodeSlotKey)) {
                 if (cachedSlotKeys.size() >= cacheProperties.getCachedSlotsMaxSize()) {
-                    cachedSlotKeys.iterator().remove();
+                    Iterator<String> it = cachedSlotKeys.iterator();
+                    it.next();
+                    it.remove();
                 }
                 cachedSlotKeys.add(encodeSlotKey);
                 queriedSlotsCache.put(contractId, cachedSlotKeys);
