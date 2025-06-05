@@ -13,12 +13,13 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
@@ -63,7 +64,10 @@ public class ContractStateService {
         updateCachedSlotKeys(contractId, key);
 
         if (cachedValue == null) {
-            final Set<String> cachedSlotKeys = queriedSlotsCache.get(contractId, LinkedHashSet::new);
+            final Set<String> cachedSlotKeys = queriedSlotsCache.get(
+                    contractId,
+                    () -> Collections.newSetFromMap(new ConcurrentHashMap<>())
+            );
             final var slotKeyValuePairs = findStorageBatch(contractId, cachedSlotKeys);
 
             return slotKeyValuePairs.stream()
@@ -94,11 +98,11 @@ public class ContractStateService {
      * @param slotKey that will be added to the queriedSlotsCache if not already in there
      */
     private void updateCachedSlotKeys(Long contractId, byte[] slotKey) {
-        final var encodeSlotKey = encodeSlotKey(slotKey);
-        Set<String> cachedSlotKeys = queriedSlotsCache.get(contractId, LinkedHashSet::new);
-        if (cachedSlotKeys != null) {
-            if (!cachedSlotKeys.contains(encodeSlotKey)) {
-                cachedSlotKeys.add(encodeSlotKey);
+        final String encodedSlotKey = encodeSlotKey(slotKey);
+        final Set<String> cachedSlotKeys = queriedSlotsCache.get(contractId, ConcurrentHashMap::newKeySet);
+
+        synchronized (cachedSlotKeys) {
+            if (cachedSlotKeys.add(encodedSlotKey)) {
                 if (cachedSlotKeys.size() > cacheProperties.getCachedSlotsMaxSize()) {
                     Iterator<String> it = cachedSlotKeys.iterator();
                     if (it.hasNext()) {
@@ -106,12 +110,7 @@ public class ContractStateService {
                         it.remove();
                     }
                 }
-                queriedSlotsCache.put(contractId, cachedSlotKeys);
             }
-        } else {
-            cachedSlotKeys = new LinkedHashSet<>();
-            cachedSlotKeys.add(encodeSlotKey);
-            queriedSlotsCache.put(contractId, cachedSlotKeys);
         }
     }
 
@@ -124,8 +123,10 @@ public class ContractStateService {
      */
     private List<ContractSlotValue> findStorageBatch(final Long contractId, final Set<String> cachedSlotKeys) {
         if (cachedSlotKeys != null && !cachedSlotKeys.isEmpty()) {
-            final var slotKeys =
-                    cachedSlotKeys.stream().map(this::decodeSlotKey).toList();
+            final var slotKeys = new ArrayList<>(cachedSlotKeys).stream()
+                    .filter(Objects::nonNull)
+                    .map(this::decodeSlotKey)
+                    .collect(Collectors.toList());
 
             final var existingSlotKeyValuePairs = contractStateRepository.findStorageBatch(contractId, slotKeys);
             cacheSlotValues(contractId, existingSlotKeyValuePairs);
