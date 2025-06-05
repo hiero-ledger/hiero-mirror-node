@@ -25,7 +25,8 @@ import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
 import java.time.Instant;
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import lombok.CustomLog;
@@ -264,7 +265,7 @@ public class TransactionExecutionService {
     }
 
     private List<String> populateChildTransactionErrors(List<SingleTransactionRecord> transactionRecords) {
-        final var childTransactionErrors = new LinkedList<String>();
+        final var childTransactionErrors = new LinkedHashSet<String>();
 
         for (int i = 1; i < transactionRecords.size(); i++) {
             final var record = transactionRecords.get(i).transactionRecord();
@@ -272,12 +273,9 @@ public class TransactionExecutionService {
             if (status == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS) {
                 continue;
             }
-
-            if (!childTransactionErrors.contains(status.protoName())) {
-                childTransactionErrors.add(status.protoName());
-            }
+            childTransactionErrors.add(status.protoName());
         }
 
-        return childTransactionErrors;
+        return new ArrayList<>(childTransactionErrors);
     }
 }
