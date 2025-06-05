@@ -25,15 +25,14 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByIdAndDeletedIsFalseFailCall() {
-        final var entity = domainBuilder.entity().persist();
+        final var entity = persistEntity();
         long id = entity.getId();
         assertThat(entityRepository.findByIdAndDeletedIsFalse(++id)).isEmpty();
     }
 
     @Test
     void findByIdAndDeletedTrueCall() {
-        final var entity =
-                domainBuilder.entity().customize(e -> e.deleted(true)).persist();
+        final var entity = persistEntityDeleted();
         assertThat(entityRepository.findByIdAndDeletedIsFalse(entity.getId())).isEmpty();
     }
 
@@ -62,7 +61,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByEvmAddressAndDeletedTrueCall() {
-        final var entity = entityPersistDeleted();
+        final var entity = persistEntityDeleted();
         assertThat(entityRepository.findByEvmAddressAndDeletedIsFalse(entity.getEvmAddress()))
                 .isEmpty();
     }
@@ -98,7 +97,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByEvmAddressAndTimestampRangeLessThanBlockTimestampAndDeletedTrueCall() {
-        final var entity = entityPersistDeleted();
+        final var entity = persistEntityDeleted();
 
         assertThat(entityRepository.findActiveByEvmAddressAndTimestamp(
                         entity.getEvmAddress(), entity.getTimestampLower() + 1))
@@ -152,7 +151,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByIdAndTimestampRangeLessThanBlockTimestampAndDeletedIsFalseCall() {
-        final var entity = domainBuilder.entity().persist();
+        final var entity = persistEntity();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(entity.getId(), entity.getTimestampLower() + 1))
                 .get()
@@ -161,7 +160,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByIdAndTimestampRangeEqualToBlockTimestampAndDeletedIsFalseCall() {
-        final var entity = domainBuilder.entity().persist();
+        final var entity = persistEntity();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(entity.getId(), entity.getTimestampLower()))
                 .get()
@@ -170,7 +169,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByIdAndTimestampRangeGreaterThanBlockTimestampAndDeletedIsFalseCall() {
-        final var entity = domainBuilder.entity().persist();
+        final var entity = persistEntity();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(entity.getId(), entity.getTimestampLower() - 1))
                 .isEmpty();
@@ -178,8 +177,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByIdAndTimestampRangeAndDeletedTrueCall() {
-        final var entity =
-                domainBuilder.entity().customize(e -> e.deleted(true)).persist();
+        final var entity = persistEntityDeleted();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(entity.getId(), entity.getTimestampLower()))
                 .isEmpty();
@@ -187,7 +185,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findHistoricalEntityByIdAndTimestampRangeLessThanBlockTimestampAndDeletedIsFalseCall() {
-        final var entityHistory = domainBuilder.entityHistory().persist();
+        final var entityHistory = persistEntityHistory();
 
         // persist older entity in entity history
         domainBuilder
@@ -206,7 +204,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findHistoricalEntityByIdAndTimestampRangeEqualToBlockTimestampAndDeletedIsFalseCall() {
-        final var entityHistory = domainBuilder.entityHistory().persist();
+        final var entityHistory = persistEntityHistory();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(
                         entityHistory.getId(), entityHistory.getTimestampLower()))
@@ -217,7 +215,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findHistoricalEntityByIdAndTimestampRangeGreaterThanBlockTimestampAndDeletedIsFalseCall() {
-        final var entityHistory = domainBuilder.entityHistory().persist();
+        final var entityHistory = persistEntityHistory();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(
                         entityHistory.getId(), entityHistory.getTimestampLower() - 1))
@@ -226,8 +224,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findHistoricalEntityByIdAndTimestampRangeAndDeletedTrueCall() {
-        final var entityHistory =
-                domainBuilder.entityHistory().customize(e -> e.deleted(true)).persist();
+        final var entityHistory = persistEntityHistoryWithDeleted();
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(
                         entityHistory.getId(), entityHistory.getCreatedTimestamp()))
@@ -332,7 +329,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByEvmAddressOrAliasAndTimestampRangeLessThanBlockTimestampAndDeletedTrueCallWithAlias() {
-        final var entity = entityPersistDeleted();
+        final var entity = persistEntityDeleted();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(
                         entity.getAlias(), entity.getTimestampLower() + 1))
@@ -341,7 +338,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByEvmAddressOrAliasAndTimestampRangeLessThanBlockTimestampAndDeletedTrueCallWithEvmAddress() {
-        final var entity = entityPersistDeleted();
+        final var entity = persistEntityDeleted();
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(
                         entity.getEvmAddress(), entity.getTimestampLower() + 1))
@@ -457,7 +454,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 2L));
     }
 
-    private Entity entityPersistDeleted() {
+    private Entity persistEntityDeleted() {
         return domainBuilder.entity().customize(e -> e.deleted(true)).persist();
     }
 

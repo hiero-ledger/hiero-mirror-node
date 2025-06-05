@@ -37,7 +37,6 @@ import org.hiero.mirror.common.exception.ProtobufException;
 public class DomainUtils {
 
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
-    private static final byte[] MIRROR_PREFIX = new byte[12];
     public static final int EVM_ADDRESS_LENGTH = 20;
     public static final long TINYBARS_IN_ONE_HBAR = 100_000_000L;
 
@@ -88,7 +87,7 @@ public class DomainUtils {
                 return null;
             }
 
-            var key = Key.parseFrom(protobufKey);
+            final var key = Key.parseFrom(protobufKey);
             byte[] primitiveKey = getPublicKey(key, 1);
             return bytesToHex(primitiveKey);
         } catch (Exception e) {
@@ -185,7 +184,7 @@ public class DomainUtils {
             return bytes;
         }
 
-        var leftPaddedBytes = new byte[length];
+        final var leftPaddedBytes = new byte[length];
         System.arraycopy(bytes, 0, leftPaddedBytes, paddingSize, bytes.length);
         return leftPaddedBytes;
     }
@@ -269,12 +268,12 @@ public class DomainUtils {
     }
 
     public static EntityId fromEvmAddress(byte[] evmAddress) {
-        var commonProperties = CommonProperties.getInstance();
+        final var commonProperties = CommonProperties.getInstance();
 
         try {
             if (evmAddress != null && evmAddress.length == EVM_ADDRESS_LENGTH) {
-                var wrapper = ByteBuffer.wrap(evmAddress);
-                var isLongZeroAddress = wrapper.getInt() == 0 && wrapper.getLong() == 0;
+                final var wrapper = ByteBuffer.wrap(evmAddress);
+                final var isLongZeroAddress = wrapper.getInt() == 0 && wrapper.getLong() == 0;
 
                 if (isLongZeroAddress) {
                     return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), wrapper.getLong());
@@ -322,8 +321,8 @@ public class DomainUtils {
     }
 
     public static byte[] toEvmAddress(long num) {
-        var evmAddress = new byte[EVM_ADDRESS_LENGTH];
-        var buffer = ByteBuffer.wrap(evmAddress);
+        final var evmAddress = new byte[EVM_ADDRESS_LENGTH];
+        final var buffer = ByteBuffer.wrap(evmAddress);
         buffer.putInt(0);
         buffer.putLong(0);
         buffer.putLong(num);

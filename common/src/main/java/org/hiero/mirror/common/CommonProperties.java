@@ -17,10 +17,10 @@ public class CommonProperties {
     private static final AtomicReference<CommonProperties> INSTANCE = new AtomicReference<>();
 
     @Min(0)
-    private long realm = 0L;
+    private long realm = 1L;
 
     @Min(0)
-    private long shard = 0L;
+    private long shard = 1L;
 
     @PostConstruct
     public void init() {
