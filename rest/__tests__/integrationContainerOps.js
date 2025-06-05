@@ -10,9 +10,12 @@ import {FLYWAY_DATA_PATH, FLYWAY_EXE_PATH, FLYWAY_VERSION} from './globalSetup';
 import {getModuleDirname, isV2Schema} from './testutils';
 import {getPoolClass} from '../utils';
 import {GenericContainer, PullPolicy} from 'testcontainers';
+import {RedisContainer} from '@testcontainers/redis';
 
 const {db: defaultDbConfig} = config;
 const Pool = getPoolClass();
+
+const REDIS_IMAGE = 'redis:7.2';
 
 const restJavaContainers = new Map();
 
@@ -79,7 +82,9 @@ const initializeContainers = async () => {
   await createPool(connectionParams);
 };
 
-const startRestJavaContainer = async (envSetup) => {
+const startRedisContainer = async () => new RedisContainer(REDIS_IMAGE).withStartupTimeout(20000).start();
+
+const startRestJavaContainer = async () => {
   let container = restJavaContainers.get(workerId);
   if (!container) {
     container = await createRestJavaContainer();
@@ -182,5 +187,6 @@ const getMigrationScriptLocation = (locations) => {
 export default {
   cleanUp,
   initializeContainers,
+  startRedisContainer,
   startRestJavaContainer,
 };

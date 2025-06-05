@@ -4,7 +4,7 @@ import {jest} from '@jest/globals';
 
 import config from '../../config';
 import {Cache} from '../../cache';
-import {RedisContainer} from '@testcontainers/redis';
+import integrationContainerOps from '../integrationContainerOps';
 import {defaultBeforeAllTimeoutMillis} from '../integrationUtils';
 import {CachedApiResponse} from '../../model';
 import {httpStatusCodes, responseBodyLabel, responseCacheKeyLabel} from '../../constants';
@@ -22,7 +22,7 @@ const cacheControlMaxAge = 60;
 beforeAll(async () => {
   config.redis.enabled = true;
   compressEnabled = config.cache.response.compress;
-  redisContainer = await new RedisContainer().withStartupTimeout(20000).start();
+  redisContainer = await integrationContainerOps.startRedisContainer();
   logger.info('Started Redis container');
 
   config.redis.uri = `0.0.0.0:${redisContainer.getMappedPort(6379)}`;
@@ -36,7 +36,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await cache.stop();
-  await redisContainer.stop({signal: 'SIGKILL', t: 5});
+  await redisContainer.stop({signal: 'SIGKILL', timeout: 3000});
   logger.info('Stopped Redis container');
   config.cache.response.compress = compressEnabled;
   config.redis.enabled = false;
