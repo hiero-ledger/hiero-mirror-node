@@ -212,8 +212,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @RetryAsserts
     @Then("I call estimateGas with function balance of address")
     public void addressBalanceEstimateCall() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(asAddress(contractSolidityAddress).toString());
+        final var parameters = new ContractFunctionParameters().addAddress(contractSolidityAddress);
 
         validateGasEstimation(
                 estimateGasContractId,
@@ -242,7 +241,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
          *    - Distinct gas cost (e.g, 36452) due to process of clearing the storage slot.
          */
         final var parameters = new ContractFunctionParameters()
-                .addAddress(asAddress(contractSolidityAddress).toString())
+                .addAddress(contractSolidityAddress)
                 .addUint256(new BigInteger("100"));
 
         validateGasEstimation(
@@ -323,8 +322,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with function that performs LOG0, LOG1, LOG2, LOG3, LOG4 operations")
     public void logsEstimateCall() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(asAddress(contractSolidityAddress).toString());
+        final var parameters = new ContractFunctionParameters().addAddress(contractSolidityAddress);
 
         validateGasEstimation(
                 estimateGasContractId, LOGS.getSelector(), parameters, senderAccountId, LOGS.getActualGas());
@@ -425,9 +423,8 @@ public class EstimateFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with function that makes call to an external contract function")
     public void callCodeToExternalContractFunction() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addUint256(new BigInteger("2"))
-                .addAddress(asAddress(contractSolidityAddress).toString());
+        final var parameters =
+                new ContractFunctionParameters().addUint256(new BigInteger("2")).addAddress(contractSolidityAddress);
 
         validateGasEstimation(
                 estimateGasContractId,
@@ -439,9 +436,8 @@ public class EstimateFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with function that makes delegate call to an external contract function")
     public void delegateCallCodeToExternalContractFunction() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addUint256(new BigInteger("3"))
-                .addAddress(asAddress(contractSolidityAddress).toString());
+        final var parameters =
+                new ContractFunctionParameters().addUint256(new BigInteger("3")).addAddress(contractSolidityAddress);
 
         validateGasEstimation(
                 estimateGasContractId,
@@ -453,9 +449,8 @@ public class EstimateFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with function that makes call to an external contract view function")
     public void callCodeToExternalContractViewFunction() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addUint256(new BigInteger("1"))
-                .addAddress(asAddress(contractSolidityAddress).toString());
+        final var parameters =
+                new ContractFunctionParameters().addUint256(new BigInteger("1")).addAddress(contractSolidityAddress);
 
         validateGasEstimation(
                 estimateGasContractId,
@@ -528,7 +523,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addUint256(new BigInteger("1"))
                 .addUint256(new BigInteger("10"))
-                .addAddress(asAddress(contractSolidityAddress).toString());
+                .addAddress(contractSolidityAddress);
 
         validateGasEstimation(
                 estimateGasContractId,
@@ -545,7 +540,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         final var firstParameters = new ContractFunctionParameters()
                 .addUint256(new BigInteger("1"))
                 .addUint256(new BigInteger("500"))
-                .addAddress(asAddress(contractSolidityAddress).toString());
+                .addAddress(contractSolidityAddress);
         var estimateGasResult = mirrorClient.estimateGasQueryNestedCall(
                 estimateGasContractId,
                 NESTED_CALLS_LIMITED.getSelector(),
@@ -558,7 +553,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         final var secondParameters = new ContractFunctionParameters()
                 .addUint256(new BigInteger("1"))
                 .addUint256(new BigInteger("1024"))
-                .addAddress(asAddress(contractSolidityAddress).toString());
+                .addAddress(contractSolidityAddress);
 
         final var secondEstimateGasResult = mirrorClient.estimateGasQueryNestedCall(
                 estimateGasContractId,
@@ -572,7 +567,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         final var thirdParameters = new ContractFunctionParameters()
                 .addUint256(new BigInteger("1"))
                 .addUint256(new BigInteger("1025"))
-                .addAddress(asAddress(contractSolidityAddress).toString());
+                .addAddress(contractSolidityAddress);
 
         final var thirdEstimateGasResult = mirrorClient.estimateGasQueryNestedCall(
                 estimateGasContractId,
@@ -1061,9 +1056,9 @@ public class EstimateFeature extends AbstractEstimateFeature {
         DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION("delegatecallExternalFunctionNTimes", 29334),
         DELEGATE_CALL_TO_CONTRACT("delegateCallToContract", 25124),
         DELEGATE_CALL_TO_INVALID_CONTRACT("delegateCallToInvalidContract", 24803),
-        DEPLOY_CONTRACT_VIA_CREATE_OPCODE("deployViaCreate", 53631),
-        DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE("deployViaCreate2", 55927),
-        DEPLOY_CONTRACT_VIA_BYTECODE_DATA("", 433605),
+        DEPLOY_CONTRACT_VIA_CREATE_OPCODE("deployViaCreate", 140000),
+        DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE("deployViaCreate2", 140000),
+        DEPLOY_CONTRACT_VIA_BYTECODE_DATA("", 2000000),
         DEPLOY_NEW_INSTANCE("createClone", 0), // Set actual gas to 0; unnecessary for gasConsumed test validation.
         DEPLOY_AND_CALL_CONTRACT("deployAndCallMockContract", 0),
         DEPLOY_AND_DESTROY("deployDestroy", 0), // Set actual gas to 0; unnecessary for gasConsumed test validation.
