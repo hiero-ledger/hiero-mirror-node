@@ -16,7 +16,6 @@ public class ModelBuilder {
     private static final Long DEFAULT_CONTRACT_CALL_GAS_PRICE = 100_000_000L;
     private static final Long DEFAULT_CONTRACT_CALL_VALUE = 0L;
     private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED = 30;
-    private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS = 100;
 
     public static ContractCallRequest contractCallRequest() {
         return new ContractCallRequest()

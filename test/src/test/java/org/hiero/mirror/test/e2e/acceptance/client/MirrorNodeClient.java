@@ -118,10 +118,6 @@ public class MirrorNodeClient {
         this.web3Client = StringUtils.isBlank(web3Properties.getBaseUrl())
                 ? restClient
                 : restClientBuilder.baseUrl(web3Properties.getBaseUrl()).build();
-        //        this.queryClient = Client.forNetwork(Map.of()).setLedgerId(ledgerId);
-        //        queryClient.setNetworkFromAddressBook(
-        //                com.hedera.hashgraph.sdk.NodeAddressBook.fromBytes(addressBook.toByteString()));
-
         var properties = acceptanceTestProperties.getRestProperties();
         this.retryTemplate = RetryTemplate.builder()
                 .customPolicy(new MaxAttemptsRetryPolicy(properties.getMaxAttempts()) {
