@@ -160,10 +160,9 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     """
                     select id
                     from entity
-                    where shard = ?1 and realm = ?2
                     order by id desc
                     limit 1
                     """,
             nativeQuery = true)
-    Long findMaxId(long shard, long realm);
+    Long findMaxId();
 }

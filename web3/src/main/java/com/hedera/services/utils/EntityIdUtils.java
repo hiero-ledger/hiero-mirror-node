@@ -202,7 +202,7 @@ public final class EntityIdUtils {
     }
 
     public static String asHexedEvmAddress(final Id id) {
-        return CommonUtils.hex(toEvmAddress(entityIdFromId(id)));
+        return CommonUtils.hex(toEvmAddress(id.num()));
     }
 
     public static String asHexedEvmAddress(long id) {
