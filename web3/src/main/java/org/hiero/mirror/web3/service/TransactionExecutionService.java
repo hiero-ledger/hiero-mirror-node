@@ -102,7 +102,7 @@ public class TransactionExecutionService {
             final List<SingleTransactionRecord> transactionRecords,
             final CallServiceParameters params) {
         final var parentTransaction = transactionRecords.getFirst().transactionRecord();
-        final var childTransactionErrors = populateChildTransactionErrors(transactionRecords, isContractCreate);
+        final var childTransactionErrors = populateChildTransactionErrors(transactionRecords);
 
         final var result = getTransactionResult(parentTransaction, isContractCreate);
 
@@ -141,7 +141,7 @@ public class TransactionExecutionService {
             final var errorMessage = getErrorMessage(result).orElse(Bytes.EMPTY);
             final var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessage);
 
-            final var childTransactionErrors = populateChildTransactionErrors(transactionRecords, isContractCreate);
+            final var childTransactionErrors = populateChildTransactionErrors(transactionRecords);
 
             if (ContractCallContext.get().getOpcodeTracerOptions() == null) {
                 var processingResult = HederaEvmTransactionProcessingResult.failed(
@@ -263,42 +263,19 @@ public class TransactionExecutionService {
                 : new OperationTracer[] {mirrorOperationTracer};
     }
 
-    private String extractErrorMessage(final ContractFunctionResult contractFunctionResult) {
-        final var errorBytes = getErrorMessage(contractFunctionResult).orElse(Bytes.EMPTY);
-
-        if (errorBytes.isEmpty()) {
-            return contractFunctionResult.errorMessage();
-        }
-
-        final var decodedErrorMessage = maybeDecodeSolidityErrorStringToReadableMessage(errorBytes);
-        return StringUtils.defaultIfBlank(decodedErrorMessage, contractFunctionResult.errorMessage());
-    }
-
-    private void addErrorMessage(
-            final boolean isContractCreate, final TransactionRecord record, final List<String> childTransactionErrors) {
-        final var result = isContractCreate ? record.contractCreateResult() : record.contractCallResult();
-
-        if (result == null || StringUtils.isBlank(result.errorMessage())) {
-            return;
-        }
-
-        final var errorMessage = extractErrorMessage(result);
-        if (StringUtils.isNotBlank(errorMessage) && !childTransactionErrors.contains(errorMessage)) {
-            childTransactionErrors.add(errorMessage);
-        }
-    }
-
-    private List<String> populateChildTransactionErrors(
-            List<SingleTransactionRecord> transactionRecords, boolean isContractCreate) {
+    private List<String> populateChildTransactionErrors(List<SingleTransactionRecord> transactionRecords) {
         final var childTransactionErrors = new LinkedList<String>();
 
         for (int i = 1; i < transactionRecords.size(); i++) {
             final var record = transactionRecords.get(i).transactionRecord();
-
-            if (record.receiptOrThrow().status() == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS) {
+            final var status = record.receiptOrThrow().status();
+            if (status == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS) {
                 continue;
             }
-            addErrorMessage(isContractCreate, record, childTransactionErrors);
+
+            if (!childTransactionErrors.contains(status.protoName())) {
+                childTransactionErrors.add(status.protoName());
+            }
         }
 
         return childTransactionErrors;
