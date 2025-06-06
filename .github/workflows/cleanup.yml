@@ -45,7 +45,7 @@ jobs:
           egress-policy: audit
 
       - name: Create Workspace
-        run: mkdir -p "${{ github.workspace }}"
+        run: mkdir -p "${{ github.workspace }}/dummy"
 
       - name: Authenticate to Google Cloud
         uses: step-security/google-github-auth@40f6deebd366f16c782d7a0ad0844e3b96a032a6 # v2.1.10
