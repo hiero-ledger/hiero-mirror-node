@@ -56,7 +56,6 @@ import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.Hbar;
-import com.hedera.hashgraph.sdk.PrivateKey;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.proto.ResponseCodeEnum;
 import io.cucumber.java.en.And;
@@ -101,13 +100,10 @@ public class EstimateFeature extends AbstractEstimateFeature {
     private ContractId ercContractId;
 
     private String contractSolidityAddress;
-    private String precompileSolidityAddress;
     private String mockAddress;
     byte[] addressSelector;
     private TokenId fungibleTokenId;
-    private String newAccountEvmAddress;
     private ExpandedAccountId receiverAccountId;
-    private String receiverAccountAlias;
     private AccountId senderAccountId;
 
     @Given("I successfully create EstimateGas contract from contract bytes")
@@ -115,10 +111,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         deployedContract = getContract(ESTIMATE_GAS);
         estimateGasContractId = deployedContract.contractId();
         contractSolidityAddress = deployedContract.contractId().toSolidityAddress();
-        newAccountEvmAddress =
-                PrivateKey.generateECDSA().getPublicKey().toEvmAddress().toString();
         receiverAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
-        receiverAccountAlias = receiverAccountId.getPublicKey().toEvmAddress().toString();
         senderAccountId =
                 accountClient.getSdkClient().getExpandedOperatorAccountId().getAccountId();
     }
@@ -136,7 +129,6 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Given("I successfully create Precompile contract from contract bytes")
     public void createNewPrecompileContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileSolidityAddress = deployedPrecompileContract.contractId().toSolidityAddress();
     }
 
     @Given("I successfully create ERC contract from contract bytes")
@@ -424,7 +416,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with function that makes call to an external contract function")
     public void callCodeToExternalContractFunction() throws ExecutionException, InterruptedException {
         final var parameters =
-                new ContractFunctionParameters().addUint256(new BigInteger("2")).addAddress(contractSolidityAddress);
+                new ContractFunctionParameters().addUint256(BigInteger.TWO).addAddress(contractSolidityAddress);
 
         validateGasEstimation(
                 estimateGasContractId,
@@ -450,7 +442,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with function that makes call to an external contract view function")
     public void callCodeToExternalContractViewFunction() throws ExecutionException, InterruptedException {
         final var parameters =
-                new ContractFunctionParameters().addUint256(new BigInteger("1")).addAddress(contractSolidityAddress);
+                new ContractFunctionParameters().addUint256(BigInteger.ONE).addAddress(contractSolidityAddress);
 
         validateGasEstimation(
                 estimateGasContractId,
@@ -486,7 +478,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 STATE_UPDATE_OF_CONTRACT.getActualGas(),
                 Optional.empty());
         // making 10 times to state update
-        final var secondParams = new ContractFunctionParameters().addUint256(new BigInteger("10"));
+        final var secondParams = new ContractFunctionParameters().addUint256(BigInteger.TEN);
         var secondResponse = mirrorClient.estimateGasQueryTopLevelCall(
                 estimateGasContractId,
                 STATE_UPDATE_OF_CONTRACT.getSelector(),
@@ -521,8 +513,8 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with function that executes positive nested calls")
     public void positiveNestedCallsFunction() throws ExecutionException, InterruptedException {
         final var parameters = new ContractFunctionParameters()
-                .addUint256(new BigInteger("1"))
-                .addUint256(new BigInteger("10"))
+                .addUint256(BigInteger.ONE)
+                .addUint256(BigInteger.TEN)
                 .addAddress(contractSolidityAddress);
 
         validateGasEstimation(
@@ -538,7 +530,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         // verify that after exceeding a number of nested calls that the estimated gas would return the same
         // we will execute with 500, 1024 and 1025, and it should return the same estimatedGas
         final var firstParameters = new ContractFunctionParameters()
-                .addUint256(new BigInteger("1"))
+                .addUint256(BigInteger.ONE)
                 .addUint256(new BigInteger("500"))
                 .addAddress(contractSolidityAddress);
         var estimateGasResult = mirrorClient.estimateGasQueryNestedCall(
@@ -551,7 +543,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 NESTED_CALLS_LIMITED.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
 
         final var secondParameters = new ContractFunctionParameters()
-                .addUint256(new BigInteger("1"))
+                .addUint256(BigInteger.ONE)
                 .addUint256(new BigInteger("1024"))
                 .addAddress(contractSolidityAddress);
 
@@ -565,7 +557,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 NESTED_CALLS_LIMITED.getActualGas(), (int) secondEstimateGasResult, lowerDeviation, upperDeviation);
 
         final var thirdParameters = new ContractFunctionParameters()
-                .addUint256(new BigInteger("1"))
+                .addUint256(BigInteger.ONE)
                 .addUint256(new BigInteger("1025"))
                 .addAddress(contractSolidityAddress);
 
@@ -829,7 +821,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
 
     @Then("I trigger fallback function with send and verify gasConsumed")
     public void triggerFallbackAndSendFundsToContract() {
-        gasConsumedSelector = encodeDataToByteArray(ESTIMATE_GAS, UPDATE_TYPE, new BigInteger("2"));
+        gasConsumedSelector = encodeDataToByteArray(ESTIMATE_GAS, UPDATE_TYPE, BigInteger.TWO);
         executeContractTransaction(deployedContract, UPDATE_TYPE, null);
 
         gasConsumedSelector = encodeData(WRONG_METHOD_SIGNATURE).getBytes();
@@ -852,7 +844,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         gasConsumedSelector = encodeDataToByteArray(
                 ESTIMATE_GAS,
                 CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION,
-                new BigInteger("2"),
+                BigInteger.TWO,
                 asAddress(contractSolidityAddress));
         var txId = executeContractTransaction(deployedContract, CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION);
         verifyGasConsumed(txId);

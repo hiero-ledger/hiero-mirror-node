@@ -270,7 +270,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with associate function for fungible token")
     public void associateFunctionEstimateGas() throws ExecutionException, InterruptedException {
         final var parameters = new ContractFunctionParameters()
-                .addAddress(asAddress(receiverAccountAlias).toString())
+                .addAddress(receiverAccountAlias)
                 .addAddress(fungibleTokenAddressString);
         validateGasEstimation(
                 estimatePrecompileContractId,
@@ -441,7 +441,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(fungibleTokenAddressString)
                 .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("10"));
+                .addUint256(BigInteger.TEN);
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
@@ -511,7 +511,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(fungibleTokenAddressString)
                 .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("10"));
+                .addUint256(BigInteger.TEN);
 
         validateGasEstimation(
                 ercTestContractId, APPROVE_ERC.selector, parameters, senderAccountId, APPROVE_ERC.getActualGas());
@@ -556,7 +556,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleTokenAddressString)
                 .addAddress(adminAddressString)
                 .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("10"));
+                .addUint256(BigInteger.TEN);
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         ercTestContractId,
@@ -1462,7 +1462,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var methodInterface = getFlaggedValue(GET_TOKEN_KEY);
         var parameters = new ContractFunctionParameters()
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addUint256(new BigInteger("2"));
+                .addUint256(BigInteger.TWO);
 
         validateGasEstimation(
                 estimatePrecompileContractId,
@@ -2134,7 +2134,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var parameters = new ContractFunctionParameters()
                 .addAddress(fungibleTokenAddressString)
                 .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("10"));
+                .addUint256(BigInteger.TEN);
 
         validateGasEstimation(
                 precompileContractId,
@@ -2157,7 +2157,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleTokenAddressString)
                 .addAddress(adminAddressString)
                 .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("2"));
+                .addUint256(BigInteger.TWO);
 
         validateGasEstimation(
                 precompileContractId,
@@ -2427,12 +2427,12 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 APPROVE,
                 asAddress(fungibleTokenId),
                 asAddress(receiverAccountAlias),
-                new BigInteger("10"));
+                BigInteger.TEN);
 
         final var parameters = new ContractFunctionParameters()
                 .addAddress(fungibleTokenAddressString)
                 .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("10"));
+                .addUint256(BigInteger.TEN);
 
         var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
                 estimatePrecompileContractId,
