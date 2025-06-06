@@ -416,4 +416,24 @@ class DomainUtilsTest {
                         .build()))
                 .isEqualTo(new byte[] {(byte) 0xaa, (byte) 0xbb, 1, 2});
     }
+
+    @CsvSource(
+            value = {
+                "0, 0, 00000000000000000000000000000000000004e4, true",
+                "1, 1, 00000001000000000000000100000000000004e4, false",
+                "1, 1, 00000000000000000000000000000000000004e4, true",
+                "1, 0, 00000000000000000000000000000000000004e4, true",
+                "1, 0, 00000001000000000000000000000000000004e4, false",
+                "0, 1, 00000000000000000000000000000000000004e4, true",
+                "0, 1, 00000000000000000000000100000000000004e4, false",
+                "0, 0, 000000000000000000000000000000000004e4, false",
+                "0, 0, , false",
+            })
+    @ParameterizedTest
+    void isMirror(long shard, long realm, String hexAddress, boolean result) throws Exception {
+        CommonProperties.getInstance().setShard(shard);
+        CommonProperties.getInstance().setRealm(realm);
+        var address = hexAddress != null ? Hex.decodeHex(hexAddress) : null;
+        assertThat(DomainUtils.isLongZeroAddress(address)).isEqualTo(result);
+    }
 }

@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.common.util;
 
+import com.google.common.primitives.Bytes;
+import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteOutput;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Internal;
@@ -19,6 +21,7 @@ import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
@@ -36,8 +39,10 @@ import org.hiero.mirror.common.exception.ProtobufException;
 @UtilityClass
 public class DomainUtils {
 
+    private static final byte[] MIRROR_PREFIX = new byte[12];
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
     public static final int EVM_ADDRESS_LENGTH = 20;
+    private static final byte[] EMPTY_ADDRESS = new byte[EVM_ADDRESS_LENGTH];
     public static final long TINYBARS_IN_ONE_HBAR = 100_000_000L;
 
     public static final long NANOS_PER_SECOND = 1_000_000_000L;
@@ -272,11 +277,10 @@ public class DomainUtils {
 
         try {
             if (evmAddress != null && evmAddress.length == EVM_ADDRESS_LENGTH) {
-                final var wrapper = ByteBuffer.wrap(evmAddress);
-                final var isLongZeroAddress = wrapper.getInt() == 0 && wrapper.getLong() == 0;
 
-                if (isLongZeroAddress) {
-                    return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), wrapper.getLong());
+                if (isLongZeroAddress(evmAddress)) {
+                    final var num = Longs.fromByteArray(Arrays.copyOfRange(evmAddress, 12, 20));
+                    return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), num);
                 }
             }
         } catch (InvalidEntityException ex) {
@@ -321,12 +325,19 @@ public class DomainUtils {
     }
 
     public static byte[] toEvmAddress(long num) {
-        final var evmAddress = new byte[EVM_ADDRESS_LENGTH];
-        final var buffer = ByteBuffer.wrap(evmAddress);
-        buffer.putInt(0);
-        buffer.putLong(0);
-        buffer.putLong(num);
-        return evmAddress;
+        return Bytes.concat(MIRROR_PREFIX, Longs.toByteArray(num));
+    }
+
+    public static boolean isLongZeroAddress(byte[] evmAddress) {
+        if (evmAddress == null || evmAddress.length != EVM_ADDRESS_LENGTH) {
+            return false;
+        }
+
+        if (Arrays.equals(evmAddress, EMPTY_ADDRESS)) {
+            return true;
+        }
+
+        return Arrays.equals(MIRROR_PREFIX, 0, 12, evmAddress, 0, 12);
     }
 
     static class UnsafeByteOutput extends ByteOutput {
