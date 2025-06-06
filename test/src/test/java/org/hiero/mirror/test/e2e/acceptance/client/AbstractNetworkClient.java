@@ -3,7 +3,7 @@
 package org.hiero.mirror.test.e2e.acceptance.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 
 import com.hedera.hashgraph.sdk.AccountBalanceQuery;
 import com.hedera.hashgraph.sdk.AccountId;
@@ -205,9 +205,6 @@ public abstract class AbstractNetworkClient implements Cleanable {
                 .isEqualTo(
                         account.getPublicKey().isECDSA()
                                 ? account.getPublicKey().toEvmAddress().toString()
-                                : asAddress(account.getAccountId())
-                                        .toString()
-                                        .toLowerCase()
-                                        .replace("0x", ""));
+                                : asHexAddress(account.getAccountId()).replace("0x", ""));
     }
 }

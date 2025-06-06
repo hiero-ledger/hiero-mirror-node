@@ -120,6 +120,10 @@ public class TestUtil {
         return wrapEvmAddress(DomainUtils.toEvmAddress(num));
     }
 
+    public static String asHexAddress(final AccountId accountId) {
+        return asAddress(accountId.num).toString().toLowerCase();
+    }
+
     public static Tuple accountAmount(String account, Long amount, boolean isApproval) {
         return Tuple.of(asAddress(account), amount, isApproval);
     }
