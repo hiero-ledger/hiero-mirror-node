@@ -55,7 +55,7 @@ spec:
         enabled: false
       coordinator:
         persistentVolume:
-          size: 90Gi
+          size: 180Gi
     test:
       enabled: false
       config:
