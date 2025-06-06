@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {RedisContainer} from '@testcontainers/redis';
 import request from 'supertest';
 
 import {Cache} from '../../cache';
 import config from '../../config';
-import {defaultBeforeAllTimeoutMillis, setupIntegrationTest} from '../integrationUtils';
+import integrationContainerOps from '../integrationContainerOps';
 import integrationDomainOps from '../integrationDomainOps';
+import {defaultBeforeAllTimeoutMillis, setupIntegrationTest} from '../integrationUtils';
 
 let cache;
 let redisContainer;
@@ -15,7 +15,7 @@ let server;
 setupIntegrationTest();
 
 beforeAll(async () => {
-  redisContainer = await new RedisContainer().withStartupTimeout(20000).start();
+  redisContainer = await integrationContainerOps.startRedisContainer();
   logger.info('Started Redis container');
 
   config.redis.enabled = true;
@@ -33,7 +33,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await cache.stop();
-  await redisContainer.stop({signal: 'SIGKILL', t: 5});
+  await redisContainer.stop({signal: 'SIGKILL', timeout: 3000});
   logger.info('Stopped Redis container');
   config.cache.response.enabled = false;
   config.redis.enabled = false;

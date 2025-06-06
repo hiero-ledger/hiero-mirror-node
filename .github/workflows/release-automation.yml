@@ -69,7 +69,7 @@ jobs:
 
       - name: Import GPG Key
         id: gpg_importer
-        uses: step-security/ghaction-import-gpg@6c8fe4d0126a59d57c21f87c9ae5dd3451fa3cca # v6.1.0
+        uses: step-security/ghaction-import-gpg@c86c374c0659a6c2d1284bccf8af889e73ce8fe0 # v6.3.0
         with:
           git_commit_gpgsign: true
           git_tag_gpgsign: true
@@ -105,7 +105,7 @@ jobs:
       - name: Close the Milestone
         if: ${{ steps.version_parser.outputs.prerelease == '' }}
         id: milestone
-        uses: step-security/close-milestone@ee401503222f3787e13460b5ad87d7a9d59b0c94 # v2.1.2
+        uses: step-security/close-milestone@fcc24c91b3886d0febeb22fc919b9b0a47bd6187 # v2.2.0
         with:
           milestone_name: ${{ steps.version_parser.outputs.release }}
         env:
@@ -163,7 +163,7 @@ jobs:
 
       - name: Import GPG Key
         id: gpg_importer
-        uses: step-security/ghaction-import-gpg@6c8fe4d0126a59d57c21f87c9ae5dd3451fa3cca # v6.1.0
+        uses: step-security/ghaction-import-gpg@c86c374c0659a6c2d1284bccf8af889e73ce8fe0 # v6.3.0
         with:
           git_commit_gpgsign: true
           git_tag_gpgsign: true

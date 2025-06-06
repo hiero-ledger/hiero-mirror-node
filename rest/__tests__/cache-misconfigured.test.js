@@ -2,7 +2,7 @@
 
 import config from '../config';
 import {Cache} from '../cache';
-import {RedisContainer} from '@testcontainers/redis';
+import integrationContainerOps from './integrationContainerOps';
 import {defaultBeforeAllTimeoutMillis} from './integrationUtils';
 
 let cache;
@@ -11,14 +11,15 @@ let redisContainer;
 beforeAll(async () => {
   config.redis.enabled = true;
   config.redis.uri = 'redis://invalid:6379';
-  redisContainer = await new RedisContainer().withStartupTimeout(20000).start();
+  redisContainer = await integrationContainerOps.startRedisContainer();
   logger.info('Started Redis container');
 }, defaultBeforeAllTimeoutMillis);
 
 afterAll(async () => {
   await cache.stop();
-  await redisContainer.stop({signal: 'SIGKILL', t: 5});
+  await redisContainer.stop({signal: 'SIGKILL', timeout: 3000});
   logger.info('Stopped Redis container');
+  config.redis.enabled = false;
 });
 
 beforeEach(async () => {
