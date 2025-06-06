@@ -38,8 +38,8 @@ const encodedEntityIdRegex = /^-?\d{1,19}$/;
 const evmAddressShardRealmRegex = /^(\d{1,4}\.)?(\d{1,5}\.)?[A-Fa-f0-9]{40}$/;
 const evmAddressRegex = /^(0x)?[A-Fa-f0-9]{40}$/;
 
-// 0x prefix + 12-byte 0s
-const longFormEvmAddressPrefix = `${constants.HEX_PREFIX}${'00'.repeat(12)}`;
+// 12-byte 0s in hex
+const longFormEvmAddressPrefix = '00'.repeat(12);
 
 class EntityId {
   /**
@@ -97,7 +97,9 @@ class EntityId {
     }
 
     // shard, realm, and num take 4, 8, and 8 bytes respectively from the left
-    return this.num === null ? null : `${longFormEvmAddressPrefix}${toHexString(this.num, false, 16)}`;
+    return this.num === null
+      ? null
+      : `${constants.HEX_PREFIX}${longFormEvmAddressPrefix}${toHexString(this.num, false, 16)}`;
   }
 
   toString() {
@@ -150,7 +152,7 @@ const isEvmAddressAlias = (evmAddress) => {
   }
 
   const parts = parseFromEvmAddress(evmAddress);
-  return parts[0] !== 0n || parts[1] > maxNum;
+  return parts[0] !== longFormEvmAddressPrefix || parts[1] > maxNum;
 };
 
 /**
@@ -220,7 +222,7 @@ const parseFromEvmAddress = (evmAddress) => {
   // extract shard from index 0->8, realm from 8->23, num from 24->40 and parse from hex to decimal
   const hexDigits = _.last(stripHexPrefix(evmAddress).split('.'));
   return [
-    BigInt(constants.HEX_PREFIX + hexDigits.slice(0, 24)), // shard + realm
+    hexDigits.slice(0, 24), // shard + realm
     BigInt(constants.HEX_PREFIX + hexDigits.slice(24, 40)), // num
   ];
 };
@@ -249,7 +251,7 @@ const parseFromString = (id, error) => {
 
     let [prefix, num] = parseFromEvmAddress(numOrEvmAddress);
 
-    if (prefix !== 0n || num > maxNum) {
+    if (prefix !== longFormEvmAddressPrefix || num > maxNum) {
       return [shard, realm, null, numOrEvmAddress]; // Opaque EVM address
     } else {
       return [shard, realm, num, null]; // Account num alias
