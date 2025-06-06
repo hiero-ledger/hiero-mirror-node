@@ -194,8 +194,8 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         }
 
         // When
-        final var functionCall = contract.send_nftNAmountAirdrops(nfts, senders, receivers, serials,
-                DEFAULT_TINYBAR_VALUE);
+        final var functionCall =
+                contract.send_nftNAmountAirdrops(nfts, senders, receivers, serials, DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCall(functionCall, contract);
@@ -508,7 +508,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                         getAddressFromEntity(sender),
                         receiverContractAddress,
                         DEFAULT_TOKEN_AIRDROP_AMOUNT,
-                DEFAULT_TINYBAR_VALUE)
+                        DEFAULT_TINYBAR_VALUE)
                 : contract.send_nftAirdrop(
                         tokenAddress,
                         getAddressFromEntity(sender),
