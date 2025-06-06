@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.DigestAlgorithm.SHA_384;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -16,10 +17,12 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.StreamFile;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
@@ -52,6 +55,20 @@ class BlockStreamVerifierTest {
                 new BlockStreamVerifier(blockFileTransformer, recordFileRepository, streamFileNotifier, meterRegistry);
         expectedRecordFile = RecordFile.builder().build();
         when(blockFileTransformer.transform(any())).thenReturn(expectedRecordFile);
+    }
+
+    @Test
+    void getLastBlockFilename() {
+        var latest = RecordFile.builder()
+                .name(StreamFilename.getFilename(StreamType.RECORD, StreamFilename.FileType.DATA, Instant.now()))
+                .build();
+        doReturn(Optional.of(latest)).when(recordFileRepository).findLatest();
+        assertThat(verifier.getLastBlockFilename()).contains(latest.getName());
+    }
+
+    @Test
+    void getLastBlockFilenameEmpty() {
+        assertThat(verifier.getLastBlockFilename()).isEmpty();
     }
 
     @Test
@@ -165,7 +182,7 @@ class BlockStreamVerifierTest {
         return BlockFile.builder()
                 .hash(sha384Hash())
                 .index(blockNumber)
-                .name(BlockFile.getBlockStreamFilename(blockNumber))
+                .name(BlockFile.getFilename(blockNumber, true))
                 .previousHash(previousHash)
                 .consensusStart(consensusStart)
                 .build();
