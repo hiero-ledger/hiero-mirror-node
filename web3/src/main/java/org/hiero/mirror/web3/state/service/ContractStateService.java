@@ -68,8 +68,8 @@ public class ContractStateService {
             final var slotKeyValuePairs = findStorageBatch(contractId, cachedSlotKeys);
 
             return slotKeyValuePairs.stream()
-                    .filter(slotKeyValuePair -> Arrays.equals(slotKeyValuePair.slot(), key))
-                    .map(ContractSlotValue::value)
+                    .filter(slotKeyValuePair -> Arrays.equals(slotKeyValuePair.getSlot(), key))
+                    .map(ContractSlotValue::getValue)
                     .filter(Objects::nonNull)
                     .findFirst();
         } else {
@@ -151,7 +151,7 @@ public class ContractStateService {
     private List<byte[]> getCachedSlotKeysNotPresentInDb(
             List<byte[]> slotKeys, List<ContractSlotValue> contractSlotValuePairs) {
         Set<ByteBuffer> returnedSlotKeyBuffers = contractSlotValuePairs.stream()
-                .map(slot -> ByteBuffer.wrap(slot.slot()))
+                .map(slot -> ByteBuffer.wrap(slot.getSlot()))
                 .collect(Collectors.toSet());
 
         return slotKeys.stream()
@@ -166,8 +166,8 @@ public class ContractStateService {
      */
     private synchronized void cacheSlotValues(final Long contractId, final List<ContractSlotValue> slotKeyValuePairs) {
         for (ContractSlotValue slotKeyValuePair : slotKeyValuePairs) {
-            final byte[] slotKey = slotKeyValuePair.slot();
-            final byte[] slotValue = slotKeyValuePair.value();
+            final byte[] slotKey = slotKeyValuePair.getSlot();
+            final byte[] slotValue = slotKeyValuePair.getValue();
             if (slotValue != null) {
                 findStorageCache.put(generateCacheKey(contractId, slotKey), slotValue);
             }
