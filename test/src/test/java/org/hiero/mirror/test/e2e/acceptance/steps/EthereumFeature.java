@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.PARENT_CONTRACT;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.CREATE_CHILD;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.GET_BYTE_CODE;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
 import static org.web3j.crypto.transaction.type.TransactionType.EIP1559;
 import static org.web3j.crypto.transaction.type.TransactionType.EIP2930;
 
@@ -68,7 +69,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
         deployedParentContract = ethereumContractCreate(PARENT_CONTRACT);
 
         gasConsumedSelector = Objects.requireNonNull(mirrorClient
-                .getContractInfo(deployedParentContract.contractId().toSolidityAddress())
+                .getContractInfo(asAddress(deployedParentContract.contractId()).toString())
                 .getBytecode());
     }
 

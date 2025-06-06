@@ -134,7 +134,11 @@ public class ERCContractFeature extends AbstractFeature {
     @Then("I call the erc contract via the mirror node REST API for token allowance")
     public void allowanceContractCall() {
         var data = encodeData(
-                ERC, ALLOWANCE_SELECTOR, asAddress(fungibleTokenId), asAddress(tokenClient), asAddress(contractClient));
+                ERC,
+                ALLOWANCE_SELECTOR,
+                asAddress(fungibleTokenId),
+                asAddress(tokenClient),
+                asAddress(contractClient.getClientAddress()));
         var getAllowanceResponse = callContract(data, ercTestContractSolidityAddress);
 
         assertThat(getAllowanceResponse.getResultAsNumber()).isZero();
@@ -162,7 +166,7 @@ public class ERCContractFeature extends AbstractFeature {
                 IS_APPROVED_FOR_ALL_SELECTOR,
                 asAddress(nonFungibleTokenId),
                 asAddress(tokenClient),
-                asAddress(contractClient));
+                asAddress(contractClient.getClientAddress()));
         var getIsApproveForAllResponse = callContract(data, ercTestContractSolidityAddress);
 
         assertThat(getIsApproveForAllResponse.getResultAsBoolean()).isFalse();
@@ -185,7 +189,8 @@ public class ERCContractFeature extends AbstractFeature {
     @RetryAsserts
     @Then("I call the erc contract via the mirror node REST API for token balance")
     public void balanceOfContractCall() {
-        var data = encodeData(ERC, BALANCE_OF_SELECTOR, asAddress(fungibleTokenId), asAddress(contractClient));
+        var data = encodeData(
+                ERC, BALANCE_OF_SELECTOR, asAddress(fungibleTokenId), asAddress(contractClient.getClientAddress()));
         var getBalanceOfResponse = callContract(data, ercTestContractSolidityAddress);
 
         assertThat(getBalanceOfResponse.getResultAsNumber()).isEqualTo(1000000);
@@ -202,7 +207,8 @@ public class ERCContractFeature extends AbstractFeature {
     @Given("I successfully create an erc contract from contract bytes with balance 0")
     public void createNewContract() {
         deployedErcContract = getContract(ERC);
-        ercTestContractSolidityAddress = deployedErcContract.contractId().toSolidityAddress();
+        ercTestContractSolidityAddress =
+                asAddress(deployedErcContract.contractId()).toString();
     }
 
     @Then("I create a new token with freeze status 2 and kyc status 1")
