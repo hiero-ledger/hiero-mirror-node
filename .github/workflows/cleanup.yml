@@ -41,7 +41,7 @@ jobs:
           egress-policy: audit
 
       # Instead of checking out the code which is completely unnecessary, create the workspace folder,
-      # and ./git.info/exclude, required by google-github-auth
+      # and .git/info/exclude, required by google-github-auth
       - name: Create Workspace
         run: mkdir -p "${{ github.workspace }}/.git/info" && touch "${{ github.workspace }}/.git/info/exclude"
 
