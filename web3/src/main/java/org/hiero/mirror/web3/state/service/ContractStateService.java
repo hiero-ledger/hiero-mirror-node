@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
@@ -64,12 +63,12 @@ public class ContractStateService {
         updateCachedSlotKeys(contractId, key);
 
         if (cachedValue == null) {
-            final Set<String> cachedSlotKeys = queriedSlotsCache.get(contractId, ConcurrentHashMap::newKeySet);
+            final Set<String> cachedSlotKeys = queriedSlotsCache.get(contractId, LinkedHashSet::new);
             final var slotKeyValuePairs = findStorageBatch(contractId, cachedSlotKeys);
 
             return slotKeyValuePairs.stream()
-                    .filter(slotKeyValuePair -> Arrays.equals(slotKeyValuePair.slot(), key))
-                    .map(ContractSlotValue::value)
+                    .filter(slotKeyValuePair -> Arrays.equals(slotKeyValuePair.getSlot(), key))
+                    .map(ContractSlotValue::getValue)
                     .filter(Objects::nonNull)
                     .findFirst();
         } else {
@@ -151,7 +150,7 @@ public class ContractStateService {
     private List<byte[]> getCachedSlotKeysNotPresentInDb(
             List<byte[]> slotKeys, List<ContractSlotValue> contractSlotValuePairs) {
         Set<ByteBuffer> returnedSlotKeyBuffers = contractSlotValuePairs.stream()
-                .map(slot -> ByteBuffer.wrap(slot.slot()))
+                .map(slot -> ByteBuffer.wrap(slot.getSlot()))
                 .collect(Collectors.toSet());
 
         return slotKeys.stream()
@@ -166,8 +165,8 @@ public class ContractStateService {
      */
     private synchronized void cacheSlotValues(final Long contractId, final List<ContractSlotValue> slotKeyValuePairs) {
         for (ContractSlotValue slotKeyValuePair : slotKeyValuePairs) {
-            final byte[] slotKey = slotKeyValuePair.slot();
-            final byte[] slotValue = slotKeyValuePair.value();
+            final byte[] slotKey = slotKeyValuePair.getSlot();
+            final byte[] slotValue = slotKeyValuePair.getValue();
             if (slotValue != null) {
                 findStorageCache.put(generateCacheKey(contractId, slotKey), slotValue);
             }
