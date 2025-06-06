@@ -6,7 +6,7 @@ import quickLru from 'quick-lru';
 import config, {getMirrorConfig} from './config';
 import * as constants from './constants';
 import {InvalidArgumentError} from './errors';
-import {stripHexPrefix} from './utils.js';
+import {stripHexPrefix, toHexString} from './utils';
 
 const {
   common: {realm: systemRealm, shard: systemShard},
@@ -97,7 +97,7 @@ class EntityId {
     }
 
     // shard, realm, and num take 4, 8, and 8 bytes respectively from the left
-    return this.num === null ? null : `${longFormEvmAddressPrefix}${toHex(this.num).padStart(16, '0')}`;
+    return this.num === null ? null : `${longFormEvmAddressPrefix}${toHexString(this.num, false, 16)}`;
   }
 
   toString() {
@@ -112,10 +112,6 @@ class EntityId {
     return [this.shard, this.realm, this.num, this.evmAddress].filter((x) => x !== null).join('.');
   }
 }
-
-const toHex = (num) => {
-  return num.toString(16);
-};
 
 const isValidEvmAddress = (address, evmAddressType = constants.EvmAddressType.ANY) => {
   if (typeof address !== 'string') {
@@ -154,7 +150,7 @@ const isEvmAddressAlias = (evmAddress) => {
   }
 
   const parts = parseFromEvmAddress(evmAddress);
-  return parts[0] !== 0n || parts[1] !== 0n || parts[2] > maxNum;
+  return parts[0] !== 0n || parts[1] > maxNum;
 };
 
 /**
@@ -218,14 +214,13 @@ const parseFromEncodedId = (id, error) => {
 /**
  * Parses shard, realm, num from EVM address string.
  * @param {string} evmAddress
- * @return {bigint[3]}
+ * @return {bigint[2]}
  */
 const parseFromEvmAddress = (evmAddress) => {
   // extract shard from index 0->8, realm from 8->23, num from 24->40 and parse from hex to decimal
   const hexDigits = _.last(stripHexPrefix(evmAddress).split('.'));
   return [
-    BigInt(constants.HEX_PREFIX + hexDigits.slice(0, 8)), // shard
-    BigInt(constants.HEX_PREFIX + hexDigits.slice(8, 24)), // realm
+    BigInt(constants.HEX_PREFIX + hexDigits.slice(0, 24)), // shard + realm
     BigInt(constants.HEX_PREFIX + hexDigits.slice(24, 40)), // num
   ];
 };
@@ -252,9 +247,9 @@ const parseFromString = (id, error) => {
       throw error(`Invalid shard or realm for EVM address ${id}`);
     }
 
-    let [addressShard, addressRealm, num] = parseFromEvmAddress(numOrEvmAddress);
+    let [prefix, num] = parseFromEvmAddress(numOrEvmAddress);
 
-    if (addressShard !== 0n || addressRealm !== 0n || num > maxNum) {
+    if (prefix !== 0n || num > maxNum) {
       return [shard, realm, null, numOrEvmAddress]; // Opaque EVM address
     } else {
       return [shard, realm, num, null]; // Account num alias
