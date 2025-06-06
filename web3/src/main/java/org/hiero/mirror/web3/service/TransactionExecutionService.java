@@ -25,10 +25,10 @@ import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.SequencedCollection;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -111,9 +111,8 @@ public class TransactionExecutionService {
             // there are some child transactions that failed but parent is SUCCESS, logging a warning
             final var contractId = result.contractID();
             log.warn(
-                    "Child transaction errors present for contract: {} with successful parent transaction, isModularized: {}, errors: {}",
+                    "Child transaction errors present for contract: {} with successful parent transaction, errors: {}",
                     contractId.hasContractNum() ? contractId.contractNum() : contractId.evmAddress(),
-                    true,
                     childTransactionErrors);
         }
 
@@ -264,18 +263,27 @@ public class TransactionExecutionService {
                 : new OperationTracer[] {mirrorOperationTracer};
     }
 
-    private List<String> populateChildTransactionErrors(List<SingleTransactionRecord> transactionRecords) {
-        final var childTransactionErrors = new LinkedHashSet<String>();
+    private SequencedCollection<String> populateChildTransactionErrors(
+            List<SingleTransactionRecord> singleTransactionRecords) {
+        SequencedCollection<String> childTransactionErrors = null;
 
-        for (int i = 1; i < transactionRecords.size(); i++) {
-            final var record = transactionRecords.get(i).transactionRecord();
+        // skipping parent transaction
+        final var iterator = singleTransactionRecords.listIterator(1);
+        while (iterator.hasNext()) {
+            final var record = iterator.next().transactionRecord();
+
             final var status = record.receiptOrThrow().status();
             if (status == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS) {
                 continue;
             }
+
+            if (childTransactionErrors == null) {
+                childTransactionErrors = new LinkedHashSet<>();
+            }
+
             childTransactionErrors.add(status.protoName());
         }
 
-        return new ArrayList<>(childTransactionErrors);
+        return childTransactionErrors != null ? childTransactionErrors : List.of();
     }
 }

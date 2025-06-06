@@ -9,7 +9,7 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.io.Serial;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
-import java.util.List;
+import java.util.SequencedCollection;
 import lombok.Getter;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
@@ -27,7 +27,7 @@ public class MirrorEvmTransactionException extends EvmException {
     private final String data;
     private final Boolean isCallModularized;
     private final transient HederaEvmTransactionProcessingResult result;
-    private final List<String> childTransactionErrors = new LinkedList<>();
+    private final SequencedCollection<String> childTransactionErrors = new LinkedList<>();
 
     public MirrorEvmTransactionException(
             final ResponseCodeEnum responseCode, final String detail, final String hexData) {
@@ -66,7 +66,7 @@ public class MirrorEvmTransactionException extends EvmException {
             final String hexData,
             final HederaEvmTransactionProcessingResult result,
             final Boolean isCallModularized,
-            final List<String> childTransactionErrors) {
+            final SequencedCollection<String> childTransactionErrors) {
         this(message, detail, hexData, result, isCallModularized);
         this.childTransactionErrors.addAll(childTransactionErrors);
     }
