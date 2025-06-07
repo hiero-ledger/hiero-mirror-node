@@ -25,8 +25,6 @@ class EvmTokenUtilsTest {
                 .setContractNum(120)
                 .build();
         byte[] contractAddress = new byte[20];
-        contractAddress[3] = (byte) contractId.getShardNum();
-        contractAddress[11] = (byte) contractId.getRealmNum();
         contractAddress[19] = (byte) contractId.getContractNum();
 
         assertThat(EvmTokenUtils.toAddress(contractId).toArrayUnsafe()).isEqualTo(contractAddress);
@@ -35,8 +33,6 @@ class EvmTokenUtilsTest {
 
         var accountId = EntityId.of(1, 2, 220);
         byte[] accountAddress = new byte[20];
-        accountAddress[3] = (byte) accountId.getShard();
-        accountAddress[11] = (byte) accountId.getRealm();
         accountAddress[19] = (byte) accountId.getNum();
 
         assertThat(EvmTokenUtils.toAddress(accountId).toArrayUnsafe()).isEqualTo(accountAddress);
@@ -74,7 +70,7 @@ class EvmTokenUtilsTest {
     void evmKeyWithContractId() throws InvalidProtocolBufferException, DecoderException {
         // hexed value of a serialized Key with contractId
         final var keyWithContractId = Hex.decodeHex("0a070801100118c409");
-        final var contractAddress = Address.fromHexString("0x00000001000000000000000100000000000004c4");
+        final var contractAddress = Address.fromHexString("0x00000000000000000000000000000000000004c4");
 
         final var result = EvmTokenUtils.evmKey(keyWithContractId);
 

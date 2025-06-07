@@ -14,16 +14,13 @@ import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.store.models.Id;
 import java.util.Optional;
-import java.util.stream.Stream;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hyperledger.besu.datatypes.Address;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -36,6 +33,7 @@ class CommonEntityAccessorTest {
     private static final Long NUM = 1252L;
     private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final Entity mockEntity = mock(Entity.class);
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
 
     @InjectMocks
     private CommonEntityAccessor commonEntityAccessor;
@@ -43,14 +41,13 @@ class CommonEntityAccessorTest {
     @Mock
     private EntityRepository entityRepository;
 
-    @Mock
-    private CommonProperties commonProperties;
-
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByAddress(long shard, long realm) {
-        final var id = new Id(shard, realm, NUM);
-        var accountId = new AccountID(shard, realm, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, NUM));
+    @Test
+    void getEntityByAddress() {
+        final var id = new Id(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), NUM);
+        var accountId = new AccountID(
+                COMMON_PROPERTIES.getShard(),
+                COMMON_PROPERTIES.getRealm(),
+                new OneOf<>(AccountOneOfType.ACCOUNT_NUM, NUM));
         when(entityRepository.findByIdAndDeletedIsFalse(entityIdFromId(id).getId()))
                 .thenReturn(Optional.of(mockEntity));
 
@@ -58,11 +55,13 @@ class CommonEntityAccessorTest {
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByAddressHistorical(long shard, long realm) {
-        final var id = new Id(shard, realm, NUM);
-        var accountId = new AccountID(shard, realm, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, NUM));
+    @Test
+    void getEntityByAddressHistorical() {
+        final var id = new Id(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), NUM);
+        var accountId = new AccountID(
+                COMMON_PROPERTIES.getShard(),
+                COMMON_PROPERTIES.getRealm(),
+                new OneOf<>(AccountOneOfType.ACCOUNT_NUM, NUM));
         when(entityRepository.findActiveByIdAndTimestamp(entityIdFromId(id).getId(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
@@ -70,10 +69,9 @@ class CommonEntityAccessorTest {
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByTokenID(long shard, long realm) {
-        final var tokenID = new TokenID(shard, realm, NUM);
+    @Test
+    void getEntityByTokenID() {
+        final var tokenID = new TokenID(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), NUM);
         final var entityId = EntityId.of(tokenID.shardNum(), tokenID.realmNum(), tokenID.tokenNum());
 
         when(entityRepository.findByIdAndDeletedIsFalse(entityId.getId())).thenReturn(Optional.of(mockEntity));
@@ -82,10 +80,9 @@ class CommonEntityAccessorTest {
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByTokenIDHistorical(long shard, long realm) {
-        final var tokenID = new TokenID(shard, realm, NUM);
+    @Test
+    void getEntityByTokenIDHistorical() {
+        final var tokenID = new TokenID(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), NUM);
         final var entityId = EntityId.of(tokenID.shardNum(), tokenID.realmNum(), tokenID.tokenNum());
 
         when(entityRepository.findActiveByIdAndTimestamp(entityId.getId(), timestamp.get()))
@@ -95,126 +92,98 @@ class CommonEntityAccessorTest {
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByEvmAddress(long shard, long realm) {
-        var account = createAccountAliasWithEVMAddress(shard, realm);
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findByShardAndRealmAndEvmAddressOrAliasAndDeletedIsFalse(
-                        account.shardNum(), account.realmNum(), account.alias().toByteArray()))
+    @Test
+    void getEntityByEvmAddress() {
+        var account = createAccountAliasWithEVMAddress();
+        when(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(
+                        account.alias().toByteArray()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account, Optional.empty()))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByEvmAddressHistorical(long shard, long realm) {
-        var account = createAccountAliasWithEVMAddress(shard, realm);
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
-                        account.shardNum(), account.realmNum(), account.alias().toByteArray(), timestamp.get()))
+    @Test
+    void getEntityByEvmAddressHistorical() {
+        var account = createAccountAliasWithEVMAddress();
+        when(entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(
+                        account.alias().toByteArray(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account, timestamp))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByAlias(long shard, long realm) {
-        var account = createAccountAliasWithKey(shard, realm);
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findByShardAndRealmAndEvmAddressOrAliasAndDeletedIsFalse(
-                        account.shardNum(), account.realmNum(), account.alias().toByteArray()))
+    @Test
+    void getEntityByAlias() {
+        var account = createAccountAliasWithKey();
+        when(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(
+                        account.alias().toByteArray()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account, Optional.empty()))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByAliasHistorical(long shard, long realm) {
-        var account = createAccountAliasWithKey(shard, realm);
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
-                        account.shardNum(), account.realmNum(), account.alias().toByteArray(), timestamp.get()))
+    @Test
+    void getEntityByAliasHistorical() {
+        var account = createAccountAliasWithKey();
+        when(entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(
+                        account.alias().toByteArray(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account, timestamp))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByEvmAddressOrAliasAndTimestampWithEvmAddress(long shard, long realm) {
-        var account = createAccountAliasWithEVMAddress(shard, realm);
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findByShardAndRealmAndEvmAddressOrAliasAndDeletedIsFalse(
-                        account.shardNum(), account.realmNum(), account.alias().toByteArray()))
+    @Test
+    void getEntityByEvmAddressOrAliasAndTimestampWithEvmAddress() {
+        var account = createAccountAliasWithEVMAddress();
+        when(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(
+                        account.alias().toByteArray()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account.alias(), Optional.empty()))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByEvmAddressOrAliasAndTimestampWithEvmAddressHistorical(long shard, long realm) {
-        var account = createAccountAliasWithEVMAddress(shard, realm);
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
-                        account.shardNum(), account.realmNum(), account.alias().toByteArray(), timestamp.get()))
+    @Test
+    void getEntityByEvmAddressOrAliasAndTimestampWithEvmAddressHistorical() {
+        var account = createAccountAliasWithEVMAddress();
+        when(entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(
+                        account.alias().toByteArray(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account.alias(), timestamp))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByEvmAddressOrAliasAndTimestampWithKey(long shard, long realm) {
-        var account = createAccountAliasWithKey(shard, realm);
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findByShardAndRealmAndEvmAddressOrAliasAndDeletedIsFalse(
-                        account.shardNum(), account.realmNum(), account.alias().toByteArray()))
+    @Test
+    void getEntityByEvmAddressOrAliasAndTimestampWithKey() {
+        var account = createAccountAliasWithKey();
+        when(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(
+                        account.alias().toByteArray()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account.alias(), Optional.empty()))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByEvmAddressOrAliasAndTimestampWithKeyHistorical(long shard, long realm) {
-        var account = createAccountAliasWithKey(shard, realm);
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findActiveByShardAndRealmAndEvmAddressOrAliasAndTimestamp(
-                        account.shardNum(), account.realmNum(), account.alias().toByteArray(), timestamp.get()))
+    @Test
+    void getEntityByEvmAddressOrAliasAndTimestampWithKeyHistorical() {
+        var account = createAccountAliasWithKey();
+        when(entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(
+                        account.alias().toByteArray(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(account.alias(), timestamp))
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByEvmAddressAndTimestamp(long shard, long realm) {
-        var account = createAccountAliasWithEVMAddress(shard, realm);
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findByShardAndRealmAndEvmAddressAndDeletedIsFalse(
-                        account.shardNum(), account.realmNum(), account.alias().toByteArray()))
+    @Test
+    void getEntityByEvmAddressAndTimestamp() {
+        var account = createAccountAliasWithEVMAddress();
+        when(entityRepository.findByEvmAddressAndDeletedIsFalse(account.alias().toByteArray()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(
@@ -222,14 +191,10 @@ class CommonEntityAccessorTest {
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    @ParameterizedTest
-    @MethodSource("shardAndRealmData")
-    void getEntityByEvmAddressAndTimestampHistorical(long shard, long realm) {
-        var account = createAccountAliasWithEVMAddress(shard, realm);
-        when(commonProperties.getShard()).thenReturn(shard);
-        when(commonProperties.getRealm()).thenReturn(realm);
-        when(entityRepository.findActiveByShardAndRealmAndEvmAddressAndTimestamp(
-                        account.shardNum(), account.realmNum(), account.alias().toByteArray(), timestamp.get()))
+    @Test
+    void getEntityByEvmAddressAndTimestampHistorical() {
+        var account = createAccountAliasWithEVMAddress();
+        when(entityRepository.findActiveByEvmAddressAndTimestamp(account.alias().toByteArray(), timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(
@@ -237,16 +202,17 @@ class CommonEntityAccessorTest {
                 .hasValueSatisfying(entity -> assertThat(entity).isEqualTo(mockEntity));
     }
 
-    // Method that provides the test data
-    private static Stream<Arguments> shardAndRealmData() {
-        return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 2L));
+    private AccountID createAccountAliasWithEVMAddress() {
+        return new AccountID(
+                COMMON_PROPERTIES.getShard(),
+                COMMON_PROPERTIES.getRealm(),
+                new OneOf<>(AccountOneOfType.ALIAS, Bytes.wrap(EVM_ADDRESS.toArray())));
     }
 
-    private AccountID createAccountAliasWithEVMAddress(long shard, long realm) {
-        return new AccountID(shard, realm, new OneOf<>(AccountOneOfType.ALIAS, Bytes.wrap(EVM_ADDRESS.toArray())));
-    }
-
-    private AccountID createAccountAliasWithKey(long shard, long realm) {
-        return new AccountID(shard, realm, new OneOf<>(AccountOneOfType.ALIAS, Bytes.wrap(ALIAS_HEX.getBytes())));
+    private AccountID createAccountAliasWithKey() {
+        return new AccountID(
+                COMMON_PROPERTIES.getShard(),
+                COMMON_PROPERTIES.getRealm(),
+                new OneOf<>(AccountOneOfType.ALIAS, Bytes.wrap(ALIAS_HEX.getBytes())));
     }
 }

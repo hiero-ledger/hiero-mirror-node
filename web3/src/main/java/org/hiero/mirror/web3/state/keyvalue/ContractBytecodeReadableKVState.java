@@ -3,7 +3,7 @@
 package org.hiero.mirror.web3.state.keyvalue;
 
 import static com.hedera.services.utils.EntityIdUtils.entityIdFromContractId;
-import static org.hiero.mirror.web3.state.Utils.isMirror;
+import static org.hiero.mirror.common.util.DomainUtils.isLongZeroAddress;
 
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.Bytecode;
@@ -48,7 +48,7 @@ public class ContractBytecodeReadableKVState extends AbstractReadableKVState<Con
             return entityIdFromContractId(contractID);
         } else if (contractID.hasEvmAddress()) {
             final var evmAddress = contractID.evmAddress().toByteArray();
-            if (isMirror(evmAddress)) {
+            if (isLongZeroAddress(evmAddress)) {
                 return DomainUtils.fromEvmAddress(evmAddress);
             } else {
                 return commonEntityAccessor

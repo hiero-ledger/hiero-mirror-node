@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.stream.Stream;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.junit.jupiter.api.DisplayName;
@@ -53,7 +54,7 @@ class DomainUtilsTest {
             + "ed7495515c1e88a40f58fd6f94f8d9f14613470ba873d395293ea5542ddea56550f44d5760f57394693a889a43ab6f73b3a55448"
             + "8ecadacc328cb02594a2a5e9e46602010e2430203010001";
     private static final String EMPTY_EVM_ADDRESS = "0000000000000000000000000000000000000000";
-    private static final String MAX_LONG_EVM_ADDRESS = "000001FF000000000000FFFF0000003FFFFFFFFF";
+    private static final String MAX_LONG_EVM_ADDRESS = "0000000000000000000000000000003FFFFFFFFF";
 
     private static Stream<Arguments> paddingByteProvider() {
         return Stream.of(
@@ -304,14 +305,14 @@ class DomainUtilsTest {
 
     @Test
     void fromEvmAddress() {
-        var shard = 1;
-        var realm = 2;
+        var commonProperties = CommonProperties.getInstance();
+        commonProperties.setShard(1);
+        commonProperties.setRealm(2);
+
         var num = 255;
         var evmAddress = new byte[20];
-        evmAddress[3] = (byte) shard;
-        evmAddress[11] = (byte) realm;
         evmAddress[19] = (byte) num;
-        EntityId expected = EntityId.of(shard, realm, num);
+        EntityId expected = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), num);
         assertThat(DomainUtils.fromEvmAddress(evmAddress)).isEqualTo(expected);
 
         evmAddress[0] = (byte) 255;
@@ -330,7 +331,7 @@ class DomainUtilsTest {
     @Test
     void toEvmAddressEntityId() {
         var entityId = EntityId.of(1, 2, 255);
-        var expected = "00000001000000000000000200000000000000FF";
+        var expected = "00000000000000000000000000000000000000FF";
         assertThat(DomainUtils.toEvmAddress(entityId)).asHexString().isEqualTo(expected);
         assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((EntityId) null));
         assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress(EntityId.EMPTY));
@@ -354,12 +355,14 @@ class DomainUtilsTest {
 
     @Test
     void toEvmAddressId() {
-        assertThat(DomainUtils.toEvmAddress(Long.MAX_VALUE)).asHexString().isEqualTo(MAX_LONG_EVM_ADDRESS);
+        assertThat(DomainUtils.toEvmAddress(EntityId.of(Long.MAX_VALUE).getNum()))
+                .asHexString()
+                .isEqualTo(MAX_LONG_EVM_ADDRESS);
     }
 
     @Test
     void toEvmAddressContractID() throws Exception {
-        var expected = "00000001000000000000000200000000000000FF";
+        var expected = "00000000000000000000000000000000000000FF";
         var contractId = ContractID.newBuilder()
                 .setShardNum(1)
                 .setRealmNum(2)
@@ -412,5 +415,25 @@ class DomainUtilsTest {
                         .setHash(ByteString.fromHex("aabb0102"))
                         .build()))
                 .isEqualTo(new byte[] {(byte) 0xaa, (byte) 0xbb, 1, 2});
+    }
+
+    @CsvSource(
+            value = {
+                "0, 0, 00000000000000000000000000000000000004e4, true",
+                "1, 1, 00000001000000000000000100000000000004e4, false",
+                "1, 1, 00000000000000000000000000000000000004e4, true",
+                "1, 0, 00000000000000000000000000000000000004e4, true",
+                "1, 0, 00000001000000000000000000000000000004e4, false",
+                "0, 1, 00000000000000000000000000000000000004e4, true",
+                "0, 1, 00000000000000000000000100000000000004e4, false",
+                "0, 0, 000000000000000000000000000000000004e4, false",
+                "0, 0, , false",
+            })
+    @ParameterizedTest
+    void isMirror(long shard, long realm, String hexAddress, boolean result) throws Exception {
+        CommonProperties.getInstance().setShard(shard);
+        CommonProperties.getInstance().setRealm(realm);
+        var address = hexAddress != null ? Hex.decodeHex(hexAddress) : null;
+        assertThat(DomainUtils.isLongZeroAddress(address)).isEqualTo(result);
     }
 }

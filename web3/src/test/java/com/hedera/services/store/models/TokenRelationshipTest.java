@@ -133,9 +133,9 @@ class TokenRelationshipTest {
     @Test
     void toStringAsExpected() {
         final var desired = "TokenRelationship{notYetPersisted=true, account=Account{entityId=0, id=1.0.4321, alias=, "
-                + "address=0x00000001000000000000000000000000000010e1, expiry=0, balance=0, deleted=false, "
+                + "address=0x00000000000000000000000000000000000010e1, expiry=0, balance=0, deleted=false, "
                 + "ownedNfts=0, autoRenewSecs=0, proxy=0.0.0, "
-                + "accountAddress=0x00000001000000000000000000000000000010e1, maxAutoAssociations=0, "
+                + "accountAddress=0x00000000000000000000000000000000000010e1, maxAutoAssociations=0, "
                 + "cryptoAllowances={}, fungibleTokenAllowances={}, approveForAllNfts=[], numAssociations=3, "
                 + "numPositiveBalances=0, numTreasuryTitles=0, ethereumNonce=0, isSmartContract=false, "
                 + "key=null, createdTimestamp=0, usedAutoAssociations=0}, token=Token{id=0.0.1234, "

@@ -6,20 +6,21 @@ import static com.hedera.services.store.contracts.precompile.codec.KeyValueWrapp
 import static org.hyperledger.besu.datatypes.Address.ALTBN128_MUL;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.hederahashgraph.api.proto.java.ContractID;
 import java.util.Arrays;
+import org.hiero.mirror.common.CommonProperties;
 import org.junit.jupiter.api.Test;
 
 class TokenKeyWrapperTest {
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
 
     private static final int ED25519_BYTE_LENGTH = 32;
 
     private byte[] contractAddress = ALTBN128_MUL.toArrayUnsafe();
     private ContractID contractId = ContractID.newBuilder()
-            .setShardNum(Ints.fromByteArray(Arrays.copyOfRange(contractAddress, 0, 4)))
-            .setRealmNum(Longs.fromByteArray(Arrays.copyOfRange(contractAddress, 4, 12)))
+            .setShardNum(COMMON_PROPERTIES.getShard())
+            .setRealmNum(COMMON_PROPERTIES.getRealm())
             .setContractNum(Longs.fromByteArray(Arrays.copyOfRange(contractAddress, 12, 20)))
             .build();
 

@@ -10,15 +10,11 @@ import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.Timestamp;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
 import java.time.Instant;
-import org.apache.commons.codec.binary.Hex;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -83,25 +79,5 @@ class UtilsTest {
     void isMirrorAddressReturnsTrue() {
         final var address = Address.fromHexString("0x00000000000000000000000000000000000004e4");
         assertTrue(Utils.isMirror(address));
-    }
-
-    @CsvSource(
-            value = {
-                "0, 0, 00000000000000000000000000000000000004e4, true",
-                "1, 1, 00000001000000000000000100000000000004e4, true",
-                "1, 0, 00000000000000000000000000000000000004e4, false",
-                "0, 1, 00000000000000000000000000000000000004e4, false",
-                "1, 1, 00000000000000000000000000000000000004e4, false",
-                "0, 1, 00000001000000000000000100000000000004e4, false",
-                "1, 0, 00000001000000000000000100000000000004e4, false",
-                "0, 0, 000000000000000000000000000000000004e4, false",
-                "0, 0, , false",
-            })
-    @ParameterizedTest
-    void isMirror(long shard, long realm, String hexAddress, boolean result) throws Exception {
-        CommonProperties.getInstance().setShard(shard);
-        CommonProperties.getInstance().setRealm(realm);
-        var address = hexAddress != null ? Hex.decodeHex(hexAddress) : null;
-        assertThat(Utils.isMirror(address)).isEqualTo(result);
     }
 }

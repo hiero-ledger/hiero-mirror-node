@@ -127,7 +127,7 @@ class TokenAccessorImplTest {
 
     @BeforeEach
     void setUp() {
-        final var entityAccessor = new EntityDatabaseAccessor(entityRepository, COMMON_PROPERTIES);
+        final var entityAccessor = new EntityDatabaseAccessor(entityRepository);
         final var customFeeAccessor = new CustomFeeDatabaseAccessor(customFeeRepository, entityAccessor);
         final var systemEntity = new SystemEntity(COMMON_PROPERTIES);
         final var tokenDatabaseAccessor = new TokenDatabaseAccessor(

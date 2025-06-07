@@ -12,7 +12,6 @@ import jakarta.inject.Named;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.store.DatabaseBackedStateFrame.DatabaseAccessIncorrectKeyTypeException;
@@ -23,7 +22,6 @@ import org.hyperledger.besu.datatypes.Address;
 @RequiredArgsConstructor
 public class EntityDatabaseAccessor extends DatabaseAccessor<Object, Entity> {
     private final EntityRepository entityRepository;
-    private final CommonProperties commonProperties;
 
     @Override
     public @Nonnull Optional<Entity> get(@Nonnull Object key, final Optional<Long> timestamp) {
@@ -48,10 +46,8 @@ public class EntityDatabaseAccessor extends DatabaseAccessor<Object, Entity> {
 
     private Optional<Entity> getEntityByEvmAddressTimestamp(byte[] addressBytes, final Optional<Long> timestamp) {
         return timestamp
-                .map(t -> entityRepository.findActiveByShardAndRealmAndEvmAddressAndTimestamp(
-                        commonProperties.getShard(), commonProperties.getRealm(), addressBytes, t))
-                .orElseGet(() -> entityRepository.findByShardAndRealmAndEvmAddressAndDeletedIsFalse(
-                        commonProperties.getShard(), commonProperties.getRealm(), addressBytes));
+                .map(t -> entityRepository.findActiveByEvmAddressAndTimestamp(addressBytes, t))
+                .orElseGet(() -> entityRepository.findByEvmAddressAndDeletedIsFalse(addressBytes));
     }
 
     public Address evmAddressFromId(EntityId entityId, final Optional<Long> timestamp) {
