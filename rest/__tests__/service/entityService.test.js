@@ -128,10 +128,12 @@ describe('EntityService.getEntityIdFromEvmAddress tests', () => {
     };
     await integrationDomainOps.loadEntities([entity]);
 
-    const expectError = async (str) =>
-      await expect(EntityService.getEntityIdFromEvmAddress(EntityId.parse(str))).rejects.toThrowErrorMatchingSnapshot();
-    await expectError(`${entity.evm_address}`);
-    await expectError(`0x${entity.evm_address}`);
+    await expect(EntityService.getEntityIdFromEvmAddress(EntityId.parse(entity.evm_address))).resolves.toBe(
+      18014948265296876n
+    );
+    await expect(EntityService.getEntityIdFromEvmAddress(EntityId.parse(`0x${entity.evm_address}`))).resolves.toBe(
+      18014948265296876n
+    );
   });
 });
 
@@ -205,13 +207,13 @@ describe('EntityService.getEncodedId tests', () => {
     };
     await integrationDomainOps.loadEntities([entity]);
 
-    await expect(EntityService.getEncodedId(entity.alias)).rejects.toThrowErrorMatchingSnapshot();
+    await expect(EntityService.getEncodedId(entity.alias)).resolves.toBe(18014948265296875n);
     await expect(EntityService.getEncodedId(`${entity.realm}.${entity.alias}`)).rejects.toThrowErrorMatchingSnapshot();
     await expect(
       EntityService.getEncodedId(`${entity.shard}.${entity.realm}.${entity.alias}`)
     ).rejects.toThrowErrorMatchingSnapshot();
-    await expect(EntityService.getEncodedId(entity.evm_address)).rejects.toThrowErrorMatchingSnapshot();
-    await expect(EntityService.getEncodedId(`0x${entity.evm_address}`)).rejects.toThrowErrorMatchingSnapshot();
+    await expect(EntityService.getEncodedId(entity.evm_address)).resolves.toBe(18014948265296875n);
+    await expect(EntityService.getEncodedId(`0x${entity.evm_address}`)).resolves.toBe(18014948265296875n);
     await expect(
       EntityService.getEncodedId(`${entity.realm}.${entity.evm_address}`)
     ).rejects.toThrowErrorMatchingSnapshot();

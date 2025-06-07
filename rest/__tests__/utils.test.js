@@ -1145,17 +1145,37 @@ describe('Utils toHexString tests', () => {
       expected: '0x0102ab',
     },
     {
-      name: 'empty array',
-      args: [[], true, 2],
-      expected: '0x',
+      name: 'number no prefix, pad to 8',
+      args: [65535, false, 8],
+      expected: '0000ffff',
     },
     {
-      name: 'null array',
+      name: 'bigint no prefix, pad to 8',
+      args: [32767n, false, 8],
+      expected: '00007fff',
+    },
+    {
+      name: 'buffer no prefix, pad to 16',
+      args: [Buffer.from('deadbeaf', 'hex'), false, 16],
+      expected: '00000000deadbeaf',
+    },
+    {
+      name: 'hex string no prefix, pad to 8',
+      args: ['abcd', false, 8],
+      expected: '0000abcd',
+    },
+    {
+      name: 'empty array',
+      args: [[], true, 2],
+      expected: hexPrefix,
+    },
+    {
+      name: 'null',
       args: [null, true, 2],
       expected: hexPrefix,
     },
     {
-      name: 'undefined array',
+      name: 'undefined',
       args: [undefined, true, 2],
       expected: hexPrefix,
     },
@@ -1165,13 +1185,23 @@ describe('Utils toHexString tests', () => {
       expected: hexPrefix,
     },
     {
-      name: 'null array no prefix',
+      name: 'null no prefix',
       args: [null, false, 2],
       expected: hexPrefix,
     },
     {
-      name: 'undefined array no prefix',
+      name: 'undefined no prefix',
       args: [undefined, false, 2],
+      expected: hexPrefix,
+    },
+    {
+      name: 'decimal number',
+      args: [1.556, false, 2],
+      expected: hexPrefix,
+    },
+    {
+      name: 'non-hex string',
+      args: ['foobar', false, 8],
       expected: hexPrefix,
     },
   ];

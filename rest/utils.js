@@ -956,20 +956,29 @@ const toUint256 = (val) => {
   return toHexString(val, true, 64);
 };
 
+const hexStrPattern = /^([0-9a-fA-F]{2})+$/;
+
 /**
- * Converts the byte array returned by SQL queries into hex string
+ * Converts a value into hex string, the value can be a number, a bigint, a hex string, an array of numbers, or a Buffer
  * Logic conforms with ETH hex value encoding, therefore nill and empty return '0x'
- * @param {Array} byteArray Array of bytes to be converted to hex string
+ * @param {Object} value Value to be converted to hex string
  * @param {boolean} addPrefix Whether to add the '0x' prefix to the hex string
  * @param {Number} padLength The length to left pad the result hex string
  * @return {String} Converted hex string
  */
-const toHexString = (byteArray, addPrefix = false, padLength = undefined) => {
-  if (typeof byteArray !== 'object') {
-    byteArray = Buffer.from(byteArray?.toString() ?? '', 'hex');
-  }
-
-  if (_.isEmpty(byteArray)) {
+const toHexString = (value, addPrefix = false, padLength = undefined) => {
+  let encoded;
+  if (Number.isInteger(value) || typeof value === 'bigint') {
+    encoded = value.toString(16);
+  } else if (typeof value === 'string' && hexStrPattern.test(value)) {
+    encoded = value;
+  } else if (_.isEmpty(value)) {
+    return constants.HEX_PREFIX;
+  } else if (Array.isArray(value)) {
+    encoded = Buffer.from(value).toString('hex');
+  } else if (Buffer.isBuffer(value)) {
+    encoded = value.toString('hex');
+  } else {
     return constants.HEX_PREFIX;
   }
 
@@ -982,7 +991,6 @@ const toHexString = (byteArray, addPrefix = false, padLength = undefined) => {
     modifiers.push(addHexPrefix);
   }
 
-  const encoded = Buffer.from(byteArray, 'utf8').toString('hex');
   return modifiers.reduce((v, f) => f(v), encoded);
 };
 

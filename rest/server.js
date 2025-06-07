@@ -171,6 +171,7 @@ if (!isTestEnv()) {
       '/health/readiness': health.readinessCheck,
       '/health/liveness': health.livenessCheck,
     },
+    logger: (msg, err) => logger.error(msg, err),
     onShutdown: health.onShutdown,
   });
 }
