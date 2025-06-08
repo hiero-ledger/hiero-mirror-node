@@ -123,39 +123,24 @@ public class ContractStateService {
      */
     private List<ContractSlotValue> findStorageBatch(final Long contractId, final Set<String> cachedSlotKeys) {
         if (cachedSlotKeys != null && !cachedSlotKeys.isEmpty()) {
-            final var slotKeys =
+            final var cachedSlots =
                     cachedSlotKeys.stream().map(this::decodeSlotKey).toList();
 
-            final var existingSlotKeyValuePairs = contractStateRepository.findStorageBatch(contractId, slotKeys);
+            final var existingSlotKeyValuePairs = contractStateRepository.findStorageBatch(contractId, cachedSlots);
+            final var existingSlots = existingSlotKeyValuePairs.stream()
+                    .map(pair -> ByteBuffer.wrap(pair.getSlot()))
+                    .collect(Collectors.toSet());
             cacheSlotValues(contractId, existingSlotKeyValuePairs);
 
-            final var nonExistingSlotKeys = getCachedSlotKeysNotPresentInDb(slotKeys, existingSlotKeyValuePairs);
-            cacheNonExistingSlots(contractId, nonExistingSlotKeys);
+            final var nonExistingSlots = cachedSlots.stream()
+                    .filter(key -> !existingSlots.contains(ByteBuffer.wrap(key)))
+                    .toList();
+            cacheNonExistingSlots(contractId, nonExistingSlots);
 
             return existingSlotKeyValuePairs;
         }
         log.warn("findStorageBatch called with empty collection of slot keys for contractId: {}", contractId);
         return new ArrayList<>();
-    }
-
-    /**
-     * Returns the slot keys that were cached in the contractSlots cache,
-     * but were not present in the db.
-     * Since arrays use reference-based equality and contains() uses equals() we are
-     * wrapping byte arrays to ByteBuffer before filtering
-     * @param slotKeys
-     * @param contractSlotValuePairs
-     * @return
-     */
-    private List<byte[]> getCachedSlotKeysNotPresentInDb(
-            List<byte[]> slotKeys, List<ContractSlotValue> contractSlotValuePairs) {
-        Set<ByteBuffer> returnedSlotKeyBuffers = contractSlotValuePairs.stream()
-                .map(slot -> ByteBuffer.wrap(slot.getSlot()))
-                .collect(Collectors.toSet());
-
-        return slotKeys.stream()
-                .filter(slot -> !returnedSlotKeyBuffers.contains(ByteBuffer.wrap(slot)))
-                .toList();
     }
 
     /**
