@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Range;
 import com.google.common.io.BaseEncoding;
 import com.google.common.net.InetAddresses;
-import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractId;
