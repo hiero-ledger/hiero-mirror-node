@@ -276,12 +276,9 @@ public class DomainUtils {
         final var commonProperties = CommonProperties.getInstance();
 
         try {
-            if (evmAddress != null && evmAddress.length == EVM_ADDRESS_LENGTH) {
-
-                if (isLongZeroAddress(evmAddress)) {
-                    final var num = Longs.fromByteArray(Arrays.copyOfRange(evmAddress, 12, 20));
-                    return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), num);
-                }
+            if (isLongZeroAddress(evmAddress)) {
+                final var num = Longs.fromByteArray(Arrays.copyOfRange(evmAddress, 12, 20));
+                return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), num);
             }
         } catch (InvalidEntityException ex) {
             log.debug("Failed to parse long zero evm address into EntityId", ex);
