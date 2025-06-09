@@ -40,6 +40,11 @@ jobs:
         with:
           egress-policy: audit
 
+      # Instead of checking out the code which is completely unnecessary, create the workspace folder,
+      # and .git/info/exclude, required by google-github-auth
+      - name: Create Workspace
+        run: mkdir -p "${{ github.workspace }}/.git/info" && touch "${{ github.workspace }}/.git/info/exclude"
+
       - name: Authenticate to Google Cloud
         uses: step-security/google-github-auth@40f6deebd366f16c782d7a0ad0844e3b96a032a6 # v2.1.10
         with:

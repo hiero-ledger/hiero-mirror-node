@@ -2069,7 +2069,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @RequiredArgsConstructor
     enum ContractMethodsModularizedServices implements ContractMethodInterface {
         TRANSFER_NFT("transferNFTExternal", 41571),
-        ASSOCIATE_TOKENS("associateTokensExternal", 1436847),
+        ASSOCIATE_TOKENS("associateTokensExternal", 1336847),
         CRYPTO_TRANSFER_NFT("cryptoTransferExternal", 47372),
         GET_TOKEN_EXPIRY_INFO("getTokenExpiryInfoExternal", 28607),
         IS_TOKEN("isTokenExternal", 27977),

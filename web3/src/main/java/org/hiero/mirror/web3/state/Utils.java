@@ -2,16 +2,15 @@
 
 package org.hiero.mirror.web3.state;
 
+import static org.hiero.mirror.common.util.DomainUtils.isLongZeroAddress;
+
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.KeyList;
 import com.hedera.hapi.node.base.Timestamp;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.time.Instant;
-import java.util.Arrays;
 import lombok.experimental.UtilityClass;
-import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hyperledger.besu.datatypes.Address;
 
 @UtilityClass
@@ -45,23 +44,7 @@ public class Utils {
         return new Timestamp(instant.getEpochSecond(), instant.getNano());
     }
 
-    public boolean isMirror(final Address address) {
-        return address != null && isMirror(address.toArrayUnsafe());
-    }
-
-    public static boolean isMirror(final byte[] address) {
-        if (address == null || address.length != EVM_ADDRESS_LEN) {
-            return false;
-        }
-
-        if (Arrays.equals(address, Address.ZERO.toArrayUnsafe())) {
-            return true;
-        }
-
-        var entityId = DomainUtils.fromEvmAddress(address);
-        var commonProperties = CommonProperties.getInstance();
-        return entityId != null
-                && entityId.getShard() == commonProperties.getShard()
-                && entityId.getRealm() == commonProperties.getRealm();
+    public static boolean isMirror(final Address address) {
+        return address != null && isLongZeroAddress(address.toArrayUnsafe());
     }
 }

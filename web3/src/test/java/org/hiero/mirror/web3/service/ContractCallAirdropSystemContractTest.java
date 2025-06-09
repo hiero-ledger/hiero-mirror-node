@@ -36,7 +36,6 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceTest {
 
-    private static final BigInteger DEFAULT_WEI_VALUE = BigInteger.ZERO;
     private static final BigInteger DEFAULT_DEPLOYED_CONTRACT_BALANCE = BigInteger.valueOf(100_000_000L);
     private static final BigInteger DEPLOYED_BALANCE_1_BILLION = BigInteger.valueOf(1_000_000_000L);
     private static final BigInteger DEPLOYED_BALANCE_10_BILLION = BigInteger.valueOf(10_000_000_000L);
@@ -103,7 +102,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 getAddressFromEntity(sender),
                 toAddress(receiver).toHexString(),
                 DEFAULT_TOKEN_AIRDROP_AMOUNT,
-                DEFAULT_WEI_VALUE);
+                DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCall(functionCall, contract);
@@ -127,7 +126,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 getAddressFromEntity(sender),
                 toAddress(receiver).toHexString(),
                 DEFAULT_SERIAL_NUMBER,
-                DEFAULT_WEI_VALUE);
+                DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCall(functionCall, contract);
@@ -156,7 +155,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
 
         // When
         final var functionCall = contract.send_tokenNAmountAirdrops(
-                tokens, senders, receivers, DEFAULT_TOKEN_AIRDROP_AMOUNT, DEFAULT_WEI_VALUE);
+                tokens, senders, receivers, DEFAULT_TOKEN_AIRDROP_AMOUNT, DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCall(functionCall, contract);
@@ -187,7 +186,8 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         }
 
         // When
-        final var functionCall = contract.send_nftNAmountAirdrops(nfts, senders, receivers, serials, DEFAULT_WEI_VALUE);
+        final var functionCall =
+                contract.send_nftNAmountAirdrops(nfts, senders, receivers, serials, DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCall(functionCall, contract);
@@ -242,7 +242,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 nftReceivers,
                 DEFAULT_TOKEN_AIRDROP_AMOUNT,
                 serials,
-                DEFAULT_WEI_VALUE);
+                DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCall(functionCall, contract);
@@ -349,7 +349,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 receivers,
                 DEFAULT_TOKEN_AIRDROP_AMOUNT,
                 serials,
-                DEFAULT_WEI_VALUE);
+                DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCall(functionCall, contract);
@@ -384,7 +384,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 getAddressFromEntity(sender),
                 receiverContractAddress,
                 DEFAULT_TOKEN_AIRDROP_AMOUNT,
-                DEFAULT_WEI_VALUE);
+                DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCall(functionCall, contract);
@@ -414,7 +414,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 getAddressFromEntity(sender),
                 receiverContractAddress,
                 DEFAULT_TOKEN_AIRDROP_AMOUNT,
-                DEFAULT_WEI_VALUE);
+                DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCall(functionCall, contract);
@@ -466,7 +466,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 getAddressFromEntity(sender),
                 receiverContractAddress,
                 DEFAULT_TOKEN_AIRDROP_AMOUNT,
-                DEFAULT_WEI_VALUE);
+                DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCall(functionCall, contract);
@@ -500,13 +500,13 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                         getAddressFromEntity(sender),
                         receiverContractAddress,
                         DEFAULT_TOKEN_AIRDROP_AMOUNT,
-                        DEFAULT_WEI_VALUE)
+                        DEFAULT_TINYBAR_VALUE)
                 : contract.send_nftAirdrop(
                         tokenAddress,
                         getAddressFromEntity(sender),
                         receiverContractAddress,
                         BigInteger.ONE,
-                        DEFAULT_WEI_VALUE);
+                        DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCall(functionCall, contract);
@@ -545,7 +545,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 getAddressFromEntity(sender),
                 receivers,
                 DEFAULT_TOKEN_AIRDROP_AMOUNT,
-                DEFAULT_WEI_VALUE);
+                DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCall(functionCall, contract);
@@ -670,7 +670,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
 
         // When
         final var functionCall = contract.send_nftAirdropDistribute(
-                nftAddress, getAddressFromEntity(sender), receivers, DEFAULT_WEI_VALUE);
+                nftAddress, getAddressFromEntity(sender), receivers, DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCall(functionCall, contract);
@@ -777,7 +777,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
                 getAddressFromEntity(sender),
                 receiverContractAddress,
                 DEFAULT_TOKEN_AIRDROP_AMOUNT,
-                DEFAULT_WEI_VALUE);
+                DEFAULT_TINYBAR_VALUE);
 
         // Then
         verifyContractCallWithException(functionCall);

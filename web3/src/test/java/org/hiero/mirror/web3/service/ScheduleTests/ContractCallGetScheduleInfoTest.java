@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.web3.service;
+package org.hiero.mirror.web3.service.ScheduleTests;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -20,6 +20,7 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
+import org.hiero.mirror.web3.service.AbstractContractCallServiceHistoricalTest;
 import org.hiero.mirror.web3.web3j.generated.GetScheduleInfo;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

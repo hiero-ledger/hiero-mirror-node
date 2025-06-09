@@ -34,27 +34,15 @@ public final class EntityIdUtils {
     }
 
     public static AccountID accountIdFromEvmAddress(final byte[] bytes) {
-        var entity = fromEvmAddress(bytes);
+        var entityId = fromEvmAddress(bytes);
 
-        return entity == null
-                ? AccountID.getDefaultInstance()
-                : AccountID.newBuilder()
-                        .setShardNum(entity.getShard())
-                        .setRealmNum(entity.getRealm())
-                        .setAccountNum(entity.getNum())
-                        .build();
+        return entityId == null ? AccountID.getDefaultInstance() : entityId.toAccountID();
     }
 
     public static ContractID contractIdFromEvmAddress(final byte[] bytes) {
-        var entity = fromEvmAddress(bytes);
+        var entityId = fromEvmAddress(bytes);
 
-        return entity == null
-                ? ContractID.getDefaultInstance()
-                : ContractID.newBuilder()
-                        .setShardNum(entity.getShard())
-                        .setRealmNum(entity.getRealm())
-                        .setContractNum(entity.getNum())
-                        .build();
+        return entityId == null ? ContractID.getDefaultInstance() : entityId.toContractID();
     }
 
     public static ContractID contractIdFromEvmAddress(final Address address) {
@@ -62,15 +50,9 @@ public final class EntityIdUtils {
     }
 
     public static TokenID tokenIdFromEvmAddress(final byte[] bytes) {
-        var entity = fromEvmAddress(bytes);
+        var entityId = fromEvmAddress(bytes);
 
-        return entity == null
-                ? TokenID.getDefaultInstance()
-                : TokenID.newBuilder()
-                        .setShardNum(entity.getShard())
-                        .setRealmNum(entity.getRealm())
-                        .setTokenNum(entity.getNum())
-                        .build();
+        return entityId == null ? TokenID.getDefaultInstance() : entityId.toTokenID();
     }
 
     public static TokenID tokenIdFromEvmAddress(final Address address) {
@@ -220,11 +202,11 @@ public final class EntityIdUtils {
     }
 
     public static String asHexedEvmAddress(final Id id) {
-        return CommonUtils.hex(toEvmAddress(entityIdFromId(id)));
+        return CommonUtils.hex(toEvmAddress(id.num()));
     }
 
     public static String asHexedEvmAddress(long id) {
-        return CommonUtils.hex(toEvmAddress(EntityId.of(id).getId()));
+        return CommonUtils.hex(toEvmAddress(EntityId.of(id)));
     }
 
     public static boolean isAlias(final AccountID idOrAlias) {
