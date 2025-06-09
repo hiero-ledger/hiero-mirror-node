@@ -2,13 +2,9 @@
 
 package org.hiero.mirror.web3.state;
 
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.Value;
 
-@Getter
-@RequiredArgsConstructor
-@EqualsAndHashCode
+@Value
 public class ContractSlotValue {
     private final byte[] slot;
     private final byte[] value;

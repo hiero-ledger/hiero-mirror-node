@@ -3,10 +3,9 @@
 package org.hiero.mirror.web3.state.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOT_TRACKING;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_CONTRACT_SLOT_TRACKING;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -35,8 +34,8 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     @Qualifier(CACHE_MANAGER_CONTRACT_STATE)
     private final CacheManager cacheManagerContractState;
 
-    @Qualifier(CACHE_MANAGER_CONTRACT_SLOT_TRACKING)
-    private final CacheManager cacheManagerContractSlot;
+    @Qualifier(CACHE_MANAGER_CONTRACT_SLOTS)
+    private final CacheManager cacheManagerContractSlots;
 
     private final CacheProperties cacheProperties;
     private final ContractStateService contractStateService;
@@ -45,7 +44,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     @BeforeEach
     void cleanUp() {
         cacheManagerContractState.getCache(CACHE_NAME).clear();
-        cacheManagerContractSlot.getCache(CACHE_NAME_CONTRACT_SLOT_TRACKING).clear();
+        cacheManagerContractSlots.getCache(CACHE_NAME).clear();
     }
 
     @Test
@@ -63,11 +62,11 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
         // When
         for (ContractState state : states) {
-            final var result = contractStateService.findStorage(contract.getId(), state.getSlot());
+            final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
             assertThat(result.get()).isEqualTo(state.getValue());
         }
         final var slotsCache = getSlotsCache();
-        final var slotsOfCache = (Set<String>) slotsCache.asMap().get(contract.getId());
+        final var slotsOfCache = (Set<String>) slotsCache.asMap().get(contract.toEntityId());
         assertThat(getCacheSizeContractState()).isEqualTo(targetSlots);
         assertThat(getCacheSizeContractSlot()).isEqualTo(1);
         assertThat(slotsOfCache.size()).isEqualTo(targetSlots);
@@ -76,7 +75,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         // Then
         // verify get from cache
         for (ContractState state : states) {
-            final var result = contractStateService.findStorage(contract.getId(), state.getSlot());
+            final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
             assertThat(result.get()).isEqualTo(state.getValue());
         }
     }
@@ -94,12 +93,12 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
         // When
         for (ContractState state : states) {
-            final var result = contractStateService.findStorage(contract.getId(), state.getSlot());
+            final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
             assertThat(result.get()).isEqualTo(state.getValue());
         }
 
         final var slotsCache = getSlotsCache();
-        final var slotsOfCache = (LinkedHashSet<String>) slotsCache.asMap().get(contract.getId());
+        final var slotsOfCache = (LinkedHashSet<String>) slotsCache.asMap().get(contract.toEntityId());
         final var firstSlotEntryKey = encodeSlotKey(states.get(0).getSlot());
         final var secondSlotEntryKey = encodeSlotKey(states.get(1).getSlot());
         assertThat(slotsOfCache.getFirst()).isEqualTo(firstSlotEntryKey);
@@ -107,7 +106,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         // Persist additional slot and verify that it replaces the oldest entry in the cache.
         final var additionalContractState = persistContractState(contract.getId(), maxCacheSize + 1);
         final var additionalSlotEntryKey = encodeSlotKey(additionalContractState.getSlot());
-        final var result = contractStateService.findStorage(contract.getId(), additionalContractState.getSlot());
+        final var result = contractStateService.findStorage(contract.toEntityId(), additionalContractState.getSlot());
 
         // Then
         assertThat(result.get()).isEqualTo(additionalContractState.getValue());
@@ -132,11 +131,11 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
         // When
         for (ContractState state : states) {
-            final var result = contractStateService.findStorage(contract.getId(), state.getSlot());
+            final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
             assertThat(result.get()).isEqualTo(state.getValue());
         }
         final var slotsCache = getSlotsCache();
-        final var slotsOfCache = (Set<String>) slotsCache.asMap().get(contract.getId());
+        final var slotsOfCache = (Set<String>) slotsCache.asMap().get(contract.toEntityId());
         assertThat(getCacheSizeContractState()).isEqualTo(targetSlots);
         assertThat(getCacheSizeContractSlot()).isEqualTo(1);
         assertThat(slotsOfCache.size()).isEqualTo(targetSlots);
@@ -144,7 +143,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         // Then
         // If the same keys are read, verify that they will not be duplicated in the cache
         for (ContractState state : states) {
-            final var result = contractStateService.findStorage(contract.getId(), state.getSlot());
+            final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
             assertThat(result.get()).isEqualTo(state.getValue());
         }
 
@@ -196,7 +195,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     }
 
     private com.github.benmanes.caffeine.cache.Cache<Object, Object> getSlotsCache() {
-        return ((CaffeineCache) cacheManagerContractSlot.getCache(CACHE_NAME_CONTRACT_SLOT_TRACKING)).getNativeCache();
+        return ((CaffeineCache) cacheManagerContractSlots.getCache(CACHE_NAME)).getNativeCache();
     }
 
     private String encodeSlotKey(final byte[] slotKey) {
