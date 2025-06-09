@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Range;
 import com.google.common.io.BaseEncoding;
 import com.google.common.net.InetAddresses;
+import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractId;
@@ -44,10 +45,6 @@ public class TestUtil {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final Pattern extractTransactionIdPattern = Pattern.compile("(\\d+\\.\\d+\\.\\d+)@(\\d+)\\.(\\d+)");
-
-    public static Address wrapEvmAddress(final byte[] evmAddressBytes) {
-        return Address.wrap(Address.toChecksumAddress(new BigInteger(evmAddressBytes)));
-    }
 
     public static String getAliasFromPublicKey(@NonNull PublicKey key) {
         if (key.isECDSA()) {
@@ -117,7 +114,7 @@ public class TestUtil {
     }
 
     public static Address asAddress(final long num) {
-        return wrapEvmAddress(DomainUtils.toEvmAddress(num));
+        return Address.wrap(Address.toChecksumAddress(new BigInteger(Longs.toByteArray(num))));
     }
 
     public static String asHexAddress(final AccountId accountId) {
