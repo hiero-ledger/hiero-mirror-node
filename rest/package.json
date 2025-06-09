@@ -62,7 +62,7 @@
     "node-flywaydb": "^3.0.7",
     "nodemon": "^3.1.10",
     "pg-format": "^1.0.4",
-    "rewire": "^7.0.0",
+    "rewire": "^8.0.0",
     "sinon": "^18.0.1",
     "supertest": "^7.1.1"
   },
