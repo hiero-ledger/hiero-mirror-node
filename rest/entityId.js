@@ -97,9 +97,7 @@ class EntityId {
     }
 
     // shard, realm, and num take 4, 8, and 8 bytes respectively from the left
-    return this.num === null
-      ? null
-      : `${constants.HEX_PREFIX}${longFormEvmAddressPrefix}${toHexString(this.num, false, 16)}`;
+    return this.num === null ? null : toHexString(this.num, true, 40);
   }
 
   toString() {
@@ -216,13 +214,13 @@ const parseFromEncodedId = (id, error) => {
 /**
  * Parses shard, realm, num from EVM address string.
  * @param {string} evmAddress
- * @return {bigint[2]}
+ * @return {[string, bigint]}
  */
 const parseFromEvmAddress = (evmAddress) => {
-  // extract shard from index 0->8, realm from 8->23, num from 24->40 and parse from hex to decimal
+  // The first 24 chars is the prefix and the last 16 is the num
   const hexDigits = _.last(stripHexPrefix(evmAddress).split('.'));
   return [
-    hexDigits.slice(0, 24), // shard + realm
+    hexDigits.slice(0, 24),
     BigInt(constants.HEX_PREFIX + hexDigits.slice(24, 40)), // num
   ];
 };
