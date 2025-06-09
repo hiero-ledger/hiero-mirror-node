@@ -218,7 +218,7 @@ class MirrorEntityAccessTest {
     @Test
     void getStorage() {
         when(store.getHistoricalTimestamp()).thenReturn(Optional.empty());
-        when(contractStateService.findStorage(ENTITY_ID, BYTES.toArrayUnsafe())).thenReturn(Optional.of(DATA));
+        when(contractStateService.findStorage(ENTITY, BYTES.toArrayUnsafe())).thenReturn(Optional.of(DATA));
         final var result = UInt256.fromBytes(mirrorEntityAccess.getStorage(ADDRESS, BYTES));
         assertThat(result).isEqualTo(UInt256.fromHexString(HEX));
     }

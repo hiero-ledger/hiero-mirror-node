@@ -33,11 +33,13 @@ public class ContractStorageReadableKVState extends AbstractReadableKVState<Slot
 
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var contractID = slotKey.contractID();
-        final var entityId = EntityIdUtils.entityIdFromContractId(contractID).getId();
+        final var entityId = EntityIdUtils.entityIdFromContractId(contractID);
         final var keyBytes = slotKey.key().toByteArray();
         return timestamp
                 .map(t -> contractStateService.findStorageByBlockTimestamp(
-                        entityId, Bytes32.wrap(keyBytes).trimLeadingZeros().toArrayUnsafe(), t))
+                        entityId.getId(),
+                        Bytes32.wrap(keyBytes).trimLeadingZeros().toArrayUnsafe(),
+                        t))
                 .orElse(contractStateService.findStorage(entityId, keyBytes))
                 .map(byteArr ->
                         new SlotValue(Bytes.wrap(leftPadBytes(byteArr, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY))
