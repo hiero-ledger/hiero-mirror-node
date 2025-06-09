@@ -37,7 +37,7 @@ dependencies {
     implementation("org.jooq:jooq-codegen-gradle:$jooqVersion")
     implementation("org.jooq:jooq-meta:$jooqVersion")
     implementation("org.openapitools:openapi-generator-gradle-plugin:7.13.0")
-    implementation("org.owasp:dependency-check-gradle:12.1.1")
+    implementation("org.owasp:dependency-check-gradle:12.1.2")
     implementation("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:6.2.0.5505")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:3.5.0")
     implementation("org.testcontainers:postgresql:1.21.1")
