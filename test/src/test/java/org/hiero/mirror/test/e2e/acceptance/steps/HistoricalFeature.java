@@ -33,6 +33,7 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeatu
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.IS_KYC_GRANTED_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.IS_TOKEN_FROZEN_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 
 import com.esaulpaugh.headlong.abi.Address;
 import com.hedera.hashgraph.sdk.AccountId;
@@ -96,21 +97,19 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     @Given("I successfully create estimateGas contract")
     public void createNewEstimateContract() {
         deployedEstimateContract = getContract(ESTIMATE_GAS);
-        estimateContractSolidityAddress =
-                asAddress(deployedEstimateContract.contractId()).toString();
+        estimateContractSolidityAddress = asHexAddress(deployedEstimateContract.contractId());
     }
 
     @Given("I successfully create estimate precompile contract")
     public void createNewEstimatePrecompileContract() {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_PRECOMPILE);
-        estimatePrecompileContractSolidityAddress =
-                asAddress(deployedEstimatePrecompileContract.contractId()).toString();
+        estimatePrecompileContractSolidityAddress = asHexAddress(deployedEstimatePrecompileContract.contractId());
     }
 
     @Given("I successfully create erc contract")
     public void createNewErcContract() {
         deployedErcContract = getContract(ERC);
-        ercContractSolidityAddress = asAddress(deployedErcContract.contractId()).toString();
+        ercContractSolidityAddress = asHexAddress(deployedErcContract.contractId());
     }
 
     @Given("I successfully create precompile contract")
@@ -401,7 +400,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
 
         var data = encodeData(BALANCE_OF_SELECTOR, adminAddress);
         var initialBlockNumber = getLastBlockNumber();
-        var response = callContract(data, asAddress(tokenId).toString());
+        var response = callContract(data, asHexAddress(tokenId));
         var initialBalance = response.getResultAsNumber();
 
         waitForNextBlock();
@@ -546,7 +545,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var tokenId = tokenClient.getToken(tokenName).tokenId();
         var data = encodeData(ALLOWANCE_DIRECT_SELECTOR, adminAddress, receiverAccountAddress);
         var initialBlockNumber = getLastBlockNumber();
-        var response = callContract(data, asAddress(tokenId).toString());
+        var response = callContract(data, asHexAddress(tokenId));
         var initialAllowance = response.getResultAsNumber();
 
         waitForNextBlock();
@@ -567,7 +566,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         verifyMirrorTransactionsResponse(mirrorClient, 200);
         var initialBlockNumber = getLastBlockNumber();
         var data = encodeData(GET_APPROVED_DIRECT_SELECTOR, new BigInteger("1"));
-        var response = callContract(data, asAddress(tokenId).toString());
+        var response = callContract(data, asHexAddress(tokenId));
         var initialApprovedAddress = response.getResultAsAddress();
 
         waitForNextBlock();

@@ -46,9 +46,7 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.Contrac
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.UPDATE_TYPE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.WRONG_METHOD_SIGNATURE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.IS_TOKEN_SELECTOR;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.extractTransactionId;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.to32BytesString;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.*;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.esaulpaugh.headlong.abi.Address;
@@ -107,7 +105,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Given("I successfully create EstimateGas contract from contract bytes")
     public void createNewEstimateContract() {
         deployedContract = getContract(ESTIMATE_GAS);
-        contractSolidityAddress = asAddress(deployedContract.contractId()).toString();
+        contractSolidityAddress = asHexAddress(deployedContract.contractId());
         newAccountEvmAddress =
                 PrivateKey.generateECDSA().getPublicKey().toEvmAddress().toString();
         receiverAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
@@ -128,8 +126,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Given("I successfully create Precompile contract from contract bytes")
     public void createNewPrecompileContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileSolidityAddress =
-                asAddress(deployedPrecompileContract.contractId()).toString();
+        precompileSolidityAddress = asHexAddress(deployedPrecompileContract.contractId());
     }
 
     @Given("I successfully create ERC contract from contract bytes")

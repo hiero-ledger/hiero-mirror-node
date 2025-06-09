@@ -114,11 +114,19 @@ public class TestUtil {
     }
 
     public static Address asAddress(final long num) {
-        return Address.wrap(Address.toChecksumAddress(new BigInteger(Longs.toByteArray(num))));
+        return Address.wrap(Address.toChecksumAddress(BigInteger.valueOf(num)));
     }
 
     public static String asHexAddress(final AccountId accountId) {
         return asAddress(accountId.num).toString().toLowerCase();
+    }
+
+    public static String asHexAddress(final ContractId contractId) {
+        return asAddress(contractId.num).toString().toLowerCase();
+    }
+
+    public static String asHexAddress(final TokenId tokenId) {
+        return asAddress(tokenId.num).toString().toLowerCase();
     }
 
     public static Tuple accountAmount(String account, Long amount, boolean isApproval) {

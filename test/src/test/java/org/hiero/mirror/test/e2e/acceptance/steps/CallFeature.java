@@ -35,11 +35,7 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMet
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.STATE_UPDATE_N_TIMES_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.UPDATE_COUNTER_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.WIPE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asByteArray;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asLongArray;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.to32BytesString;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -123,7 +119,7 @@ public class CallFeature extends AbstractFeature {
     @Given("I successfully create ERC contract")
     public void createNewERCtestContract() {
         deployedErcTestContract = getContract(ERC);
-        ercContractAddress = asAddress(deployedErcTestContract.contractId()).toString();
+        ercContractAddress = asHexAddress(deployedErcTestContract.contractId());
     }
 
     @Given("I successfully create Precompile contract")
@@ -136,8 +132,7 @@ public class CallFeature extends AbstractFeature {
     @Given("I successfully create EstimateGas contract")
     public void createNewEstimateTestContract() throws IOException {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_GAS);
-        estimateContractAddress =
-                asAddress(deployedEstimatePrecompileContract.contractId()).toString();
+        estimateContractAddress = asHexAddress(deployedEstimatePrecompileContract.contractId());
         admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
         adminAddress = asAddress(admin);
         receiverAccountId = accountClient.getAccount(AccountNameEnum.ALICE);

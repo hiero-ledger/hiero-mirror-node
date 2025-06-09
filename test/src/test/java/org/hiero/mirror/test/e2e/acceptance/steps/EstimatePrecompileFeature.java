@@ -111,14 +111,7 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeatu
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.WIPE_NFT_ACCOUNT;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.WIPE_NFT_GET_TOTAL_SUPPLY_AND_BALANCE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.WIPE_TOKEN_ACCOUNT;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.TokenTransferListBuilder;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.accountAmount;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddressArray;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asByteArray;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asLongArray;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nftAmount;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.*;
 
 import com.esaulpaugh.headlong.abi.Address;
 import com.esaulpaugh.headlong.abi.Tuple;
@@ -198,8 +191,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I create estimate precompile contract with 0 balance")
     public void createNewEstimateContract() throws IOException {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_PRECOMPILE);
-        estimatePrecompileContractSolidityAddress =
-                asAddress(deployedEstimatePrecompileContract.contractId()).toString();
+        estimatePrecompileContractSolidityAddress = asHexAddress(deployedEstimatePrecompileContract.contractId());
         admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
         adminAddress = asAddress(admin);
         receiverAccount = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
@@ -224,8 +216,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I successfully create Precompile contract with 0 balance")
     public void createNewPrecompileTestContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileTestContractSolidityAddress =
-                asAddress(deployedPrecompileContract.contractId()).toString();
+        precompileTestContractSolidityAddress = asHexAddress(deployedPrecompileContract.contractId());
     }
 
     @Given("I successfully create fungible tokens")

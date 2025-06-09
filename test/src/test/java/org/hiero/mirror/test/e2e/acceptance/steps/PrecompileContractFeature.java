@@ -102,8 +102,7 @@ public class PrecompileContractFeature extends AbstractFeature {
     @Given("I successfully create and verify a precompile contract from contract bytes")
     public void createNewContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileTestContractSolidityAddress =
-                asAddress(deployedPrecompileContract.contractId()).toString();
+        precompileTestContractSolidityAddress = asHexAddress(deployedPrecompileContract.contractId());
         contractClientAddress = asAddress(contractClient.getClientAddress());
     }
 
