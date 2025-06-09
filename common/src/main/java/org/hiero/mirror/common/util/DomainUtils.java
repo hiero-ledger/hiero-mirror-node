@@ -333,10 +333,6 @@ public class DomainUtils {
             return false;
         }
 
-        if (Arrays.equals(evmAddress, EMPTY_ADDRESS)) {
-            return true;
-        }
-
         return Arrays.equals(MIRROR_PREFIX, 0, 12, evmAddress, 0, 12);
     }
 

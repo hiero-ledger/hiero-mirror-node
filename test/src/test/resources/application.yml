@@ -6,10 +6,10 @@ hiero:
       acceptance:
         operatorId: 0.0.2
         # grpc endpoint
-        mirrorNodeAddress: integration.mirrornode.hedera-ops.com:443
-        network: OTHER
+        mirrorNodeAddress: testnet.mirrornode.hedera.com:443
+        network: testnet
         rest:
-          baseUrl: https://integration.mirrornode.hedera-ops.com
+          baseUrl: https://testnet.mirrornode.hedera.com
 logging:
   level:
     root: warn
