@@ -31,14 +31,14 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
     private static final String SELECT_LAST_CHECKSUM_SQL =
             """
             select checksum from flyway_schema_history
-            where script = :className order by installed_rank desc limit 1
+            where description = :description order by installed_rank desc limit 1
             """;
 
     private static final String UPDATE_CHECKSUM_SQL =
             """
             with last as (
               select installed_rank from flyway_schema_history
-              where script = :className order by installed_rank desc limit 1
+              where description = :description order by installed_rank desc limit 1
             )
             update flyway_schema_history f
             set checksum = :checksum,
@@ -165,7 +165,7 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
     protected abstract Optional<T> migratePartial(T last);
 
     private MapSqlParameterSource getSqlParamSource() {
-        return new MapSqlParameterSource().addValue("className", getClass().getName());
+        return new MapSqlParameterSource().addValue("description", getDescription());
     }
 
     private boolean hasFlywaySchemaHistoryTable() {

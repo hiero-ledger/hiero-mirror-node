@@ -45,8 +45,7 @@ class AsyncJavaMigrationTest extends ImporterIntegrationTest {
     @AfterEach
     @BeforeEach
     void cleanup() {
-        namedParameterJdbcTemplate.update(
-                "delete from flyway_schema_history where script = :script", Map.of("script", script));
+        ownerJdbcTemplate.update("delete from flyway_schema_history where description = ?", TEST_MIGRATION_DESCRIPTION);
     }
 
     @Test
@@ -132,9 +131,12 @@ class AsyncJavaMigrationTest extends ImporterIntegrationTest {
 
     private List<MigrationHistory> getAllMigrationHistory() {
         return namedParameterJdbcTemplate.query(
-                "select installed_rank, checksum, execution_time from flyway_schema_history where "
-                        + "script = :script order by installed_rank asc",
-                Map.of("script", script),
+                """
+                        select installed_rank, checksum, execution_time
+                        from flyway_schema_history
+                        where description = :description
+                        order by installed_rank asc""",
+                Map.of("description", TEST_MIGRATION_DESCRIPTION),
                 (rs, rowNum) -> {
                     Integer checksum = rs.getInt("checksum");
                     int executionTime = rs.getInt("execution_time");
