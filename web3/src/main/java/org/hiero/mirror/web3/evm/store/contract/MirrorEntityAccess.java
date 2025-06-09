@@ -109,7 +109,8 @@ public class MirrorEntityAccess implements HederaEvmEntityAccess {
                 .map(t -> contractStateService.findStorageByBlockTimestamp(
                         entityId, key.trimLeadingZeros().toArrayUnsafe(), t))
                 .orElseGet(() -> contractStateService.findStorage(EntityId.of(entityId), key.toArrayUnsafe()))
-                .map(Bytes::wrap)
+                .map(bytes -> Bytes.of(
+                        bytes.toByteArray())) // Some unnecessary conversion but this code will be removed soon anyway.
                 .orElse(Bytes.EMPTY);
     }
 

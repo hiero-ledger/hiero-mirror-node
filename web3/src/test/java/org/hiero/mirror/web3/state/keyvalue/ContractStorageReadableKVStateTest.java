@@ -74,8 +74,7 @@ class ContractStorageReadableKVStateTest {
     @Test
     void whenTimestampIsNullReturnsLatestSlot() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
-        when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
-                .thenReturn(Optional.of(BYTES.toByteArray()));
+        when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray())).thenReturn(Optional.of(BYTES));
         assertThat(contractStorageReadableKVState.get(SLOT_KEY))
                 .satisfies(slotValue -> assertThat(slotValue).returns(BYTES, SlotValue::value));
     }
@@ -88,7 +87,7 @@ class ContractStorageReadableKVStateTest {
                         ENTITY_ID.getId(),
                         Bytes32.wrap(BYTES.toByteArray()).trimLeadingZeros().toArrayUnsafe(),
                         blockTimestamp))
-                .thenReturn(Optional.of(BYTES.toByteArray()));
+                .thenReturn(Optional.of(BYTES));
         assertThat(contractStorageReadableKVState.get(SLOT_KEY))
                 .satisfies(slotValue -> assertThat(slotValue).returns(BYTES, SlotValue::value));
     }

@@ -40,5 +40,5 @@ public class CacheProperties {
     private String tokenType = "expireAfterAccess=24h,maximumSize=100000,recordStats";
 
     @Getter
-    private int cachedSlotsMaxSize = 1500;
+    private int maxSlotsPerContract = 1500;
 }

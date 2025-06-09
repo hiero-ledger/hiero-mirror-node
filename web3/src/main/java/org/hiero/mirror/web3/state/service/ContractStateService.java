@@ -6,15 +6,15 @@ import static java.util.Objects.requireNonNull;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
+import static org.hiero.mirror.web3.state.Utils.convertToLeftPaddedBytes;
 
+import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -23,6 +23,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.hiero.mirror.web3.state.ContractSlotValue;
+import org.hiero.mirror.web3.state.Utils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -54,9 +55,9 @@ public class ContractStateService {
      * Executes findStorageBatch query if the slot value is not cached.
      * @param contractId entity id of the contract that the slot key belongs to
      * @param key the slot key of the slot value we are looking for
-     * @return slot value
+     * @return slot value as 32-length left padded Bytes
      */
-    public Optional<byte[]> findStorage(final EntityId contractId, final byte[] key) {
+    public Optional<Bytes> findStorage(final EntityId contractId, final byte[] key) {
         final var cachedValue = contractStateCache.get(generateCacheKey(contractId, key));
         updateCachedSlotKeys(contractId, key);
 
@@ -66,22 +67,19 @@ public class ContractStateService {
             return slotKeyValuePairs.stream()
                     .filter(slotKeyValuePair -> Arrays.equals(slotKeyValuePair.getSlot(), key))
                     .map(ContractSlotValue::getValue)
-                    .filter(Objects::nonNull)
+                    .map(Utils::convertToLeftPaddedBytes)
                     .findFirst();
         } else {
             Object cachedVal = cachedValue.get();
-
-            if (cachedVal instanceof Optional<?> optional) {
-                return optional.map(val -> (byte[]) val);
-            } else {
-                return Optional.ofNullable((byte[]) cachedVal);
-            }
+            return Optional.of(convertToLeftPaddedBytes((byte[]) cachedVal));
         }
     }
 
-    public Optional<byte[]> findStorageByBlockTimestamp(
+    public Optional<Bytes> findStorageByBlockTimestamp(
             final Long entityId, final byte[] slotKeyByteArray, final long blockTimestamp) {
-        return contractStateRepository.findStorageByBlockTimestamp(entityId, slotKeyByteArray, blockTimestamp);
+        return contractStateRepository
+                .findStorageByBlockTimestamp(entityId, slotKeyByteArray, blockTimestamp)
+                .map(Utils::convertToLeftPaddedBytes);
     }
 
     /**
@@ -96,7 +94,7 @@ public class ContractStateService {
 
         if (cachedSlotKeys != null) {
             if (!cachedSlotKeys.contains(encodeSlotKey)) {
-                if (cachedSlotKeys.size() >= cacheProperties.getCachedSlotsMaxSize()) {
+                if (cachedSlotKeys.size() >= cacheProperties.getMaxSlotsPerContract()) {
                     Iterator<String> it = cachedSlotKeys.iterator();
                     it.next();
                     it.remove();
@@ -126,12 +124,12 @@ public class ContractStateService {
 
         final var existingSlotKeyValuePairs = contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots);
         final var existingSlots = existingSlotKeyValuePairs.stream()
-                .map(pair -> ByteBuffer.wrap(pair.getSlot()))
+                .map(pair -> Bytes.wrap(pair.getSlot()))
                 .collect(Collectors.toSet());
         cacheSlotValues(contractId, existingSlotKeyValuePairs);
 
         final var nonExistingSlots = cachedSlots.stream()
-                .filter(key -> !existingSlots.contains(ByteBuffer.wrap(key)))
+                .filter(key -> !existingSlots.contains(Bytes.wrap(key)))
                 .toList();
         cacheNonExistingSlots(contractId, nonExistingSlots);
 
@@ -161,7 +159,7 @@ public class ContractStateService {
      */
     private synchronized void cacheNonExistingSlots(final EntityId contractId, final List<byte[]> nonExistingSlots) {
         for (byte[] slot : nonExistingSlots) {
-            contractStateCache.put(generateCacheKey(contractId, slot), Optional.empty());
+            contractStateCache.put(generateCacheKey(contractId, slot), new byte[0]);
         }
     }
 
@@ -189,7 +187,7 @@ public class ContractStateService {
      * @param slotKey slot key as byte array
      * @return SimpleKey Object used as cache key in the findStorage cache for example
      */
-    private Object generateCacheKey(final EntityId contractId, final byte[] slotKey) {
+    private SimpleKey generateCacheKey(final EntityId contractId, final byte[] slotKey) {
         return new SimpleKey(contractId, slotKey);
     }
 }

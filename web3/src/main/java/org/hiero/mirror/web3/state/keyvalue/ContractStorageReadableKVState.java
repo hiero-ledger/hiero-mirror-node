@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
-import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
-
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
@@ -41,8 +39,7 @@ public class ContractStorageReadableKVState extends AbstractReadableKVState<Slot
                         Bytes32.wrap(keyBytes).trimLeadingZeros().toArrayUnsafe(),
                         t))
                 .orElse(contractStateService.findStorage(entityId, keyBytes))
-                .map(byteArr ->
-                        new SlotValue(Bytes.wrap(leftPadBytes(byteArr, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY))
+                .map(bytes -> new SlotValue(bytes, Bytes.EMPTY, Bytes.EMPTY))
                 .orElse(null);
     }
 }
