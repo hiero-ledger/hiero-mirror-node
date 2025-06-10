@@ -11,13 +11,12 @@ import jakarta.inject.Named;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import lombok.CustomLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
@@ -85,14 +84,14 @@ public class ContractStateService {
     private Optional<byte[]> findStorageBatch(final EntityId contractId, final byte[] key) {
         final String encodedSlotKey = encodeSlotKey(key);
 
-        // Get or create the concurrent slot map for this contract
-        Map<String, Boolean> cachedSlotKeys = getOrCreateSlotMap(contractId);
+        SlotTracker slotTracker = getOrCreateSlotTracker(contractId);
 
-        // Add the new slot key (LRU eviction handled automatically by LinkedHashMap)
-        cachedSlotKeys.put(encodedSlotKey, Boolean.TRUE);
+        slotTracker.addSlot(encodedSlotKey);
 
-        final List<byte[]> cachedSlots = new ArrayList<>(cachedSlotKeys.size());
-        for (String slotKey : cachedSlotKeys.keySet()) {
+        // Get snapshot of current slots for querying (thread-safe)
+        final List<String> currentSlots = slotTracker.getCurrentSlots();
+        final List<byte[]> cachedSlots = new ArrayList<>(currentSlots.size());
+        for (String slotKey : currentSlots) {
             cachedSlots.add(decodeSlotKey(slotKey));
         }
 
@@ -124,22 +123,10 @@ public class ContractStateService {
     }
 
     /**
-     * Gets or creates a thread-safe LRU map for tracking slot keys for a given contract.
-     * Uses LinkedHashMap with removeEldestEntry for automatic LRU eviction.
+     * Gets or creates a thread-safe slot tracker for a given contract.
      */
-    private Map<String, Boolean> getOrCreateSlotMap(final EntityId contractId) {
-        @SuppressWarnings("unchecked")
-        Map<String, Boolean> slotMap = contractSlotsCache.get(contractId, () -> {
-            LinkedHashMap<String, Boolean> newMap = new LinkedHashMap<String, Boolean>() {
-                @Override
-                protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
-                    return size() > cacheProperties.getCachedSlotsMaxSize();
-                }
-            };
-            return Collections.synchronizedMap(newMap);
-        });
-
-        return slotMap;
+    private SlotTracker getOrCreateSlotTracker(final EntityId contractId) {
+        return contractSlotsCache.get(contractId, () -> new SlotTracker(cacheProperties.getCachedSlotsMaxSize()));
     }
 
     /**
@@ -199,5 +186,42 @@ public class ContractStateService {
     @SuppressWarnings("unchecked")
     private Optional<byte[]> unwrapCacheValue(ValueWrapper cachedValue) {
         return (Optional<byte[]>) cachedValue.get();
+    }
+
+    /**
+     * Thread-safe LRU slot tracker using concurrent data structures.
+     * Avoids synchronized maps and unsafe iteration patterns.
+     */
+    private static class SlotTracker {
+        private final ConcurrentHashMap<String, Boolean> slots = new ConcurrentHashMap<>();
+        private final ConcurrentLinkedDeque<String> insertionOrder = new ConcurrentLinkedDeque<>();
+        private final int maxSize;
+
+        public SlotTracker(int maxSize) {
+            this.maxSize = maxSize;
+        }
+
+        public void addSlot(String slot) {
+            // Only add if not already present
+            if (slots.putIfAbsent(slot, Boolean.TRUE) == null) {
+                insertionOrder.addLast(slot);
+
+                // Remove oldest entries if over limit
+                while (slots.size() > maxSize) {
+                    String oldest = insertionOrder.pollFirst();
+                    if (oldest != null) {
+                        slots.remove(oldest);
+                    }
+                }
+            }
+        }
+
+        public List<String> getCurrentSlots() {
+            return new ArrayList<>(slots.keySet());
+        }
+
+        public int size() {
+            return slots.size();
+        }
     }
 }
