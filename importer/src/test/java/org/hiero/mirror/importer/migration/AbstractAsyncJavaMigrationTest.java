@@ -9,17 +9,17 @@ import java.time.Duration;
 import java.util.Objects;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 
 abstract class AbstractAsyncJavaMigrationTest<T extends AsyncJavaMigration<?>> extends ImporterIntegrationTest {
 
-    private static final String RESET_CHECKSUM_SQL = "update flyway_schema_history set checksum = -1 where script = ?";
+    private static final String RESET_CHECKSUM_SQL =
+            "update flyway_schema_history set checksum = -1 where description = ?";
 
     private static final String SELECT_LAST_CHECKSUM_SQL =
             """
             select (
               select checksum from flyway_schema_history
-              where script = ?
+              where description = ?
               order by installed_rank desc
               limit 1
             )
@@ -27,12 +27,9 @@ abstract class AbstractAsyncJavaMigrationTest<T extends AsyncJavaMigration<?>> e
 
     protected abstract T getMigration();
 
-    protected abstract Class<T> getMigrationClass();
-
     @AfterEach
-    @BeforeEach
     void resetChecksum() {
-        jdbcOperations.update(RESET_CHECKSUM_SQL, getScript());
+        jdbcOperations.update(RESET_CHECKSUM_SQL, getDescription());
     }
 
     protected void waitForCompletion() {
@@ -42,12 +39,12 @@ abstract class AbstractAsyncJavaMigrationTest<T extends AsyncJavaMigration<?>> e
                 .untilAsserted(() -> assertThat(isMigrationCompleted()).isTrue());
     }
 
-    private String getScript() {
-        return getMigrationClass().getName();
+    private String getDescription() {
+        return getMigration().getDescription();
     }
 
     private boolean isMigrationCompleted() {
-        var actual = jdbcOperations.queryForObject(SELECT_LAST_CHECKSUM_SQL, Integer.class, getScript());
+        var actual = jdbcOperations.queryForObject(SELECT_LAST_CHECKSUM_SQL, Integer.class, getDescription());
         return Objects.equals(actual, getMigration().getSuccessChecksum());
     }
 }
