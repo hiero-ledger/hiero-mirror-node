@@ -9,13 +9,14 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import jakarta.inject.Named;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
@@ -62,11 +63,7 @@ public class ContractStateService {
             return unwrapCacheValue(cachedValue);
         }
 
-        findStorageBatch(contractId, key);
-
-        // Try cache again
-        final var cachedAfterBatch = contractStateCache.get(cacheKey);
-        return unwrapCacheValue(cachedAfterBatch);
+        return findStorageBatch(contractId, key);
     }
 
     public Optional<byte[]> findStorageByBlockTimestamp(
@@ -85,37 +82,37 @@ public class ContractStateService {
      * @param contractId the ID of the contract whose slot keys are being managed and queried
      * @param key the specific slot key to add to the tracked set and fetch from storage if not cached
      */
-    private synchronized void findStorageBatch(final EntityId contractId, final byte[] key) {
+    private synchronized Optional<byte[]> findStorageBatch(final EntityId contractId, final byte[] key) {
         final String encodedSlotKey = encodeSlotKey(key);
         Set<String> cachedSlotKeys = contractSlotsCache.get(contractId, LinkedHashSet::new);
         if (cachedSlotKeys == null) {
             cachedSlotKeys = new LinkedHashSet<>();
         }
 
-        if (!cachedSlotKeys.contains(encodedSlotKey)) {
-            if (cachedSlotKeys.size() >= cacheProperties.getCachedSlotsMaxSize()) {
-                Iterator<String> it = cachedSlotKeys.iterator();
-                if (it.hasNext()) {
-                    it.next();
-                    it.remove();
-                }
-            }
-            cachedSlotKeys.add(encodedSlotKey);
-            contractSlotsCache.put(contractId, cachedSlotKeys);
-        }
-
+        updateSlotKeysCache(cachedSlotKeys, encodedSlotKey, contractId);
         final var cachedSlots = cachedSlotKeys.stream().map(this::decodeSlotKey).toList();
 
         final var existingSlotKeyValuePairs = contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots);
-        final var existingSlots = existingSlotKeyValuePairs.stream()
-                .map(pair -> ByteBuffer.wrap(pair.getSlot()))
-                .collect(Collectors.toSet());
+
+        byte[] cachedValue = null;
+        Set<ByteBuffer> existingSlots = new HashSet<>();
+        for(int i = 0; i < existingSlotKeyValuePairs.size(); i++) {
+            final var contractSlotValue = existingSlotKeyValuePairs.get(i);
+            final byte[] slotKey = contractSlotValue.getSlot();
+            final byte[] slotValue = contractSlotValue.getValue();
+            existingSlots.add(ByteBuffer.wrap(slotKey));
+            if (Arrays.equals(slotKey, key)) {
+                cachedValue = slotValue;
+            }
+        }
         cacheSlotValues(contractId, existingSlotKeyValuePairs);
 
         final var nonExistingSlots = cachedSlots.stream()
                 .filter(k -> !existingSlots.contains(ByteBuffer.wrap(k)))
                 .toList();
         cacheNonExistingSlots(contractId, nonExistingSlots);
+
+        return cachedValue == null ? Optional.empty() : Optional.of(cachedValue);
     }
 
     /**
@@ -175,5 +172,19 @@ public class ContractStateService {
     @SuppressWarnings("unchecked")
     private Optional<byte[]> unwrapCacheValue(ValueWrapper cachedValue) {
         return (Optional<byte[]>) cachedValue.get();
+    }
+
+    private void updateSlotKeysCache(final Set<String> cachedSlotKeys, final String encodedSlotKey, final EntityId contractId) {
+        if (!cachedSlotKeys.contains(encodedSlotKey)) {
+            if (cachedSlotKeys.size() >= cacheProperties.getCachedSlotsMaxSize()) {
+                Iterator<String> it = cachedSlotKeys.iterator();
+                if (it.hasNext()) {
+                    it.next();
+                    it.remove();
+                }
+            }
+            cachedSlotKeys.add(encodedSlotKey);
+            contractSlotsCache.put(contractId, cachedSlotKeys);
+        }
     }
 }
