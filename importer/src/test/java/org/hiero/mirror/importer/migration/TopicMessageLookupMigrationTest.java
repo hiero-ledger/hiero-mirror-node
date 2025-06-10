@@ -34,12 +34,13 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 class TopicMessageLookupMigrationTest extends AbstractTopicMessageLookupIntegrationTest {
 
     private static final String PARTITION_SKIPPED_TEMPLATE = "Partition %s doesn't need migration";
-    private static final String RESET_CHECKSUM_SQL = "update flyway_schema_history set checksum = -1 where script = ?";
+    private static final String RESET_CHECKSUM_SQL =
+            "update flyway_schema_history set checksum = -1 where description = ?";
     private static final String SELECT_LAST_CHECKSUM_SQL =
             """
             select (
               select checksum from flyway_schema_history
-              where script = ?
+              where description = ?
               order by installed_rank desc
               limit 1
             )
@@ -50,7 +51,7 @@ class TopicMessageLookupMigrationTest extends AbstractTopicMessageLookupIntegrat
     @AfterEach
     @BeforeEach
     void resetChecksum() {
-        jdbcOperations.update(RESET_CHECKSUM_SQL, migration.getClass().getName());
+        jdbcOperations.update(RESET_CHECKSUM_SQL, migration.getDescription());
     }
 
     @Test
@@ -298,8 +299,7 @@ class TopicMessageLookupMigrationTest extends AbstractTopicMessageLookupIntegrat
     }
 
     private boolean isMigrationCompleted() {
-        var actual = jdbcOperations.queryForObject(
-                SELECT_LAST_CHECKSUM_SQL, Integer.class, migration.getClass().getName());
+        var actual = jdbcOperations.queryForObject(SELECT_LAST_CHECKSUM_SQL, Integer.class, migration.getDescription());
         return Objects.equals(actual, migration.getSuccessChecksum());
     }
 }
