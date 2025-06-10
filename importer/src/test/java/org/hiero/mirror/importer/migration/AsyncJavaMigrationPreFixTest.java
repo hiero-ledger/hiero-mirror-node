@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.function.Function;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -18,22 +17,24 @@ import org.springframework.test.context.ContextConfiguration;
 @Tag("migration")
 class AsyncJavaMigrationPreFixTest extends AsyncJavaMigrationBaseTest {
 
-    private static final Function<String, String> CUSTOMIZER = name -> name.replace("org.hiero.", "com.hedera.");
-
     @ParameterizedTest
     @CsvSource(
             textBlock =
                     """
-            1, -1, -1
-            2, -1, -1
-            -10, -1, -2
-            , 1, 1
+            , , -1
             , -1, -2
+            , 1, 1
+            1, , 1
+            1, -1, -1
+            1, 1, 1
+            -1, , -2
+            -1, -1, -2
+            -1, 1, 1
             """)
     void getChecksum(Integer preRenamingChecksum, Integer postRenamingChecksum, int expected) {
         // given
-        addMigrationHistory(new MigrationHistory(preRenamingChecksum, ELAPSED, 1000), CUSTOMIZER);
-        addMigrationHistory(new MigrationHistory(postRenamingChecksum, ELAPSED, 1100));
+        addMigrationHistory(new MigrationHistory(preRenamingChecksum, ELAPSED, 1000, SCRIPT_HEDERA));
+        addMigrationHistory(new MigrationHistory(postRenamingChecksum, ELAPSED, 1100, SCRIPT));
         var migration = new TestAsyncJavaMigration(false, new MigrationProperties(), 1);
 
         // when, then

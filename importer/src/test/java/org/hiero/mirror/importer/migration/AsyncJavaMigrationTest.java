@@ -33,43 +33,43 @@ class AsyncJavaMigrationTest extends AsyncJavaMigrationBaseTest {
     @ParameterizedTest
     @CsvSource(value = {", -1", "-1, -2", "1, 1", "2, -1"})
     void getChecksum(Integer existing, Integer expected) {
-        addMigrationHistory(new MigrationHistory(existing, ELAPSED, 1000));
+        addMigrationHistory(new MigrationHistory(existing, ELAPSED, 1000, SCRIPT));
         var migration = new TestAsyncJavaMigration(false, new MigrationProperties(), 1);
         assertThat(migration.getChecksum()).isEqualTo(expected);
     }
 
     @Test
     void migrate() throws Exception {
-        addMigrationHistory(new MigrationHistory(-1, ELAPSED, 1000));
-        addMigrationHistory(new MigrationHistory(-2, ELAPSED, 1001));
+        addMigrationHistory(new MigrationHistory(-1, ELAPSED, 1000, SCRIPT));
+        addMigrationHistory(new MigrationHistory(-2, ELAPSED, 1001, SCRIPT));
         var migration = new TestAsyncJavaMigration(false, new MigrationProperties(), 1);
         migrateSync(migration);
         assertThat(getAllMigrationHistory())
                 .hasSize(2)
-                .extracting(MigrationHistory::getChecksum)
+                .extracting(MigrationHistory::checksum)
                 .containsExactly(-1, 1);
     }
 
     @Test
     void migrateUpdatedExecutionTime() throws Exception {
-        addMigrationHistory(new MigrationHistory(-1, ELAPSED, 1000));
+        addMigrationHistory(new MigrationHistory(-1, ELAPSED, 1000, SCRIPT));
         var migration = new TestAsyncJavaMigration(false, new MigrationProperties(), 1);
         migrateSync(migration);
         assertThat(getAllMigrationHistory())
                 .hasSize(1)
-                .extracting(AsyncJavaMigrationBaseTest.MigrationHistory::getExecutionTime)
+                .extracting(AsyncJavaMigrationBaseTest.MigrationHistory::executionTime)
                 .isNotEqualTo(ELAPSED);
     }
 
     @Test
     void migrateError() throws Exception {
-        addMigrationHistory(new AsyncJavaMigrationBaseTest.MigrationHistory(-1, ELAPSED, 1000));
-        addMigrationHistory(new AsyncJavaMigrationBaseTest.MigrationHistory(-2, ELAPSED, 1001));
+        addMigrationHistory(new AsyncJavaMigrationBaseTest.MigrationHistory(-1, ELAPSED, 1000, SCRIPT));
+        addMigrationHistory(new AsyncJavaMigrationBaseTest.MigrationHistory(-2, ELAPSED, 1001, SCRIPT));
         var migration = new TestAsyncJavaMigration(true, new MigrationProperties(), 0);
         migrateSync(migration);
         assertThat(getAllMigrationHistory())
                 .hasSize(2)
-                .extracting(AsyncJavaMigrationBaseTest.MigrationHistory::getChecksum)
+                .extracting(AsyncJavaMigrationBaseTest.MigrationHistory::checksum)
                 .containsExactly(-1, -2);
     }
 

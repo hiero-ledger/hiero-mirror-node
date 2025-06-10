@@ -9,12 +9,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import lombok.Value;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionOperations;
@@ -22,7 +22,11 @@ import org.springframework.transaction.support.TransactionOperations;
 class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
 
     protected static final int ELAPSED = 20;
+    protected static final String SCRIPT = AsyncJavaMigrationBaseTest.TestAsyncJavaMigration.class.getName();
+    protected static final String SCRIPT_HEDERA = SCRIPT.replace("org.hiero.", "com.hedera.");
     protected static final String TEST_MIGRATION_DESCRIPTION = "Async java migration for testing";
+
+    private static final DataClassRowMapper<MigrationHistory> MAPPER = new DataClassRowMapper<>(MigrationHistory.class);
 
     @Resource
     protected DBProperties dbProperties;
@@ -41,17 +45,16 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
         ownerJdbcTemplate.update("delete from flyway_schema_history where description = ?", TEST_MIGRATION_DESCRIPTION);
     }
 
-    protected void addMigrationHistory(
-            AsyncJavaMigrationBaseTest.MigrationHistory migrationHistory, Function<String, String> scriptCustomizer) {
-        if (migrationHistory.getChecksum() == null) {
+    protected void addMigrationHistory(AsyncJavaMigrationBaseTest.MigrationHistory migrationHistory) {
+        if (migrationHistory.checksum() == null) {
             return;
         }
 
         var paramSource = new MapSqlParameterSource()
-                .addValue("installedRank", migrationHistory.getInstalledRank())
+                .addValue("installedRank", migrationHistory.installedRank())
                 .addValue("description", TEST_MIGRATION_DESCRIPTION)
-                .addValue("script", scriptCustomizer.apply(script))
-                .addValue("checksum", migrationHistory.getChecksum());
+                .addValue("script", migrationHistory.script())
+                .addValue("checksum", migrationHistory.checksum());
         var sql =
                 """
                 insert into flyway_schema_history (installed_rank, description, type, script, checksum,
@@ -61,32 +64,18 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
         namedParameterJdbcTemplate.update(sql, paramSource);
     }
 
-    protected void addMigrationHistory(AsyncJavaMigrationBaseTest.MigrationHistory migrationHistory) {
-        addMigrationHistory(migrationHistory, Function.identity());
-    }
-
     protected List<AsyncJavaMigrationBaseTest.MigrationHistory> getAllMigrationHistory() {
         return namedParameterJdbcTemplate.query(
                 """
-                        select installed_rank, checksum, execution_time
+                        select installed_rank, checksum, execution_time, script
                         from flyway_schema_history
                         where description = :description
                         order by installed_rank asc""",
                 Map.of("description", TEST_MIGRATION_DESCRIPTION),
-                (rs, rowNum) -> {
-                    Integer checksum = rs.getInt("checksum");
-                    int executionTime = rs.getInt("execution_time");
-                    int installedRank = rs.getInt("installed_rank");
-                    return new AsyncJavaMigrationBaseTest.MigrationHistory(checksum, executionTime, installedRank);
-                });
+                MAPPER);
     }
 
-    @Value
-    protected static class MigrationHistory {
-        private Integer checksum;
-        private int executionTime;
-        private int installedRank;
-    }
+    protected record MigrationHistory(Integer checksum, int executionTime, int installedRank, String script) {}
 
     @Value
     protected class TestAsyncJavaMigration extends AsyncJavaMigration<Long> {

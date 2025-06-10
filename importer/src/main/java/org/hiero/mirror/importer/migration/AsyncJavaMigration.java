@@ -101,7 +101,7 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
                 // - the asynchronous migration did not complete before being renamed to org.hiero prefix, or did not
                 //   run at all
                 // - and the runs after renaming didn't complete either
-                // return a negative number so it continues
+                // subtract the checksum by 1 as the return value so the migration continues
                 return lastChecksum - 1;
             }
 
