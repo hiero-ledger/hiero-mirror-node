@@ -11,6 +11,7 @@ This checklist verifies a release is rolled out successfully.
 - [ ] No pre-release or snapshot dependencies present in build files
 - [ ] Verify HAPI protobuf dependency doesn't contain any unsupported fields or messages
 - [ ] Automated Kubernetes deployment to integration successful
+- [ ] No abnormal exceptions in importer logs in integration since the first SNAPSHOT
 - [ ] Tag release
 
 ## Release Candidates
@@ -36,6 +37,7 @@ Deployed automatically on every tag.
 - [ ] Deployed
 - [ ] Helm Controller logs show successful reconciliation check
 - [ ] Helm release status is healthy
+- [ ] No abnormal exceptions in importer logs
 - [ ] REST API performance tests
 - [ ] REST Java API performance tests
 - [ ] Web3 API performance tests
