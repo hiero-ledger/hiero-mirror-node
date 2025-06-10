@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: Apache-2.0
+syntax = "proto3";
+
+package org.hiero.block.api;
+
+option java_package = "org.hiero.block.api.protoc";
+// <<<pbj.java_package = "org.hiero.block.api">>> This comment is special code for setting PBJ Compiler java package
+option java_multiple_files = true;
+
+/**
+ * A request to read a state snapshot.
+ *
+ * A state snapshot is a full copy of the network state at the completion of a
+ * particular block.
+ *
+ * This request MUST contain a block number that has already reached this block
+ * node and completed verification, or request the "latest" snapshot.<br/>
+ * This request MAY specify the "latest" snapshot, and the block node SHALL
+ * respond with a reference to a snapshot containing the most recent contents
+ * of the network state known to that block node.
+ */
+message StateSnapshotRequest {
+    /**
+     * A block number.
+     * <p>
+     * This SHALL be the last block number present in the snapshot
+     * returned.<br/>
+     * If `retrieve_latest` is set `true` this field SHOULD NOT be set
+     * and SHALL be ignored.<br/>
+     * A block node implementation MAY reject any request with a non-default
+     * value for this field, but MUST clearly document that behavior.
+     */
+    uint64 last_block_number = 1;
+
+    /**
+     * A boolean to request the latest available snapshot.
+     * <p>
+     * This value MAY be set `true` to request the most recent state snapshot
+     * available.<br/>
+     * If this value is set to `true` then `last_block_number` SHOULD NOT be
+     * set and SHALL be ignored.<br/>
+     * A block node implementation MAY reject any request with that does _not_
+     * set this field `true`, but MUST clearly document that behavior.
+     */
+    bool retrieve_latest = 2;
+}
+
+/**
+ * A response to a request for a state snapshot.
+ *
+ * This message SHALL deliver a _reference_ to the requested snapshot
+ * data if successful.<br/>
+ * This message SHALL deliver a code indicating the reason for failure
+ * if unsuccessful.
+ */
+message StateSnapshotResponse {
+    /**
+     * An enumeration indicating the status of a StateSnapshotResponse request.
+     */
+    enum Code {
+        /**
+         * An "unset value" flag, this value SHALL NOT be used.<br/>
+         * This status indicates the server software failed to set a status,
+         * and SHALL be considered a software defect.
+         */
+        STATE_SNAPSHOT_UNKNOWN = 0;
+
+        /**
+         * The requesting client account lacks sufficient HBAR to pay the
+         * service fee for this request.<br/>
+         * The client MAY retry the request, but MUST increase the client
+         * account balance with this block node server before doing so.
+         */
+        STATE_SNAPSHOT_INSUFFICIENT_BALANCE = 1;
+
+        /**
+         * The request succeeded.<br/>
+         * The full snapshot data MAY be read via the endpoint provided in the
+         * `snapshot_reference` field for the duration specified.
+         */
+        STATE_SNAPSHOT_SUCCESS = 2;
+    }
+
+    /**
+     * A status response.
+     * <p>
+     * This code SHALL indicate a successful call, or the detailed
+     * reason for failure.
+     */
+    Code status = 1;
+
+    /**
+     * A block number.
+     * <p>
+     * This SHALL be the number of the last block included in this
+     * state snapshot.
+     */
+    uint64 last_block_number = 2;
+
+    /**
+     * A reference to where the requested state snapshot may be obtained.
+     * <p>
+     * <blockquote>REVIEW NOTE<blockquote>
+     * This is TEMPORARY.  We have not yet designed how state snapshots may
+     * be sent. One idea is to use `Any` and let implementations decide;
+     * another is to use a time limited URL (with the same login as the block
+     * node server); another is to use a customer-pays cloud storage bucket.
+     * </blockquote></blockquote>
+     */
+    string snapshot_reference = 3;
+}
+
+/**
+ * Remote procedure calls (RPCs) for the Block Node state snapshot
+ * and query services.
+ */
+service StateService {
+    /**
+     * Read a state snapshot from the block node.
+     * <p>
+     * The request SHALL describe the last block number present in the
+     * snapshot.<br/>
+     * Block node implementations MAY decline a request for a snapshot older
+     * than the latest available, but MUST clearly document this behavior.
+     */
+    rpc stateSnapshot(StateSnapshotRequest) returns (StateSnapshotResponse);
+}

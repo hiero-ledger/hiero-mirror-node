@@ -1,0 +1,128 @@
+// SPDX-License-Identifier: Apache-2.0
+syntax = "proto3";
+
+package org.hiero.block.api;
+
+option java_package = "org.hiero.block.api.protoc";
+// <<<pbj.java_package = "org.hiero.block.api">>> This comment is special code for setting PBJ Compiler java package
+option java_multiple_files = true;
+
+import "block/stream/block.proto";
+
+/**
+ * A request to read a single block.
+ *
+ * A client system SHALL send this message to request a single block,
+ * including the block state proof.
+ */
+message BlockRequest {
+    oneof block_specifier {
+        /**
+         * The block number of a block to retrieve.
+         * <p>
+         * The requested block MUST exist on the block node.<br/>
+         * A request MAY specify `uint64_max` to signal that the last possible
+         * block should be returned (which is subtly different from setting
+         * `retrieve_latest` instead of setting a `block_number`, though the
+         * result will always be the same, in most implementations).
+         */
+        uint64 block_number = 1;
+
+        /**
+         * A flag to request the latest available block.
+         * <p>
+         * This value SHOULD be set `true`, instead of setting `block_number`
+         * if the intent is to request the latest block available.
+         */
+        bool retrieve_latest = 2;
+    }
+}
+
+/**
+ * A response to a `singleBlock` request.
+ *
+ * This message SHALL be sent in response to a request, and SHALL contain at
+ * least a valid `status`.<br/>
+ * If `status` is `READ_BLOCK_SUCCESS`, the response SHALL contain the
+ * requested block in the `block` field.
+ *
+ * > Note
+ * >> A block can become quite large. A client MUST be prepared to receive the
+ * >> full content of the block, perhaps many megabytes of data.
+ */
+message BlockResponse {
+    /**
+     * An enumeration indicating the status of this request.
+     */
+    enum Code {
+        /**
+         * An "unset value" flag, this value SHALL NOT be used.<br/>
+         * This status indicates the server software failed to set a status,
+         * and SHALL be considered a software defect.
+         */
+        UNKNOWN = 0;
+
+        /**
+         * The request succeeded.<br/>
+         * The requested block SHALL be returned in the `block` field.
+         */
+        SUCCESS = 1;
+
+        /**
+         * The request cannot be fulfilled.<br/>
+         * The client sent a malformed or structurally incorrect request.
+         * <p>
+         * The client MAY retry the request after correcting the form and
+         * structure.
+         */
+        INVALID_REQUEST = 2;
+
+        /**
+         * The requested block was not found.<br/>
+         * Something failed and a block that SHOULD be available was
+         * not found.<br/>
+         * The client MAY retry the request; if this result is repeated the
+         * request SHOULD be directed to a different block node server.
+         */
+        NOT_FOUND = 3;
+
+        /**
+         * The requested block is not available on this block node server.<br/>
+         * The client SHOULD send a `serverStatus` request to determine the
+         * lowest and highest block numbers available at this block node server.
+         */
+        NOT_AVAILABLE = 4;
+    }
+
+    /**
+     * A response status.
+     * <p>
+     * The reported status SHALL reflect the success of the request, or
+     * a detailed reason the request failed.
+     */
+    Code status = 1;
+
+    /**
+     * The requested block.
+     * <p>
+     * This container object SHALL hold the entire sequence of block items
+     * for the requested block.<br/>
+     * The block items in this message SHALL be in the same order
+     * as received.<br/>
+     * The items in this message SHALL begin with a `BlockHeader` and end with
+     * a `BlockStateProof` applicable to this block.
+     */
+    com.hedera.hapi.block.stream.Block block = 2;
+}
+
+/**
+ * Remote procedure calls (RPCs) for the Block Node block services.
+ */
+service BlockAccessService {
+    /**
+     * Read a single block from the block node.
+     * <p>
+     * The request SHALL describe the block number of the block to retrieve.
+     */
+    rpc getBlock(BlockRequest) returns (BlockResponse);
+}

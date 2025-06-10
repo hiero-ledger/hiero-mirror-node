@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0
+syntax = "proto3";
+
+package org.hiero.block.api;
+
+option java_package = "org.hiero.block.api.protoc";
+// <<<pbj.java_package = "org.hiero.block.api">>> This comment is special code for setting PBJ Compiler java package
+option java_multiple_files = true;
+
+message ReconnectRequest {}
+
+message ReconnectResponse {}
+
+/**
+ * Remote procedure calls (RPCs) for the Block Node reconnect services.
+ */
+service ReconnectService {
+    /**
+     * Request reconnect data comprised of state and block data from the block node.
+     */
+    rpc reconnect(ReconnectRequest) returns (stream ReconnectResponse);
+}

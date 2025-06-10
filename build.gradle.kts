@@ -80,7 +80,6 @@ dependencies {
         api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api:5.0.2")
         api("org.gaul:s3proxy:2.6.0")
-        api("org.hiero.block:block-node-protobuf:0.12.0-SNAPSHOT")
         api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:evm:24.3.3")
         api("org.mapstruct:mapstruct:$mapStructVersion")

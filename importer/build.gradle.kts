@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import com.google.protobuf.gradle.id
+import com.google.protobuf.gradle.proto
+
 description = "Mirror Node Importer"
 
-plugins { id("spring-conventions") }
+plugins {
+    id("com.google.protobuf")
+    id("spring-conventions")
+}
 
 dependencies {
     implementation(platform("com.google.cloud:spring-cloud-gcp-dependencies"))
@@ -15,6 +21,7 @@ dependencies {
     implementation("commons-io:commons-io")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
     implementation("io.grpc:grpc-core")
+    implementation("io.grpc:grpc-stub")
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("io.projectreactor:reactor-core")
     implementation("jakarta.inject:jakarta.inject-api")
@@ -23,7 +30,6 @@ dependencies {
     implementation("org.apache.commons:commons-collections4")
     implementation("org.apache.velocity:velocity-engine-core")
     implementation("org.flywaydb:flyway-database-postgresql")
-    implementation("org.hiero.block:block-node-protobuf")
     implementation("org.hyperledger.besu:secp256k1")
     implementation("org.msgpack:jackson-dataformat-msgpack")
     implementation("org.postgresql:postgresql")
@@ -59,7 +65,14 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-repositories {
-    // Temporary repository added for org.hiero.block snapshot dependencies
-    maven { url = uri("https://oss.sonatype.org/content/repositories/snapshots") }
+protobuf {
+    val protobufVersion: String by rootProject.extra
+
+    protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" }
+    plugins { id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java" } }
+    generateProtoTasks { ofSourceSet("main").forEach { it.plugins { id("grpc") } } }
 }
+
+sourceSets { main { proto { srcDir("src/main/block/proto") } } }
+
+tasks.compileJava { dependsOn(tasks.generateProto) }

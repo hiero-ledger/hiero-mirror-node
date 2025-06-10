@@ -1,0 +1,259 @@
+// SPDX-License-Identifier: Apache-2.0
+syntax = "proto3";
+
+package org.hiero.block.api;
+
+option java_package = "org.hiero.block.api.protoc";
+// <<<pbj.java_package = "org.hiero.block.api">>> This comment is special code for setting PBJ Compiler java package
+option java_multiple_files = true;
+
+import "block/stream/block_item.proto";
+import "block/stream/block_proof.proto";
+
+/**
+ * A request to obtain the proof for block item within a block.
+ *
+ * The request identifies the block and the block item using one of several methods.
+ */
+message BlockContentsProofRequest {
+    /**
+     * The block number for which the proof is requested.
+     * <p>
+     * This field identifies the specific block that contains the target block item.
+     */
+    uint64 block_number = 1;
+
+    /**
+     * One of several methods to specify the block item.
+     * <p>
+     * Exactly one of the following fields MUST be set:
+     * - `block_item` - The full block item data.
+     * - `block_item_hash` - The hash of the block item.
+     * - `block_item_index` - The index of the block item within the block.
+     */
+    oneof block_item {
+        /**
+         * The full block item to be used for generating the proof.
+         */
+        com.hedera.hapi.block.stream.BlockItem complete_block_item = 2;
+
+        /**
+         * The hash of the block item.
+         * <p>
+         * Use this field when the block item is identified by its hash. And there
+         * is only one block item with the hash within the block.
+         */
+        bytes block_item_hash = 3;
+
+        /**
+         * The index of the block item within the block.
+         * <p>
+         * This alternative identifier specifies the position of the block item within the block within the block.
+         * This field must be used in case of multiple block items with the same hash within the block.
+         */
+        uint32 block_item_index = 4;
+    }
+}
+
+/**
+ * A cryptographic proof of a block item within a block. <br/>
+ * This message contains the block item to be verified, its Merkle tree
+ * sibling hashes, and a digital signature that attests to the authenticity
+ * of the proof.
+ *
+ * All fields of this message are REQUIRED. <br/>
+ * The `block_item` field SHALL be identical to the `block_item` requested. <br/>
+ * The `block_signature` SHALL be the aggregate signature of the hiero network
+ * that produced the block. <br/>
+ * The recipient of this message SHOULD verify that the hash of the `block_item`,
+ * when combined with the `sibling_hashes`, produces a block hash that matches
+ * the value signed by the hiero network, as represented by the `block_signature`
+ * field.
+ */
+message BlockContentsProof {
+    /**
+     * The block item that is proved.
+     * <p>
+     * This field holds the complete block item data that is subject to verification.
+     */
+    com.hedera.hapi.block.stream.BlockItem block_item = 1;
+
+    /**
+     * A list of sibling hashes forming the Merkle proof.
+     * <p>
+     * These hashes are used to reconstruct the Merkle root, ensuring the block item
+     * is included in the corresponding Merkle tree.
+     */
+    repeated com.hedera.hapi.block.stream.MerkleSiblingHash sibling_hashes = 2;
+
+    /**
+     * The digital signature over the block content proof data.
+     * <p>
+     * This signature confirms the integrity and origin of the block content proof.
+     */
+    bytes block_signature = 3;
+}
+
+/**
+ * A response containing the block content proof.
+ *
+ * This response includes a status code and, if successful, the corresponding
+ * block content proof data.
+ */
+message BlockContentsProofResponse {
+    /**
+ * An enumeration of response codes for block content proof requests.
+ *
+ * These codes indicate the outcome of a request for a block content proof.
+ */
+    enum Code {
+        /**
+         * The response code is unspecified.
+         */
+        BLOCK_CONTENT_PROOF_UNKNOWN = 0;
+
+        /**
+         * The block content proof was successfully retrieved.
+         */
+        BLOCK_CONTENT_PROOF_SUCCESS = 1;
+
+        /**
+         * The specified block item was not found.
+         */
+        BLOCK_CONTENT_PROOF_ITEM_NOT_FOUND = 2;
+
+        /**
+         * The block content proof is not available for the specified block.
+         */
+        BLOCK_CONTENT_PROOF_NOT_AVAILABLE = 3;
+
+        /**
+         * Duplicate hash items were found, causing ambiguity.
+         * Clients MUST use the block item index to resolve the ambiguity.
+         */
+        BLOCK_CONTENT_PROOF_DUPLICATE_HASH_ITEM_FOUND = 4;
+    }
+
+    /**
+     * The status of the block content proof request.
+     * <p>
+     * Represented as a value from `BlockContentProofResponseCode` indicating
+     * the outcome of the request.
+     */
+    Code status = 1;
+
+    /**
+     * The block content proof details.
+     * <p>
+     * If the request is successful, this field contains the block item, its
+     * Merkle sibling hashes, and the digital signature.
+     */
+    BlockContentsProof block_content_proof = 2;
+}
+
+message StateProofRequest {
+    /**
+     * The block number at which the proof is requested.
+     * <p>
+     * This field identifies the specific block that should contain the target state.
+     */
+    uint64 block_number = 1;
+
+    /**
+     * The key for the state item to be proved.
+     * <p>
+     * This field holds the identifier of the state item that is subject to verification.
+     */
+    bytes state_key = 2;
+}
+
+message StateProof {
+    /**
+     * The block number at which the proof is requested.
+     */
+    uint64 block_number = 1;
+
+    /**
+     * The value of the state item proved.
+     */
+    bytes value = 2;
+
+    /**
+     * A list of sibling hashes forming the Merkle proof.
+     * <p>
+     * These hashes are used to reconstruct the Merkle root, ensuring the state item
+     * is included in the corresponding Merkle tree.
+     */
+    repeated com.hedera.hapi.block.stream.MerkleSiblingHash sibling_hashes = 3;
+
+    /**
+     * The digital signature over the state proof data.
+     * <p>
+     * This signature confirms the integrity and origin of the state proof.
+     */
+    bytes block_signature = 4;
+}
+
+message StateProofResponse {
+    enum Code {
+        /**
+         * The response code is unspecified.
+         */
+        STATE_PROOF_UNKNOWN = 0;
+
+        /**
+         * The state proof was successfully retrieved.
+         */
+        STATE_PROOF_SUCCESS = 1;
+
+        /**
+         * The specified state key was not found.
+         */
+        STATE_PROOF_KEY_NOT_FOUND = 2;
+
+        /**
+         * The state proof is not available for the specified block.
+         */
+        STATE_PROOF_NOT_AVAILABLE = 3;
+    }
+
+    /**
+     * The status of the state proof request.
+     * <p>
+     * Represented as a value from `StateProofResponseCode` indicating
+     * the outcome of the request.
+     */
+    Code status = 1;
+
+    /**
+     * The state proof details.
+     * <p>
+     * If the request is successful, this field contains the state item, its
+     * Merkle sibling hashes, and the digital signature.
+     */
+    StateProof state_proof = 2;
+}
+
+/**
+ * Remote procedure calls (RPCs) for the Block Node block contents proof
+ * and state proof query services.
+ */
+service ProofService {
+    /**
+     * Request a block contents proof for a given block from the block node.
+     * <p>
+     * The client MUST provide a `BlockContentProofRequest`, and the service
+     * SHALL return a `BlockContentProofResponse` containing the proof details and
+     * status.
+     */
+    rpc getBlockContentsProof(BlockContentsProofRequest) returns (BlockContentsProofResponse);
+
+    /**
+     * Request a state proof for a given state item and block from the block node.
+     * <p>
+     * The client MUST provide a `StateProofRequest`, and the service
+     * SHALL return a `StateProofResponse` containing the proof details and
+     * status.
+     */
+    rpc getStateProof(StateProofRequest) returns (StateProofResponse);
+}
