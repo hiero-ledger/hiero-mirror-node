@@ -37,7 +37,7 @@ Deployed automatically on every tag.
 - [ ] Deployed
 - [ ] Helm Controller logs show successful reconciliation check
 - [ ] Helm release status is healthy
-- [ ] No abnormal exception in importer logs
+- [ ] No abnormal exceptions in importer logs
 - [ ] REST API performance tests
 - [ ] REST Java API performance tests
 - [ ] Web3 API performance tests
