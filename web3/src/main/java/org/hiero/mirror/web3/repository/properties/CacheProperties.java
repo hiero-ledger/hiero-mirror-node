@@ -41,4 +41,7 @@ public class CacheProperties {
 
     @Getter
     private int maxSlotsPerContract = 1500;
+
+    @Getter
+    private boolean enableBatchContractSlotCaching = false;
 }

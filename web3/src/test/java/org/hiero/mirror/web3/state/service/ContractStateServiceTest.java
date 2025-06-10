@@ -24,13 +24,20 @@ import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
+import org.hiero.mirror.web3.state.service.ContractStateServiceTest.TestConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCache;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 
 @RequiredArgsConstructor
+@Import(TestConfig.class)
 class ContractStateServiceTest extends Web3IntegrationTest {
 
     private static final String EXPECTED_SLOT_VALUE = "test-value";
@@ -46,9 +53,11 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     private final ContractStateRepository contractStateRepository;
 
     @BeforeEach
-    void cleanUp() {
+    void setup() {
         cacheManagerContractState.getCache(CACHE_NAME).clear();
         cacheManagerContractSlots.getCache(CACHE_NAME).clear();
+        cacheProperties.setMaxSlotsPerContract(100);
+        cacheProperties.setEnableBatchContractSlotCaching(true);
     }
 
     @Test
@@ -156,6 +165,24 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         assertThat(slotsOfCache.size()).isEqualTo(targetSlots);
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void verifyBatchFlagPropertyWorks(final boolean flagEnabled) {
+        // Given
+        cacheProperties.setEnableBatchContractSlotCaching(flagEnabled);
+
+        final var contractSlotsCount = 1;
+        final var contract = persistContract();
+        final var contractState = persistContractState(contract.getId(), 0);
+
+        // When
+        final var result = contractStateService.findStorage(contract.toEntityId(), contractState.getSlot());
+
+        // Then
+        // Assure that the slots cache is filled only when the flag is enabled.
+        assertThat(getCacheSizeContractSlot()).isEqualTo(flagEnabled ? contractSlotsCount : 0);
+    }
+
     private Entity persistContract() {
         return domainBuilder
                 .entity()
@@ -204,5 +231,14 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
     private String encodeSlotKey(final byte[] slotKey) {
         return Base64.getEncoder().encodeToString(slotKey);
+    }
+
+    @TestConfiguration
+    public static class TestConfig {
+
+        @Bean
+        CacheProperties cacheProperties() {
+            return new CacheProperties();
+        }
     }
 }

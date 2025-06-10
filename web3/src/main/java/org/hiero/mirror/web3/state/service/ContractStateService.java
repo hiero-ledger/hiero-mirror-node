@@ -58,6 +58,9 @@ public class ContractStateService {
      * @return slot value as 32-length left padded Bytes
      */
     public Optional<Bytes> findStorage(final EntityId contractId, final byte[] key) {
+        if (!cacheProperties.isEnableBatchContractSlotCaching()) {
+            return contractStateRepository.findStorage(contractId.getId(), key).map(Utils::convertToLeftPaddedBytes);
+        }
         final var cachedValue = contractStateCache.get(generateCacheKey(contractId, key));
         updateCachedSlotKeys(contractId, key);
 
@@ -83,10 +86,10 @@ public class ContractStateService {
     }
 
     /**
-     * Adds slotKey to queriedSlotsCache if not present. In case the max size of cache slot keys
+     * Adds slotKey to contractSlotsCache if not present. In case the max size of cache slot keys
      * is reached the oldest element from the cache is removed to free space for the new one.
      * @param contractId id of the contract that the slot key belongs to
-     * @param slotKey that will be added to the queriedSlotsCache if not already in there
+     * @param slotKey that will be added to the contractSlotsCache if not already in there
      */
     private synchronized void updateCachedSlotKeys(EntityId contractId, byte[] slotKey) {
         final var encodeSlotKey = encodeSlotKey(slotKey);

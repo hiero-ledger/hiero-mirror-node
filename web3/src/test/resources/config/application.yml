@@ -3,8 +3,6 @@
 hiero:
   mirror:
     web3:
-      cache:
-        cachedSlotsMaxSize: 100
       evm:
         properties:
           contracts.maxRefundPercentOfGasLimit: "100"
