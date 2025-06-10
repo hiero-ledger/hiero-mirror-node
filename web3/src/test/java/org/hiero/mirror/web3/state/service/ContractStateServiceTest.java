@@ -7,7 +7,6 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CO
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -203,26 +202,15 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         return Base64.getEncoder().encodeToString(slotKey);
     }
 
-    private Object getSlotTracker(Entity contract) {
-        return getSlotsCache().asMap().get(contract.toEntityId());
+    private ContractStateService.SlotTracker getSlotTracker(Entity contract) {
+        return (ContractStateService.SlotTracker) getSlotsCache().asMap().get(contract.toEntityId());
     }
 
-    private int getSlotTrackerSize(Object slotTracker) {
-        try {
-            Method sizeMethod = slotTracker.getClass().getMethod("size");
-            return (Integer) sizeMethod.invoke(slotTracker);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to get slot tracker size", e);
-        }
+    private int getSlotTrackerSize(ContractStateService.SlotTracker slotTracker) {
+        return slotTracker.size();
     }
 
-    @SuppressWarnings("unchecked")
-    private List<String> getSlotTrackerCurrentSlots(Object slotTracker) {
-        try {
-            Method getCurrentSlotsMethod = slotTracker.getClass().getMethod("getCurrentSlots");
-            return (List<String>) getCurrentSlotsMethod.invoke(slotTracker);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to get current slots", e);
-        }
+    private List<String> getSlotTrackerCurrentSlots(ContractStateService.SlotTracker slotTracker) {
+        return slotTracker.getCurrentSlots();
     }
 }

@@ -192,7 +192,7 @@ public class ContractStateService {
      * Thread-safe LRU slot tracker using concurrent data structures.
      * Avoids synchronized maps and unsafe iteration patterns.
      */
-    private static class SlotTracker {
+    static class SlotTracker {
         private final ConcurrentHashMap<String, Boolean> slots = new ConcurrentHashMap<>();
         private final ConcurrentLinkedDeque<String> insertionOrder = new ConcurrentLinkedDeque<>();
         private final int maxSize;
