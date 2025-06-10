@@ -22,6 +22,11 @@ import reactor.core.scheduler.Schedulers;
 
 abstract class AsyncJavaMigration<T> extends RepeatableMigration {
 
+    private static final String ASYNC_JAVA_MIGRATION_HISTORY_FIXED =
+            """
+            select exists(select * from flyway_schema_history where version in ('1.109.0', '2.14.0'))
+            """;
+
     private static final String CHECK_FLYWAY_SCHEMA_HISTORY_EXISTENCE_SQL =
             """
             select exists(select * from information_schema.tables
@@ -31,7 +36,15 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
     private static final String SELECT_LAST_CHECKSUM_SQL =
             """
             select checksum from flyway_schema_history
-            where description = :description order by installed_rank desc limit 1
+            where description = :description
+            order by installed_rank desc limit 1
+            """;
+
+    private static final String SELECT_LAST_CHECKSUM_SQL_PRE_FIX =
+            """
+            select checksum from flyway_schema_history
+            where description = :description and script like 'com.hedera.%'
+            order by installed_rank desc limit 1
             """;
 
     private static final String UPDATE_CHECKSUM_SQL =
@@ -75,14 +88,33 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
             return -1;
         }
 
-        Integer lastChecksum = queryForObjectOrNull(SELECT_LAST_CHECKSUM_SQL, getSqlParamSource(), Integer.class);
+        var params = getSqlParamSource();
+        var lastChecksum = queryForObjectOrNull(SELECT_LAST_CHECKSUM_SQL, params, Integer.class);
         if (lastChecksum == null) {
             return -1;
-        } else if (lastChecksum < 0) {
+        }
+
+        if (!isAsyncJavaMigrationHistoryFixed()) {
+            var lastChecksumPreRenaming = queryForObjectOrNull(SELECT_LAST_CHECKSUM_SQL_PRE_FIX, params, Integer.class);
+            if ((lastChecksumPreRenaming == null || lastChecksumPreRenaming < 0) && lastChecksum < 0) {
+                // when
+                // - the asynchronous migration did not complete before being renamed to org.hiero prefix, or did not
+                //   run at all
+                // - and the runs after renaming didn't complete either
+                // return a negative number so it continues
+                return lastChecksum - 1;
+            }
+
+            // migration history isn't fixed, return the same checksum so flyway will skip it
+            return lastChecksum;
+        }
+
+        if (lastChecksum < 0) {
             return lastChecksum - 1;
         } else if (lastChecksum != getSuccessChecksum()) {
             return -1;
         }
+
         return lastChecksum;
     }
 
@@ -172,6 +204,13 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
         var exists = namedParameterJdbcTemplate.queryForObject(
                 CHECK_FLYWAY_SCHEMA_HISTORY_EXISTENCE_SQL, Map.of("schema", schema), Boolean.class);
         return BooleanUtils.isTrue(exists);
+    }
+
+    private boolean isAsyncJavaMigrationHistoryFixed() {
+        var fixed = namedParameterJdbcTemplate
+                .getJdbcTemplate()
+                .queryForObject(ASYNC_JAVA_MIGRATION_HISTORY_FIXED, Boolean.class);
+        return BooleanUtils.isTrue(fixed);
     }
 
     private void onSuccess() {
