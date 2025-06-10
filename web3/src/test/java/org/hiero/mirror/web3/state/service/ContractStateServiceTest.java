@@ -10,9 +10,8 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -66,7 +65,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
             assertThat(result.get()).isEqualTo(state.getValue());
         }
         final var slotsCache = getSlotsCache();
-        final var slotsOfCache = (Set<String>) slotsCache.asMap().get(contract.toEntityId());
+        final var slotsOfCache = (Map<String, Boolean>) slotsCache.asMap().get(contract.toEntityId());
         assertThat(getCacheSizeContractState()).isEqualTo(targetSlots);
         assertThat(getCacheSizeContractSlot()).isEqualTo(1);
         assertThat(slotsOfCache.size()).isEqualTo(targetSlots);
@@ -98,10 +97,12 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         }
 
         final var slotsCache = getSlotsCache();
-        final var slotsOfCache = (LinkedHashSet<String>) slotsCache.asMap().get(contract.toEntityId());
+        final var slotsOfCache = (Map<String, Boolean>) slotsCache.asMap().get(contract.toEntityId());
         final var firstSlotEntryKey = encodeSlotKey(states.get(0).getSlot());
         final var secondSlotEntryKey = encodeSlotKey(states.get(1).getSlot());
-        assertThat(slotsOfCache.getFirst()).isEqualTo(firstSlotEntryKey);
+
+        final var firstKeyInMap = slotsOfCache.keySet().iterator().next();
+        assertThat(firstKeyInMap).isEqualTo(firstSlotEntryKey);
 
         // Persist additional slot and verify that it replaces the oldest entry in the cache.
         final var additionalContractState = persistContractState(contract.getId(), maxCacheSize + 1);
@@ -110,10 +111,13 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
         // Then
         assertThat(result.get()).isEqualTo(additionalContractState.getValue());
-        assertThat(slotsOfCache.contains(firstSlotEntryKey)).isFalse();
-        assertThat(slotsOfCache.contains(secondSlotEntryKey)).isTrue();
-        assertThat(slotsOfCache.contains(additionalSlotEntryKey)).isTrue();
-        assertThat(slotsOfCache.getFirst()).isEqualTo(secondSlotEntryKey);
+        assertThat(slotsOfCache.containsKey(firstSlotEntryKey)).isFalse();
+        assertThat(slotsOfCache.containsKey(secondSlotEntryKey)).isTrue();
+        assertThat(slotsOfCache.containsKey(additionalSlotEntryKey)).isTrue();
+
+        // Verify the new first key is the second slot entry key (after LRU eviction)
+        final var newFirstKeyInMap = slotsOfCache.keySet().iterator().next();
+        assertThat(newFirstKeyInMap).isEqualTo(secondSlotEntryKey);
     }
 
     @Test
@@ -135,7 +139,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
             assertThat(result.get()).isEqualTo(state.getValue());
         }
         final var slotsCache = getSlotsCache();
-        final var slotsOfCache = (Set<String>) slotsCache.asMap().get(contract.toEntityId());
+        final var slotsOfCache = (Map<String, Boolean>) slotsCache.asMap().get(contract.toEntityId());
         assertThat(getCacheSizeContractState()).isEqualTo(targetSlots);
         assertThat(getCacheSizeContractSlot()).isEqualTo(1);
         assertThat(slotsOfCache.size()).isEqualTo(targetSlots);

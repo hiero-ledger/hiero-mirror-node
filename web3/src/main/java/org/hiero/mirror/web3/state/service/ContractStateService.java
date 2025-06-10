@@ -9,12 +9,13 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import jakarta.inject.Named;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.CustomLog;
@@ -58,7 +59,7 @@ public class ContractStateService {
      */
     public Optional<byte[]> findStorage(final EntityId contractId, final byte[] key) {
         final var cacheKey = generateCacheKey(contractId, key);
-        final var cachedValue = contractStateCache.get(generateCacheKey(contractId, key));
+        final var cachedValue = contractStateCache.get(cacheKey);
         if (cachedValue != null) {
             return unwrapCacheValue(cachedValue);
         }
@@ -76,43 +77,69 @@ public class ContractStateService {
      * and then performs a batch query for all tracked slot keys. The results are used to populate the
      * contract state cache for both existing and non-existing slot values.
      * <p>
-     * Slot key tracking is synchronized to ensure thread safety when modifying the tracked slot set.
-     * If the tracked set exceeds the configured maximum size, the oldest key is evicted.
+     * Uses concurrent data structures to ensure thread safety without blocking concurrent requests.
      *
      * @param contractId the ID of the contract whose slot keys are being managed and queried
      * @param key the specific slot key to add to the tracked set and fetch from storage if not cached
      */
-    private synchronized Optional<byte[]> findStorageBatch(final EntityId contractId, final byte[] key) {
+    private Optional<byte[]> findStorageBatch(final EntityId contractId, final byte[] key) {
         final String encodedSlotKey = encodeSlotKey(key);
-        Set<String> cachedSlotKeys = contractSlotsCache.get(contractId, LinkedHashSet::new);
-        if (cachedSlotKeys == null) {
-            cachedSlotKeys = new LinkedHashSet<>();
-        }
 
-        updateSlotKeysCache(cachedSlotKeys, encodedSlotKey, contractId);
-        final var cachedSlots = cachedSlotKeys.stream().map(this::decodeSlotKey).toList();
+        // Get or create the concurrent slot map for this contract
+        Map<String, Boolean> cachedSlotKeys = getOrCreateSlotMap(contractId);
+
+        // Add the new slot key (LRU eviction handled automatically by LinkedHashMap)
+        cachedSlotKeys.put(encodedSlotKey, Boolean.TRUE);
+
+        final List<byte[]> cachedSlots = new ArrayList<>(cachedSlotKeys.size());
+        for (String slotKey : cachedSlotKeys.keySet()) {
+            cachedSlots.add(decodeSlotKey(slotKey));
+        }
 
         final var existingSlotKeyValuePairs = contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots);
 
         byte[] cachedValue = null;
         Set<ByteBuffer> existingSlots = new HashSet<>();
-        for(int i = 0; i < existingSlotKeyValuePairs.size(); i++) {
+
+        for (int i = 0; i < existingSlotKeyValuePairs.size(); i++) {
             final var contractSlotValue = existingSlotKeyValuePairs.get(i);
             final byte[] slotKey = contractSlotValue.getSlot();
             final byte[] slotValue = contractSlotValue.getValue();
             existingSlots.add(ByteBuffer.wrap(slotKey));
-            if (Arrays.equals(slotKey, key)) {
+            if (java.util.Arrays.equals(slotKey, key)) {
                 cachedValue = slotValue;
             }
         }
         cacheSlotValues(contractId, existingSlotKeyValuePairs);
 
-        final var nonExistingSlots = cachedSlots.stream()
-                .filter(k -> !existingSlots.contains(ByteBuffer.wrap(k)))
-                .toList();
+        final List<byte[]> nonExistingSlots = new ArrayList<>();
+        for (byte[] slot : cachedSlots) {
+            if (!existingSlots.contains(ByteBuffer.wrap(slot))) {
+                nonExistingSlots.add(slot);
+            }
+        }
         cacheNonExistingSlots(contractId, nonExistingSlots);
 
         return cachedValue == null ? Optional.empty() : Optional.of(cachedValue);
+    }
+
+    /**
+     * Gets or creates a thread-safe LRU map for tracking slot keys for a given contract.
+     * Uses LinkedHashMap with removeEldestEntry for automatic LRU eviction.
+     */
+    private Map<String, Boolean> getOrCreateSlotMap(final EntityId contractId) {
+        @SuppressWarnings("unchecked")
+        Map<String, Boolean> slotMap = contractSlotsCache.get(contractId, () -> {
+            LinkedHashMap<String, Boolean> newMap = new LinkedHashMap<String, Boolean>() {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
+                    return size() > cacheProperties.getCachedSlotsMaxSize();
+                }
+            };
+            return Collections.synchronizedMap(newMap);
+        });
+
+        return slotMap;
     }
 
     /**
@@ -172,19 +199,5 @@ public class ContractStateService {
     @SuppressWarnings("unchecked")
     private Optional<byte[]> unwrapCacheValue(ValueWrapper cachedValue) {
         return (Optional<byte[]>) cachedValue.get();
-    }
-
-    private void updateSlotKeysCache(final Set<String> cachedSlotKeys, final String encodedSlotKey, final EntityId contractId) {
-        if (!cachedSlotKeys.contains(encodedSlotKey)) {
-            if (cachedSlotKeys.size() >= cacheProperties.getCachedSlotsMaxSize()) {
-                Iterator<String> it = cachedSlotKeys.iterator();
-                if (it.hasNext()) {
-                    it.next();
-                    it.remove();
-                }
-            }
-            cachedSlotKeys.add(encodedSlotKey);
-            contractSlotsCache.put(contractId, cachedSlotKeys);
-        }
     }
 }
