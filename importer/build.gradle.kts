@@ -20,7 +20,6 @@ dependencies {
     implementation("com.google.cloud:spring-cloud-gcp-starter-pubsub")
     implementation("commons-io:commons-io")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
-    implementation("io.grpc:grpc-core")
     implementation("io.grpc:grpc-stub")
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("io.projectreactor:reactor-core")
