@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.InstanceOfAssertFactories.collection;
 import static org.hiero.mirror.web3.state.Utils.isMirror;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -221,22 +222,33 @@ class TransactionExecutionServiceTest {
 
     @ParameterizedTest
     @CsvSource({
-        "0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000013536f6d6520726576657274206d65737361676500000000000000000000000000,CONTRACT_REVERT_EXECUTED,Some revert message",
-        "INVALID_TOKEN_ID,CONTRACT_REVERT_EXECUTED,''",
-        "0x,INVALID_TOKEN_ID,''"
+        "0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000013536f6d6520726576657274206d65737361676500000000000000000000000000,CONTRACT_REVERT_EXECUTED,Some revert message, INVALID_NFT_ID",
+        "INVALID_TOKEN_ID,CONTRACT_REVERT_EXECUTED,'', INVALID_TOKEN_NFT_SERIAL_NUMBER",
+        "0x,INVALID_TOKEN_ID,'', TOKEN_REFERENCE_LIST_SIZE_LIMIT_EXCEEDED"
     })
     @SuppressWarnings("unused")
-    void testExecuteContractCallFailureWithErrorMessage(
-            final String errorMessage, final ResponseCodeEnum responseCode, final String detail) {
+    void testExecuteContractCallFailureWithErrorMessageAndChildTransactionErrors(
+            final String errorMessage,
+            final ResponseCodeEnum responseCode,
+            final String detail,
+            final ResponseCodeEnum childResponseCode) {
         // Given
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
         var transactionRecord = mock(TransactionRecord.class);
         var transactionReceipt = mock(TransactionReceipt.class);
 
+        var childSingleTransactionRecord = mock(SingleTransactionRecord.class);
+        var childTransactionRecord = mock(TransactionRecord.class);
+        var childTransactionReceipt = mock(TransactionReceipt.class);
+
         when(transactionReceipt.status()).thenReturn(responseCode);
         when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
         when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+
+        when(childTransactionReceipt.status()).thenReturn(childResponseCode);
+        when(childTransactionRecord.receiptOrThrow()).thenReturn(childTransactionReceipt);
+        when(childSingleTransactionRecord.transactionRecord()).thenReturn(childTransactionRecord);
 
         var contractFunctionResult = mock(ContractFunctionResult.class);
         when(transactionRecord.contractCallResult()).thenReturn(contractFunctionResult);
@@ -244,7 +256,7 @@ class TransactionExecutionServiceTest {
 
         // Mock the executor to return a List with the mocked SingleTransactionRecord
         when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
-                .thenReturn(List.of(singleTransactionRecord));
+                .thenReturn(List.of(singleTransactionRecord, childSingleTransactionRecord));
 
         var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, Address.ZERO);
 
@@ -252,7 +264,11 @@ class TransactionExecutionServiceTest {
         assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .hasMessageContaining(responseCode.name())
-                .hasFieldOrPropertyWithValue("detail", detail);
+                .hasFieldOrPropertyWithValue("detail", detail)
+                .hasFieldOrProperty("childTransactionErrors")
+                .extracting("childTransactionErrors")
+                .asInstanceOf(collection(String.class))
+                .containsExactly(childResponseCode.protoName());
     }
 
     @SuppressWarnings("unused")

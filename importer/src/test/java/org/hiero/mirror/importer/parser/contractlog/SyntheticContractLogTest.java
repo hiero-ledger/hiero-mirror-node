@@ -18,8 +18,8 @@ class SyntheticContractLogTest {
                     """
             0.0.0, ''
             0.0.3, 03
-            0.10.3, 0a0000000000000003
-            1.2.3, 0100000000000000020000000000000003
+            0.10.3, 03
+            1.2.3, 03
             """)
     void entityIdToBytes(String entityIdStr, String expectedHex) {
         var entityId = EntityId.of(entityIdStr);

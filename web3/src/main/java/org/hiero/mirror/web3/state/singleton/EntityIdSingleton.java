@@ -8,7 +8,6 @@ import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.node.config.data.HederaConfig;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
@@ -20,7 +19,6 @@ import org.hiero.mirror.web3.repository.EntityRepository;
 public class EntityIdSingleton implements SingletonState<EntityNumber> {
     private final EntityRepository entityRepository;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
-    private final CommonProperties commonProperties;
 
     @Override
     public String getKey() {
@@ -39,7 +37,7 @@ public class EntityIdSingleton implements SingletonState<EntityNumber> {
                 .getConfigData(HederaConfig.class)
                 .firstUserEntity();
 
-        final Long maxId = entityRepository.findMaxId(commonProperties.getShard(), commonProperties.getRealm());
+        final Long maxId = entityRepository.findMaxId();
 
         if (maxId == null) {
             return new EntityNumber(EntityId.of(firstUserEntity).getNum());

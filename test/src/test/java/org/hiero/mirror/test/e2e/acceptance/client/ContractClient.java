@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.test.e2e.acceptance.client;
 
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
+
 import com.google.protobuf.ByteString;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractCallQuery;
@@ -212,7 +214,7 @@ public class ContractClient extends AbstractNetworkClient {
     }
 
     public String getClientAddress() {
-        return sdkClient.getClient().getOperatorAccountId().toSolidityAddress();
+        return asHexAddress(sdkClient.getClient().getOperatorAccountId());
     }
 
     public record ExecuteContractResult(

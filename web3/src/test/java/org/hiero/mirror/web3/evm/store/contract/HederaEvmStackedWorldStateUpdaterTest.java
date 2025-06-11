@@ -89,7 +89,7 @@ class HederaEvmStackedWorldStateUpdaterTest {
     void setUp() {
         final var commonProperties = new CommonProperties();
         final var systemEntity = new SystemEntity(commonProperties);
-        final var entityDatabaseAccessor = new EntityDatabaseAccessor(entityRepository, commonProperties);
+        final var entityDatabaseAccessor = new EntityDatabaseAccessor(entityRepository);
         final List<DatabaseAccessor<Object, ?>> accessors = List.of(
                 entityDatabaseAccessor,
                 new AccountDatabaseAccessor(entityDatabaseAccessor, null, null, null, null, null, null, systemEntity));

@@ -4,11 +4,10 @@ import _ from 'lodash';
 
 import BaseService from './baseService';
 import {getResponseLimit} from '../config';
-import {filterKeys, MAX_LONG, orderFilterValues} from '../constants';
+import {filterKeys, HEX_PREFIX, MAX_LONG, orderFilterValues} from '../constants';
 import EntityId from '../entityId';
 import {NotFoundError} from '../errors';
 import {OrderSpec} from '../sql';
-import {JSONStringify} from '../utils';
 import {
   ContractAction,
   ContractLog,
@@ -144,7 +143,9 @@ class ContractService extends BaseService {
   static contractIdByEvmAddressQuery = `
     select ${Entity.ID}
     from ${Entity.tableName} ${Entity.tableAlias}
-    where ${Entity.DELETED} <> true and ${Entity.TYPE} = 'CONTRACT'`;
+    where ${Entity.DELETED} <> true and
+      ${Entity.TYPE} = 'CONTRACT' and
+      ${Entity.EVM_ADDRESS} = $1`;
 
   static contractActionsByConsensusTimestampQuery = `
     select ${ContractAction.CALLER},
@@ -166,21 +167,6 @@ class ContractService extends BaseService {
            ${ContractAction.VALUE}
     from ${ContractAction.tableName}
     where ${ContractAction.CONSENSUS_TIMESTAMP} = $1 and ${ContractAction.PAYER_ACCOUNT_ID} = $2`;
-
-  static contractByEvmAddressQueryFilters = [
-    {
-      partName: 'shard',
-      columnName: Entity.getFullName(Entity.SHARD),
-    },
-    {
-      partName: 'realm',
-      columnName: Entity.getFullName(Entity.REALM),
-    },
-    {
-      partName: 'create2_evm_address',
-      columnName: Entity.getFullName(Entity.EVM_ADDRESS),
-    },
-  ];
 
   static contractLogsPaginationColumns = {
     [filterKeys.TIMESTAMP]: ContractLog.CONSENSUS_TIMESTAMP,
@@ -482,28 +468,11 @@ class ContractService extends BaseService {
     });
   }
 
-  computeConditionsAndParamsFromEvmAddressFilter({evmAddressFilter, paramOffset = 0}) {
-    const params = [];
-    const conditions = [];
-    ContractService.contractByEvmAddressQueryFilters.forEach(({partName, columnName}) => {
-      if (evmAddressFilter[partName] === null) {
-        return;
-      }
-      if (partName === 'create2_evm_address') {
-        evmAddressFilter[partName] = Buffer.from(evmAddressFilter[partName], 'hex');
-      }
-      const length = params.push(evmAddressFilter[partName]);
-      conditions.push(`${columnName} = $${length + paramOffset}`);
-    });
-    return {params, conditions};
-  }
-
   async getContractIdByEvmAddress(evmAddressFilter) {
     const create2EvmAddress = evmAddressFilter.create2_evm_address;
-    evmAddressFilter.create2_evm_address = Buffer.from(create2EvmAddress, 'hex');
-    const {params, conditions} = this.computeConditionsAndParamsFromEvmAddressFilter({evmAddressFilter});
-    const query = `${ContractService.contractIdByEvmAddressQuery} and ${conditions.join(' and ')}`;
-    const rows = await super.getRows(query, params);
+    const rows = await super.getRows(ContractService.contractIdByEvmAddressQuery, [
+      Buffer.from(create2EvmAddress, 'hex'),
+    ]);
     if (rows.length === 0) {
       throw new NotFoundError(`No contract with the given evm address 0x${create2EvmAddress} has been found.`);
     }

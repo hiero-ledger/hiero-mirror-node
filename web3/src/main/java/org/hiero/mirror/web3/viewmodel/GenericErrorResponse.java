@@ -30,6 +30,12 @@ public class GenericErrorResponse {
         messages.add(errorMessage);
     }
 
+    public GenericErrorResponse(
+            String message, String detailedMessage, String data, List<ErrorMessage> childTransactionErrors) {
+        this(message, detailedMessage, data);
+        messages.addAll(childTransactionErrors);
+    }
+
     public GenericErrorResponse(List<ErrorMessage> errorMessages) {
         this.messages.addAll(errorMessages);
     }

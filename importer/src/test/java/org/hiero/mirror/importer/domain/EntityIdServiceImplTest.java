@@ -277,12 +277,13 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
 
     @Test
     void lookupContractEvmAddressShardRealmMismatch() {
-        ContractID contractId = ContractID.newBuilder()
+        var contractId = ContractID.newBuilder()
                 .setShardNum(1)
                 .setRealmNum(2)
                 .setEvmAddress(DomainUtils.fromBytes(PARSABLE_EVM_ADDRESS))
                 .build();
-        assertThat(entityIdService.lookup(contractId)).isEmpty();
+        var expected = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), EVM_ADDRESS_NUM);
+        assertThat(entityIdService.lookup(contractId).get()).isEqualTo(expected);
     }
 
     @Test

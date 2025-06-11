@@ -41,6 +41,7 @@ import * as contractCallEstimateAssociateTokens from './contractCallEstimateAsso
 import * as contractCallEstimateDissociateTokens from './contractCallEstimateDissociateTokens.js';
 import * as contractCallEstimateERCApprove from './contractCallEstimateERCApprove.js';
 import * as contractCallEstimateMintNft from './contractCallEstimateMintNft.js';
+import * as contractCallEstimateReadStorage from './contractCallEstimateReadStorage.js';
 import * as contractCallEstimateSetApprovalForAll from './contractCallEstimateSetApprovalForAll.js';
 import * as contractCallEstimateFreezeToken from './contractCallEstimateFreezeToken.js';
 import * as contractCallEstimateFreezeNft from './contractCallEstimateFreezeNft.js';
@@ -105,6 +106,7 @@ if (__ENV.RUN_ESTIMATE_TESTS !== 'false') {
     contractCallEstimateDissociateTokens,
     contractCallEstimateERCApprove,
     contractCallEstimateMintNft,
+    contractCallEstimateReadStorage,
     contractCallEstimateSetApprovalForAll,
     contractCallEstimateFreezeToken,
     contractCallEstimateFreezeNft,

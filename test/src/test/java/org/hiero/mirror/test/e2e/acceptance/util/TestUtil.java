@@ -33,7 +33,6 @@ import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.test.e2e.acceptance.client.ContractClient;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
@@ -75,56 +74,58 @@ public class TestUtil {
         return output.toString();
     }
 
-    public static Address asAddress(String address) {
+    public static Address asAddress(final String address) {
         final var addressBytes = Bytes.fromHexString(address.startsWith("0x") ? address : "0x" + address);
         final var addressAsInteger = addressBytes.toUnsignedBigInteger();
         return Address.wrap(Address.toChecksumAddress(addressAsInteger));
     }
+    /*
+       When toSolidityAddress() is fixed upstream to not encode shard & realm
+       we can change below asAddress methods to something like this.
 
-    public static Address asAddress(ExpandedAccountId accountId) {
-        final var address = accountId.getAccountId().toSolidityAddress();
-        final var addressBytes = Bytes.fromHexString(address.startsWith("0x") ? address : "0x" + address);
-        final var addressAsInteger = addressBytes.toUnsignedBigInteger();
-        return Address.wrap(Address.toChecksumAddress(addressAsInteger));
+       final var address = accountId.getAccountId().toSolidityAddress();
+       return asAddress(address);
+
+       Possibly some .replace("0x", "") can be removed after the switch back to toSolidityAddress()
+       getClientAddress() - can be changed as well
+       accountAmount(), nftAmount(), asAddressArray() - places where these are used probably should be reverted as to not have to go through asAddress 2 times
+    */
+    public static Address asAddress(final ExpandedAccountId accountId) {
+        return asAddress(accountId.getAccountId().num);
     }
 
-    public static Address asAddress(TokenId tokenId) {
-        final var address = tokenId.toSolidityAddress();
-        final var addressBytes = Bytes.fromHexString(address.startsWith("0x") ? address : "0x" + address);
-        final var addressAsInteger = addressBytes.toUnsignedBigInteger();
-        return Address.wrap(Address.toChecksumAddress(addressAsInteger));
+    public static Address asAddress(final TokenId tokenId) {
+        return asAddress(tokenId.num);
     }
 
-    public static Address asAddress(ContractId contractId) {
-        final var address = contractId.toSolidityAddress();
-        final var addressBytes = Bytes.fromHexString(address.startsWith("0x") ? address : "0x" + address);
-        final var addressAsInteger = addressBytes.toUnsignedBigInteger();
-        return Address.wrap(Address.toChecksumAddress(addressAsInteger));
+    public static Address asAddress(final ContractId contractId) {
+        return asAddress(contractId.num);
     }
 
-    public static Address asAddress(AccountId accountId) {
-        final var address = accountId.toSolidityAddress();
-        final var addressBytes = Bytes.fromHexString(address.startsWith("0x") ? address : "0x" + address);
-        final var addressAsInteger = addressBytes.toUnsignedBigInteger();
-        return Address.wrap(Address.toChecksumAddress(addressAsInteger));
+    public static Address asAddress(final AccountId accountId) {
+        return asAddress(accountId.num);
     }
 
-    public static Address asAddress(ContractClient contractClient) {
-        final var address = contractClient.getClientAddress();
-        final var addressBytes = Bytes.fromHexString(address.startsWith("0x") ? address : "0x" + address);
-        final var addressAsInteger = addressBytes.toUnsignedBigInteger();
-        return Address.wrap(Address.toChecksumAddress(addressAsInteger));
+    public static Address asAddress(final TokenClient tokenClient) {
+        final var num =
+                tokenClient.getSdkClient().getExpandedOperatorAccountId().getAccountId().num;
+        return asAddress(num);
     }
 
-    public static Address asAddress(TokenClient tokenClient) {
-        final var address = tokenClient
-                .getSdkClient()
-                .getExpandedOperatorAccountId()
-                .getAccountId()
-                .toSolidityAddress();
-        final var addressBytes = Bytes.fromHexString(address.startsWith("0x") ? address : "0x" + address);
-        final var addressAsInteger = addressBytes.toUnsignedBigInteger();
-        return Address.wrap(Address.toChecksumAddress(addressAsInteger));
+    public static Address asAddress(final long num) {
+        return Address.wrap(Address.toChecksumAddress(BigInteger.valueOf(num)));
+    }
+
+    public static String asHexAddress(final AccountId accountId) {
+        return asAddress(accountId.num).toString().toLowerCase();
+    }
+
+    public static String asHexAddress(final ContractId contractId) {
+        return asAddress(contractId.num).toString().toLowerCase();
+    }
+
+    public static String asHexAddress(final TokenId tokenId) {
+        return asAddress(tokenId.num).toString().toLowerCase();
     }
 
     public static Tuple accountAmount(String account, Long amount, boolean isApproval) {

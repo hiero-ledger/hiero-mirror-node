@@ -28,6 +28,7 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeatu
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.TOTAL_SUPPLY_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.ZERO_ADDRESS;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.getAbiFunctionAsJsonString;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -101,9 +102,8 @@ public class PrecompileContractFeature extends AbstractFeature {
     @Given("I successfully create and verify a precompile contract from contract bytes")
     public void createNewContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileTestContractSolidityAddress =
-                deployedPrecompileContract.contractId().toSolidityAddress();
-        contractClientAddress = asAddress(contractClient);
+        precompileTestContractSolidityAddress = asHexAddress(deployedPrecompileContract.contractId());
+        contractClientAddress = asAddress(contractClient.getClientAddress());
     }
 
     @Given("I successfully create and verify a fungible token for custom fees")
@@ -240,10 +240,8 @@ public class PrecompileContractFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 IS_TOKEN_SELECTOR,
-                asAddress(accountClient
-                        .getAccount(AccountNameEnum.TOKEN_TREASURY)
-                        .getAccountId()
-                        .toSolidityAddress()));
+                asAddress(
+                        accountClient.getAccount(AccountNameEnum.TOKEN_TREASURY).getAccountId()));
         if (web3Properties.isModularizedServices()) {
             var result = callContract(data, precompileTestContractSolidityAddress);
             assertFalse(result.getResultAsBoolean());
@@ -694,7 +692,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat((long) fractionalFee.get(3)).isEqualTo(MAX_FEE_AMOUNT);
         assertFalse((boolean) fractionalFee.get(4));
         assertThat(fractionalFee.get(5).toString().toLowerCase())
-                .isEqualTo("0x" + contractClient.getClientAddress().toLowerCase());
+                .isEqualTo(contractClient.getClientAddress().toLowerCase());
     }
 
     // ETHCALL-033
@@ -710,12 +708,10 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat((long) royaltyFee.get(0)).isEqualTo(NUMERATOR_VALUE);
         assertThat((long) royaltyFee.get(1)).isEqualTo(DENOMINATOR_VALUE);
         assertThat(royaltyFee.get(5).toString().toLowerCase())
-                .isEqualTo("0x"
-                        + tokenClient
-                                .getSdkClient()
-                                .getExpandedOperatorAccountId()
-                                .getAccountId()
-                                .toSolidityAddress());
+                .isEqualTo(asHexAddress(tokenClient
+                        .getSdkClient()
+                        .getExpandedOperatorAccountId()
+                        .getAccountId()));
     }
 
     // ETHCALL-034
@@ -732,12 +728,10 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat(royaltyFee.get(3).toString()).hasToString(fungibleTokenCustomFeeAddress.toString());
         assertFalse((boolean) royaltyFee.get(4));
         assertThat(royaltyFee.get(5).toString().toLowerCase())
-                .hasToString("0x"
-                        + tokenClient
-                                .getSdkClient()
-                                .getExpandedOperatorAccountId()
-                                .getAccountId()
-                                .toSolidityAddress());
+                .hasToString(asHexAddress(tokenClient
+                        .getSdkClient()
+                        .getExpandedOperatorAccountId()
+                        .getAccountId()));
     }
 
     private void tokenKeyCheck(final Tuple result) {

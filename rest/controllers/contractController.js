@@ -178,14 +178,9 @@ const getContractByIdOrAddressContractEntityQuery = ({timestampConditions, times
   const params = [...timestampParams];
   const contractIdParamParts = EntityId.computeContractIdPartsFromContractIdValue(contractIdParam);
 
-  if (contractIdParamParts.hasOwnProperty('create2_evm_address')) {
-    const {params: evmAddressParams, conditions: evmAddressConditions} =
-      ContractService.computeConditionsAndParamsFromEvmAddressFilter({
-        evmAddressFilter: contractIdParamParts,
-        paramOffset: params.length,
-      });
-    params.push(...evmAddressParams);
-    conditions.push(...evmAddressConditions);
+  if (contractIdParamParts.create2_evm_address) {
+    const index = params.push(Buffer.from(contractIdParamParts.create2_evm_address, 'hex'));
+    conditions.push(`${Entity.getFullName(Entity.EVM_ADDRESS)} = $${index}`);
   } else {
     const encodedId = EntityId.parseString(contractIdParam).getEncodedId();
     params.push(encodedId);
