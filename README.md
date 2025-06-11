@@ -8,15 +8,13 @@ To this end, we use [Flux](https://fluxcd.io) in our Kubernetes clusters to mana
 
 ### Kubernetes
 
-Create a standard GKE cluster with at least Kubernetes 1.29.
+Create a standard GKE cluster with at least Kubernetes 1.32.
 
 ### Sealed Secrets
 
 ```bash
 brew install kubeseal ksd yq
-helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
-kubectl create namespace flux-system
-helm upgrade -i --wait -n flux-system sealed-secrets sealed-secrets/sealed-secrets --set keyrenewperiod=0s
+helm upgrade -i --wait --create-namespace -n flux-system sealed-secrets oci://registry-1.docker.io/bitnamicharts/sealed-secrets --set keyrenewperiod=0s
 ```
 
 ### FluxCD
