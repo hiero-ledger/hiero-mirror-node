@@ -32,7 +32,7 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
      * @param backingStore The backing store to use
      */
     public MapReadableKVState(@Nonnull final String stateKey, @Nonnull final Map<K, V> backingStore) {
-        super(stateKey, new ReadableCachedForwardingConcurrentMap<>(stateKey));
+        super(stateKey);
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 
