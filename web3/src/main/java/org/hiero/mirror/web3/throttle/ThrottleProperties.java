@@ -19,11 +19,11 @@ public class ThrottleProperties {
 
     @Min(0)
     @Max(100)
-    private float gasLimitRefundPercent = 20;
+    private float gasLimitRefundPercent = 100;
 
     @Min(21_000)
     @Max(10_000_000_000_000L)
-    private long gasPerSecond = 75_000_000L;
+    private long gasPerSecond = 7_500_000_000L;
 
     @NotNull
     private List<RequestProperties> request = List.of();
