@@ -35,6 +35,9 @@ jobs:
     env:
       CONTEXT: ${{ matrix.project }}
       IMAGE: gcr.io/mirrornode/hedera-mirror-${{ matrix.project }}
+    permissions:
+      contents: "read"
+      id-token: "write"
     runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
@@ -64,7 +67,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: step-security/google-github-auth@40f6deebd366f16c782d7a0ad0844e3b96a032a6 # v2.1.10
         with:
-          credentials_json: "${{ secrets.GCR_KEY }}"
+          service_account: "mirrornode-gh-actions-sa@mirrornode.iam.gserviceaccount.com"
+          workload_identity_provider: "projects/521285740332/locations/global/workloadIdentityPools/mirrornode-gh-actions/providers/mirrornode-gh-actions"
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@77e7a554d41e2ee56fc945c52dfd3f33d12def9a # v2.1.4

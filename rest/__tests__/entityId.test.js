@@ -411,12 +411,12 @@ describe('EntityId toEvmAddress', () => {
   });
 
   test('0.0.7', () => {
-    expect(EntityId.of(1, 2, 7).toEvmAddress()).toEqual('0x0000000100000000000000020000000000000007');
+    expect(EntityId.of(1, 2, 7).toEvmAddress()).toEqual('0x0000000000000000000000000000000000000007');
   });
 
   test('32767.65535.4294967295', () => {
     expect(EntityId.of(32767n, 65535n, 4294967295n).toEvmAddress()).toEqual(
-      '0x00007fff000000000000ffff00000000ffffffff'
+      '0x00000000000000000000000000000000ffffffff'
     );
   });
 

@@ -317,8 +317,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertCryptoEntity(cryptoCreateTransactionBody, 0L, txnRecord.getConsensusTimestamp()),
                 () -> assertEquals(cryptoCreateTransactionBody.getInitialBalance(), dbTransaction.getInitialBalance()),
                 () -> assertThat(initialBalanceTransfer).isEmpty(),
-                () -> assertThat(entityRepository.findByAlias(
-                                accountId1.getShard(), accountId1.getRealm(), ALIAS_KEY.toByteArray()))
+                () -> assertThat(entityRepository.findByAlias(ALIAS_KEY.toByteArray()))
                         .get()
                         .isEqualTo(accountId1.getId()));
     }
@@ -447,9 +446,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertEquals(3, transactionRepository.count()),
                 () -> assertEntities(hollowAccount),
                 () -> assertCryptoTransfers(8),
-                () -> assertThat(entityRepository.findByAlias(
-                                payerAccount.getShard(), payerAccount.getRealm(), EVM_ADDRESS))
-                        .hasValue(hollowAccount.getId()),
+                () -> assertThat(entityRepository.findByAlias(EVM_ADDRESS)).hasValue(hollowAccount.getId()),
                 () -> assertThat(transactionRepository.findAll())
                         .map(org.hiero.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
                         .containsExactlyInAnyOrderElementsOf(expectedItemizedTransfers));
@@ -1419,11 +1416,8 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         entityProperties.getPersist().setItemizedTransfers(true);
         Entity entity = domainBuilder.entity().persist();
         var newAccount = domainBuilder.entityId().toAccountID();
-        assertThat(entityRepository.findByAlias(entity.getShard(), entity.getRealm(), entity.getAlias()))
-                .get()
-                .isEqualTo(entity.getId());
-        assertThat(entityRepository.findByAlias(entity.getShard(), entity.getRealm(), ALIAS_KEY.toByteArray()))
-                .isNotPresent();
+        assertThat(entityRepository.findByAlias(entity.getAlias())).get().isEqualTo(entity.getId());
+        assertThat(entityRepository.findByAlias(ALIAS_KEY.toByteArray())).isNotPresent();
 
         // Crypto create alias account
         Transaction accountCreateTransaction = cryptoCreateTransaction();
@@ -1483,9 +1477,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     @Test
     void cryptoTransferWithEvmAddressAlias() {
         Entity contract = domainBuilder.entity().persist();
-        assertThat(entityRepository.findByEvmAddress(
-                        contract.getShard(), contract.getRealm(), contract.getEvmAddress()))
-                .isPresent();
+        assertThat(entityRepository.findByEvmAddress(contract.getEvmAddress())).isPresent();
 
         entityProperties.getPersist().setItemizedTransfers(true);
 

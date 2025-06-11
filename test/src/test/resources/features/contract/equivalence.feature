@@ -15,11 +15,11 @@ Feature: in-equivalence tests
     Then I verify extcodehash opcode against a system account <accountNum> num returns empty bytes
     Examples:
       | accountNum  | strictSystemAccountNum |
-      | "1"         | "1"                    |
-      | "10"        | "10"                   |
-      | "358"       | "358"                  |
-      | "750"       | "749"                  |
-      | "999"       | "750"                  |
+      | 1           | 1                      |
+      | 10          | 10                     |
+      | 358         | 358                    |
+      | 750         | 749                    |
+      | 999         | 750                    |
 
 #   Separated scenario as it needs to be executed only once
   Scenario Outline: Validate in-equivalence for selfdestruct and balance against contract
