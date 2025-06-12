@@ -77,6 +77,7 @@ public class EvmConfiguration {
 
     public static final String CACHE_MANAGER_CONTRACT = "contract";
     public static final String CACHE_MANAGER_CONTRACT_SLOTS = "contractSlots";
+    public static final String CACHE_MANAGER_MAX_CONTRACT_SLOTS_PER_CONTRACT = "contractSlotsSize";
     public static final String CACHE_MANAGER_CONTRACT_STATE = "contractState";
     public static final String CACHE_MANAGER_ENTITY = "entity";
     public static final String CACHE_MANAGER_RECORD_FILE_LATEST = "recordFileLatest";
@@ -127,6 +128,13 @@ public class EvmConfiguration {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_CONTRACT));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getContract());
+        return caffeineCacheManager;
+    }
+
+    @Bean(CACHE_MANAGER_MAX_CONTRACT_SLOTS_PER_CONTRACT)
+    public CaffeineCacheManager cacheManagerSlotsPerContract() {
+        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
+        caffeineCacheManager.setCacheSpecification(cacheProperties.getContractSlotsPerContract());
         return caffeineCacheManager;
     }
 

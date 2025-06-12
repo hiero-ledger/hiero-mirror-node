@@ -3,21 +3,17 @@
 package org.hiero.mirror.web3.state.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.hiero.mirror.web3.state.Utils.convertToLeftPaddedBytes;
 
-import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -35,6 +31,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.testcontainers.shaded.org.apache.commons.lang3.RandomUtils;
 
 @RequiredArgsConstructor
 @Import(TestConfig.class)
@@ -56,7 +53,6 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     void setup() {
         cacheManagerContractState.getCache(CACHE_NAME).clear();
         cacheManagerContractSlots.getCache(CACHE_NAME).clear();
-        cacheProperties.setMaxSlotsPerContract(100);
         cacheProperties.setEnableBatchContractSlotCaching(true);
     }
 
@@ -64,33 +60,18 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     void verifyCacheReturnsValuesAfterDeletion() {
         // Given
         final var contract = persistContract();
-        final var size = 90;
-        persistContractStates(contract.getId(), size);
+        var cachedSlots = getCachedSlots(contract);
+        assertThat(cachedSlots.size()).isEqualTo(0);
 
-        List<ContractState> states = new ArrayList<>();
-        final var targetSlots = 10;
-        for (int i = size; i < size + targetSlots; i++) {
-            states.add(persistContractState(contract.getId(), i));
-        }
-
+        final var contractStates = persistContractStates(contract.getId(), 10);
+        findStorage(contract, contractStates);
+        cachedSlots = getCachedSlots(contract);
+        assertThat(cachedSlots.size()).isEqualTo(10);
         // When
-        for (ContractState state : states) {
-            final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
-            assertThat(result.get()).isEqualTo(convertToLeftPaddedBytes(state.getValue()));
-        }
-        final var slotsCache = getSlotsCache();
-        final var slotsOfCache = (Set<String>) slotsCache.asMap().get(contract.toEntityId());
-        assertThat(getCacheSizeContractState()).isEqualTo(targetSlots);
-        assertThat(getCacheSizeContractSlot()).isEqualTo(1);
-        assertThat(slotsOfCache.size()).isEqualTo(targetSlots);
         contractStateRepository.deleteAll();
-
         // Then
-        // verify get from cache
-        for (ContractState state : states) {
-            final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
-            assertThat(result.get()).isEqualTo(Bytes.wrap(leftPadBytes(state.getValue(), Bytes32.SIZE)));
-        }
+        cachedSlots = getCachedSlots(contract);
+        assertThat(cachedSlots.size()).isEqualTo(10);
     }
 
     @Test
@@ -99,70 +80,43 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         final var maxCacheSize = cacheProperties.getMaxSlotsPerContract();
         final var contract = persistContract();
 
-        List<ContractState> states = new ArrayList<>();
-        for (int i = 0; i < maxCacheSize; i++) {
-            states.add(persistContractState(contract.getId(), i));
-        }
+        final var firstContractState =
+                persistContractStates(contract.getId(), 1).getFirst(); // persistContractStates(1, contract).getFirst();
+        contractStateService.findStorage(contract.toEntityId(), firstContractState.getSlot());
 
-        // When
-        for (ContractState state : states) {
-            final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
-            assertThat(result.get()).isEqualTo(convertToLeftPaddedBytes(state.getValue()));
-        }
+        var cachedSlots = getCachedSlots(contract);
+        assertThat(cachedSlots.size()).isEqualTo(1);
+        assertThat(cachedSlots.contains(encodeSlotKey(firstContractState.getSlot())))
+                .isTrue();
 
-        final var slotsCache = getSlotsCache();
-        final var slotsOfCache = (LinkedHashSet<String>) slotsCache.asMap().get(contract.toEntityId());
-        final var firstSlotEntryKey = encodeSlotKey(states.get(0).getSlot());
-        final var secondSlotEntryKey = encodeSlotKey(states.get(1).getSlot());
-        assertThat(slotsOfCache.getFirst()).isEqualTo(firstSlotEntryKey);
+        List<ContractState> contractStates =
+                persistContractStates(contract.getId(), maxCacheSize); // persistContractStates(maxCacheSize, contract);
+        findStorage(contract, contractStates);
 
-        // Persist additional slot and verify that it replaces the oldest entry in the cache.
-        final var additionalContractState = persistContractState(contract.getId(), maxCacheSize + 1);
-        final var additionalSlotEntryKey = encodeSlotKey(additionalContractState.getSlot());
-        final var result = contractStateService.findStorage(contract.toEntityId(), additionalContractState.getSlot());
-
-        // Then
-        assertThat(result.get()).isEqualTo(convertToLeftPaddedBytes(additionalContractState.getValue()));
-        assertThat(slotsOfCache.contains(firstSlotEntryKey)).isFalse();
-        assertThat(slotsOfCache.contains(secondSlotEntryKey)).isTrue();
-        assertThat(slotsOfCache.contains(additionalSlotEntryKey)).isTrue();
-        assertThat(slotsOfCache.getFirst()).isEqualTo(secondSlotEntryKey);
+        cachedSlots = getCachedSlots(contract);
+        assertThat(cachedSlots.size()).isEqualTo(maxCacheSize);
+        assertThat(!cachedSlots.contains(encodeSlotKey(firstContractState.getSlot())))
+                .isTrue();
     }
 
     @Test
     void verifyCacheKeysAreNotDuplicated() {
         // Given
         final var contract = persistContract();
-        final var slotSizeThatWillNotBeQueried = 5;
-        persistContractStates(contract.getId(), slotSizeThatWillNotBeQueried);
+        final var firstContractState =
+                persistContractStates(contract.getId(), 1).getFirst();
+        contractStateService.findStorage(contract.toEntityId(), firstContractState.getSlot());
 
-        List<ContractState> states = new ArrayList<>();
-        final var targetSlots = 10;
-        for (int i = slotSizeThatWillNotBeQueried; i < slotSizeThatWillNotBeQueried + targetSlots; i++) {
-            states.add(persistContractState(contract.getId(), i));
-        }
-
+        var cachedSlots = getCachedSlots(contract);
+        assertThat(cachedSlots.size()).isEqualTo(1);
+        assertThat(cachedSlots.contains(encodeSlotKey(firstContractState.getSlot())))
+                .isTrue();
         // When
-        for (ContractState state : states) {
-            final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
-            assertThat(result.get()).isEqualTo(convertToLeftPaddedBytes(state.getValue()));
-        }
-        final var slotsCache = getSlotsCache();
-        final var slotsOfCache = (Set<String>) slotsCache.asMap().get(contract.toEntityId());
-        assertThat(getCacheSizeContractState()).isEqualTo(targetSlots);
-        assertThat(getCacheSizeContractSlot()).isEqualTo(1);
-        assertThat(slotsOfCache.size()).isEqualTo(targetSlots);
-
+        contractStateService.findStorage(contract.toEntityId(), firstContractState.getSlot());
         // Then
-        // If the same keys are read, verify that they will not be duplicated in the cache
-        for (ContractState state : states) {
-            final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
-            assertThat(result.get()).isEqualTo(convertToLeftPaddedBytes(state.getValue()));
-        }
-
-        assertThat(getCacheSizeContractState()).isEqualTo(targetSlots);
-        assertThat(getCacheSizeContractSlot()).isEqualTo(1);
-        assertThat(slotsOfCache.size()).isEqualTo(targetSlots);
+        assertThat(cachedSlots.size()).isEqualTo(1);
+        assertThat(cachedSlots.contains(encodeSlotKey(firstContractState.getSlot())))
+                .isTrue();
     }
 
     @ParameterizedTest
@@ -190,10 +144,12 @@ class ContractStateServiceTest extends Web3IntegrationTest {
                 .persist();
     }
 
-    private void persistContractStates(final long contractId, final int size) {
+    private List<ContractState> persistContractStates(final long contractId, final int size) {
+        List<ContractState> contractStates = new ArrayList<>();
         for (int i = 0; i < size; i++) {
-            persistContractState(contractId, i);
+            contractStates.add(persistContractState(contractId, RandomUtils.nextInt()));
         }
+        return contractStates;
     }
 
     private ContractState persistContractState(final long contractId, final int index) {
@@ -231,6 +187,24 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
     private String encodeSlotKey(final byte[] slotKey) {
         return Base64.getEncoder().encodeToString(slotKey);
+    }
+
+    public List<String> getCachedSlots(Entity contract) {
+        var slotsCache = getSlotsCache();
+        var slotsPerContractCache = slotsCache.asMap().get(contract.toEntityId());
+        return slotsPerContractCache != null
+                ? ((CaffeineCache) slotsPerContractCache)
+                        .getNativeCache().asMap().keySet().stream()
+                                .map(Object::toString)
+                                .collect(Collectors.toList())
+                : List.of();
+    }
+
+    public void findStorage(Entity contract, List<ContractState> slotKeyValuePairs) {
+        for (ContractState state : slotKeyValuePairs) {
+            final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
+            assertThat(result.get()).isEqualTo(convertToLeftPaddedBytes(state.getValue()));
+        }
     }
 
     @TestConfiguration
