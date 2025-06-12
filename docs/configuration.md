@@ -177,8 +177,6 @@ value, it is recommended to only populate overridden properties in the custom `a
 | `hiero.mirror.importer.parser.record.historicalBalance.tokenBalances`           | true                                                 | Whether to generate token balances information.                                                                                                                                                                                                                    |
 | `hiero.mirror.importer.parser.record.historicalBalance.transactionTimeout`      | 10m                                                  | The timeout in seconds for the database transaction to generate balances information.                                                                                                                                                                              |
 | `hiero.mirror.importer.parser.record.processingTimeout`                         | 10s                                                  | The additional timeout to allow after the last record stream file health check to verify that files are still being processed.                                                                                                                                     |
-| `hiero.mirror.importer.parser.record.pubsub.topicName`                          |                                                      | Pubsub topic to publish transactions to                                                                                                                                                                                                                            |
-| `hiero.mirror.importer.parser.record.pubsub.maxSendAttempts`                    | 5                                                    | Number of attempts when sending messages to PubSub (only for retryable errors)                                                                                                                                                                                     |
 | `hiero.mirror.importer.parser.record.retry.maxAttempts`                         | Integer.MAX_VALUE                                    | How many attempts should be made to retry file parsing errors                                                                                                                                                                                                      |
 | `hiero.mirror.importer.parser.record.retry.maxBackoff`                          | 30s                                                  | The maximum amount of time to wait between retries                                                                                                                                                                                                                 |
 | `hiero.mirror.importer.parser.record.retry.minBackoff`                          | 500ms                                                | The minimum amount of time to wait between retries                                                                                                                                                                                                                 |
@@ -334,20 +332,6 @@ HIERO_MIRROR_IMPORTER_PARSER_INCLUDE_3_TRANSACTION_0_: CONTRACTCREATEINSTANCE
 HIERO_MIRROR_IMPORTER_PARSER_INCLUDE_3_EXPRESSION_: "transactionBody.contractCreateInstance.autoRenewAccountId.accountNum == 2000"
 HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TOPICS: "false"
 ```
-
-### Export transactions to PubSub
-
-Importer can be configured to publish transactions (in json format) to a Pubsub topic using following properties:
-
-- `spring.cloud.gcp.pubsub.enabled`
-- `spring.cloud.gcp.pubsub.project-id`
-- `hiero.mirror.importer.parser.record.pubsub.topicName`
-- `spring.cloud.gcp.pubsub.credentials.*`
-- `hiero.mirror.importer.parser.record.entity.enabled` (Importer can not export to both database and pubsub
-  simultaneously)
-
-See [Spring Cloud documentation](https://cloud.spring.io/spring-cloud-static/spring-cloud-gcp/1.2.2.RELEASE/reference/html/#pubsub-configuration)
-for more info about `spring.cloud.gcp.*` properties.
 
 ### Connect to S3 with the Default Credentials Provider
 

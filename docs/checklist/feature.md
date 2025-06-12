@@ -32,8 +32,6 @@ aims to document the required changes associated with any new feature.
 - [ ] Tests for each of the above
 - [ ] `RecordItemBuilder`
 - [ ] `EntityRecordItemListener*Test`
-- [ ] `PubSubMessageTest` updated for `TransactionRecord` changes
-- [ ] `pubsub-messages.txt`
 
 ## Monitor
 
