@@ -25,7 +25,7 @@ public class CacheProperties {
     private String contractState = "expireAfterWrite=2s,maximumSize=25000,recordStats";
 
     @NotBlank
-    private String contractSlots = "expireAfterWrite=5m,maximumSize=3000,recordStats";
+    private String contractSlots = "expireAfterAccess=5m,maximumSize=3000,recordStats";
 
     @NotBlank
     private String contractSlotsPerContract = "expireAfterAccess=5m,maximumSize=1500,recordStats";
@@ -43,8 +43,8 @@ public class CacheProperties {
     private String tokenType = "expireAfterAccess=24h,maximumSize=100000,recordStats";
 
     @Getter
-    private int maxSlotsPerContract = 1500;
+    private int cachedSlotsMaxSize = 1500;
 
     @Getter
-    private boolean enableBatchContractSlotCaching = false;
+    private boolean enableBatchContractSlotCaching = true;
 }

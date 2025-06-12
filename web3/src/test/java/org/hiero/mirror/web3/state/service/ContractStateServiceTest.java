@@ -6,7 +6,6 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
-import static org.hiero.mirror.web3.state.Utils.convertToLeftPaddedBytes;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -77,7 +76,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     @Test
     void verifyTheOldestEntryInTheCacheIsDeleted() {
         // Given
-        final var maxCacheSize = cacheProperties.getMaxSlotsPerContract();
+        final var maxCacheSize = cacheProperties.getCachedSlotsMaxSize();
         final var contract = persistContract();
 
         final var firstContractState =
@@ -170,13 +169,6 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         return slotKey;
     }
 
-    private int getCacheSizeContractState() {
-        return ((CaffeineCache) cacheManagerContractState.getCache(CACHE_NAME))
-                .getNativeCache()
-                .asMap()
-                .size();
-    }
-
     private int getCacheSizeContractSlot() {
         return getSlotsCache().asMap().size();
     }
@@ -203,7 +195,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     public void findStorage(Entity contract, List<ContractState> slotKeyValuePairs) {
         for (ContractState state : slotKeyValuePairs) {
             final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
-            assertThat(result.get()).isEqualTo(convertToLeftPaddedBytes(state.getValue()));
+            assertThat(result.get()).isEqualTo(state.getValue());
         }
     }
 
