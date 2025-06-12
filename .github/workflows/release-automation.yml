@@ -119,6 +119,10 @@ jobs:
           milestone: ${{ steps.version_parser.outputs.release }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Output Release Notes
+        continue-on-error: true
+        run: cat changelog.md
+
       - name: Commit and Tag
         uses: stefanzweifel/git-auto-commit-action@b863ae1933cb653a53c021fe36dbb774e1fb9403 # v5.2.0
         with:

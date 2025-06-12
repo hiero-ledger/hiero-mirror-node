@@ -23,7 +23,6 @@ extra.apply {
     set("postgresql.version", "42.7.7") // Temporary until next Spring Boot version
     set("protobufVersion", "4.31.1")
     set("reactorGrpcVersion", "1.2.4")
-    set("vertxVersion", "4.5.14")
     set("tuweniVersion", "2.3.1")
 }
 
@@ -35,9 +34,7 @@ dependencies {
         val mapStructVersion: String by rootProject.extra
         val protobufVersion: String by rootProject.extra
         val reactorGrpcVersion: String by rootProject.extra
-        val testcontainersSpringBootVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
-        val vertxVersion: String by rootProject.extra
 
         api("com.esaulpaugh:headlong:10.0.2")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
@@ -65,9 +62,6 @@ dependencies {
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.9.11")
         api("io.projectreactor:reactor-core-micrometer:1.2.6")
         api("io.swagger:swagger-annotations:1.6.16")
-        api("io.vertx:vertx-pg-client:$vertxVersion")
-        api("io.vertx:vertx-codegen:$vertxVersion")
-        api("io.vertx:vertx-core:$vertxVersion")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("javax.inject:javax.inject:1")
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")

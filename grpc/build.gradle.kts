@@ -17,8 +17,6 @@ dependencies {
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("io.projectreactor.addons:reactor-extra")
     implementation("io.projectreactor:reactor-core-micrometer")
-    implementation("io.vertx:vertx-pg-client")
-    implementation("io.vertx:vertx-codegen")
     implementation("jakarta.inject:jakarta.inject-api")
     implementation("net.devh:grpc-spring-boot-starter")
     implementation("org.msgpack:jackson-dataformat-msgpack")

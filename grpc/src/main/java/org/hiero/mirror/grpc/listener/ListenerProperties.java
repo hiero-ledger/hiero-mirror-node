@@ -37,7 +37,6 @@ public class ListenerProperties {
     private ListenerType type = ListenerType.REDIS;
 
     public enum ListenerType {
-        NOTIFY,
         POLL,
         REDIS,
         SHARED_POLL
