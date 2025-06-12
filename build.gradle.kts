@@ -20,6 +20,7 @@ extra.apply {
     set("jooq.version", "3.20.4") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.14.0")
+    set("postgresql.version", "42.7.7") // Temporary until next Spring Boot version
     set("protobufVersion", "4.31.1")
     set("reactorGrpcVersion", "1.2.4")
     set("vertxVersion", "4.5.14")
@@ -51,7 +52,7 @@ dependencies {
         api("com.graphql-java:graphql-java-extended-validation:22.0")
         api("com.hedera.hashgraph:app:0.63.5")
         api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.62.3")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.63.5")
         api("com.hedera.hashgraph:sdk:2.57.0")
         api("com.ongres.scram:client:2.1")
         api("com.playtika.testcontainers:embedded-google-pubsub:3.1.13")

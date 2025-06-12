@@ -7,7 +7,6 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +30,7 @@ class MapReadableKVStateTest {
 
     @BeforeEach
     void setup() {
-        accountMap = new ConcurrentHashMap<>(Map.of(accountID, account));
+        accountMap = Map.of(accountID, account);
         mapReadableKVState = new MapReadableKVState<>(AccountReadableKVState.KEY, accountMap);
     }
 
@@ -60,11 +59,11 @@ class MapReadableKVStateTest {
         final var accountID2 = AccountID.newBuilder().accountNum(2L).build();
         final var mapReadableKVStateBigger = new MapReadableKVState<>(
                 AccountReadableKVState.KEY,
-                new ConcurrentHashMap<>(Map.of(
+                Map.of(
                         accountID1,
                         Account.newBuilder().accountId(accountID1).build(),
                         accountID2,
-                        Account.newBuilder().accountId(accountID2).build())));
+                        Account.newBuilder().accountId(accountID2).build()));
         assertThat(mapReadableKVStateBigger.size()).isEqualTo(2L);
     }
 
@@ -97,8 +96,7 @@ class MapReadableKVStateTest {
 
     @Test
     void testEqualsDifferentValues() {
-        final var accountMapOther = new ConcurrentHashMap<>(
-                Map.of(AccountID.newBuilder().accountNum(3L).build(), account));
+        final var accountMapOther = Map.of(AccountID.newBuilder().accountNum(3L).build(), account);
         MapReadableKVState<AccountID, Account> other =
                 new MapReadableKVState<>(AccountReadableKVState.KEY, accountMapOther);
         assertThat(mapReadableKVState).isNotEqualTo(other);
