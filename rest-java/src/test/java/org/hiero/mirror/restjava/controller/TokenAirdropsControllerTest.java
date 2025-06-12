@@ -119,11 +119,8 @@ class TokenAirdropsControllerTest extends ControllerTest {
             var receiver = getScopedEntityId(2000);
             var sender = getScopedEntityId(1000);
             var token1 = getScopedEntityId(100);
-            ;
             var token2 = getScopedEntityId(300);
-            ;
             var token3 = getScopedEntityId(301);
-            ;
 
             var airdrop1 = domainBuilder
                     .tokenAirdrop(FUNGIBLE_COMMON)
@@ -299,7 +296,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
             var baseLink = "/api/v1/accounts/%d/airdrops/outstanding".formatted(sender.getNum());
             var nextBase = "?limit=1&receiver.id=gte:%s&token.id=gt:%s";
-            var nextParams = nextBase.formatted(receiver1.toString(), token1.toString());
+            var nextParams = nextBase.formatted(receiver1, token1);
 
             // When no primary or secondary parameters are specified
             var uriParams = "?limit=1";
@@ -324,7 +321,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
             // When follow link
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            nextParams = nextBase.formatted(receiver1.toString(), token2.toString());
+            nextParams = nextBase.formatted(receiver1, token2);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop2), baseLink + nextParams));
@@ -332,7 +329,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
             // When follow link
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            nextParams = nextBase.formatted(receiver2.toString(), token1.toString());
+            nextParams = nextBase.formatted(receiver2, token1);
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop3), baseLink + nextParams));
 
@@ -379,7 +376,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
             var baseLink = "/api/v1/accounts/%d/airdrops/outstanding".formatted(sender.getNum());
             var nextBase = "?limit=1&receiver.id=gte:%s&token.id=gte:%s&serialnumber=gt:%d";
-            var nextParams = nextBase.formatted(receiver1.toString(), token1.toString(), serial1);
+            var nextParams = nextBase.formatted(receiver1, token1, serial1);
 
             // When no primary or secondary parameters are specified
             var uriParams = "?limit=1";
@@ -405,14 +402,14 @@ class TokenAirdropsControllerTest extends ControllerTest {
             // When follow link
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            nextParams = nextBase.formatted(receiver1.toString(), token1.toString(), serial2);
+            nextParams = nextBase.formatted(receiver1, token1, serial2);
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop2), baseLink + nextParams));
 
             // When follow link
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            nextParams = nextBase.formatted(receiver2.toString(), token1.toString(), serial3);
+            nextParams = nextBase.formatted(receiver2, token1, serial3);
             ;
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop3), baseLink + nextParams));
@@ -462,14 +459,13 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
             var baseLink = "/api/v1/accounts/%d/airdrops/outstanding".formatted(sender.getNum());
             var uriParams = "?limit=1&receiver.id=gte:%s&receiver.id=lt:%s&token.id=lte:%s&token.id=gt:%s"
-                    .formatted(receiver.toString(), receiver3.toString(), token1.toString(), receiver2.toString());
+                    .formatted(receiver, receiver3, token1, receiver2);
             var nextBase = "?limit=1&receiver.id=lt:%s&receiver.id=gte:%s&token.id=lte:%s&token.id=gt:%s";
 
             // When
             var result =
                     restClient.get().uri(uriParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            var nextParams = nextBase.formatted(
-                    receiver3.toString(), receiver1.toString(), token1.toString(), token1.toString());
+            var nextParams = nextBase.formatted(receiver3, receiver1, token1, token1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop), baseLink + nextParams));
@@ -477,8 +473,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
             // When
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            nextParams = nextBase.formatted(
-                    receiver3.toString(), receiver2.toString(), token1.toString(), token1.toString());
+            nextParams = nextBase.formatted(receiver3, receiver2, token1, token1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop2), baseLink + nextParams));
@@ -536,13 +531,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
             var uriParams =
                     "?receiver.id=gte:%s&receiver.id=lte:%s&token.id=gte:%s&token.id=lte:%s&serialnumber=gte:%d&serialnumber=lte:%d"
-                            .formatted(
-                                    receiver1.toString(),
-                                    receiver3.toString(),
-                                    token1.toString(),
-                                    token3.toString(),
-                                    serial1,
-                                    serial3);
+                            .formatted(receiver1, receiver3, token1, token3, serial1, serial3);
             // When
             var result =
                     restClient.get().uri(uriParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
@@ -598,15 +587,14 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
             var baseLink = "/api/v1/accounts/%d/airdrops/outstanding".formatted(sender.getNum());
             var uriParams = "?limit=1&receiver.id=gte:%s&receiver.id=lt:%s&token.id=lte:%s&token.id=gt:%s"
-                    .formatted(receiver.toString(), receiver3.toString(), token1.toString(), receiver2.toString());
+                    .formatted(receiver, receiver3, token1, receiver2);
             var nextBaseSerial =
                     "?limit=1&receiver.id=lt:%s&receiver.id=gte:%s&token.id=lte:%s&token.id=gte:%s&serialnumber=gt:%d";
 
             // When
             var result =
                     restClient.get().uri(uriParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            var nextParams = nextBaseSerial.formatted(
-                    receiver3.toString(), receiver1.toString(), token1.toString(), token1.toString(), serial3);
+            var nextParams = nextBaseSerial.formatted(receiver3, receiver1, token1, token1, serial3);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop), baseLink + nextParams));
@@ -620,8 +608,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
             // When
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            nextParams = nextBaseSerial.formatted(
-                    receiver3.toString(), receiver2.toString(), token1.toString(), token1.toString(), serial4);
+            nextParams = nextBaseSerial.formatted(receiver3, receiver2, token1, token1, serial4);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop2), baseLink + nextParams));
@@ -683,7 +670,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
             var baseLink = "/api/v1/accounts/%d/airdrops/outstanding".formatted(sender.getNum());
             var uriParams = "?limit=1&receiver.id=gte:%s&receiver.id=lt:%s&token.id=lte:%s&token.id=gt:%s"
-                    .formatted(receiver.toString(), receiver3.toString(), token2.toString(), receiver2.toString());
+                    .formatted(receiver, receiver3, token2, receiver2);
             var nextBase = "?limit=1&receiver.id=lt:%s&receiver.id=gte:%s&token.id=lte:%s&token.id=gt:%s";
             var nextBaseSerial =
                     "?limit=1&receiver.id=lt:%s&receiver.id=gte:%s&token.id=lte:%s&token.id=gte:%s&serialnumber=gt:%d";
@@ -691,8 +678,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
             // When
             var result =
                     restClient.get().uri(uriParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            var nextParams = nextBase.formatted(
-                    receiver3.toString(), receiver1.toString(), token2.toString(), token1.toString());
+            var nextParams = nextBase.formatted(receiver3, receiver1, token2, token1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop), baseLink + nextParams));
@@ -707,16 +693,14 @@ class TokenAirdropsControllerTest extends ControllerTest {
             // When following the next link
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            nextParams = nextBaseSerial.formatted(
-                    receiver3.toString(), receiver1.toString(), token2.toString(), token2.toString(), serial1);
+            nextParams = nextBaseSerial.formatted(receiver3, receiver1, token2, token2, serial1);
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdropNft), baseLink + nextParams));
 
             // When
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            nextParams = nextBaseSerial.formatted(
-                    receiver3.toString(), receiver1.toString(), token2.toString(), token2.toString(), serial2);
+            nextParams = nextBaseSerial.formatted(receiver3, receiver1, token2, token2, serial2);
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdropNft2), baseLink + nextParams));
 
@@ -724,8 +708,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
             // Serial number is removed from the next link
-            nextParams = nextBase.formatted(
-                    receiver3.toString(), receiver2.toString(), token2.toString(), token1.toString());
+            nextParams = nextBase.formatted(receiver3, receiver2, token2, token1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop2), baseLink + nextParams));
@@ -733,8 +716,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
             // When
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            nextParams = nextBaseSerial.formatted(
-                    receiver3.toString(), receiver2.toString(), token2.toString(), token2.toString(), serial3);
+            nextParams = nextBaseSerial.formatted(receiver3, receiver2, token2, token2, serial3);
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdropNft3), baseLink + nextParams));
 
@@ -803,7 +785,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
             var baseLink = "/api/v1/accounts/%d/airdrops/outstanding".formatted(sender.getNum());
             var uriParams = "?limit=1&order=desc&receiver.id=gte:%s&receiver.id=lt:%s&token.id=lte:%s&token.id=gt:%s"
-                    .formatted(receiver.toString(), receiver3.toString(), token2.toString(), receiver2.toString());
+                    .formatted(receiver, receiver3, token2, receiver2);
             var nextBase = "?limit=1&order=desc&receiver.id=gte:%s&receiver.id=lte:%s&token.id=gt:%s&token.id=lt:%s";
             var nextBaseSerial =
                     "?limit=1&order=desc&receiver.id=gte:%s&receiver.id=lte:%s&token.id=gt:%s&token.id=lte:%s&serialnumber=lt:%d";
@@ -811,8 +793,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
             // When
             var result =
                     restClient.get().uri(uriParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            var nextParams = nextBaseSerial.formatted(
-                    receiver.toString(), receiver2.toString(), receiver2.toString(), token2.toString(), serial3);
+            var nextParams = nextBaseSerial.formatted(receiver, receiver2, receiver2, token2, serial3);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdropNft3), baseLink + nextParams));
@@ -820,12 +801,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
             // Add serial number to the initial request
             uriParams =
                     "?limit=1&order=desc&receiver.id=gte:%s&receiver.id=lt:%s&token.id=lte:%s&token.id=gt:%s&serialnumber=lt:%d"
-                            .formatted(
-                                    receiver.toString(),
-                                    receiver3.toString(),
-                                    token2.toString(),
-                                    receiver2.toString(),
-                                    serial3 + 1);
+                            .formatted(receiver, receiver3, token2, receiver2, serial3 + 1);
             result = restClient.get().uri(uriParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
 
             // Then
@@ -835,8 +811,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
             // Serial number is removed from the next link
-            nextParams = nextBase.formatted(
-                    receiver.toString(), receiver2.toString(), receiver2.toString(), token1.toString());
+            nextParams = nextBase.formatted(receiver, receiver2, receiver2, token1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop2), baseLink + nextParams));
@@ -844,8 +819,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
             // When
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            nextParams = nextBaseSerial.formatted(
-                    receiver.toString(), receiver1.toString(), receiver2.toString(), token2.toString(), serial2);
+            nextParams = nextBaseSerial.formatted(receiver, receiver1, receiver2, token2, serial2);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdropNft2), baseLink + nextParams));
@@ -853,8 +827,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
             // When
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            nextParams = nextBaseSerial.formatted(
-                    receiver.toString(), receiver1.toString(), receiver2.toString(), token2.toString(), serial1);
+            nextParams = nextBaseSerial.formatted(receiver, receiver1, receiver2, token2, serial1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdropNft), baseLink + nextParams));
@@ -862,8 +835,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
             // When
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
-            nextParams = nextBase.formatted(
-                    receiver.toString(), receiver1.toString(), receiver2.toString(), token1.toString());
+            nextParams = nextBase.formatted(receiver, receiver1, receiver2, token1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop), baseLink + nextParams));
@@ -1294,7 +1266,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(uriParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            var nextParams = nextBase.formatted(sender.toString(), token1.toString());
+            var nextParams = nextBase.formatted(sender, token1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop), baseLink + nextParams));
@@ -1326,7 +1298,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(nextParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            nextParams = nextBase.formatted(sender.toString(), token2.toString());
+            nextParams = nextBase.formatted(sender, token2);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop2), baseLink + nextParams));
@@ -1337,7 +1309,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(nextParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            nextParams = nextBase.formatted(sender1.toString(), token1.toString());
+            nextParams = nextBase.formatted(sender1, token1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop3), baseLink + nextParams));
@@ -1392,7 +1364,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
             var baseLink = "/api/v1/accounts/%d/airdrops/pending".formatted(receiver.getNum());
             var nextBase = "?limit=1&sender.id=gte:%s&token.id=gte:%s&serialnumber=gt:%d";
-            var nextParams = nextBase.formatted(sender.toString(), token1.toString(), serial1);
+            var nextParams = nextBase.formatted(sender, token1, serial1);
 
             // When no primary or secondary parameters are specified
             var uriParams = "?limit=1";
@@ -1432,7 +1404,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(nextParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            nextParams = nextBase.formatted(sender.toString(), token1.toString(), serial2);
+            nextParams = nextBase.formatted(sender, token1, serial2);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop2), baseLink + nextParams));
@@ -1443,7 +1415,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(nextParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            nextParams = nextBase.formatted(sender1.toString(), token1.toString(), serial3);
+            nextParams = nextBase.formatted(sender1, token1, serial3);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop3), baseLink + nextParams));
@@ -1501,7 +1473,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
             var baseLink = "/api/v1/accounts/%d/airdrops/pending".formatted(receiver.getNum());
             var uriParams = "?limit=1&sender.id=gte:%s&sender.id=lt:%s&token.id=lte:%s&token.id=gt:%s"
-                    .formatted(sender.toString(), sender3.toString(), token1.toString(), sender2.toString());
+                    .formatted(sender, sender3, token1, sender2);
             var nextBase = "?limit=1&sender.id=lt:%s&sender.id=gte:%s&token.id=lte:%s&token.id=gt:%s";
 
             // When
@@ -1510,8 +1482,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(uriParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            var nextParams =
-                    nextBase.formatted(sender3.toString(), sender1.toString(), token1.toString(), token1.toString());
+            var nextParams = nextBase.formatted(sender3, sender1, token1, token1);
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop), baseLink + nextParams));
 
@@ -1521,8 +1492,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(nextParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            nextParams =
-                    nextBase.formatted(sender3.toString(), sender2.toString(), token1.toString(), token1.toString());
+            nextParams = nextBase.formatted(sender3, sender2, token1, token1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop2), baseLink + nextParams));
@@ -1578,7 +1548,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
             var baseLink = "/api/v1/accounts/%d/airdrops/pending".formatted(receiver.getNum());
             var uriParams = "?limit=1&sender.id=gte:%s&sender.id=lt:%s&token.id=lte:%s&token.id=gt:%s"
-                    .formatted(sender.toString(), sender3.toString(), token1.toString(), sender2.toString());
+                    .formatted(sender, sender3, token1, sender2);
             var nextBase =
                     "?limit=1&sender.id=lt:%s&sender.id=gte:%s&token.id=lte:%s&token.id=gte:%s&serialnumber=gt:%d";
 
@@ -1588,8 +1558,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(uriParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            var nextParams = nextBase.formatted(
-                    sender3.toString(), sender1.toString(), token1.toString(), token1.toString(), serial1);
+            var nextParams = nextBase.formatted(sender3, sender1, token1, token1, serial1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop), baseLink + nextParams));
@@ -1611,8 +1580,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(nextParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            nextParams = nextBase.formatted(
-                    sender3.toString(), sender2.toString(), token1.toString(), token1.toString(), serial2);
+            nextParams = nextBase.formatted(sender3, sender2, token1, token1, serial2);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop2), baseLink + nextParams));
@@ -1678,7 +1646,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
             var baseLink = "/api/v1/accounts/%d/airdrops/pending".formatted(receiver.getNum());
             var uriParams = "?limit=1&sender.id=gte:%s&sender.id=lt:%s&token.id=lte:%s&token.id=gt:%s"
-                    .formatted(sender.toString(), sender3.toString(), token2.toString(), sender2.toString());
+                    .formatted(sender, sender3, token2, sender2);
             var nextBase = "?limit=1&sender.id=lt:%s&sender.id=gte:%s&token.id=lte:%s&token.id=gt:%s";
             var nextBaseSerial =
                     "?limit=1&sender.id=lt:%s&sender.id=gte:%s&token.id=lte:%s&token.id=gte:%s&serialnumber=gt:%d";
@@ -1689,8 +1657,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(uriParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            var nextParams =
-                    nextBase.formatted(sender3.toString(), sender1.toString(), token2.toString(), token1.toString());
+            var nextParams = nextBase.formatted(sender3, sender1, token2, token1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop), baseLink + nextParams));
@@ -1711,8 +1678,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(nextParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            nextParams = nextBaseSerial.formatted(
-                    sender3.toString(), sender1.toString(), token2.toString(), token2.toString(), serial1);
+            nextParams = nextBaseSerial.formatted(sender3, sender1, token2, token2, serial1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdropNft), baseLink + nextParams));
@@ -1723,8 +1689,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(nextParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            nextParams = nextBaseSerial.formatted(
-                    sender3.toString(), sender1.toString(), token2.toString(), token2.toString(), serial2);
+            nextParams = nextBaseSerial.formatted(sender3, sender1, token2, token2, serial2);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdropNft2), baseLink + nextParams));
@@ -1736,8 +1701,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
             // Serial number is removed from the next link
-            nextParams =
-                    nextBase.formatted(sender3.toString(), sender2.toString(), token2.toString(), token1.toString());
+            nextParams = nextBase.formatted(sender3, sender2, token2, token1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop2), baseLink + nextParams));
@@ -1748,8 +1712,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(nextParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            nextParams = nextBaseSerial.formatted(
-                    sender3.toString(), sender2.toString(), token2.toString(), token2.toString(), serial3);
+            nextParams = nextBaseSerial.formatted(sender3, sender2, token2, token2, serial3);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdropNft3), baseLink + nextParams));
@@ -1825,7 +1788,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
             var baseLink = "/api/v1/accounts/%d/airdrops/pending".formatted(receiver.getNum());
             var uriParams = "?limit=1&order=desc&sender.id=gte:%s&sender.id=lt:%s&token.id=lte:%s&token.id=gt:%s"
-                    .formatted(sender.toString(), sender3.toString(), token2.toString(), sender2.toString());
+                    .formatted(sender, sender3, token2, sender2);
             var nextBase = "?limit=1&order=desc&sender.id=gte:%s&sender.id=lte:%s&token.id=gt:%s&token.id=lt:%s";
             var nextBaseSerial =
                     "?limit=1&order=desc&sender.id=gte:%s&sender.id=lte:%s&token.id=gt:%s&token.id=lte:%s&serialnumber=lt:%d";
@@ -1836,8 +1799,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(uriParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            var nextParams = nextBaseSerial.formatted(
-                    sender.toString(), sender2.toString(), sender2.toString(), token2.toString(), serial3);
+            var nextParams = nextBaseSerial.formatted(sender, sender2, sender2, token2, serial3);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdropNft3), baseLink + nextParams));
@@ -1860,8 +1822,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
             // Serial number is removed from the next link
-            nextParams =
-                    nextBase.formatted(sender.toString(), sender2.toString(), sender2.toString(), token1.toString());
+            nextParams = nextBase.formatted(sender, sender2, sender2, token1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop2), baseLink + nextParams));
@@ -1872,8 +1833,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(nextParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            nextParams = nextBaseSerial.formatted(
-                    sender.toString(), sender1.toString(), sender2.toString(), token2.toString(), serial2);
+            nextParams = nextBaseSerial.formatted(sender, sender1, sender2, token2, serial2);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdropNft2), baseLink + nextParams));
@@ -1884,8 +1844,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(nextParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            nextParams = nextBaseSerial.formatted(
-                    sender.toString(), sender1.toString(), sender2.toString(), token2.toString(), serial1);
+            nextParams = nextBaseSerial.formatted(sender, sender1, sender2, token2, serial1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdropNft), baseLink + nextParams));
@@ -1896,8 +1855,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .uri(nextParams, receiver.getNum())
                     .retrieve()
                     .body(TokenAirdropsResponse.class);
-            nextParams =
-                    nextBase.formatted(sender.toString(), sender1.toString(), sender2.toString(), token1.toString());
+            nextParams = nextBase.formatted(sender, sender1, sender2, token1);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop), baseLink + nextParams));
