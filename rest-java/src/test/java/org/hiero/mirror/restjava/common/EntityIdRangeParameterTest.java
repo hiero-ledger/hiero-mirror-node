@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.restjava.common.RangeOperator.EQ;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.stream.Stream;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
@@ -13,13 +14,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class EntityIdRangeParameterTest {
 
-    private CommonProperties commonProperties = CommonProperties.getInstance();
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
 
     @Test
     void testConversion() {
@@ -33,21 +36,11 @@ class EntityIdRangeParameterTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"0.0.2", "0.2", "2"})
+    @MethodSource("shardAndRealmData")
     @DisplayName("EntityIdRangeParameter parse from string tests, valid cases")
-    void testValidParam(String input) {
-        var entityId = EntityId.of(0, 0, 2);
+    void testValidParam(String input, long encodedId) {
+        var entityId = EntityId.of(encodedId);
         assertThat(new EntityIdRangeParameter(EQ, entityId)).isEqualTo(EntityIdRangeParameter.valueOf(input));
-    }
-
-    @Test
-    void nonDefaultShardRealm() {
-        commonProperties.setRealm(1000L);
-        commonProperties.setShard(1);
-        var id = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1);
-        assertThat(EntityIdRangeParameter.valueOf("1")).isEqualTo(new EntityIdRangeParameter(EQ, id));
-        commonProperties.setRealm(0L);
-        commonProperties.setShard(0);
     }
 
     @ParameterizedTest
@@ -78,5 +71,17 @@ class EntityIdRangeParameterTest {
     @DisplayName("EntityIdRangeParameter parse from string tests, negative cases for ID having valid format")
     void testInvalidEntity(String input) {
         assertThrows(InvalidEntityException.class, () -> EntityIdRangeParameter.valueOf(input));
+    }
+
+    protected static Stream<Arguments> shardAndRealmData() {
+        var commonProperties = CommonProperties.getInstance();
+        var entityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1000L);
+
+        return Stream.of(
+                Arguments.of(entityId.getNum() + "", entityId.getId()),
+                Arguments.of(String.format("%d.1000", commonProperties.getRealm()), entityId.getId()),
+                Arguments.of(
+                        String.format("%d.%d.1000", commonProperties.getShard(), commonProperties.getRealm()),
+                        entityId.getId()));
     }
 }

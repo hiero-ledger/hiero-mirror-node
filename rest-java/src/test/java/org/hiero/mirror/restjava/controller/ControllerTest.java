@@ -7,16 +7,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.list;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ThrowableAssert;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.rest.model.ErrorStatusMessagesInner;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.RestJavaProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -91,6 +95,11 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
             restClient = restClientBuilder.baseUrl(baseUrl + suffix).build();
         }
 
+        protected static EntityId getScopedEntityId(long num) {
+            var commonProperties = CommonProperties.getInstance();
+            return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), num);
+        }
+
         /*
          * This method allows subclasses to do any setup work like entity persistence and provide a default URI and
          * parameters for the parent class to run its common set of tests.
@@ -128,6 +137,18 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
                     callable,
                     HttpClientErrorException.MethodNotAllowed.class,
                     "Request method 'POST' is not supported");
+        }
+
+        protected static Stream<Arguments> shardAndRealmData() {
+            var commonProperties = CommonProperties.getInstance();
+            var entityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1000L);
+
+            return Stream.of(
+                    Arguments.of(entityId.getNum() + "", entityId.getId()),
+                    Arguments.of(String.format("%d.1000", commonProperties.getRealm()), entityId.getId()),
+                    Arguments.of(
+                            String.format("%d.%d.1000", commonProperties.getShard(), commonProperties.getRealm()),
+                            entityId.getId()));
         }
     }
 }
