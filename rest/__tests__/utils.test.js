@@ -1819,7 +1819,10 @@ describe('Utils getNextParamQueries', () => {
         args: [
           constants.orderFilterValues.ASC,
           {
-            [constants.filterKeys.SLOT]: ['gte:0a', 'lt:0xc587da450c63fd97262e8f59f7e90c70b3c0a712e2f75f5a0d8fd91be2846a25'],
+            [constants.filterKeys.SLOT]: [
+              'gte:0a',
+              'lt:0xc587da450c63fd97262e8f59f7e90c70b3c0a712e2f75f5a0d8fd91be2846a25',
+            ],
           },
           {
             [constants.filterKeys.SLOT]: '0xc587da450c63fd97262e8f59f7e90c70b3c0a712e2f75f5a0d8fd91be2846a24',
