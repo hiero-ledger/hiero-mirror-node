@@ -11,13 +11,12 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.JumboTransaction;
 import org.junit.jupiter.api.Test;
 
-public class ContractCallJumboTransactionTest extends AbstractContractCallServiceTest {
+class ContractCallJumboTransactionTest extends AbstractContractCallServiceTest {
 
     private static final int KILOBYTE = 1024;
 
     // Jumbo payload: any payload over 6 KiB and up to 128 KiB
     private static final int JUMBO_PAYLOAD = 64 * KILOBYTE;
-    private static final int OVERSIZED_JUMBO_PAYLOAD = 128 * KILOBYTE;
 
     @Test
     void testJumboTransactionHappyPath() {
@@ -33,7 +32,8 @@ public class ContractCallJumboTransactionTest extends AbstractContractCallServic
     @Test
     void testJumboTransactionOverMaxSize() {
         // Given
-        final var jumboPayload = new byte[OVERSIZED_JUMBO_PAYLOAD];
+        final int maxDataSize = (int) mirrorNodeEvmProperties.getMaxDataSize().toBytes();
+        final var jumboPayload = new byte[maxDataSize];
         final var contract = testWeb3jService.deploy(JumboTransaction::deploy);
         // When
         final var functionCall = contract.call_consumeLargeCalldata(jumboPayload);
