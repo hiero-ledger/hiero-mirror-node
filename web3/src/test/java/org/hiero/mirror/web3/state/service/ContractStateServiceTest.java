@@ -76,7 +76,8 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     @Test
     void verifyTheOldestEntryInTheCacheIsDeleted() {
         // Given
-        final var maxCacheSize = cacheProperties.getMaxSlotsPerContract();
+        final var maxCacheSize =
+                Integer.parseInt(cacheProperties.getSlotsPerContract().replaceAll(".*maximumSize=(\\d+).*", "$1"));
         final var contract = persistContract();
 
         final var firstContractState =

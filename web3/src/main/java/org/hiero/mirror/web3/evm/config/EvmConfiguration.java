@@ -134,7 +134,7 @@ public class EvmConfiguration {
     @Bean(CACHE_MANAGER_MAX_CONTRACT_SLOTS_PER_CONTRACT)
     public CaffeineCacheManager cacheManagerSlotsPerContract() {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheSpecification(cacheProperties.getContractSlotsPerContract());
+        caffeineCacheManager.setCaffeine(Caffeine.from(cacheProperties.getSlotsPerContract()));
         return caffeineCacheManager;
     }
 
