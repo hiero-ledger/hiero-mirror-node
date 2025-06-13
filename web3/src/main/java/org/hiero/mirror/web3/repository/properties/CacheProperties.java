@@ -21,7 +21,7 @@ public class CacheProperties {
     private String contract = "expireAfterAccess=1h,maximumSize=1000,recordStats";
 
     @NotBlank
-    private String contractSlots = "expireAfterAccess=5m,maximumSize=3000,recordStats";
+    private String contractSlots = "expireAfterAccess=5m,maximumSize=3000";
 
     @NotBlank
     private String slotsPerContract = "expireAfterAccess=5m,maximumSize=1500";

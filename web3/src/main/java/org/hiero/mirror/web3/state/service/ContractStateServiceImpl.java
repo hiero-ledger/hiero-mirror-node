@@ -122,9 +122,11 @@ public class ContractStateServiceImpl implements ContractStateService {
             return Optional.empty();
         }
 
+        // Cached slot keys for contract, whose slot values are not present in the contractStateCache
         List<byte[]> cachedSlots = ((CaffeineCache) contractSlotsCache)
                 .getNativeCache().asMap().keySet().stream()
                         .map(slot -> decodeSlotKey(String.valueOf(slot)))
+                        .filter(slot -> contractStateCache.get(generateCacheKey(contractId, slot)) == null)
                         .toList();
 
         final var existingSlotKeyValuePairs = contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots);
