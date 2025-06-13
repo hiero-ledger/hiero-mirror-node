@@ -7,6 +7,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.hiero.mirror.common.exception.MirrorNodeException;
+import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.JumboTransaction;
 import org.junit.jupiter.api.Test;
 
@@ -32,15 +33,16 @@ public class ContractCallJumboTransactionTest extends AbstractContractCallServic
     @Test
     void testJumboTransactionOverMaxSize() {
         // Given
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
-            return;
-        }
         final var jumboPayload = new byte[OVERSIZED_JUMBO_PAYLOAD];
         final var contract = testWeb3jService.deploy(JumboTransaction::deploy);
-        final var functionCall = contract.call_consumeLargeCalldata(jumboPayload);
         // When
-        var exception = assertThrows(MirrorNodeException.class, functionCall::send);
+        final var functionCall = contract.call_consumeLargeCalldata(jumboPayload);
         // Тhen
-        assertThat(exception.getMessage()).isEqualTo(TRANSACTION_OVERSIZE.protoName());
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            var exception = assertThrows(MirrorNodeException.class, functionCall::send);
+            assertThat(exception.getMessage()).isEqualTo(TRANSACTION_OVERSIZE.protoName());
+        } else {
+            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        }
     }
 }
