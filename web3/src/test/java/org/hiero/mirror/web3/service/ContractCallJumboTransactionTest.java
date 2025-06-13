@@ -12,8 +12,11 @@ import org.junit.jupiter.api.Test;
 
 public class ContractCallJumboTransactionTest extends AbstractContractCallServiceTest {
 
-    private static final int JUMBO_PAYLOAD = 64 * 128;
-    private static final int OVERSIZED_JUMBO_PAYLOAD = 128 * 1024;
+    private static final int KILOBYTE = 1024;
+
+    // Jumbo payload: any payload over 6 KiB and up to 128 KiB
+    private static final int JUMBO_PAYLOAD = 64 * KILOBYTE;
+    private static final int OVERSIZED_JUMBO_PAYLOAD = 128 * KILOBYTE;
 
     @Test
     void testJumboTransactionHappyPath() {
