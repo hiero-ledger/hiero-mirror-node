@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient.RequestHeadersSpec;
@@ -46,7 +45,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
         @Override
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
-            var sender = getScopedEntityId(1000);
+            var sender = domainBuilder.entityNum(1000);
             var tokenAirdrop = domainBuilder
                     .tokenAirdrop(FUNGIBLE_COMMON)
                     .customize(e -> e.senderAccountId(sender.getId()))
@@ -55,9 +54,10 @@ class TokenAirdropsControllerTest extends ControllerTest {
         }
 
         @ParameterizedTest
-        @MethodSource("shardAndRealmData")
-        void entityId(String input, long encodedId) {
+        @CsvSource({"0.0.1000,1000", "0.1000,1000", "1000,1000"})
+        void entityId(String input, long num) {
             // Given
+            var encodedId = domainBuilder.entityNum(num).getId();
             var tokenAirdrop = domainBuilder
                     .tokenAirdrop(FUNGIBLE_COMMON)
                     .customize(a -> a.senderAccountId(encodedId))
@@ -116,11 +116,11 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void fungibleFollowDescendingOrderLink() {
             // Given
-            var receiver = getScopedEntityId(2000);
-            var sender = getScopedEntityId(1000);
-            var token1 = getScopedEntityId(100);
-            var token2 = getScopedEntityId(300);
-            var token3 = getScopedEntityId(301);
+            var receiver = domainBuilder.entityNum(2000);
+            var sender = domainBuilder.entityNum(1000);
+            var token1 = domainBuilder.entityNum(100);
+            var token2 = domainBuilder.entityNum(300);
+            var token3 = domainBuilder.entityNum(301);
 
             var airdrop1 = domainBuilder
                     .tokenAirdrop(FUNGIBLE_COMMON)
@@ -190,11 +190,11 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void nftFollowDescendingOrderLink() {
             // Given
-            var sender = getScopedEntityId(1000);
-            var receiver = getScopedEntityId(2000);
-            var token1 = getScopedEntityId(100);
-            var token2 = getScopedEntityId(300);
-            var token3 = getScopedEntityId(301);
+            var sender = domainBuilder.entityNum(1000);
+            var receiver = domainBuilder.entityNum(2000);
+            var token1 = domainBuilder.entityNum(100);
+            var token2 = domainBuilder.entityNum(300);
+            var token3 = domainBuilder.entityNum(301);
             var serial1 = 10;
             var serial2 = 20;
             var serial3 = 30;
@@ -269,11 +269,11 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void fungibleFollowAscendingOrderLink() {
             // Given
-            var receiver1 = getScopedEntityId(3);
-            var receiver2 = getScopedEntityId(4);
-            var sender = getScopedEntityId(1000);
-            var token1 = getScopedEntityId(5);
-            var token2 = getScopedEntityId(6);
+            var receiver1 = domainBuilder.entityNum(3);
+            var receiver2 = domainBuilder.entityNum(4);
+            var sender = domainBuilder.entityNum(1000);
+            var token1 = domainBuilder.entityNum(5);
+            var token2 = domainBuilder.entityNum(6);
 
             var airdrop = domainBuilder
                     .tokenAirdrop(FUNGIBLE_COMMON)
@@ -343,10 +343,10 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void nftFollowAscendingOrderLink() {
             // Given
-            var receiver1 = getScopedEntityId(3);
-            var receiver2 = getScopedEntityId(4);
-            var sender = getScopedEntityId(1000);
-            var token1 = getScopedEntityId(5);
+            var receiver1 = domainBuilder.entityNum(3);
+            var receiver2 = domainBuilder.entityNum(4);
+            var sender = domainBuilder.entityNum(1000);
+            var token1 = domainBuilder.entityNum(5);
             var serial1 = 1;
             var serial2 = 2;
             var serial3 = 3;
@@ -424,13 +424,13 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void allParametersFungible() {
             // Given
-            var receiver = getScopedEntityId(1);
-            var receiver1 = getScopedEntityId(2);
-            var receiver2 = getScopedEntityId(3);
-            var receiver3 = getScopedEntityId(4);
-            var sender = getScopedEntityId(1000);
-            var token1 = getScopedEntityId(5);
-            var token2 = getScopedEntityId(6);
+            var receiver = domainBuilder.entityNum(1);
+            var receiver1 = domainBuilder.entityNum(2);
+            var receiver2 = domainBuilder.entityNum(3);
+            var receiver3 = domainBuilder.entityNum(4);
+            var sender = domainBuilder.entityNum(1000);
+            var token1 = domainBuilder.entityNum(5);
+            var token2 = domainBuilder.entityNum(6);
 
             var airdrop = domainBuilder
                     .tokenAirdrop(FUNGIBLE_COMMON)
@@ -482,14 +482,14 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void allParametersNft() {
             // Given
-            var receiver1 = getScopedEntityId(2000);
-            var receiver2 = getScopedEntityId(2001);
-            var receiver3 = getScopedEntityId(3000);
-            var receiver4 = getScopedEntityId(3001);
-            var sender = getScopedEntityId(1000);
-            var token1 = getScopedEntityId(4000);
-            var token2 = getScopedEntityId(4001);
-            var token3 = getScopedEntityId(5000);
+            var receiver1 = domainBuilder.entityNum(2000);
+            var receiver2 = domainBuilder.entityNum(2001);
+            var receiver3 = domainBuilder.entityNum(3000);
+            var receiver4 = domainBuilder.entityNum(3001);
+            var sender = domainBuilder.entityNum(1000);
+            var token1 = domainBuilder.entityNum(4000);
+            var token2 = domainBuilder.entityNum(4001);
+            var token3 = domainBuilder.entityNum(5000);
             var serial1 = 5;
             var serial2 = 6;
             var serial3 = 100;
@@ -544,13 +544,13 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void allParametersNftFollowLink() {
             // Given
-            var receiver = getScopedEntityId(1);
-            var receiver1 = getScopedEntityId(2);
-            var receiver2 = getScopedEntityId(3);
-            var receiver3 = getScopedEntityId(4);
-            var sender = getScopedEntityId(1000);
-            var token1 = getScopedEntityId(5);
-            var token2 = getScopedEntityId(6);
+            var receiver = domainBuilder.entityNum(1);
+            var receiver1 = domainBuilder.entityNum(2);
+            var receiver2 = domainBuilder.entityNum(3);
+            var receiver3 = domainBuilder.entityNum(4);
+            var sender = domainBuilder.entityNum(1000);
+            var token1 = domainBuilder.entityNum(5);
+            var token2 = domainBuilder.entityNum(6);
             var serial1 = 7;
             var serial2 = 8;
             var serial3 = 10;
@@ -617,13 +617,13 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void allParametersBothTokenTypesFollowAscendingOrder() {
             // Given
-            var receiver = getScopedEntityId(1);
-            var receiver1 = getScopedEntityId(2);
-            var receiver2 = getScopedEntityId(3);
-            var receiver3 = getScopedEntityId(4);
-            var sender = getScopedEntityId(1000);
-            var token1 = getScopedEntityId(5);
-            var token2 = getScopedEntityId(10);
+            var receiver = domainBuilder.entityNum(1);
+            var receiver1 = domainBuilder.entityNum(2);
+            var receiver2 = domainBuilder.entityNum(3);
+            var receiver3 = domainBuilder.entityNum(4);
+            var sender = domainBuilder.entityNum(1000);
+            var token1 = domainBuilder.entityNum(5);
+            var token2 = domainBuilder.entityNum(10);
             var serial1 = 10;
             var serial2 = 11;
             var serial3 = 12;
@@ -730,13 +730,13 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void allParametersBothTokenTypesFollowDescendingOrder() {
             // Given
-            var receiver = getScopedEntityId(1);
-            var receiver1 = getScopedEntityId(2);
-            var receiver2 = getScopedEntityId(3);
-            var receiver3 = getScopedEntityId(4);
-            var sender = getScopedEntityId(1000);
-            var token1 = getScopedEntityId(5);
-            var token2 = getScopedEntityId(10);
+            var receiver = domainBuilder.entityNum(1);
+            var receiver1 = domainBuilder.entityNum(2);
+            var receiver2 = domainBuilder.entityNum(3);
+            var receiver3 = domainBuilder.entityNum(4);
+            var sender = domainBuilder.entityNum(1000);
+            var token1 = domainBuilder.entityNum(5);
+            var token2 = domainBuilder.entityNum(10);
             var serial1 = 10;
             var serial2 = 11;
             var serial3 = 12;
@@ -989,7 +989,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
         @Override
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
-            var receiverId = getScopedEntityId(1000);
+            var receiverId = domainBuilder.entityNum(1000);
             var tokenAirdrop = domainBuilder
                     .tokenAirdrop(FUNGIBLE_COMMON)
                     .customize(t -> t.receiverAccountId(receiverId.getId()))
@@ -999,9 +999,10 @@ class TokenAirdropsControllerTest extends ControllerTest {
         }
 
         @ParameterizedTest
-        @MethodSource("shardAndRealmData")
-        void entityId(String input, long encodedId) {
+        @CsvSource({"0.0.1000,1000", "0.1000,1000", "1000,1000"})
+        void entityId(String input, long num) {
             // Given
+            var encodedId = domainBuilder.entityNum(num).getId();
             var tokenAirdrop = domainBuilder
                     .tokenAirdrop(FUNGIBLE_COMMON)
                     .customize(a -> a.receiverAccountId(encodedId))
@@ -1060,11 +1061,11 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void fungibleFollowDescendingOrderLink() {
             // Given
-            var sender = getScopedEntityId(1000);
-            var receiver = getScopedEntityId(2000);
-            var token1 = getScopedEntityId(100);
-            var token2 = getScopedEntityId(300);
-            var token3 = getScopedEntityId(301);
+            var sender = domainBuilder.entityNum(1000);
+            var receiver = domainBuilder.entityNum(2000);
+            var token1 = domainBuilder.entityNum(100);
+            var token2 = domainBuilder.entityNum(300);
+            var token3 = domainBuilder.entityNum(301);
 
             var airdrop1 = domainBuilder
                     .tokenAirdrop(FUNGIBLE_COMMON)
@@ -1141,11 +1142,11 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void nftFollowDescendingOrderLink() {
             // Given
-            var sender = getScopedEntityId(1000);
-            var receiver = getScopedEntityId(2000);
-            var token1 = getScopedEntityId(100);
-            var token2 = getScopedEntityId(300);
-            var token3 = getScopedEntityId(301);
+            var sender = domainBuilder.entityNum(1000);
+            var receiver = domainBuilder.entityNum(2000);
+            var token1 = domainBuilder.entityNum(100);
+            var token2 = domainBuilder.entityNum(300);
+            var token3 = domainBuilder.entityNum(301);
             var serial1 = 10;
             var serial2 = 20;
             var serial3 = 30;
@@ -1231,11 +1232,11 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void fungibleFollowAscendingOrderLink() {
             // Given
-            var receiver = getScopedEntityId(2000);
-            var sender = getScopedEntityId(3);
-            var sender1 = getScopedEntityId(4);
-            var token1 = getScopedEntityId(5);
-            var token2 = getScopedEntityId(6);
+            var receiver = domainBuilder.entityNum(2000);
+            var sender = domainBuilder.entityNum(3);
+            var sender1 = domainBuilder.entityNum(4);
+            var token1 = domainBuilder.entityNum(5);
+            var token2 = domainBuilder.entityNum(6);
 
             var airdrop = domainBuilder
                     .tokenAirdrop(FUNGIBLE_COMMON)
@@ -1327,11 +1328,11 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void nftFollowAscendingOrderLink() {
             // Given
-            var receiver = getScopedEntityId(2000);
-            var sender = getScopedEntityId(3);
-            var sender1 = getScopedEntityId(4);
-            var token1 = getScopedEntityId(5);
-            var token2 = getScopedEntityId(6);
+            var receiver = domainBuilder.entityNum(2000);
+            var sender = domainBuilder.entityNum(3);
+            var sender1 = domainBuilder.entityNum(4);
+            var token1 = domainBuilder.entityNum(5);
+            var token2 = domainBuilder.entityNum(6);
             var serial1 = 1L;
             var serial2 = 2L;
             var serial3 = 3L;
@@ -1433,13 +1434,13 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void allParametersFungible() {
             // Given
-            var sender = getScopedEntityId(1);
-            var sender1 = getScopedEntityId(2);
-            var sender2 = getScopedEntityId(3);
-            var sender3 = getScopedEntityId(4);
-            var token1 = getScopedEntityId(5);
-            var token2 = getScopedEntityId(6);
-            var receiver = getScopedEntityId(1000);
+            var sender = domainBuilder.entityNum(1);
+            var sender1 = domainBuilder.entityNum(2);
+            var sender2 = domainBuilder.entityNum(3);
+            var sender3 = domainBuilder.entityNum(4);
+            var token1 = domainBuilder.entityNum(5);
+            var token2 = domainBuilder.entityNum(6);
+            var receiver = domainBuilder.entityNum(1000);
 
             var entity = domainBuilder
                     .entity()
@@ -1501,13 +1502,13 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void allParametersNft() {
             // Given
-            var sender = getScopedEntityId(1);
-            var sender1 = getScopedEntityId(2);
-            var sender2 = getScopedEntityId(3);
-            var sender3 = getScopedEntityId(4);
-            var token1 = getScopedEntityId(5);
-            var token2 = getScopedEntityId(6);
-            var receiver = getScopedEntityId(1000);
+            var sender = domainBuilder.entityNum(1);
+            var sender1 = domainBuilder.entityNum(2);
+            var sender2 = domainBuilder.entityNum(3);
+            var sender3 = domainBuilder.entityNum(4);
+            var token1 = domainBuilder.entityNum(5);
+            var token2 = domainBuilder.entityNum(6);
+            var receiver = domainBuilder.entityNum(1000);
             var serial1 = 10L;
             var serial2 = 20L;
             var serial3 = 7L;
@@ -1589,13 +1590,13 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void allParametersBothTokenTypesFollowAscendingOrder() {
             // Given
-            var sender = getScopedEntityId(1);
-            var sender1 = getScopedEntityId(2);
-            var sender2 = getScopedEntityId(3);
-            var sender3 = getScopedEntityId(4);
-            var token1 = getScopedEntityId(5);
-            var token2 = getScopedEntityId(10);
-            var receiver = getScopedEntityId(1000);
+            var sender = domainBuilder.entityNum(1);
+            var sender1 = domainBuilder.entityNum(2);
+            var sender2 = domainBuilder.entityNum(3);
+            var sender3 = domainBuilder.entityNum(4);
+            var token1 = domainBuilder.entityNum(5);
+            var token2 = domainBuilder.entityNum(10);
+            var receiver = domainBuilder.entityNum(1000);
             var serial1 = 10L;
             var serial2 = 11L;
             var serial3 = 12L;
@@ -1730,13 +1731,13 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Test
         void allParametersBothTokenTypesFollowDescendingOrder() {
             // Given
-            var sender = getScopedEntityId(1);
-            var sender1 = getScopedEntityId(2);
-            var sender2 = getScopedEntityId(3);
-            var sender3 = getScopedEntityId(4);
-            var token1 = getScopedEntityId(5);
-            var token2 = getScopedEntityId(10);
-            var receiver = getScopedEntityId(1000);
+            var sender = domainBuilder.entityNum(1);
+            var sender1 = domainBuilder.entityNum(2);
+            var sender2 = domainBuilder.entityNum(3);
+            var sender3 = domainBuilder.entityNum(4);
+            var token1 = domainBuilder.entityNum(5);
+            var token2 = domainBuilder.entityNum(10);
+            var receiver = domainBuilder.entityNum(1000);
             var serial1 = 10L;
             var serial2 = 11L;
             var serial3 = 12L;

@@ -16,7 +16,6 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.SoftAssertions;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.TokenAirdrop;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
@@ -36,7 +35,6 @@ import org.springframework.data.domain.Sort.Direction;
 
 @RequiredArgsConstructor
 class TokenAirdropRepositoryTest extends RestJavaIntegrationTest {
-    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
 
     private final TokenAirdropRepository repository;
 
@@ -100,8 +98,7 @@ class TokenAirdropRepositoryTest extends RestJavaIntegrationTest {
         // Setup
         var sender = domainBuilder.entity().get();
         var receiver = domainBuilder.entity().get();
-        var tokenId = EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 5000)
-                .getId();
+        var tokenId = domainBuilder.entityNum(5000).getId();
 
         var receiverSpecifiedAirdrop = domainBuilder
                 .tokenAirdrop(FUNGIBLE_COMMON)

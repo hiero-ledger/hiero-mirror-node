@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.rest.model.Topic;
 import org.hiero.mirror.restjava.mapper.TopicMapper;
@@ -14,7 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.web.client.HttpClientErrorException;
@@ -55,8 +54,9 @@ class TopicControllerTest extends ControllerTest {
         }
 
         @ParameterizedTest
-        @MethodSource("shardAndRealmData")
-        void success(String input, long encodedId) {
+        @CsvSource({"0.0.1000,1000", "0.1000,1000", "1000,1000"})
+        void success(String input, long num) {
+            var encodedId = domainBuilder.entityNum(num).getId();
             // Given
             var entity =
                     domainBuilder.topicEntity().customize(e -> e.id(encodedId)).persist();
@@ -127,15 +127,15 @@ class TopicControllerTest extends ControllerTest {
         }
 
         @ParameterizedTest
-        @MethodSource("shardAndRealmData")
-        void entityNotFound(String id, long encodedId) {
+        @CsvSource({"0.0.1000,1000", "0.1000,1000", "1000,1000"})
+        void entityNotFound(String id, long num) {
             // When
+            var encodedId = domainBuilder.entityNum(num);
             ThrowingCallable callable =
                     () -> restClient.get().uri("", id).retrieve().body(Topic.class);
 
             // Then
-            validateError(
-                    callable, HttpClientErrorException.NotFound.class, "Entity not found: " + EntityId.of(encodedId));
+            validateError(callable, HttpClientErrorException.NotFound.class, "Entity not found: " + encodedId);
         }
 
         @NullAndEmptySource
