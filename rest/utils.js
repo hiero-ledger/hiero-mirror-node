@@ -874,10 +874,12 @@ const isEmptyRange = (key, value) => {
 
     const filter = buildComparatorFilter(key, v);
     formatComparator(filter);
-    if (key === constants.filterKeys.SLOT) {
-      filter.value = addHexPrefix(filter.value);
-    } else if (key === constants.filterKeys.CONTRACT_ID) {
+
+    // formatComparator doesn't handle CONTRACT_ID and SLOT
+    if (key === constants.filterKeys.CONTRACT_ID) {
       filter.value = EntityId.parse(filter.value).getEncodedId();
+    } else if (key === constants.filterKeys.SLOT) {
+      filter.value = addHexPrefix(filter.value);
     }
 
     if (filter.value == null) {
