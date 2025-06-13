@@ -76,11 +76,11 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     @Test
     void verifyTheOldestEntryInTheCacheIsDeleted() {
         // Given
-        final var maxCacheSize = cacheProperties.getCachedSlotsMaxSize();
+        final var maxCacheSize = cacheProperties.getMaxSlotsPerContract();
         final var contract = persistContract();
 
         final var firstContractState =
-                persistContractStates(contract.getId(), 1).getFirst(); // persistContractStates(1, contract).getFirst();
+                persistContractStates(contract.getId(), 1).getFirst();
         contractStateService.findStorage(contract.toEntityId(), firstContractState.getSlot());
 
         var cachedSlots = getCachedSlots(contract);
@@ -88,8 +88,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         assertThat(cachedSlots.contains(encodeSlotKey(firstContractState.getSlot())))
                 .isTrue();
 
-        List<ContractState> contractStates =
-                persistContractStates(contract.getId(), maxCacheSize); // persistContractStates(maxCacheSize, contract);
+        List<ContractState> contractStates = persistContractStates(contract.getId(), maxCacheSize);
         findStorage(contract, contractStates);
 
         cachedSlots = getCachedSlots(contract);
