@@ -36,7 +36,7 @@ const opsMap = {
 const gtGte = [opsMap.gt, opsMap.gte];
 const ltLte = [opsMap.lt, opsMap.lte];
 
-const gtLtPattern = /[gl]t[e]?:/;
+const gtLtPattern = /^[gl]t[e]?:/;
 
 const emptySet = new Set();
 
@@ -767,23 +767,19 @@ const convertMySqlStyleQueryToPostgres = (sqlQuery, startIndex = 1) => {
  * @return {String} next Fully formed link to the next page
  */
 const getPaginationLink = (req, isEnd, lastValueMap, order) => {
-  let urlPrefix;
-  if (config.port !== undefined && config.response.includeHostInLink) {
-    urlPrefix = `${req.protocol}://${req.hostname}:${config.port}`;
-  } else {
-    urlPrefix = '';
+  if (isEnd) {
+    return null;
   }
 
-  let next = '';
-
-  if (!isEnd) {
-    next = getNextParamQueries(order, req.query, lastValueMap);
-
-    // remove the '/' at the end of req.path
-    const path = req.path.endsWith('/') ? req.path.slice(0, -1) : req.path;
-    next = urlPrefix + req.baseUrl + path + next;
+  const urlPrefix = config.response.includeHostInLink ? `${req.protocol}://${req.hostname}:${config.port}` : '';
+  const nextParamQueries = getNextParamQueries(order, req.query, lastValueMap);
+  if (nextParamQueries === null) {
+    return null;
   }
-  return next === '' ? null : next;
+
+  // remove the '/' at the end of req.path
+  const path = req.path.endsWith('/') ? req.path.slice(0, -1) : req.path;
+  return urlPrefix + req.baseUrl + path + nextParamQueries;
 };
 
 /**
@@ -810,10 +806,9 @@ const constructStringFromUrlQuery = (reqQuery) => {
  */
 const updateReqQuery = (reqQuery, field, pattern, insertValue) => {
   const fieldValues = reqQuery[field];
-  const patternMatch = pattern.test(fieldValues);
   if (Array.isArray(fieldValues)) {
     reqQuery[field] = fieldValues.filter((value) => !pattern.test(value));
-  } else if (patternMatch) {
+  } else if (pattern.test(fieldValues)) {
     delete reqQuery[field];
   }
 
@@ -835,6 +830,8 @@ const getNextParamQueries = (order, reqQuery, lastValueMap) => {
   const pattern = operatorPatterns[order];
   const newPattern = order === constants.orderFilterValues.ASC ? 'gt' : 'lt';
 
+  let firstField = null;
+  let primaryField = null;
   for (const [field, lastValue] of Object.entries(lastValueMap)) {
     let value = lastValue;
     let inclusive = false;
@@ -844,9 +841,71 @@ const getNextParamQueries = (order, reqQuery, lastValueMap) => {
     }
     const insertValue = inclusive ? `${newPattern}e:${value}` : `${newPattern}:${value}`;
     updateReqQuery(reqQuery, field, pattern, insertValue);
+
+    firstField = firstField ?? field;
+    if (lastValue.primary) {
+      primaryField = field;
+    }
+  }
+
+  primaryField = primaryField ?? firstField;
+  if (isEmptyRange(primaryField, reqQuery[primaryField])) {
+    return null;
   }
 
   return constructStringFromUrlQuery(reqQuery);
+};
+
+/**
+ * Given the query key, and its values, check if it results in an empty range.
+ * @param key
+ * @param value
+ * @returns {boolean}
+ */
+const isEmptyRange = (key, value) => {
+  const values = Array.isArray(value) ? value : [value];
+  let lower = null;
+  let upper = null;
+
+  for (const v of values) {
+    if (!gtLtPattern.test(v)) {
+      continue;
+    }
+
+    const filter = buildComparatorFilter(key, v);
+    formatComparator(filter);
+    if (key === constants.filterKeys.SLOT) {
+      filter.value = addHexPrefix(filter.value);
+    } else if (key === constants.filterKeys.CONTRACT_ID) {
+      filter.value = EntityId.parse(filter.value).getEncodedId();
+    }
+
+    if (filter.value == null) {
+      continue;
+    }
+
+    let parsed = BigInt(filter.value);
+    switch (filter.operator) {
+      case opsMap.gt:
+        parsed += 1n;
+      case opsMap.gte:
+        lower = lower === null ? parsed : bigIntMax(lower, parsed);
+        break;
+      case opsMap.lt:
+        parsed -= 1n;
+      case opsMap.lte:
+        upper = upper === null ? parsed : bigIntMin(upper, parsed);
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (lower === null || upper === null) {
+    return false;
+  }
+
+  return upper < lower;
 };
 
 /**
@@ -1162,12 +1221,13 @@ const buildFilters = (query) => {
 
 const buildComparatorFilter = (name, filter) => {
   const splitVal = filter.split(':');
-  const opVal = splitVal.length === 1 ? ['eq', filter] : splitVal;
+  const value = splitVal.pop();
+  const operator = splitVal.pop() ?? 'eq';
 
   return {
     key: name,
-    operator: opVal[0],
-    value: opVal[1],
+    operator,
+    value,
   };
 };
 
@@ -1223,6 +1283,7 @@ const zeroPaddingRegex = /^0+/;
 /**
  * Update slot format to be persistence query compatible
  * @param slot
+ * @param leftPad
  */
 const formatSlot = (slot, leftPad = false) => {
   if (leftPad) {
