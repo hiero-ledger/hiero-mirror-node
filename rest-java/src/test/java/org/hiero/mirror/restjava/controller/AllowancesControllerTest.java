@@ -46,7 +46,7 @@ class AllowancesControllerTest extends ControllerTest {
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
             var entity = domainBuilder.entity().persist();
             var allowance = nftAllowance(a -> a.owner(entity.getId()));
-            return uriSpec.uri("", allowance.getOwner());
+            return uriSpec.uri("", entity.getNum());
         }
 
         @ParameterizedTest
@@ -59,8 +59,7 @@ class AllowancesControllerTest extends ControllerTest {
             var allowance2 = nftAllowance(a -> a.owner(allowance1.getOwner()));
 
             // When
-            var response =
-                    restClient.get().uri("", allowance1.getOwner()).retrieve().toEntity(NftAllowancesResponse.class);
+            var response = restClient.get().uri("", entity.getNum()).retrieve().toEntity(NftAllowancesResponse.class);
 
             // Then
             assertThat(response.getBody()).isEqualTo(getExpectedResponse(List.of(allowance1, allowance2), null));
@@ -75,14 +74,11 @@ class AllowancesControllerTest extends ControllerTest {
             var entity = entityBuilder.persist();
             var allowance1 = nftAllowance(a -> a.owner(entity.getId()));
             var allowance2 = nftAllowance(a -> a.owner(allowance1.getOwner()));
-            var baseLink = "/api/v1/accounts/%d/allowances/nfts".formatted(allowance1.getOwner());
+            var baseLink = "/api/v1/accounts/%d/allowances/nfts".formatted(entity.getNum());
 
             // When
-            var result = restClient
-                    .get()
-                    .uri("?limit=1", allowance1.getOwner())
-                    .retrieve()
-                    .body(NftAllowancesResponse.class);
+            var result =
+                    restClient.get().uri("?limit=1", entity.getNum()).retrieve().body(NftAllowancesResponse.class);
             var nextParams = "?limit=1&account.id=gte:%s&token.id=gt:%s"
                     .formatted(EntityId.of(allowance1.getSpender()), EntityId.of(allowance1.getTokenId()));
 
@@ -90,11 +86,8 @@ class AllowancesControllerTest extends ControllerTest {
             assertThat(result).isEqualTo(getExpectedResponse(List.of(allowance1), baseLink + nextParams));
 
             // When follow link
-            result = restClient
-                    .get()
-                    .uri(nextParams, allowance1.getOwner())
-                    .retrieve()
-                    .body(NftAllowancesResponse.class);
+            result =
+                    restClient.get().uri(nextParams, entity.getNum()).retrieve().body(NftAllowancesResponse.class);
 
             // Then
             nextParams = "?limit=1&account.id=gte:%s&token.id=gt:%s"
@@ -102,11 +95,8 @@ class AllowancesControllerTest extends ControllerTest {
             assertThat(result).isEqualTo(getExpectedResponse(List.of(allowance2), baseLink + nextParams));
 
             // When follow link 2
-            result = restClient
-                    .get()
-                    .uri(nextParams, allowance1.getOwner())
-                    .retrieve()
-                    .body(NftAllowancesResponse.class);
+            result =
+                    restClient.get().uri(nextParams, entity.getNum()).retrieve().body(NftAllowancesResponse.class);
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(), null));
         }
@@ -161,17 +151,14 @@ class AllowancesControllerTest extends ControllerTest {
             var next =
                     "/api/v1/accounts/%s/allowances/nfts?account.id=lt:%s&account.id=gte:%s&owner=true&limit=1&order=asc&token.id=gt:%s"
                             .formatted(
-                                    allowance1.getOwner(),
+                                    entity.getNum(),
                                     EntityId.of(allowance1.getSpender() + 1),
                                     EntityId.of(allowance1.getSpender()),
                                     EntityId.of(allowance1.getTokenId()));
 
             // When
-            var result = restClient
-                    .get()
-                    .uri(uriParams, allowance1.getOwner())
-                    .retrieve()
-                    .body(NftAllowancesResponse.class);
+            var result =
+                    restClient.get().uri(uriParams, entity.getNum()).retrieve().body(NftAllowancesResponse.class);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(allowance1), next));
@@ -194,18 +181,15 @@ class AllowancesControllerTest extends ControllerTest {
             var next =
                     "/api/v1/accounts/%s/allowances/nfts?account.id=gte:%s&account.id=lte:%s&owner=true&token.id=gt:%s&token.id=lt:%s&limit=1&order=desc"
                             .formatted(
-                                    allowance1.getOwner(),
+                                    entity.getNum(),
                                     spender1,
                                     EntityId.of(allowance2.getSpender()),
                                     token1,
                                     EntityId.of(allowance2.getTokenId()));
 
             // When
-            var result = restClient
-                    .get()
-                    .uri(uriParams, allowance1.getOwner())
-                    .retrieve()
-                    .body(NftAllowancesResponse.class);
+            var result =
+                    restClient.get().uri(uriParams, entity.getNum()).retrieve().body(NftAllowancesResponse.class);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(allowance2), next));
@@ -220,14 +204,14 @@ class AllowancesControllerTest extends ControllerTest {
             var uriParams = "?account.id={account.id}&limit=1&order=asc";
             var nextLink = "/api/v1/accounts/%s/allowances/nfts?account.id=%s&limit=1&order=asc&token.id=gt:%s"
                     .formatted(
-                            allowance2.getOwner(),
+                            entity.getNum(),
                             EntityId.of(allowance2.getSpender()),
                             EntityId.of(allowance2.getTokenId()));
 
             // When
             var result = restClient
                     .get()
-                    .uri(uriParams, allowance2.getOwner(), EntityId.of(allowance2.getSpender()))
+                    .uri(uriParams, entity.getNum(), EntityId.of(allowance2.getSpender()))
                     .retrieve()
                     .body(NftAllowancesResponse.class);
 
@@ -245,15 +229,12 @@ class AllowancesControllerTest extends ControllerTest {
                     .formatted(EntityId.of(allowance2.getSpender()), EntityId.of(allowance2.getTokenId() - 1));
 
             // When
-            var result = restClient
-                    .get()
-                    .uri(uriParams, allowance1.getOwner())
-                    .retrieve()
-                    .body(NftAllowancesResponse.class);
+            var result =
+                    restClient.get().uri(uriParams, entity.getNum()).retrieve().body(NftAllowancesResponse.class);
             var next =
                     "/api/v1/accounts/%s/allowances/nfts?account.id=gte:%s&account.id=lte:%s&owner=true&token.id=gt:%s&token.id=lt:%s&limit=2&order=desc"
                             .formatted(
-                                    allowance2.getOwner(),
+                                    entity.getNum(),
                                     EntityId.of(allowance2.getSpender()),
                                     EntityId.of(allowance2.getSpender()),
                                     EntityId.of(allowance2.getTokenId() - 1),
@@ -272,16 +253,13 @@ class AllowancesControllerTest extends ControllerTest {
             var next =
                     "/api/v1/accounts/%s/allowances/nfts?owner=false&limit=1&order=asc&account.id=gte:%s&token.id=gt:%s"
                             .formatted(
-                                    allowance1.getSpender(),
+                                    entity.getNum(),
                                     EntityId.of(allowance1.getOwner()),
                                     EntityId.of(allowance1.getTokenId()));
 
             // When
-            var result = restClient
-                    .get()
-                    .uri(uriParams, allowance1.getSpender())
-                    .retrieve()
-                    .body(NftAllowancesResponse.class);
+            var result =
+                    restClient.get().uri(uriParams, entity.getNum()).retrieve().body(NftAllowancesResponse.class);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(allowance1), next));
@@ -296,11 +274,8 @@ class AllowancesControllerTest extends ControllerTest {
             var uriParams = "?account.id=gte:0.0.5000&owner=true&token.id=gt:0.0.5000&limit=1&order=asc";
 
             // When
-            var result = restClient
-                    .get()
-                    .uri(uriParams, allowance1.getSpender())
-                    .retrieve()
-                    .body(NftAllowancesResponse.class);
+            var result =
+                    restClient.get().uri(uriParams, entity.getNum()).retrieve().body(NftAllowancesResponse.class);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(), null));
@@ -423,11 +398,8 @@ class AllowancesControllerTest extends ControllerTest {
             var allowance = nftAllowance(a -> a.owner(entity.getId()));
 
             // When
-            ThrowingCallable callable = () -> restClient
-                    .get()
-                    .uri(uriParams, allowance.getOwner())
-                    .retrieve()
-                    .body(NftAllowancesResponse.class);
+            ThrowingCallable callable = () ->
+                    restClient.get().uri(uriParams, entity.getNum()).retrieve().body(NftAllowancesResponse.class);
 
             // Then
             validateError(callable, HttpClientErrorException.BadRequest.class, message);
@@ -470,15 +442,12 @@ class AllowancesControllerTest extends ControllerTest {
             var uriParams =
                     "?account.id=gte:0.0.1000&account.id=lte:0.0.2002&owner=true&token.id=gt:0.0.1000&&token.id=lt:0.0.800&limit=2&order=asc";
             var next =
-                    "/api/v1/accounts/%s/allowances/nfts?account.id=lte:0.0.2002&account.id=gte:0.0.2002&owner=true&token.id=lt:0.0.800&token.id=gt:0.0.700&limit=2&order=asc"
-                            .formatted(allowance1.getOwner());
+                    "/api/v1/accounts/%d/allowances/nfts?account.id=lte:0.0.2002&account.id=gte:0.0.2002&owner=true&token.id=lt:0.0.800&token.id=gt:0.0.700&limit=2&order=asc"
+                            .formatted(entity.getNum());
 
             // When
-            var result = restClient
-                    .get()
-                    .uri(uriParams, allowance1.getOwner())
-                    .retrieve()
-                    .body(NftAllowancesResponse.class);
+            var result =
+                    restClient.get().uri(uriParams, entity.getNum()).retrieve().body(NftAllowancesResponse.class);
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(allowance2, allowance1), next));
@@ -497,11 +466,10 @@ class AllowancesControllerTest extends ControllerTest {
                     a -> a.owner(allowance1.getOwner()).spender(99702).tokenId(99800));
 
             var uri = "?limit=2&account.id=gte:0.0.99700&token.id=0.0.99800";
-            var result =
-                    restClient.get().uri(uri, allowance1.getOwner()).retrieve().body(NftAllowancesResponse.class);
+            var result = restClient.get().uri(uri, entity.getNum()).retrieve().body(NftAllowancesResponse.class);
             var nextLinkQueryParameters = "?limit=2&token.id=0.0.99800&account.id=gt:0.0.99701";
             var expectedLink =
-                    "/api/v1/accounts/%s/allowances/nfts".formatted(allowance1.getOwner()) + nextLinkQueryParameters;
+                    "/api/v1/accounts/%s/allowances/nfts".formatted(entity.getNum()) + nextLinkQueryParameters;
 
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(allowance1, allowance2), expectedLink));
@@ -509,7 +477,7 @@ class AllowancesControllerTest extends ControllerTest {
             // When follow link
             result = restClient
                     .get()
-                    .uri(nextLinkQueryParameters, allowance1.getOwner())
+                    .uri(nextLinkQueryParameters, entity.getNum())
                     .retrieve()
                     .body(NftAllowancesResponse.class);
 

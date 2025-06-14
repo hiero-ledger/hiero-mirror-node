@@ -6,20 +6,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.restjava.common.RangeOperator.EQ;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class EntityIdRangeParameterTest {
 
-    private CommonProperties commonProperties = CommonProperties.getInstance();
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
 
     @Test
     void testConversion() {
@@ -33,21 +34,12 @@ class EntityIdRangeParameterTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"0.0.2", "0.2", "2"})
+    @CsvSource({"0.0.1000,1000", "0.1000,1000", "1000,1000"})
     @DisplayName("EntityIdRangeParameter parse from string tests, valid cases")
-    void testValidParam(String input) {
-        var entityId = EntityId.of(0, 0, 2);
-        assertThat(new EntityIdRangeParameter(EQ, entityId)).isEqualTo(EntityIdRangeParameter.valueOf(input));
-    }
+    void testValidParam(String input, long num) {
+        var entityId = domainBuilder.entityNum(num);
 
-    @Test
-    void nonDefaultShardRealm() {
-        commonProperties.setRealm(1000L);
-        commonProperties.setShard(1);
-        var id = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 1);
-        assertThat(EntityIdRangeParameter.valueOf("1")).isEqualTo(new EntityIdRangeParameter(EQ, id));
-        commonProperties.setRealm(0L);
-        commonProperties.setShard(0);
+        assertThat(new EntityIdRangeParameter(EQ, entityId)).isEqualTo(EntityIdRangeParameter.valueOf(input));
     }
 
     @ParameterizedTest
