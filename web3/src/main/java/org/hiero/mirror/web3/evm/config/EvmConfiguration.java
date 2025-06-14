@@ -76,6 +76,8 @@ import org.springframework.context.annotation.Primary;
 public class EvmConfiguration {
 
     public static final String CACHE_MANAGER_CONTRACT = "contract";
+    public static final String CACHE_MANAGER_CONTRACT_SLOTS = "contractSlots";
+    public static final String CACHE_MANAGER_MAX_CONTRACT_SLOTS_PER_CONTRACT = "contractSlotsSize";
     public static final String CACHE_MANAGER_CONTRACT_STATE = "contractState";
     public static final String CACHE_MANAGER_ENTITY = "entity";
     public static final String CACHE_MANAGER_RECORD_FILE_LATEST = "recordFileLatest";
@@ -129,6 +131,13 @@ public class EvmConfiguration {
         return caffeineCacheManager;
     }
 
+    @Bean(CACHE_MANAGER_MAX_CONTRACT_SLOTS_PER_CONTRACT)
+    public CaffeineCacheManager cacheManagerSlotsPerContract() {
+        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
+        caffeineCacheManager.setCaffeine(Caffeine.from(cacheProperties.getSlotsPerContract()));
+        return caffeineCacheManager;
+    }
+
     @Bean(CACHE_MANAGER_CONTRACT_STATE)
     CacheManager cacheManagerState() {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
@@ -143,6 +152,14 @@ public class EvmConfiguration {
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME, CACHE_NAME_EVM_ADDRESS, CACHE_NAME_ALIAS));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getEntity());
         return caffeineCacheManager;
+    }
+
+    @Bean(CACHE_MANAGER_CONTRACT_SLOTS)
+    CacheManager cacheManagerContractSlots() {
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+        cacheManager.setCacheNames(Set.of(CACHE_NAME));
+        cacheManager.setCacheSpecification(cacheProperties.getContractSlots());
+        return cacheManager;
     }
 
     @Bean(CACHE_MANAGER_TOKEN)

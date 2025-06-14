@@ -10,17 +10,18 @@ import com.hedera.node.app.service.evm.store.contracts.HederaEvmEntityAccess;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.evm.store.Store.OnMissing;
 import org.hiero.mirror.web3.repository.ContractRepository;
-import org.hiero.mirror.web3.repository.ContractStateRepository;
+import org.hiero.mirror.web3.state.service.ContractStateService;
 import org.hyperledger.besu.datatypes.Address;
 
 @RequiredArgsConstructor
 @Named
 public class MirrorEntityAccess implements HederaEvmEntityAccess {
-    private final ContractStateRepository contractStateRepository;
     private final ContractRepository contractRepository;
+    private final ContractStateService contractStateService;
     private final Store store;
 
     // An account is usable if it isn't deleted or if it has balance==0 but is not the 0-address
@@ -105,9 +106,9 @@ public class MirrorEntityAccess implements HederaEvmEntityAccess {
         }
 
         return store.getHistoricalTimestamp()
-                .map(t -> contractStateRepository.findStorageByBlockTimestamp(
+                .map(t -> contractStateService.findStorageByBlockTimestamp(
                         entityId, key.trimLeadingZeros().toArrayUnsafe(), t))
-                .orElseGet(() -> contractStateRepository.findStorage(entityId, key.toArrayUnsafe()))
+                .orElseGet(() -> contractStateService.findStorage(EntityId.of(entityId), key.toArrayUnsafe()))
                 .map(Bytes::wrap)
                 .orElse(Bytes.EMPTY);
     }
