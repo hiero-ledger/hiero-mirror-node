@@ -9,7 +9,6 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_MA
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import java.nio.ByteBuffer;
-import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -94,7 +93,7 @@ public class ContractStateServiceImpl implements ContractStateService {
      * @param slotKey that will be added to the contractSlotsCache if not already in there
      */
     private void updateCachedSlotKeys(final EntityId contractId, final byte[] slotKey) {
-        final var encodedSlotKey = encodeSlotKey(slotKey);
+        final var encodedSlotKey = ByteBuffer.wrap(slotKey);
         var cachedSlotKeys = contractSlotsCache.get(contractId, Cache.class);
 
         if (cachedSlotKeys != null) {
@@ -125,7 +124,7 @@ public class ContractStateServiceImpl implements ContractStateService {
         // Cached slot keys for contract, whose slot values are not present in the contractStateCache
         List<byte[]> cachedSlots = ((CaffeineCache) contractSlotsCache)
                 .getNativeCache().asMap().keySet().stream()
-                        .map(slot -> decodeSlotKey(String.valueOf(slot)))
+                        .map(slot -> ((ByteBuffer) slot).array())
                         .filter(slot -> contractStateCache.get(generateCacheKey(contractId, slot)) == null)
                         .toList();
 
@@ -154,24 +153,6 @@ public class ContractStateServiceImpl implements ContractStateService {
         }
 
         return cachedValue == null ? Optional.empty() : Optional.of(cachedValue);
-    }
-
-    /**
-     * Encodes slotKey in base64 - the format the slot keys are written in the cache
-     * @param slotKey - the slot key stored as a byte array in the database
-     * @return base64 encoded slot key
-     */
-    private String encodeSlotKey(final byte[] slotKey) {
-        return Base64.getEncoder().encodeToString(slotKey);
-    }
-
-    /**
-     * Decodes base64 slot key to byte array
-     * @param slotKeyBase64 base64 encoded slot key
-     * @return slot key as byte array
-     */
-    private byte[] decodeSlotKey(final String slotKeyBase64) {
-        return Base64.getDecoder().decode(slotKeyBase64);
     }
 
     /**

@@ -9,7 +9,6 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -86,7 +85,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
         var cachedSlots = getCachedSlots(contract);
         assertThat(cachedSlots.size()).isEqualTo(1);
-        assertThat(cachedSlots.contains(encodeSlotKey(firstContractState.getSlot())))
+        assertThat(cachedSlots.contains(ByteBuffer.wrap(firstContractState.getSlot())))
                 .isTrue();
 
         List<ContractState> contractStates = persistContractStates(contract.getId(), maxCacheSize);
@@ -94,7 +93,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
         cachedSlots = getCachedSlots(contract);
         assertThat(cachedSlots.size()).isEqualTo(maxCacheSize);
-        assertThat(!cachedSlots.contains(encodeSlotKey(firstContractState.getSlot())))
+        assertThat(!cachedSlots.contains(ByteBuffer.wrap(firstContractState.getSlot())))
                 .isTrue();
     }
 
@@ -108,13 +107,13 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
         var cachedSlots = getCachedSlots(contract);
         assertThat(cachedSlots.size()).isEqualTo(1);
-        assertThat(cachedSlots.contains(encodeSlotKey(firstContractState.getSlot())))
+        assertThat(cachedSlots.contains(ByteBuffer.wrap(firstContractState.getSlot())))
                 .isTrue();
         // When
         contractStateService.findStorage(contract.toEntityId(), firstContractState.getSlot());
         // Then
         assertThat(cachedSlots.size()).isEqualTo(1);
-        assertThat(cachedSlots.contains(encodeSlotKey(firstContractState.getSlot())))
+        assertThat(cachedSlots.contains(ByteBuffer.wrap(firstContractState.getSlot())))
                 .isTrue();
     }
 
@@ -177,17 +176,13 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         return ((CaffeineCache) cacheManagerContractSlots.getCache(CACHE_NAME)).getNativeCache();
     }
 
-    private String encodeSlotKey(final byte[] slotKey) {
-        return Base64.getEncoder().encodeToString(slotKey);
-    }
-
-    public List<String> getCachedSlots(Entity contract) {
+    public List<ByteBuffer> getCachedSlots(Entity contract) {
         var slotsCache = getSlotsCache();
         var slotsPerContractCache = slotsCache.asMap().get(contract.toEntityId());
         return slotsPerContractCache != null
                 ? ((CaffeineCache) slotsPerContractCache)
                         .getNativeCache().asMap().keySet().stream()
-                                .map(Object::toString)
+                                .map(slot -> (ByteBuffer) slot)
                                 .collect(Collectors.toList())
                 : List.of();
     }
