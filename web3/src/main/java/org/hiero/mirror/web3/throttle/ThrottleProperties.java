@@ -23,7 +23,7 @@ public class ThrottleProperties {
 
     @Min(21_000)
     @Max(10_000_000_000_000L)
-    private long gasPerSecond = 1_500_000_000L;
+    private long gasPerSecond = 7_500_000_000L;
 
     @NotNull
     private List<RequestProperties> request = List.of();
