@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.web3.evm.properties.OverrideClasspathProperties.ALLOW_LONG_ZERO_ADDRESSES;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hedera.node.app.service.evm.utils.EthSigsUtils;
@@ -11,15 +12,17 @@ import java.security.KeyPairGenerator;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.HRC632Contract;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.web3j.crypto.Keys;
 
 class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
     private static final byte[] MESSAGE_HASH = new Keccak.Digest256().digest("messageString".getBytes());
     private static final byte[] DIFFERENT_HASH = new Keccak.Digest256().digest("differentMessage".getBytes());
 
-    @Test
-    void isAuthorizedRawECDSA() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void isAuthorizedRawECDSA(boolean longZeroAddressAllowed) throws Exception {
         // Given
         // Generate new key pair
         final var keyPair = Keys.createEcKeyPair();
@@ -36,6 +39,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
                 asHeadlongAddress(addressBytes).toString(), MESSAGE_HASH, signedMessage);
         final var functionCall = contract.send_isAuthorizedRawCall(
                 asHeadlongAddress(addressBytes).toString(), MESSAGE_HASH, signedMessage);
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
+
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isTrue();
@@ -45,8 +50,9 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         }
     }
 
-    @Test
-    void isAuthorizedRawECDSADifferentHash() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void isAuthorizedRawECDSADifferentHash(boolean longZeroAddressAllowed) throws Exception {
         // Given
         // Generate new key pair
         final var keyPair = Keys.createEcKeyPair();
@@ -61,6 +67,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var result = contract.call_isAuthorizedRawCall(
                 asHeadlongAddress(addressBytes).toString(), DIFFERENT_HASH, signedMessage);
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
+
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isFalse();
@@ -69,8 +77,9 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         }
     }
 
-    @Test
-    void isAuthorizedRawECDSAInvalidSignedValue() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void isAuthorizedRawECDSAInvalidSignedValue(boolean longZeroAddressAllowed) throws Exception {
         // Given
         // Generate new key pair
         final var keyPair = Keys.createEcKeyPair();
@@ -88,6 +97,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var result = contract.call_isAuthorizedRawCall(
                 asHeadlongAddress(addressBytes).toString(), MESSAGE_HASH, signedMessage);
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
+
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isFalse();
@@ -96,8 +107,9 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         }
     }
 
-    @Test
-    void isAuthorizedRawECDSAInvalidSignatureLength() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void isAuthorizedRawECDSAInvalidSignatureLength(boolean longZeroAddressAllowed) throws Exception {
         // Given
         final byte[] invalidSignature = new byte[64];
         // Generate new key pair
@@ -110,6 +122,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var result = contract.call_isAuthorizedRawCall(
                 asHeadlongAddress(addressBytes).toString(), MESSAGE_HASH, invalidSignature);
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
+
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
@@ -120,8 +134,9 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         }
     }
 
-    @Test
-    void isAuthorizedRawED25519() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void isAuthorizedRawED25519(boolean longZeroAddressAllowed) throws Exception {
         // Given
         // Generate new key pair
         final var keyPairGenerator = KeyPairGenerator.getInstance(ED_25519);
@@ -140,6 +155,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
                 contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), MESSAGE_HASH, signedBytes);
         final var functionCall =
                 contract.send_isAuthorizedRawCall(getAddressFromEntity(accountEntity), MESSAGE_HASH, signedBytes);
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
+
         // then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isTrue();
@@ -149,8 +166,9 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         }
     }
 
-    @Test
-    void isAuthorizedRawED25519DifferentHash() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void isAuthorizedRawED25519DifferentHash(boolean longZeroAddressAllowed) throws Exception {
         // Given
         // Generate new key pair
         final var keyPairGenerator = KeyPairGenerator.getInstance(ED_25519);
@@ -171,6 +189,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
                 contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), DIFFERENT_HASH, signedBytes);
         final var functionCall =
                 contract.send_isAuthorizedRawCall(getAddressFromEntity(accountEntity), DIFFERENT_HASH, signedBytes);
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
+
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThat(result.send()).isFalse();
@@ -179,8 +199,9 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         }
     }
 
-    @Test
-    void isAuthorizedRawED25519InvalidSignedValue() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void isAuthorizedRawED25519InvalidSignedValue(boolean longZeroAddressAllowed) throws Exception {
         // Given
         // Generate new key pair
         final var keyPairGenerator = KeyPairGenerator.getInstance(ED_25519);
@@ -194,6 +215,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         // When
         final var result =
                 contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), MESSAGE_HASH, new byte[65]);
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
+
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
@@ -203,8 +226,9 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         }
     }
 
-    @Test
-    void isAuthorizedRawECDSAKeyWighLongZero() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void isAuthorizedRawECDSAKeyWighLongZero(boolean longZeroAddressAllowed) throws Exception {
         // Given
         // Generate new key pair
         final var keyPair = Keys.createEcKeyPair();
@@ -219,6 +243,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(HRC632Contract::deploy);
         final var result =
                 contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), MESSAGE_HASH, signedMessage);
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
 
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);

@@ -3,11 +3,11 @@
 package org.hiero.mirror.web3.evm.properties;
 
 import jakarta.annotation.PostConstruct;
-import lombok.Value;
+import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
-@Value
+@Data
 @Validated
 @ConfigurationProperties(prefix = "hiero.mirror.web3.evm.classpath")
 public class OverrideClasspathProperties {
