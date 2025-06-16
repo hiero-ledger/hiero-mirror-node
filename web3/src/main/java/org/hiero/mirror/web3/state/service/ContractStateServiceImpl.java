@@ -32,21 +32,21 @@ public class ContractStateServiceImpl implements ContractStateService {
     private final ContractStateRepository contractStateRepository;
     private final Cache contractStateCache;
     private final Cache contractSlotsCache;
-    private final CacheManager cacheManager;
+    private final CacheManager cacheManagerSlotsPerContract;
     private final CacheProperties cacheProperties;
 
     protected ContractStateServiceImpl(
             final ContractStateRepository contractStateRepository,
             final @Qualifier(CACHE_MANAGER_CONTRACT_STATE) CacheManager contractStateCacheManager,
             final @Qualifier(CACHE_MANAGER_CONTRACT_SLOTS) CacheManager contractSlotCacheManager,
-            final @Qualifier(CACHE_MANAGER_MAX_CONTRACT_SLOTS_PER_CONTRACT) CacheManager cacheManager,
+            final @Qualifier(CACHE_MANAGER_MAX_CONTRACT_SLOTS_PER_CONTRACT) CacheManager cacheManagerSlotsPerContract,
             final CacheProperties cacheProperties) {
         this.contractStateRepository = contractStateRepository;
         this.contractStateCache =
                 requireNonNull(contractStateCacheManager.getCache(CACHE_NAME), "Cache not found: " + CACHE_NAME);
         this.contractSlotsCache =
                 requireNonNull(contractSlotCacheManager.getCache(CACHE_NAME), "Cache not found: " + CACHE_NAME);
-        this.cacheManager = cacheManager;
+        this.cacheManagerSlotsPerContract = cacheManagerSlotsPerContract;
         this.cacheProperties = cacheProperties;
     }
 
@@ -101,7 +101,7 @@ public class ContractStateServiceImpl implements ContractStateService {
                 cachedSlotKeys.put(encodedSlotKey, false);
             }
         } else {
-            cachedSlotKeys = cacheManager.getCache("cache-" + contractId); // cache created lazily
+            cachedSlotKeys = cacheManagerSlotsPerContract.getCache("cache-" + contractId); // cache created lazily
             if (cachedSlotKeys != null) {
                 cachedSlotKeys.put(encodedSlotKey, false);
             }
