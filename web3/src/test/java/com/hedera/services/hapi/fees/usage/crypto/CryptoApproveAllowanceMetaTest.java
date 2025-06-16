@@ -4,28 +4,29 @@ package com.hedera.services.hapi.fees.usage.crypto;
 
 import static com.hedera.services.hapi.fees.usage.crypto.CryptoContextUtils.*;
 import static com.hedera.services.hapi.utils.fees.FeeBuilder.*;
-import static com.hedera.services.utils.IdUtils.asAccount;
-import static com.hedera.services.utils.IdUtils.asToken;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.*;
 import java.util.*;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class CryptoApproveAllowanceMetaTest {
-    private final AccountID proxy = asAccount("0.0.1234");
+    private final DomainBuilder domainBuilder = new DomainBuilder();
+    private final AccountID proxy = domainBuilder.entityNum(1234L).toAccountID();
+
     private final CryptoAllowance cryptoAllowances =
             CryptoAllowance.newBuilder().setSpender(proxy).setAmount(10L).build();
     private final TokenAllowance tokenAllowances = TokenAllowance.newBuilder()
             .setSpender(proxy)
             .setAmount(10L)
-            .setTokenId(asToken("0.0.1000"))
+            .setTokenId(domainBuilder.entityNum(1000L).toTokenID())
             .build();
     private final NftAllowance nftAllowances = NftAllowance.newBuilder()
             .setSpender(proxy)
-            .setTokenId(asToken("0.0.1000"))
+            .setTokenId(domainBuilder.entityNum(1000L).toTokenID())
             .addAllSerialNumbers(List.of(1L, 2L, 3L))
             .build();
     private Map<EntityNum, Long> cryptoAllowancesMap = new HashMap<>();
@@ -41,10 +42,13 @@ class CryptoApproveAllowanceMetaTest {
 
     @Test
     void allGettersAndToStringWork() {
-        final var expected = "CryptoApproveAllowanceMeta{cryptoAllowances={EntityNum{value=0.0.1234}=10},"
-                + " tokenAllowances={AllowanceId{tokenId=0.0.1000, spenderId=0.0.1234}=10},"
-                + " nftAllowances=[AllowanceId{tokenId=0.0.1000, spenderId=0.0.1234}],"
-                + " effectiveNow=1234567, msgBytesUsed=112}";
+        var shardRealmEntity = domainBuilder.entityNum(1);
+        final var expected = String.format(
+                "CryptoApproveAllowanceMeta{cryptoAllowances={EntityNum{value=%1$d.%2$d.1234}=10},"
+                        + " tokenAllowances={AllowanceId{tokenId=%1$d.%2$d.1000, spenderId=%1$d.%2$d.1234}=10},"
+                        + " nftAllowances=[AllowanceId{tokenId=%1$d.%2$d.1000, spenderId=%1$d.%2$d.1234}],"
+                        + " effectiveNow=1234567, msgBytesUsed=112}",
+                shardRealmEntity.getShard(), shardRealmEntity.getRealm());
         final var now = 1_234_567;
         final var subject = CryptoApproveAllowanceMeta.newBuilder()
                 .msgBytesUsed(112)
@@ -77,11 +81,7 @@ class CryptoApproveAllowanceMetaTest {
                 + (op.getNftAllowancesCount() * NFT_ALLOWANCE_SIZE)
                 + countSerials(op.getNftAllowancesList()) * LONG_SIZE;
 
-        final var token = TokenID.newBuilder()
-                .setShardNum(0L)
-                .setRealmNum(0L)
-                .setTokenNum(1000L)
-                .build();
+        final var token = domainBuilder.entityNum(1000L).toTokenID();
 
         assertEquals(expectedMsgBytes, subject.getMsgBytesUsed());
 

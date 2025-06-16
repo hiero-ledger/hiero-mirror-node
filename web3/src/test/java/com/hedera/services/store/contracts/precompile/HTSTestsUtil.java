@@ -41,18 +41,20 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hyperledger.besu.datatypes.Address;
 
 public class HTSTestsUtil {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
 
     public static final long AMOUNT = 1_234_567L;
     public static final long DEFAULT_GAS_PRICE = 10_000L;
     public static final long TEST_CONSENSUS_TIME = 1_640_000_000L; // Monday, December 20, 2021 11:33:20 AM UTC
-    public static final TokenID token = asToken("0.0.1");
-    public static final TokenID token2 = asToken("0.0.1176");
-    public static final AccountID payer = asAccount("0.0.12345");
-    public static final AccountID sender = asAccount("0.0.2");
-    public static final AccountID receiver = asAccount("0.0.3");
+    public static final TokenID token = domainBuilder.entityNum(1L).toTokenID();
+    public static final TokenID token2 = domainBuilder.entityNum(1176L).toTokenID();
+    public static final AccountID payer = domainBuilder.entityNum(12345L).toAccountID();
+    public static final AccountID sender = domainBuilder.entityNum(2L).toAccountID();
+    public static final AccountID receiver = domainBuilder.entityNum(3L).toAccountID();
     public static final AccountID receiverAliased =
             AccountID.newBuilder().setAlias(unsafeWrap(new byte[20])).build();
     public static final AccountID receiverAliased2 = AccountID.newBuilder()

@@ -7,12 +7,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.hedera.services.store.models.Id;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 
 class EntityNumTest {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
+
     @Test
     void overridesJavaLangImpl() {
         final var v = 1_234_567;
@@ -52,7 +55,7 @@ class EntityNumTest {
         assertEquals(MISSING_NUM, EntityNum.fromAccountId(IdUtils.asAccount("1.0.123")));
         assertEquals(MISSING_NUM, EntityNum.fromId(new Id(-1, 0, 1)));
         assertEquals(
-                EntityNum.fromEntityId(EntityId.of(123)),
+                EntityNum.fromEntityId(domainBuilder.entityNum(123L)),
                 EntityNum.fromEvmAddress(Address.wrap(Bytes.wrap(DomainUtils.toEvmAddress(123)))));
     }
 }

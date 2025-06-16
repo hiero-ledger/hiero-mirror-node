@@ -38,7 +38,6 @@ import com.hedera.services.store.contracts.precompile.codec.TokenUpdateExpiryInf
 import com.hedera.services.store.contracts.precompile.codec.UnpauseWrapper;
 import com.hedera.services.store.contracts.precompile.codec.WipeWrapper;
 import com.hedera.services.store.models.Id;
-import com.hedera.services.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Key;
@@ -51,6 +50,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,22 +58,23 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class SyntheticTxnFactoryTest {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
     private static final long SERIAL_NO = 100;
     private static final long SECOND_AMOUNT = 200;
-    private static final AccountID ACCOUNT_A = IdUtils.asAccount("0.0.2");
-    private static final AccountID ACCOUNT_B = IdUtils.asAccount("0.0.3");
-    private static final AccountID ACCOUNT_C = IdUtils.asAccount("0.0.4");
-    private static final TokenID FUNGIBLE = IdUtils.asToken("0.0.555");
-    private static final TokenID NON_FUNGIBLE = IdUtils.asToken("0.0.666");
+    private static final AccountID ACCOUNT_A = domainBuilder.entityNum(2L).toAccountID();
+    private static final AccountID ACCOUNT_B = domainBuilder.entityNum(3L).toAccountID();
+    private static final AccountID ACCOUNT_C = domainBuilder.entityNum(4L).toAccountID();
+    private static final TokenID FUNGIBLE = domainBuilder.entityNum(555L).toTokenID();
+    private static final TokenID NON_FUNGIBLE = domainBuilder.entityNum(666L).toTokenID();
     private static final List<Long> TARGET_SERIAL_NOS = List.of(1L, 2L, 3L);
     private static final List<ByteString> NEW_METADATA =
             List.of(ByteString.copyFromUtf8("AAA"), ByteString.copyFromUtf8("BBB"), ByteString.copyFromUtf8("CCC"));
     public static final String HTS_PRECOMPILED_CONTRACT_ADDRESS = "0x167";
-    public static final TokenID TOKEN = IdUtils.asToken("0.0.1");
-    public static final AccountID PAYER = IdUtils.asAccount("0.0.12345");
-    public static final AccountID SENDER = IdUtils.asAccount("0.0.2");
+    public static final TokenID TOKEN = domainBuilder.entityNum(1L).toTokenID();
+    public static final AccountID PAYER = domainBuilder.entityNum(12345L).toAccountID();
+    public static final AccountID SENDER = domainBuilder.entityNum(2L).toAccountID();
 
-    public static final AccountID RECEIVER = IdUtils.asAccount("0.0.3");
+    public static final AccountID RECEIVER = domainBuilder.entityNum(3L).toAccountID();
     public static final Id SENDER_ID = Id.fromGrpcAccount(SENDER);
 
     private SyntheticTxnFactory subject = new SyntheticTxnFactory();
