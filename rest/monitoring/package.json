@@ -10,8 +10,7 @@
   },
   "scripts": {
     "dev": "nodemon --import=extensionless/register server.js",
-    "start": "node --import=extensionless/register server.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --maxWorkers 2 --passWithNoTests --testPathPattern='.*\\.test\\.js'"
+    "start": "node --import=extensionless/register server.js"
   },
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
@@ -29,14 +28,7 @@
     "pretty-ms": "^9.2.0"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
-    "nodemon": "^3.1.10",
-    "jest-junit": "^16.0.0",
-    "jest-standard-reporter": "^2.0.0"
-  },
-  "jest-junit": {
-    "outputDirectory": "build/test-results/test",
-    "outputName": "TEST-jest.xml"
+    "nodemon": "^3.1.10"
   },
   "overrides": {
     "cross-spawn": "^7.0.6",

@@ -39,7 +39,6 @@ jobs:
           - rest
           - rest-java
           - "rest:check-state-proof"
-          - "rest:monitoring"
           - rosetta
           - test
           - web3
@@ -52,8 +51,6 @@ jobs:
           - project: monitor
             schema: v2
           - project: rest:check-state-proof
-            schema: v2
-          - project: rest:monitoring
             schema: v2
           - project: rosetta
             schema: v2
@@ -88,7 +85,7 @@ jobs:
         continue-on-error: true
         env:
           CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
-        if: ${{ matrix.schema == 'v1' && matrix.project != 'rest:monitoring' && matrix.project != 'test' && always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        if: ${{ matrix.schema == 'v1' && matrix.project != 'test' && always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
         run: ./gradlew :${{ matrix.project }}:uploadCoverage
 
       - name: Execute Gradle using transaction executor

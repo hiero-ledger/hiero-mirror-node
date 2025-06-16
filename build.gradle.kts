@@ -23,7 +23,6 @@ extra.apply {
     set("postgresql.version", "42.7.7") // Temporary until next Spring Boot version
     set("protobufVersion", "4.31.1")
     set("reactorGrpcVersion", "1.2.4")
-    set("vertxVersion", "4.5.14")
     set("tuweniVersion", "2.3.1")
 }
 
@@ -35,16 +34,13 @@ dependencies {
         val mapStructVersion: String by rootProject.extra
         val protobufVersion: String by rootProject.extra
         val reactorGrpcVersion: String by rootProject.extra
-        val testcontainersSpringBootVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
-        val vertxVersion: String by rootProject.extra
 
         api("com.esaulpaugh:headlong:10.0.2")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("org.bouncycastle:bcprov-jdk18on:1.81")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.cloud:spring-cloud-gcp-dependencies:5.8.0")
         api("com.google.guava:guava:33.4.8-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
         api("com.graphql-java-generator:graphql-java-client-runtime:2.9")
@@ -55,7 +51,6 @@ dependencies {
         api("com.hedera.hashgraph:hedera-protobuf-java-api:0.63.5")
         api("com.hedera.hashgraph:sdk:2.57.0")
         api("com.ongres.scram:client:2.1")
-        api("com.playtika.testcontainers:embedded-google-pubsub:3.1.13")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.19.0")
@@ -65,9 +60,6 @@ dependencies {
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.9.11")
         api("io.projectreactor:reactor-core-micrometer:1.2.6")
         api("io.swagger:swagger-annotations:1.6.16")
-        api("io.vertx:vertx-pg-client:$vertxVersion")
-        api("io.vertx:vertx-codegen:$vertxVersion")
-        api("io.vertx:vertx-core:$vertxVersion")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("javax.inject:javax.inject:1")
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")

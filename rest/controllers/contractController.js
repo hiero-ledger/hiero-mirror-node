@@ -380,8 +380,11 @@ const optimizeTimestampFilters = async (timestampFilters, order) => {
   const filters = [];
 
   const {range, eqValues, neValues} = utils.parseTimestampFilters(timestampFilters, false, true, true, false, false);
-  const {range: optimizedRange, next} = eqValues.length === 0 ? await bindTimestampRange(range, order) : {range};
+  if (range?.isEmpty()) {
+    return {filters};
+  }
 
+  const {range: optimizedRange, next} = eqValues.length === 0 ? await bindTimestampRange(range, order) : {range};
   if (optimizedRange?.begin) {
     filters.push({key: filterKeys.TIMESTAMP, operator: utils.opsMap.gte, value: optimizedRange.begin});
   }
@@ -495,6 +498,10 @@ class ContractController extends BaseController {
 
     const {filters: optimizedTimestampFilters, next} =
       contractId === undefined ? await optimizeTimestampFilters(timestampFilters, order) : {filters: timestampFilters};
+    if (timestampFilters.length !== 0 && optimizedTimestampFilters.length === 0) {
+      return {skip: true};
+    }
+
     for (const filter of optimizedTimestampFilters) {
       this.updateConditionsAndParamsWithInValues(
         filter,
