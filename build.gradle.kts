@@ -62,6 +62,7 @@ dependencies {
         api("io.projectreactor:reactor-core-micrometer:1.2.7")
         api("io.swagger:swagger-annotations:1.6.16")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
+        api("javax.annotation:javax.annotation-api:1.3.2")
         api("javax.inject:javax.inject:1")
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
         api("net.java.dev.jna:jna:5.17.0")
