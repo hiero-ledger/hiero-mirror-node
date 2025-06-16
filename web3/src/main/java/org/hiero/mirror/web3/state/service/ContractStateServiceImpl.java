@@ -74,8 +74,8 @@ public class ContractStateServiceImpl implements ContractStateService {
 
     @Override
     public Optional<byte[]> findStorageByBlockTimestamp(
-            final Long entityId, final byte[] slotKeyByteArray, final long blockTimestamp) {
-        return contractStateRepository.findStorageByBlockTimestamp(entityId, slotKeyByteArray, blockTimestamp);
+            final EntityId entityId, final byte[] slotKeyByteArray, final long blockTimestamp) {
+        return contractStateRepository.findStorageByBlockTimestamp(entityId.getId(), slotKeyByteArray, blockTimestamp);
     }
 
     private Optional<byte[]> unwrapCacheValue(final byte[] cachedValue) {

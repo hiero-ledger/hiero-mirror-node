@@ -9,5 +9,5 @@ public interface ContractStateService {
 
     Optional<byte[]> findStorage(EntityId contractId, byte[] key);
 
-    Optional<byte[]> findStorageByBlockTimestamp(Long entityId, byte[] slotKeyByteArray, long blockTimestamp);
+    Optional<byte[]> findStorageByBlockTimestamp(EntityId entityId, byte[] slotKeyByteArray, long blockTimestamp);
 }

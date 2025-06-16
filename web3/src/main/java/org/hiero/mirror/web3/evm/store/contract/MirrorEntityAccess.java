@@ -51,11 +51,7 @@ public class MirrorEntityAccess implements HederaEvmEntityAccess {
             return false;
         }
 
-        if (account.isEmptyAccount()) {
-            return false;
-        }
-
-        return true;
+        return !account.isEmptyAccount();
     }
 
     @Override
@@ -107,7 +103,7 @@ public class MirrorEntityAccess implements HederaEvmEntityAccess {
 
         return store.getHistoricalTimestamp()
                 .map(t -> contractStateService.findStorageByBlockTimestamp(
-                        entityId, key.trimLeadingZeros().toArrayUnsafe(), t))
+                        EntityId.of(entityId), key.trimLeadingZeros().toArrayUnsafe(), t))
                 .orElseGet(() -> contractStateService.findStorage(EntityId.of(entityId), key.toArrayUnsafe()))
                 .map(Bytes::wrap)
                 .orElse(Bytes.EMPTY);
