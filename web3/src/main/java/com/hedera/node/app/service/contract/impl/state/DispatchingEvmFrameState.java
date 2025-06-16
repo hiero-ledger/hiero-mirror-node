@@ -23,6 +23,7 @@ import static com.hedera.node.app.service.contract.impl.utils.ConversionUtils.pb
 import static com.hedera.node.app.service.contract.impl.utils.ConversionUtils.tuweniToPbjBytes;
 import static com.hedera.node.app.service.token.AliasUtils.extractEvmAddress;
 import static java.util.Objects.requireNonNull;
+import static org.hiero.mirror.web3.evm.properties.OverrideClasspathProperties.ALLOW_LONG_ZERO_ADDRESSES;
 import static org.hyperledger.besu.evm.frame.ExceptionalHaltReason.ILLEGAL_STATE_CHANGE;
 
 import com.hedera.hapi.node.base.AccountID;
@@ -569,7 +570,15 @@ public class DispatchingEvmFrameState implements EvmFrameState {
     private boolean isNotPriority(
             final Address address, final @NonNull com.hedera.hapi.node.state.token.Account account) {
         requireNonNull(account);
-        return false;
+
+        final var longZeroAddressPermitted = Boolean.parseBoolean(System.getProperty(ALLOW_LONG_ZERO_ADDRESSES));
+
+        if (longZeroAddressPermitted) {
+            return false;
+        } else {
+            final var maybeEvmAddress = extractEvmAddress(account.alias());
+            return maybeEvmAddress != null && !address.equals(pbjToBesuAddress(maybeEvmAddress));
+        }
     }
 
     private com.hedera.hapi.node.state.token.Account validatedAccount(final AccountID accountID) {
