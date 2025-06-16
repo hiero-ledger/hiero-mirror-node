@@ -24,7 +24,6 @@ dependencies {
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("io.projectreactor:reactor-core")
     implementation("jakarta.inject:jakarta.inject-api")
-    implementation("javax.annotation:javax.annotation-api")
     implementation("net.java.dev.jna:jna")
     implementation("org.apache.commons:commons-compress")
     implementation("org.apache.commons:commons-collections4")
@@ -41,6 +40,7 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-kubernetes-fabric8-leader")
     implementation("org.springframework.cloud:spring-cloud-starter-bootstrap")
     implementation("org.springframework.cloud:spring-cloud-starter-kubernetes-fabric8-config")
+    implementation("org.springframework.grpc:spring-grpc-client-spring-boot-starter")
     implementation("software.amazon.awssdk:netty-nio-client")
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:sts")
@@ -69,7 +69,14 @@ protobuf {
 
     protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" }
     plugins { id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java" } }
-    generateProtoTasks { ofSourceSet("main").forEach { it.plugins { id("grpc") } } }
+    generateProtoTasks {
+        ofSourceSet("main").forEach { it.plugins { id("grpc") { option("@generated=omit") } } }
+    }
+}
+
+repositories {
+    // spring snapshot repository for spring-grpc-client-spring-boot-starter
+    maven { url = uri("https://repo.spring.io/snapshot") }
 }
 
 sourceSets { main { proto { srcDir("src/main/block/proto") } } }
