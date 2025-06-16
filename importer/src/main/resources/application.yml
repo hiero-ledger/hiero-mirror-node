@@ -59,11 +59,6 @@ management:
     web:
       exposure:
         include: health, info, prometheus
-  health:
-    pubsub:
-      # Just importing pubsub deps enables its health checker and it requires auth credentials.
-      # Setting spring.cloud.gcp.pubsub.enabled=false is not enough to disable the pubsub health check.
-      enabled: false
   metrics:
     tags:
       application: ${spring.application.name}
@@ -77,11 +72,6 @@ spring:
   application:
     name: importer
   cloud:
-    gcp:
-      core:
-        enabled: false
-      pubsub:
-        enabled: false
     kubernetes:
       leader:
         enabled: false

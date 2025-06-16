@@ -206,17 +206,6 @@ const queryParamOperators = {
   gte: 'gte',
 };
 
-const queryParamOperatorPatterns = {
-  gt: /^>$/,
-  gte: /^>=$/,
-  gtorgte: /^>[=]?$/,
-  eq: /^=$/,
-  lt: /^<$/,
-  lte: /^<=$/,
-  ltorlte: /^<[=]?$/,
-  ne: /^!=$/,
-};
-
 export {
   AUTO_RENEW_PERIOD_MULTIPLE,
   DECIMALS_IN_HBARS,
@@ -248,7 +237,6 @@ export {
   networkSupplyQuery,
   orderFilterValues,
   queryParamOperators,
-  queryParamOperatorPatterns,
   recordStreamPrefix,
   requestIdLabel,
   requestPathLabel,
