@@ -36,6 +36,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         } else {
             assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         }
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest
@@ -55,6 +57,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         } else {
             assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         }
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest
@@ -73,6 +77,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         } else {
             assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         }
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest
@@ -91,6 +97,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         } else {
             assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         }
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest
@@ -113,6 +121,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         } else {
             assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         }
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest
@@ -126,6 +136,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
         // Then
         assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest
@@ -139,6 +151,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
         // Then
         assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest
@@ -162,6 +176,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         } else {
             assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         }
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest
@@ -175,6 +191,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
         // Then
         assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest
@@ -186,8 +204,9 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         final var functionCall = contract.call_getHederaAccountNumAliasCall(Address.ZERO.toString());
         final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
-        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
         // Then
         assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 }

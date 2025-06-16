@@ -48,6 +48,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         } else {
             assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         }
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest
@@ -75,6 +77,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         } else {
             assertThrows(MirrorEvmTransactionException.class, result::send);
         }
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest
@@ -105,6 +109,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         } else {
             assertThrows(MirrorEvmTransactionException.class, result::send);
         }
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest
@@ -132,6 +138,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         } else {
             assertThrows(MirrorEvmTransactionException.class, result::send);
         }
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest

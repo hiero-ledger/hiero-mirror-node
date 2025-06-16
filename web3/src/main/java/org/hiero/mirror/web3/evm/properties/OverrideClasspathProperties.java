@@ -14,7 +14,7 @@ public class OverrideClasspathProperties {
 
     public static final String ALLOW_LONG_ZERO_ADDRESSES = "ALLOW_LONG_ZERO_ADDRESSES";
 
-    boolean allowLongZeroAddresses = false;
+    private boolean allowLongZeroAddresses = false;
 
     @PostConstruct
     public void init() {

@@ -207,6 +207,8 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @ParameterizedTest
@@ -485,6 +487,8 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         assertThat(result.component3().getFirst()).isEqualTo(BigInteger.ONE);
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @Test
