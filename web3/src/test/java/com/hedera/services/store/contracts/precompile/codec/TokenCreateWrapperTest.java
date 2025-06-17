@@ -6,7 +6,6 @@ import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.*;
 import static com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.ECDSA_SECP256K1_COMPRESSED_KEY_LENGTH;
 import static com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.ED25519_BYTE_LENGTH;
 import static com.hedera.services.utils.EntityIdUtils.contractIdFromEvmAddress;
-import static com.hedera.services.utils.EntityIdUtils.tokenIdFromEvmAddress;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.hedera.node.app.service.evm.exceptions.InvalidTransactionException;
@@ -15,12 +14,12 @@ import com.hedera.services.jproto.JKey;
 import com.hedera.services.store.contracts.precompile.TokenCreateWrapper;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
+import com.hederahashgraph.api.proto.java.TokenID;
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.util.Collections;
 import java.util.List;
 import org.hiero.mirror.common.domain.DomainBuilder;
-import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 
 class TokenCreateWrapperTest {
@@ -244,7 +243,7 @@ class TokenCreateWrapperTest {
         final var fixedFee = result.getFixedFee();
         assertEquals(5, fixedFee.getAmount());
         assertTrue(fixedFee.hasDenominatingTokenId());
-        assertEquals(tokenIdFromEvmAddress(Address.ZERO), fixedFee.getDenominatingTokenId());
+        assertEquals(TokenID.getDefaultInstance(), fixedFee.getDenominatingTokenId());
         assertEquals(receiver, result.getFeeCollectorAccountId());
     }
 

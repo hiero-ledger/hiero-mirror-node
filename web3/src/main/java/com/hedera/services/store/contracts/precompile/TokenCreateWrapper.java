@@ -20,7 +20,6 @@ import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.util.List;
 import java.util.Optional;
-import org.hiero.mirror.common.CommonProperties;
 
 public class TokenCreateWrapper {
     private final boolean isFungible;
@@ -210,16 +209,11 @@ public class TokenCreateWrapper {
                 case USE_HBAR -> FixedFee.newBuilder().setAmount(amount);
                 case USE_EXISTING_FUNGIBLE_TOKEN ->
                     FixedFee.newBuilder().setAmount(amount).setDenominatingTokenId(tokenID);
-                case USE_CURRENTLY_CREATED_TOKEN -> {
-                    final var commonProperties = CommonProperties.getInstance();
-                    yield FixedFee.newBuilder()
+                case USE_CURRENTLY_CREATED_TOKEN ->
+                    FixedFee.newBuilder()
                             .setAmount(amount)
-                            .setDenominatingTokenId(TokenID.newBuilder()
-                                    .setShardNum(commonProperties.getShard())
-                                    .setRealmNum(commonProperties.getRealm())
-                                    .setTokenNum(0L)
-                                    .build());
-                }
+                            .setDenominatingTokenId(
+                                    TokenID.newBuilder().setTokenNum(0L).build());
                 default -> throw new InvalidTransactionException(ResponseCodeEnum.FAIL_INVALID);
             };
         }
