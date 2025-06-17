@@ -115,13 +115,12 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeatu
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.TokenTransferListBuilder;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.accountAmount;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asByteArray;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asLongArray;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nftAmount;
 
-import com.esaulpaugh.headlong.abi.Address;
 import com.esaulpaugh.headlong.abi.Tuple;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -229,8 +228,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I successfully create Precompile contract with 0 balance")
     public void createNewPrecompileTestContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileTestContractSolidityAddress =
-                asHexAddress(deployedPrecompileContract.contractId());
+        precompileTestContractSolidityAddress = asHexAddress(deployedPrecompileContract.contractId());
         precompileContractId = deployedPrecompileContract.contractId();
     }
 
@@ -705,9 +703,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var methodInterface = getFlaggedValue(ASSOCIATE_TOKENS);
         final var parameters = new ContractFunctionParameters()
                 .addAddress(secondReceiverAddressString)
-                .addAddressArray(new String[] {
-                    fungibleTokenAddressString, fungibleKycUnfrozenTokenIdAddressString
-                });
+                .addAddressArray(new String[] {fungibleTokenAddressString, fungibleKycUnfrozenTokenIdAddressString});
 
         validateGasEstimation(
                 estimatePrecompileContractId,
@@ -722,9 +718,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var methodInterface = getFlaggedValue(ASSOCIATE_TOKENS);
         final var parameters = new ContractFunctionParameters()
                 .addAddress(secondReceiverAddressString)
-                .addAddressArray(new String[] {
-                    nonFungibleKycUnfrozenAddressString, nonFungibleTokenAddressString
-                });
+                .addAddressArray(new String[] {nonFungibleKycUnfrozenAddressString, nonFungibleTokenAddressString});
         validateGasEstimation(
                 estimatePrecompileContractId,
                 methodInterface.getSelector(),
@@ -742,9 +736,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void dissociateTokensEstimateGas() throws ExecutionException, InterruptedException {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(receiverAccountAlias)
-                .addAddressArray(new String[] {
-                    fungibleTokenAddressString, fungibleKycUnfrozenTokenIdAddressString
-                });
+                .addAddressArray(new String[] {fungibleTokenAddressString, fungibleKycUnfrozenTokenIdAddressString});
 
         validateGasEstimation(
                 estimatePrecompileContractId,
@@ -763,9 +755,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void dissociateNFTEstimateGas() throws ExecutionException, InterruptedException {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(receiverAccountAlias)
-                .addAddressArray(new String[] {
-                    nonFungibleKycUnfrozenAddressString, nonFungibleTokenAddressString
-                });
+                .addAddressArray(new String[] {nonFungibleKycUnfrozenAddressString, nonFungibleTokenAddressString});
 
         validateGasEstimation(
                 estimatePrecompileContractId,
@@ -786,11 +776,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void transferTokensEstimateGas() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters()
                 .addAddress(fungibleTokenAddressString)
-                .addAddressArray(new String[] {
-                    adminAddressString,
-                    receiverAccountAlias,
-                    secondReceiverAddressString
-                })
+                .addAddressArray(new String[] {adminAddressString, receiverAccountAlias, secondReceiverAddressString})
                 .addInt64Array(new long[] {-6L, 3L, 3L});
 
         validateGasEstimation(
@@ -820,9 +806,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var parameters = new ContractFunctionParameters()
                 .addAddress(nonFungibleTokenAddressString)
                 .addAddressArray(sendersList)
-                .addAddressArray(new String[] {
-                    receiverAccountAlias, secondReceiverAddressString
-                })
+                .addAddressArray(new String[] {receiverAccountAlias, secondReceiverAddressString})
                 .addInt64Array(new long[] {1, 2});
 
         validateGasEstimation(
@@ -861,8 +845,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var tokenTransferList = (Object) new Tuple[] {
             tokenTransferList()
                     .forToken(nonFungibleTokenAddressString)
-                    .withNftTransfers(
-                            nftAmount(adminAddressString, receiverAccountAlias, 1L, false))
+                    .withNftTransfers(nftAmount(adminAddressString, receiverAccountAlias, 1L, false))
                     .build()
         };
         var dataByteArray = encodeDataToByteArray(
