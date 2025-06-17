@@ -98,11 +98,10 @@ This is renamed from `BlockPollerProperties`, with three new properties added.
 ```java
 public class StreamProperties {
     private int maxBlockItems = 800_000;
-    private int maxBufferSize = 128;
     private int maxStreamResponseSizeMB = 8;
     private int maxSubscribeAttempts = 3;
     private Duration readmitDelay = Duration.ofMinutes(1);
-    private Duration statusTimeout = Duration.ofMillis(200);
+    private Duration statusTimeout = Duration.ofMillis(400);
 }
 ```
 
@@ -229,9 +228,7 @@ final class BlockNode {
 
     public boolean isActive();
 
-    public void onError();
-
-    public FLux<StreamedBlock> stream(long blockNumber);
+    public void streamBlocks(long blockNumber, Duration blockTimeout, Consumer<StreamedBlock> onStreamedBlock);
 
     public BlockNode tryReadmit(boolean force);
 
@@ -241,10 +238,10 @@ final class BlockNode {
 
 `BlockNode` is the class for all block node communication and state maintenance.
 
-It's possible that a streaming response from a block node only contains part of a block, `BlockNode` needs to
-combine block items in the same block and only then pushed the completed streamed block to the flux. Note that a
-streaming response from the block node would never have block items from two blocks mixed, i.e., to determine if the
-block items in the response completes a block, simply check if the last block item is a `BlockProof`.
+It's possible that a streaming response only contains part of a block, `BlockNode` needs to combine block items in the
+same block and only then notify the caller of the completed block. Note that a streaming response from would never have
+block items from different blocks mixed, i.e., to determine if the block items in the response complete a block, simply
+check if the last block item is a `BlockProof`.
 
 ### CompositeBlockSource
 

@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
@@ -17,7 +16,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
 import io.grpc.Server;
-import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.util.Arrays;
@@ -25,7 +23,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -196,7 +193,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
         // when, then
         for (int i = 0; i < 3; i++) {
-            assertThatThrownBy(blockNodeSubscriber::get).isInstanceOf(StatusRuntimeException.class);
+            assertThatThrownBy(blockNodeSubscriber::get).isInstanceOf(BlockStreamException.class);
         }
 
         assertCalls(statusCalls, "3,0,0");
@@ -244,7 +241,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
         // when, then
         for (int i = 0; i < 6; i++) {
-            assertThatThrownBy(blockNodeSubscriber::get).isInstanceOf(StatusRuntimeException.class);
+            assertThatThrownBy(blockNodeSubscriber::get).isInstanceOf(BlockStreamException.class);
         }
 
         assertCalls(statusCalls, "3,3,0");
@@ -278,68 +275,6 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         var values = captor.getAllValues();
         assertBlockStream(values.getFirst(), 10);
         assertBlockStream(values.get(1), 11);
-    }
-
-    @Test
-    void getWhenOverflow(Resources resources) {
-        // given
-        // - max buffer size = 2
-        // - the first blockStreamVerifier.verify unblocks the thread to gracefully shutdown the grpc server with
-        //   an active subscribe stream call
-        // - the shutdown thread releases 3 semaphores to unlock blockStreamVerifier.verify
-        // the single get() call will get 3 blocks because the first will not stay in the backpressure buffer, and when
-        // the forth block gets to the buffer, it overflows
-        var shutdownLatch = new CountDownLatch(1);
-        var verifyLatch = new CountDownLatch(1);
-        doReturn(Optional.of(9L)).when(blockStreamVerifier).getLastBlockNumber();
-        doReturn(new BlockFile()).when(blockStreamReader).read(any());
-        doAnswer(invocation -> {
-                    shutdownLatch.countDown();
-                    verifyLatch.await();
-                    return null;
-                })
-                .when(blockStreamVerifier)
-                .verify(any());
-        blockProperties.getStream().setMaxBufferSize(2);
-        blockProperties.setNodes(List.of(blockNodeProperties(0, SERVER_NAMES[0])));
-        var blockNodeSubscriber = new BlockNodeSubscriber(
-                blockStreamReader, blockStreamVerifier, commonDownloaderProperties, blockProperties);
-        var server = startServer(
-                SERVER_NAMES[0],
-                resources,
-                serverStatusResponse(10, 13),
-                ResponsesOrError.fromResponses(List.of(
-                        subscribeStreamResponse(blockItemSet(10)),
-                        subscribeStreamResponse(blockItemSet(11)),
-                        subscribeStreamResponse(blockItemSet(12)),
-                        subscribeStreamResponse(blockItemSet(13)))));
-        new Thread(() -> {
-                    try {
-                        shutdownLatch.await();
-                        server.shutdown();
-                        server.awaitTermination();
-                        verifyLatch.countDown();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                })
-                .start();
-
-        // when
-        blockNodeSubscriber.get();
-
-        // then
-        assertThat(statusCalls.get(SERVER_NAMES[0])).isEqualTo(1);
-        assertThat(streamCalls.get(SERVER_NAMES[0])).isEqualTo(1);
-        verify(blockStreamVerifier).getLastBlockNumber();
-        verify(blockStreamVerifier, times(3)).verify(any());
-
-        var captor = ArgumentCaptor.forClass(BlockStream.class);
-        verify(blockStreamReader, times(3)).read(captor.capture());
-        var values = captor.getAllValues();
-        assertBlockStream(values.getFirst(), 10);
-        assertBlockStream(values.get(1), 11);
-        assertBlockStream(values.get(2), 12);
     }
 
     private void assertBlockStream(BlockStream actual, long blockNumber) {

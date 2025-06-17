@@ -64,7 +64,6 @@ dependencies {
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("javax.inject:javax.inject:1")
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
-        api("org.springframework.grpc:spring-grpc-client-spring-boot-starter:0.9.0-SNAPSHOT")
         api("net.java.dev.jna:jna:5.17.0")
         api("org.apache.commons:commons-collections4:4.5.0")
         api("org.apache.commons:commons-compress:1.27.1")

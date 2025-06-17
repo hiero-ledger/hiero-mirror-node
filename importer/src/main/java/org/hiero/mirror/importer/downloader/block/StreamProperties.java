@@ -16,9 +16,6 @@ public class StreamProperties {
     @Min(1000)
     private int maxBlockItems = 800_000;
 
-    @Min(16)
-    private int maxBufferSize = 128;
-
     @Min(1)
     private int maxStreamResponseSizeMB = 8;
 
@@ -31,7 +28,7 @@ public class StreamProperties {
 
     @DurationMin(millis = 100)
     @NotNull
-    private Duration statusTimeout = Duration.ofMillis(200);
+    private Duration statusTimeout = Duration.ofMillis(400);
 
     public int getMaxStreamResponseSize() {
         return maxStreamResponseSizeMB * 1024 * 1024;

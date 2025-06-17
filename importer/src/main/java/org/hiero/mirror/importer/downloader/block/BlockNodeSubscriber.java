@@ -7,26 +7,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import lombok.AccessLevel;
-import lombok.Getter;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
-import reactor.core.Exceptions;
-import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
+import org.springframework.beans.factory.DisposableBean;
 
 @Named
-public final class BlockNodeSubscriber extends AbstractBlockSource {
+public final class BlockNodeSubscriber extends AbstractBlockSource implements DisposableBean {
 
     private static final long UNKNOWN_NODE_ID = -1;
 
     private final Map<Integer, List<BlockNode>> nodes = new TreeMap<>();
-
-    @Getter(lazy = true, value = AccessLevel.PRIVATE)
-    private final Scheduler scheduler = createScheduler();
 
     BlockNodeSubscriber(
             BlockStreamReader blockStreamReader,
@@ -49,6 +42,11 @@ public final class BlockNodeSubscriber extends AbstractBlockSource {
     }
 
     @Override
+    public void destroy() {
+        nodes.values().stream().flatMap(List::stream).forEach(BlockNode::destroy);
+    }
+
+    @Override
     public void get() {
         long blockNumber = getNextBlockNumber();
         var node = getNode(blockNumber);
@@ -57,24 +55,14 @@ public final class BlockNodeSubscriber extends AbstractBlockSource {
         }
 
         log.info("Start streaming block {} from {}", blockNumber, node);
-        node.stream(blockNumber)
-                .timeout(commonDownloaderProperties.getTimeout())
-                .onBackpressureBuffer(properties.getStream().getMaxBufferSize())
-                // publish on a different thread since the downstream operations may be slower
-                .publishOn(getScheduler())
-                .map(this::toBlockStream)
-                .doOnNext(this::onBlockStream)
-                // ignore overflow error which happens when block processing is slower than streaming
-                .onErrorComplete(Exceptions::isOverflow)
-                .doOnError(e -> {
-                    log.error("Error streaming block from {}", node, e);
-                    node.onError();
-                })
-                .blockLast();
+        node.streamBlocks(
+                blockNumber,
+                commonDownloaderProperties.getTimeout(),
+                streamedBlock -> onBlockStream(toBlockStream(streamedBlock)));
     }
 
     private BlockNode getNode(long blockNumber) {
-        List<BlockNode> inactiveNodes = new ArrayList<>();
+        var inactiveNodes = new ArrayList<BlockNode>();
         for (int priority : nodes.keySet()) {
             for (var node : nodes.get(priority)) {
                 if (!node.tryReadmit(false).isActive()) {
@@ -97,10 +85,6 @@ public final class BlockNodeSubscriber extends AbstractBlockSource {
         }
 
         return null;
-    }
-
-    private Scheduler createScheduler() {
-        return Schedulers.newSingle(this.getClass().getSimpleName());
     }
 
     private BlockStream toBlockStream(BlockNode.StreamedBlock streamedBlock) {

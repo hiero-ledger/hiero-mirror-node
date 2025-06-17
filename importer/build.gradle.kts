@@ -40,7 +40,6 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-kubernetes-fabric8-leader")
     implementation("org.springframework.cloud:spring-cloud-starter-bootstrap")
     implementation("org.springframework.cloud:spring-cloud-starter-kubernetes-fabric8-config")
-    implementation("org.springframework.grpc:spring-grpc-client-spring-boot-starter")
     implementation("software.amazon.awssdk:netty-nio-client")
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:sts")
@@ -72,11 +71,6 @@ protobuf {
     generateProtoTasks {
         ofSourceSet("main").forEach { it.plugins { id("grpc") { option("@generated=omit") } } }
     }
-}
-
-repositories {
-    // spring snapshot repository for spring-grpc-client-spring-boot-starter
-    maven { url = uri("https://repo.spring.io/snapshot") }
 }
 
 sourceSets { main { proto { srcDir("src/main/block/proto") } } }
