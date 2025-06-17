@@ -11,6 +11,7 @@ import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.OverrideClasspathProperties;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.web3.repository.NftAllowanceRepository;
@@ -43,7 +44,8 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             @Nonnull TokenAccountRepository tokenAccountRepository,
             @Nonnull AccountBalanceRepository accountBalanceRepository,
             @Nonnull MirrorNodeEvmProperties mirrorNodeEvmProperties,
-            @Nonnull AliasedAccountCacheManager aliasedAccountCacheManager) {
+            @Nonnull AliasedAccountCacheManager aliasedAccountCacheManager,
+            @Nonnull OverrideClasspathProperties overrideClasspathProperties) {
         super(
                 KEY,
                 accountBalanceRepository,
@@ -53,7 +55,8 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                 systemEntity,
                 tokenAccountRepository,
                 tokenAllowanceRepository,
-                mirrorNodeEvmProperties);
+                mirrorNodeEvmProperties,
+                overrideClasspathProperties);
         this.commonEntityAccessor = commonEntityAccessor;
         this.aliasedAccountCacheManager = aliasedAccountCacheManager;
     }

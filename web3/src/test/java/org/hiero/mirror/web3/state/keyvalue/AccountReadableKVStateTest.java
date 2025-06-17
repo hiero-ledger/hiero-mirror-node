@@ -45,6 +45,7 @@ import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.OverrideClasspathProperties;
 import org.hiero.mirror.web3.evm.store.accessor.AccountDatabaseAccessor;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.CryptoAllowanceRepository;
@@ -144,6 +145,9 @@ class AccountReadableKVStateTest {
 
     @Mock
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
+
+    @Mock
+    private OverrideClasspathProperties overrideClasspathProperties;
 
     @Spy
     private AliasedAccountCacheManager aliasedAccountCacheManager;

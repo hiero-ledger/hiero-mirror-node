@@ -29,7 +29,9 @@ import org.hiero.mirror.common.domain.entity.CryptoAllowance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.OverrideClasspathProperties;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.web3.repository.NftAllowanceRepository;
@@ -49,6 +51,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenAllowanceRepository tokenAllowanceRepository;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final OverrideClasspathProperties overrideClasspathProperties;
 
     protected AbstractAliasedAccountReadableKVState(
             @Nonnull String stateKey,
@@ -59,7 +62,8 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
             @Nonnull SystemEntity systemEntity,
             @Nonnull TokenAccountRepository tokenAccountRepository,
             @Nonnull TokenAllowanceRepository tokenAllowanceRepository,
-            @Nonnull MirrorNodeEvmProperties mirrorNodeEvmProperties) {
+            @Nonnull MirrorNodeEvmProperties mirrorNodeEvmProperties,
+            @Nonnull OverrideClasspathProperties overrideClasspathProperties) {
         super(stateKey);
         this.accountBalanceRepository = accountBalanceRepository;
         this.cryptoAllowanceRepository = cryptoAllowanceRepository;
@@ -69,6 +73,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
         this.tokenAccountRepository = tokenAccountRepository;
         this.tokenAllowanceRepository = tokenAllowanceRepository;
         this.mirrorNodeEvmProperties = mirrorNodeEvmProperties;
+        this.overrideClasspathProperties = overrideClasspathProperties;
     }
 
     protected Account accountFromEntity(Entity entity, final Optional<Long> timestamp) {
@@ -155,7 +160,20 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
                         return 0L;
                     }
                 })
-                .orElseGet(() -> Objects.requireNonNullElse(entity.getBalance(), 0L)));
+                .orElseGet(() -> {
+                    if (!overrideClasspathProperties.isOverridePayerBalanceValidation()) {
+                        return entity.getBalance();
+                    }
+                    boolean isBalanceCall = ContractCallContext.get().isBalanceCall();
+                    Long currentBalance = entity.getBalance();
+                    if (!isBalanceCall
+                            && (currentBalance == null
+                                    || currentBalance < mirrorNodeEvmProperties.getMinimumAccountBalance())) {
+                        return mirrorNodeEvmProperties.getMinimumAccountBalance();
+                    }
+                    ContractCallContext.get().setBalanceCall(false);
+                    return currentBalance;
+                }));
     }
 
     private Supplier<List<AccountCryptoAllowance>> getCryptoAllowances(

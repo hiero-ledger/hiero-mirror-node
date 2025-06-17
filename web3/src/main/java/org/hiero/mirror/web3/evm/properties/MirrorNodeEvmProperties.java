@@ -202,6 +202,9 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @Getter
     private long entityNumBuffer = 1000L;
 
+    @Getter
+    private long minimumAccountBalance = 100_000_000_000_000_000L;
+
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);
     }
