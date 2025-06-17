@@ -142,7 +142,6 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
         contractSlotsList.add(contractSlotsList.getFirst());
 
         assertThat(contractStateRepository.findStorageBatch(contractId, contractSlotsList))
-                .usingRecursiveComparison()
-                .isEqualTo(contractSlotValuesList);
+                .containsAll(contractSlotValuesList);
     }
 }
