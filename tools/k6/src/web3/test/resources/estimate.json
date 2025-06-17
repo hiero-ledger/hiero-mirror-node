@@ -181,5 +181,15 @@
       "gas": 0,
       "sleep": 0
     }
+  ],
+  "estimateReadStorageSlots": [
+    {
+      "block": "",
+      "data": "",
+      "to": "",
+      "from": "",
+      "gas": 0,
+      "sleep": 0
+    }
   ]
 }

@@ -20,7 +20,7 @@ alertmanager:
       matches:
         - sourceMatch:
             - name: application
-              value: hedera-mirror-importer
+              value: importer
             - name: type
               value: RECORD
           targetMatch:
@@ -337,6 +337,12 @@ stackgres:
           pool_mode: session
         mirror_importer:
           pool_mode: session
+        mirror_rest:
+          max_user_client_connections: 1000
+          max_user_connections: 250
+        mirror_web3:
+          max_user_client_connections: 1000
+          max_user_connections: 250
     resources:
       cpu: 100m
       memory: 1Gi
@@ -408,7 +414,7 @@ test:
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
     helm.sh/hook-weight: "10"
   config:
-    hedera:
+    hiero:
       mirror:
         test:
           acceptance:

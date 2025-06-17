@@ -6,16 +6,20 @@ import static org.hiero.mirror.common.domain.balance.AccountBalanceFile.INVALID_
 import static org.hiero.mirror.importer.parser.AbstractStreamFileParser.STREAM_PARSE_DURATION_METRIC_NAME;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.Range;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.AccessLevel;
 import lombok.CustomLog;
+import lombok.Getter;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.db.TimePartitionService;
 import org.hiero.mirror.importer.domain.StreamFilename;
@@ -26,6 +30,7 @@ import org.hiero.mirror.importer.parser.record.RecordFileParsedEvent;
 import org.hiero.mirror.importer.parser.record.RecordFileParser;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.hiero.mirror.importer.repository.AccountBalanceRepository;
+import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.TokenBalanceRepository;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -42,8 +47,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 @CustomLog
 @Named
 public class HistoricalBalanceService {
-
     private static final String ACCOUNT_BALANCE_TABLE_NAME = "account_balance";
+
+    @Getter(AccessLevel.PACKAGE)
+    private final AtomicBoolean treasuryExists = new AtomicBoolean(false);
 
     private final AccountBalanceFileRepository accountBalanceFileRepository;
     private final AccountBalanceRepository accountBalanceRepository;
@@ -54,6 +61,7 @@ public class HistoricalBalanceService {
     private final TimePartitionService timePartitionService;
     private final TokenBalanceRepository tokenBalanceRepository;
     private final TransactionTemplate transactionTemplate;
+    private final EntityRepository entityRepository;
 
     // metrics
     private final Timer generateDurationMetricFailure;
@@ -69,7 +77,8 @@ public class HistoricalBalanceService {
             RecordFileRepository recordFileRepository,
             SystemEntity systemEntity,
             TimePartitionService timePartitionService,
-            TokenBalanceRepository tokenBalanceRepository) {
+            TokenBalanceRepository tokenBalanceRepository,
+            EntityRepository entityRepository) {
         this.accountBalanceFileRepository = accountBalanceFileRepository;
         this.accountBalanceRepository = accountBalanceRepository;
         this.properties = properties;
@@ -77,6 +86,7 @@ public class HistoricalBalanceService {
         this.systemEntity = systemEntity;
         this.timePartitionService = timePartitionService;
         this.tokenBalanceRepository = tokenBalanceRepository;
+        this.entityRepository = entityRepository;
 
         // Set repeatable read isolation level and transaction timeout
         this.transactionTemplate = new TransactionTemplate(platformTransactionManager);
@@ -113,6 +123,8 @@ public class HistoricalBalanceService {
             }
 
             final long treasuryAccountId = systemEntity.treasuryAccount().getId();
+            checkTreasuryAccount();
+
             log.info("Generating historical balances after processing record file with consensusEnd {}", consensusEnd);
             transactionTemplate.executeWithoutResult(t -> {
                 long loadStart = System.currentTimeMillis();
@@ -205,5 +217,29 @@ public class HistoricalBalanceService {
                         .filter(lastTimestamp -> consensusEnd - lastTimestamp
                                 >= properties.getMinFrequency().toNanos())
                         .isPresent();
+    }
+
+    private void checkTreasuryAccount() {
+        if (treasuryExists.compareAndSet(false, true)) {
+            var treasuryAccountEntityId = systemEntity.treasuryAccount();
+            try {
+                if (!entityRepository.existsById(treasuryAccountEntityId.getId())) {
+                    var savedTreasuryAccount = entityRepository.save(treasuryAccountEntityId.toEntity().toBuilder()
+                            .balance(0L)
+                            .createdTimestamp(0L)
+                            .declineReward(true)
+                            .deleted(false)
+                            .memo("Mirror node created synthetic treasury account")
+                            .type(EntityType.ACCOUNT)
+                            .timestampRange(Range.atLeast(0L))
+                            .build());
+                    log.info("Created sentinel treasury account: {}", savedTreasuryAccount);
+                }
+            } catch (Exception e) {
+                log.error("Failed to auto create treasury account {}", treasuryAccountEntityId);
+                treasuryExists.set(false);
+                throw e;
+            }
+        }
     }
 }

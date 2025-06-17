@@ -228,6 +228,65 @@
           "next": "/api/v1/contracts?limit=5&contract.id=lt:0.0.8002"
         }
       }
+    },
+    {
+      "url": "/api/v1/contracts?limit=2&contract.id=gt:0.0.8003",
+      "responseStatus": 200,
+      "responseJson": {
+        "contracts": [
+          {
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "050505"
+            },
+            "auto_renew_account": null,
+            "auto_renew_period": null,
+            "contract_id": "0.0.8005",
+            "created_timestamp": "987654.000123461",
+            "deleted": false,
+            "evm_address": "0x0000000000000000000000000000000000001f45",
+            "expiration_timestamp": null,
+            "file_id": "0.0.5001",
+            "max_automatic_token_associations": 0,
+            "memo": "contract memo",
+            "nonce": null,
+            "obtainer_id": null,
+            "permanent_removal": null,
+            "proxy_account_id": null,
+            "timestamp": {
+              "from": "987654.000123461",
+              "to": null
+            }
+          },
+          {
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "040404"
+            },
+            "auto_renew_account": null,
+            "auto_renew_period": null,
+            "contract_id": "0.0.8004",
+            "created_timestamp": "987654.000123460",
+            "deleted": false,
+            "evm_address": "0x0000000000000000000000000000000000001f44",
+            "expiration_timestamp": null,
+            "file_id": "0.0.5001",
+            "max_automatic_token_associations": 0,
+            "memo": "contract memo",
+            "nonce": null,
+            "obtainer_id": null,
+            "permanent_removal": null,
+            "proxy_account_id": null,
+            "timestamp": {
+              "from": "987654.000123460",
+              "to": null
+            }
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
     }
   ]
 }

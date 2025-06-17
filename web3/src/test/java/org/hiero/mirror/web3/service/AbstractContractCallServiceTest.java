@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
@@ -99,6 +100,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected static final BigInteger DEFAULT_FEE_MIN_VALUE = BigInteger.valueOf(1L);
     protected static final BigInteger DEFAULT_FEE_MAX_VALUE = BigInteger.valueOf(1000L);
     protected static final String ED_25519 = "Ed25519";
+    protected static final BigInteger DEFAULT_TINYBAR_VALUE = BigInteger.ZERO;
 
     @Resource
     protected TestWeb3jService testWeb3jService;
@@ -213,6 +215,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                                 treasuryEntity.getCreatedTimestamp(), treasuryEntity.toEntityId()))
                         .balance(treasuryEntity.getBalance()))
                 .persist();
+        persistRewardAccounts();
     }
 
     @AfterEach
@@ -848,6 +851,10 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .key(publicKey)
                 .type(EntityType.ACCOUNT)
                 .balance(DEFAULT_ACCOUNT_BALANCE));
+    }
+
+    protected EntityId getEntityId(final String address) {
+        return entityIdFromEvmAddress(Address.fromHexString(address));
     }
 
     public enum KeyType {

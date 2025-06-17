@@ -8,6 +8,8 @@ import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionP
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.io.Serial;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.SequencedCollection;
 import lombok.Getter;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
@@ -25,6 +27,9 @@ public class MirrorEvmTransactionException extends EvmException {
     private final String data;
     private final Boolean isCallModularized;
     private final transient HederaEvmTransactionProcessingResult result;
+    // needs to be initialized since some tests fail, opted for List.of() instead of LinkedList because
+    // in one of the constructors we reassign it
+    private SequencedCollection<String> childTransactionErrors = List.of();
 
     public MirrorEvmTransactionException(
             final ResponseCodeEnum responseCode, final String detail, final String hexData) {
@@ -55,6 +60,17 @@ public class MirrorEvmTransactionException extends EvmException {
         this.data = hexData;
         this.isCallModularized = isCallModularized;
         this.result = result;
+    }
+
+    public MirrorEvmTransactionException(
+            final String message,
+            final String detail,
+            final String hexData,
+            final HederaEvmTransactionProcessingResult result,
+            final Boolean isCallModularized,
+            final SequencedCollection<String> childTransactionErrors) {
+        this(message, detail, hexData, result, isCallModularized);
+        this.childTransactionErrors = childTransactionErrors;
     }
 
     public Bytes messageBytes() {

@@ -1,8 +1,8 @@
 # GraphQL API
 
-The GraphQL API is an implementation of the [GraphQL specification](https://spec.graphql.org/) for the Hedera Mirror
-Node. It is considered an alpha API subject to breaking changes at any time, so it's not recommended to depend upon
-for production use.
+The GraphQL API is an implementation of the [GraphQL specification](https://spec.graphql.org/) for the mirror
+node. It is considered an alpha API subject to breaking changes at any time, so it's not recommended to use in
+production.
 
 ## Configuration
 

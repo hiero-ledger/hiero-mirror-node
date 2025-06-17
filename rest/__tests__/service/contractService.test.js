@@ -1596,6 +1596,6 @@ describe('ContractService.getInvolvedContractsByTimestampAndContractId tests', (
   test('Finds involved contract ids', async () => {
     const transactionDetails = await ContractService.getInvolvedContractsByTimestampAndContractId(1, 1);
     const expected = [1, 21, 22, 11, 10];
-    expect(transactionDetails.contractIds).toContainAllValues(expected);
+    expect(transactionDetails.contractIds).toIncludeSameMembers(expected);
   });
 });

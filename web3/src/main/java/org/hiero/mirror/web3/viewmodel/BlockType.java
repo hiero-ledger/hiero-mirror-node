@@ -6,11 +6,11 @@ import org.apache.commons.lang3.StringUtils;
 
 public record BlockType(String name, long number) {
 
-    private static final String HEX_PREFIX = "0x";
-    private static final String NEGATIVE_NUMBER_PREFIX = "-";
-
     public static final BlockType EARLIEST = new BlockType("earliest", 0L);
     public static final BlockType LATEST = new BlockType("latest", Long.MAX_VALUE);
+
+    private static final String HEX_PREFIX = "0x";
+    private static final String NEGATIVE_NUMBER_PREFIX = "-";
 
     public static BlockType of(final String value) {
         if (StringUtils.isEmpty(value)) {
@@ -50,5 +50,13 @@ public record BlockType(String name, long number) {
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid block value: " + value, e);
         }
+    }
+
+    public String toString() {
+        if (this == EARLIEST || this == LATEST) {
+            return name;
+        }
+
+        return String.valueOf(number);
     }
 }

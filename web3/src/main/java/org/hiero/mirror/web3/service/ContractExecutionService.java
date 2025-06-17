@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.service;
 
 import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.util.Objects;
@@ -16,6 +15,7 @@ import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
+import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 
 @CustomLog
@@ -32,12 +32,12 @@ public class ContractExecutionService extends ContractCallService {
             MirrorEvmTxProcessor mirrorEvmTxProcessor,
             RecordFileService recordFileService,
             ThrottleProperties throttleProperties,
-            Bucket gasLimitBucket,
+            ThrottleManager throttleManager,
             MirrorNodeEvmProperties mirrorNodeEvmProperties,
             TransactionExecutionService transactionExecutionService) {
         super(
                 mirrorEvmTxProcessor,
-                gasLimitBucket,
+                throttleManager,
                 throttleProperties,
                 meterRegistry,
                 recordFileService,

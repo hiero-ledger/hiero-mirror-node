@@ -7,7 +7,7 @@
     "compile": "npx hardhat compile",
     "test": "npx hardhat test"
   },
-  "author": "Hedera Mirror Node Team",
+  "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "*",

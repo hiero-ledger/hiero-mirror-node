@@ -205,8 +205,9 @@ class BaseController {
       // the primary param has bound or no primary param at all
       // primary param should be exclusive when the secondary operator is eq
       lastValues[primaryBound.filterKey] = {
-        value: !isEnd ? lastRow[primaryBound.viewModelKey] : bounds.next,
         inclusive: !secondaryBound.hasEqual(),
+        primary: true,
+        value: !isEnd ? lastRow[primaryBound.viewModelKey] : bounds.next,
       };
     }
 

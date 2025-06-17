@@ -28,10 +28,12 @@ import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.base.utility.CommonUtils;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hyperledger.besu.datatypes.Address;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -49,12 +51,20 @@ class EntityIdUtilsTest {
     public static final ByteString EVM_ADDRESS = ByteString.fromHex("ebb9a1be370150759408cd7af48e9eda2b8ead57");
     public static final ByteString WRONG_EVM_ADDRESS = ByteString.fromHex("ebb9a1be3701cd7af48e9eda2b8ead57");
 
-    private static final String EXPECTED_HEXED_ADDRESS = "000001ff000000000000ffff0000003fffffffff";
+    private static final String EXPECTED_HEXED_ADDRESS = "0000000000000000000000000000003fffffffff";
     private static final EntityId ENTITY_ID = EntityId.of(Long.MAX_VALUE);
     private static final long ID = ENTITY_ID.getId();
     private static final long SHARD = ENTITY_ID.getShard();
     private static final long REALM = ENTITY_ID.getRealm();
     private static final long NUM = ENTITY_ID.getNum();
+
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+
+    @BeforeEach
+    void setUp() {
+        COMMON_PROPERTIES.setShard(SHARD);
+        COMMON_PROPERTIES.setRealm(REALM);
+    }
 
     @Test
     void asContractWorks() {
@@ -76,8 +86,8 @@ class EntityIdUtilsTest {
 
     @Test
     void serializesExpectedSolidityAddress() {
-        final byte[] shardBytes = Ints.toByteArray((int) SHARD);
-        final byte[] realmBytes = Longs.toByteArray(REALM);
+        final byte[] shardBytes = Ints.toByteArray(0);
+        final byte[] realmBytes = Longs.toByteArray(0);
         final byte[] numBytes = Longs.toByteArray(NUM);
         final byte[] expected = ArrayUtils.addAll(ArrayUtils.addAll(shardBytes, realmBytes), numBytes);
 
@@ -89,7 +99,7 @@ class EntityIdUtilsTest {
                 .setEvmAddress(ByteString.copyFrom(create2AddressBytes))
                 .build();
 
-        final var actual = toEvmAddress(ID);
+        final var actual = toEvmAddress(NUM);
         final var typedActual = EntityIdUtils.asTypedEvmAddress(equivAccount);
         final var typedToken = EntityIdUtils.asTypedEvmAddress(equivToken);
         final var typedContract = EntityIdUtils.asTypedEvmAddress(equivContract);
@@ -199,7 +209,7 @@ class EntityIdUtilsTest {
     }
 
     @Test
-    void asSolidityAddressHexWorksProperlyForTokenId() {
+    void asSolidityAddressHexWorksProperlyForEncodedId() {
         assertEquals(EXPECTED_HEXED_ADDRESS, EntityIdUtils.asHexedEvmAddress(ID));
     }
 

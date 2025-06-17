@@ -8,6 +8,7 @@ import static org.hiero.mirror.rest.model.TransactionTypes.CONTRACTCALL;
 import static org.hiero.mirror.rest.model.TransactionTypes.CONTRACTCREATEINSTANCE;
 import static org.hiero.mirror.rest.model.TransactionTypes.CRYPTOCREATEACCOUNT;
 import static org.hiero.mirror.rest.model.TransactionTypes.CRYPTOTRANSFER;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -139,7 +140,7 @@ public class ContractFeature extends BaseContractFeature {
         }
 
         var from = contractClient.getClientAddress();
-        var to = deployedParentContract.contractId().toSolidityAddress();
+        var to = asHexAddress(deployedParentContract.contractId());
 
         var contractCallRequestGetAccountBalance = ModelBuilder.contractCallRequest()
                 .data(GET_ACCOUNT_BALANCE_SELECTOR)

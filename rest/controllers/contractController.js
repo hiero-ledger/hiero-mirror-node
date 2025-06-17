@@ -178,14 +178,9 @@ const getContractByIdOrAddressContractEntityQuery = ({timestampConditions, times
   const params = [...timestampParams];
   const contractIdParamParts = EntityId.computeContractIdPartsFromContractIdValue(contractIdParam);
 
-  if (contractIdParamParts.hasOwnProperty('create2_evm_address')) {
-    const {params: evmAddressParams, conditions: evmAddressConditions} =
-      ContractService.computeConditionsAndParamsFromEvmAddressFilter({
-        evmAddressFilter: contractIdParamParts,
-        paramOffset: params.length,
-      });
-    params.push(...evmAddressParams);
-    conditions.push(...evmAddressConditions);
+  if (contractIdParamParts.create2_evm_address) {
+    const index = params.push(Buffer.from(contractIdParamParts.create2_evm_address, 'hex'));
+    conditions.push(`${Entity.getFullName(Entity.EVM_ADDRESS)} = $${index}`);
   } else {
     const encodedId = EntityId.parseString(contractIdParam).getEncodedId();
     params.push(encodedId);
@@ -385,8 +380,11 @@ const optimizeTimestampFilters = async (timestampFilters, order) => {
   const filters = [];
 
   const {range, eqValues, neValues} = utils.parseTimestampFilters(timestampFilters, false, true, true, false, false);
-  const {range: optimizedRange, next} = eqValues.length === 0 ? await bindTimestampRange(range, order) : {range};
+  if (range?.isEmpty()) {
+    return {filters};
+  }
 
+  const {range: optimizedRange, next} = eqValues.length === 0 ? await bindTimestampRange(range, order) : {range};
   if (optimizedRange?.begin) {
     filters.push({key: filterKeys.TIMESTAMP, operator: utils.opsMap.gte, value: optimizedRange.begin});
   }
@@ -500,6 +498,10 @@ class ContractController extends BaseController {
 
     const {filters: optimizedTimestampFilters, next} =
       contractId === undefined ? await optimizeTimestampFilters(timestampFilters, order) : {filters: timestampFilters};
+    if (timestampFilters.length !== 0 && optimizedTimestampFilters.length === 0) {
+      return {skip: true};
+    }
+
     for (const filter of optimizedTimestampFilters) {
       this.updateConditionsAndParamsWithInValues(
         filter,

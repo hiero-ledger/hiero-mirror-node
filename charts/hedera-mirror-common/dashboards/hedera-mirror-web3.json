@@ -24,7 +24,7 @@
   "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 131,
+  "id": 140,
   "links": [],
   "panels": [
     {
@@ -51,7 +51,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red"
+                "color": "red",
+                "value": 0
               },
               {
                 "color": "green",
@@ -88,7 +89,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -116,9 +117,10 @@
           "mappings": [
             {
               "options": {
-                "match": "null",
+                "match": "null+nan",
                 "result": {
                   "color": "red",
+                  "index": 0,
                   "text": "0"
                 }
               },
@@ -129,15 +131,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red"
+                "color": "red",
+                "value": 0
               },
               {
                 "color": "green",
                 "value": 1
-              },
-              {
-                "color": "#EAB839",
-                "value": 2
               }
             ]
           },
@@ -170,7 +169,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -190,15 +189,16 @@
       "datasource": {
         "uid": "${prometheus}"
       },
-      "description": "The max number of overall requests per second",
+      "description": "The average request latency",
       "fieldConfig": {
         "defaults": {
           "mappings": [
             {
               "options": {
-                "match": "null",
+                "match": "null+nan",
                 "result": {
-                  "color": "red",
+                  "color": "green",
+                  "index": 0,
                   "text": "0"
                 }
               },
@@ -209,23 +209,20 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
-              },
-              {
-                "color": "red",
+                "color": "green",
                 "value": 0
               },
               {
-                "color": "#EAB839",
-                "value": 2
+                "color": "yellow",
+                "value": 0.25
               },
               {
-                "color": "green",
-                "value": 4
+                "color": "red",
+                "value": 0.75
               }
             ]
           },
-          "unit": "none"
+          "unit": "s"
         },
         "overrides": []
       },
@@ -254,20 +251,106 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
             "uid": "${prometheus}"
           },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(http_server_requests_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "sum(rate(http_server_requests_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) / \nsum(rate(http_server_requests_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
           "interval": "1m",
           "legendFormat": "",
+          "range": true,
           "refId": "A"
         }
       ],
-      "title": "Max Response Rate",
+      "title": "Request Latency",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheus}"
+      },
+      "description": "The average 5xx error rate",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "0"
+                }
+              },
+              "type": "special"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 9,
+        "y": 0
+      },
+      "id": 99,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "max"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",status=~\"^5.+\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Error Rate",
       "type": "stat"
     },
     {
@@ -298,7 +381,7 @@
       "gridPos": {
         "h": 4,
         "w": 3,
-        "x": 9,
+        "x": 12,
         "y": 0
       },
       "id": 87,
@@ -323,7 +406,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -370,7 +453,7 @@
       "gridPos": {
         "h": 4,
         "w": 3,
-        "x": 12,
+        "x": 15,
         "y": 0
       },
       "id": 94,
@@ -395,7 +478,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -479,7 +562,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -517,7 +601,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -585,7 +669,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -648,7 +733,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -656,7 +741,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(hiero_mirror_web3_evm_invocation_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (status)",
+          "expr": "sum(rate(hiero_mirror_web3_evm_invocation_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",modularized=\"false\"}[$__rate_interval])) by (status)",
           "interval": "1m",
           "legendFormat": "{{ status }}",
           "range": true,
@@ -718,7 +803,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -728,32 +814,7 @@
           },
           "unit": "short"
         },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "Value"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": true
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -781,7 +842,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -851,7 +912,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -914,7 +976,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -984,7 +1046,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1047,7 +1110,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -1117,7 +1180,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1180,7 +1244,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -1250,7 +1314,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1288,7 +1353,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -1359,7 +1424,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1397,7 +1463,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -1467,7 +1533,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1505,7 +1572,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -1575,7 +1642,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1613,7 +1681,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -1683,7 +1751,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1721,7 +1790,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -1729,7 +1798,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(http_server_requests_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",status!~\"^2.+\"}[$__rate_interval])) by (status) > 0",
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",status!~\"^2.+\"}[$__rate_interval])) by (status) > 0",
           "interval": "1m",
           "legendFormat": "{{ status }}",
           "range": true,
@@ -1803,7 +1872,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1841,7 +1911,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -1927,7 +1997,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1965,7 +2036,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -2034,7 +2105,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -2127,7 +2199,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.6.0-84846",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -2160,6 +2232,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "bars",
             "fillOpacity": 100,
             "gradientMode": "hue",
@@ -2193,7 +2266,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -2281,11 +2355,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -2327,6 +2402,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -2359,7 +2435,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -2409,11 +2486,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -2475,6 +2553,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -2507,7 +2586,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -2557,11 +2637,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -2624,6 +2705,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "hue",
@@ -2654,7 +2736,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -2687,10 +2770,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -2713,6 +2798,113 @@
         "type": "prometheus",
         "uid": "${prometheus}"
       },
+      "description": "The number of queries per second executed against the database.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": 3600000,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 250
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 153
+      },
+      "id": 98,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(spring_data_repository_invocations_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (repository, method)",
+          "interval": "",
+          "legendFormat": "{{repository}}.{{method}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Queries per second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
       "description": "The amount of time the process has been running",
       "fieldConfig": {
         "defaults": {
@@ -2727,6 +2919,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 20,
             "gradientMode": "hue",
@@ -2757,7 +2950,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -2773,7 +2967,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 153
+        "y": 162
       },
       "id": 84,
       "options": {
@@ -2784,10 +2978,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "desc"
         }
       },
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -2811,7 +3007,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 161
+        "y": 170
       },
       "id": 88,
       "panels": [],
@@ -2837,6 +3033,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -2869,7 +3066,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "#EAB839",
@@ -2889,7 +3087,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 162
+        "y": 171
       },
       "id": 89,
       "options": {
@@ -2902,11 +3100,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "10.1.0-cloud.3.2a3062e8",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -2943,6 +3142,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -2975,7 +3175,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "#EAB839",
@@ -2995,7 +3196,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 162
+        "y": 171
       },
       "id": 90,
       "options": {
@@ -3008,11 +3209,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "10.1.0-cloud.3.2a3062e8",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -3049,6 +3251,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -3081,7 +3284,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "#EAB839",
@@ -3101,7 +3305,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 170
+        "y": 179
       },
       "id": 91,
       "options": {
@@ -3114,11 +3318,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "10.1.0-cloud.3.2a3062e8",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -3155,6 +3360,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "hue",
@@ -3187,7 +3393,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "#EAB839",
@@ -3207,7 +3414,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 170
+        "y": 179
       },
       "id": 92,
       "options": {
@@ -3220,11 +3427,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "10.1.0-cloud.3.2a3062e8",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -3248,7 +3456,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 178
+        "y": 187
       },
       "id": 35,
       "panels": [],
@@ -3274,6 +3482,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "bars",
             "fillOpacity": 100,
             "gradientMode": "hue",
@@ -3306,7 +3515,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -3413,7 +3623,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 179
+        "y": 188
       },
       "id": 5,
       "options": {
@@ -3424,11 +3634,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.5.2-cloud.2.0cb5a501",
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -3458,11 +3669,12 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 187
+        "y": 196
       },
       "id": 54,
       "options": {
         "dedupStrategy": "none",
+        "enableInfiniteScrolling": false,
         "enableLogDetails": false,
         "prettifyLogMessage": false,
         "showCommonLabels": false,
@@ -3471,6 +3683,7 @@
         "sortOrder": "Ascending",
         "wrapLogMessage": false
       },
+      "pluginVersion": "12.1.0-89256.patch1-89350",
       "targets": [
         {
           "datasource": {
@@ -3632,7 +3845,7 @@
     ]
   },
   "timezone": "",
-  "title": "Hiero / Mirror / Web3 API",
+  "title": "Mirror Web3 API",
   "uid": "Si3C9zAnk",
-  "version": 5
+  "version": 6
 }

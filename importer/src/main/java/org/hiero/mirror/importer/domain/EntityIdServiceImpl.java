@@ -54,13 +54,11 @@ public class EntityIdServiceImpl implements EntityIdService {
         return switch (accountId.getAccountCase()) {
             case ACCOUNTNUM -> Optional.ofNullable(EntityId.of(accountId));
             case ALIAS -> {
-                long shard = accountId.getShardNum();
-                long realm = accountId.getRealmNum();
                 byte[] alias = toBytes(accountId.getAlias());
                 yield alias.length == EVM_ADDRESS_LENGTH
-                        ? cacheLookup(accountId.getAlias(), () -> findByEvmAddress(alias, shard, realm))
-                        : cacheLookup(accountId.getAlias(), () -> findByAlias(shard, realm, alias))
-                                .or(() -> findByAliasEvmAddress(alias, shard, realm));
+                        ? cacheLookup(accountId.getAlias(), () -> findByEvmAddress(alias))
+                        : cacheLookup(accountId.getAlias(), () -> findByAlias(alias))
+                                .or(() -> findByAliasEvmAddress(alias));
             }
             default -> {
                 Utility.handleRecoverableError(
@@ -91,11 +89,7 @@ public class EntityIdServiceImpl implements EntityIdService {
             case EVM_ADDRESS ->
                 cacheLookup(
                         contractId.getEvmAddress(),
-                        () -> findByEvmAddress(
-                                toBytes(contractId.getEvmAddress()),
-                                contractId.getShardNum(),
-                                contractId.getRealmNum(),
-                                throwRecoverableError));
+                        () -> findByEvmAddress(toBytes(contractId.getEvmAddress()), throwRecoverableError));
             default -> {
                 Utility.handleRecoverableError("Invalid ContractID: {}", contractId);
                 yield Optional.empty();
@@ -157,18 +151,13 @@ public class EntityIdServiceImpl implements EntityIdService {
         }
     }
 
-    private Optional<EntityId> findByEvmAddress(byte[] evmAddress, long shardNum, long realmNum) {
-        return findByEvmAddress(evmAddress, shardNum, realmNum, true);
+    private Optional<EntityId> findByEvmAddress(byte[] evmAddress) {
+        return findByEvmAddress(evmAddress, true);
     }
 
-    private Optional<EntityId> findByEvmAddress(
-            byte[] evmAddress, long shardNum, long realmNum, boolean throwRecoverableError) {
+    private Optional<EntityId> findByEvmAddress(byte[] evmAddress, boolean throwRecoverableError) {
         var id = Optional.ofNullable(DomainUtils.fromEvmAddress(evmAddress))
-                // Verify shard and realm match when assuming evmAddress is in the 'shard.realm.num' form
-                .filter(e -> e.getShard() == shardNum && e.getRealm() == realmNum)
-                .or(() -> entityRepository
-                        .findByEvmAddress(shardNum, realmNum, evmAddress)
-                        .map(EntityId::of));
+                .or(() -> entityRepository.findByEvmAddress(evmAddress).map(EntityId::of));
 
         if (id.isEmpty() && throwRecoverableError) {
             Utility.handleRecoverableError("Entity not found for EVM address {}", Hex.encodeHexString(evmAddress));
@@ -177,12 +166,12 @@ public class EntityIdServiceImpl implements EntityIdService {
         return id;
     }
 
-    private Optional<EntityId> findByAlias(long shard, long realm, byte[] alias) {
-        return entityRepository.findByAlias(shard, realm, alias).map(EntityId::of);
+    private Optional<EntityId> findByAlias(byte[] alias) {
+        return entityRepository.findByAlias(alias).map(EntityId::of);
     }
 
     // Try to fall back to the 20-byte evm address recovered from the ECDSA secp256k1 alias
-    private Optional<EntityId> findByAliasEvmAddress(byte[] alias, long shardNum, long realmNum) {
+    private Optional<EntityId> findByAliasEvmAddress(byte[] alias) {
         var evmAddress = aliasToEvmAddress(alias);
         if (evmAddress == null) {
             Utility.handleRecoverableError("Unable to find entity for alias {}", Hex.encodeHexString(alias));
@@ -197,6 +186,6 @@ public class EntityIdServiceImpl implements EntityIdService {
         }
 
         // Check cache first in case the 20-byte evm address hasn't persisted to db
-        return cacheLookup(fromBytes(evmAddress), () -> findByEvmAddress(evmAddress, shardNum, realmNum));
+        return cacheLookup(fromBytes(evmAddress), () -> findByEvmAddress(evmAddress));
     }
 }

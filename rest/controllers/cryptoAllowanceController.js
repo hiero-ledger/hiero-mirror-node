@@ -89,7 +89,7 @@ class CryptoAllowanceController extends BaseController {
     if (response.allowances.length === limit) {
       const lastRow = _.last(response.allowances);
       const lastValues = {
-        [filterKeys.SPENDER_ID]: {value: lastRow.spender},
+        [filterKeys.SPENDER_ID]: lastRow.spender,
       };
       response.links.next = utils.getPaginationLink(req, false, lastValues, order);
     }

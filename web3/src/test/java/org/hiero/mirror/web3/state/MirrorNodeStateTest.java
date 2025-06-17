@@ -137,9 +137,8 @@ class MirrorNodeStateTest {
 
         assertThat(mirrorNodeState.getReadableStates("NEW").contains(FileReadableKVState.KEY))
                 .isFalse();
-        final var newState = mirrorNodeState.addService(
-                "NEW",
-                new HashMap<>(Map.of(FileReadableKVState.KEY, Map.of(FileReadableKVState.KEY, fileReadableKVState))));
+        final var newState =
+                mirrorNodeState.addService("NEW", new HashMap<>(Map.of(FileReadableKVState.KEY, fileReadableKVState)));
         assertThat(newState.getReadableStates("NEW").contains(FileReadableKVState.KEY))
                 .isTrue();
     }
@@ -154,9 +153,9 @@ class MirrorNodeStateTest {
 
         final var testStates = new HashMap<>(Map.of(
                 ContractBytecodeReadableKVState.KEY,
-                Map.of(ContractBytecodeReadableKVState.KEY, contractBytecodeReadableKVState),
+                contractBytecodeReadableKVState,
                 ContractStorageReadableKVState.KEY,
-                Map.of(ContractStorageReadableKVState.KEY, contractStorageReadableKVState)));
+                contractStorageReadableKVState));
         final var newState = mirrorNodeState.addService("NEW", testStates);
         assertThat(newState.getReadableStates("NEW").contains(ContractBytecodeReadableKVState.KEY))
                 .isTrue();
@@ -467,26 +466,25 @@ class MirrorNodeStateTest {
     }
 
     private MirrorNodeState initStateAfterMigration() {
-        final Map<String, Object> fileStateData =
-                new HashMap<>(Map.of(FileReadableKVState.KEY, Map.of(FileReadableKVState.KEY, fileReadableKVState)));
+        final Map<String, Object> fileStateData = new HashMap<>(Map.of(FileReadableKVState.KEY, fileReadableKVState));
         final Map<String, Object> contractStateData = new HashMap<>(Map.of(
                 ContractBytecodeReadableKVState.KEY,
-                Map.of(ContractBytecodeReadableKVState.KEY, contractBytecodeReadableKVState),
+                contractBytecodeReadableKVState,
                 ContractStorageReadableKVState.KEY,
-                Map.of(ContractStorageReadableKVState.KEY, contractStorageReadableKVState)));
+                contractStorageReadableKVState));
         final Map<String, Object> tokenStateData = new HashMap<>(Map.of(
                 AccountReadableKVState.KEY,
-                Map.of(AccountReadableKVState.KEY, accountReadableKVState),
+                accountReadableKVState,
                 AirdropsReadableKVState.KEY,
-                Map.of(AirdropsReadableKVState.KEY, airdropsReadableKVState),
+                airdropsReadableKVState,
                 AliasesReadableKVState.KEY,
-                Map.of(AliasesReadableKVState.KEY, aliasesReadableKVState),
+                aliasesReadableKVState,
                 NftReadableKVState.KEY,
-                Map.of(NftReadableKVState.KEY, nftReadableKVState),
+                nftReadableKVState,
                 TokenReadableKVState.KEY,
-                Map.of(TokenReadableKVState.KEY, tokenReadableKVState),
+                tokenReadableKVState,
                 TokenRelationshipReadableKVState.KEY,
-                Map.of(TokenRelationshipReadableKVState.KEY, tokenRelationshipReadableKVState)));
+                tokenRelationshipReadableKVState));
 
         // Add service using the mock data source
         return buildStateObject()

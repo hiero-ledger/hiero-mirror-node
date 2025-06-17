@@ -10,7 +10,11 @@ exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Invalid a
 ]
 `;
 
-exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero realm 1`] = `"No account with a matching alias found"`;
+exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero realm 1`] = `
+[
+  "Invalid parameter: idOrAliasOrEvmAddress",
+]
+`;
 
 exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero realm 2`] = `
 [
@@ -24,17 +28,7 @@ exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero 
 ]
 `;
 
-exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero realm 4`] = `"Not found"`;
-
-exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero realm 5`] = `"Not found"`;
-
-exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero realm 6`] = `
-[
-  "Invalid parameter: idOrAliasOrEvmAddress",
-]
-`;
-
-exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero realm 7`] = `
+exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero realm 4`] = `
 [
   "Invalid parameter: idOrAliasOrEvmAddress",
 ]
@@ -43,7 +37,3 @@ exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero 
 exports[`EntityService.getEntityIdFromEvmAddress tests EntityService.getEntityIdFromEvmAddress - Multiple matches 1`] = `"Multiple alive entities matching evm address"`;
 
 exports[`EntityService.getEntityIdFromEvmAddress tests EntityService.getEntityIdFromEvmAddress - No match - result required 1`] = `"Not found"`;
-
-exports[`EntityService.getEntityIdFromEvmAddress tests EntityService.getEntityIdFromEvmAddress - Non-zero realm 1`] = `"Not found"`;
-
-exports[`EntityService.getEntityIdFromEvmAddress tests EntityService.getEntityIdFromEvmAddress - Non-zero realm 2`] = `"Not found"`;

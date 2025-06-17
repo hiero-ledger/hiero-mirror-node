@@ -10,6 +10,14 @@ abstract contract HederaTokenService {
     // 90 days in seconds
     int32 constant defaultAutoRenewPeriod = 7776000;
 
+    uint constant ADMIN_KEY_TYPE = 1;
+    uint constant KYC_KEY_TYPE = 2;
+    uint constant FREEZE_KEY_TYPE = 4;
+    uint constant WIPE_KEY_TYPE = 8;
+    uint constant SUPPLY_KEY_TYPE = 16;
+    uint constant FEE_SCHEDULE_KEY_TYPE = 32;
+    uint constant PAUSE_KEY_TYPE = 64;
+
     modifier nonEmptyExpiry(IHederaTokenService.HederaToken memory token)
     {
         if (token.expiry.second == 0 && token.expiry.autoRenewPeriod == 0) {
@@ -743,6 +751,13 @@ abstract contract HederaTokenService {
     function rejectTokens(address rejectingAddress, address[] memory ftAddresses, IHederaTokenService.NftID[] memory nftIds) internal returns (int64 responseCode) {
         (bool success, bytes memory result) = precompileAddress.call(
             abi.encodeWithSelector(IHederaTokenService.rejectTokens.selector, rejectingAddress, ftAddresses, nftIds)
+        );
+        (responseCode) = success ? abi.decode(result, (int32)) : HederaResponseCodes.UNKNOWN;
+    }
+
+    function updateNFTsMetadata(address nftToken, int64[] memory serialNumbers, bytes memory metadata) external returns (int64 responseCode) {
+        (bool success, bytes memory result) = precompileAddress.call(
+            abi.encodeWithSelector(IHederaTokenService.updateNFTsMetadata.selector, nftToken, serialNumbers, metadata)
         );
         (responseCode) = success ? abi.decode(result, (int32)) : HederaResponseCodes.UNKNOWN;
     }

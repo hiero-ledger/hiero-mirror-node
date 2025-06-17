@@ -9,7 +9,6 @@ import static org.hiero.mirror.web3.evm.exception.ResponseCodeUtil.getStatusOrDe
 import com.google.common.annotations.VisibleForTesting;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -24,6 +23,7 @@ import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 
@@ -44,13 +44,13 @@ public abstract class ContractCallService {
     private final MirrorEvmTxProcessor mirrorEvmTxProcessor;
     private final RecordFileService recordFileService;
     private final ThrottleProperties throttleProperties;
-    private final Bucket gasLimitBucket;
+    private final ThrottleManager throttleManager;
     private final TransactionExecutionService transactionExecutionService;
 
     @SuppressWarnings("java:S107")
     protected ContractCallService(
             MirrorEvmTxProcessor mirrorEvmTxProcessor,
-            Bucket gasLimitBucket,
+            ThrottleManager throttleManager,
             ThrottleProperties throttleProperties,
             MeterRegistry meterRegistry,
             RecordFileService recordFileService,
@@ -70,7 +70,7 @@ public abstract class ContractCallService {
         this.mirrorEvmTxProcessor = mirrorEvmTxProcessor;
         this.recordFileService = recordFileService;
         this.throttleProperties = throttleProperties;
-        this.gasLimitBucket = gasLimitBucket;
+        this.throttleManager = throttleManager;
         this.mirrorNodeEvmProperties = mirrorNodeEvmProperties;
         this.transactionExecutionService = transactionExecutionService;
     }
@@ -152,18 +152,16 @@ public abstract class ContractCallService {
     }
 
     private void restoreGasToBucket(HederaEvmTransactionProcessingResult result, long gasLimit) {
-        final var gasUnit = throttleProperties.getGasUnit();
         // If the transaction fails, gasUsed is equal to gasLimit, so restore the configured refund percent
         // of the gasLimit value back in the bucket.
-        final var gasLimitToRestoreBaseline =
-                (long) (Math.floorDiv(gasLimit, gasUnit) * throttleProperties.getGasLimitRefundPercent() / 100f);
+        final var gasLimitToRestoreBaseline = (long) (gasLimit * throttleProperties.getGasLimitRefundPercent() / 100f);
         if (result == null || (!result.isSuccessful() && gasLimit == result.getGasUsed())) {
-            gasLimitBucket.addTokens(gasLimitToRestoreBaseline);
+            throttleManager.restore(gasLimitToRestoreBaseline);
         } else {
             // The transaction was successful or reverted, so restore the remaining gas back in the bucket or
             // the configured refund percent of the gasLimit value back in the bucket - whichever is lower.
             final var gasRemaining = gasLimit - result.getGasUsed();
-            gasLimitBucket.addTokens(Math.min(Math.floorDiv(gasRemaining, gasUnit), gasLimitToRestoreBaseline));
+            throttleManager.restore(Math.min(gasRemaining, gasLimitToRestoreBaseline));
         }
     }
 

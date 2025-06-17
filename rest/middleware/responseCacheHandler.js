@@ -26,13 +26,21 @@ const ETAG_HEADER = 'etag';
 const GZIP_ENCODING = 'gzip';
 const VARY_HEADER = 'vary';
 
-const cache = new Cache();
+const getCache = (() => {
+  let cache;
+  return () => {
+    if (!cache) {
+      cache = new Cache();
+    }
+    return cache;
+  };
+})();
 
 // Response middleware that checks for and returns cached response.
 const responseCacheCheckHandler = async (req, res, next) => {
   const startTime = res.locals[requestStartTime] || Date.now();
   const responseCacheKey = cacheKeyGenerator(req);
-  const cachedTtlAndValue = await cache.getSingleWithTtl(responseCacheKey);
+  const cachedTtlAndValue = await getCache().getSingleWithTtl(responseCacheKey);
 
   if (!cachedTtlAndValue) {
     res.locals[responseCacheKeyLabel] = responseCacheKey;
@@ -105,7 +113,7 @@ const responseCacheUpdateHandler = async (req, res, next) => {
 
       const statusCode = isUnmodified ? httpStatusCodes.OK.code : res.statusCode;
       const cachedResponse = new CachedApiResponse(statusCode, headers, responseBody, shouldCompress(responseBody));
-      await cache.setSingle(responseCacheKey, ttl, cachedResponse);
+      await getCache().setSingle(responseCacheKey, ttl, cachedResponse);
     }
   }
 };

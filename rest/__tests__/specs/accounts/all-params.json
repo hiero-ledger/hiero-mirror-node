@@ -86,9 +86,7 @@
         "balance": 1919,
         "created_timestamp": "2300"
       }
-    ],
-    "transactions": [],
-    "cryptotransfers": []
+    ]
   },
   "url": "/api/v1/accounts?account.id=gte:1023.1.18&account.id=lt:1023.1.20&account.balance=gt:45&account.publicKey=3c3d546321ff6f63d701d2ec5c277095874e19f4a235bee1e6bb19258bf362be&order=desc&balance=true",
   "responseStatus": 200,
@@ -116,7 +114,7 @@
         "decline_reward": false,
         "deleted": false,
         "ethereum_nonce": null,
-        "evm_address": "0x000003ff00000000000000010000000000000013",
+        "evm_address": "0x0000000000000000000000000000000000000013",
         "expiry_timestamp": "43332.123456789",
         "key": {
           "_type": "ProtobufEncoded",

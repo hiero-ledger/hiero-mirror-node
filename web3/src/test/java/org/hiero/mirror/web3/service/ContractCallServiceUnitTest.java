@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
-import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -21,6 +20,7 @@ import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
+import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AfterEach;
@@ -55,7 +55,7 @@ class ContractCallServiceUnitTest {
     private StackedStateFrames stackedStateFrames;
 
     @Mock
-    private Bucket gasLimitBucket;
+    private ThrottleManager throttleManager;
 
     @Mock
     private TransactionExecutionService transactionExecutionService;
@@ -69,7 +69,7 @@ class ContractCallServiceUnitTest {
         isModularized = mirrorNodeEvmProperties.isModularizedServices();
         contractCallService = new ContractCallService(
                 mirrorEvmTxProcessor,
-                gasLimitBucket,
+                throttleManager,
                 new ThrottleProperties(),
                 new SimpleMeterRegistry(),
                 recordFileService,

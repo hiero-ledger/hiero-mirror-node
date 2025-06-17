@@ -35,15 +35,12 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMet
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.STATE_UPDATE_N_TIMES_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.UPDATE_COUNTER_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.WIPE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asByteArray;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asLongArray;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.to32BytesString;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.esaulpaugh.headlong.abi.Address;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Hbar;
@@ -85,13 +82,18 @@ public class CallFeature extends AbstractFeature {
     private String precompileContractAddress;
     private String estimateContractAddress;
     private ExpandedAccountId receiverAccountId;
+    private Address receiverAccountAddress;
     private ExpandedAccountId secondReceiverAccount;
     private ExpandedAccountId thirdReceiver;
     private String secondReceiverAlias;
     private TokenId fungibleTokenId;
+    private Address fungibleTokenAddress;
     private TokenId nonFungibleTokenId;
+    private Address nonFungibleTokenAddress;
     private TokenId fungibleKycUnfrozenTokenId;
+    private Address fungibleKycUnfrozenTokenAddress;
     private ExpandedAccountId admin;
+    private Address adminAddress;
 
     public static String[] splitAddresses(String result) {
         // remove the '0x' prefix
@@ -117,30 +119,35 @@ public class CallFeature extends AbstractFeature {
     @Given("I successfully create ERC contract")
     public void createNewERCtestContract() {
         deployedErcTestContract = getContract(ERC);
-        ercContractAddress = deployedErcTestContract.contractId().toSolidityAddress();
+        ercContractAddress = asHexAddress(deployedErcTestContract.contractId());
     }
 
     @Given("I successfully create Precompile contract")
     public void createNewPrecompileTestContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileContractAddress = deployedPrecompileContract.contractId().toSolidityAddress();
+        precompileContractAddress =
+                asAddress(deployedPrecompileContract.contractId()).toString();
     }
 
     @Given("I successfully create EstimateGas contract")
     public void createNewEstimateTestContract() throws IOException {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_GAS);
-        estimateContractAddress =
-                deployedEstimatePrecompileContract.contractId().toSolidityAddress();
+        estimateContractAddress = asHexAddress(deployedEstimatePrecompileContract.contractId());
         admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
+        adminAddress = asAddress(admin);
         receiverAccountId = accountClient.getAccount(AccountNameEnum.ALICE);
+        receiverAccountAddress = asAddress(receiverAccountId);
         secondReceiverAccount = accountClient.getAccount(AccountNameEnum.BOB);
         thirdReceiver = accountClient.getAccount(AccountNameEnum.DAVE);
         secondReceiverAlias =
                 secondReceiverAccount.getPublicKey().toEvmAddress().toString();
         fungibleTokenId = tokenClient.getToken(FUNGIBLE_FOR_ETH_CALL).tokenId();
+        fungibleTokenAddress = asAddress(fungibleTokenId);
         fungibleKycUnfrozenTokenId =
                 tokenClient.getToken(FUNGIBLE_KYC_UNFROZEN_FOR_ETH_CALL).tokenId();
+        fungibleKycUnfrozenTokenAddress = asAddress(fungibleKycUnfrozenTokenId);
         nonFungibleTokenId = tokenClient.getToken(NFT_FOR_ETH_CALL).tokenId();
+        nonFungibleTokenAddress = asAddress(nonFungibleTokenId);
     }
 
     @Given("I mint a NFT")
@@ -251,7 +258,7 @@ public class CallFeature extends AbstractFeature {
         var totalSupplyOfNft =
                 mirrorClient.getTokenInfo(nonFungibleTokenId.toString()).getTotalSupply();
 
-        var data = encodeData(ERC, IERC721_TOKEN_TOTAL_SUPPLY_SELECTOR, asAddress(nonFungibleTokenId));
+        var data = encodeData(ERC, IERC721_TOKEN_TOTAL_SUPPLY_SELECTOR, nonFungibleTokenAddress);
         var response = callContract(data, ercContractAddress);
 
         assertThat(response.getResultAsNumber()).isEqualTo(totalSupplyOfNft);
@@ -263,7 +270,10 @@ public class CallFeature extends AbstractFeature {
     public void ierc721MetadatagetBalanceOfTokenTokenBalanceOf() {
         var balanceOfNft = getBalanceOfToken(nonFungibleTokenId, admin.getAccountId());
         var data = encodeData(
-                ERC, IERC721_TOKEN_BALANCE_OF_SELECTOR, asAddress(nonFungibleTokenId), asAddress(contractClient));
+                ERC,
+                IERC721_TOKEN_BALANCE_OF_SELECTOR,
+                nonFungibleTokenAddress,
+                asAddress(contractClient.getClientAddress()));
         var response = callContract(data, ercContractAddress);
 
         assertThat(response.getResultAsNumber()).isEqualTo(balanceOfNft);
@@ -281,7 +291,7 @@ public class CallFeature extends AbstractFeature {
     @RetryAsserts
     @Then("I call function with HederaTokenService isToken token FUNGIBLE")
     public void htsIsToken() {
-        var data = encodeData(PRECOMPILE, HTS_IS_TOKEN_SELECTOR, asAddress(fungibleTokenId));
+        var data = encodeData(PRECOMPILE, HTS_IS_TOKEN_SELECTOR, fungibleTokenAddress);
         var response = callContract(data, precompileContractAddress);
 
         assertThat(response.getResultAsBoolean()).isTrue();
@@ -291,8 +301,8 @@ public class CallFeature extends AbstractFeature {
     @RetryAsserts
     @Then("I call function with HederaTokenService isFrozen token FUNGIBLE, account")
     public void htsIsFrozen() {
-        var data =
-                encodeData(PRECOMPILE, HTS_IS_FROZEN_SELECTOR, asAddress(fungibleTokenId), asAddress(contractClient));
+        var data = encodeData(
+                PRECOMPILE, HTS_IS_FROZEN_SELECTOR, fungibleTokenAddress, asAddress(contractClient.getClientAddress()));
         var response = callContract(data, precompileContractAddress);
 
         assertThat(response.getResultAsBoolean()).isFalse();
@@ -303,7 +313,10 @@ public class CallFeature extends AbstractFeature {
     @Then("I call function with HederaTokenService isKyc token FUNGIBLE, account")
     public void htsIsKyc() {
         var data = encodeData(
-                PRECOMPILE, HTS_IS_KYC_GRANTED_SELECTOR, asAddress(fungibleTokenId), asAddress(contractClient));
+                PRECOMPILE,
+                HTS_IS_KYC_GRANTED_SELECTOR,
+                fungibleTokenAddress,
+                asAddress(contractClient.getClientAddress()));
         var response = callContract(data, precompileContractAddress);
 
         assertThat(response.getResultAsBoolean()).isTrue();
@@ -313,7 +326,7 @@ public class CallFeature extends AbstractFeature {
     @RetryAsserts
     @Then("I call function with HederaTokenService getTokenDefaultFreezeStatus token FUNGIBLE")
     public void htsGetTokenDefaultFreezeStatus() {
-        var data = encodeData(PRECOMPILE, HTS_GET_DEFAULT_FREEZE_STATUS_SELECTOR, asAddress(fungibleTokenId));
+        var data = encodeData(PRECOMPILE, HTS_GET_DEFAULT_FREEZE_STATUS_SELECTOR, fungibleTokenAddress);
         var response = callContract(data, precompileContractAddress);
 
         assertThat(response.getResultAsBoolean()).isFalse();
@@ -323,7 +336,7 @@ public class CallFeature extends AbstractFeature {
     @RetryAsserts
     @Then("I call function with HederaTokenService getTokenDefaultKycStatus token FUNGIBLE")
     public void htsGetTokenDefaultKycStatus() {
-        var data = encodeData(PRECOMPILE, HTS_GET_TOKEN_DEFAULT_KYC_STATUS_SELECTOR, asAddress(fungibleTokenId));
+        var data = encodeData(PRECOMPILE, HTS_GET_TOKEN_DEFAULT_KYC_STATUS_SELECTOR, fungibleTokenAddress);
         var response = callContract(data, precompileContractAddress);
         boolean defaultKycStatus = false;
         // In the modularized code, the status is now true when the token has a KycNotApplicable status,
@@ -375,8 +388,7 @@ public class CallFeature extends AbstractFeature {
     @RetryAsserts
     @Then("I successfully update the balance of an account and get the updated balance after 2 seconds")
     public void getBalance() throws InterruptedException {
-        final var receiverAddress = asAddress(receiverAccountId.getAccountId().toSolidityAddress());
-        var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, receiverAddress);
+        var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, receiverAccountAddress);
         var initialBalance = callContract(data, estimateContractAddress).getResultAsNumber();
         networkTransactionResponse = accountClient.sendCryptoTransfer(
                 receiverAccountId.getAccountId(),
@@ -392,8 +404,7 @@ public class CallFeature extends AbstractFeature {
     @RetryAsserts
     @Then("I call function with transfer that returns the balance")
     public void ethCallReentrancyCallFunction() {
-        var data = encodeData(
-                ESTIMATE_GAS, REENTRANCY_CALL_WITH_GAS, asAddress(receiverAccountId), new BigInteger("10000"));
+        var data = encodeData(ESTIMATE_GAS, REENTRANCY_CALL_WITH_GAS, receiverAccountAddress, new BigInteger("10000"));
         var response = callContract(data, estimateContractAddress);
         String[] balances = splitAddresses(response.getResult());
         // verify initial balance
@@ -432,10 +443,10 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 MINT_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
-                asAddress(fungibleTokenId),
+                fungibleTokenAddress,
                 1L,
                 new byte[][] {},
-                asAddress(admin));
+                adminAddress);
 
         var response = callContract(data, precompileContractAddress);
         var results = response.getResultAsListDecimal();
@@ -454,14 +465,13 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 MINT_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
-                asAddress(nonFungibleTokenId),
+                nonFungibleTokenAddress,
                 0L,
                 asByteArray(List.of("0x02")),
                 asAddress(tokenClient
                         .getSdkClient()
                         .getExpandedOperatorAccountId()
-                        .getAccountId()
-                        .toSolidityAddress()));
+                        .getAccountId()));
         var response = callContract(data, precompileContractAddress);
         var results = response.getResultAsListDecimal();
         assertThat(results).isNotNull().hasSize(4);
@@ -479,10 +489,10 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 BURN_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
-                asAddress(fungibleTokenId.toSolidityAddress()),
+                fungibleTokenAddress,
                 1L,
                 asLongArray(List.of()),
-                asAddress(admin));
+                adminAddress);
 
         var response = callContract(data, precompileContractAddress);
         var results = response.getResultAsListDecimal();
@@ -505,10 +515,10 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 BURN_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
-                asAddress(nonFungibleTokenId.toSolidityAddress()),
+                nonFungibleTokenAddress,
                 0L,
                 asLongArray(List.of(1L)),
-                asAddress(admin));
+                adminAddress);
 
         var response = callContract(data, precompileContractAddress);
         var results = response.getResultAsListDecimal();
@@ -527,10 +537,10 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 WIPE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
-                asAddress(fungibleTokenId.toSolidityAddress()),
+                fungibleTokenAddress,
                 1L,
                 asLongArray(List.of()),
-                asAddress(receiverAccountId));
+                receiverAccountAddress);
 
         var response = callContract(data, precompileContractAddress);
         var results = response.getResultAsListDecimal();
@@ -549,10 +559,10 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 WIPE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE,
-                asAddress(nonFungibleTokenId.toSolidityAddress()),
+                nonFungibleTokenAddress,
                 0L,
                 asLongArray(List.of(1L)),
-                asAddress(receiverAccountId));
+                receiverAccountAddress);
 
         var response = callContract(data, precompileContractAddress);
         var results = response.getResultAsListDecimal();
@@ -589,7 +599,7 @@ public class CallFeature extends AbstractFeature {
         var tokenId = tokenClient
                 .getToken(TokenClient.TokenNameEnum.valueOf(tokenName))
                 .tokenId();
-        var data = encodeData(PRECOMPILE, FREEZE_UNFREEZE_GET_STATUS, asAddress(tokenId), asAddress(admin));
+        var data = encodeData(PRECOMPILE, FREEZE_UNFREEZE_GET_STATUS, asAddress(tokenId), adminAddress);
         var response = callContract(data, precompileContractAddress);
         var statusAfterFreeze = response.getResult().substring(2, 66);
         var statusAfterUnfreeze = response.getResult().substring(66);
@@ -607,7 +617,7 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 APPROVE_TOKEN_GET_ALLOWANCE,
-                asAddress(fungibleTokenId),
+                fungibleTokenAddress,
                 asAddress(secondReceiverAlias),
                 new BigInteger("1"),
                 new BigInteger("0"));
@@ -625,8 +635,8 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 APPROVE_TOKEN_GET_ALLOWANCE,
-                asAddress(nonFungibleTokenId),
-                asAddress(receiverAccountId),
+                nonFungibleTokenAddress,
+                receiverAccountAddress,
                 new BigInteger("0"),
                 new BigInteger("1"));
         var response = callContract(data, precompileContractAddress);
@@ -634,7 +644,7 @@ public class CallFeature extends AbstractFeature {
 
         assertThat(approvedAddress)
                 .as("approved address should equal the spender")
-                .isEqualTo(to32BytesString(receiverAccountId.getAccountId().toSolidityAddress()));
+                .isEqualTo(to32BytesString(receiverAccountAddress.toString().toLowerCase()));
     }
 
     @Then("I dissociate a FUNGIBLE token and fail transfer")
@@ -642,8 +652,8 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 DISSOCIATE_TOKEN_FAIL_TRANSFER,
-                asAddress(fungibleTokenId),
-                asAddress(admin),
+                fungibleTokenAddress,
+                adminAddress,
                 asAddress(thirdReceiver),
                 new BigInteger("1"),
                 new BigInteger("0"));
@@ -665,8 +675,8 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 DISSOCIATE_TOKEN_FAIL_TRANSFER,
-                asAddress(nonFungibleTokenId),
-                asAddress(receiverAccountId),
+                nonFungibleTokenAddress,
+                receiverAccountAddress,
                 asAddress(secondReceiverAlias),
                 new BigInteger("0"),
                 new BigInteger("1"));
@@ -691,7 +701,7 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER,
-                asAddress(fungibleTokenId),
+                fungibleTokenAddress,
                 asAddress(thirdReceiver),
                 new BigInteger("1"));
         var response = callContract(data, precompileContractAddress);
@@ -714,8 +724,8 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 APPROVE_NFT_TOKEN_AND_TRANSFER,
-                asAddress(nonFungibleTokenId),
-                asAddress(receiverAccountId),
+                nonFungibleTokenAddress,
+                receiverAccountAddress,
                 new BigInteger("1"));
         var response = callContract(data, precompileContractAddress);
         var results = response.getResultAsListAddress();
@@ -738,8 +748,8 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(
                 PRECOMPILE,
                 GRANT_KYC_REVOKE_KYC,
-                asAddress(fungibleKycUnfrozenTokenId),
-                asAddress(admin),
+                fungibleKycUnfrozenTokenAddress,
+                adminAddress,
                 asAddress(secondReceiverAlias),
                 new BigInteger("1"));
         var response = callContract(data, precompileContractAddress);

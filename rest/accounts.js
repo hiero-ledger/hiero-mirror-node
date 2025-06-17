@@ -136,7 +136,7 @@ const getEntityBalanceQuery = (
   const {query: limitQuery, params: limitParams, order} = limitAndOrderQuery;
 
   const whereCondition = [
-    `e.type in ('ACCOUNT', 'CONTRACT')`,
+    `e.type in ('ACCOUNT', 'CONTRACT') and NOT(e.num = 2 and e.memo = 'Mirror node created synthetic treasury account')`,
     entityBalanceQuery.query,
     entityAccountQuery.query,
     pubKeyQuery.query,

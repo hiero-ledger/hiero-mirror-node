@@ -39,7 +39,6 @@ jobs:
           - rest
           - rest-java
           - "rest:check-state-proof"
-          - "rest:monitoring"
           - rosetta
           - test
           - web3
@@ -53,8 +52,6 @@ jobs:
             schema: v2
           - project: rest:check-state-proof
             schema: v2
-          - project: rest:monitoring
-            schema: v2
           - project: rosetta
             schema: v2
           - project: test
@@ -62,7 +59,7 @@ jobs:
     timeout-minutes: 40 # increase it from 20 minutes since some jobs often run longer on self-hosted runners
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
         with:
           egress-policy: audit
 
@@ -76,7 +73,7 @@ jobs:
           java-version: 21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@8379f6a1328ee0e06e2bb424dadb7b159856a326 # v4
+        uses: gradle/actions/setup-gradle@ac638b010cf58a27ee6c972d7336334ccaf61c96 # v4
 
       - name: Execute Gradle
         env:
@@ -88,7 +85,7 @@ jobs:
         continue-on-error: true
         env:
           CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
-        if: ${{ matrix.schema == 'v1' && matrix.project != 'rest:monitoring' && matrix.project != 'test' && always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        if: ${{ matrix.schema == 'v1' && matrix.project != 'test' && always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
         run: ./gradlew :${{ matrix.project }}:uploadCoverage
 
       - name: Execute Gradle using transaction executor
@@ -104,6 +101,11 @@ jobs:
     needs: build
     runs-on: hiero-mirror-node-linux-large
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
+        with:
+          egress-policy: audit
+
       - name: Finalize coverage report
         continue-on-error: true
         env:

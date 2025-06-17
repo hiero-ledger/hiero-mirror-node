@@ -11,6 +11,8 @@ interface IHRC {
     function associate() external returns (uint256 responseCode);
 
     function dissociate() external returns (uint256 responseCode);
+
+    function isAssociated() external returns (bool associated);
 }
 
 contract ModificationPrecompileTestContract is HederaTokenService {
@@ -84,6 +86,18 @@ contract ModificationPrecompileTestContract is HederaTokenService {
         if (responseCode != HederaResponseCodes.SUCCESS) {
             revert();
         }
+    }
+
+    function associate(address token) public returns (uint256 responseCode) {
+        return IHRC(token).associate();
+    }
+
+    function dissociate(address token) public returns (uint256 responseCode) {
+        return IHRC(token).dissociate();
+    }
+
+    function isAssociated(address token) public returns (bool associated) {
+        return IHRC(token).isAssociated();
     }
 
     function createFungibleTokenExternal(IHederaTokenService.HederaToken memory token,

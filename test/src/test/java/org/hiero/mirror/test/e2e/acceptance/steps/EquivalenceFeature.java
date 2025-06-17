@@ -13,9 +13,9 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.EquivalenceFeature.Cont
 import static org.hiero.mirror.test.e2e.acceptance.steps.EquivalenceFeature.ContractMethods.GET_CODE_HASH;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EquivalenceFeature.ContractMethods.GET_CODE_SIZE;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 
 import com.esaulpaugh.headlong.abi.TupleType;
-import com.hedera.hashgraph.sdk.AccountId;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.math.BigInteger;
@@ -23,7 +23,6 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.NodeNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 
@@ -35,33 +34,24 @@ public class EquivalenceFeature extends AbstractFeature {
     private static final String INVALID_SOLIDITY_ADDRESS_EXCEPTION = "INVALID_SOLIDITY_ADDRESS";
     private static final String BAD_REQUEST = "400 ";
     private static final String TRANSACTION_SUCCESSFUL_MESSAGE = "Transaction successful";
-    private static final String ACCOUNT_ID_FORMAT = "%s.%s.%s";
 
     private final AcceptanceTestProperties acceptanceTestProperties;
-    private final CommonProperties commonProperties;
     private DeployedContract equivalenceDestructContract;
     private DeployedContract equivalenceCallContract;
 
     private String equivalenceDestructContractSolidityAddress;
     private String equivalenceCallContractSolidityAddress;
 
-    public static long extractAccountNumber(String account) {
-        String[] parts = account.split("\\.");
-        return Long.parseLong(parts[parts.length - 1]);
-    }
-
     @Given("I successfully create selfdestruct contract")
     public void createNewSelfDestructContract() {
         equivalenceDestructContract = getContract(EQUIVALENCE_DESTRUCT);
-        equivalenceDestructContractSolidityAddress =
-                equivalenceDestructContract.contractId().toSolidityAddress();
+        equivalenceDestructContractSolidityAddress = asHexAddress(equivalenceDestructContract.contractId());
     }
 
     @Given("I successfully create equivalence call contract")
     public void createNewEquivalenceCallContract() {
         equivalenceCallContract = getContract(EQUIVALENCE_CALL);
-        equivalenceCallContractSolidityAddress =
-                equivalenceCallContract.contractId().toSolidityAddress();
+        equivalenceCallContractSolidityAddress = asHexAddress(equivalenceCallContract.contractId());
     }
 
     @RetryAsserts
@@ -82,14 +72,10 @@ public class EquivalenceFeature extends AbstractFeature {
         assertThat(response.getRuntimeBytecode()).isNotBlank();
     }
 
-    @Then("I execute selfdestruct and set beneficiary to {string} num")
-    public void selfDestructAndSetBeneficiary(String num) {
+    @Then("I execute selfdestruct and set beneficiary to {long} num")
+    public void selfDestructAndSetBeneficiary(final long num) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        var beneficiary =
-                String.format(ACCOUNT_ID_FORMAT, commonProperties.getShard(), commonProperties.getRealm(), num);
-        var accountId = AccountId.fromString(beneficiary);
-
-        var data = encodeData(EQUIVALENCE_DESTRUCT, DESTROY_CONTRACT, asAddress(accountId));
+        var data = encodeData(EQUIVALENCE_DESTRUCT, DESTROY_CONTRACT, asAddress(num));
         var functionResult = callContract(
                 nodeType, StringUtils.EMPTY, EQUIVALENCE_DESTRUCT, DESTROY_CONTRACT, data, TupleType.EMPTY);
 
@@ -102,21 +88,19 @@ public class EquivalenceFeature extends AbstractFeature {
 
         final var message = functionResult.getResultAsText();
 
-        if (extractAccountNumber(beneficiary) < 751) {
-            var condition = message.startsWith(BAD_REQUEST) || message.equals(INVALID_SOLIDITY_ADDRESS_EXCEPTION);
-            assertThat(condition).as("Unexpected error '%s'", message).isTrue();
+        boolean condition;
+        if (num < 751) {
+            condition = message.startsWith(BAD_REQUEST) || message.equals(INVALID_SOLIDITY_ADDRESS_EXCEPTION);
         } else {
-            var condition = functionResult.getResult().equals("0x") || message.equals(TRANSACTION_SUCCESSFUL_MESSAGE);
-            assertThat(condition).as("Unexpected error '%s'", message).isTrue();
+            condition = functionResult.getResult().equals("0x") || message.equals(TRANSACTION_SUCCESSFUL_MESSAGE);
         }
+        assertThat(condition).as("Unexpected error '%s'", message).isTrue();
     }
 
-    @Then("I execute balance opcode to system account {string} num would return 0")
-    public void balanceOfAddress(String num) {
+    @Then("I execute balance opcode to system account {long} num would return 0")
+    public void balanceOfAddress(final long num) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        var address = String.format(ACCOUNT_ID_FORMAT, commonProperties.getShard(), commonProperties.getRealm(), num);
-        final var accountId = AccountId.fromString(address);
-        var data = encodeData(EQUIVALENCE_CALL, GET_BALANCE, asAddress(accountId));
+        var data = encodeData(EQUIVALENCE_CALL, GET_BALANCE, asAddress(num));
         var functionResult =
                 callContract(nodeType, StringUtils.EMPTY, EQUIVALENCE_CALL, GET_BALANCE, data, BIG_INTEGER_TUPLE);
         assertThat(functionResult.getResultAsNumber()).isEqualTo(BigInteger.ZERO);
@@ -131,33 +115,30 @@ public class EquivalenceFeature extends AbstractFeature {
         assertThat(functionResult.getResultAsNumber()).isEqualTo(new BigInteger("10000"));
     }
 
-    @Then("I verify extcodesize opcode against a system account {string} num returns 0")
-    public void extCodeSizeAgainstSystemAccount(String num) {
+    @Then("I verify extcodesize opcode against a system account {long} num returns 0")
+    public void extCodeSizeAgainstSystemAccount(final long num) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        var address = String.format(ACCOUNT_ID_FORMAT, commonProperties.getShard(), commonProperties.getRealm(), num);
-        final var accountId = AccountId.fromString(address);
-        var data = encodeData(EQUIVALENCE_CALL, GET_CODE_SIZE, asAddress(accountId));
+
+        var data = encodeData(EQUIVALENCE_CALL, GET_CODE_SIZE, asAddress(num));
         var functionResult =
                 callContract(nodeType, StringUtils.EMPTY, EQUIVALENCE_CALL, GET_CODE_SIZE, data, BIG_INTEGER_TUPLE);
         assertThat(functionResult.getResultAsNumber()).isEqualTo(BigInteger.ZERO);
     }
 
-    @Then("I verify extcodecopy opcode against a system account {string} num returns empty bytes")
-    public void extCodeCopyAgainstSystemAccount(String num) {
+    @Then("I verify extcodecopy opcode against a system account {long} num returns empty bytes")
+    public void extCodeCopyAgainstSystemAccount(final long num) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        var address = String.format(ACCOUNT_ID_FORMAT, commonProperties.getShard(), commonProperties.getRealm(), num);
-        final var accountId = AccountId.fromString(address);
-        var data = encodeData(EQUIVALENCE_CALL, COPY_CODE, asAddress(accountId));
+
+        var data = encodeData(EQUIVALENCE_CALL, COPY_CODE, asAddress(num));
         var functionResult = callContract(nodeType, StringUtils.EMPTY, EQUIVALENCE_CALL, COPY_CODE, data, BYTES_TUPLE);
         assertThat(functionResult.getResultAsText()).isEmpty();
     }
 
-    @Then("I verify extcodehash opcode against a system account {string} num returns empty bytes")
-    public void extCodeHashAgainstSystemAccount(String num) {
+    @Then("I verify extcodehash opcode against a system account {long} num returns empty bytes")
+    public void extCodeHashAgainstSystemAccount(final long num) {
         var nodeType = acceptanceTestProperties.getNodeType();
-        var address = String.format(ACCOUNT_ID_FORMAT, commonProperties.getShard(), commonProperties.getRealm(), num);
-        final var accountId = AccountId.fromString(address);
-        var data = encodeData(EQUIVALENCE_CALL, GET_CODE_HASH, asAddress(accountId));
+
+        var data = encodeData(EQUIVALENCE_CALL, GET_CODE_HASH, asAddress(num));
         var functionResult =
                 callContract(nodeType, StringUtils.EMPTY, EQUIVALENCE_CALL, GET_CODE_HASH, data, BYTES_TUPLE);
         assertThat(functionResult.getResultAsBytes().toArray()).isEmpty();
