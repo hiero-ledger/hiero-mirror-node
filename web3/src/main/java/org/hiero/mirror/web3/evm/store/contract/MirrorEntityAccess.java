@@ -14,7 +14,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.evm.store.Store.OnMissing;
 import org.hiero.mirror.web3.repository.ContractRepository;
-import org.hiero.mirror.web3.state.service.ContractStateService;
+import org.hiero.mirror.web3.service.ContractStateService;
 import org.hyperledger.besu.datatypes.Address;
 
 @RequiredArgsConstructor
@@ -101,10 +101,12 @@ public class MirrorEntityAccess implements HederaEvmEntityAccess {
             return Bytes.EMPTY;
         }
 
+        var contractId = EntityId.of(entityId);
+
         return store.getHistoricalTimestamp()
                 .map(t -> contractStateService.findStorageByBlockTimestamp(
-                        EntityId.of(entityId), key.trimLeadingZeros().toArrayUnsafe(), t))
-                .orElseGet(() -> contractStateService.findStorage(EntityId.of(entityId), key.toArrayUnsafe()))
+                        contractId, key.trimLeadingZeros().toArrayUnsafe(), t))
+                .orElseGet(() -> contractStateService.findStorage(contractId, key.toArrayUnsafe()))
                 .map(Bytes::wrap)
                 .orElse(Bytes.EMPTY);
     }

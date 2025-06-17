@@ -22,7 +22,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.evm.store.Store.OnMissing;
 import org.hiero.mirror.web3.repository.ContractRepository;
-import org.hiero.mirror.web3.state.service.ContractStateService;
+import org.hiero.mirror.web3.service.ContractStateService;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -40,8 +40,8 @@ class MirrorEntityAccessTest {
     private static final String HEX = ADDRESS.toHexString();
     private static final Bytes BYTES = Bytes.fromHexString(HEX);
     private static final byte[] DATA = BYTES.toArrayUnsafe();
-    private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final Long ENTITY_ID = ENTITY.getId();
+    private static final Optional<Long> timestamp = Optional.of(1234L);
     private static final Address NON_MIRROR_ADDRESS =
             Address.fromHexString("0x23f5e49569a835d7bf9aefd30e4f60cdd570f225");
 

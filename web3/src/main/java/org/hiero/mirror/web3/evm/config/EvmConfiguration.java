@@ -77,13 +77,13 @@ public class EvmConfiguration {
 
     public static final String CACHE_MANAGER_CONTRACT = "contract";
     public static final String CACHE_MANAGER_CONTRACT_SLOTS = "contractSlots";
-    public static final String CACHE_MANAGER_MAX_CONTRACT_SLOTS_PER_CONTRACT = "contractSlotsSize";
     public static final String CACHE_MANAGER_CONTRACT_STATE = "contractState";
     public static final String CACHE_MANAGER_ENTITY = "entity";
     public static final String CACHE_MANAGER_RECORD_FILE_LATEST = "recordFileLatest";
     public static final String CACHE_MANAGER_RECORD_FILE_EARLIEST = "recordFileEarliest";
     public static final String CACHE_MANAGER_RECORD_FILE_INDEX = "recordFileIndex";
     public static final String CACHE_MANAGER_RECORD_FILE_TIMESTAMP = "recordFileTimestamp";
+    public static final String CACHE_MANAGER_SLOTS_PER_CONTRACT = "slotsPerContract";
     public static final String CACHE_MANAGER_SYSTEM_FILE = "systemFile";
     public static final String CACHE_MANAGER_SYSTEM_FILE_MODULARIZED = "systemFileModularized";
     public static final String CACHE_MANAGER_TOKEN = "token";
@@ -131,15 +131,16 @@ public class EvmConfiguration {
         return caffeineCacheManager;
     }
 
-    @Bean(CACHE_MANAGER_MAX_CONTRACT_SLOTS_PER_CONTRACT)
-    public CaffeineCacheManager cacheManagerSlotsPerContract() {
-        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCaffeine(Caffeine.from(cacheProperties.getSlotsPerContract()));
-        return caffeineCacheManager;
+    @Bean(CACHE_MANAGER_CONTRACT_SLOTS)
+    CacheManager cacheManagerContractSlots() {
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+        cacheManager.setCacheNames(Set.of(CACHE_NAME));
+        cacheManager.setCacheSpecification(cacheProperties.getContractSlots());
+        return cacheManager;
     }
 
     @Bean(CACHE_MANAGER_CONTRACT_STATE)
-    CacheManager cacheManagerState() {
+    CacheManager cacheManagerContractState() {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getContractState());
@@ -154,12 +155,11 @@ public class EvmConfiguration {
         return caffeineCacheManager;
     }
 
-    @Bean(CACHE_MANAGER_CONTRACT_SLOTS)
-    CacheManager cacheManagerContractSlots() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
-        cacheManager.setCacheNames(Set.of(CACHE_NAME));
-        cacheManager.setCacheSpecification(cacheProperties.getContractSlots());
-        return cacheManager;
+    @Bean(CACHE_MANAGER_SLOTS_PER_CONTRACT)
+    CaffeineCacheManager cacheManagerSlotsPerContract() {
+        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
+        caffeineCacheManager.setCacheSpecification(cacheProperties.getSlotsPerContract());
+        return caffeineCacheManager;
     }
 
     @Bean(CACHE_MANAGER_TOKEN)

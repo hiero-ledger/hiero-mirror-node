@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.web3.state.service;
+package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import java.nio.ByteBuffer;
@@ -28,12 +28,9 @@ import org.springframework.cache.caffeine.CaffeineCache;
 import org.testcontainers.shaded.org.apache.commons.lang3.RandomUtils;
 
 @RequiredArgsConstructor
-class ContractStateServiceTest extends Web3IntegrationTest {
+final class ContractStateServiceTest extends Web3IntegrationTest {
 
     private static final String EXPECTED_SLOT_VALUE = "test-value";
-
-    @Qualifier(CACHE_MANAGER_CONTRACT_STATE)
-    private final CacheManager cacheManagerContractState;
 
     @Qualifier(CACHE_MANAGER_CONTRACT_SLOTS)
     private final CacheManager cacheManagerContractSlots;
@@ -44,8 +41,6 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
     @BeforeEach
     void setup() {
-        cacheManagerContractState.getCache(CACHE_NAME).clear();
-        cacheManagerContractSlots.getCache(CACHE_NAME).clear();
         cacheProperties.setEnableBatchContractSlotCaching(true);
     }
 
@@ -60,8 +55,10 @@ class ContractStateServiceTest extends Web3IntegrationTest {
         findStorage(contract, contractStates);
         cachedSlots = getCachedSlots(contract);
         assertThat(cachedSlots.size()).isEqualTo(10);
+
         // When
         contractStateRepository.deleteAll();
+
         // Then
         cachedSlots = getCachedSlots(contract);
         assertThat(cachedSlots.size()).isEqualTo(10);
@@ -70,45 +67,47 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     @Test
     void verifyTheOldestEntryInTheCacheIsDeleted() {
         // Given
-        final var maxCacheSize =
-                Integer.parseInt(cacheProperties.getSlotsPerContract().replaceAll(".*maximumSize=(\\d+).*", "$1"));
+        final int maxCacheSize = 10;
+        cacheProperties.setSlotsPerContract("expireAfterAccess=2s,maximumSize=" + maxCacheSize);
         final var contract = persistContract();
 
-        final var firstContractState =
-                persistContractStates(contract.getId(), 1).getFirst();
-        contractStateService.findStorage(contract.toEntityId(), firstContractState.getSlot());
+        final var contractState = persistContractStates(contract.getId(), 1).getFirst();
+        final var slot = ByteBuffer.wrap(contractState.getSlot());
+        final var result = contractStateService.findStorage(contract.toEntityId(), contractState.getSlot());
 
-        var cachedSlots = getCachedSlots(contract);
-        assertThat(cachedSlots.size()).isEqualTo(1);
-        assertThat(cachedSlots.contains(ByteBuffer.wrap(firstContractState.getSlot())))
-                .isTrue();
+        final var cachedSlots = getCachedSlots(contract);
+        assertThat(result).get().isEqualTo(contractState.getValue());
+        assertThat(cachedSlots).asInstanceOf(LIST).hasSize(1).contains(slot);
 
-        List<ContractState> contractStates = persistContractStates(contract.getId(), maxCacheSize);
+        final var contractStates = persistContractStates(contract.getId(), maxCacheSize);
         findStorage(contract, contractStates);
 
-        cachedSlots = getCachedSlots(contract);
-        assertThat(cachedSlots.size()).isEqualTo(maxCacheSize);
-        assertThat(!cachedSlots.contains(ByteBuffer.wrap(firstContractState.getSlot())))
-                .isTrue();
+        assertThat(getCachedSlots(contract))
+                .asInstanceOf(LIST)
+                .hasSize(maxCacheSize)
+                .doesNotContain(slot);
     }
 
     @Test
     void verifyCacheKeysAreNotDuplicated() {
         // Given
         final var contract = persistContract();
-        final var firstContractState =
-                persistContractStates(contract.getId(), 1).getFirst();
-        contractStateService.findStorage(contract.toEntityId(), firstContractState.getSlot());
+        final var contractState = persistContractStates(contract.getId(), 1).getFirst();
+        final var result = contractStateService.findStorage(contract.toEntityId(), contractState.getSlot());
 
         var cachedSlots = getCachedSlots(contract);
+        assertThat(result).get().isEqualTo(contractState.getValue());
         assertThat(cachedSlots.size()).isEqualTo(1);
-        assertThat(cachedSlots.contains(ByteBuffer.wrap(firstContractState.getSlot())))
+        assertThat(cachedSlots.contains(ByteBuffer.wrap(contractState.getSlot())))
                 .isTrue();
+
         // When
-        contractStateService.findStorage(contract.toEntityId(), firstContractState.getSlot());
+        final var result2 = contractStateService.findStorage(contract.toEntityId(), contractState.getSlot());
+
         // Then
+        assertThat(result2).get().isEqualTo(contractState.getValue());
         assertThat(cachedSlots.size()).isEqualTo(1);
-        assertThat(cachedSlots.contains(ByteBuffer.wrap(firstContractState.getSlot())))
+        assertThat(cachedSlots.contains(ByteBuffer.wrap(contractState.getSlot())))
                 .isTrue();
     }
 
@@ -127,6 +126,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
         // Then
         // Assure that the slots cache is filled only when the flag is enabled.
+        assertThat(result).get().isEqualTo(contractState.getValue());
         assertThat(getCacheSizeContractSlot()).isEqualTo(flagEnabled ? contractSlotsCount : 0);
     }
 
@@ -147,7 +147,6 @@ class ContractStateServiceTest extends Web3IntegrationTest {
 
     private ContractState persistContractState(final long contractId, final int index) {
         final var slotKey = generateSlotKey(index);
-
         final byte[] value = (EXPECTED_SLOT_VALUE + index).getBytes();
 
         return domainBuilder
@@ -183,7 +182,7 @@ class ContractStateServiceTest extends Web3IntegrationTest {
     }
 
     public void findStorage(Entity contract, List<ContractState> slotKeyValuePairs) {
-        for (ContractState state : slotKeyValuePairs) {
+        for (final var state : slotKeyValuePairs) {
             final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
             assertThat(result.get()).isEqualTo(state.getValue());
         }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.web3.state.service;
+package org.hiero.mirror.web3.service;
 
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityId;

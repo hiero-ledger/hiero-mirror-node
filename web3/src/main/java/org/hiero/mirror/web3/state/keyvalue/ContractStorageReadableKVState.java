@@ -12,7 +12,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.state.service.ContractStateService;
+import org.hiero.mirror.web3.service.ContractStateService;
 
 @Named
 public class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
