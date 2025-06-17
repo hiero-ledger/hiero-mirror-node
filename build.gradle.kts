@@ -17,12 +17,14 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("grpcVersion", "1.73.0")
-    set("jooq.version", "3.20.4") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.20.5") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.14.0")
     set("postgresql.version", "42.7.7") // Temporary until next Spring Boot version
     set("protobufVersion", "4.31.1")
     set("reactorGrpcVersion", "1.2.4")
+    set("spring-framework.version", "6.2.8") // Temporary until next Spring Boot version
+    set("tomcat.version", "10.1.42") // Temporary until next Spring Boot version
     set("tuweniVersion", "2.3.1")
 }
 
@@ -50,7 +52,7 @@ dependencies {
         api("com.hedera.hashgraph:app:0.63.5")
         api("com.hedera.evm:hedera-evm:0.54.2")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:0.63.5")
-        api("com.hedera.hashgraph:sdk:2.57.0")
+        api("com.hedera.hashgraph:sdk:2.58.0")
         api("com.ongres.scram:client:2.1")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.11.0")
@@ -58,7 +60,7 @@ dependencies {
         api("io.cucumber:cucumber-bom:7.23.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-63:3.9.11")
+        api("io.hypersistence:hypersistence-utils-hibernate-63:3.10.1")
         api("io.projectreactor:reactor-core-micrometer:1.2.7")
         api("io.swagger:swagger-annotations:1.6.16")
         api("jakarta.inject:jakarta.inject-api:2.0.1")

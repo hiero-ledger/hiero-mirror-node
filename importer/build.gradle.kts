@@ -56,7 +56,9 @@ dependencies {
     testImplementation("org.apache.commons:commons-math3")
     testImplementation("org.awaitility:awaitility")
     testImplementation("org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api") // Used by s3proxy
-    testImplementation("org.gaul:s3proxy")
+    testImplementation("org.gaul:s3proxy") {
+        exclude(group = "org.apache.commons", module = "commons-fileupload2-javax")
+    }
     testImplementation("org.junit.platform:junit-platform-launcher")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql")
