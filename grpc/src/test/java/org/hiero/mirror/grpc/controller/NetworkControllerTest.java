@@ -79,7 +79,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
     @Test
     void notFound() {
         AddressBookQuery query = AddressBookQuery.newBuilder()
-                .setFileId(FileID.newBuilder().setFileNum(102L).build())
+                .setFileId(domainBuilder.entityNum(102L).toFileID())
                 .build();
 
         StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
@@ -94,9 +94,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
         AddressBookEntry addressBookEntry1 = addressBookEntry();
         AddressBookEntry addressBookEntry2 = addressBookEntry();
         AddressBookQuery query = AddressBookQuery.newBuilder()
-                .setFileId(FileID.newBuilder()
-                        .setFileNum(addressBook.getFileId().getNum())
-                        .build())
+                .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
         StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
@@ -113,9 +111,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
         var addressBookEntry1 = addressBookEntryCustomized("www.example-node.com", "", 5000);
 
         var query = AddressBookQuery.newBuilder()
-                .setFileId(FileID.newBuilder()
-                        .setFileNum(addressBook.getFileId().getNum())
-                        .build())
+                .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
         StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
@@ -131,9 +127,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
         var addressBookEntry1 = addressBookEntryCustomized("", "", 0);
 
         var query = AddressBookQuery.newBuilder()
-                .setFileId(FileID.newBuilder()
-                        .setFileNum(addressBook.getFileId().getNum())
-                        .build())
+                .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
         StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
@@ -149,9 +143,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
         AddressBookEntry addressBookEntry1 = addressBookEntry();
         addressBookEntry();
         AddressBookQuery query = AddressBookQuery.newBuilder()
-                .setFileId(FileID.newBuilder()
-                        .setFileNum(addressBook.getFileId().getNum())
-                        .build())
+                .setFileId(addressBook.getFileId().toFileID())
                 .setLimit(1)
                 .build();
 
@@ -176,9 +168,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
                         .stake(null))
                 .persist();
         AddressBookQuery query = AddressBookQuery.newBuilder()
-                .setFileId(FileID.newBuilder()
-                        .setFileNum(addressBook.getFileId().getNum())
-                        .build())
+                .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
         StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))

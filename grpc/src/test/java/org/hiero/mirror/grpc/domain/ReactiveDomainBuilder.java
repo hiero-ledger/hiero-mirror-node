@@ -116,6 +116,10 @@ public class ReactiveDomainBuilder {
         return Mono.just(transaction);
     }
 
+    public EntityId entityId() {
+        return domainBuilder.entityId();
+    }
+
     private Mono<Entity> insert(Entity entity) {
         return Mono.defer(() -> Mono.just(entityRepository.save(entity))).doOnNext(t -> log.trace("Inserted: {}", t));
     }
