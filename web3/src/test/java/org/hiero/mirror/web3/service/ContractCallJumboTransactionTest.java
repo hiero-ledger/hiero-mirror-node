@@ -4,13 +4,13 @@ package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSACTION_OVERSIZE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hedera.node.config.data.JumboTransactionsConfig;
 import org.hiero.mirror.common.exception.MirrorNodeException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.JumboTransaction;
-import org.hiero.mirror.web3.web3j.generated.NestedCalls;
 import org.junit.jupiter.api.Test;
 
 class ContractCallJumboTransactionTest extends AbstractContractCallServiceTest {
@@ -24,7 +24,7 @@ class ContractCallJumboTransactionTest extends AbstractContractCallServiceTest {
     void testJumboTransactionHappyPath() {
         // Given
         final var jumboPayload = new byte[JUMBO_PAYLOAD];
-        final var contract = testWeb3jService.deploy(JumboTransaction::deploy);
+        final var contract = testWeb3jService.deployWithInput(JumboTransaction::deploy, new byte[0]);
         // When
         final var functionCall = contract.send_consumeLargeCalldata(jumboPayload);
         // Then
@@ -35,11 +35,31 @@ class ContractCallJumboTransactionTest extends AbstractContractCallServiceTest {
     void testJumboContractCreate() {
         // Given
         testWeb3jService.setUseContractCallDeploy(true);
+        final var jumboPayload = new byte[JUMBO_PAYLOAD];
         // When
-        // 12 kb deploy
-        final var contract = testWeb3jService.deploy(NestedCalls::deploy);
+        final var contract = testWeb3jService.deployWithInput(JumboTransaction::deploy, jumboPayload);
         // Then
         assertThat(contract.getContractAddress()).isNotNull();
+    }
+
+    @Test
+    void testJumboContractCreateOverMaxSize() {
+        // Given
+        testWeb3jService.setUseContractCallDeploy(true);
+        final int maxDataSize = mirrorNodeEvmProperties
+                .getVersionedConfiguration()
+                .getConfigData(JumboTransactionsConfig.class)
+                .ethereumMaxCallDataSize();
+        byte[] jumboPayload;
+        if (!mirrorNodeEvmProperties.isModularizedServices()) {
+            // mono requires a little bit larger call data for deploy to fail
+            jumboPayload = new byte[maxDataSize + JUMBO_PAYLOAD];
+        } else {
+            jumboPayload = new byte[maxDataSize];
+        }
+        // Then
+        assertThatThrownBy(() -> testWeb3jService.deployWithInput(JumboTransaction::deploy, jumboPayload))
+                .isInstanceOf(Exception.class);
     }
 
     @Test
@@ -50,7 +70,7 @@ class ContractCallJumboTransactionTest extends AbstractContractCallServiceTest {
                 .getConfigData(JumboTransactionsConfig.class)
                 .ethereumMaxCallDataSize();
         final var jumboPayload = new byte[maxDataSize];
-        final var contract = testWeb3jService.deploy(JumboTransaction::deploy);
+        final var contract = testWeb3jService.deployWithInput(JumboTransaction::deploy, new byte[0]);
         // When
         final var functionCall = contract.call_consumeLargeCalldata(jumboPayload);
         // Тhen

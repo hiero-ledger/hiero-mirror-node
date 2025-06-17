@@ -145,6 +145,11 @@ public class TestWeb3jService implements Web3jService {
         return deployer.deploy(web3j, credentials, contractGasProvider, value).send();
     }
 
+    @SneakyThrows(Exception.class)
+    public <T extends Contract> T deployWithInput(DeployerWithInput<T> deployer, byte[] input) {
+        return deployer.deploy(web3j, credentials, contractGasProvider, input).send();
+    }
+
     @Override
     public <T extends Response> T send(Request request, Class<T> responseType) {
         final var method = request.getMethod();
@@ -415,6 +420,11 @@ public class TestWeb3jService implements Web3jService {
     public interface DeployerWithValue<T extends Contract> {
         RemoteCall<T> deploy(
                 Web3j web3j, Credentials credentials, ContractGasProvider contractGasProvider, BigInteger value);
+    }
+
+    public interface DeployerWithInput<T extends Contract> {
+        RemoteCall<T> deploy(
+                Web3j web3j, Credentials credentials, ContractGasProvider contractGasProvider, byte[] input);
     }
 
     @TestConfiguration(proxyBeanMethods = false)
