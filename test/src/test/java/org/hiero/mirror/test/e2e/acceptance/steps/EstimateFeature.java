@@ -47,10 +47,12 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.Contrac
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.WRONG_METHOD_SIGNATURE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.IS_TOKEN_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.extractTransactionId;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.to32BytesString;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.esaulpaugh.headlong.abi.Address;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
@@ -103,6 +105,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     private String mockAddress;
     byte[] addressSelector;
     private TokenId fungibleTokenId;
+    private Address fungibleTokenAddress;
     private ExpandedAccountId receiverAccountId;
     private AccountId senderAccountId;
 
@@ -110,7 +113,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void createNewEstimateContract() {
         deployedContract = getContract(ESTIMATE_GAS);
         estimateGasContractId = deployedContract.contractId();
-        contractSolidityAddress = deployedContract.contractId().toSolidityAddress();
+        contractSolidityAddress = asHexAddress(deployedContract.contractId());
         receiverAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
         senderAccountId =
                 accountClient.getSdkClient().getExpandedOperatorAccountId().getAccountId();
@@ -120,6 +123,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void createFungibleToken() {
         var tokenResponse = tokenClient.getToken(FUNGIBLE);
         fungibleTokenId = tokenResponse.tokenId();
+        fungibleTokenAddress = asAddress(fungibleTokenId);
         if (tokenResponse.response() != null) {
             networkTransactionResponse = tokenResponse.response();
             verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -134,7 +138,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Given("I successfully create ERC contract from contract bytes")
     public void createNewERCContract() {
         deployedERCContract = getContract(ERC);
-        ercSolidityAddress = deployedERCContract.contractId().toSolidityAddress();
+        ercSolidityAddress = asAddress(deployedERCContract.contractId()).toString();
         ercContractId = deployedERCContract.contractId();
     }
 
@@ -610,7 +614,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void ierc20TransferWithLongZeroAddressForReceiver() throws ExecutionException, InterruptedException {
         if (!web3Properties.isModularizedServices()) {
             final var parameters = new ContractFunctionParameters()
-                    .addAddress(asAddress(fungibleTokenId).toString())
+                    .addAddress(fungibleTokenAddress.toString())
                     .addAddress(asAddress(receiverAccountId).toString())
                     .addUint256(new BigInteger("5"));
 
@@ -627,7 +631,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void ierc20TransferWithEvmAddressForReceiver() throws InterruptedException, ExecutionException {
         var accountInfo = mirrorClient.getAccountDetailsByAccountId(receiverAccountId.getAccountId());
         final var parameters = new ContractFunctionParameters()
-                .addAddress(asAddress(fungibleTokenId).toString())
+                .addAddress(fungibleTokenAddress.toString())
                 .addAddress(
                         asAddress(accountInfo.getEvmAddress().replace("0x", "")).toString())
                 .addUint256(BigInteger.ONE);
@@ -644,7 +648,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void ierc20ApproveWithEvmAddressForReceiver() throws ExecutionException, InterruptedException {
         var accountInfo = mirrorClient.getAccountDetailsByAccountId(receiverAccountId.getAccountId());
         final var parameters = new ContractFunctionParameters()
-                .addAddress(asAddress(fungibleTokenId).toString())
+                .addAddress(fungibleTokenAddress.toString())
                 .addAddress(
                         asAddress(accountInfo.getEvmAddress().replace("0x", "")).toString())
                 .addUint256(BigInteger.ONE);
@@ -662,7 +666,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         var contractCallRequest = ModelBuilder.contractCallRequest(IERC20_TOKEN_ASSOCIATE.getActualGas())
                 .data(encodeData(IERC20_TOKEN_ASSOCIATE))
                 .estimate(true)
-                .to(fungibleTokenId.toSolidityAddress());
+                .to(fungibleTokenAddress.toString());
 
         var msgSenderResponse = mirrorClient.contractsCall(contractCallRequest);
 
@@ -678,7 +682,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         var contractCallRequest = ModelBuilder.contractCallRequest(IERC20_TOKEN_DISSOCIATE.getActualGas())
                 .data(encodeData(IERC20_TOKEN_DISSOCIATE))
                 .estimate(true)
-                .to(fungibleTokenId.toSolidityAddress());
+                .to(fungibleTokenAddress.toString());
 
         var msgSenderResponse = mirrorClient.contractsCall(contractCallRequest);
 
@@ -870,7 +874,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
 
     @Then("I execute contractCall for failing precompile function and verify gasConsumed")
     public void failingPrecompileFunction() {
-        gasConsumedSelector = encodeDataToByteArray(PRECOMPILE, IS_TOKEN_SELECTOR, asAddress(fungibleTokenId));
+        gasConsumedSelector = encodeDataToByteArray(PRECOMPILE, IS_TOKEN_SELECTOR, fungibleTokenAddress);
         var txId = executeContractTransaction(deployedPrecompileContract, 25400L, IS_TOKEN_SELECTOR);
         verifyGasConsumed(txId);
     }

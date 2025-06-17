@@ -115,11 +115,13 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeatu
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.TokenTransferListBuilder;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.accountAmount;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asByteArray;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asLongArray;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nftAmount;
 
+import com.esaulpaugh.headlong.abi.Address;
 import com.esaulpaugh.headlong.abi.Tuple;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -215,7 +217,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I create erc test contract with 0 balance")
     public void createNewERCContract() {
         deployedErcTestContract = getContract(ERC);
-        ercTestContractSolidityAddress = deployedErcTestContract.contractId().toSolidityAddress();
+        ercTestContractSolidityAddress = asHexAddress(deployedErcTestContract.contractId());
         ercTestContractId = deployedErcTestContract.contractId();
     }
 
@@ -228,7 +230,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void createNewPrecompileTestContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
         precompileTestContractSolidityAddress =
-                deployedPrecompileContract.contractId().toSolidityAddress();
+                asHexAddress(deployedPrecompileContract.contractId());
         precompileContractId = deployedPrecompileContract.contractId();
     }
 
@@ -704,7 +706,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(secondReceiverAddressString)
                 .addAddressArray(new String[] {
-                    fungibleTokenId.toSolidityAddress(), fungibleKycUnfrozenTokenId.toSolidityAddress()
+                    fungibleTokenAddressString, fungibleKycUnfrozenTokenIdAddressString
                 });
 
         validateGasEstimation(
@@ -721,7 +723,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(secondReceiverAddressString)
                 .addAddressArray(new String[] {
-                    nonFungibleKycUnfrozenTokenId.toSolidityAddress(), nonFungibleTokenId.toSolidityAddress()
+                    nonFungibleKycUnfrozenAddressString, nonFungibleTokenAddressString
                 });
         validateGasEstimation(
                 estimatePrecompileContractId,
@@ -741,7 +743,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(receiverAccountAlias)
                 .addAddressArray(new String[] {
-                    fungibleTokenId.toSolidityAddress(), fungibleKycUnfrozenTokenId.toSolidityAddress()
+                    fungibleTokenAddressString, fungibleKycUnfrozenTokenIdAddressString
                 });
 
         validateGasEstimation(
@@ -762,7 +764,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(receiverAccountAlias)
                 .addAddressArray(new String[] {
-                    nonFungibleKycUnfrozenTokenId.toSolidityAddress(), nonFungibleTokenId.toSolidityAddress()
+                    nonFungibleKycUnfrozenAddressString, nonFungibleTokenAddressString
                 });
 
         validateGasEstimation(
@@ -785,10 +787,9 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var parameters = new ContractFunctionParameters()
                 .addAddress(fungibleTokenAddressString)
                 .addAddressArray(new String[] {
-                    asAddress(admin.getAccountId().toSolidityAddress()).toString(),
+                    adminAddressString,
                     receiverAccountAlias,
-                    asAddress(secondReceiverAccount.getAccountId().toSolidityAddress())
-                            .toString()
+                    secondReceiverAddressString
                 })
                 .addInt64Array(new long[] {-6L, 3L, 3L});
 
@@ -811,19 +812,16 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with transferNFTs function")
     public void transferNFTsEstimateGas() throws ExecutionException, InterruptedException {
-        final var adminAccountAddress =
-                asAddress(admin.getAccountId().toSolidityAddress()).toString();
-
         // In the modularized scenario the number of senders needs to correspond to the number of receivers.
         final var sendersList = web3Properties.isModularizedServices()
-                ? new String[] {adminAccountAddress, adminAccountAddress}
-                : new String[] {adminAccountAddress};
+                ? new String[] {adminAddressString, adminAddressString}
+                : new String[] {adminAddressString};
 
         var parameters = new ContractFunctionParameters()
                 .addAddress(nonFungibleTokenAddressString)
                 .addAddressArray(sendersList)
                 .addAddressArray(new String[] {
-                    receiverAccountAlias, secondReceiverAccount.getAccountId().toSolidityAddress()
+                    receiverAccountAlias, secondReceiverAddressString
                 })
                 .addInt64Array(new long[] {1, 2});
 
@@ -837,7 +835,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with cryptoTransfer function for hbars")
     public void cryptoTransferHbarEstimateGas() throws ExecutionException, InterruptedException {
-        var senderTransfer = accountAmount(admin.getAccountId().toSolidityAddress(), -10L, false);
+        var senderTransfer = accountAmount(adminAddressString, -10L, false);
         var receiverTransfer = accountAmount(receiverAccountAlias, 10L, false);
         var args = Tuple.of((Object) new Tuple[] {senderTransfer, receiverTransfer});
 
@@ -862,9 +860,9 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var methodInterface = getFlaggedValue(CRYPTO_TRANSFER_NFT);
         var tokenTransferList = (Object) new Tuple[] {
             tokenTransferList()
-                    .forToken(nonFungibleTokenId.toSolidityAddress())
+                    .forToken(nonFungibleTokenAddressString)
                     .withNftTransfers(
-                            nftAmount(admin.getAccountId().toSolidityAddress(), receiverAccountAlias, 1L, false))
+                            nftAmount(adminAddressString, receiverAccountAlias, 1L, false))
                     .build()
         };
         var dataByteArray = encodeDataToByteArray(
@@ -883,10 +881,10 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void cryptoTransferFungibleEstimateGas() throws ExecutionException, InterruptedException {
         var tokenTransferList = (Object) new Tuple[] {
             tokenTransferList()
-                    .forToken(fungibleTokenId.toSolidityAddress())
+                    .forToken(fungibleTokenAddressString)
                     .withAccountAmounts(
-                            accountAmount(admin.getAccountId().toSolidityAddress(), -3L, false),
-                            accountAmount(secondReceiverAccount.getAccountId().toSolidityAddress(), 3L, false))
+                            accountAmount(adminAddressString, -3L, false),
+                            accountAmount(secondReceiverAddressString, 3L, false))
                     .build()
         };
         var dataByteArray = encodeDataToByteArray(
