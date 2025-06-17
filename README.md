@@ -127,7 +127,7 @@ For detailed instructions on setting up a local development environment refer to
 [Development Guide](docs/development.md).
 
 Our role guidelines can be found under **[Hiero-Ledger's roles and groups guidelines](https://github.com/hiero-ledger/governance/blob/main/roles-and-groups.md#maintainers).**
- 
+
 ## Code of Conduct
 
 Hiero uses the Linux Foundation Decentralised Trust [Code of Conduct](https://www.lfdecentralizedtrust.org/code-of-conduct).
