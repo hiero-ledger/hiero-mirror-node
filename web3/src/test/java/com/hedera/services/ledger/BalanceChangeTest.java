@@ -22,12 +22,12 @@ import org.junit.jupiter.api.Test;
 
 class BalanceChangeTest {
     private final DomainBuilder domainBuilder = new DomainBuilder();
-    private final Id t = EntityIdUtils.idFromEntityId(domainBuilder.entityNum(3L));
+    private final Id t = EntityIdUtils.idFromEntityId(domainBuilder.entityId());
     private final long delta = -1_234L;
     private final long serialNo = 1234L;
-    private final AccountID a = domainBuilder.entityNum(3L).toAccountID();
-    private final AccountID b = domainBuilder.entityNum(4L).toAccountID();
-    private final AccountID payer = domainBuilder.entityNum(1234L).toAccountID();
+    private final AccountID a = domainBuilder.entityId().toAccountID();
+    private final AccountID b = domainBuilder.entityId().toAccountID();
+    private final AccountID payer = domainBuilder.entityId().toAccountID();
 
     @Test
     void objectContractSanityChecks() {
@@ -106,7 +106,7 @@ class BalanceChangeTest {
 
     @Test
     void canReplaceAlias() {
-        final var created = domainBuilder.entityNum(1234).toAccountID();
+        final var created = domainBuilder.entityId().toAccountID();
         final var anAlias = ByteString.copyFromUtf8("abcdefg");
         final var subject = BalanceChange.changingHbar(
                 AccountAmount.newBuilder()
@@ -123,10 +123,10 @@ class BalanceChangeTest {
 
     @Test
     void canReplaceCounterpartyAlias() {
-        final var created = domainBuilder.entityNum(1234).toAccountID();
+        final var created = domainBuilder.entityId().toAccountID();
         final var anAlias = ByteString.copyFromUtf8("abcdefg");
         final var xfer = NftTransfer.newBuilder()
-                .setSenderAccountID(domainBuilder.entityNum(2000L).toAccountID())
+                .setSenderAccountID(domainBuilder.entityId().toAccountID())
                 .setReceiverAccountID(asAccountWithAlias(String.valueOf(anAlias)))
                 .setSerialNumber(serialNo)
                 .setIsApproval(true)
@@ -144,7 +144,7 @@ class BalanceChangeTest {
 
     @Test
     void replacedAlias() {
-        final var created = domainBuilder.entityNum(1234).toAccountID();
+        final var created = domainBuilder.entityId().toAccountID();
         final var anAlias = ByteString.copyFromUtf8("abcdefg");
         final var subject = BalanceChange.changingHbar(
                 AccountAmount.newBuilder()

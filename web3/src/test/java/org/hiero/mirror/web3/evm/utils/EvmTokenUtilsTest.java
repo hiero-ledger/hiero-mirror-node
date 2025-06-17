@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.evm.utils;
 
+import static com.hedera.services.utils.EntityIdUtils.asHexedEvmAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
@@ -11,6 +12,7 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 
@@ -20,17 +22,15 @@ class EvmTokenUtilsTest {
 
     @Test
     void toAddress() {
-        var contractId = domainBuilder.entityNum(120L).toContractID();
-        byte[] contractAddress = new byte[20];
-        contractAddress[19] = (byte) contractId.getContractNum();
+        var contractId = domainBuilder.entityId().toContractID();
+        byte[] contractAddress = DomainUtils.toEvmAddress(contractId);
 
         assertThat(EvmTokenUtils.toAddress(contractId).toArrayUnsafe()).isEqualTo(contractAddress);
         assertThat(EvmTokenUtils.toAddress(EntityId.of(contractId).getId()).toArrayUnsafe())
                 .isEqualTo(contractAddress);
 
-        var accountId = domainBuilder.entityNum(220L);
-        byte[] accountAddress = new byte[20];
-        accountAddress[19] = (byte) accountId.getNum();
+        var accountId = domainBuilder.entityId();
+        byte[] accountAddress = DomainUtils.toEvmAddress(accountId);
 
         assertThat(EvmTokenUtils.toAddress(accountId).toArrayUnsafe()).isEqualTo(accountAddress);
         assertThat(EvmTokenUtils.toAddress(accountId.getId()).toArrayUnsafe()).isEqualTo(accountAddress);
@@ -108,15 +108,15 @@ class EvmTokenUtilsTest {
 
     @Test
     void entityIdNumFromAddress() {
-        final var contractAddress = Address.fromHexString("0x00000000000000000000000000000000000004c5");
-        final var entityId = domainBuilder.entityNum(1221L);
+        final var entityId = domainBuilder.entityId();
+        final var contractAddress = Address.fromHexString(asHexedEvmAddress(entityId.getNum()));
         assertThat(EvmTokenUtils.entityIdNumFromEvmAddress(contractAddress)).isEqualTo(entityId.getId());
     }
 
     @Test
     void entityIdFromAddress() {
-        final var contractAddress = Address.fromHexString("0x00000000000000000000000000000000000004c5");
-        final var entityId = domainBuilder.entityNum(1221L);
+        final var entityId = domainBuilder.entityId();
+        final var contractAddress = Address.fromHexString(asHexedEvmAddress(entityId.getNum()));
 
         assertThat(EvmTokenUtils.entityIdFromEvmAddress(contractAddress)).isEqualTo(entityId);
     }

@@ -367,7 +367,7 @@ class TokenCreateWrapperTest {
 
     @Test
     void autoRenewAccountIsCheckedAsExpected() {
-        final var renewAccount = domainBuilder.entityNum(10L).toAccountID();
+        final var renewAccount = domainBuilder.entityId().toAccountID();
         final var wrapper = createTokenCreateWrapperWithKeys(Collections.emptyList());
         assertTrue(wrapper.hasAutoRenewAccount());
         assertEquals(payer, wrapper.getExpiry().autoRenewAccount());

@@ -52,10 +52,11 @@ class EntityNumTest {
 
     @Test
     void factoriesWorkForInvalidShard() {
+        var entityId = domainBuilder.entityId();
         assertEquals(MISSING_NUM, EntityNum.fromAccountId(IdUtils.asAccount("1.0.123")));
         assertEquals(MISSING_NUM, EntityNum.fromId(new Id(-1, 0, 1)));
         assertEquals(
-                EntityNum.fromEntityId(domainBuilder.entityNum(123L)),
-                EntityNum.fromEvmAddress(Address.wrap(Bytes.wrap(DomainUtils.toEvmAddress(123)))));
+                EntityNum.fromEntityId(entityId),
+                EntityNum.fromEvmAddress(Address.wrap(Bytes.wrap(DomainUtils.toEvmAddress(entityId.getNum())))));
     }
 }

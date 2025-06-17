@@ -94,7 +94,8 @@ class ERCTransferPrecompileTest {
         final var decodedInput = decodeERCTransferFrom(
                 HAPI_TRANSFER_FROM_FUNGIBLE_INPUT, null, tokenAccessor, notOwner, identity(), x -> true);
         final var fungibleTransfer = decodedInput.tokenTransferWrappers().get(0).fungibleTransfers();
-        assertEquals(HTSTestsUtil.token, fungibleTransfer.get(0).getDenomination());
+        assertEquals(
+                domainBuilder.entityNum(1L).toTokenID(), fungibleTransfer.get(0).getDenomination());
         assertEquals(
                 fungibleTransfer.get(1).sender(), domainBuilder.entityNum(1450L).toAccountID());
         assertTrue(fungibleTransfer.get(1).isApproval());

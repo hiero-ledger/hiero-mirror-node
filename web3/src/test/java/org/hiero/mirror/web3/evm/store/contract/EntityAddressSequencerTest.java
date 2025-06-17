@@ -21,7 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class EntityAddressSequencerTest {
     private static final DomainBuilder domainBuilder = new DomainBuilder();
     private static final long CONTRACT_NUM = 1_000_000_000L;
-    private static final EntityId sponsorEntity = domainBuilder.entityNum(CONTRACT_NUM);
+    private static final EntityId sponsorEntity = domainBuilder.entityId();
     private static final Address sponsor =
             EntityIdUtils.idFromEntityId(sponsorEntity).asEvmAddress();
 

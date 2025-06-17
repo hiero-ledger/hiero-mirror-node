@@ -53,13 +53,12 @@ class TransferLogicTest {
 
     private final long initialAllowance = 100L;
 
-    private final AccountID payer = domainBuilder.entityNum(12345L).toAccountID();
-    private final AccountID owner = domainBuilder.entityNum(12347L).toAccountID();
-    private final TokenID fungibleTokenID = domainBuilder.entityNum(1234L).toTokenID();
-    private final TokenID anotherFungibleTokenID =
-            domainBuilder.entityNum(12345L).toTokenID();
-    private final TokenID nonFungibleTokenID = domainBuilder.entityNum(1235L).toTokenID();
-    private final AccountID revokedSpender = domainBuilder.entityNum(12346L).toAccountID();
+    private final AccountID payer = domainBuilder.entityId().toAccountID();
+    private final AccountID owner = domainBuilder.entityId().toAccountID();
+    private final TokenID fungibleTokenID = domainBuilder.entityId().toTokenID();
+    private final TokenID anotherFungibleTokenID = domainBuilder.entityId().toTokenID();
+    private final TokenID nonFungibleTokenID = domainBuilder.entityId().toTokenID();
+    private final AccountID revokedSpender = domainBuilder.entityId().toAccountID();
     private final EntityNum payerNum = EntityNum.fromAccountId(payer);
 
     private final FcTokenAllowanceId fungibleAllowanceId =
@@ -225,8 +224,8 @@ class TransferLogicTest {
 
     @Test
     void happyPathNFTAllowance() {
-        final var nftId1 = withDefaultShardRealm(nonFungibleTokenID.getTokenNum(), 1L);
-        final var nftId2 = withDefaultShardRealm(nonFungibleTokenID.getTokenNum(), 2L);
+        final var nftId1 = withDefaultShardRealm(nonFungibleTokenID, 1L);
+        final var nftId2 = withDefaultShardRealm(nonFungibleTokenID, 2L);
         final var change1 = BalanceChange.changingNftOwnership(
                 Id.fromGrpcToken(nonFungibleTokenID),
                 nonFungibleTokenID,
@@ -250,7 +249,7 @@ class TransferLogicTest {
         given(hederaTokenStore.tryTokenChange(change3)).willReturn(OK);
         given(store.getUniqueToken(nftId1, OnMissing.THROW)).willReturn(spyNft);
         given(store.getUniqueToken(nftId2, OnMissing.THROW)).willReturn(spyNft);
-        given(store.getUniqueToken(withDefaultShardRealm(nonFungibleTokenID.getTokenNum(), 123L), OnMissing.THROW))
+        given(store.getUniqueToken(withDefaultShardRealm(nonFungibleTokenID, 123L), OnMissing.THROW))
                 .willReturn(spyNft);
 
         assertDoesNotThrow(() -> subject.doZeroSum(List.of(change1, change2, change3), store, ids, hederaTokenStore));
@@ -290,8 +289,7 @@ class TransferLogicTest {
                 .build();
     }
 
-    private static NftId withDefaultShardRealm(final long num, final long serialNo) {
-        var entityId = domainBuilder.entityNum(num);
-        return new NftId(entityId.getShard(), entityId.getRealm(), num, serialNo);
+    private static NftId withDefaultShardRealm(final TokenID tokenID, final long serialNo) {
+        return new NftId(tokenID.getShardNum(), tokenID.getRealmNum(), tokenID.getTokenNum(), serialNo);
     }
 }

@@ -83,12 +83,12 @@ class ApproveAllowanceChecksTest {
 
     ApproveAllowanceChecks subject;
 
-    private final AccountID spender1 = domainBuilder.entityNum(123L).toAccountID();
-    private final AccountID spender2 = domainBuilder.entityNum(1234L).toAccountID();
-    private final TokenID token1 = domainBuilder.entityNum(100L).toTokenID();
-    private final TokenID token2 = domainBuilder.entityNum(200L).toTokenID();
-    private final AccountID ownerId1 = domainBuilder.entityNum(5000L).toAccountID();
-    private final AccountID payer = domainBuilder.entityNum(3000L).toAccountID();
+    private final AccountID spender1 = domainBuilder.entityId().toAccountID();
+    private final AccountID spender2 = domainBuilder.entityId().toAccountID();
+    private final TokenID token1 = domainBuilder.entityId().toTokenID();
+    private final TokenID token2 = domainBuilder.entityId().toTokenID();
+    private final AccountID ownerId1 = domainBuilder.entityId().toAccountID();
+    private final AccountID payer = domainBuilder.entityId().toAccountID();
     private final Id tokenId1 = Id.fromGrpcToken(token1);
     private final Id tokenId2 = Id.fromGrpcToken(token2);
 

@@ -60,11 +60,11 @@ class ApproveAllowanceLogicTest {
 
     private static final long SERIAL_1 = 1L;
     private static final long SERIAL_2 = 10L;
-    private static final AccountID SPENDER_1 = domainBuilder.entityNum(123L).toAccountID();
-    private static final TokenID TOKEN_1 = domainBuilder.entityNum(100L).toTokenID();
-    private static final TokenID TOKEN_2 = domainBuilder.entityNum(200L).toTokenID();
-    private static final AccountID PAYER_ID = domainBuilder.entityNum(5000L).toAccountID();
-    private static final AccountID OWNER_ID = domainBuilder.entityNum(6000L).toAccountID();
+    private static final AccountID SPENDER_1 = domainBuilder.entityId().toAccountID();
+    private static final TokenID TOKEN_1 = domainBuilder.entityId().toTokenID();
+    private static final TokenID TOKEN_2 = domainBuilder.entityId().toTokenID();
+    private static final AccountID PAYER_ID = domainBuilder.entityId().toAccountID();
+    private static final AccountID OWNER_ID = domainBuilder.entityId().toAccountID();
     private static final Id TOKEN_ID_1 = Id.fromGrpcToken(TOKEN_1);
     private static final Id TOKEN_ID_2 = Id.fromGrpcToken(TOKEN_2);
     private static final Id SPENDER_ID_1 = fromGrpcAccount(SPENDER_1);

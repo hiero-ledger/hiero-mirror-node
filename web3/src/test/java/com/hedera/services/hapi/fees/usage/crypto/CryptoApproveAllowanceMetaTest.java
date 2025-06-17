@@ -10,23 +10,28 @@ import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.*;
 import java.util.*;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class CryptoApproveAllowanceMetaTest {
     private final DomainBuilder domainBuilder = new DomainBuilder();
-    private final AccountID proxy = domainBuilder.entityNum(1234L).toAccountID();
+    private final EntityId proxy = domainBuilder.entityId();
+    private final AccountID proxyAccountId = proxy.toAccountID();
+    private final EntityId tokenId = domainBuilder.entityId();
 
-    private final CryptoAllowance cryptoAllowances =
-            CryptoAllowance.newBuilder().setSpender(proxy).setAmount(10L).build();
-    private final TokenAllowance tokenAllowances = TokenAllowance.newBuilder()
-            .setSpender(proxy)
+    private final CryptoAllowance cryptoAllowances = CryptoAllowance.newBuilder()
+            .setSpender(proxyAccountId)
             .setAmount(10L)
-            .setTokenId(domainBuilder.entityNum(1000L).toTokenID())
+            .build();
+    private final TokenAllowance tokenAllowances = TokenAllowance.newBuilder()
+            .setSpender(proxyAccountId)
+            .setAmount(10L)
+            .setTokenId(tokenId.toTokenID())
             .build();
     private final NftAllowance nftAllowances = NftAllowance.newBuilder()
-            .setSpender(proxy)
-            .setTokenId(domainBuilder.entityNum(1000L).toTokenID())
+            .setSpender(proxyAccountId)
+            .setTokenId(tokenId.toTokenID())
             .addAllSerialNumbers(List.of(1L, 2L, 3L))
             .build();
     private Map<EntityNum, Long> cryptoAllowancesMap = new HashMap<>();
@@ -42,13 +47,12 @@ class CryptoApproveAllowanceMetaTest {
 
     @Test
     void allGettersAndToStringWork() {
-        var shardRealmEntity = domainBuilder.entityNum(1);
         final var expected = String.format(
-                "CryptoApproveAllowanceMeta{cryptoAllowances={EntityNum{value=%1$d.%2$d.1234}=10},"
-                        + " tokenAllowances={AllowanceId{tokenId=%1$d.%2$d.1000, spenderId=%1$d.%2$d.1234}=10},"
-                        + " nftAllowances=[AllowanceId{tokenId=%1$d.%2$d.1000, spenderId=%1$d.%2$d.1234}],"
+                "CryptoApproveAllowanceMeta{cryptoAllowances={EntityNum{value=%1$s}=10},"
+                        + " tokenAllowances={AllowanceId{tokenId=%2$s, spenderId=%1$s}=10},"
+                        + " nftAllowances=[AllowanceId{tokenId=%2$s, spenderId=%1$s}],"
                         + " effectiveNow=1234567, msgBytesUsed=112}",
-                shardRealmEntity.getShard(), shardRealmEntity.getRealm());
+                proxy, tokenId);
         final var now = 1_234_567;
         final var subject = CryptoApproveAllowanceMeta.newBuilder()
                 .msgBytesUsed(112)
@@ -81,17 +85,15 @@ class CryptoApproveAllowanceMetaTest {
                 + (op.getNftAllowancesCount() * NFT_ALLOWANCE_SIZE)
                 + countSerials(op.getNftAllowancesList()) * LONG_SIZE;
 
-        final var token = domainBuilder.entityNum(1000L).toTokenID();
-
         assertEquals(expectedMsgBytes, subject.getMsgBytesUsed());
 
         final var expectedCryptoMap = new HashMap<>();
         final var expectedTokenMap = new HashMap<>();
         final var expectedNfts = new HashSet<>();
 
-        expectedCryptoMap.put(EntityNum.fromAccountId(proxy), 10L);
-        expectedTokenMap.put(new AllowanceId(token, proxy), 10L);
-        expectedNfts.add(new AllowanceId(token, proxy));
+        expectedCryptoMap.put(EntityNum.fromAccountId(proxyAccountId), 10L);
+        expectedTokenMap.put(new AllowanceId(tokenId.toTokenID(), proxyAccountId), 10L);
+        expectedNfts.add(new AllowanceId(tokenId.toTokenID(), proxyAccountId));
         assertEquals(expectedCryptoMap, subject.getCryptoAllowances());
         assertEquals(expectedTokenMap, subject.getTokenAllowances());
         assertEquals(expectedNfts, subject.getNftAllowances());
