@@ -21,6 +21,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
+import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,7 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     private final CacheProperties cacheProperties;
     private final ContractStateService contractStateService;
     private final ContractStateRepository contractStateRepository;
+    private final EntityRepository entityRepository;
 
     @BeforeEach
     void setup() {
@@ -295,6 +297,32 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
                         contractStateChange.getConsensusTimestamp()))
                 .get()
                 .isEqualTo(contractStateChange.getValueRead());
+    }
+
+    @Test
+    void verifyTheCorrectEntriesExistInTheCacheAfterContractAndStatesDeletion() {
+        // Given
+        final int maxCacheSize = 10;
+        cacheProperties.setSlotsPerContract("expireAfterAccess=2s,maximumSize=" + maxCacheSize);
+        cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
+        final var contract = persistContract();
+        final var contractStates = persistContractStates(contract.getId(), maxCacheSize);
+
+        // When
+        // Read and verify values exists in cache
+        findStorage(contract, contractStates);
+
+        // Delete contract
+        entityRepository.deleteAll();
+
+        // Then
+        // Read and verify values exists in cache after contract deletion
+        findStorage(contract, contractStates);
+
+        contractStateRepository.deleteAll();
+
+        // Read and verify values exists in cache after contract states deletion
+        findStorage(contract, contractStates);
     }
 
     private Entity persistContract() {
