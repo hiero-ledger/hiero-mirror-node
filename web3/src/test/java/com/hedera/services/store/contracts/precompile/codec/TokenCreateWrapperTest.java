@@ -2,33 +2,28 @@
 
 package com.hedera.services.store.contracts.precompile.codec;
 
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.account;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.contractAddress;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.createTokenCreateWrapperWithKeys;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.receiver;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.token;
+import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.*;
 import static com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.ECDSA_SECP256K1_COMPRESSED_KEY_LENGTH;
 import static com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.ED25519_BYTE_LENGTH;
 import static com.hedera.services.utils.EntityIdUtils.contractIdFromEvmAddress;
-import static com.hedera.services.utils.EntityIdUtils.toGrpcAccountId;
-import static com.hedera.services.utils.EntityIdUtils.tokenIdFromEvmAddress;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.hedera.node.app.service.evm.exceptions.InvalidTransactionException;
 import com.hedera.services.jproto.JContractIDKey;
 import com.hedera.services.jproto.JKey;
 import com.hedera.services.store.contracts.precompile.TokenCreateWrapper;
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
+import com.hederahashgraph.api.proto.java.TokenID;
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.util.Collections;
 import java.util.List;
-import org.hyperledger.besu.datatypes.Address;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.junit.jupiter.api.Test;
 
 class TokenCreateWrapperTest {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
     private static final byte[] ecdsaSecpk256k1 = "123456789012345678901234567890123".getBytes();
     private static final byte[] ed25519 = "12345678901234567890123456789012".getBytes();
     private final TokenKeyWrapper tokenKeyWrapper =
@@ -248,7 +243,7 @@ class TokenCreateWrapperTest {
         final var fixedFee = result.getFixedFee();
         assertEquals(5, fixedFee.getAmount());
         assertTrue(fixedFee.hasDenominatingTokenId());
-        assertEquals(tokenIdFromEvmAddress(Address.ZERO), fixedFee.getDenominatingTokenId());
+        assertEquals(TokenID.getDefaultInstance(), fixedFee.getDenominatingTokenId());
         assertEquals(receiver, result.getFeeCollectorAccountId());
     }
 
@@ -371,11 +366,12 @@ class TokenCreateWrapperTest {
 
     @Test
     void autoRenewAccountIsCheckedAsExpected() {
-        final TokenCreateWrapper wrapper = createTokenCreateWrapperWithKeys(Collections.emptyList());
+        final var renewAccount = domainBuilder.entityId().toAccountID();
+        final var wrapper = createTokenCreateWrapperWithKeys(Collections.emptyList());
         assertTrue(wrapper.hasAutoRenewAccount());
-        assertEquals(toGrpcAccountId(12345), wrapper.getExpiry().autoRenewAccount());
-        wrapper.inheritAutoRenewAccount(AccountID.newBuilder().setAccountNum(10).build());
-        assertEquals(toGrpcAccountId(10), wrapper.getExpiry().autoRenewAccount());
+        assertEquals(payer, wrapper.getExpiry().autoRenewAccount());
+        wrapper.inheritAutoRenewAccount(renewAccount);
+        assertEquals(renewAccount, wrapper.getExpiry().autoRenewAccount());
     }
 
     @Test

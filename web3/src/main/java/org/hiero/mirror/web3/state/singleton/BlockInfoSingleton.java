@@ -29,7 +29,7 @@ public class BlockInfoSingleton implements SingletonState<BlockInfo> {
         return BlockInfo.newBuilder()
                 .blockHashes(Bytes.EMPTY)
                 .consTimeOfLastHandledTxn(endTimestamp)
-                .firstConsTimeOfCurrentBlock(endTimestamp)
+                .firstConsTimeOfCurrentBlock(startTimestamp)
                 .firstConsTimeOfLastBlock(startTimestamp)
                 .lastBlockNumber(recordFile.getIndex() - 1) // Library internally increments last by one for current
                 .migrationRecordsStreamed(true)
