@@ -6,8 +6,8 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SOLIDI
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
-import static org.hiero.mirror.common.util.DomainUtils.getUnixSeconds;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.EVM_V_34_BLOCK;
+import static org.hiero.mirror.web3.utils.ContractCallTestUtil.getUnixSeconds;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
