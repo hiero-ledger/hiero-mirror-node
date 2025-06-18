@@ -12,7 +12,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.PAYER_ACCOUNT_
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
-import static org.hiero.mirror.web3.evm.properties.OverrideClasspathProperties.ALLOW_LONG_ZERO_ADDRESSES;
+import static org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.ALLOW_LONG_ZERO_ADDRESSES;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
 import static org.hiero.mirror.web3.service.ContractCallService.GAS_LIMIT_METRIC;

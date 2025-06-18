@@ -4,7 +4,7 @@ package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.hiero.mirror.web3.evm.properties.OverrideClasspathProperties.ALLOW_LONG_ZERO_ADDRESSES;
+import static org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.ALLOW_LONG_ZERO_ADDRESSES;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;

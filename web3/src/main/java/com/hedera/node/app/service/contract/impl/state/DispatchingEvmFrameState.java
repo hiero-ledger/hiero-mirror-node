@@ -23,7 +23,7 @@ import static com.hedera.node.app.service.contract.impl.utils.ConversionUtils.pb
 import static com.hedera.node.app.service.contract.impl.utils.ConversionUtils.tuweniToPbjBytes;
 import static com.hedera.node.app.service.token.AliasUtils.extractEvmAddress;
 import static java.util.Objects.requireNonNull;
-import static org.hiero.mirror.web3.evm.properties.OverrideClasspathProperties.ALLOW_LONG_ZERO_ADDRESSES;
+import static org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.ALLOW_LONG_ZERO_ADDRESSES;
 import static org.hyperledger.besu.evm.frame.ExceptionalHaltReason.ILLEGAL_STATE_CHANGE;
 
 import com.hedera.hapi.node.base.AccountID;
