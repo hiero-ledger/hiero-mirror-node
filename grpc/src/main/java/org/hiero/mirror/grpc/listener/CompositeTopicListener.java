@@ -7,22 +7,18 @@ import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import java.util.concurrent.TimeUnit;
-import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
-import org.hiero.mirror.grpc.listener.ListenerProperties.ListenerType;
 import org.springframework.context.annotation.Primary;
 import reactor.core.publisher.Flux;
 
 @Named
-@CustomLog
 @Primary
 @RequiredArgsConstructor
-public class CompositeTopicListener implements TopicListener {
+final class CompositeTopicListener implements TopicListener {
 
     private final ListenerProperties listenerProperties;
-    private final NotifyingTopicListener notifyingTopicListener;
     private final PollingTopicListener pollingTopicListener;
     private final RedisTopicListener redisTopicListener;
     private final SharedPollingTopicListener sharedPollingTopicListener;
@@ -50,11 +46,9 @@ public class CompositeTopicListener implements TopicListener {
     }
 
     private TopicListener getTopicListener() {
-        ListenerType type = listenerProperties.getType();
+        final var type = listenerProperties.getType();
 
         switch (type) {
-            case NOTIFY:
-                return notifyingTopicListener;
             case POLL:
                 return pollingTopicListener;
             case REDIS:

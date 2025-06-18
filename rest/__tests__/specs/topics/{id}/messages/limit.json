@@ -128,7 +128,7 @@
           }
         ],
         "links": {
-          "next": "/api/v1/topics/7/messages?sequencenumber=gt:2&timestamp=lte:1234567890.000000006&timestamp=gt:1234567890.000000006&limit=5"
+          "next": null
         }
       }
     }

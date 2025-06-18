@@ -2,28 +2,20 @@
 
 package org.hiero.mirror.web3.state.core;
 
-import com.google.common.collect.ForwardingMap;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.WritableKVStateBase;
 import jakarta.annotation.Nonnull;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Objects;
-import org.hiero.mirror.web3.common.ContractCallContext;
 
-@SuppressWarnings({"deprecation", "unchecked"})
+@SuppressWarnings("deprecation")
 public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
 
     private final ReadableKVState<K, V> readableBackingStore;
 
     public MapWritableKVState(
             @Nonnull final String stateKey, @Nonnull final ReadableKVState<K, V> readableBackingStore) {
-        super(stateKey, new ForwardingMap<>() {
-            @Override
-            protected HashMap<K, V> delegate() {
-                return (HashMap<K, V>) ContractCallContext.get().getWriteCacheState(stateKey);
-            }
-        });
+        super(stateKey);
         this.readableBackingStore = Objects.requireNonNull(readableBackingStore);
     }
 
@@ -36,6 +28,11 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
     @Override
     protected Iterator<K> iterateFromDataSource() {
         return readableBackingStore.keys();
+    }
+
+    @Override
+    protected V getForModifyFromDataSource(@Nonnull K key) {
+        return readableBackingStore.get(key);
     }
 
     @Override

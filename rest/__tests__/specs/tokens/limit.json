@@ -165,6 +165,44 @@
           "next": "/api/v1/tokens?limit=5&token.id=gt:0.23.45678"
         }
       }
+    },
+    {
+      "url": "/api/v1/tokens?limit=3&token.id=lte:0.7.25301",
+      "responseStatus": 200,
+      "responseJson": {
+        "tokens": [
+          {
+            "admin_key": null,
+            "decimals": 1,
+            "metadata": "AQE=",
+            "name": "First Mover",
+            "symbol": "FIRSTMOVERLPDJH",
+            "token_id": "0.0.1",
+            "type": "FUNGIBLE_COMMON"
+          },
+          {
+            "admin_key": null,
+            "decimals": 2,
+            "metadata": "",
+            "name": "Original",
+            "symbol": "ORIGINALRDKSE",
+            "token_id": "0.0.1135",
+            "type": "FUNGIBLE_COMMON"
+          },
+          {
+            "admin_key": null,
+            "decimals": 3,
+            "metadata": "",
+            "name": "Mirror",
+            "symbol": "MIRRORTOKEN",
+            "token_id": "0.7.25301",
+            "type": "FUNGIBLE_COMMON"
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
     }
   ]
 }

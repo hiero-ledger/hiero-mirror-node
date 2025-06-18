@@ -6,16 +6,14 @@ import config from '../../config';
 import {Cache} from '../../cache';
 import integrationContainerOps from '../integrationContainerOps';
 import {defaultBeforeAllTimeoutMillis} from '../integrationUtils';
+import {cacheKeyGenerator, responseCacheCheckHandler, responseCacheUpdateHandler} from '../../middleware';
 import {CachedApiResponse} from '../../model';
 import {httpStatusCodes, responseBodyLabel, responseCacheKeyLabel} from '../../constants';
 import {JSONStringify} from '../../utils';
 
 let cache;
-let cacheKeyGenerator;
 let compressEnabled;
 let redisContainer;
-let responseCacheCheckHandler;
-let responseCacheUpdateHandler;
 
 const cacheControlMaxAge = 60;
 
@@ -27,11 +25,6 @@ beforeAll(async () => {
 
   config.redis.uri = `0.0.0.0:${redisContainer.getMappedPort(6379)}`;
   cache = new Cache();
-
-  const middleware = await import('../../middleware');
-  cacheKeyGenerator = middleware.cacheKeyGenerator;
-  responseCacheCheckHandler = middleware.responseCacheCheckHandler;
-  responseCacheUpdateHandler = middleware.responseCacheUpdateHandler;
 }, defaultBeforeAllTimeoutMillis);
 
 afterAll(async () => {
@@ -88,9 +81,9 @@ describe('Response cache middleware', () => {
   });
 
   describe('no compression', () => {
-    beforeAll(async () => {
+    beforeAll(() => {
       config.cache.response.compress = false;
-    }, defaultBeforeAllTimeoutMillis);
+    });
 
     describe('Cache check', () => {
       test('Cache miss', async () => {
@@ -103,9 +96,9 @@ describe('Response cache middleware', () => {
         expect(cacheKey).toEqual(expectedCacheKey);
 
         // Middleware must not have handled the response directly.
-        expect(mockResponse.send).not.toBeCalled();
-        expect(mockResponse.set).not.toBeCalled();
-        expect(mockResponse.status).not.toBeCalled();
+        expect(mockResponse.send).not.toHaveBeenCalled();
+        expect(mockResponse.set).not.toHaveBeenCalled();
+        expect(mockResponse.status).not.toHaveBeenCalled();
       });
 
       test('Cache hit - client not cached - GET', async () => {
@@ -115,9 +108,9 @@ describe('Response cache middleware', () => {
         await cache.setSingle(cacheKey, cacheControlMaxAge, cachedResponse);
 
         await responseCacheCheckHandler(mockRequest, mockResponse, null);
-        expect(mockResponse.send).toBeCalledWith(cachedBody);
+        expect(mockResponse.send).toHaveBeenCalledWith(cachedBody);
         expect(mockResponse.set).toHaveBeenNthCalledWith(1, cachedHeaders);
-        expect(mockResponse.status).toBeCalledWith(httpStatusCodes.OK.code);
+        expect(mockResponse.status).toHaveBeenCalledWith(httpStatusCodes.OK.code);
       });
 
       test('Cache hit - client not cached - HEAD', async () => {
@@ -128,9 +121,9 @@ describe('Response cache middleware', () => {
 
         mockRequest.method = 'HEAD';
         await responseCacheCheckHandler(mockRequest, mockResponse, null);
-        expect(mockResponse.end).toBeCalled();
+        expect(mockResponse.end).toHaveBeenCalled();
         expect(mockResponse.set).toHaveBeenNthCalledWith(1, cachedHeaders);
-        expect(mockResponse.status).toBeCalledWith(httpStatusCodes.OK.code);
+        expect(mockResponse.status).toHaveBeenCalledWith(httpStatusCodes.OK.code);
       });
     });
 

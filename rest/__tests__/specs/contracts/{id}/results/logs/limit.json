@@ -99,7 +99,7 @@
   },
   "tests": [
     {
-      "urls": ["/api/v1/contracts/0.0.1000/results/logs?limit=1"],
+      "url": "/api/v1/contracts/0.0.1000/results/logs?limit=1",
       "responseStatus": 200,
       "responseJson": {
         "logs": [
@@ -128,9 +128,7 @@
       }
     },
     {
-      "urls": [
-        "/api/v1/contracts/62cf9068fed962cf9068fed962cf9068fed9dddd/results/logs?limit=1"
-      ],
+      "url": "/api/v1/contracts/62cf9068fed962cf9068fed962cf9068fed9dddd/results/logs?limit=1",
       "responseStatus": 200,
       "responseJson": {
         "logs": [
@@ -159,7 +157,7 @@
       }
     },
     {
-      "urls": ["/api/v1/contracts/0.0.1000/results/logs?limit=5"],
+      "url": "/api/v1/contracts/0.0.1000/results/logs?limit=5",
       "responseStatus": 200,
       "responseJson": {
         "logs": [
@@ -244,9 +242,7 @@
       }
     },
     {
-      "urls": [
-        "/api/v1/contracts/62cf9068fed962cf9068fed962cf9068fed9dddd/results/logs?limit=5"
-      ],
+      "url": "/api/v1/contracts/62cf9068fed962cf9068fed962cf9068fed9dddd/results/logs?limit=5",
       "responseStatus": 200,
       "responseJson": {
         "logs": [
