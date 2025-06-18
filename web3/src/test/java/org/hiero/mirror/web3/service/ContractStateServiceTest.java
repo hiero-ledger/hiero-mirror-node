@@ -4,7 +4,9 @@ package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
+import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SLOTS_PER_CONTRACT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import java.nio.ByteBuffer;
@@ -12,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.awaitility.Durations;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -23,8 +26,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCache;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.testcontainers.shaded.org.apache.commons.lang3.RandomUtils;
 
 @RequiredArgsConstructor
@@ -33,7 +36,10 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     private static final String EXPECTED_SLOT_VALUE = "test-value";
 
     @Qualifier(CACHE_MANAGER_CONTRACT_SLOTS)
-    private final CacheManager cacheManagerContractSlots;
+    private final CaffeineCacheManager cacheManagerContractSlots;
+
+    @Qualifier(CACHE_MANAGER_SLOTS_PER_CONTRACT)
+    private final CaffeineCacheManager cacheManagerSlotsPerContract;
 
     private final CacheProperties cacheProperties;
     private final ContractStateService contractStateService;
@@ -69,6 +75,7 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         // Given
         final int maxCacheSize = 10;
         cacheProperties.setSlotsPerContract("expireAfterAccess=2s,maximumSize=" + maxCacheSize);
+        cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
         final var contract = persistContract();
 
         final var contractState = persistContractStates(contract.getId(), 1).getFirst();
@@ -79,13 +86,21 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         assertThat(result).get().isEqualTo(contractState.getValue());
         assertThat(cachedSlots).asInstanceOf(LIST).hasSize(1).contains(slot);
 
+        // When
         final var contractStates = persistContractStates(contract.getId(), maxCacheSize);
         findStorage(contract, contractStates);
 
-        assertThat(getCachedSlots(contract))
-                .asInstanceOf(LIST)
-                .hasSize(maxCacheSize)
-                .doesNotContain(slot);
+        // Then
+        getSlotsPerContractCache().cleanUp();
+
+        await("cacheIsEvicted")
+                .atMost(Durations.TWO_SECONDS)
+                .pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
+                .until(() -> getCachedSlots(contract).size() == maxCacheSize);
+
+        final var finalCachedSlots = getCachedSlots(contract);
+
+        assertThat(finalCachedSlots).asInstanceOf(LIST).hasSize(maxCacheSize).doesNotContain(slot);
     }
 
     @Test
@@ -168,6 +183,10 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
 
     private com.github.benmanes.caffeine.cache.Cache<Object, Object> getSlotsCache() {
         return ((CaffeineCache) cacheManagerContractSlots.getCache(CACHE_NAME)).getNativeCache();
+    }
+
+    private com.github.benmanes.caffeine.cache.Cache<Object, Object> getSlotsPerContractCache() {
+        return ((CaffeineCache) cacheManagerSlotsPerContract.getCache(CACHE_NAME)).getNativeCache();
     }
 
     public List<ByteBuffer> getCachedSlots(Entity contract) {
