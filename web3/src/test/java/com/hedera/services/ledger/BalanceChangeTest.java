@@ -4,7 +4,6 @@ package com.hedera.services.ledger;
 
 import static com.hedera.services.ledger.BalanceChange.NO_TOKEN_FOR_HBAR_ADJUST;
 import static com.hedera.services.ledger.BalanceChange.changingNftOwnership;
-import static com.hedera.services.utils.IdUtils.asAccount;
 import static com.hedera.services.utils.IdUtils.asAccountWithAlias;
 import static com.hedera.services.utils.IdUtils.nftXfer;
 import static org.junit.jupiter.api.Assertions.*;
@@ -12,20 +11,23 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.protobuf.ByteString;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.store.models.NftId;
+import com.hedera.services.utils.EntityIdUtils;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NftTransfer;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.junit.jupiter.api.Test;
 
 class BalanceChangeTest {
-    private final Id t = new Id(1, 2, 3);
+    private final DomainBuilder domainBuilder = new DomainBuilder();
+    private final Id t = EntityIdUtils.idFromEntityId(domainBuilder.entityId());
     private final long delta = -1_234L;
     private final long serialNo = 1234L;
-    private final AccountID a = asAccount("1.2.3");
-    private final AccountID b = asAccount("2.3.4");
-    private final AccountID payer = asAccount("0.0.1234");
+    private final AccountID a = domainBuilder.entityId().toAccountID();
+    private final AccountID b = domainBuilder.entityId().toAccountID();
+    private final AccountID payer = domainBuilder.entityId().toAccountID();
 
     @Test
     void objectContractSanityChecks() {
@@ -104,7 +106,7 @@ class BalanceChangeTest {
 
     @Test
     void canReplaceAlias() {
-        final var created = asAccount("0.0.1234");
+        final var created = domainBuilder.entityId().toAccountID();
         final var anAlias = ByteString.copyFromUtf8("abcdefg");
         final var subject = BalanceChange.changingHbar(
                 AccountAmount.newBuilder()
@@ -121,10 +123,10 @@ class BalanceChangeTest {
 
     @Test
     void canReplaceCounterpartyAlias() {
-        final var created = asAccount("0.0.1234");
+        final var created = domainBuilder.entityId().toAccountID();
         final var anAlias = ByteString.copyFromUtf8("abcdefg");
         final var xfer = NftTransfer.newBuilder()
-                .setSenderAccountID(asAccount("0.0.2000"))
+                .setSenderAccountID(domainBuilder.entityId().toAccountID())
                 .setReceiverAccountID(asAccountWithAlias(String.valueOf(anAlias)))
                 .setSerialNumber(serialNo)
                 .setIsApproval(true)
@@ -142,7 +144,7 @@ class BalanceChangeTest {
 
     @Test
     void replacedAlias() {
-        final var created = asAccount("0.0.1234");
+        final var created = domainBuilder.entityId().toAccountID();
         final var anAlias = ByteString.copyFromUtf8("abcdefg");
         final var subject = BalanceChange.changingHbar(
                 AccountAmount.newBuilder()

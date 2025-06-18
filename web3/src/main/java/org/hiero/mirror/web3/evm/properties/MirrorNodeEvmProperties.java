@@ -18,6 +18,7 @@ import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.evm.contracts.execution.EvmProperties;
 import com.hedera.node.config.VersionedConfiguration;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
@@ -48,6 +49,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.EvmSpecVersion;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.convert.DataSizeUnit;
 import org.springframework.util.CollectionUtils;
@@ -61,6 +63,8 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "hiero.mirror.web3.evm")
 public class MirrorNodeEvmProperties implements EvmProperties {
 
+    public static final String ALLOW_LONG_ZERO_ADDRESSES = "HIERO_MIRROR_WEB3_MODULARIZED_ALLOWLONGZEROADDRESS";
+
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
 
@@ -68,6 +72,9 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private final CommonProperties commonProperties;
 
     private final SystemEntity systemEntity;
+
+    @Value("${HIERO_MIRROR_WEB3_MODULARIZED_ALLOWLONGZEROADDRESS:false}")
+    private boolean allowLongZeroAddresses = false;
 
     @Getter
     private boolean allowTreasuryToOwnNfts = true;
@@ -395,5 +402,10 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
             return Collections.unmodifiableNavigableMap(evmVersionsMap);
         }
+    }
+
+    @PostConstruct
+    public void init() {
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(allowLongZeroAddresses));
     }
 }

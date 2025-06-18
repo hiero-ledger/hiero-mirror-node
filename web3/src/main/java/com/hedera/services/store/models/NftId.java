@@ -2,7 +2,6 @@
 
 package com.hedera.services.store.models;
 
-import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Comparator;
@@ -18,16 +17,8 @@ public record NftId(long shard, long realm, long num, long serialNo) implements 
             .thenComparingLong(NftId::shard)
             .thenComparingLong(NftId::realm);
 
-    public static NftId withDefaultShardRealm(final long num, final long serialNo) {
-        return new NftId(0, 0, num, serialNo);
-    }
-
     public static NftId fromGrpc(final TokenID tokenId, final long serialNo) {
         return new NftId(tokenId.getShardNum(), tokenId.getRealmNum(), tokenId.getTokenNum(), serialNo);
-    }
-
-    public static NftId fromGrpc(final NftID nftId) {
-        return fromGrpc(nftId.getTokenID(), nftId.getSerialNumber());
     }
 
     public TokenID tokenId() {
