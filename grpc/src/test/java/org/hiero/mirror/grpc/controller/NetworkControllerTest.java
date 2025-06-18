@@ -20,6 +20,7 @@ import lombok.CustomLog;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -41,6 +42,9 @@ class NetworkControllerTest extends GrpcIntegrationTest {
 
     @Resource
     private DomainBuilder domainBuilder;
+
+    @Resource
+    private SystemEntity systemEntity;
 
     @Test
     void missingFileId() {
@@ -79,7 +83,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
     @Test
     void notFound() {
         AddressBookQuery query = AddressBookQuery.newBuilder()
-                .setFileId(domainBuilder.entityNum(102L).toFileID())
+                .setFileId(systemEntity.addressBookFile102().toFileID())
                 .build();
 
         StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))

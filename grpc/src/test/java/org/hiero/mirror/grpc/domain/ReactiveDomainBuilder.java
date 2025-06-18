@@ -6,7 +6,6 @@ import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +35,7 @@ public class ReactiveDomainBuilder {
     public static final EntityId TOPIC_ID = EntityId.of(
             CommonProperties.getInstance().getShard(),
             CommonProperties.getInstance().getRealm(),
-            ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
+            100);
 
     private final long now = DomainUtils.now();
     private final EntityRepository entityRepository;
