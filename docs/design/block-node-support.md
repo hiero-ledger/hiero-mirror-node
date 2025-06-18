@@ -239,9 +239,9 @@ final class BlockNode {
 `BlockNode` is the class for all block node communication and state maintenance.
 
 It's possible that a streaming response only contains part of a block, `BlockNode` needs to combine block items in the
-same block and only then notify the caller of the completed block. Note that a streaming response from would never have
-block items from different blocks mixed, i.e., to determine if the block items in the response complete a block, simply
-check if the last block item is a `BlockProof`.
+same block and only then notify the caller of the completed block. Note that a streaming response would never have block
+items from different blocks mixed, i.e., to determine if the block items in the response complete a block, simply check
+if the last block item is a `BlockProof`.
 
 ### CompositeBlockSource
 

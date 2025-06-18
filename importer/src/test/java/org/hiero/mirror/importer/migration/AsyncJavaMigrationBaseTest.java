@@ -37,8 +37,6 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
     @Resource
     protected TransactionOperations transactionOperations;
 
-    private final String script = AsyncJavaMigrationBaseTest.TestAsyncJavaMigration.class.getName();
-
     @AfterEach
     @BeforeEach
     void cleanup() {
