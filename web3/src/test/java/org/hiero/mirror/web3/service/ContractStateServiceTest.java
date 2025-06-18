@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.awaitility.Durations;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
@@ -219,6 +220,81 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
                         .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
                         .toList()))
                 .isTrue();
+    }
+
+    @Test
+    void verifyLatestHistoricalContractSlotIsReturned() {
+        // Given
+        final var olderContractState = domainBuilder.contractStateChange().persist();
+        final var contractStateChange = domainBuilder
+                .contractStateChange()
+                .customize(
+                        cs -> cs.contractId(olderContractState.getContractId()).slot(olderContractState.getSlot()))
+                .persist();
+
+        // Then
+        assertThat(contractStateService.findStorageByBlockTimestamp(
+                        EntityId.of(olderContractState.getContractId()),
+                        contractStateChange.getSlot(),
+                        contractStateChange.getConsensusTimestamp()))
+                .get()
+                .isEqualTo(contractStateChange.getValueWritten());
+    }
+
+    @Test
+    void verifyCorrectHistoricalContractSlotIsReturnedBasedOnBlock() {
+        // Given
+        final var olderContractState = domainBuilder.contractStateChange().persist();
+        final var contractStateChange = domainBuilder
+                .contractStateChange()
+                .customize(
+                        cs -> cs.contractId(olderContractState.getContractId()).slot(olderContractState.getSlot()))
+                .persist();
+
+        // Then
+        assertThat(contractStateChange.getConsensusTimestamp() > olderContractState.getConsensusTimestamp())
+                .isTrue();
+        assertThat(contractStateService.findStorageByBlockTimestamp(
+                        EntityId.of(olderContractState.getContractId()),
+                        olderContractState.getSlot(),
+                        olderContractState.getConsensusTimestamp()))
+                .get()
+                .isEqualTo(olderContractState.getValueWritten());
+    }
+
+    @Test
+    void verifyOnlyExistingHistoricalContractSlotIsReturned() {
+        // Given
+        final var contractStateChange = domainBuilder.contractStateChange().persist();
+
+        // Then
+        assertThat(contractStateService.findStorageByBlockTimestamp(
+                        EntityId.of(contractStateChange.getContractId()),
+                        contractStateChange.getSlot(),
+                        contractStateChange.getConsensusTimestamp() - 1))
+                .isEmpty();
+    }
+
+    @Test
+    void verifyDeletedHistoricalContractSlotIsNotReturned() {
+        // Given
+        final var olderContractState = domainBuilder.contractStateChange().persist();
+        final var contractStateChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(olderContractState.getContractId())
+                        .slot(olderContractState.getSlot())
+                        .valueWritten(null))
+                .persist();
+
+        // Then
+        assertThat(contractStateChange.getConsensusTimestamp() > olderContractState.getConsensusTimestamp())
+                .isTrue();
+        assertThat(contractStateService.findStorageByBlockTimestamp(
+                        EntityId.of(contractStateChange.getContractId()),
+                        contractStateChange.getSlot(),
+                        contractStateChange.getConsensusTimestamp()))
+                .get()
+                .isEqualTo(contractStateChange.getValueRead());
     }
 
     private Entity persistContract() {
