@@ -309,19 +309,19 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         final var contractStates = persistContractStates(contract.getId(), maxCacheSize);
 
         // When
-        // Read and verify values exists in cache
+        // Read and verify values exist in cache
         findStorage(contract, contractStates);
 
         // Delete contract
         entityRepository.deleteAll();
 
         // Then
-        // Read and verify values exists in cache after contract deletion
+        // Read and verify values exist in cache after contract deletion
         findStorage(contract, contractStates);
 
         contractStateRepository.deleteAll();
 
-        // Read and verify values exists in cache after contract states deletion
+        // Read and verify values exist in cache after contract states deletion
         findStorage(contract, contractStates);
     }
 
