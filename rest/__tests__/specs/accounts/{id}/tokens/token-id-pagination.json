@@ -99,7 +99,7 @@
       }
     },
     {
-      "url": "/api/v1/accounts/0.0.1001/tokens?token.id=gte:000000000000000000000000000000000000046F&limit=2&order=desc",
+      "url": "/api/v1/accounts/0.0.1001/tokens?token.id=gte:000000000000000000000000000000000000046F&limit=1&order=desc",
       "responseStatus": 200,
       "responseJson": {
         "tokens": [
@@ -111,19 +111,10 @@
             "freeze_status": "FROZEN",
             "kyc_status": "REVOKED",
             "token_id": "0.0.2500"
-          },
-          {
-            "automatic_association": true,
-            "balance": 15,
-            "created_timestamp": "1234567890.000000002",
-            "decimals": 1,
-            "freeze_status": "UNFROZEN",
-            "kyc_status": "GRANTED",
-            "token_id": "0.0.1135"
           }
         ],
         "links": {
-          "next": "/api/v1/accounts/0.0.1001/tokens?token.id=gte:000000000000000000000000000000000000046F&token.id=lt:0.0.1135&limit=2&order=desc"
+          "next": "/api/v1/accounts/0.0.1001/tokens?token.id=gte:000000000000000000000000000000000000046F&token.id=lt:0.0.2500&limit=1&order=desc"
         }
       }
     },
@@ -152,7 +143,7 @@
           }
         ],
         "links": {
-          "next": "/api/v1/accounts/0.0.1001/tokens?token.id=gte:0x000000000000000000000000000000000000046F&token.id=lt:0.0.1135&limit=2&order=desc"
+          "next": null
         }
       }
     },
@@ -181,7 +172,7 @@
           }
         ],
         "links": {
-          "next": "/api/v1/accounts/0.0.1001/tokens?token.id=gte:0.0.000000000000000000000000000000000000046F&token.id=lt:0.0.1135&limit=2&order=desc"
+          "next": null
         }
       }
     }

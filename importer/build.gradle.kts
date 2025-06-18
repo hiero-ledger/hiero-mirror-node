@@ -5,13 +5,11 @@ description = "Mirror Node Importer"
 plugins { id("spring-conventions") }
 
 dependencies {
-    implementation(platform("com.google.cloud:spring-cloud-gcp-dependencies"))
     implementation(platform("org.springframework.cloud:spring-cloud-dependencies"))
     implementation(platform("software.amazon.awssdk:bom"))
     implementation(project(":common"))
     implementation("com.esaulpaugh:headlong")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv")
-    implementation("com.google.cloud:spring-cloud-gcp-starter-pubsub")
     implementation("commons-io:commons-io")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
     implementation("io.micrometer:micrometer-registry-prometheus")
@@ -43,13 +41,14 @@ dependencies {
     )
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("com.github.vertical-blank:sql-formatter")
-    testImplementation("com.playtika.testcontainers:embedded-google-pubsub")
     testImplementation("commons-beanutils:commons-beanutils")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.apache.commons:commons-math3")
     testImplementation("org.awaitility:awaitility")
     testImplementation("org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api") // Used by s3proxy
-    testImplementation("org.gaul:s3proxy")
+    testImplementation("org.gaul:s3proxy") {
+        exclude(group = "org.apache.commons", module = "commons-fileupload2-javax")
+    }
     testImplementation("org.junit.platform:junit-platform-launcher")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql")

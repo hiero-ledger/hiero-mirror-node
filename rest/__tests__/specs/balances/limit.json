@@ -183,6 +183,37 @@
           "next": "/api/v1/balances?account.balance=gte:300&limit=5&order=asc&timestamp=0.0010023&account.id=gt:0.0.21"
         }
       }
+    },
+    {
+      "url": "/api/v1/balances?account.id=gte:0.0.20&limit=2&order=desc&timestamp=0.0010023",
+      "responseStatus": 200,
+      "responseJson": {
+        "timestamp": "0.000002345",
+        "balances": [
+          {
+            "account": "0.0.21",
+            "balance": 300,
+            "tokens": []
+          },
+          {
+            "account": "0.0.20",
+            "balance": 450,
+            "tokens": [
+              {
+                "balance": 101,
+                "token_id": "0.0.100002"
+              },
+              {
+                "balance": 51,
+                "token_id": "0.0.100001"
+              }
+            ]
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
     }
   ]
 }

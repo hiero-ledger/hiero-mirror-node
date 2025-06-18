@@ -30,6 +30,17 @@ describe('bindTimestampRange', () => {
         now,
         shouldAdvanceTime: true,
         shouldClearNativeTimers: true,
+        toFake: [
+          'setTimeout',
+          'clearTimeout',
+          'setImmediate',
+          'clearImmediate',
+          'setInterval',
+          'clearInterval',
+          'Date',
+          'hrtime',
+          'performance',
+        ],
       });
     });
 

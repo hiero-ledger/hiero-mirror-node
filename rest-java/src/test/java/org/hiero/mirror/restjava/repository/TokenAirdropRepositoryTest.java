@@ -98,7 +98,7 @@ class TokenAirdropRepositoryTest extends RestJavaIntegrationTest {
         // Setup
         var sender = domainBuilder.entity().get();
         var receiver = domainBuilder.entity().get();
-        var tokenId = 5000L;
+        var tokenId = domainBuilder.entityNum(5000).getId();
 
         var receiverSpecifiedAirdrop = domainBuilder
                 .tokenAirdrop(FUNGIBLE_COMMON)

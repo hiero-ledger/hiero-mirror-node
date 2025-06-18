@@ -30,12 +30,12 @@
     "check-state-proof": "./index.js"
   },
   "dependencies": {
-    "@hashgraph/proto": "^2.18.5",
+    "@hashgraph/proto": "^2.19.0",
     "abort-controller": "^3.0.0",
     "boxen": "^8.0.1",
     "chalk": "^5.4.1",
     "extensionless": "^1.9.9",
-    "glob": "^11.0.2",
+    "glob": "^11.0.3",
     "lodash": "^4.17.21",
     "log4js": "^6.9.1",
     "node-fetch": "^3.3.2",
@@ -43,7 +43,7 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
+    "jest": "^30.0.0",
     "jest-junit": "^16.0.0",
     "jest-standard-reporter": "^2.0.0"
   },

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.web.client.HttpClientErrorException;
@@ -52,14 +53,16 @@ class TopicControllerTest extends ControllerTest {
             return uriSpec.uri("", entity.toEntityId().toString());
         }
 
-        @ValueSource(strings = {"1000", "0.1000", "0.0.1000"})
         @ParameterizedTest
-        void success(String id) {
+        @CsvSource({"0.0.1000,1000", "0.1000,1000", "1000,1000"})
+        void success(String input, long num) {
+            var encodedId = domainBuilder.entityNum(num).getId();
             // Given
-            var entity = domainBuilder.topicEntity().customize(e -> e.id(1000L)).persist();
+            var entity =
+                    domainBuilder.topicEntity().customize(e -> e.id(encodedId)).persist();
             var customFee = domainBuilder
                     .customFee()
-                    .customize(c -> c.entityId(1000L)
+                    .customize(c -> c.entityId(encodedId)
                             .fractionalFees(null)
                             .royaltyFees(null)
                             .timestampRange(entity.getTimestampRange()))
@@ -67,12 +70,12 @@ class TopicControllerTest extends ControllerTest {
             var topic = domainBuilder
                     .topic()
                     .customize(t -> t.createdTimestamp(entity.getCreatedTimestamp())
-                            .id(1000L)
+                            .id(encodedId)
                             .timestampRange(entity.getTimestampRange()))
                     .persist();
 
             // When
-            var response = restClient.get().uri("", id).retrieve().toEntity(Topic.class);
+            var response = restClient.get().uri("", input).retrieve().toEntity(Topic.class);
 
             // Then
             assertThat(response.getBody()).isNotNull().isEqualTo(topicMapper.map(customFee, entity, topic));
@@ -124,14 +127,15 @@ class TopicControllerTest extends ControllerTest {
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"999", "0.999", "0.0.999"})
-        void entityNotFound(String id) {
+        @CsvSource({"0.0.1000,1000", "0.1000,1000", "1000,1000"})
+        void entityNotFound(String id, long num) {
             // When
+            var encodedId = domainBuilder.entityNum(num);
             ThrowingCallable callable =
                     () -> restClient.get().uri("", id).retrieve().body(Topic.class);
 
             // Then
-            validateError(callable, HttpClientErrorException.NotFound.class, "Entity not found: 0.0.999");
+            validateError(callable, HttpClientErrorException.NotFound.class, "Entity not found: " + encodedId);
         }
 
         @NullAndEmptySource
