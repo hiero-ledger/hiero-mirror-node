@@ -5,6 +5,7 @@ package org.hiero.mirror.common.aspect;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.metamodel.EntityType;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -70,22 +71,41 @@ public class RepositoryUsageTrackerAspect {
         return UNKNOWN_TABLE;
     }
 
-    private Class<?> extractEntityClassFromRepository(final Object repositoryClass) {
-        for (final var iface : repositoryClass.getClass().getGenericInterfaces()) {
-            if (iface instanceof Class<?> ifaceClass) {
-                for (final var superIface : ifaceClass.getGenericInterfaces()) {
-                    if (superIface instanceof ParameterizedType paramType) {
-                        final var rawType = paramType.getRawType();
-                        if (rawType instanceof Class<?> rawClass && Repository.class.isAssignableFrom(rawClass)) {
+    private Class<?> extractEntityClassFromRepository(final Object repositoryInstance) {
+        final var interfaces = repositoryInstance.getClass().getGenericInterfaces();
 
-                            final var entityType = paramType.getActualTypeArguments()[0];
-                            if (entityType instanceof Class<?> entityClass) {
-                                return entityClass;
-                            }
-                        }
-                    }
+        for (final var iface : interfaces) {
+            if (!(iface instanceof Class<?> ifaceClass)) {
+                continue;
+            }
+
+            for (final var superIface : ifaceClass.getGenericInterfaces()) {
+                if (!isParameterizedRepository(superIface)) {
+                    continue;
+                }
+
+                final var entityClass = getEntityClassFromParameterizedType((ParameterizedType) superIface);
+                if (entityClass != null) {
+                    return entityClass;
                 }
             }
+        }
+
+        return null;
+    }
+
+    private boolean isParameterizedRepository(final Type type) {
+        if (!(type instanceof ParameterizedType paramType)) {
+            return false;
+        }
+        final var rawType = paramType.getRawType();
+        return rawType instanceof Class<?> rawClass && Repository.class.isAssignableFrom(rawClass);
+    }
+
+    private Class<?> getEntityClassFromParameterizedType(final ParameterizedType paramType) {
+        final var entityType = paramType.getActualTypeArguments()[0];
+        if (entityType instanceof Class<?> entityClass) {
+            return entityClass;
         }
         return null;
     }
@@ -110,11 +130,9 @@ public class RepositoryUsageTrackerAspect {
         final var genericInterfaces = repositoryInstance.getClass().getGenericInterfaces();
 
         for (final var genericInterface : genericInterfaces) {
-            if (genericInterface instanceof Class<?> repoInterface) {
-
-                if (CrudRepository.class.isAssignableFrom(repoInterface)) {
-                    return repoInterface.getSimpleName();
-                }
+            if (genericInterface instanceof Class<?> repoInterface
+                    && CrudRepository.class.isAssignableFrom(repoInterface)) {
+                return repoInterface.getSimpleName();
             }
         }
 

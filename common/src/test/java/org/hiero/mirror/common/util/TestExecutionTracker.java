@@ -10,7 +10,7 @@ import org.junit.platform.launcher.TestIdentifier;
 public class TestExecutionTracker implements TestExecutionListener {
 
     @Getter
-    private static boolean testRunning = false;
+    private static boolean testRunning;
 
     @Override
     public void executionStarted(TestIdentifier testIdentifier) {
