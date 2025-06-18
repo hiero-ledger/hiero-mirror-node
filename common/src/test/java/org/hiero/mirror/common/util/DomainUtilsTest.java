@@ -234,6 +234,13 @@ class DomainUtilsTest {
         assertThat(DomainUtils.convertToNanosMax(instant)).isEqualTo(expected);
     }
 
+    @ParameterizedTest(name = "get Unix seconds from {0}")
+    @CsvSource({"1750231024302354000, 1750231024", "1750231024902354000, 1750231024", "1750231024002354000, 1750231024"
+    })
+    void getUnixSeconds(long nanoseconds, long unixSeconds) {
+        assertThat(DomainUtils.getUnixSeconds(nanoseconds)).isEqualTo(unixSeconds);
+    }
+
     @ParameterizedTest(name = "leftPadBytes: ({0}, {1}): {2}")
     @MethodSource("paddingByteProvider")
     void leftPadBytes(byte[] bytes, int paddingLength, byte[] expected) {
