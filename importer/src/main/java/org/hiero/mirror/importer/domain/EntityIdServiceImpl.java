@@ -5,8 +5,7 @@ package org.hiero.mirror.importer.domain;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
-import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_ALIAS;
-import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_NAME;
+import static org.hiero.mirror.importer.config.CacheConfiguration.*;
 import static org.hiero.mirror.importer.util.Utility.aliasToEvmAddress;
 
 import com.google.protobuf.ByteString;
@@ -15,12 +14,18 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.domain.entity.AbstractEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -37,11 +42,17 @@ public class EntityIdServiceImpl implements EntityIdService {
 
     private static final Optional<EntityId> EMPTY = Optional.of(EntityId.EMPTY);
 
-    private final Cache cache;
+    private final Cache aliasCache;
+    private final Cache evmCache;
+
     private final EntityRepository entityRepository;
 
-    public EntityIdServiceImpl(@Qualifier(CACHE_ALIAS) CacheManager cacheManager, EntityRepository entityRepository) {
-        this.cache = cacheManager.getCache(CACHE_NAME);
+    public EntityIdServiceImpl(
+            @Qualifier(CACHE_ALIAS) CacheManager aliasCachManager,
+            @Qualifier(CACHE_EVM_ADDRESS) CacheManager evmAddressCacheManager,
+            EntityRepository entityRepository) {
+        this.aliasCache = aliasCachManager.getCache(CACHE_NAME);
+        this.evmCache = evmAddressCacheManager.getCache(CACHE_NAME);
         this.entityRepository = entityRepository;
     }
 
@@ -102,9 +113,38 @@ public class EntityIdServiceImpl implements EntityIdService {
         return doLookups(contractIds, this::lookup);
     }
 
+    public Map<Long, byte[]> lookupEvmAddresses(Set<Long> entityIds) {
+        Map<Long, byte[]> result = new HashMap<>();
+        Set<Long> missing = new HashSet<>();
+
+        for (Long id : entityIds) {
+            byte[] cached = evmCache.get(id, byte[].class);
+            if (cached != null) {
+                result.put(id, cached);
+            } else {
+                missing.add(id);
+            }
+        }
+
+        if (!missing.isEmpty()) {
+            Map<Long, byte[]> dbResults = entityRepository.findEvmAddressesByIds(missing).stream()
+                    .collect(Collectors.toMap(AbstractEntity::getNum, entity -> {
+                        byte[] evm = entity.getEvmAddress();
+                        return evm != null ? evm : DomainUtils.toEvmAddress(entity.getNum());
+                    }));
+
+            dbResults.forEach((id, evmAddress) -> {
+                evmCache.put(id, evmAddress);
+                result.put(id, evmAddress);
+            });
+        }
+
+        return result;
+    }
+
     private @Nonnull Optional<EntityId> cacheLookup(ByteString key, Callable<Optional<EntityId>> loader) {
         try {
-            return Objects.requireNonNullElse(cache.get(key, loader), Optional.empty());
+            return Objects.requireNonNullElse(aliasCache.get(key, loader), Optional.empty());
         } catch (Cache.ValueRetrievalException e) {
             Utility.handleRecoverableError("Error looking up alias or EVM address {} from cache", key, e);
             return Optional.empty();
@@ -139,14 +179,14 @@ public class EntityIdServiceImpl implements EntityIdService {
 
         switch (type) {
             case ACCOUNT -> {
-                cache.put(alias, entityId);
+                aliasCache.put(alias, entityId);
 
                 // Accounts can have an alias and an EVM address so warm the cache with both
                 if (entity.getAlias() != null && entity.getEvmAddress() != null) {
-                    cache.put(fromBytes(entity.getEvmAddress()), entityId);
+                    aliasCache.put(fromBytes(entity.getEvmAddress()), entityId);
                 }
             }
-            case CONTRACT -> cache.put(alias, entityId);
+            case CONTRACT -> aliasCache.put(alias, entityId);
             default -> Utility.handleRecoverableError("Invalid Entity: {} entity can't have alias", type);
         }
     }

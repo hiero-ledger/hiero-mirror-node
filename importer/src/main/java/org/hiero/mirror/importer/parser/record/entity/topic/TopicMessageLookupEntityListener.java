@@ -18,7 +18,7 @@ import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.springframework.core.annotation.Order;
 
 @Named
-@Order(3)
+@Order(4)
 @ConditionOnEntityRecordParser
 @RequiredArgsConstructor
 public class TopicMessageLookupEntityListener implements EntityListener {
