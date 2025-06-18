@@ -4,8 +4,11 @@ package com.swirlds.state.spi;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentMap;
 
+@SuppressWarnings("deprecation")
 /**
  * An implementation of {@link WritableKVState} that delegates to another {@link WritableKVState} as
  * though it were the backend data source. Modifications to this {@link WrappedWritableKVState} are
@@ -29,8 +32,11 @@ public class WrappedWritableKVState<K, V> extends WritableKVStateBase<K, V> {
      *
      * @param delegate The delegate. Must not be null.
      */
-    public WrappedWritableKVState(@NonNull final WritableKVState<K, V> delegate) {
-        super(delegate.getStateKey());
+    public WrappedWritableKVState(
+            @NonNull final WritableKVState<K, V> delegate,
+            @NonNull final ConcurrentMap<K, V> readCache,
+            @NonNull Map<K, V> modifications) {
+        super(delegate.getStateKey(), readCache, modifications);
         this.delegate = Objects.requireNonNull(delegate);
     }
 

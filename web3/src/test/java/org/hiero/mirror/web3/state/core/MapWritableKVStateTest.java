@@ -4,12 +4,10 @@ package org.hiero.mirror.web3.state.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
 import com.swirlds.state.spi.ReadableKVState;
-import java.util.Collections;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
@@ -38,45 +36,6 @@ class MapWritableKVStateTest {
     @BeforeEach
     void setup() {
         mapWritableKVState = new MapWritableKVState<>(AccountReadableKVState.KEY, readableKVState);
-    }
-
-    @Test
-    void testDataSourceSizeIsZero() {
-        assertThat(mapWritableKVState.sizeOfDataSource()).isZero();
-    }
-
-    @Test
-    void testReadFromDataSourceReturnsCorrectValue() {
-        when(readableKVState.get(accountID)).thenReturn(account);
-        assertThat(mapWritableKVState.readFromDataSource(accountID)).isEqualTo(account);
-    }
-
-    @Test
-    void testIterateFromDataSourceReturnsEmptyIterator() {
-        when(readableKVState.keys()).thenReturn(Collections.emptyIterator());
-        assertThat(mapWritableKVState.iterateFromDataSource()).isEqualTo(Collections.emptyIterator());
-    }
-
-    @Test
-    void testPutIntoDataSource() {
-        assertThat(mapWritableKVState.contains(accountID)).isFalse();
-        mapWritableKVState.putIntoDataSource(accountID, account);
-        assertThat(mapWritableKVState.contains(accountID)).isTrue();
-    }
-
-    @Test
-    void testRemoveFromDataSource() {
-        mapWritableKVState.putIntoDataSource(accountID, account);
-        assertThat(mapWritableKVState.contains(accountID)).isTrue();
-        mapWritableKVState.removeFromDataSource(accountID);
-        assertThat(mapWritableKVState.contains(accountID)).isFalse();
-    }
-
-    @Test
-    void testCommit() {
-        mapWritableKVState.putIntoDataSource(accountID, account);
-        assertThat(mapWritableKVState.contains(accountID)).isTrue();
-        mapWritableKVState.commit(); // Does nothing, just for test coverage.
     }
 
     @Test

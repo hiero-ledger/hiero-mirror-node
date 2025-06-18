@@ -23,7 +23,9 @@ public class ReadableCachedForwardingConcurrentMap<K, V> extends ForwardingConcu
 
     @Override
     protected ConcurrentHashMap<K, V> delegate() {
-        return (ConcurrentHashMap<K, V>) ContractCallContext.get().getReadCacheState(key);
+        return ContractCallContext.isInitialized()
+                ? (ConcurrentHashMap<K, V>) ContractCallContext.get().getReadCacheState(key)
+                : new ConcurrentHashMap<>();
     }
 
     @Override

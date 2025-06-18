@@ -52,7 +52,6 @@ import com.swirlds.state.spi.QueueChangeListener;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.ReadableSingletonStateBase;
 import com.swirlds.state.spi.ReadableStates;
-import com.swirlds.state.spi.WritableKVStateBase;
 import com.swirlds.state.spi.WritableQueueStateBase;
 import com.swirlds.state.spi.WritableSingletonStateBase;
 import com.swirlds.state.spi.WritableStates;
@@ -352,7 +351,7 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     private <K, V> void registerKVListener(
-            @Nonnull final String serviceName, WritableKVStateBase<K, V> state, StateChangeListener listener) {
+            @Nonnull final String serviceName, MapWritableKVState<K, V> state, StateChangeListener listener) {
         final var stateId = listener.stateIdFor(serviceName, state.getStateKey());
         state.registerListener(new KVChangeListener<>() {
             @Override

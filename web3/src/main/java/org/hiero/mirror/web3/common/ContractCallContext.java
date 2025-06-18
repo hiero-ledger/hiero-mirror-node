@@ -43,6 +43,7 @@ public class ContractCallContext {
 
     @Setter
     private List<ContractAction> contractActions = List.of();
+
     /**
      * This is used to determine the contract action index of the current frame. It starts from {@code -1} because when
      * the tracer receives the initial frame, it will increment this immediately inside
@@ -59,6 +60,7 @@ public class ContractCallContext {
 
     @Setter
     private CallServiceParameters callServiceParameters;
+
     /**
      * Record file which stores the block timestamp and other historical block details used for filtering of historical
      * data.
@@ -70,8 +72,10 @@ public class ContractCallContext {
     private EntityNumber entityNumber;
     /** Current top of stack (which is all linked together) */
     private CachingStateFrame<Object> stack;
+
     /** Fixed "base" of stack: a R/O cache frame on top of the DB-backed cache frame */
     private CachingStateFrame<Object> stackBase;
+
     /**
      * The timestamp used to fetch the state from the stackedStateFrames.
      */
@@ -166,7 +170,8 @@ public class ContractCallContext {
         return (ConcurrentMap<K, V>) readCache.computeIfAbsent(stateKey, k -> new ConcurrentHashMap<>());
     }
 
-    public Map<Object, Object> getWriteCacheState(final String stateKey) {
-        return writeCache.computeIfAbsent(stateKey, k -> new HashMap<>());
+    @SuppressWarnings("unchecked")
+    public <K, V> Map<K, V> getWriteCacheState(final String stateKey) {
+        return (Map<K, V>) writeCache.computeIfAbsent(stateKey, k -> new HashMap<>());
     }
 }

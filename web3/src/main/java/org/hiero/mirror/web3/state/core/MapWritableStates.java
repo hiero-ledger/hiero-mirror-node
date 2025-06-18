@@ -98,6 +98,7 @@ public class MapWritableStates extends AbstractMapReadableState implements Writa
         states.values().forEach(state -> {
             switch (state) {
                 case WritableKVStateBase kv -> kv.commit();
+                case MapWritableKVState kv -> kv.commit();
                 case WritableSingletonStateBase singleton -> singleton.commit();
                 case WritableQueueStateBase queue -> queue.commit();
                 default ->

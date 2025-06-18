@@ -6,7 +6,16 @@ import static java.util.Objects.requireNonNull;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * A base class for implementations of {@link WritableKVState}.
@@ -40,6 +49,19 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     protected WritableKVStateBase(@NonNull final String stateKey, @NonNull final Map<K, V> modifications) {
         super(stateKey);
         this.modifications = Objects.requireNonNull(modifications);
+    }
+
+    /**
+     * Create a new StateBase.
+     *
+     * @param stateKey The state key. Cannot be null.
+     */
+    protected WritableKVStateBase(
+            @NonNull final String stateKey,
+            @NonNull final ConcurrentMap<K, V> readCache,
+            @NonNull final Map<K, V> modifications) {
+        super(stateKey, readCache);
+        this.modifications = modifications;
     }
 
     /**

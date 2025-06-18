@@ -16,6 +16,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import org.hiero.mirror.web3.common.ContractCallContext;
 
 /**
  * A wrapper around a {@link WritableStates} that provides a wrapped instances of {@link WritableKVState} and
@@ -53,8 +54,12 @@ public class WrappedWritableStates implements WritableStates {
     @Override
     @NonNull
     public <K, V> WritableKVState<K, V> get(@NonNull String stateKey) {
-        return (WritableKVState<K, V>)
-                writableKVStateMap.computeIfAbsent(stateKey, s -> new WrappedWritableKVState<>(delegate.get(stateKey)));
+        return (WritableKVState<K, V>) writableKVStateMap.computeIfAbsent(
+                stateKey,
+                s -> new WrappedWritableKVState<>(
+                        delegate.get(stateKey),
+                        ContractCallContext.get().getReadCacheState(stateKey),
+                        ContractCallContext.get().getWriteCacheState(stateKey)));
     }
 
     @SuppressWarnings("unchecked")

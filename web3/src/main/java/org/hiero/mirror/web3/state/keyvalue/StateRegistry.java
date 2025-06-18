@@ -16,11 +16,11 @@ import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Collection;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.hiero.mirror.web3.state.core.MapReadableKVState;
+import org.hiero.mirror.web3.state.core.ReadableCachedForwardingConcurrentMap;
 import org.hiero.mirror.web3.state.singleton.DefaultSingleton;
 import org.hiero.mirror.web3.state.singleton.SingletonState;
 
@@ -92,6 +92,6 @@ public final class StateRegistry {
             return new DefaultSingleton(stateKey);
         }
 
-        return new MapReadableKVState<>(stateKey, new ConcurrentHashMap<>());
+        return new MapReadableKVState<>(stateKey, new ReadableCachedForwardingConcurrentMap<>(stateKey));
     }
 }
