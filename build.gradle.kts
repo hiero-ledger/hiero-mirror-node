@@ -17,12 +17,14 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("grpcVersion", "1.73.0")
-    set("jooq.version", "3.20.4") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.20.5") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.14.0")
     set("postgresql.version", "42.7.7") // Temporary until next Spring Boot version
     set("protobufVersion", "4.31.1")
     set("reactorGrpcVersion", "1.2.4")
+    set("spring-framework.version", "6.2.8") // Temporary until next Spring Boot version
+    set("tomcat.version", "10.1.42") // Temporary until next Spring Boot version
     set("tuweniVersion", "2.3.1")
 }
 
