@@ -2,12 +2,7 @@
 
 package com.hedera.services.store.contracts.precompile;
 
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.DEFAULT_GAS_PRICE;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.TEST_CONSENSUS_TIME;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.contractAddress;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.sender;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.senderAddress;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.timestamp;
+import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.*;
 import static com.hedera.services.store.contracts.precompile.impl.BurnPrecompile.getBurnWrapper;
 import static com.hederahashgraph.api.proto.java.TokenType.FUNGIBLE_COMMON;
 import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
@@ -57,6 +52,7 @@ import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.common.PrecompileContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.evm.store.Store;
@@ -82,6 +78,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
  */
 @ExtendWith(MockitoExtension.class)
 class BurnPrecompileTest {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
     private static final long TEST_SERVICE_FEE = 5_000_000;
     private static final long TEST_NETWORK_FEE = 400_000;
     private static final long TEST_NODE_FEE = 300_000;
@@ -92,7 +89,7 @@ class BurnPrecompileTest {
 
     private static final String ABI_ID_BURN_TOKEN = "0x" + Integer.toHexString(AbiConstants.ABI_ID_BURN_TOKEN);
     private static final String ABI_ID_BURN_TOKEN_V2 = "0x" + Integer.toHexString(AbiConstants.ABI_ID_BURN_TOKEN_V2);
-    private static final int TOKEN_ID_TO_BURN = 1176;
+    private static final long TOKEN_ID_TO_BURN = token2.getTokenNum();
     private static final int NUMBERS_OF_TOKENS_TO_BURN = 33;
     private static final int SERIAL_NUMBERS_DATA = 96;
     private static final int EMPTY_ARGUMENT = 0;
@@ -282,12 +279,7 @@ class BurnPrecompileTest {
     void fungibleBurnHappyPathWorks() {
         // given:
         final Bytes pretendArguments = givenFungibleFrameContext();
-        final var tokenID = TokenID.newBuilder()
-                .setShardNum(0)
-                .setRealmNum(0)
-                .setTokenNum(TOKEN_ID_TO_BURN)
-                .build();
-        prepareStoreForFungibleBurn(tokenID);
+        prepareStoreForFungibleBurn(token2);
         givenPricingUtilsContext();
 
         given(worldUpdater.permissivelyUnaliased(any()))
@@ -304,7 +296,7 @@ class BurnPrecompileTest {
 
         final var txnBody = TransactionBody.newBuilder()
                 .setTokenBurn(
-                        TokenBurnTransactionBody.newBuilder().setToken(tokenID).setAmount(33L));
+                        TokenBurnTransactionBody.newBuilder().setToken(token2).setAmount(33L));
 
         given(precompileContext.getTransactionBody()).willReturn(txnBody);
 
@@ -424,11 +416,7 @@ class BurnPrecompileTest {
         uniqueTokens.add(uniqueToken1);
         uniqueTokens.add(uniqueToken2);
 
-        final var tokenID = TokenID.newBuilder()
-                .setShardNum(0)
-                .setRealmNum(0)
-                .setTokenNum(TOKEN_ID_TO_BURN)
-                .build();
+        final var tokenID = token2;
         final var tokenAddress = Id.fromGrpcToken(tokenID).asEvmAddress();
         final var treasuryAddress = senderAddress;
         when(token.getTreasury()).thenReturn(account);
@@ -470,5 +458,9 @@ class BurnPrecompileTest {
 
     private static String convertToPaddedHex(int number) {
         return StringUtils.leftPad(Integer.toHexString(number), 64, "0");
+    }
+
+    private static String convertToPaddedHex(long number) {
+        return StringUtils.leftPad(Long.toHexString(number), 64, "0");
     }
 }

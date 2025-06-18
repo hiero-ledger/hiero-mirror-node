@@ -3,14 +3,7 @@
 package com.hedera.services.store.contracts.precompile;
 
 import static com.hedera.services.fees.calculation.utils.AccessorBasedUsages.THREE_MONTHS_IN_SECONDS;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.account;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.contractAddress;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.createFungibleTokenUpdateWrapperWithKeys;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.createNonFungibleTokenUpdateWrapperWithKeys;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.createTokenCreateWrapperWithKeys;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.fixedFee;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.fractionalFee;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.royaltyFee;
+import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.*;
 import static com.hedera.services.store.contracts.precompile.SyntheticTxnFactory.AUTO_MEMO;
 import static com.hedera.services.store.contracts.precompile.codec.Association.multiAssociation;
 import static com.hedera.services.store.contracts.precompile.utils.PrecompilePricingUtils.EMPTY_KEY;
@@ -38,7 +31,6 @@ import com.hedera.services.store.contracts.precompile.codec.TokenUpdateExpiryInf
 import com.hedera.services.store.contracts.precompile.codec.UnpauseWrapper;
 import com.hedera.services.store.contracts.precompile.codec.WipeWrapper;
 import com.hedera.services.store.models.Id;
-import com.hedera.services.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Key;
@@ -51,6 +43,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,23 +51,20 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class SyntheticTxnFactoryTest {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
     private static final long SERIAL_NO = 100;
     private static final long SECOND_AMOUNT = 200;
-    private static final AccountID ACCOUNT_A = IdUtils.asAccount("0.0.2");
-    private static final AccountID ACCOUNT_B = IdUtils.asAccount("0.0.3");
-    private static final AccountID ACCOUNT_C = IdUtils.asAccount("0.0.4");
-    private static final TokenID FUNGIBLE = IdUtils.asToken("0.0.555");
-    private static final TokenID NON_FUNGIBLE = IdUtils.asToken("0.0.666");
+    private static final AccountID ACCOUNT_A = domainBuilder.entityId().toAccountID();
+    private static final AccountID ACCOUNT_B = domainBuilder.entityId().toAccountID();
+    private static final AccountID ACCOUNT_C = domainBuilder.entityId().toAccountID();
+    private static final TokenID FUNGIBLE = domainBuilder.entityId().toTokenID();
+    private static final TokenID NON_FUNGIBLE = domainBuilder.entityId().toTokenID();
     private static final List<Long> TARGET_SERIAL_NOS = List.of(1L, 2L, 3L);
     private static final List<ByteString> NEW_METADATA =
             List.of(ByteString.copyFromUtf8("AAA"), ByteString.copyFromUtf8("BBB"), ByteString.copyFromUtf8("CCC"));
     public static final String HTS_PRECOMPILED_CONTRACT_ADDRESS = "0x167";
-    public static final TokenID TOKEN = IdUtils.asToken("0.0.1");
-    public static final AccountID PAYER = IdUtils.asAccount("0.0.12345");
-    public static final AccountID SENDER = IdUtils.asAccount("0.0.2");
-
-    public static final AccountID RECEIVER = IdUtils.asAccount("0.0.3");
-    public static final Id SENDER_ID = Id.fromGrpcAccount(SENDER);
+    public static final TokenID TOKEN = domainBuilder.entityId().toTokenID();
+    public static final Id SENDER_ID = Id.fromGrpcAccount(sender);
 
     private SyntheticTxnFactory subject = new SyntheticTxnFactory();
 
@@ -263,7 +253,7 @@ class SyntheticTxnFactoryTest {
     @Test
     void createsExpectedFungibleApproveAllowance() {
         final var amount = BigInteger.ONE;
-        final var allowances = new ApproveWrapper(TOKEN, RECEIVER, amount, BigInteger.ZERO, true, false);
+        final var allowances = new ApproveWrapper(TOKEN, receiver, amount, BigInteger.ZERO, true, false);
 
         final var result = subject.createFungibleApproval(allowances, SENDER_ID);
         final var txnBody = result.build();
@@ -275,12 +265,12 @@ class SyntheticTxnFactoryTest {
                 TOKEN, txnBody.getCryptoApproveAllowance().getTokenAllowances(0).getTokenId());
         final var allowance = txnBody.getCryptoApproveAllowance().getTokenAllowances(0);
         assertEquals(SENDER_ID.asGrpcAccount(), allowance.getOwner());
-        assertEquals(RECEIVER, allowance.getSpender());
+        assertEquals(receiver, allowance.getSpender());
     }
 
     @Test
     void createsExpectedNonfungibleApproveAllowanceWithOwnerAsOperator() {
-        final var allowances = new ApproveWrapper(TOKEN, RECEIVER, BigInteger.ZERO, BigInteger.ONE, false, false);
+        final var allowances = new ApproveWrapper(TOKEN, receiver, BigInteger.ZERO, BigInteger.ONE, false, false);
         final var ownerId = new Id(0, 0, 666);
 
         final var result = subject.createNonfungibleApproval(allowances, ownerId, ownerId);
@@ -288,7 +278,7 @@ class SyntheticTxnFactoryTest {
 
         final var allowance = txnBody.getCryptoApproveAllowance().getNftAllowances(0);
         assertEquals(TOKEN, allowance.getTokenId());
-        assertEquals(RECEIVER, allowance.getSpender());
+        assertEquals(receiver, allowance.getSpender());
         assertEquals(ownerId.asGrpcAccount(), allowance.getOwner());
         assertEquals(AccountID.getDefaultInstance(), allowance.getDelegatingSpender());
         assertEquals(1L, allowance.getSerialNumbers(0));
@@ -296,7 +286,7 @@ class SyntheticTxnFactoryTest {
 
     @Test
     void createsExpectedNonfungibleApproveAllowanceWithNonOwnerOperator() {
-        final var allowances = new ApproveWrapper(TOKEN, RECEIVER, BigInteger.ZERO, BigInteger.ONE, false, false);
+        final var allowances = new ApproveWrapper(TOKEN, receiver, BigInteger.ZERO, BigInteger.ONE, false, false);
         final var ownerId = new Id(0, 0, 666);
         final var operatorId = new Id(0, 0, 777);
 
@@ -305,7 +295,7 @@ class SyntheticTxnFactoryTest {
 
         final var allowance = txnBody.getCryptoApproveAllowance().getNftAllowances(0);
         assertEquals(TOKEN, allowance.getTokenId());
-        assertEquals(RECEIVER, allowance.getSpender());
+        assertEquals(receiver, allowance.getSpender());
         assertEquals(ownerId.asGrpcAccount(), allowance.getOwner());
         assertEquals(operatorId.asGrpcAccount(), allowance.getDelegatingSpender());
         assertEquals(1L, allowance.getSerialNumbers(0));
@@ -313,7 +303,7 @@ class SyntheticTxnFactoryTest {
 
     @Test
     void createsExpectedNonfungibleApproveAllowanceWithoutOwner() {
-        final var allowances = new ApproveWrapper(TOKEN, RECEIVER, BigInteger.ZERO, BigInteger.ONE, false, false);
+        final var allowances = new ApproveWrapper(TOKEN, receiver, BigInteger.ZERO, BigInteger.ONE, false, false);
         final var operatorId = new Id(0, 0, 666);
 
         final var result = subject.createNonfungibleApproval(allowances, null, operatorId);
@@ -321,14 +311,14 @@ class SyntheticTxnFactoryTest {
 
         final var allowance = txnBody.getCryptoApproveAllowance().getNftAllowances(0);
         assertEquals(TOKEN, allowance.getTokenId());
-        assertEquals(RECEIVER, allowance.getSpender());
+        assertEquals(receiver, allowance.getSpender());
         assertEquals(AccountID.getDefaultInstance(), allowance.getOwner());
         assertEquals(1L, allowance.getSerialNumbers(0));
     }
 
     @Test
     void createsDeleteAllowance() {
-        final var allowances = new ApproveWrapper(TOKEN, RECEIVER, BigInteger.ZERO, BigInteger.ONE, false, false);
+        final var allowances = new ApproveWrapper(TOKEN, receiver, BigInteger.ZERO, BigInteger.ONE, false, false);
 
         final var result = subject.createDeleteAllowance(allowances, SENDER_ID);
         final var txnBody = result.build();
@@ -355,16 +345,16 @@ class SyntheticTxnFactoryTest {
 
     @Test
     void createsAdjustAllowanceForAllNFT() {
-        final var allowances = new SetApprovalForAllWrapper(NON_FUNGIBLE, RECEIVER, true);
+        final var allowances = new SetApprovalForAllWrapper(NON_FUNGIBLE, receiver, true);
 
         final var result = subject.createApproveAllowanceForAllNFT(allowances, SENDER_ID);
         final var txnBody = result.build();
 
         assertEquals(
-                RECEIVER,
+                receiver,
                 txnBody.getCryptoApproveAllowance().getNftAllowances(0).getSpender());
         assertEquals(
-                SENDER, txnBody.getCryptoApproveAllowance().getNftAllowances(0).getOwner());
+                sender, txnBody.getCryptoApproveAllowance().getNftAllowances(0).getOwner());
         assertEquals(
                 NON_FUNGIBLE,
                 txnBody.getCryptoApproveAllowance().getNftAllowances(0).getTokenId());
@@ -704,27 +694,27 @@ class SyntheticTxnFactoryTest {
 
     @Test
     void createsExpectedUpdateTokenExpiryInfoWithZeroExpiry() {
-        final var updateExpiryInfo = new TokenUpdateExpiryInfoWrapper(TOKEN, new TokenExpiryWrapper(0L, PAYER, 555L));
+        final var updateExpiryInfo = new TokenUpdateExpiryInfoWrapper(TOKEN, new TokenExpiryWrapper(0L, payer, 555L));
 
         final var result = subject.createTokenUpdateExpiryInfo(updateExpiryInfo);
         final var txnBody = result.build();
 
         assertEquals(TOKEN, txnBody.getTokenUpdate().getToken());
         assertEquals(0L, txnBody.getTokenUpdate().getExpiry().getSeconds());
-        assertEquals(PAYER, txnBody.getTokenUpdate().getAutoRenewAccount());
+        assertEquals(payer, txnBody.getTokenUpdate().getAutoRenewAccount());
         assertEquals(555L, txnBody.getTokenUpdate().getAutoRenewPeriod().getSeconds());
     }
 
     @Test
     void createsExpectedUpdateTokenExpiryInfoWithZeroAutoRenewPeriod() {
-        final var updateExpiryInfo = new TokenUpdateExpiryInfoWrapper(TOKEN, new TokenExpiryWrapper(442L, PAYER, 0L));
+        final var updateExpiryInfo = new TokenUpdateExpiryInfoWrapper(TOKEN, new TokenExpiryWrapper(442L, payer, 0L));
 
         final var result = subject.createTokenUpdateExpiryInfo(updateExpiryInfo);
         final var txnBody = result.build();
 
         assertEquals(TOKEN, txnBody.getTokenUpdate().getToken());
         assertEquals(442L, txnBody.getTokenUpdate().getExpiry().getSeconds());
-        assertEquals(PAYER, txnBody.getTokenUpdate().getAutoRenewAccount());
+        assertEquals(payer, txnBody.getTokenUpdate().getAutoRenewAccount());
         assertEquals(0L, txnBody.getTokenUpdate().getAutoRenewPeriod().getSeconds());
     }
 
@@ -772,7 +762,7 @@ class SyntheticTxnFactoryTest {
         assertFalse(txnBody.getFreezeDefault());
         assertEquals(442L, txnBody.getExpiry().getSeconds());
         assertEquals(555L, txnBody.getAutoRenewPeriod().getSeconds());
-        assertEquals(PAYER, txnBody.getAutoRenewAccount());
+        assertEquals(payer, txnBody.getAutoRenewAccount());
 
         // keys assertions
         assertKeys(txnBody, adminKey, multiKey);
