@@ -145,6 +145,82 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         assertThat(getCacheSizeContractSlot()).isEqualTo(flagEnabled ? contractSlotsCount : 0);
     }
 
+    @Test
+    void verifyTheCorrectEntriesExistInTheCache() {
+        // Given
+        final int maxCacheSize = 10;
+        cacheProperties.setSlotsPerContract("expireAfterAccess=2s,maximumSize=" + maxCacheSize);
+        cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
+        final var contract = persistContract();
+        final var contractStates = persistContractStates(contract.getId(), maxCacheSize);
+
+        // Read slots 1, 2, 3
+        final var firstThreeSlots = contractStates.subList(0, 3);
+        findStorage(contract, firstThreeSlots);
+        var cachedSlots = getCachedSlots(contract);
+
+        // Verify the cache contains only 0, 1, 2 slots
+        assertThat(cachedSlots.size()).isEqualTo(3);
+        assertThat(cachedSlots.containsAll(firstThreeSlots.stream()
+                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
+                        .toList()))
+                .isTrue();
+
+        // Read slots 3, 4, 5
+        final var secondThreeSlots = contractStates.subList(3, 6);
+        findStorage(contract, secondThreeSlots);
+        cachedSlots = getCachedSlots(contract);
+
+        // Verify the cache contains 0, 1, 2, 3, 4, 5 slots
+        assertThat(cachedSlots.size()).isEqualTo(6);
+        assertThat(cachedSlots.containsAll(firstThreeSlots.stream()
+                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
+                        .toList()))
+                .isTrue();
+        assertThat(cachedSlots.containsAll(secondThreeSlots.stream()
+                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
+                        .toList()))
+                .isTrue();
+
+        // Delete slots 0, 1, 2 from the cache
+        for (int i = 0; i < 3; i++) {
+            final var slotExistsInCache = cacheManagerSlotsPerContract
+                    .getCache(contract.toEntityId().toString())
+                    .evictIfPresent(ByteBuffer.wrap(firstThreeSlots.get(i).getSlot()));
+            assertThat(slotExistsInCache).isTrue();
+        }
+        await("cacheIsEvicted")
+                .atMost(Durations.TWO_SECONDS)
+                .pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
+                .until(() -> getCachedSlots(contract).size() == secondThreeSlots.size());
+
+        cachedSlots = getCachedSlots(contract);
+        assertThat(cachedSlots.containsAll(firstThreeSlots.stream()
+                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
+                        .toList()))
+                .isFalse();
+        assertThat(cachedSlots.containsAll(secondThreeSlots.stream()
+                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
+                        .toList()))
+                .isTrue();
+
+        // Read slots 6, 7, 8, 9
+        final var lastFourSlots = contractStates.subList(6, 10);
+        findStorage(contract, lastFourSlots);
+        cachedSlots = getCachedSlots(contract);
+
+        // Verify the cache contains 3, 4, 5, 6, 7, 8, 9 slots
+        assertThat(cachedSlots.size()).isEqualTo(7);
+        assertThat(cachedSlots.containsAll(secondThreeSlots.stream()
+                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
+                        .toList()))
+                .isTrue();
+        assertThat(cachedSlots.containsAll(lastFourSlots.stream()
+                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
+                        .toList()))
+                .isTrue();
+    }
+
     private Entity persistContract() {
         return domainBuilder
                 .entity()
