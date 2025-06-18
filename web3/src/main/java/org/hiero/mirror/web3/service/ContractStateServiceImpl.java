@@ -62,7 +62,7 @@ final class ContractStateServiceImpl implements ContractStateService {
 
         final var cachedValue = contractStateCache.get(generateCacheKey(contractId, key), byte[].class);
 
-        if (cachedValue != null) {
+        if (cachedValue != null && cachedValue != EMPTY_VALUE) {
             return Optional.of(cachedValue);
         }
 
