@@ -5,7 +5,6 @@ package org.hiero.mirror.common.aspect;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.metamodel.EntityType;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -71,12 +70,12 @@ public class RepositoryUsageTrackerAspect {
         return UNKNOWN_TABLE;
     }
 
-    private Class<?> extractEntityClassFromRepository(Object repositoryClass) {
-        for (Type iface : repositoryClass.getClass().getGenericInterfaces()) {
+    private Class<?> extractEntityClassFromRepository(final Object repositoryClass) {
+        for (final var iface : repositoryClass.getClass().getGenericInterfaces()) {
             if (iface instanceof Class<?> ifaceClass) {
-                for (Type superIface : ifaceClass.getGenericInterfaces()) {
+                for (final var superIface : ifaceClass.getGenericInterfaces()) {
                     if (superIface instanceof ParameterizedType paramType) {
-                        Type rawType = paramType.getRawType();
+                        final var rawType = paramType.getRawType();
                         if (rawType instanceof Class<?> rawClass && Repository.class.isAssignableFrom(rawClass)) {
 
                             final var entityType = paramType.getActualTypeArguments()[0];

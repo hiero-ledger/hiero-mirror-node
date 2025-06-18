@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Bean;
 public class TableUsageReportConfiguration {
 
     @Bean
-    public RepositoryUsageTrackerAspect repositoryUsageTrackerAspect(EntityManager entityManager) {
+    public RepositoryUsageTrackerAspect repositoryUsageTrackerAspect(final EntityManager entityManager) {
         return new RepositoryUsageTrackerAspect(entityManager);
     }
 

@@ -16,9 +16,7 @@ public class GlobalTestSetup implements LauncherSessionListener, TestExecutionLi
 
     @Override
     public void launcherSessionOpened(LauncherSession session) {
-        final var laucher = session.getLauncher();
-        laucher.registerTestExecutionListeners(this);
-        laucher.registerTestExecutionListeners(new TestExecutionTracker());
+        session.getLauncher().registerTestExecutionListeners(this, new TestExecutionTracker());
     }
 
     @Override
