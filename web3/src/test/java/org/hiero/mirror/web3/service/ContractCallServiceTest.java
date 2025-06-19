@@ -669,7 +669,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     @ValueSource(booleans = {true, false})
     void transferExceedsBalance(boolean overridePayerBalance) {
         // Given
-        overrideClasspathProperties.setOverridePayerBalanceValidation(overridePayerBalance);
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(overridePayerBalance);
         final var receiver = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiver);
         final var senderEntity = accountEntityWithEvmAddressPersist();
@@ -679,7 +679,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 getContractExecutionParametersWithValue(Bytes.EMPTY, senderAddress, receiverAddress, value);
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            if (overrideClasspathProperties.isOverridePayerBalanceValidation()) {
+            if (mirrorNodeEvmProperties.isOverridePayerBalanceValidation()) {
                 assertThat(contractExecutionService.processCall(serviceParameters))
                         .isEqualTo(HEX_PREFIX);
             } else {
@@ -695,7 +695,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                             toHexWith64LeadingZeros(value), toHexWith64LeadingZeros(senderEntity.getBalance()));
         }
         assertGasLimit(serviceParameters);
-        overrideClasspathProperties.setOverridePayerBalanceValidation(false);
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
     }
 
     @Test

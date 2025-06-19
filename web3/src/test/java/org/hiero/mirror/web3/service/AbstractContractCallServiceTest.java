@@ -61,7 +61,6 @@ import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.evm.properties.OverrideClasspathProperties;
 import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
@@ -109,9 +108,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     @Resource
     protected MirrorNodeEvmProperties mirrorNodeEvmProperties;
-
-    @Resource
-    protected OverrideClasspathProperties overrideClasspathProperties;
 
     @Resource
     protected State state;
@@ -557,7 +553,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * The entity table stores the properties common for all type of entities.
      */
     protected Entity accountEntityPersist() {
-        final var accountBalance = overrideClasspathProperties.isOverridePayerBalanceValidation()
+        final var accountBalance = mirrorNodeEvmProperties.isOverridePayerBalanceValidation()
                 ? DEFAULT_SMALL_ACCOUNT_BALANCE
                 : DEFAULT_ACCOUNT_BALANCE;
         return accountEntityPersistCustomizable(
@@ -571,7 +567,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @return Entity that is persisted in the database
      */
     protected Entity accountEntityWithEvmAddressPersist() {
-        final var accountBalance = overrideClasspathProperties.isOverridePayerBalanceValidation()
+        final var accountBalance = mirrorNodeEvmProperties.isOverridePayerBalanceValidation()
                 ? DEFAULT_SMALL_ACCOUNT_BALANCE
                 : DEFAULT_ACCOUNT_BALANCE;
         return accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT).balance(accountBalance));
@@ -870,7 +866,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param publicKey - the public key to be set to the account
      */
     protected Entity persistAccountWithEvmAddressAndPublicKey(byte[] evmAddress, byte[] publicKey) {
-        final var accountBalance = overrideClasspathProperties.isOverridePayerBalanceValidation()
+        final var accountBalance = mirrorNodeEvmProperties.isOverridePayerBalanceValidation()
                 ? DEFAULT_SMALL_ACCOUNT_BALANCE
                 : DEFAULT_ACCOUNT_BALANCE;
         return accountEntityPersistCustomizable(e -> e.alias(evmAddress)

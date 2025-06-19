@@ -316,7 +316,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void ethCallBalanceOfStatic(boolean overridePayerBalance) throws Exception {
-        overrideClasspathProperties.setOverridePayerBalanceValidation(overridePayerBalance);
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(overridePayerBalance);
         final var ownerEntityId = accountPersist();
         final var token = fungibleTokenPersistWithTreasuryAccount(ownerEntityId);
         final var tokenId = token.getTokenId();
@@ -331,7 +331,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
 
         assertThat(result).isEqualTo(BigInteger.valueOf(tokenAccount.getBalance()));
         verifyEthCallAndEstimateGas(functionCall, contract);
-        overrideClasspathProperties.setOverridePayerBalanceValidation(false);
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
     }
 
     @Test
