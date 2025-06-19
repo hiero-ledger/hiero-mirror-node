@@ -38,6 +38,9 @@ public class CustomBalanceOperation extends BalanceOperation {
     @Override
     public OperationResult execute(@NonNull final MessageFrame frame, @NonNull final EVM evm) {
         try {
+            // NOTE: This line is the ONLY modification from the upstream class.
+            // It sets a flag indicating a balance read, allowing custom behavior downstream.
+            // The rest of this method is an exact copy of the upstream implementation.
             ContractCallContext.get().setBalanceCall(true);
             final long cost = cost(false);
             if (isDeficientGas(frame, cost)) {
