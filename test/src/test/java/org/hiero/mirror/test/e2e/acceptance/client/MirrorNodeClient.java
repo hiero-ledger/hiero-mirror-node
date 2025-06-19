@@ -6,28 +6,18 @@ import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.test.e2e.acceptance.config.RestProperties.URL_PREFIX;
 
 import com.google.common.base.Stopwatch;
-import com.google.protobuf.ByteString;
 import com.hedera.hashgraph.sdk.AccountId;
-import com.hedera.hashgraph.sdk.Client;
-import com.hedera.hashgraph.sdk.ContractFunctionParameters;
-import com.hedera.hashgraph.sdk.ContractId;
-import com.hedera.hashgraph.sdk.LedgerId;
-import com.hedera.hashgraph.sdk.MirrorNodeContractEstimateGasQuery;
 import com.hedera.hashgraph.sdk.SubscriptionHandle;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.TopicMessageQuery;
 import jakarta.inject.Named;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import lombok.CustomLog;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
@@ -66,7 +56,6 @@ import org.hiero.mirror.rest.model.TransactionsResponse;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.RestJavaProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
-import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 import org.springframework.retry.RetryContext;
@@ -77,9 +66,6 @@ import org.springframework.web.client.RestClient;
 @CustomLog
 @Named
 public class MirrorNodeClient {
-    private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED = 30;
-    private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS = 100;
-    private static final long GAS_PRICE = 1_000_000L;
 
     private final AcceptanceTestProperties acceptanceTestProperties;
     private final RestClient restClient;
@@ -87,17 +73,12 @@ public class MirrorNodeClient {
     private final RetryTemplate retryTemplate;
     private final RestClient web3Client;
     private final Web3Properties web3Properties;
-    private final Client queryClient;
-    private final ExpandedAccountId defaultOperator;
 
     public MirrorNodeClient(
             AcceptanceTestProperties acceptanceTestProperties,
             RestClient.Builder restClientBuilder,
             RestJavaProperties restJavaProperties,
-            Web3Properties web3Properties)
-            throws InterruptedException, TimeoutException, URISyntaxException {
-        defaultOperator = new ExpandedAccountId(
-                acceptanceTestProperties.getOperatorId(), acceptanceTestProperties.getOperatorKey());
+            Web3Properties web3Properties) {
         this.acceptanceTestProperties = acceptanceTestProperties;
         this.restClient = restClientBuilder.build();
         this.restJavaClient = StringUtils.isBlank(restJavaProperties.getBaseUrl())
@@ -117,7 +98,6 @@ public class MirrorNodeClient {
                 .exponentialBackoff(properties.getMinBackoff(), 2.0, properties.getMaxBackoff())
                 .build();
         this.web3Properties = web3Properties;
-        this.queryClient = createClient();
 
         var virtualThreadFactory = Thread.ofVirtual().name("awaitility", 1).factory();
         var executorService = Executors.newThreadPerTaskExecutor(virtualThreadFactory);
@@ -444,124 +424,11 @@ public class MirrorNodeClient {
         });
     }
 
-    public long estimateGasQueryTopLevelCall(
-            final ContractId contractId,
-            final String functionName,
-            final ContractFunctionParameters params,
-            final AccountId sender,
-            final int actualGas,
-            final Optional<Long> value)
-            throws ExecutionException, InterruptedException {
-        return estimateGasQuery(
-                contractId, functionName, params, sender, actualGas, value, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
-    }
-
-    private long estimateGasQuery(
-            final ContractId contractId,
-            final String functionName,
-            final ContractFunctionParameters params,
-            final AccountId sender,
-            final int actualGas,
-            final Optional<Long> value,
-            final int percentage)
-            throws ExecutionException, InterruptedException {
-
-        final long calculatedContractCallGas = calculateGasLimit(actualGas, percentage);
-
-        var gasEstimateQuery = buildEstimateGasQueryWithParams(contractId, functionName, params);
-        gasEstimateQuery.setGasLimit(calculatedContractCallGas);
-        if (sender != null) {
-            gasEstimateQuery.setSender(sender);
-        }
-        value.ifPresent(gasEstimateQuery::setValue);
-
-        return gasEstimateQuery.execute(queryClient);
-    }
-
-    public long estimateGasQueryWithoutParams(
-            final ContractId contractId, final String functionName, final AccountId sender, final int actualGas)
-            throws ExecutionException, InterruptedException {
-
-        final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
-
-        var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
-                .setContractId(contractId)
-                .setFunction(functionName)
-                .setGasPrice(GAS_PRICE)
-                .setGasLimit(calculatedContractCallGas);
-        if (sender != null) {
-            gasEstimateQuery.setSender(sender);
-        }
-
-        return gasEstimateQuery.execute(queryClient);
-    }
-
-    public long estimateGasQueryRawData(
-            final ContractId contractId, final ByteString params, final AccountId sender, final int actualGas)
-            throws ExecutionException, InterruptedException {
-
-        final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
-
-        var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
-                .setContractId(contractId)
-                .setFunctionParameters(params)
-                .setGasPrice(GAS_PRICE)
-                .setGasLimit(calculatedContractCallGas);
-        if (sender != null) {
-            gasEstimateQuery.setSender(sender);
-        }
-
-        return gasEstimateQuery.execute(queryClient);
-    }
-
-    public long estimateGasQueryNestedCall(
-            final ContractId contractId,
-            final String functionName,
-            final ContractFunctionParameters params,
-            final AccountId sender,
-            final int actualGas)
-            throws ExecutionException, InterruptedException {
-
-        return estimateGasQuery(
-                contractId,
-                functionName,
-                params,
-                sender,
-                actualGas,
-                Optional.empty(),
-                DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS);
-    }
-
-    private MirrorNodeContractEstimateGasQuery buildEstimateGasQueryWithParams(
-            ContractId contractId, String functionName, ContractFunctionParameters params) {
-        return new MirrorNodeContractEstimateGasQuery()
-                .setContractId(contractId)
-                .setFunction(functionName, params)
-                .setGasPrice(GAS_PRICE);
-    }
-
-    private long calculateGasLimit(int actualGas, int percentage) {
-        return Math.round(actualGas * (1 + (percentage / 100.0)));
-    }
-
     private String normalizeUri(String uri) {
         if (uri == null || !uri.startsWith(URL_PREFIX)) {
             return uri;
         }
 
         return uri.substring(URL_PREFIX.length());
-    }
-
-    private Client createClient() throws InterruptedException, URISyntaxException {
-        var endpoint = StringUtils.isNotBlank(web3Properties.getEndpoint())
-                ? web3Properties.getEndpoint()
-                : acceptanceTestProperties.getRestProperties().getEndpoint();
-        if (acceptanceTestProperties.getNetwork().name().equals("OTHER")) {
-            return Client.forNetwork(Map.of()).setMirrorNetwork(List.of(endpoint));
-        }
-        return Client.forNetwork(Map.of())
-                .setMirrorNetwork(List.of(endpoint))
-                .setLedgerId(LedgerId.fromString(
-                        acceptanceTestProperties.getNetwork().name().toLowerCase()));
     }
 }

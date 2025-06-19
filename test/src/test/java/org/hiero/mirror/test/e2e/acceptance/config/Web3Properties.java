@@ -15,7 +15,7 @@ import org.springframework.validation.annotation.Validated;
 @Named
 @RequiredArgsConstructor
 @Validated
-public class Web3Properties implements ApiProperties {
+public class Web3Properties {
 
     private String baseUrl;
 
