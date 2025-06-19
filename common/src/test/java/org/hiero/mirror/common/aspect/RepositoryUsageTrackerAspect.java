@@ -75,20 +75,26 @@ public class RepositoryUsageTrackerAspect {
         final var interfaces = repositoryInstance.getClass().getGenericInterfaces();
 
         for (final var iface : interfaces) {
-            if (!(iface instanceof Class<?> ifaceClass)) {
+            final var entityClass = extractFromInterface(iface);
+            if (entityClass != null) {
+                return entityClass;
+            }
+        }
+
+        return null;
+    }
+
+    private Class<?> extractFromInterface(final Type iface) {
+        if (!(iface instanceof Class<?> ifaceClass)) {
+            return null;
+        }
+
+        for (final var superIface : ifaceClass.getGenericInterfaces()) {
+            if (!isParameterizedRepository(superIface)) {
                 continue;
             }
 
-            for (final var superIface : ifaceClass.getGenericInterfaces()) {
-                if (!isParameterizedRepository(superIface)) {
-                    continue;
-                }
-
-                final var entityClass = getEntityClassFromParameterizedType((ParameterizedType) superIface);
-                if (entityClass != null) {
-                    return entityClass;
-                }
-            }
+            return getEntityClassFromParameterizedType((ParameterizedType) superIface);
         }
 
         return null;

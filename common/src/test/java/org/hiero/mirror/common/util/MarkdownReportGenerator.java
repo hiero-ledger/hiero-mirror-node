@@ -37,7 +37,7 @@ public class MarkdownReportGenerator {
 
     private static void writeTableUsage(final BufferedWriter writer, final Map<String, Set<String>> tableQueries)
             throws IOException {
-        for (var tableEntry : tableQueries.entrySet()) {
+        for (final var tableEntry : tableQueries.entrySet()) {
             writer.write("### Table: " + tableEntry.getKey() + NEWLINE);
             for (final var query : tableEntry.getValue()) {
                 writer.write("- " + query + NEWLINE);
