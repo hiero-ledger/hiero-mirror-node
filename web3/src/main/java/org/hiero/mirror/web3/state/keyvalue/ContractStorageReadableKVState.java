@@ -12,17 +12,17 @@ import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.repository.ContractStateRepository;
+import org.hiero.mirror.web3.service.ContractStateService;
 
 @Named
 public class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
 
     public static final String KEY = "STORAGE";
-    private final ContractStateRepository contractStateRepository;
+    private final ContractStateService contractStateService;
 
-    protected ContractStorageReadableKVState(final ContractStateRepository contractStateRepository) {
+    protected ContractStorageReadableKVState(final ContractStateService contractStateService) {
         super(KEY);
-        this.contractStateRepository = contractStateRepository;
+        this.contractStateService = contractStateService;
     }
 
     @Override
@@ -33,12 +33,12 @@ public class ContractStorageReadableKVState extends AbstractReadableKVState<Slot
 
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var contractID = slotKey.contractID();
-        final var entityId = EntityIdUtils.entityIdFromContractId(contractID).getId();
+        final var entityId = EntityIdUtils.entityIdFromContractId(contractID);
         final var keyBytes = slotKey.key().toByteArray();
         return timestamp
-                .map(t -> contractStateRepository.findStorageByBlockTimestamp(
+                .map(t -> contractStateService.findStorageByBlockTimestamp(
                         entityId, Bytes32.wrap(keyBytes).trimLeadingZeros().toArrayUnsafe(), t))
-                .orElse(contractStateRepository.findStorage(entityId, keyBytes))
+                .orElse(contractStateService.findStorage(entityId, keyBytes))
                 .map(byteArr ->
                         new SlotValue(Bytes.wrap(leftPadBytes(byteArr, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY))
                 .orElse(null);

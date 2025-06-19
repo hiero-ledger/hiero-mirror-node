@@ -12,6 +12,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.PAYER_ACCOUNT_
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.ALLOW_LONG_ZERO_ADDRESSES;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
 import static org.hiero.mirror.web3.service.ContractCallService.GAS_LIMIT_METRIC;
@@ -371,13 +372,22 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
-    @Test
-    void transferFunds() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void transferFunds(boolean longZeroAddressAllowed) {
         // Given
         final var sender = accountEntityWithEvmAddressPersist();
         final var receiver = accountEntityWithEvmAddressPersist();
         final var senderAddress = getAliasAddressFromEntity(sender);
-        final var receiverAddress = getAliasAddressFromEntity(receiver);
+
+        Address receiverAddress;
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
+        if (longZeroAddressAllowed) {
+            receiverAddress = Address.fromHexString(getAddressFromEntity(receiver));
+        } else {
+            receiverAddress = getAliasAddressFromEntity(receiver);
+        }
+
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
         final var serviceParameters = getContractExecutionParameters(Bytes.EMPTY, receiverAddress, senderAddress, 7L);
 

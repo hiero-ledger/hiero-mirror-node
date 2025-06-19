@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.common.PrecompileContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.evm.store.Store;
@@ -52,6 +53,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class UnfreezeTokenPrecompileTest {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
+
     @InjectMocks
     private MirrorNodeEvmProperties evmProperties;
 
@@ -204,7 +207,7 @@ class UnfreezeTokenPrecompileTest {
                 .thenCallRealMethod();
         final var decodedInput = decodeUnfreeze(UNFREEZE_INPUT, identity());
 
-        assertEquals(TokenID.newBuilder().setTokenNum(1304).build(), decodedInput.token());
+        assertEquals(domainBuilder.entityNum(1304L).toTokenID(), decodedInput.token());
     }
 
     private void givenMinimalFrameContext() {

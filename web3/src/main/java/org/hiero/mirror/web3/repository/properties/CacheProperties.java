@@ -21,13 +21,21 @@ public class CacheProperties {
     private String contract = "expireAfterAccess=1h,maximumSize=1000,recordStats";
 
     @NotBlank
-    private String contractState = "expireAfterWrite=2s,maximumSize=10000,recordStats";
+    private String contractSlots = "expireAfterAccess=5m,maximumSize=3000";
+
+    @NotBlank
+    private String contractState = "expireAfterWrite=5s,maximumSize=25000,recordStats";
+
+    private boolean enableBatchContractSlotCaching = true;
+
+    @NotBlank
+    private String entity = ENTITY_CACHE_CONFIG;
 
     @NotBlank
     private String fee = "expireAfterWrite=10m,maximumSize=20,recordStats";
 
     @NotBlank
-    private String entity = ENTITY_CACHE_CONFIG;
+    private String slotsPerContract = "expireAfterAccess=5m,maximumSize=1500";
 
     @NotBlank
     private String token = ENTITY_CACHE_CONFIG;

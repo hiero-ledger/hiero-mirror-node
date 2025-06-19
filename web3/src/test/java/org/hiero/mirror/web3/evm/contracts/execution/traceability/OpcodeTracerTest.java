@@ -1022,6 +1022,8 @@ class OpcodeTracerTest {
         var entityId = DomainUtils.fromEvmAddress(contractAddress.toArray());
         var testContractId = com.hedera.hapi.node.base.ContractID.newBuilder()
                 .contractNum(entityId.getNum())
+                .realmNum(entityId.getRealm())
+                .shardNum(entityId.getShard())
                 .build();
 
         lenient().when(slotKey.contractID()).thenReturn(testContractId);

@@ -61,13 +61,10 @@ import com.hedera.services.txns.token.validators.CreateChecks;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hedera.services.utils.accessors.AccessorFactory;
-import com.hederahashgraph.api.proto.java.AccountID;
-import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SubType;
 import com.hederahashgraph.api.proto.java.TokenCreateTransactionBody;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -82,7 +79,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.common.PrecompileContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.evm.store.Store;
@@ -105,6 +102,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class TokenCreatePrecompileTest {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
+
     private static final Bytes CREATE_FUNGIBLE_NO_FEES_INPUT = Bytes.fromHexString(
             "0x7812a04b000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000c80000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000001a0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000015b200000000000000000000000000000000000000000000000000000000000000074d79546f6b656e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000034d544b000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000046d656d6f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
     private static final Bytes CREATE_FUNGIBLE_WITH_FEES_INPUT = Bytes.fromHexString(
@@ -178,9 +177,6 @@ class TokenCreatePrecompileTest {
 
     @Mock
     private OptionValidator validator;
-
-    @Mock
-    private CommonProperties commonProperties;
 
     @InjectMocks
     private MirrorNodeEvmProperties evmProperties;
@@ -302,14 +298,10 @@ class TokenCreatePrecompileTest {
         assertEquals(USE_CURRENTLY_CREATED_TOKEN, fixedFeeWrapper.getFixedFeePayment());
         final var customFee = fixedFeeWrapper.asGrpc();
         assertEquals(4, customFee.getFixedFee().getAmount());
-        assertEquals(
-                TokenID.newBuilder()
-                        .setTokenNum(0)
-                        .setRealmNum(0)
-                        .setShardNum(0)
-                        .build(),
-                customFee.getFixedFee().getDenominatingTokenId());
-        assertEquals(AccountID.newBuilder().setAccountNum(1).build(), customFee.getFeeCollectorAccountId());
+        final var expectedDenominatingTokenId = domainBuilder.entityNum(0).toTokenID();
+
+        assertEquals(expectedDenominatingTokenId, customFee.getFixedFee().getDenominatingTokenId());
+        assertEquals(domainBuilder.entityNum(1).toAccountID(), customFee.getFeeCollectorAccountId());
 
         final var fractionalFees = decodedInput.getFractionalFees();
         assertEquals(1, fractionalFees.size());
@@ -319,7 +311,7 @@ class TokenCreatePrecompileTest {
         assertEquals(55, fractionalFeeWrapper.minimumAmount());
         assertEquals(100, fractionalFeeWrapper.maximumAmount());
         assertTrue(fractionalFeeWrapper.netOfTransfers());
-        assertEquals(AccountID.newBuilder().setAccountNum(3).build(), fractionalFeeWrapper.feeCollector());
+        assertEquals(domainBuilder.entityNum(3L).toAccountID(), fractionalFeeWrapper.feeCollector());
     }
 
     @Test
@@ -348,9 +340,8 @@ class TokenCreatePrecompileTest {
         final var customFee = fixedFeeWrapper.asGrpc();
         assertEquals(4, customFee.getFixedFee().getAmount());
         assertEquals(
-                TokenID.newBuilder().setTokenNum(1).build(),
-                customFee.getFixedFee().getDenominatingTokenId());
-        assertEquals(AccountID.newBuilder().setAccountNum(1009).build(), customFee.getFeeCollectorAccountId());
+                domainBuilder.entityNum(1L).toTokenID(), customFee.getFixedFee().getDenominatingTokenId());
+        assertEquals(domainBuilder.entityNum(1009L).toAccountID(), customFee.getFeeCollectorAccountId());
 
         final var royaltyFees = decodedInput.getRoyaltyFees();
         assertEquals(2, royaltyFees.size());
@@ -360,14 +351,14 @@ class TokenCreatePrecompileTest {
         final var actualFallbackFee = royaltyFeeWrapper.fallbackFixedFee().asGrpc();
         assertEquals(5, actualFallbackFee.getFixedFee().getAmount());
         assertFalse(actualFallbackFee.getFixedFee().hasDenominatingTokenId());
-        assertEquals(AccountID.newBuilder().setAccountNum(1009).build(), royaltyFeeWrapper.feeCollector());
+        assertEquals(domainBuilder.entityNum(1009L).toAccountID(), royaltyFeeWrapper.feeCollector());
         final var royaltyFeeWrapper2 = royaltyFees.get(1);
         assertEquals(4, royaltyFeeWrapper2.numerator());
         assertEquals(5, royaltyFeeWrapper2.denominator());
         final var actualFallbackFee2 = royaltyFeeWrapper2.fallbackFixedFee().asGrpc();
         assertEquals(5, actualFallbackFee2.getFixedFee().getAmount());
         assertEquals(
-                TokenID.newBuilder().setTokenNum(1).build(),
+                domainBuilder.entityNum(1L).toTokenID(),
                 actualFallbackFee2.getFixedFee().getDenominatingTokenId());
         assertNull(royaltyFeeWrapper2.feeCollector());
     }
@@ -442,13 +433,8 @@ class TokenCreatePrecompileTest {
         final var customFee = fixedFeeWrapper.asGrpc();
         assertEquals(0, customFee.getFixedFee().getAmount());
         assertEquals(
-                TokenID.newBuilder()
-                        .setTokenNum(1)
-                        .setRealmNum(0)
-                        .setShardNum(0)
-                        .build(),
-                customFee.getFixedFee().getDenominatingTokenId());
-        assertEquals(AccountID.newBuilder().setAccountNum(1).build(), customFee.getFeeCollectorAccountId());
+                domainBuilder.entityNum(1).toTokenID(), customFee.getFixedFee().getDenominatingTokenId());
+        assertEquals(domainBuilder.entityNum(1).toAccountID(), customFee.getFeeCollectorAccountId());
 
         final var fractionalFees = decodedInput.getFractionalFees();
         assertEquals(1, fractionalFees.size());
@@ -458,7 +444,7 @@ class TokenCreatePrecompileTest {
         assertEquals(1, fractionalFeeWrapper.minimumAmount());
         assertEquals(1, fractionalFeeWrapper.maximumAmount());
         assertFalse(fractionalFeeWrapper.netOfTransfers());
-        assertEquals(AccountID.newBuilder().setAccountNum(1).build(), fractionalFeeWrapper.feeCollector());
+        assertEquals(domainBuilder.entityNum(1).toAccountID(), fractionalFeeWrapper.feeCollector());
     }
 
     @Test
@@ -478,13 +464,8 @@ class TokenCreatePrecompileTest {
         final var customFee = fixedFeeWrapper.asGrpc();
         assertEquals(0, customFee.getFixedFee().getAmount());
         assertEquals(
-                TokenID.newBuilder()
-                        .setTokenNum(1)
-                        .setRealmNum(0)
-                        .setShardNum(0)
-                        .build(),
-                customFee.getFixedFee().getDenominatingTokenId());
-        assertEquals(AccountID.newBuilder().setAccountNum(1).build(), customFee.getFeeCollectorAccountId());
+                domainBuilder.entityNum(1).toTokenID(), customFee.getFixedFee().getDenominatingTokenId());
+        assertEquals(domainBuilder.entityNum(1).toAccountID(), customFee.getFeeCollectorAccountId());
 
         final var fractionalFees = decodedInput.getFractionalFees();
         assertEquals(1, fractionalFees.size());
@@ -494,7 +475,7 @@ class TokenCreatePrecompileTest {
         assertEquals(1, fractionalFeeWrapper.minimumAmount());
         assertEquals(1, fractionalFeeWrapper.maximumAmount());
         assertFalse(fractionalFeeWrapper.netOfTransfers());
-        assertEquals(AccountID.newBuilder().setAccountNum(1).build(), fractionalFeeWrapper.feeCollector());
+        assertEquals(domainBuilder.entityNum(1).toAccountID(), fractionalFeeWrapper.feeCollector());
     }
 
     @Test
@@ -504,7 +485,7 @@ class TokenCreatePrecompileTest {
         assertFalse(decodedInput.isFungible());
         assertEquals("MyNFTV2", decodedInput.getName());
         assertEquals("NFTV2", decodedInput.getSymbol());
-        assertEquals(AccountID.newBuilder().setAccountNum(1L).build(), decodedInput.getTreasury());
+        assertEquals(domainBuilder.entityNum(1L).toAccountID(), decodedInput.getTreasury());
         assertEquals("nftMemoV2", decodedInput.getMemo());
         assertTrue(decodedInput.isSupplyTypeFinite());
         assertEquals(9223372036854775807L, decodedInput.getMaxSupply());
@@ -512,7 +493,7 @@ class TokenCreatePrecompileTest {
         assertEquals(0L, decodedInput.getExpiry().second());
         assertEquals(8000000L, decodedInput.getExpiry().autoRenewPeriod());
         assertEquals(
-                AccountID.newBuilder().setAccountNum(4L).build(),
+                domainBuilder.entityNum(4L).toAccountID(),
                 decodedInput.getExpiry().autoRenewAccount());
         assertEquals(BigInteger.valueOf(0), decodedInput.getInitSupply());
         assertEquals(BigInteger.valueOf(0), decodedInput.getDecimals());
@@ -526,7 +507,7 @@ class TokenCreatePrecompileTest {
         assertFalse(decodedInput.isFungible());
         assertEquals("MyNFTV2", decodedInput.getName());
         assertEquals("NFTV2", decodedInput.getSymbol());
-        assertEquals(AccountID.newBuilder().setAccountNum(1L).build(), decodedInput.getTreasury());
+        assertEquals(domainBuilder.entityNum(1L).toAccountID(), decodedInput.getTreasury());
         assertEquals("nftMemoV2", decodedInput.getMemo());
         assertTrue(decodedInput.isSupplyTypeFinite());
         assertEquals(9223372036854775807L, decodedInput.getMaxSupply());
@@ -534,7 +515,7 @@ class TokenCreatePrecompileTest {
         assertEquals(0L, decodedInput.getExpiry().second());
         assertEquals(8000000L, decodedInput.getExpiry().autoRenewPeriod());
         assertEquals(
-                AccountID.newBuilder().setAccountNum(4L).build(),
+                domainBuilder.entityNum(4L).toAccountID(),
                 decodedInput.getExpiry().autoRenewAccount());
         assertEquals(BigInteger.valueOf(0), decodedInput.getInitSupply());
         assertEquals(BigInteger.valueOf(0), decodedInput.getDecimals());
@@ -548,7 +529,7 @@ class TokenCreatePrecompileTest {
         assertFalse(decodedInput.isFungible());
         assertEquals("MyNFTV2", decodedInput.getName());
         assertEquals("NFTV2", decodedInput.getSymbol());
-        assertEquals(AccountID.newBuilder().setAccountNum(1L).build(), decodedInput.getTreasury());
+        assertEquals(domainBuilder.entityNum(1).toAccountID(), decodedInput.getTreasury());
         assertEquals("nftMemoV2", decodedInput.getMemo());
         assertTrue(decodedInput.isSupplyTypeFinite());
         assertEquals(9223372036854775807L, decodedInput.getMaxSupply());
@@ -556,7 +537,7 @@ class TokenCreatePrecompileTest {
         assertEquals(0L, decodedInput.getExpiry().second());
         assertEquals(8000000L, decodedInput.getExpiry().autoRenewPeriod());
         assertEquals(
-                AccountID.newBuilder().setAccountNum(4L).build(),
+                domainBuilder.entityNum(4).toAccountID(),
                 decodedInput.getExpiry().autoRenewAccount());
         assertEquals(BigInteger.valueOf(0), decodedInput.getInitSupply());
         assertEquals(BigInteger.valueOf(0), decodedInput.getDecimals());
@@ -569,9 +550,8 @@ class TokenCreatePrecompileTest {
         final var customFee = fixedFeeWrapper.asGrpc();
         assertEquals(0, customFee.getFixedFee().getAmount());
         assertEquals(
-                TokenID.newBuilder().setTokenNum(1).build(),
-                customFee.getFixedFee().getDenominatingTokenId());
-        assertEquals(AccountID.newBuilder().setAccountNum(1).build(), customFee.getFeeCollectorAccountId());
+                domainBuilder.entityNum(1).toTokenID(), customFee.getFixedFee().getDenominatingTokenId());
+        assertEquals(domainBuilder.entityNum(1).toAccountID(), customFee.getFeeCollectorAccountId());
 
         final var royaltyFees = decodedInput.getRoyaltyFees();
         assertEquals(1, royaltyFees.size());
@@ -581,7 +561,7 @@ class TokenCreatePrecompileTest {
         final var actualFallbackFee = royaltyFeeWrapper.fallbackFixedFee().asGrpc();
         assertEquals(3, actualFallbackFee.getFixedFee().getAmount());
         assertTrue(actualFallbackFee.getFixedFee().hasDenominatingTokenId());
-        assertEquals(AccountID.newBuilder().setAccountNum(2).build(), royaltyFeeWrapper.feeCollector());
+        assertEquals(domainBuilder.entityNum(2).toAccountID(), royaltyFeeWrapper.feeCollector());
     }
 
     @Test
@@ -591,7 +571,7 @@ class TokenCreatePrecompileTest {
         assertFalse(decodedInput.isFungible());
         assertEquals("MyNFTV2", decodedInput.getName());
         assertEquals("NFTV2", decodedInput.getSymbol());
-        assertEquals(AccountID.newBuilder().setAccountNum(1L).build(), decodedInput.getTreasury());
+        assertEquals(domainBuilder.entityNum(1L).toAccountID(), decodedInput.getTreasury());
         assertEquals("nftMemoV2", decodedInput.getMemo());
         assertTrue(decodedInput.isSupplyTypeFinite());
         assertEquals(9223372036854775807L, decodedInput.getMaxSupply());
@@ -599,7 +579,7 @@ class TokenCreatePrecompileTest {
         assertEquals(0L, decodedInput.getExpiry().second());
         assertEquals(8000000L, decodedInput.getExpiry().autoRenewPeriod());
         assertEquals(
-                AccountID.newBuilder().setAccountNum(4L).build(),
+                domainBuilder.entityNum(4L).toAccountID(),
                 decodedInput.getExpiry().autoRenewAccount());
         assertEquals(BigInteger.valueOf(0), decodedInput.getInitSupply());
         assertEquals(BigInteger.valueOf(0), decodedInput.getDecimals());
@@ -612,9 +592,8 @@ class TokenCreatePrecompileTest {
         final var customFee = fixedFeeWrapper.asGrpc();
         assertEquals(0, customFee.getFixedFee().getAmount());
         assertEquals(
-                TokenID.newBuilder().setTokenNum(1).build(),
-                customFee.getFixedFee().getDenominatingTokenId());
-        assertEquals(AccountID.newBuilder().setAccountNum(1).build(), customFee.getFeeCollectorAccountId());
+                domainBuilder.entityNum(1L).toTokenID(), customFee.getFixedFee().getDenominatingTokenId());
+        assertEquals(domainBuilder.entityNum(1).toAccountID(), customFee.getFeeCollectorAccountId());
 
         final var royaltyFees = decodedInput.getRoyaltyFees();
         assertEquals(1, royaltyFees.size());
@@ -624,7 +603,7 @@ class TokenCreatePrecompileTest {
         final var actualFallbackFee = royaltyFeeWrapper.fallbackFixedFee().asGrpc();
         assertEquals(3, actualFallbackFee.getFixedFee().getAmount());
         assertTrue(actualFallbackFee.getFixedFee().hasDenominatingTokenId());
-        assertEquals(AccountID.newBuilder().setAccountNum(2).build(), royaltyFeeWrapper.feeCollector());
+        assertEquals(domainBuilder.entityNum(2).toAccountID(), royaltyFeeWrapper.feeCollector());
     }
 
     @Test
@@ -1064,14 +1043,14 @@ class TokenCreatePrecompileTest {
         assertTrue(decodedInput.isFungible());
         assertEquals("MyToken", decodedInput.getName());
         assertEquals("MTK", decodedInput.getSymbol());
-        assertEquals(AccountID.newBuilder().setAccountNum(1L).build(), decodedInput.getTreasury());
+        assertEquals(domainBuilder.entityNum(1L).toAccountID(), decodedInput.getTreasury());
         assertEquals("memo", decodedInput.getMemo());
         assertFalse(decodedInput.isSupplyTypeFinite());
         assertEquals(0L, decodedInput.getMaxSupply());
         assertFalse(decodedInput.isFreezeDefault());
         assertEquals(5554, decodedInput.getExpiry().autoRenewPeriod());
         assertEquals(
-                AccountID.newBuilder().setAccountNum(2L).build(),
+                domainBuilder.entityNum(2L).toAccountID(),
                 decodedInput.getExpiry().autoRenewAccount());
         assertEquals(0L, decodedInput.getExpiry().second());
     }
@@ -1088,8 +1067,7 @@ class TokenCreatePrecompileTest {
 
         final var key2 = tokenKeys.get(1);
         assertEquals(KeyValueWrapper.KeyValueType.CONTRACT_ID, key2.key().getKeyValueType());
-        assertEquals(
-                ContractID.newBuilder().setContractNum(1).build(), key2.key().getContractID());
+        assertEquals(domainBuilder.entityNum(1).toContractID(), key2.key().getContractID());
         assertTrue(key2.isUsedForSupplyKey());
         assertTrue(key2.isUsedForPauseKey());
         assertEquals(80, key2.keyType());
@@ -1099,7 +1077,7 @@ class TokenCreatePrecompileTest {
         assertFalse(decodedInput.isFungible());
         assertEquals("MyNFT", decodedInput.getName());
         assertEquals("NFT", decodedInput.getSymbol());
-        assertEquals(AccountID.newBuilder().setAccountNum(1L).build(), decodedInput.getTreasury());
+        assertEquals(domainBuilder.entityNum(1L).toAccountID(), decodedInput.getTreasury());
         assertEquals("nftMemo", decodedInput.getMemo());
         assertTrue(decodedInput.isSupplyTypeFinite());
         assertEquals(55L, decodedInput.getMaxSupply());
@@ -1113,14 +1091,14 @@ class TokenCreatePrecompileTest {
         assertTrue(decodedInput.isFungible());
         assertEquals("MyTokenV2", decodedInput.getName());
         assertEquals("MTKV2", decodedInput.getSymbol());
-        assertEquals(AccountID.newBuilder().setAccountNum(1L).build(), decodedInput.getTreasury());
+        assertEquals(domainBuilder.entityNum(1L).toAccountID(), decodedInput.getTreasury());
         assertEquals("memoV2", decodedInput.getMemo());
         assertFalse(decodedInput.isSupplyTypeFinite());
         assertEquals(9223372036854775807L, decodedInput.getMaxSupply());
         assertFalse(decodedInput.isFreezeDefault());
         assertEquals(8000000, decodedInput.getExpiry().autoRenewPeriod());
         assertEquals(
-                AccountID.newBuilder().setAccountNum(4L).build(),
+                domainBuilder.entityNum(4L).toAccountID(),
                 decodedInput.getExpiry().autoRenewAccount());
         assertEquals(0L, decodedInput.getExpiry().second());
     }

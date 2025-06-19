@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.web3.utils;
 
+import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
+
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.Key;
 import java.util.Arrays;
@@ -62,5 +64,14 @@ public class ContractCallTestUtil {
     public static boolean isWithinExpectedGasRange(final long estimatedGas, final long actualGas) {
         return estimatedGas >= (actualGas * GAS_ESTIMATE_MULTIPLIER_LOWER_RANGE)
                 && estimatedGas <= (actualGas * GAS_ESTIMATE_MULTIPLIER_UPPER_RANGE);
+    }
+
+    /**
+     * Returns the Unix seconds from a passed timestamp in nanoseconds.
+     * @param nanoseconds
+     * @return Unix seconds
+     */
+    public static long getUnixSeconds(long nanoseconds) {
+        return nanoseconds / NANOS_PER_SECOND;
     }
 }

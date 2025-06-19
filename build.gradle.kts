@@ -23,6 +23,8 @@ extra.apply {
     set("postgresql.version", "42.7.7") // Temporary until next Spring Boot version
     set("protobufVersion", "4.31.1")
     set("reactorGrpcVersion", "1.2.4")
+    set("spring-framework.version", "6.2.8") // Temporary until next Spring Boot version
+    set("tomcat.version", "10.1.42") // Temporary until next Spring Boot version
     set("tuweniVersion", "2.3.1")
 }
 
@@ -81,7 +83,7 @@ dependencies {
         api("org.springframework.cloud:spring-cloud-dependencies:2025.0.0")
         api("org.testcontainers:junit-jupiter:1.21.1")
         api("org.mockito:mockito-inline:5.2.0")
-        api("software.amazon.awssdk:bom:2.31.59")
+        api("software.amazon.awssdk:bom:2.31.63")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
         api("org.web3j:core:4.12.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
