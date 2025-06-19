@@ -160,14 +160,16 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
                     if (!mirrorNodeEvmProperties.isOverridePayerBalanceValidation()) {
                         return entity.getBalance();
                     }
-                    boolean isBalanceCall = ContractCallContext.get().isBalanceCall();
-                    Long currentBalance = entity.getBalance();
-                    if (!isBalanceCall
-                            && (currentBalance == null
-                                    || currentBalance < mirrorNodeEvmProperties.getMinimumAccountBalance())) {
+
+                    final ContractCallContext context = ContractCallContext.get();
+                    final boolean isBalanceCall = ContractCallContext.get().isBalanceCall();
+                    final Long currentBalance = entity.getBalance();
+                    final long minimumBalance = mirrorNodeEvmProperties.getMinimumAccountBalance();
+
+                    if (!isBalanceCall && (currentBalance == null || currentBalance < minimumBalance)) {
                         return mirrorNodeEvmProperties.getMinimumAccountBalance();
                     }
-                    ContractCallContext.get().setBalanceCall(false);
+                    context.setBalanceCall(false);
                     return currentBalance;
                 }));
     }
