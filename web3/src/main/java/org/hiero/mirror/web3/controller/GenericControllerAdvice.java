@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.controller;
 
+import static org.hiero.mirror.web3.utils.Constants.EXCEPTION_MESSAGE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -73,14 +74,11 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler
     private ResponseEntity<?> mirrorEvmTransactionError(final MirrorEvmTransactionException e, WebRequest request) {
-        log.warn(
-                "Mirror EVM transaction error: {}, detail: {}, data: {}, isModularized: {}, childTransactionErrors: {}",
-                e.getMessage(),
-                e.getDetail(),
-                e.getData(),
-                e.getIsCallModularized(),
-                e.getChildTransactionErrors());
+        final var exceptionMessage = String.format(
+                "Mirror EVM transaction error: %s, detail: %s, data: %s, childTransactionErrors: %s",
+                e.getMessage(), e.getDetail(), e.getData(), e.getChildTransactionErrors());
         request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, e, SCOPE_REQUEST);
+        request.setAttribute(EXCEPTION_MESSAGE, exceptionMessage, SCOPE_REQUEST);
         final var childTransactionErrors = e.getChildTransactionErrors().stream()
                 .map(message -> new ErrorMessage(message, StringUtils.EMPTY, StringUtils.EMPTY))
                 .toList();

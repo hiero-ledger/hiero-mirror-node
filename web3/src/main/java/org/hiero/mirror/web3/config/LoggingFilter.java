@@ -2,9 +2,11 @@
 
 package org.hiero.mirror.web3.config;
 
+import static org.hiero.mirror.web3.utils.Constants.EXCEPTION_MESSAGE;
 import static org.hiero.mirror.web3.utils.Constants.MODULARIZED_HEADER;
 import static org.springframework.web.util.WebUtils.ERROR_EXCEPTION_ATTRIBUTE;
 
+import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -78,13 +80,16 @@ class LoggingFilter extends OncePerRequestFilter {
     }
 
     private String getContent(HttpServletRequest request) {
-        var content = StringUtils.EMPTY;
+        var contentBuilder = new StringBuilder();
         int maxPayloadLogSize = web3Properties.getMaxPayloadLogSize();
         var wrapper = WebUtils.getNativeRequest(request, ContentCachingRequestWrapper.class);
 
         if (wrapper != null) {
-            content = StringUtils.deleteWhitespace(wrapper.getContentAsString());
+            contentBuilder.append(StringUtils.deleteWhitespace(wrapper.getContentAsString()));
         }
+        var exceptionMessage = getExceptionMessage(request);
+        contentBuilder.append(", result: {").append(exceptionMessage).append("}");
+        var content = contentBuilder.toString();
 
         if (content.length() > maxPayloadLogSize) {
             var bos = new ByteArrayOutputStream();
@@ -118,5 +123,11 @@ class LoggingFilter extends OncePerRequestFilter {
         }
 
         return SUCCESS;
+    }
+
+    @Nonnull
+    private String getExceptionMessage(HttpServletRequest request) {
+        final var exceptionMessage = request.getAttribute(EXCEPTION_MESSAGE);
+        return exceptionMessage != null ? (String) exceptionMessage : StringUtils.EMPTY;
     }
 }
