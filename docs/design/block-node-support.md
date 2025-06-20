@@ -98,10 +98,10 @@ This is renamed from `BlockPollerProperties`, with three new properties added.
 ```java
 public class StreamProperties {
     private int maxBlockItems = 800_000;
-    private int maxStreamResponseSizeMB = 8;
+    private DataSize maxStreamResponseSize = DataSize.ofMegabytes(8);
     private int maxSubscribeAttempts = 3;
     private Duration readmitDelay = Duration.ofMinutes(1);
-    private Duration statusTimeout = Duration.ofMillis(400);
+    private Duration responseTimeout = Duration.ofMillis(400);
 }
 ```
 
@@ -109,10 +109,10 @@ public class StreamProperties {
 
 - `maxBlockItems`: The max number of block items allowed in a block streamed from block nodes
 - `maxBufferSize`: The max number of streamed block items to buffer before cancelling the block node subscription
-- `maxStreamResponseSizeMB`: The max size of a stream response from block nodes, in MB
+- `maxStreamResponseSize`: The max size of a stream response from block nodes
 - `maxSubscribeAttempts`: The max number of consecutive subscribe attempts to a block node before marking the node inactive
 - `readmitDelay`: The time to wait before readmitting an inactive block node
-- `statusTimeout`: The block node server status request timeout
+- `responseTimeout`: The block node server status request timeout
 
 ### BlockStream
 
