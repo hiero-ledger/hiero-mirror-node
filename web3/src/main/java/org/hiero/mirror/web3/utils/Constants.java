@@ -4,4 +4,5 @@ package org.hiero.mirror.web3.utils;
 
 public class Constants {
     public static final String MODULARIZED_HEADER = "Is-Modularized";
+    public static final String EXCEPTION_MESSAGE = "Exception-Message";
 }

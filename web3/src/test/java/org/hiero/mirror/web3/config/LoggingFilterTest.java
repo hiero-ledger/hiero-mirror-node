@@ -136,7 +136,7 @@ class LoggingFilterTest {
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
 
-        var compressed = " H4sIAAAAAAAA/0tMSk5JTUvPyMxKHGURzQIAy81t7zYBAAA=";
+        var compressed = " H4sIAAAAAAAA/0tMSk5JTUvPyMxKHGWNsmjA0lEoSi0uzSmxUqiuBQA5Z5e3bgIAAA==";
         assertThat(output.getOut()).contains(compressed).doesNotContain(content);
     }
 
@@ -144,7 +144,7 @@ class LoggingFilterTest {
     @SneakyThrows
     void postLargeUncompressibleContent(CapturedOutput output) {
         int maxSize = web3Properties.getMaxPayloadLogSize();
-        var content = RandomStringUtils.secure().next(maxSize + 100, "abcdef0123456789");
+        var content = RandomStringUtils.secure().next(maxSize + 200, "abcdef0123456789");
         var request = new MockHttpServletRequest("POST", "/");
         request.setContent(content.getBytes(StandardCharsets.UTF_8));
         response.setStatus(HttpStatus.OK.value());
