@@ -556,12 +556,22 @@ public class MirrorNodeClient {
         var endpoint = StringUtils.isNotBlank(web3Properties.getEndpoint())
                 ? web3Properties.getEndpoint()
                 : acceptanceTestProperties.getRestProperties().getEndpoint();
-        if (acceptanceTestProperties.getNetwork().name().equals("OTHER")) {
-            return Client.forNetwork(Map.of()).setMirrorNetwork(List.of(endpoint));
+
+        LedgerId ledgerId =
+                resolveLedgerId(acceptanceTestProperties.getNetwork().name());
+        return Client.forNetwork(Map.of()).setMirrorNetwork(List.of(endpoint)).setLedgerId(ledgerId);
+    }
+
+    private LedgerId resolveLedgerId(String networkName) {
+        String normalized = networkName.toLowerCase();
+
+        switch (normalized) {
+            case "mainnet":
+            case "testnet":
+            case "previewnet":
+                return LedgerId.fromString(normalized);
+            default:
+                return null;
         }
-        return Client.forNetwork(Map.of())
-                .setMirrorNetwork(List.of(endpoint))
-                .setLedgerId(LedgerId.fromString(
-                        acceptanceTestProperties.getNetwork().name().toLowerCase()));
     }
 }
