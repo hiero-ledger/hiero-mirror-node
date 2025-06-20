@@ -116,13 +116,14 @@ class ContractController {
      */
     private void validateContractData(final ContractCallRequest request) {
         var data = request.getData();
+        final var jumboConfig = evmProperties
+                .getVersionedConfiguration()
+                .getConfigData(com.hedera.node.config.data.JumboTransactionsConfig.class);
         if (data != null
                 && !evmProperties.getDataValidatorPattern().matcher(data).find()) {
             throw new InvalidParametersException(
                     "data field of size %d contains invalid hexadecimal characters or exceeds %d characters"
-                            .formatted(
-                                    data.length(),
-                                    evmProperties.getMaxDataSize().toBytes() * 2L));
+                            .formatted(data.length(), jumboConfig.ethereumMaxCallDataSize() * 2L));
         }
     }
 

@@ -20,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hedera.node.config.data.JumboTransactionsConfig;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
@@ -284,8 +285,8 @@ class ContractControllerTest {
     void exceedingDataCallSizeOnEstimate() throws Exception {
         var error = "data field of size 262148 contains invalid hexadecimal characters or exceeds 262144 characters";
         final var request = request();
-        final var dataAsHex =
-                ONE_BYTE_HEX.repeat((int) evmProperties.getMaxDataSize().toBytes() + 1);
+        final var jumboConfig = evmProperties.getVersionedConfiguration().getConfigData(JumboTransactionsConfig.class);
+        final var dataAsHex = ONE_BYTE_HEX.repeat(jumboConfig.ethereumMaxCallDataSize() + 1);
         request.setData("0x" + dataAsHex);
         request.setEstimate(true);
         contractCall(request)
@@ -296,9 +297,9 @@ class ContractControllerTest {
     @Test
     void exceedingDataCreateSizeOnEstimate() throws Exception {
         var error = "data field of size 262148 contains invalid hexadecimal characters or exceeds 262144 characters";
+        final var jumboConfig = evmProperties.getVersionedConfiguration().getConfigData(JumboTransactionsConfig.class);
         final var request = request();
-        final var dataAsHex =
-                ONE_BYTE_HEX.repeat((int) evmProperties.getMaxDataSize().toBytes() + 1);
+        final var dataAsHex = ONE_BYTE_HEX.repeat(jumboConfig.ethereumMaxCallDataSize() + 1);
         request.setTo(null);
         request.setValue(0);
         request.setData("0x" + dataAsHex);
