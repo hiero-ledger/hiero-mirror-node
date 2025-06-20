@@ -86,6 +86,7 @@ import org.web3j.utils.Numeric;
 public abstract class AbstractContractCallServiceTest extends Web3IntegrationTest {
 
     protected static final long DEFAULT_ACCOUNT_BALANCE = 100_000_000_000_000_000L;
+    protected static final long DEFAULT_SMALL_ACCOUNT_BALANCE = 1_000_000L;
     protected static final long DEFAULT_TOKEN_BALANCE = 100;
     protected static final BigInteger DEFAULT_SERIAL_NUMBER = BigInteger.ONE;
     protected static final List<BigInteger> DEFAULT_SERIAL_NUMBERS_LIST = List.of(DEFAULT_SERIAL_NUMBER);
@@ -552,8 +553,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * The entity table stores the properties common for all type of entities.
      */
     protected Entity accountEntityPersist() {
+        final var accountBalance = getDefaultAccountBalance();
         return accountEntityPersistCustomizable(
-                e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
+                e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(accountBalance));
     }
 
     /**
@@ -563,7 +565,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @return Entity that is persisted in the database
      */
     protected Entity accountEntityWithEvmAddressPersist() {
-        return accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT).balance(DEFAULT_ACCOUNT_BALANCE));
+        final var accountBalance = getDefaultAccountBalance();
+        return accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT).balance(accountBalance));
     }
 
     /**
@@ -859,15 +862,27 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param publicKey - the public key to be set to the account
      */
     protected Entity persistAccountWithEvmAddressAndPublicKey(byte[] evmAddress, byte[] publicKey) {
+        final var accountBalance = getDefaultAccountBalance();
         return accountEntityPersistCustomizable(e -> e.alias(evmAddress)
                 .evmAddress(evmAddress)
                 .key(publicKey)
                 .type(EntityType.ACCOUNT)
-                .balance(DEFAULT_ACCOUNT_BALANCE));
+                .balance(accountBalance));
     }
 
     protected EntityId getEntityId(final String address) {
         return entityIdFromEvmAddress(Address.fromHexString(address));
+    }
+
+    /**
+     * Returns the default account balance depending on override setting.
+     *
+     * @return the default account balance
+     */
+    private long getDefaultAccountBalance() {
+        return mirrorNodeEvmProperties.isOverridePayerBalanceValidation()
+                ? DEFAULT_SMALL_ACCOUNT_BALANCE
+                : DEFAULT_ACCOUNT_BALANCE;
     }
 
     public enum KeyType {
