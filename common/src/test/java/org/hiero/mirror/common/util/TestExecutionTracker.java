@@ -13,14 +13,14 @@ public class TestExecutionTracker implements TestExecutionListener {
     private static boolean testRunning;
 
     @Override
-    public void executionStarted(TestIdentifier testIdentifier) {
+    public void executionStarted(final TestIdentifier testIdentifier) {
         if (testIdentifier.isTest()) {
             testRunning = true;
         }
     }
 
     @Override
-    public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult result) {
+    public void executionFinished(final TestIdentifier testIdentifier, final TestExecutionResult result) {
         if (testIdentifier.isTest()) {
             testRunning = false;
         }

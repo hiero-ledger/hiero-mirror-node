@@ -6,7 +6,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.metamodel.EntityType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -35,7 +34,8 @@ public class RepositoryUsageTrackerAspect {
 
     @Around("execution(* org.hiero.mirror..repository.*.*(..))")
     public Object trackRepositoryCall(final ProceedingJoinPoint joinPoint) throws Throwable {
-        if (!TestExecutionTracker.isTestRunning()) { // guard rail: only run during test execution
+        // guard rail: only run during test execution
+        if (!TestExecutionTracker.isTestRunning()) {
             return joinPoint.proceed();
         }
 
@@ -57,7 +57,7 @@ public class RepositoryUsageTrackerAspect {
 
         apiTableQueries
                 .computeIfAbsent(endpoint, k -> new ConcurrentHashMap<>())
-                .computeIfAbsent(tableName, k -> new LinkedHashSet<>())
+                .computeIfAbsent(tableName, k -> ConcurrentHashMap.newKeySet())
                 .add(method);
 
         return joinPoint.proceed();
@@ -142,6 +142,7 @@ public class RepositoryUsageTrackerAspect {
             }
         }
 
-        return "UNKNOWN_REPOSITORY"; // Default fallback
+        // Default fallback
+        return "UNKNOWN_REPOSITORY";
     }
 }
