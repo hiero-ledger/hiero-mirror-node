@@ -9,17 +9,11 @@ on:
       - release/**
     paths:
       - "build.gradle.kts"
-  push:
-    branches:
-      - main
-      - release/**
-    tags:
-      - v*
 defaults:
   run:
     shell: bash
 permissions:
-  contents: write
+  contents: read
 env:
   LC_ALL: C.UTF-8
 jobs:
