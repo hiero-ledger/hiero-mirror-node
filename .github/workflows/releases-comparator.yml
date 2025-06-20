@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Consensus node release branches compare
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+      - release/**
+    paths:
+      - "build.gradle.kts"
+  push:
+    branches:
+      - main
+      - release/**
+    tags:
+      - v*
+defaults:
+  run:
+    shell: bash
+permissions:
+  contents: write
+env:
+  LC_ALL: C.UTF-8
+jobs:
+  run-diff-script:
+    name: Compare latest two releases of consensus node
+    runs-on: hiero-mirror-node-linux-large
+    steps:
+      - name: Install JDK
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: "temurin"
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@ac638b010cf58a27ee6c972d7336334ccaf61c96 # v4
+
+      - name: Run diff script
+        run: |
+          set -ex
+
+          CONSENSUS_NODE_REPO="https://github.com/hiero-ledger/hiero-consensus-node.git"
+
+          FILES_TO_COMPARE=(
+            "com/hedera/hapi/node/state/token/Account.java"
+            "com/hedera/hapi/node/state/token/Token.java"
+            "com/hedera/hapi/node/state/token/TokenRelation.java"
+            "com/hedera/hapi/node/state/file/File.java"
+            "com/hedera/hapi/node/state/schedule/Schedule.java"
+            "com/swirlds/state/spi/ReadableKVStateBase.java"
+            "com/swirlds/state/spi/WritableKVStateBase.java"
+          )
+
+          # Temp directories to store cloned repos
+          TMP_DIR_ONE=$(mktemp -d)
+          TMP_DIR_TWO=$(mktemp -d)
+
+          # Function to clean the temp directories after script finishes
+          cleanup() {
+            rm -rf "$TMP_DIR_ONE" "$TMP_DIR_TWO"
+          }
+          trap cleanup EXIT
+
+          TAGS=($(git ls-remote --tags "$CONSENSUS_NODE_REPO" | \
+                awk '{print $2}' | \
+                grep 'refs/tags/v0' | \
+                grep -v '\^{}' | \
+                sed 's#refs/tags/##' | \
+                sort -Vr))
+
+          TAG_ONE="${TAGS[0]}"
+          TAG_TWO="${TAGS[1]}"
+
+          echo "Comparing consensus node release versions $TAG_ONE and $TAG_TWO ..."
+
+          git clone --depth 1 --branch "$TAG_ONE" "$CONSENSUS_NODE_REPO" "$TMP_DIR_ONE" > /dev/null 2>&1
+          cd "$TMP_DIR_ONE"
+          ./gradlew build -q -x test -x spotlessCheck
+
+          git clone --depth 1 --branch "$TAG_TWO" "$CONSENSUS_NODE_REPO" "$TMP_DIR_TWO" > /dev/null 2>&1
+          cd "$TMP_DIR_TWO"
+          ./gradlew build -q -x test -x spotlessCheck > /dev/null 2>&1
+
+          # Flag to track for differences
+          CHANGED=false
+
+          compare_file() {
+            local input_file_path="$1"
+            local branch_one_file_path branch_two_file_path
+
+            if [[ "$input_file_path" == com/swirlds/* ]]; then
+              branch_one_file_path="$TMP_DIR_ONE/platform-sdk/swirlds-state-api/src/main/java/$input_file_path"
+              branch_two_file_path="$TMP_DIR_TWO/platform-sdk/swirlds-state-api/src/main/java/$input_file_path"
+            else
+              branch_one_file_path="$TMP_DIR_ONE/hapi/hapi/build/generated/source/pbj-proto/main/java/$input_file_path"
+              branch_two_file_path="$TMP_DIR_TWO/hapi/hapi/build/generated/source/pbj-proto/main/java/$input_file_path"
+            fi
+
+            if ! diff -q "$branch_one_file_path" "$branch_two_file_path" >/dev/null 2>&1; then
+              echo "File changed: $input_file_path"
+              echo "----------------------------------------"
+              diff -u "$branch_two_file_path" "$branch_one_file_path" || true
+              echo "----------------------------------------"
+              CHANGED=true
+            fi
+          }
+
+          for file in "${FILES_TO_COMPARE[@]}"; do
+            compare_file "$file"
+          done
+
+          if [ "$CHANGED" = false ]; then
+            echo "No file changes detected."
+          else
+            echo "Differences detected."
+            exit 1
+          fi
+
+        timeout-minutes: 30
