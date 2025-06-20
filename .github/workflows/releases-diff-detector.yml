@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Latest consensus node release branches diff detector
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - "main"
+      - "release/**"
+  push:
+    branches:
+      - "main"
+      - "release/**"
+    tags:
+      - "v*"
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  LC_ALL: C.UTF-8
+
+jobs:
+  run-diff-script:
+    name: "[DRAFT] Latest consensus node release branches diff detection"
+    runs-on: hiero-mirror-node-linux-large
+    steps:
+      - name: Delete old untagged images
+        run: |
+          set -ex
+
+          CONSESNSUS_NODE="https://github.com/hiero-ledger/hiero-consensus-node.git"
+          echo "Consensus node repository: $CONSESNSUS_NODE"
