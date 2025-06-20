@@ -10,7 +10,8 @@
   },
   "scripts": {
     "dev": "nodemon --import=extensionless/register server.js",
-    "start": "node --import=extensionless/register server.js"
+    "start": "node --import=extensionless/register server.js",
+    "test": ""
   },
   "author": "Mirror Node Team",
   "license": "Apache-2.0",

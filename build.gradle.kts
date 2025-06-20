@@ -10,7 +10,6 @@ plugins {
     id("com.github.node-gradle.node")
     id("idea")
     id("java-platform")
-    id("org.sonarqube")
     id("snykcode-extension")
 }
 
@@ -90,36 +89,7 @@ dependencies {
     }
 }
 
-allprojects {
-    apply(plugin = "jacoco")
-    apply(plugin = "org.sonarqube")
-
-    sonarqube {
-        properties {
-            property("sonar.host.url", "https://sonarcloud.io")
-            property("sonar.organization", "hashgraph")
-            property("sonar.projectKey", "hedera-mirror-node")
-            property("sonar.sourceEncoding", "UTF-8")
-            property("sonar.issue.ignore.multicriteria", "e1,e2,e3,e4,e5,e6")
-            property("sonar.issue.ignore.multicriteria.e1.resourceKey", "**/*.java")
-            property("sonar.issue.ignore.multicriteria.e1.ruleKey", "java:S6212")
-            property("sonar.issue.ignore.multicriteria.e2.resourceKey", "**/*.java")
-            property("sonar.issue.ignore.multicriteria.e2.ruleKey", "java:S125")
-            property("sonar.issue.ignore.multicriteria.e3.resourceKey", "**/*.java")
-            property("sonar.issue.ignore.multicriteria.e3.ruleKey", "java:S2187")
-            property("sonar.issue.ignore.multicriteria.e4.resourceKey", "**/*.js")
-            property("sonar.issue.ignore.multicriteria.e4.ruleKey", "javascript:S3758")
-            property("sonar.issue.ignore.multicriteria.e5.resourceKey", "**/stateproof/*.sql")
-            property("sonar.issue.ignore.multicriteria.e5.ruleKey", "plsql:S1192")
-            property("sonar.issue.ignore.multicriteria.e6.resourceKey", "**/*.java")
-            property("sonar.issue.ignore.multicriteria.e6.ruleKey", "java:S2970")
-            property(
-                "sonar.exclusions",
-                "src/main/java/com/hedera/services/**,src/test/java/com/hedera/services/**",
-            )
-        }
-    }
-}
+allprojects { apply(plugin = "jacoco") }
 
 idea {
     module {
@@ -308,8 +278,6 @@ tasks.register("release") {
         )
     }
 }
-
-tasks.sonar { dependsOn(tasks.build) }
 
 tasks.spotlessApply { dependsOn(tasks.nodeSetup) }
 
