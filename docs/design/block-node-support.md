@@ -139,10 +139,9 @@ a `BlockStream` instead of a `StreamFileData`.
 
 ```java
 
-public interface BlockSource {
+interface BlockSource {
   /*
-   * Gets blocks from the source. An implementation can either download block files from cloud storage, or stream
-   * blocks from a block node.
+   * Gets blocks from the source
    */
   void get();
 }

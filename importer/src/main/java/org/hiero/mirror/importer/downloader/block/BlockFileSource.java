@@ -26,7 +26,7 @@ import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.util.Utility;
 
 @Named
-public final class BlockFileSource extends AbstractBlockSource {
+final class BlockFileSource extends AbstractBlockSource {
 
     private final ConsensusNodeService consensusNodeService;
     private final StreamFileProvider streamFileProvider;
