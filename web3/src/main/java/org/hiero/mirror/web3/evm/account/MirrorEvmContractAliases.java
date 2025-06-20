@@ -25,7 +25,7 @@ public class MirrorEvmContractAliases extends HederaEvmContractAliases {
     public boolean maybeLinkEvmAddress(@Nullable final JKey key, final Address address) {
         final var evmAddress = tryAddressRecovery(key);
         if (isRecoveredEvmAddress(evmAddress)) {
-            if (evmAddress != null) { // NOSONAR - null check is required
+            if (evmAddress != null) {
                 store.linkAlias(Address.wrap(Bytes.wrap(evmAddress)), address);
             }
             return true;
