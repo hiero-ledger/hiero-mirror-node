@@ -92,7 +92,11 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 blockNodeProperties(0, SERVER_NAMES[1]),
                 blockNodeProperties(1, SERVER_NAMES[2])));
         var blockNodeSubscriber = new BlockNodeSubscriber(
-                blockStreamReader, blockStreamVerifier, commonDownloaderProperties, blockProperties);
+                blockStreamReader,
+                blockStreamVerifier,
+                commonDownloaderProperties,
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                blockProperties);
         startServer(
                 SERVER_NAMES[0],
                 resources,
@@ -132,7 +136,11 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 blockNodeProperties(0, SERVER_NAMES[1]),
                 blockNodeProperties(1, SERVER_NAMES[2])));
         var blockNodeSubscriber = new BlockNodeSubscriber(
-                blockStreamReader, blockStreamVerifier, commonDownloaderProperties, blockProperties);
+                blockStreamReader,
+                blockStreamVerifier,
+                commonDownloaderProperties,
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                blockProperties);
         startServer(
                 SERVER_NAMES[0],
                 resources,
@@ -173,7 +181,11 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 blockNodeProperties(0, SERVER_NAMES[1]),
                 blockNodeProperties(1, SERVER_NAMES[2])));
         var blockNodeSubscriber = new BlockNodeSubscriber(
-                blockStreamReader, blockStreamVerifier, commonDownloaderProperties, blockProperties);
+                blockStreamReader,
+                blockStreamVerifier,
+                commonDownloaderProperties,
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                blockProperties);
         startServer(
                 SERVER_NAMES[0],
                 resources,
@@ -227,7 +239,11 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         blockProperties.setNodes(
                 List.of(blockNodeProperties(0, SERVER_NAMES[0]), blockNodeProperties(0, SERVER_NAMES[1])));
         var blockNodeSubscriber = new BlockNodeSubscriber(
-                blockStreamReader, blockStreamVerifier, commonDownloaderProperties, blockProperties);
+                blockStreamReader,
+                blockStreamVerifier,
+                commonDownloaderProperties,
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                blockProperties);
         startServer(
                 SERVER_NAMES[0],
                 resources,
@@ -296,8 +312,8 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
     private BlockNodeProperties blockNodeProperties(int priority, String serverName) {
         var properties = new BlockNodeProperties();
+        properties.setHost(serverName);
         properties.setPriority(priority);
-        properties.setHost("in-process:" + serverName);
         return properties;
     }
 
@@ -313,7 +329,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
     }
 
     @SneakyThrows
-    private Server startServer(
+    private void startServer(
             String name, Resources resources, ServerStatusResponse statusResponse, ResponsesOrError streamResponse) {
         if (servers.containsKey(name)) {
             var server = servers.get(name);
@@ -353,6 +369,5 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 .start();
         resources.register(server);
         servers.put(name, server);
-        return server;
     }
 }

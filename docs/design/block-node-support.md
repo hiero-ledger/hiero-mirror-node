@@ -246,7 +246,7 @@ if the last block item is a `BlockProof`.
 ### CompositeBlockSource
 
 ```java
-public class CompositeBlockSource implements BlockSource {
+final class CompositeBlockSource implements BlockSource {
 
     @Override
     public void get();

@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import jakarta.inject.Named;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -14,12 +15,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 @CustomLog
 @Named
 @Primary
-public final class CompositeBlockSource implements BlockSource {
+final class CompositeBlockSource implements BlockSource {
 
     private final SourceHealth blockFileSourceHealth;
     private final SourceHealth blockNodeSubscriberSourceHealth;
     private final BlockStreamVerifier blockStreamVerifier;
-    private SourceHealth current;
+    private final AtomicReference<SourceHealth> current;
     private final BlockProperties properties;
 
     public CompositeBlockSource(
@@ -30,7 +31,7 @@ public final class CompositeBlockSource implements BlockSource {
         this.blockFileSourceHealth = new SourceHealth(blockFileSource, BlockSourceType.FILE);
         this.blockNodeSubscriberSourceHealth = new SourceHealth(blockNodeSubscriber, BlockSourceType.BLOCK_NODE);
         this.blockStreamVerifier = blockStreamVerifier;
-        this.current = blockNodeSubscriberSourceHealth;
+        this.current = new AtomicReference<>(blockNodeSubscriberSourceHealth);
         this.properties = properties;
     }
 
@@ -67,13 +68,14 @@ public final class CompositeBlockSource implements BlockSource {
                     yield blockFileSourceHealth;
                 }
 
-                if (!current.isHealthy()) {
-                    current = current == blockNodeSubscriberSourceHealth
+                if (!current.get().isHealthy()) {
+                    var sourceHealth = current.get() == blockNodeSubscriberSourceHealth
                             ? blockFileSourceHealth
                             : blockNodeSubscriberSourceHealth;
+                    current.set(sourceHealth);
                 }
 
-                yield current;
+                yield current.get();
             }
             case BLOCK_NODE -> blockNodeSubscriberSourceHealth;
             case FILE -> blockFileSourceHealth;

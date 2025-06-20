@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import com.google.protobuf.gradle.id
-import com.google.protobuf.gradle.proto
 
 description = "Mirror Node Importer"
 
@@ -18,7 +17,6 @@ dependencies {
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv")
     implementation("commons-io:commons-io")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
-    implementation("io.grpc:grpc-inprocess")
     implementation("io.grpc:grpc-protobuf")
     implementation("io.grpc:grpc-stub")
     implementation("io.micrometer:micrometer-registry-prometheus")
@@ -43,6 +41,8 @@ dependencies {
     implementation("software.amazon.awssdk:netty-nio-client")
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:sts")
+    protobuf("org.hiero.block:block-node-protobuf-sources:0.13.0-rc1")
+    runtimeOnly("io.grpc:grpc-netty")
     runtimeOnly(
         group = "io.netty",
         name = "netty-resolver-dns-native-macos",
@@ -52,6 +52,7 @@ dependencies {
     testImplementation("com.asarkar.grpc:grpc-test")
     testImplementation("com.github.vertical-blank:sql-formatter")
     testImplementation("commons-beanutils:commons-beanutils")
+    testImplementation("io.grpc:grpc-inprocess")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.apache.commons:commons-math3")
     testImplementation("org.awaitility:awaitility")
@@ -74,7 +75,3 @@ protobuf {
         ofSourceSet("main").forEach { it.plugins { id("grpc") { option("@generated=omit") } } }
     }
 }
-
-sourceSets { main { proto { srcDir("src/main/block/proto") } } }
-
-tasks.compileJava { dependsOn(tasks.generateProto) }

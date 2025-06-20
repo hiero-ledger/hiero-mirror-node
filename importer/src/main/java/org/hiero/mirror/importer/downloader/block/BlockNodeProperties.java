@@ -5,32 +5,35 @@ package org.hiero.mirror.importer.downloader.block;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
+import java.util.Comparator;
 import lombok.Data;
 import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-public class BlockNodeProperties {
+public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
+
+    private static final Comparator<BlockNodeProperties> COMPARATOR = Comparator.comparing(
+                    BlockNodeProperties::getPriority)
+            .thenComparing(BlockNodeProperties::getHost)
+            .thenComparing(BlockNodeProperties::getPort);
 
     @NotEmpty
     private String host;
 
     @Max(65535)
     @Min(1)
-    private int port;
+    private int port = 8080;
 
     @Min(0)
     private int priority = 0;
 
-    public boolean isInProcess() {
-        return host.startsWith("in-process:");
+    @Override
+    public int compareTo(BlockNodeProperties other) {
+        return COMPARATOR.compare(this, other);
     }
 
     public String getEndpoint() {
-        if (isInProcess()) {
-            return host.replace("in-process:", "");
-        }
-
         return host + ":" + port;
     }
 }

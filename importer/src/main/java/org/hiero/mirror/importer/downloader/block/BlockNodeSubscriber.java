@@ -5,8 +5,6 @@ package org.hiero.mirror.importer.downloader.block;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
@@ -15,44 +13,35 @@ import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.springframework.beans.factory.DisposableBean;
 
 @Named
-public final class BlockNodeSubscriber extends AbstractBlockSource implements DisposableBean {
+final class BlockNodeSubscriber extends AbstractBlockSource implements DisposableBean {
 
     private static final long UNKNOWN_NODE_ID = -1;
 
-    private final Map<Integer, List<BlockNode>> nodes = new TreeMap<>();
+    private final List<BlockNode> nodes;
 
     BlockNodeSubscriber(
             BlockStreamReader blockStreamReader,
             BlockStreamVerifier blockStreamVerifier,
             CommonDownloaderProperties commonDownloaderProperties,
+            ManagedChannelBuilderProvider channelBuilderProvider,
             BlockProperties properties) {
         super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, properties);
-
-        for (var nodeProperties : properties.getNodes()) {
-            var node = new BlockNode(nodeProperties, properties.getStream());
-            nodes.compute(nodeProperties.getPriority(), (priority, priorityGroup) -> {
-                if (priorityGroup == null) {
-                    priorityGroup = new ArrayList<>();
-                }
-
-                priorityGroup.add(node);
-                return priorityGroup;
-            });
-        }
+        nodes = properties.getNodes().stream()
+                .map(blockNodeProperties ->
+                        new BlockNode(channelBuilderProvider, blockNodeProperties, properties.getStream()))
+                .sorted()
+                .toList();
     }
 
     @Override
     public void destroy() {
-        nodes.values().stream().flatMap(List::stream).forEach(BlockNode::destroy);
+        nodes.forEach(BlockNode::destroy);
     }
 
     @Override
     public void get() {
         long blockNumber = getNextBlockNumber();
         var node = getNode(blockNumber);
-        if (node == null) {
-            throw new BlockStreamException("No block node can provide block " + blockNumber);
-        }
 
         log.info("Start streaming block {} from {}", blockNumber, node);
         node.streamBlocks(
@@ -63,16 +52,14 @@ public final class BlockNodeSubscriber extends AbstractBlockSource implements Di
 
     private BlockNode getNode(long blockNumber) {
         var inactiveNodes = new ArrayList<BlockNode>();
-        for (int priority : nodes.keySet()) {
-            for (var node : nodes.get(priority)) {
-                if (!node.tryReadmit(false).isActive()) {
-                    inactiveNodes.add(node);
-                    continue;
-                }
+        for (var node : nodes) {
+            if (!node.tryReadmit(false).isActive()) {
+                inactiveNodes.add(node);
+                continue;
+            }
 
-                if (node.hasBlock(blockNumber)) {
-                    return node;
-                }
+            if (node.hasBlock(blockNumber)) {
+                return node;
             }
         }
 
@@ -84,7 +71,7 @@ public final class BlockNodeSubscriber extends AbstractBlockSource implements Di
             }
         }
 
-        return null;
+        throw new BlockStreamException("No block node can provide block " + blockNumber);
     }
 
     private BlockStream toBlockStream(BlockNode.StreamedBlock streamedBlock) {

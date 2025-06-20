@@ -7,6 +7,9 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Data;
 import org.hibernate.validator.constraints.time.DurationMin;
+import org.springframework.boot.convert.DataSizeUnit;
+import org.springframework.util.unit.DataSize;
+import org.springframework.util.unit.DataUnit;
 import org.springframework.validation.annotation.Validated;
 
 @Data
@@ -16,8 +19,9 @@ public class StreamProperties {
     @Min(1000)
     private int maxBlockItems = 800_000;
 
-    @Min(1)
-    private int maxStreamResponseSizeMB = 8;
+    @DataSizeUnit(DataUnit.KILOBYTES)
+    @NotNull
+    private DataSize maxStreamResponseSize = DataSize.ofMegabytes(8);
 
     @Min(1)
     private int maxSubscribeAttempts = 3;
@@ -28,9 +32,5 @@ public class StreamProperties {
 
     @DurationMin(millis = 100)
     @NotNull
-    private Duration statusTimeout = Duration.ofMillis(400);
-
-    public int getMaxStreamResponseSize() {
-        return maxStreamResponseSizeMB * 1024 * 1024;
-    }
+    private Duration responseTimeout = Duration.ofMillis(400);
 }

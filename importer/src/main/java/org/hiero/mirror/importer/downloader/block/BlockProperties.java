@@ -25,6 +25,7 @@ public class BlockProperties {
     @NotNull
     private Duration frequency = Duration.ofMillis(100L);
 
+    @Valid
     private Collection<BlockNodeProperties> nodes = Collections.emptyList();
 
     private boolean persistBytes = false;

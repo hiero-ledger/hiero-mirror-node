@@ -10,6 +10,7 @@ import com.asarkar.grpc.test.Resources;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.BindableService;
+import io.grpc.Server;
 import io.grpc.StatusException;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -54,14 +55,34 @@ class BlockNodeTest extends BlockNodeTestBase {
     @BeforeEach
     void setup() {
         blockNodeProperties = new BlockNodeProperties();
-        blockNodeProperties.setHost("in-process:" + SERVER);
+        blockNodeProperties.setHost(SERVER);
         streamProperties = new StreamProperties();
-        node = new BlockNode(blockNodeProperties, streamProperties);
+        node = new BlockNode(InProcessManagedChannelBuilderProvider.INSTANCE, blockNodeProperties, streamProperties);
     }
 
     @AfterEach
     void cleanup() {
         node.destroy();
+    }
+
+    @Test
+    void compareTo() {
+        var first = new BlockNode(
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                blockNodeProperties("localhost", 100, 0),
+                streamProperties);
+        var second = new BlockNode(
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                blockNodeProperties("localhost", 101, 0),
+                streamProperties);
+        var third = new BlockNode(
+                InProcessManagedChannelBuilderProvider.INSTANCE, blockNodeProperties("peer", 99, 0), streamProperties);
+        var forth = new BlockNode(
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                blockNodeProperties("localhost", 50, 1),
+                streamProperties);
+        var all = Stream.of(forth, third, second, first).sorted().toList();
+        assertThat(all).containsExactly(first, second, third, forth);
     }
 
     @Test
@@ -81,7 +102,7 @@ class BlockNodeTest extends BlockNodeTestBase {
     @Test
     void hasBlockTimeout(Resources resources) {
         // given
-        streamProperties.setStatusTimeout(Duration.ofMillis(1));
+        streamProperties.setResponseTimeout(Duration.ofMillis(1));
         runBlockNodeService(resources, () -> {
             try {
                 Thread.sleep(20);
@@ -107,16 +128,35 @@ class BlockNodeTest extends BlockNodeTestBase {
     void onError(Resources resources) {
         // given
         assertThat(node.isActive()).isTrue();
+        var server = runBlockStreamSubscribeService(
+                resources,
+                ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.NOT_AVAILABLE)));
+
+        // when fails twice in a row, the node should still be active
+        for (int i = 0; i < 2; i++) {
+            assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
+                    .isInstanceOf(BlockStreamException.class)
+                    .hasMessageContaining("Received status NOT_AVAILABLE from block node");
+            assertThat(node.isActive()).isTrue();
+        }
+
+        // when stream succeeds, the node is active and the error count is reset
+        stopServer(server);
+        server = runBlockStreamSubscribeService(
+                resources,
+                ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.SUCCESS)));
+        node.streamBlocks(0, TIMEOUT, IGNORE);
+        assertThat(node.isActive()).isTrue();
+
+        // when fails three times in a row
+        stopServer(server);
         runBlockStreamSubscribeService(
                 resources,
-                ResponsesOrError.fromResponse(
-                        subscribeStreamResponse(SubscribeStreamResponse.Code.READ_STREAM_NOT_AVAILABLE)));
-
-        // when, then
+                ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.NOT_AVAILABLE)));
         for (int i = 0; i < 3; i++) {
             assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
                     .isInstanceOf(BlockStreamException.class)
-                    .hasMessageContaining("Received status READ_STREAM_NOT_AVAILABLE from block node");
+                    .hasMessageContaining("Received status NOT_AVAILABLE from block node");
             boolean expected = i < 2;
             assertThat(node.isActive()).isEqualTo(expected);
         }
@@ -147,13 +187,13 @@ class BlockNodeTest extends BlockNodeTestBase {
     @Test
     void streamStatusCode(Resources resources) {
         // given
-        var responses = List.of(subscribeStreamResponse(SubscribeStreamResponse.Code.READ_STREAM_NOT_AVAILABLE));
+        var responses = List.of(subscribeStreamResponse(SubscribeStreamResponse.Code.NOT_AVAILABLE));
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
         assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
                 .isInstanceOf(BlockStreamException.class)
-                .hasMessage("Received status READ_STREAM_NOT_AVAILABLE from block node");
+                .hasMessage("Received status NOT_AVAILABLE from block node");
     }
 
     @Test
@@ -212,7 +252,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         var responses = List.of(
                 subscribeStreamResponse(blockItemSet(recordFileItem())),
                 subscribeStreamResponse(blockItemSet(blockHead(1), eventHeader(), blockProof())),
-                subscribeStreamResponse(SubscribeStreamResponse.Code.READ_STREAM_SUCCESS));
+                subscribeStreamResponse(SubscribeStreamResponse.Code.SUCCESS));
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
@@ -234,7 +274,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, responseObserver -> {
             try {
                 latch.await();
-                responseObserver.onNext(subscribeStreamResponse(SubscribeStreamResponse.Code.READ_STREAM_SUCCESS));
+                responseObserver.onNext(subscribeStreamResponse(SubscribeStreamResponse.Code.SUCCESS));
                 responseObserver.onCompleted();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -280,14 +320,13 @@ class BlockNodeTest extends BlockNodeTestBase {
         assertThat(node.tryReadmit(false).isActive()).isTrue();
         runBlockStreamSubscribeService(
                 resources,
-                ResponsesOrError.fromResponse(
-                        subscribeStreamResponse(SubscribeStreamResponse.Code.READ_STREAM_NOT_AVAILABLE)));
+                ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.NOT_AVAILABLE)));
 
         // when
         for (int i = 0; i < 3; i++) {
             assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
                     .isInstanceOf(BlockStreamException.class)
-                    .hasMessageContaining("Received status READ_STREAM_NOT_AVAILABLE from block node");
+                    .hasMessageContaining("Received status NOT_AVAILABLE from block node");
         }
 
         // then
@@ -298,7 +337,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         for (int i = 0; i < 3; i++) {
             assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
                     .isInstanceOf(BlockStreamException.class)
-                    .hasMessageContaining("Received status READ_STREAM_NOT_AVAILABLE from block node");
+                    .hasMessageContaining("Received status NOT_AVAILABLE from block node");
         }
 
         // and readmit delay elapsed
@@ -326,6 +365,14 @@ class BlockNodeTest extends BlockNodeTestBase {
                 .returns(BlockItem.ItemCase.RECORD_FILE, BlockItem::getItemCase);
     }
 
+    private BlockNodeProperties blockNodeProperties(String host, int port, int priority) {
+        var properties = new BlockNodeProperties();
+        properties.setHost(host);
+        properties.setPort(port);
+        properties.setPriority(priority);
+        return properties;
+    }
+
     private void assertStreamedBlock(BlockNode.StreamedBlock streamedBlock, long number) {
         var blockItems = streamedBlock.blockItems();
         assertThat(blockItems.getFirst())
@@ -349,7 +396,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         startServer(resources, service);
     }
 
-    private void runBlockStreamSubscribeService(
+    private Server runBlockStreamSubscribeService(
             Resources resources, Consumer<StreamObserver<SubscribeStreamResponse>> responseProvider) {
         var service = new BlockStreamSubscribeServiceGrpc.BlockStreamSubscribeServiceImplBase() {
             @Override
@@ -358,11 +405,11 @@ class BlockNodeTest extends BlockNodeTestBase {
                 responseProvider.accept(responseObserver);
             }
         };
-        startServer(resources, service);
+        return startServer(resources, service);
     }
 
-    private void runBlockStreamSubscribeService(Resources resources, ResponsesOrError responsesOrError) {
-        runBlockStreamSubscribeService(resources, responseObserver -> {
+    private Server runBlockStreamSubscribeService(Resources resources, ResponsesOrError responsesOrError) {
+        return runBlockStreamSubscribeService(resources, responseObserver -> {
             if (!responsesOrError.responses().isEmpty()) {
                 responsesOrError.responses().forEach(responseObserver::onNext);
                 responseObserver.onCompleted();
@@ -373,11 +420,18 @@ class BlockNodeTest extends BlockNodeTestBase {
     }
 
     @SneakyThrows
-    private void startServer(Resources resources, BindableService service) {
+    private Server startServer(Resources resources, BindableService service) {
         var server = InProcessServerBuilder.forName(SERVER)
                 .addService(service)
                 .build()
                 .start();
         resources.register(server);
+        return server;
+    }
+
+    @SneakyThrows
+    private void stopServer(Server server) {
+        server.shutdown();
+        server.awaitTermination();
     }
 }
