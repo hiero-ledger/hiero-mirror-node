@@ -10,7 +10,6 @@ import com.google.common.base.Stopwatch;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.CallOptions;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.ClientCalls;
 import java.time.Duration;
@@ -22,7 +21,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.hiero.block.api.protoc.BlockItemSet;
@@ -31,26 +29,17 @@ import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
+import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.exception.BlockStreamException;
+import org.hiero.mirror.importer.reader.block.BlockStream;
 
 @CustomLog
-final class BlockNode implements Comparable<BlockNode> {
-
-    public static final Function<BlockNodeProperties, ManagedChannelBuilder<?>> DEFAULT_CHANNEL_BUILDER_PROVIDER =
-            blockNodeProperties -> {
-                var builder = ManagedChannelBuilder.forTarget(blockNodeProperties.getEndpoint());
-                if (blockNodeProperties.getPort() != 443) {
-                    builder.usePlaintext();
-                } else {
-                    builder.useTransportSecurity();
-                }
-
-                return builder;
-            };
+final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(blockNode -> blockNode.properties);
     private static final long INFINITE_END_BLOCK_NUMBER = -1;
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
+    private static final long UNKNOWN_NODE_ID = -1;
 
     @Getter
     private boolean active = true;
@@ -74,7 +63,8 @@ final class BlockNode implements Comparable<BlockNode> {
         this.streamProperties = streamProperties;
     }
 
-    public void destroy() {
+    @Override
+    public void close() {
         if (channel.isShutdown()) {
             return;
         }
@@ -89,12 +79,12 @@ final class BlockNode implements Comparable<BlockNode> {
             var response = blockNodeService.serverStatus(SERVER_STATUS_REQUEST);
             return blockNumber >= response.getFirstAvailableBlock() && blockNumber <= response.getLastAvailableBlock();
         } catch (Exception ex) {
-            log.error("Failed to get block node server status", ex);
+            log.error("Failed to get server status for {}", this, ex);
             return false;
         }
     }
 
-    public void streamBlocks(long blockNumber, Duration blockTimeout, Consumer<StreamedBlock> onStreamedBlock) {
+    public void streamBlocks(long blockNumber, Duration blockTimeout, Consumer<BlockStream> onBlockStream) {
         var grpcCall = new AtomicReference<BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse>>();
 
         try {
@@ -110,13 +100,14 @@ final class BlockNode implements Comparable<BlockNode> {
                     request));
             SubscribeStreamResponse response;
 
-            while ((response = grpcCall.get().read(assembler.timeout(), TimeUnit.MILLISECONDS)) != null) {
-                boolean serverSuccess = false;
+            boolean serverSuccess = false;
+            while (!serverSuccess
+                    && (response = grpcCall.get().read(assembler.timeout(), TimeUnit.MILLISECONDS)) != null) {
                 switch (response.getResponseCase()) {
                     case BLOCK_ITEMS -> {
-                        var streamedBlock = assembler.assemble(response.getBlockItems());
-                        if (streamedBlock != null) {
-                            onStreamedBlock.accept(streamedBlock);
+                        var blockStream = assembler.assemble(response.getBlockItems());
+                        if (blockStream != null) {
+                            onBlockStream.accept(blockStream);
                         }
                     }
                     case STATUS -> {
@@ -135,10 +126,6 @@ final class BlockNode implements Comparable<BlockNode> {
                 }
 
                 errors.set(0);
-
-                if (serverSuccess) {
-                    break;
-                }
             }
         } catch (BlockStreamException ex) {
             onError();
@@ -196,7 +183,7 @@ final class BlockNode implements Comparable<BlockNode> {
             this.timeout = timeout;
         }
 
-        StreamedBlock assemble(BlockItemSet blockItemSet) {
+        BlockStream assemble(BlockItemSet blockItemSet) {
             var blockItems = blockItemSet.getBlockItemsList();
             if (blockItems.isEmpty()) {
                 log.warn("Received empty BlockItemSet from block node");
@@ -229,7 +216,10 @@ final class BlockNode implements Comparable<BlockNode> {
             pendingCount = 0;
             stopwatch.reset();
 
-            return new StreamedBlock(block, loadStart);
+            var filename = firstItemCase != RECORD_FILE
+                    ? BlockFile.getFilename(block.getFirst().getBlockHeader().getNumber(), false)
+                    : null;
+            return new BlockStream(block, null, filename, loadStart, UNKNOWN_NODE_ID);
         }
 
         long timeout() {
@@ -261,6 +251,4 @@ final class BlockNode implements Comparable<BlockNode> {
             }
         }
     }
-
-    public record StreamedBlock(List<BlockItem> blockItems, long loadStart) {}
 }

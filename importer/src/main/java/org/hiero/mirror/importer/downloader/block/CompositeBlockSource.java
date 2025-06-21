@@ -3,11 +3,13 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import jakarta.inject.Named;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.hiero.mirror.importer.leader.Leader;
 import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -56,11 +58,11 @@ final class CompositeBlockSource implements BlockSource {
     private SourceHealth getSourceHealth() {
         return switch (properties.getSourceType()) {
             case AUTO -> {
-                boolean switched = blockStreamVerifier
-                        .getLastBlockFilename()
-                        .map(BlockFile::isStreamedFilename)
-                        .orElse(false);
-                if (switched) {
+                if (blockStreamVerifier
+                        .getLastBlockFile()
+                        .map(BlockFile::getSourceType)
+                        .filter(type -> type == BlockSourceType.BLOCK_NODE)
+                        .isPresent()) {
                     yield blockNodeSubscriberSourceHealth;
                 }
 
@@ -86,20 +88,20 @@ final class CompositeBlockSource implements BlockSource {
     @RequiredArgsConstructor
     private static class SourceHealth {
 
-        private int errors = 0;
+        private final AtomicInteger errors = new AtomicInteger();
         private final BlockSource source;
         private final BlockSourceType type;
 
         boolean isHealthy() {
-            return errors < 3;
+            return errors.get() < 3;
         }
 
         void onError() {
-            errors++;
+            errors.incrementAndGet();
         }
 
         void reset() {
-            errors = 0;
+            errors.set(0);
         }
     }
 }

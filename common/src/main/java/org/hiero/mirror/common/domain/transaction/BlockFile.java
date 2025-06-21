@@ -90,10 +90,6 @@ public class BlockFile implements StreamFile<BlockItem> {
         return gzipped ? filename + COMPRESSED_FILE_SUFFIX : filename + FILE_SUFFIX;
     }
 
-    public static boolean isStreamedFilename(String filename) {
-        return STREAMED_FILENAME_PREDICATE.test(filename);
-    }
-
     @Override
     public StreamFile<BlockItem> copy() {
         return this.toBuilder().build();
@@ -102,6 +98,18 @@ public class BlockFile implements StreamFile<BlockItem> {
     @Override
     public String getFileHash() {
         return StringUtils.EMPTY;
+    }
+
+    public BlockSourceType getSourceType() {
+        if (StringUtils.isBlank(name)) {
+            return null;
+        }
+
+        if (STREAMED_FILENAME_PREDICATE.test(name)) {
+            return BlockSourceType.BLOCK_NODE;
+        }
+
+        return BlockSourceType.FILE;
     }
 
     @Override

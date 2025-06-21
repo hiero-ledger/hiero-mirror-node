@@ -227,11 +227,9 @@ final class BlockNode {
 
     public boolean isActive();
 
-    public void streamBlocks(long blockNumber, Duration blockTimeout, Consumer<StreamedBlock> onStreamedBlock);
+    public void streamBlocks(long blockNumber, Duration blockTimeout, Consumer<BlockStream> onBlockStream);
 
     public BlockNode tryReadmit(boolean force);
-
-    public record StreamedBlock(List<BlockItem> blockItems, long loadStart) {}
 }
 ```
 

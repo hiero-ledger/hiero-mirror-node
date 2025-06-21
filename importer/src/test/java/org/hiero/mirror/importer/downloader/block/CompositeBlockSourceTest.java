@@ -13,14 +13,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.NullSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -109,9 +111,7 @@ class CompositeBlockSourceTest {
     void getAutoNoBlockNodes() {
         // given
         properties.setNodes(Collections.emptyList());
-        doReturn(Optional.of(BlockFile.getFilename(2, true)))
-                .when(blockStreamVerifier)
-                .getLastBlockFilename();
+        doReturn(Optional.of(blockFile(2, true))).when(blockStreamVerifier).getLastBlockFile();
 
         // when
         source.get();
@@ -121,16 +121,11 @@ class CompositeBlockSourceTest {
         verifyNoInteractions(blockNodeSubscriber);
     }
 
-    @ParameterizedTest
-    @NullSource
-    @ValueSource(
-            strings = {
-                "2022-07-13T08_46_11.304284003Z.rcd.gz",
-                "000000000000000000000000000000000077.blk.gz",
-            })
-    void getAutoSwitchOnError(String filename) {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("provideAutoSwitchBlockFile")
+    void getAutoSwitchOnError(String filename, BlockFile blockFile) {
         // given
-        doReturn(Optional.ofNullable(filename)).when(blockStreamVerifier).getLastBlockFilename();
+        doReturn(Optional.of(blockFile)).when(blockStreamVerifier).getLastBlockFile();
         doThrow(new RuntimeException()).when(blockFileSource).get();
         doThrow(new RuntimeException()).when(blockNodeSubscriber).get();
 
@@ -194,9 +189,7 @@ class CompositeBlockSourceTest {
     @Test
     void getAutoWithLastBlockStreamed() {
         // given
-        doReturn(Optional.of(BlockFile.getFilename(2, false)))
-                .when(blockStreamVerifier)
-                .getLastBlockFilename();
+        doReturn(Optional.of(blockFile(5, false))).when(blockStreamVerifier).getLastBlockFile();
         doThrow(new RuntimeException()).when(blockNodeSubscriber).get();
 
         // when
@@ -207,5 +200,29 @@ class CompositeBlockSourceTest {
         // then
         verifyNoInteractions(blockFileSource);
         verify(blockNodeSubscriber, times(4)).get();
+    }
+
+    private static Stream<Arguments> provideAutoSwitchBlockFile() {
+        return Stream.of(
+                Arguments.of(null, BlockStreamVerifier.EMPTY),
+                Arguments.of(
+                        "2022-07-13T08_46_11.304284003Z.rcd.gz",
+                        BlockFile.builder()
+                                .index(100L)
+                                .name("2022-07-13T08_46_11.304284003Z.rcd.gz")
+                                .build()),
+                Arguments.of(
+                        "000000000000000000000000000000000077.blk.gz",
+                        BlockFile.builder()
+                                .index(77L)
+                                .name("000000000000000000000000000000000077.blk.gz")
+                                .build()));
+    }
+
+    private BlockFile blockFile(long blockNumber, boolean gzipped) {
+        return BlockFile.builder()
+                .name(BlockFile.getFilename(blockNumber, gzipped))
+                .index(blockNumber)
+                .build();
     }
 }

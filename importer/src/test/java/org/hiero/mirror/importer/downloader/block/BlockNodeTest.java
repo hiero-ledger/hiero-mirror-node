@@ -25,13 +25,16 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.api.ObjectAssert;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
+import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.exception.BlockStreamException;
+import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +47,7 @@ import org.mockito.Mockito;
 @ExtendWith(GrpcCleanupExtension.class)
 class BlockNodeTest extends BlockNodeTestBase {
 
-    private static final Consumer<BlockNode.StreamedBlock> IGNORE = b -> {};
+    private static final Consumer<BlockStream> IGNORE = b -> {};
     private static final String SERVER = "test1";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
@@ -62,7 +65,7 @@ class BlockNodeTest extends BlockNodeTestBase {
 
     @AfterEach
     void cleanup() {
-        node.destroy();
+        node.close();
     }
 
     @Test
@@ -173,15 +176,15 @@ class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when
-        var streamed = new ArrayList<BlockNode.StreamedBlock>();
+        var streamed = new ArrayList<BlockStream>();
         node.streamBlocks(0, TIMEOUT, streamed::add);
 
         // then
         assertThat(streamed)
                 .hasSize(2)
                 .satisfies(
-                        blocks -> assertStreamedBlock(blocks.getFirst(), 0),
-                        blocks -> assertStreamedBlock(blocks.getLast(), 1));
+                        blocks -> assertBlockStream(blocks.getFirst(), 0),
+                        blocks -> assertBlockStream(blocks.getLast(), 1));
     }
 
     @Test
@@ -256,15 +259,15 @@ class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
-        var streamed = new ArrayList<BlockNode.StreamedBlock>();
+        var streamed = new ArrayList<BlockStream>();
         node.streamBlocks(0, TIMEOUT, streamed::add);
 
         // then
         assertThat(streamed)
                 .hasSize(2)
                 .satisfies(
-                        blocks -> assertStreamedRecordItem(blocks.getFirst()),
-                        blocks -> assertStreamedBlock(blocks.getLast(), 1));
+                        blocks -> assertRecordItem(blocks.getFirst()),
+                        blocks -> assertBlockStream(blocks.getLast(), 1));
     }
 
     @Test
@@ -355,11 +358,10 @@ class BlockNodeTest extends BlockNodeTestBase {
                 Arguments.of(BlockItem.ItemCase.RECORD_FILE, recordFileItem()));
     }
 
-    private void assertStreamedRecordItem(BlockNode.StreamedBlock streamedBlock) {
-        assertThat(streamedBlock)
-                .satisfies(b -> assertThat(b.loadStart())
-                        .isGreaterThan(Instant.now().minusSeconds(10).toEpochMilli()))
-                .extracting(BlockNode.StreamedBlock::blockItems, InstanceOfAssertFactories.collection(BlockItem.class))
+    private void assertRecordItem(BlockStream blockStream) {
+        assertBlockStreamCommon(blockStream)
+                .returns(null, BlockStream::filename)
+                .extracting(BlockStream::blockItems, InstanceOfAssertFactories.collection(BlockItem.class))
                 .hasSize(1)
                 .first()
                 .returns(BlockItem.ItemCase.RECORD_FILE, BlockItem::getItemCase);
@@ -373,15 +375,23 @@ class BlockNodeTest extends BlockNodeTestBase {
         return properties;
     }
 
-    private void assertStreamedBlock(BlockNode.StreamedBlock streamedBlock, long number) {
-        var blockItems = streamedBlock.blockItems();
-        assertThat(blockItems.getFirst())
-                .returns(BlockItem.ItemCase.BLOCK_HEADER, BlockItem::getItemCase)
-                .extracting(BlockItem::getBlockHeader)
-                .returns(number, BlockHeader::getNumber);
-        assertThat(blockItems.getLast()).returns(BlockItem.ItemCase.BLOCK_PROOF, BlockItem::getItemCase);
-        assertThat(streamedBlock.loadStart())
-                .isGreaterThan(Instant.now().minusSeconds(10).toEpochMilli());
+    private void assertBlockStream(BlockStream blockStream, long number) {
+        assertBlockStreamCommon(blockStream)
+                .returns(BlockFile.getFilename(number, false), BlockStream::filename)
+                .extracting(BlockStream::blockItems)
+                .satisfies(
+                        x -> assertThat(x.getFirst())
+                                .returns(BlockItem.ItemCase.BLOCK_HEADER, BlockItem::getItemCase)
+                                .extracting(BlockItem::getBlockHeader)
+                                .returns(number, BlockHeader::getNumber),
+                        x -> assertThat(x.getLast()).returns(BlockItem.ItemCase.BLOCK_PROOF, BlockItem::getItemCase));
+    }
+
+    private ObjectAssert<BlockStream> assertBlockStreamCommon(BlockStream blockStream) {
+        return assertThat(blockStream)
+                .satisfies(b -> assertThat(b.loadStart())
+                        .isGreaterThan(Instant.now().minusSeconds(10).toEpochMilli()))
+                .returns(-1L, BlockStream::nodeId);
     }
 
     private void runBlockNodeService(Resources resources, Supplier<ServerStatusResponse> responseProvider) {

@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.Collections;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
@@ -25,6 +26,7 @@ public class BlockProperties {
     @NotNull
     private Duration frequency = Duration.ofMillis(100L);
 
+    @NotNull
     @Valid
     private Collection<BlockNodeProperties> nodes = Collections.emptyList();
 
@@ -33,6 +35,7 @@ public class BlockProperties {
     @NotNull
     private BlockSourceType sourceType = BlockSourceType.AUTO;
 
+    @NotNull
     @Valid
     private StreamProperties stream = new StreamProperties();
 

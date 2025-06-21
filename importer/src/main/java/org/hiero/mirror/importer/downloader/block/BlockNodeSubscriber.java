@@ -5,17 +5,12 @@ package org.hiero.mirror.importer.downloader.block;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
-import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
-import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
-import org.springframework.beans.factory.DisposableBean;
 
 @Named
-final class BlockNodeSubscriber extends AbstractBlockSource implements DisposableBean {
-
-    private static final long UNKNOWN_NODE_ID = -1;
+final class BlockNodeSubscriber extends AbstractBlockSource implements AutoCloseable {
 
     private final List<BlockNode> nodes;
 
@@ -34,8 +29,8 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements Disposabl
     }
 
     @Override
-    public void destroy() {
-        nodes.forEach(BlockNode::destroy);
+    public void close() {
+        nodes.forEach(BlockNode::close);
     }
 
     @Override
@@ -44,10 +39,7 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements Disposabl
         var node = getNode(blockNumber);
 
         log.info("Start streaming block {} from {}", blockNumber, node);
-        node.streamBlocks(
-                blockNumber,
-                commonDownloaderProperties.getTimeout(),
-                streamedBlock -> onBlockStream(toBlockStream(streamedBlock)));
+        node.streamBlocks(blockNumber, commonDownloaderProperties.getTimeout(), this::onBlockStream);
     }
 
     private BlockNode getNode(long blockNumber) {
@@ -72,12 +64,5 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements Disposabl
         }
 
         throw new BlockStreamException("No block node can provide block " + blockNumber);
-    }
-
-    private BlockStream toBlockStream(BlockNode.StreamedBlock streamedBlock) {
-        var blockItems = streamedBlock.blockItems();
-        var blockHeader = blockItems.getFirst().getBlockHeader();
-        var filename = BlockFile.getFilename(blockHeader.getNumber(), false);
-        return new BlockStream(blockItems, null, filename, streamedBlock.loadStart(), UNKNOWN_NODE_ID);
     }
 }

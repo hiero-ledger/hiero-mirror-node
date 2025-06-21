@@ -24,7 +24,8 @@ abstract class AbstractBlockSource implements BlockSource {
 
     protected final long getNextBlockNumber() {
         return blockStreamVerifier
-                .getLastBlockNumber()
+                .getLastBlockFile()
+                .map(BlockFile::getIndex)
                 .map(v -> v + 1)
                 .or(() -> Optional.ofNullable(
                         commonDownloaderProperties.getImporterProperties().getStartBlockNumber()))

@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.DigestAlgorithm.SHA_384;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mock.Strictness.LENIENT;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -17,12 +16,10 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.StreamFile;
-import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
-import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
@@ -58,27 +55,13 @@ class BlockStreamVerifierTest {
     }
 
     @Test
-    void getLastBlockFilename() {
-        var latest = RecordFile.builder()
-                .name(StreamFilename.getFilename(StreamType.RECORD, StreamFilename.FileType.DATA, Instant.now()))
-                .build();
-        doReturn(Optional.of(latest)).when(recordFileRepository).findLatest();
-        assertThat(verifier.getLastBlockFilename()).contains(latest.getName());
-    }
-
-    @Test
-    void getLastBlockFilenameEmpty() {
-        assertThat(verifier.getLastBlockFilename()).isEmpty();
-    }
-
-    @Test
     void verifyWithEmptyDb() {
         // given
         when(recordFileRepository.findLatest()).thenReturn(Optional.empty());
         var blockFile = getBlockFile(null);
 
         // then
-        assertThat(verifier.getLastBlockNumber()).isEmpty();
+        assertThat(verifier.getLastBlockFile()).contains(BlockStreamVerifier.EMPTY);
 
         // when
         verifier.verify(blockFile);
@@ -87,7 +70,7 @@ class BlockStreamVerifierTest {
         verify(blockFileTransformer).transform(blockFile);
         verify(recordFileRepository).findLatest();
         verify(streamFileNotifier).verified(expectedRecordFile);
-        assertThat(verifier.getLastBlockNumber()).contains(blockFile.getIndex());
+        assertThat(verifier.getLastBlockFile()).get().returns(blockFile.getIndex(), BlockFile::getIndex);
 
         // given next block file
         blockFile = getBlockFile(blockFile);
@@ -99,7 +82,7 @@ class BlockStreamVerifierTest {
         verify(blockFileTransformer).transform(blockFile);
         verify(recordFileRepository).findLatest();
         verify(streamFileNotifier, times(2)).verified(expectedRecordFile);
-        assertThat(verifier.getLastBlockNumber()).contains(blockFile.getIndex());
+        assertThat(verifier.getLastBlockFile()).get().returns(blockFile.getIndex(), BlockFile::getIndex);
     }
 
     @Test
@@ -110,7 +93,7 @@ class BlockStreamVerifierTest {
         var blockFile = getBlockFile(previous);
 
         // then
-        assertThat(verifier.getLastBlockNumber()).contains(previous.getIndex());
+        assertThat(verifier.getLastBlockFile()).get().returns(previous.getIndex(), BlockFile::getIndex);
 
         // when
         verifier.verify(blockFile);
@@ -119,7 +102,7 @@ class BlockStreamVerifierTest {
         verify(blockFileTransformer).transform(blockFile);
         verify(recordFileRepository).findLatest();
         verify(streamFileNotifier).verified(expectedRecordFile);
-        assertThat(verifier.getLastBlockNumber()).contains(blockFile.getIndex());
+        assertThat(verifier.getLastBlockFile()).get().returns(blockFile.getIndex(), BlockFile::getIndex);
 
         // given next block file
         blockFile = getBlockFile(blockFile);
@@ -131,7 +114,7 @@ class BlockStreamVerifierTest {
         verify(blockFileTransformer).transform(blockFile);
         verify(recordFileRepository).findLatest();
         verify(streamFileNotifier, times(2)).verified(expectedRecordFile);
-        assertThat(verifier.getLastBlockNumber()).contains(blockFile.getIndex());
+        assertThat(verifier.getLastBlockFile()).get().returns(blockFile.getIndex(), BlockFile::getIndex);
     }
 
     @Test
@@ -142,7 +125,7 @@ class BlockStreamVerifierTest {
         blockFile.setIndex(blockFile.getIndex() + 1);
 
         // then
-        assertThat(verifier.getLastBlockNumber()).isEmpty();
+        assertThat(verifier.getLastBlockFile()).contains(BlockStreamVerifier.EMPTY);
 
         // when, then
         assertThatThrownBy(() -> verifier.verify(blockFile))
@@ -151,7 +134,7 @@ class BlockStreamVerifierTest {
         verifyNoInteractions(blockFileTransformer);
         verify(recordFileRepository).findLatest();
         verifyNoInteractions(streamFileNotifier);
-        assertThat(verifier.getLastBlockNumber()).isEmpty();
+        assertThat(verifier.getLastBlockFile()).contains(BlockStreamVerifier.EMPTY);
     }
 
     @Test
@@ -163,7 +146,7 @@ class BlockStreamVerifierTest {
         blockFile.setPreviousHash(sha384Hash());
 
         // then
-        assertThat(verifier.getLastBlockNumber()).contains(previous.getIndex());
+        assertThat(verifier.getLastBlockFile()).get().returns(previous.getIndex(), BlockFile::getIndex);
 
         // when, then
         assertThatThrownBy(() -> verifier.verify(blockFile))
@@ -172,7 +155,7 @@ class BlockStreamVerifierTest {
         verifyNoInteractions(blockFileTransformer);
         verify(recordFileRepository).findLatest();
         verifyNoInteractions(streamFileNotifier);
-        assertThat(verifier.getLastBlockNumber()).contains(previous.getIndex());
+        assertThat(verifier.getLastBlockFile()).get().returns(previous.getIndex(), BlockFile::getIndex);
     }
 
     private BlockFile getBlockFile(StreamFile<?> previous) {

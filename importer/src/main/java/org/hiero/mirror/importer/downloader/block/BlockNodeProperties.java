@@ -4,7 +4,7 @@ package org.hiero.mirror.importer.downloader.block;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotBlank;
 import java.util.Comparator;
 import lombok.Data;
 import org.springframework.validation.annotation.Validated;
@@ -18,11 +18,11 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
             .thenComparing(BlockNodeProperties::getHost)
             .thenComparing(BlockNodeProperties::getPort);
 
-    @NotEmpty
+    @NotBlank
     private String host;
 
     @Max(65535)
-    @Min(1)
+    @Min(0)
     private int port = 8080;
 
     @Min(0)

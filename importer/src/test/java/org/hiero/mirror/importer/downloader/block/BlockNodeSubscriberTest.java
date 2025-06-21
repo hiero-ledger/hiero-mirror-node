@@ -85,7 +85,9 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
     void get(long lastBlockNumber, String expectedStatusCalls, String expectedStreamCalls, Resources resources) {
         // given
         doReturn(new BlockFile()).when(blockStreamReader).read(any());
-        doReturn(Optional.of(lastBlockNumber)).when(blockStreamVerifier).getLastBlockNumber();
+        doReturn(Optional.of(BlockFile.builder().index(lastBlockNumber).build()))
+                .when(blockStreamVerifier)
+                .getLastBlockFile();
         doNothing().when(blockStreamVerifier).verify(any());
         blockProperties.setNodes(List.of(
                 blockNodeProperties(0, SERVER_NAMES[0]),
@@ -123,14 +125,16 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
             assertBlockStream(blockStream, lastBlockNumber + 1);
             return true;
         }));
-        verify(blockStreamVerifier).getLastBlockNumber();
+        verify(blockStreamVerifier).getLastBlockFile();
         verify(blockStreamVerifier).verify(any());
     }
 
     @Test
     void getWhenBlockNotAvailable(Resources resources) {
         // given
-        doReturn(Optional.of(20L)).when(blockStreamVerifier).getLastBlockNumber();
+        doReturn(Optional.of(BlockFile.builder().index(20L).build()))
+                .when(blockStreamVerifier)
+                .getLastBlockFile();
         blockProperties.setNodes(List.of(
                 blockNodeProperties(0, SERVER_NAMES[0]),
                 blockNodeProperties(0, SERVER_NAMES[1]),
@@ -166,14 +170,16 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         assertCalls(statusCalls, "1,1,1");
         assertCalls(streamCalls, "0,0,0");
         verifyNoInteractions(blockStreamReader);
-        verify(blockStreamVerifier).getLastBlockNumber();
+        verify(blockStreamVerifier).getLastBlockFile();
         verify(blockStreamVerifier, never()).verify(any());
     }
 
     @Test
     void getWhenFirstNodeFails(Resources resources) {
         // given
-        doReturn(Optional.of(9L)).when(blockStreamVerifier).getLastBlockNumber();
+        doReturn(Optional.of(BlockFile.builder().index(9L).build()))
+                .when(blockStreamVerifier)
+                .getLastBlockFile();
         doReturn(new BlockFile()).when(blockStreamReader).read(any());
         doNothing().when(blockStreamVerifier).verify(any());
         blockProperties.setNodes(List.of(
@@ -211,7 +217,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         assertCalls(statusCalls, "3,0,0");
         assertCalls(streamCalls, "3,0,0");
         verifyNoInteractions(blockStreamReader);
-        verify(blockStreamVerifier, times(3)).getLastBlockNumber();
+        verify(blockStreamVerifier, times(3)).getLastBlockFile();
         verify(blockStreamVerifier, never()).verify(any());
 
         // when get again from the second node
@@ -220,7 +226,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         // then
         assertCalls(statusCalls, "3,1,0");
         assertCalls(streamCalls, "3,1,0");
-        verify(blockStreamVerifier, times(4)).getLastBlockNumber();
+        verify(blockStreamVerifier, times(4)).getLastBlockFile();
         verify(blockStreamVerifier, times(2)).verify(any());
 
         var captor = ArgumentCaptor.forClass(BlockStream.class);
@@ -233,7 +239,9 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
     @Test
     void getWhenAllFailThenForceReadmit(Resources resources) {
         // given
-        doReturn(Optional.of(9L)).when(blockStreamVerifier).getLastBlockNumber();
+        doReturn(Optional.of(BlockFile.builder().index(9L).build()))
+                .when(blockStreamVerifier)
+                .getLastBlockFile();
         doReturn(new BlockFile()).when(blockStreamReader).read(any());
         doNothing().when(blockStreamVerifier).verify(any());
         blockProperties.setNodes(
@@ -263,7 +271,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         assertCalls(statusCalls, "3,3,0");
         assertCalls(streamCalls, "3,3,0");
         verifyNoInteractions(blockStreamReader);
-        verify(blockStreamVerifier, times(6)).getLastBlockNumber();
+        verify(blockStreamVerifier, times(6)).getLastBlockFile();
         verify(blockStreamVerifier, never()).verify(any());
 
         // when servers become healthy however test1 no longer has the next block
@@ -283,7 +291,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         // then
         assertCalls(statusCalls, "4,4,0");
         assertCalls(streamCalls, "3,4,0");
-        verify(blockStreamVerifier, times(7)).getLastBlockNumber();
+        verify(blockStreamVerifier, times(7)).getLastBlockFile();
         verify(blockStreamVerifier, times(2)).verify(any());
 
         var captor = ArgumentCaptor.forClass(BlockStream.class);

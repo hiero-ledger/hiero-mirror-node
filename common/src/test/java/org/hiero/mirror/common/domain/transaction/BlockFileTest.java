@@ -27,14 +27,18 @@ class BlockFileTest {
                 .hasMessage("Block number must be non-negative");
     }
 
-    @Test
-    void isStreamedFilename() {
-        assertThat(BlockFile.isStreamedFilename("000000000000000000000000000000000000.blk"))
-                .isTrue();
-        assertThat(BlockFile.isStreamedFilename("000000000000000000000000000000000000.blk.gz"))
-                .isFalse();
-        assertThat(BlockFile.isStreamedFilename("2022-07-13T08_46_08.041986003Z.rcd.gz"))
-                .isFalse();
+    @ParameterizedTest
+    @CsvSource(
+            textBlock =
+                    """
+            ,
+            000000000000000000000000000000000000.blk, BLOCK_NODE
+            000000000000000000000000000000000000.blk.gz, FILE
+            """)
+    void getSourceType(String name, BlockSourceType type) {
+        var blockFile = new BlockFile();
+        blockFile.setName(name);
+        assertThat(blockFile.getSourceType()).isEqualTo(type);
     }
 
     @Test
