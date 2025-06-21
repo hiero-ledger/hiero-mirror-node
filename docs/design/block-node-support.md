@@ -33,6 +33,10 @@ will have `null` value.
 alter table if exists record_file alter column node_id drop not null;
 ```
 
+_Update_: In V2, `node_id` is in `record_file` table's primary key. As a result, it can't be nullable. For blocks
+streamed from block nodes, the `node_id` will always be -1 instead. Furthermore, block nodes will have unique node ids
+as proposed by a pending HIP, so we can use the registered node id once it's implemented.
+
 ### Data Flow
 
 ![Data Flow](images/block-node-support.svg)
@@ -74,29 +78,51 @@ public enum BlockSourceType {
 }
 ```
 
-See [`CompositeBlockStreamSource`](#CompositeBlockStreamSource) for how `AUTO` works.
+See [`CompositeBlockSource`](#CompositeBlockSource) for how `AUTO` works.
 
-### BlockStreamProperties
+### BlockProperties
 
 ```java
-public class BlockStreamProperties {
+public class BlockProperties {
     ...
     private Collection<BlockNodeProperties> nodes = Collections.emptyList();
     private BlockSourceType sourceType = BlockSourceType.AUTO;
+    private StreamProperties stream = new StreamProperties();
 }
 ```
 
-This is renamed from `BlockPollerProperties`, with two new properties added.
+This is renamed from `BlockPollerProperties`, with three new properties added.
+
+### StreamProperties
+
+```java
+public class StreamProperties {
+    private int maxBlockItems = 800_000;
+    private DataSize maxStreamResponseSize = DataSize.ofMegabytes(8);
+    private int maxSubscribeAttempts = 3;
+    private Duration readmitDelay = Duration.ofMinutes(1);
+    private Duration responseTimeout = Duration.ofMillis(400);
+}
+```
+
+`StreamProperties` is the place for properties common to block nodes
+
+- `maxBlockItems`: The max number of block items allowed in a block streamed from block nodes
+- `maxBufferSize`: The max number of streamed block items to buffer before cancelling the block node subscription
+- `maxStreamResponseSize`: The max size of a stream response from block nodes
+- `maxSubscribeAttempts`: The max number of consecutive subscribe attempts to a block node before marking the node inactive
+- `readmitDelay`: The time to wait before readmitting an inactive block node
+- `responseTimeout`: The block node server status request timeout
 
 ### BlockStream
 
 ```java
-public record BlockStream(List<BlockItem> blockItems, byte[] bytes, String filename, long loadStart, Long nodeId) {}
+public record BlockStream(List<BlockItem> blockItems, byte[] bytes, String filename, long loadStart, long nodeId) {}
 ```
 
 `BlockStream` represents a block from a downloaded block file, or a block streamed from a block node. The `filename`
 is the downloaded block file's name, or generated from the block number with `.blk` suffix. `nodeId` indicates which
-node the block file is downloaded from, or `null` if data is streamed from a block node.
+node the block file is downloaded from, and for block nodes, it's always -1.
 
 ### BlockStreamReader
 
@@ -109,14 +135,13 @@ public interface BlockStreamReader {
 Renamed from `BlockFileReader`. Note the interface no longer extends `StreamFileReader` because it now reads
 a `BlockStream` instead of a `StreamFileData`.
 
-### BlockStreamSource
+### BlockSource
 
 ```java
 
-public interface BlockStreamSource {
+interface BlockSource {
   /*
-   * Gets block streams from the source. An implementation can either download block streams from cloud storage, or
-   * stream block streams from a block node.
+   * Gets blocks from the source
    */
   void get();
 }
@@ -125,10 +150,10 @@ public interface BlockStreamSource {
 This replaces interface `StreamPoller` since poll is an incorrect term when the implementation streams data pushed from
 server.
 
-### AbstractBlockStreamSource
+### AbstractBlockSource
 
 ```java
-abstract class AbstractBlockStreamSource implements BlockStreamSource {
+abstract class AbstractBlockSource implements BlockSource {
 
     protected final long getNextBlockNumber();
 
@@ -142,7 +167,7 @@ abstract class AbstractBlockStreamSource implements BlockStreamSource {
 ### BlockFileSource
 
 ```java
-final class BlockFileSource extends AbstractBlockStreamSource {
+final class BlockFileSource extends AbstractBlockSource {
 
     @Override
     public void get() {
@@ -157,49 +182,68 @@ final class BlockFileSource extends AbstractBlockStreamSource {
 }
 ```
 
-`BlockFileSource` polls a block file using `StreamFileProvider`, and calls `AbstractBlockStreamSource.onBlockStream`.
+`BlockFileSource` polls a block file using `StreamFileProvider`, and calls `AbstractBlockSource.onBlockStream`.
 
 ### BlockNodeSubscriber
 
 ```java
-final class BlockNodeSubscriber extends AbstractBlockStreamSource {
+final class BlockNodeSubscriber extends AbstractBlockSource {
 
     @Override
     public void get() {
         call getNextBlockNumber;
-        call serverStatus to find the first block node with the next block;
+        call BlockNode.hasBlock to find the first block node with the next block;
         throw error if no block node has the next block;
 
-        subscribe to the selected block node to stream blocks;
-        for block items received from the subscription
-          append block items to previous received block items
-          if the last block item is a BlockProof
+        start streaming with a backpressure buffer
+          for each streamed block
             call onBlockStream;
-          else if the last and only block item is a RecordFileItem
-            call onBlockStream;
+          error:
+            ignore backpressure buffer overflow and throw any other error;
     }
 }
 ```
 
 `BlockNodeSubscriber` streams blocks from a list of block nodes in round-robin starting from the first node in the
 configuration. At any time, `BlockNodeSubscriber` should only communicate with one block node. `BlockNodeSubscriber`
-should set a timeout while waiting for block items of a block to complete. Upon any error during streaming and block
-processing, `BlockNodeSubscriber` should clean up resources created for the connection with the block node and throw
-exception so `CompositeBlockStreamSource` can maintain health status, and have `BlockNodeSubscriber` try the next block
-node, or even switch to `BlockFileSource` if needed.
+should set a timeout while waiting for streamed blocks. Upon any error during streaming and block processing,
+`BlockNodeSubscriber` should clean up resources and throw exception so `CompositeBlockStreamSource` can maintain health
+status, and have `BlockNodeSubscriber` try the next block node, or switch to `BlockFileSource` if needed.
 
-`BlockNodeSubscriber` should call `serverStatus` RPC to determine if a block node can provide a block before start
-streaming and fail fast if none of the block nodes have the next block.
+`BlockNodeSubscriber` should call `BlockNode.hasBlock(blockNumber)` to determine if a block node can provide a block
+before start streaming and fail fast if none of the block nodes have the next block.
 
 It's possible that a streaming response from a block node only contains part of a block, `BlockNodeSubscriber` needs to
 combine block items in the same block and only then calls `onBlockStream`. Note that a streaming response from the block
 node would never have block items from two blocks mixed, i.e., to determine if the block items in the response completes
 a block, simply check if the last block item is a `BlockProof`.
 
-### CompositeBlockStreamSource
+### BlockNode
 
 ```java
-public class CompositeBlockStreamSource implements BlockStreamSource {
+final class BlockNode {
+
+    public boolean hasBlock(long blockNumber);
+
+    public boolean isActive();
+
+    public void streamBlocks(long blockNumber, Duration blockTimeout, Consumer<BlockStream> onBlockStream);
+
+    public BlockNode tryReadmit(boolean force);
+}
+```
+
+`BlockNode` is the class for all block node communication and state maintenance.
+
+It's possible that a streaming response only contains part of a block, `BlockNode` needs to combine block items in the
+same block and only then notify the caller of the completed block. Note that a streaming response would never have block
+items from different blocks mixed, i.e., to determine if the block items in the response complete a block, simply check
+if the last block item is a `BlockProof`.
+
+### CompositeBlockSource
+
+```java
+final class CompositeBlockSource implements BlockSource {
 
     @Override
     public void get();
