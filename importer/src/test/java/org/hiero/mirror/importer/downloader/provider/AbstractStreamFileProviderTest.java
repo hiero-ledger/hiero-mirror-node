@@ -151,7 +151,7 @@ abstract class AbstractStreamFileProviderTest {
         // given
         properties.setPathType(PathType.NODE_ID);
         createBlockStreamFileCopier().copy();
-        var streamFilename = StreamFilename.from(BlockFile.getBlockStreamFilename(7858853));
+        var streamFilename = StreamFilename.from(BlockFile.getFilename(7858853, true));
 
         // when, then
         StepVerifier.withVirtualTime(() -> streamFileProvider.get(node(4), streamFilename))
@@ -169,7 +169,7 @@ abstract class AbstractStreamFileProviderTest {
         properties.setPathType(pathType);
         createBlockStreamFileCopier().copy();
         var node = node(3);
-        var streamFilename = StreamFilename.from(BlockFile.getBlockStreamFilename(7858853));
+        var streamFilename = StreamFilename.from(BlockFile.getFilename(7858853, true));
 
         // when, then
         assertThatThrownBy(() -> streamFileProvider.get(node, streamFilename))

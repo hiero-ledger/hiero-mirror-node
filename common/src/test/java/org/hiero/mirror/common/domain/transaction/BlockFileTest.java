@@ -6,16 +6,39 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class BlockFileTest {
 
-    @Test
-    void getBlockStreamFilename() {
-        assertThat(BlockFile.getBlockStreamFilename(0)).isEqualTo("000000000000000000000000000000000000.blk.gz");
-        assertThat(BlockFile.getBlockStreamFilename(1)).isEqualTo("000000000000000000000000000000000001.blk.gz");
-        assertThatThrownBy(() -> BlockFile.getBlockStreamFilename(-1))
+    @ParameterizedTest(name = "gzipped={0}")
+    @CsvSource(value = {"true, '.gz'", "false, ''"})
+    void getBlockStreamFilename(boolean gzipped, String extraSuffix) {
+        assertThat(BlockFile.getFilename(0, gzipped))
+                .isEqualTo("000000000000000000000000000000000000.blk" + extraSuffix);
+        assertThat(BlockFile.getFilename(1, gzipped))
+                .isEqualTo("000000000000000000000000000000000001.blk" + extraSuffix);
+        assertThat(BlockFile.getFilename(0, gzipped))
+                .isEqualTo("000000000000000000000000000000000000.blk" + extraSuffix);
+        assertThat(BlockFile.getFilename(1, gzipped))
+                .isEqualTo("000000000000000000000000000000000001.blk" + extraSuffix);
+        assertThatThrownBy(() -> BlockFile.getFilename(-1, true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Block number must be non-negative");
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+            textBlock =
+                    """
+            ,
+            000000000000000000000000000000000000.blk, BLOCK_NODE
+            000000000000000000000000000000000000.blk.gz, FILE
+            """)
+    void getSourceType(String name, BlockSourceType type) {
+        var blockFile = new BlockFile();
+        blockFile.setName(name);
+        assertThat(blockFile.getSourceType()).isEqualTo(type);
     }
 
     @Test

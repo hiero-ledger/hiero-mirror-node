@@ -15,6 +15,7 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
+    set("blockNodeVersion", "0.13.0")
     set("grpcVersion", "1.73.0")
     set("jooq.version", "3.20.5") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
@@ -28,12 +29,14 @@ extra.apply {
 // using a dependency
 dependencies {
     constraints {
+        val blockNodeVersion: String by rootProject.extra
         val grpcVersion: String by rootProject.extra
         val mapStructVersion: String by rootProject.extra
         val protobufVersion: String by rootProject.extra
         val reactorGrpcVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
 
+        api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:10.0.2")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
@@ -70,6 +73,7 @@ dependencies {
         api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api:5.0.2")
         api("org.gaul:s3proxy:2.6.0")
+        api("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:evm:24.3.3")
         api("org.mapstruct:mapstruct:$mapStructVersion")
@@ -79,7 +83,7 @@ dependencies {
         api("org.springframework.cloud:spring-cloud-dependencies:2025.0.0")
         api("org.testcontainers:junit-jupiter:1.21.2")
         api("org.mockito:mockito-inline:5.2.0")
-        api("software.amazon.awssdk:bom:2.31.63")
+        api("software.amazon.awssdk:bom:2.31.68")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
         api("org.web3j:core:4.12.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")

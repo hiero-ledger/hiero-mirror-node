@@ -1,10 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import com.google.protobuf.gradle.id
+
 description = "Mirror Node Importer"
 
-plugins { id("spring-conventions") }
+plugins {
+    id("com.google.protobuf")
+    id("spring-conventions")
+}
 
 dependencies {
+    val blockNodeVersion: String by rootProject.extra
+
     implementation(platform("org.springframework.cloud:spring-cloud-dependencies"))
     implementation(platform("software.amazon.awssdk:bom"))
     implementation(project(":common"))
@@ -12,6 +19,8 @@ dependencies {
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv")
     implementation("commons-io:commons-io")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
+    implementation("io.grpc:grpc-protobuf")
+    implementation("io.grpc:grpc-stub")
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("io.projectreactor:reactor-core")
     implementation("jakarta.inject:jakarta.inject-api")
@@ -34,14 +43,18 @@ dependencies {
     implementation("software.amazon.awssdk:netty-nio-client")
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:sts")
+    protobuf("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
+    runtimeOnly("io.grpc:grpc-netty")
     runtimeOnly(
         group = "io.netty",
         name = "netty-resolver-dns-native-macos",
         classifier = "osx-aarch_64",
     )
     testImplementation(project(path = ":common", configuration = "testClasses"))
+    testImplementation("com.asarkar.grpc:grpc-test")
     testImplementation("com.github.vertical-blank:sql-formatter")
     testImplementation("commons-beanutils:commons-beanutils")
+    testImplementation("io.grpc:grpc-inprocess")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.apache.commons:commons-math3")
     testImplementation("org.awaitility:awaitility")
@@ -53,4 +66,14 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+protobuf {
+    val protobufVersion: String by rootProject.extra
+
+    protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" }
+    plugins { id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java" } }
+    generateProtoTasks {
+        ofSourceSet("main").forEach { it.plugins { id("grpc") { option("@generated=omit") } } }
+    }
 }
