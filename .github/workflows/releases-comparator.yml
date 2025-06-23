@@ -17,15 +17,19 @@ permissions:
 env:
   LC_ALL: C.UTF-8
 jobs:
-  run-diff-script:
-    name: Compare latest two releases of consensus node
+  check-version:
+    name: Check if hedera app version changed in the PR
     runs-on: hiero-mirror-node-linux-large
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+      pr_version: ${{ steps.check.outputs.pr_version }}
+      base_version: ${{ steps.check.outputs.base_version }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Check if hedera app version changed in the PR
-        id: check-hedera-app-line
+      - name: Compare versions
+        id: check
         run: |
           set -ex
 
@@ -46,19 +50,25 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
+  run-diff-script:
+    name: Compare files of different releases
+    runs-on: hiero-mirror-node-linux-large
+    needs: check-version
+    if: needs.check-version.outputs.changed == 'true'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.2.2
+
       - name: Install JDK
-        if: steps.check-hedera-app-line.outputs.changed == 'true'
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: "temurin"
           java-version: 21
 
       - name: Setup Gradle
-        if: steps.check-hedera-app-line.outputs.changed == 'true'
         uses: gradle/actions/setup-gradle@ac638b010cf58a27ee6c972d7336334ccaf61c96 # v4
 
       - name: Run diff script
-        if: steps.check-hedera-app-line.outputs.changed == 'true'
         run: |
           set -ex
 
@@ -78,18 +88,23 @@ jobs:
           TMP_DIR_ONE=$(mktemp -d)
           TMP_DIR_TWO=$(mktemp -d)
 
-          TAG_ONE="${{ steps.check-hedera-app-line.outputs.pr_version }}"
-          TAG_TWO="${{ steps.check-hedera-app-line.outputs.base_version }}"
+          TAG_ONE="${{ needs.check-version.outputs.pr_version }}"
+          TAG_TWO="${{ needs.check-version.outputs.base_version }}"
 
           echo "Comparing consensus node release versions $TAG_ONE and $TAG_TWO ..."
 
-          git clone --depth 1 --branch "$TAG_ONE" "$CONSENSUS_NODE_REPO" "$TMP_DIR_ONE" > /dev/null 2>&1
-          cd "$TMP_DIR_ONE"
-          ./gradlew hapi:generatePbjSource > /dev/null 2>&1
+          generate_pbj_source() {
+            local tag="$1"
+            local target_dir="$2"
 
-          git clone --depth 1 --branch "$TAG_TWO" "$CONSENSUS_NODE_REPO" "$TMP_DIR_TWO" > /dev/null 2>&1
-          cd "$TMP_DIR_TWO"
-          ./gradlew hapi:generatePbjSource > /dev/null 2>&1
+            git clone --depth 1 --branch "$tag" "$CONSENSUS_NODE_REPO" "$target_dir" > /dev/null 2>&1
+            cd "$target_dir"
+            ./gradlew hapi:generatePbjSource > /dev/null 2>&1
+            cd - > /dev/null
+          }
+
+          generate_pbj_source "$TAG_ONE" "$TMP_DIR_ONE"
+          generate_pbj_source "$TAG_TWO" "$TMP_DIR_TWO"
 
           # Flag to track for differences
           CHANGED=false
@@ -106,10 +121,10 @@ jobs:
               branch_two_file_path="$TMP_DIR_TWO/hapi/hapi/build/generated/source/pbj-proto/main/java/$input_file_path"
             fi
 
-            if ! diff -q "$branch_one_file_path" "$branch_two_file_path" >/dev/null 2>&1; then
+            if ! diff_output=$(diff -u "$branch_two_file_path" "$branch_one_file_path"); then
               echo "File changed: $input_file_path"
               echo "----------------------------------------"
-              diff -u "$branch_two_file_path" "$branch_one_file_path" || true
+              echo "$diff_output"
               echo "----------------------------------------"
               CHANGED=true
             fi
@@ -120,9 +135,9 @@ jobs:
           done
 
           if [ "$CHANGED" = false ]; then
-            echo "No file changes detected."
+            echo "No differences detected between versions $TAG_TWO and $TAG_ONE for the specified set of files."
           else
-            echo "Differences detected."
+            echo "Differences detected between versions $TAG_TWO and $TAG_ONE for the specified set of files."
             exit 1
           fi
 
