@@ -10,6 +10,8 @@ plugins {
 }
 
 dependencies {
+    val blockNodeVersion: String by rootProject.extra
+
     implementation(platform("org.springframework.cloud:spring-cloud-dependencies"))
     implementation(platform("software.amazon.awssdk:bom"))
     implementation(project(":common"))
@@ -41,7 +43,7 @@ dependencies {
     implementation("software.amazon.awssdk:netty-nio-client")
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:sts")
-    protobuf("org.hiero.block:block-node-protobuf-sources:0.13.0-rc1")
+    protobuf("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
     runtimeOnly("io.grpc:grpc-netty")
     runtimeOnly(
         group = "io.netty",
