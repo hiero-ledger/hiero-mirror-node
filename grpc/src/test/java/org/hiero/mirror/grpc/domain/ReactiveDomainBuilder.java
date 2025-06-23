@@ -35,7 +35,7 @@ public class ReactiveDomainBuilder {
     public static final EntityId TOPIC_ID = EntityId.of(
             CommonProperties.getInstance().getShard(),
             CommonProperties.getInstance().getRealm(),
-            100L);
+            100);
 
     private final long now = DomainUtils.now();
     private final EntityRepository entityRepository;
@@ -114,6 +114,10 @@ public class ReactiveDomainBuilder {
                 .customize(customizer)
                 .persist();
         return Mono.just(transaction);
+    }
+
+    public EntityId entityId() {
+        return domainBuilder.entityId();
     }
 
     private Mono<Entity> insert(Entity entity) {

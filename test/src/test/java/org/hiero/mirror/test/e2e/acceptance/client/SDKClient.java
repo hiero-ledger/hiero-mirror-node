@@ -11,7 +11,6 @@ import com.hedera.hashgraph.sdk.AccountCreateTransaction;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Client;
 import com.hedera.hashgraph.sdk.Hbar;
-import com.hedera.hashgraph.sdk.LedgerId;
 import com.hedera.hashgraph.sdk.TopicDeleteTransaction;
 import com.hedera.hashgraph.sdk.TopicId;
 import com.hedera.hashgraph.sdk.TopicMessageSubmitTransaction;
@@ -125,7 +124,7 @@ public class SDKClient implements Cleanable {
 
         if (!CollectionUtils.isEmpty(customNodes)) {
             log.debug("Creating SDK client for {} network with nodes: {}", network, customNodes);
-            return toClient(getNetworkMap(customNodes), null);
+            return toClient(getNetworkMap(customNodes));
         }
 
         if (acceptanceTestProperties.isRetrieveAddressBook()) {
@@ -136,7 +135,7 @@ public class SDKClient implements Cleanable {
                         .pollDelay(Duration.ofMillis(100))
                         .pollInterval(Durations.FIVE_SECONDS)
                         .until(this::getAddressBook, ab -> ab.getNodeAddressCount() > 0);
-                return toClient(addressBook, LedgerId.fromString(network.name().toLowerCase()));
+                return toClient(addressBook);
             } catch (Exception e) {
                 log.warn("Error retrieving address book", e);
             }
@@ -146,8 +145,7 @@ public class SDKClient implements Cleanable {
             throw new IllegalArgumentException("nodes must not be empty when network is OTHER");
         }
 
-        return configureClient(Client.forName(network.toString().toLowerCase())
-                .setLedgerId(LedgerId.fromString(network.name().toLowerCase())));
+        return configureClient(Client.forName(network.toString().toLowerCase()));
     }
 
     private NodeAddressBook getNetworkMap(Set<NodeProperties> nodes) {
@@ -239,8 +237,8 @@ public class SDKClient implements Cleanable {
     }
 
     @SneakyThrows
-    private Client toClient(NodeAddressBook addressBook, LedgerId ledgerId) {
-        var client = Client.forNetwork(Map.of()).setLedgerId(ledgerId);
+    private Client toClient(NodeAddressBook addressBook) {
+        var client = Client.forNetwork(Map.of());
         client.setNetworkFromAddressBook(
                 com.hedera.hashgraph.sdk.NodeAddressBook.fromBytes(addressBook.toByteString()));
         return configureClient(client).setMirrorNetwork(List.of(acceptanceTestProperties.getMirrorNodeAddress()));

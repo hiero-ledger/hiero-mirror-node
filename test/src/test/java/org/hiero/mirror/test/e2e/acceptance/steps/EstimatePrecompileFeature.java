@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.FUNGIBLE;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.FUNGIBLE_KYC_UNFROZEN;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.NFT;
@@ -112,29 +111,20 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeatu
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.WIPE_NFT_ACCOUNT;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.WIPE_NFT_GET_TOTAL_SUPPLY_AND_BALANCE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.WIPE_TOKEN_ACCOUNT;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.TokenTransferListBuilder;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.accountAmount;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asByteArray;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asLongArray;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nftAmount;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.*;
 
+import com.esaulpaugh.headlong.abi.Address;
 import com.esaulpaugh.headlong.abi.Tuple;
-import com.google.protobuf.ByteString;
+import com.esaulpaugh.headlong.util.Strings;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.AccountUpdateTransaction;
-import com.hedera.hashgraph.sdk.ContractFunctionParameters;
-import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.NftId;
 import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import com.hedera.hashgraph.sdk.ReceiptStatusException;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.TokenUpdateTransaction;
-import com.hedera.hashgraph.sdk.proto.ResponseCodeEnum;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
@@ -143,17 +133,18 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
-import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.rest.model.ContractCallResponse;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.ExecuteContractResult;
@@ -162,6 +153,7 @@ import org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
+import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 
 @CustomLog
@@ -170,54 +162,50 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     private static final Tuple[] EMPTY_TUPLE_ARRAY = new Tuple[] {};
     private static final long FIRST_NFT_SERIAL_NUMBER = 1;
     private static final long NUM_MAX_SIZE = 274877906943L;
-    private final CommonProperties commonProperties;
     private final TokenClient tokenClient;
     private final AccountClient accountClient;
     private final Web3Properties web3Properties;
     private TokenId fungibleKycUnfrozenTokenId;
     private TokenId nonFungibleKycUnfrozenTokenId;
+    private Address fungibleKycUnfrozenTokenAddress;
+    private Address nonFungibleKycUnfrozenTokenAddress;
 
     private TokenId fungibleTokenId;
     private TokenId nonFungibleTokenId;
+    private Address fungibleTokenAddress;
+    private Address nonFungibleTokenAddress;
     private DeployedContract deployedEstimatePrecompileContract;
-    private ContractId estimatePrecompileContractId;
     private DeployedContract deployedErcTestContract;
     private DeployedContract deployedPrecompileContract;
     private ExpandedAccountId receiverAccount;
     private String receiverAccountAlias;
-    private AccountId senderAccountId;
+    private Address receiverAccountAliasAddress;
     private ExpandedAccountId secondReceiverAccount;
+    private Address secondReceiverAccountAddress;
     private ExpandedAccountId admin;
+    private Address adminAddress;
+    private String estimatePrecompileContractSolidityAddress;
     private String ercTestContractSolidityAddress;
-    private ContractId ercTestContractId;
     private String precompileTestContractSolidityAddress;
-    private ContractId precompileContractId;
-    private String fungibleTokenAddressString;
-    private String nonFungibleTokenAddressString;
-    private String fungibleKycUnfrozenTokenIdAddressString;
-    private String adminAddressString;
-    private String nonFungibleKycUnfrozenAddressString;
-    private String secondReceiverAddressString;
 
     @Given("I create estimate precompile contract with 0 balance")
     public void createNewEstimateContract() throws IOException {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_PRECOMPILE);
-        estimatePrecompileContractId = deployedEstimatePrecompileContract.contractId();
+        estimatePrecompileContractSolidityAddress = asHexAddress(deployedEstimatePrecompileContract.contractId());
         admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
-        adminAddressString = asAddress(admin).toString();
+        adminAddress = asAddress(admin);
         receiverAccount = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
         secondReceiverAccount = accountClient.getAccount(AccountNameEnum.DAVE);
-        secondReceiverAddressString = asAddress(secondReceiverAccount).toString();
+        secondReceiverAccountAddress = asAddress(secondReceiverAccount);
         receiverAccountAlias = receiverAccount.getPublicKey().toEvmAddress().toString();
-        senderAccountId =
-                accountClient.getSdkClient().getExpandedOperatorAccountId().getAccountId();
+        receiverAccountAliasAddress = asAddress(receiverAccountAlias);
     }
 
     @Given("I create erc test contract with 0 balance")
     public void createNewERCContract() {
         deployedErcTestContract = getContract(ERC);
-        ercTestContractSolidityAddress = asHexAddress(deployedErcTestContract.contractId());
-        ercTestContractId = deployedErcTestContract.contractId();
+        ercTestContractSolidityAddress =
+                asAddress(deployedErcTestContract.contractId()).toString();
     }
 
     @Given("I get exchange rates")
@@ -229,25 +217,22 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void createNewPrecompileTestContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
         precompileTestContractSolidityAddress = asHexAddress(deployedPrecompileContract.contractId());
-        precompileContractId = deployedPrecompileContract.contractId();
     }
 
     @Given("I successfully create fungible tokens")
     public void createFungibleToken() {
         fungibleKycUnfrozenTokenId = tokenClient.getToken(FUNGIBLE_KYC_UNFROZEN).tokenId();
-        fungibleKycUnfrozenTokenIdAddressString =
-                asAddress(fungibleKycUnfrozenTokenId).toString();
         fungibleTokenId = tokenClient.getToken(FUNGIBLE).tokenId();
-        fungibleTokenAddressString = asAddress(fungibleTokenId).toString();
+        fungibleKycUnfrozenTokenAddress = asAddress(fungibleKycUnfrozenTokenId);
+        fungibleTokenAddress = asAddress(fungibleTokenId);
     }
 
     @Given("I successfully create non fungible tokens")
     public void createNonFungibleToken() {
         nonFungibleKycUnfrozenTokenId = tokenClient.getToken(NFT_KYC_UNFROZEN).tokenId();
-        nonFungibleKycUnfrozenAddressString =
-                asAddress(nonFungibleKycUnfrozenTokenId).toString();
         nonFungibleTokenId = tokenClient.getToken(NFT).tokenId();
-        nonFungibleTokenAddressString = asAddress(nonFungibleTokenId).toString();
+        nonFungibleKycUnfrozenTokenAddress = asAddress(nonFungibleKycUnfrozenTokenId);
+        nonFungibleTokenAddress = asAddress(nonFungibleTokenId);
     }
 
     @Given("I mint and verify a new nft")
@@ -268,103 +253,58 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with associate function for fungible token")
-    public void associateFunctionEstimateGas() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(receiverAccountAlias)
-                .addAddress(fungibleTokenAddressString);
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                ASSOCIATE_TOKEN.selector,
-                parameters,
-                senderAccountId,
-                ASSOCIATE_TOKEN.getActualGas());
+    public void associateFunctionEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, ASSOCIATE_TOKEN, receiverAccountAliasAddress, fungibleTokenAddress);
+        validateGasEstimation(data, ASSOCIATE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with associate function for NFT")
-    public void associateFunctionNFTEstimateGas() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(receiverAccountAlias)
-                .addAddress(nonFungibleTokenAddressString);
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                ASSOCIATE_TOKEN.selector,
-                parameters,
-                senderAccountId,
-                ASSOCIATE_TOKEN.getActualGas());
+    public void associateFunctionNFTEstimateGas() {
+        var data =
+                encodeData(ESTIMATE_PRECOMPILE, ASSOCIATE_TOKEN, receiverAccountAliasAddress, nonFungibleTokenAddress);
+        validateGasEstimation(data, ASSOCIATE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with dissociate token function without association for fungible token")
-    public void dissociateFunctionEstimateGasNegative() throws ExecutionException, InterruptedException {
+    public void dissociateFunctionEstimateGasNegative() {
         // attempt to call dissociate function without having association
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(receiverAccountAlias)
-                .addAddress(fungibleTokenAddressString);
+        // expecting status 400/revert
+        var data = encodeData(ESTIMATE_PRECOMPILE, DISSOCIATE_TOKEN, receiverAccountAliasAddress, fungibleTokenAddress);
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        DISSOCIATE_TOKEN.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        DISSOCIATE_TOKEN.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(
+                data, DISSOCIATE_TOKEN.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with dissociate token function without association for NFT")
     public void dissociateFunctionNFTEstimateGasNegative() {
         // attempt to call dissociate function without having association
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(receiverAccountAlias)
-                .addAddress(nonFungibleTokenAddressString);
+        // expecting status 400/revert
+        var data =
+                encodeData(ESTIMATE_PRECOMPILE, DISSOCIATE_TOKEN, receiverAccountAliasAddress, nonFungibleTokenAddress);
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        DISSOCIATE_TOKEN.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        DISSOCIATE_TOKEN.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(
+                data, DISSOCIATE_TOKEN.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with nested associate function that executes it twice for fungible token")
     public void nestedAssociateFunctionEstimateGas() {
         // attempt to call associate function twice
         // expecting a revert
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(receiverAccountAlias)
-                .addAddress(fungibleTokenAddressString);
+        var data = encodeData(ESTIMATE_PRECOMPILE, NESTED_ASSOCIATE, receiverAccountAliasAddress, fungibleTokenAddress);
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        NESTED_ASSOCIATE.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        NESTED_ASSOCIATE.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(
+                data, NESTED_ASSOCIATE.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with nested associate function that executes it twice for NFT")
     public void nestedAssociateFunctionNFTEstimateGas() {
         // attempt to call associate function twice
         // expecting a revert
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(receiverAccountAlias)
-                .addAddress(nonFungibleTokenAddressString);
+        var data =
+                encodeData(ESTIMATE_PRECOMPILE, NESTED_ASSOCIATE, receiverAccountAliasAddress, nonFungibleTokenAddress);
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        NESTED_ASSOCIATE.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        NESTED_ASSOCIATE.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(
+                data, NESTED_ASSOCIATE.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @And("I associate the receiver account with the fungible token")
@@ -374,16 +314,10 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with dissociate token function for fungible token")
-    public void dissociateFunctionEstimateGas() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(receiverAccountAlias)
-                .addAddress(fungibleTokenAddressString);
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DISSOCIATE_TOKEN.selector,
-                parameters,
-                senderAccountId,
-                DISSOCIATE_TOKEN.getActualGas());
+    public void dissociateFunctionEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, DISSOCIATE_TOKEN, receiverAccountAliasAddress, fungibleTokenAddress);
+
+        validateGasEstimation(data, DISSOCIATE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @And("I associate the receiver account with the NFT")
@@ -393,101 +327,60 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with dissociate token function for NFT")
-    public void dissociateFunctionNFTEstimateGas() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(receiverAccountAlias)
-                .addAddress(nonFungibleTokenAddressString);
+    public void dissociateFunctionNFTEstimateGas() {
+        var data =
+                encodeData(ESTIMATE_PRECOMPILE, DISSOCIATE_TOKEN, receiverAccountAliasAddress, nonFungibleTokenAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DISSOCIATE_TOKEN.selector,
-                parameters,
-                senderAccountId,
-                DISSOCIATE_TOKEN.getActualGas());
+        validateGasEstimation(data, DISSOCIATE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with dissociate and associate nested function for fungible token")
-    public void dissociateAndAssociatedEstimateGas() throws ExecutionException, InterruptedException {
+    public void dissociateAndAssociatedEstimateGas() {
         // token is already associated
         // attempting to execute nested dissociate and associate function
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(receiverAccountAlias)
-                .addAddress(fungibleTokenAddressString);
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DISSOCIATE_AND_ASSOCIATE.selector,
-                parameters,
-                senderAccountId,
-                DISSOCIATE_AND_ASSOCIATE.getActualGas());
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, DISSOCIATE_AND_ASSOCIATE, receiverAccountAliasAddress, fungibleTokenAddress);
+
+        validateGasEstimation(data, DISSOCIATE_AND_ASSOCIATE, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with dissociate and associate nested function for NFT")
-    public void dissociateAndAssociatedNFTEstimateGas() throws ExecutionException, InterruptedException {
+    public void dissociateAndAssociatedNFTEstimateGas() {
         // token is already associated
         // attempting to execute nested dissociate and associate function
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(receiverAccountAlias)
-                .addAddress(nonFungibleTokenAddressString);
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DISSOCIATE_AND_ASSOCIATE.selector,
-                parameters,
-                senderAccountId,
-                DISSOCIATE_AND_ASSOCIATE.getActualGas());
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, DISSOCIATE_AND_ASSOCIATE, receiverAccountAliasAddress, nonFungibleTokenAddress);
+
+        validateGasEstimation(data, DISSOCIATE_AND_ASSOCIATE, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with approve function without association")
     public void approveWithoutAssociationEstimateGas() {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(BigInteger.TEN);
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, APPROVE, fungibleTokenAddress, receiverAccountAliasAddress, new BigInteger("10"));
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        APPROVE.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        APPROVE.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(data, APPROVE.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with setApprovalForAll function without association")
     public void setApprovalForAllWithoutAssociationEstimateGas() {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addBool(true);
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, SET_APPROVAL_FOR_ALL, nonFungibleTokenAddress, receiverAccountAliasAddress, true);
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        SET_APPROVAL_FOR_ALL.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        SET_APPROVAL_FOR_ALL.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(
+                data, SET_APPROVAL_FOR_ALL.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with approveNFT function without association")
     public void approveNonFungibleWithoutAssociationEstimateGas() {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(BigInteger.ONE);
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                APPROVE_NFT,
+                nonFungibleTokenAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("1"));
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        APPROVE_NFT.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        APPROVE_NFT.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(data, APPROVE_NFT.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I associate contracts with the tokens and approve all nft serials")
@@ -507,66 +400,49 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with ERC approve function")
-    public void ercApproveEstimateGas() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(BigInteger.TEN);
+    public void ercApproveEstimateGas() {
+        var data =
+                encodeData(ERC, APPROVE_ERC, fungibleTokenAddress, receiverAccountAliasAddress, new BigInteger("10"));
 
-        validateGasEstimation(
-                ercTestContractId, APPROVE_ERC.selector, parameters, senderAccountId, APPROVE_ERC.getActualGas());
+        validateGasEstimation(data, APPROVE_ERC, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with setApprovalForAll function")
-    public void setApprovalForAllEstimateGas() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addBool(true);
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                SET_APPROVAL_FOR_ALL.selector,
-                parameters,
-                senderAccountId,
-                SET_APPROVAL_FOR_ALL.getActualGas());
+    public void setApprovalForAllEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                SET_APPROVAL_FOR_ALL,
+                nonFungibleKycUnfrozenTokenAddress,
+                receiverAccountAliasAddress,
+                true);
+
+        validateGasEstimation(data, SET_APPROVAL_FOR_ALL, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with transferFrom function without approval")
     public void transferFromEstimateGasWithoutApproval() {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("5"));
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                TRANSFER_FROM,
+                fungibleKycUnfrozenTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("5"));
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        TRANSFER_FROM.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        TRANSFER_FROM.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(data, TRANSFER_FROM.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with ERC transferFrom function without approval")
     public void ercTransferFromEstimateGasWithoutApproval() {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(BigInteger.TEN);
+        var data = encodeData(
+                ERC,
+                TRANSFER_FROM_ERC,
+                fungibleTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("10"));
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        ercTestContractId,
-                        TRANSFER_FROM_ERC.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        TRANSFER_FROM_ERC.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(data, TRANSFER_FROM_ERC.actualGas, ercTestContractSolidityAddress);
     }
 
     @And("I approve the contract to use fungible token")
@@ -578,98 +454,76 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with ERC transferFrom function")
-    public void ercTransferFromEstimateGas() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("5"));
-        validateGasEstimation(
-                ercTestContractId,
-                TRANSFER_FROM_ERC.selector,
-                parameters,
-                senderAccountId,
-                TRANSFER_FROM_ERC.getActualGas());
+    public void ercTransferFromEstimateGas() {
+        var data = encodeData(
+                ERC,
+                TRANSFER_FROM_ERC,
+                fungibleTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("5"));
+
+        validateGasEstimation(data, TRANSFER_FROM_ERC, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with transferFrom function with more than the approved allowance")
     public void transferFromExceedAllowanceEstimateGas() {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("500"));
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                TRANSFER_FROM,
+                fungibleKycUnfrozenTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("500"));
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        TRANSFER_FROM.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        TRANSFER_FROM.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(data, TRANSFER_FROM.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with ERC transferFrom function with more than the approved allowance")
     public void ercTransferFromExceedsAllowanceEstimateGas() {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("500"));
+        var data = encodeData(
+                ERC,
+                TRANSFER_FROM_ERC,
+                fungibleKycUnfrozenTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("500"));
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        ercTestContractId,
-                        TRANSFER_FROM_ERC.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        TRANSFER_FROM_ERC.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(data, TRANSFER_FROM_ERC.actualGas, ercTestContractSolidityAddress);
     }
 
     @And("I approve receiver account to use the NFT with id 1")
     public void approveNonFungibleWithReceiver() {
-        var id = new NftId(nonFungibleTokenId, FIRST_NFT_SERIAL_NUMBER);
+        NftId id = new NftId(nonFungibleTokenId, FIRST_NFT_SERIAL_NUMBER);
         networkTransactionResponse = accountClient.approveNft(id, receiverAccount.getAccountId());
     }
 
     @Then("I call estimateGas with transferFromNFT with invalid serial number")
     public void transferFromNFTInvalidSerialEstimateGas() {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("50"));
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                TRANSFER_FROM_NFT,
+                nonFungibleKycUnfrozenTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("50"));
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        TRANSFER_FROM_NFT.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        TRANSFER_FROM_NFT.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(
+                data, TRANSFER_FROM_NFT.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with transferNFT function")
-    public void transferNFTEstimateGas() throws ExecutionException, InterruptedException {
+    public void transferNFTEstimateGas() {
         var methodInterface = getFlaggedValue(TRANSFER_NFT);
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias)
-                .addInt64(1L);
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                methodInterface,
+                nonFungibleTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress,
+                1L);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @And("I approve the receiver account to use fungible token and transfer fungible token to the erc contract")
@@ -684,47 +538,37 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with ERC transfer function")
-    public void ercTransferEstimateGas() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("5"));
+    public void ercTransferEstimateGas() {
+        var data =
+                encodeData(ERC, TRANSFER_ERC, fungibleTokenAddress, receiverAccountAliasAddress, new BigInteger("5"));
 
-        validateGasEstimation(
-                ercTestContractId,
-                TRANSFER_ERC.getSelector(),
-                parameters,
-                senderAccountId,
-                TRANSFER_ERC.getActualGas());
+        validateGasEstimation(data, TRANSFER_ERC, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with associateTokens function for fungible tokens")
-    public void associateTokensEstimateGas() throws ExecutionException, InterruptedException {
+    public void associateTokensEstimateGas() {
         var methodInterface = getFlaggedValue(ASSOCIATE_TOKENS);
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(secondReceiverAddressString)
-                .addAddressArray(new String[] {fungibleTokenAddressString, fungibleKycUnfrozenTokenIdAddressString});
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                methodInterface,
+                secondReceiverAccountAddress,
+                asAddressArray(
+                        Arrays.asList(fungibleTokenAddress.toString(), fungibleKycUnfrozenTokenAddress.toString())));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with associateTokens function for NFTs")
-    public void associateNFTEstimateGas() throws ExecutionException, InterruptedException {
+    public void associateNFTEstimateGas() {
         var methodInterface = getFlaggedValue(ASSOCIATE_TOKENS);
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(secondReceiverAddressString)
-                .addAddressArray(new String[] {nonFungibleKycUnfrozenAddressString, nonFungibleTokenAddressString});
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                methodInterface,
+                secondReceiverAccountAddress,
+                asAddressArray(Arrays.asList(
+                        nonFungibleKycUnfrozenTokenAddress.toString(), nonFungibleTokenAddress.toString())));
+
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @And("I associate the fungible_kyc_unfrozen token with the receiver account")
@@ -733,17 +577,15 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with dissociateTokens function for fungible tokens")
-    public void dissociateTokensEstimateGas() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(receiverAccountAlias)
-                .addAddressArray(new String[] {fungibleTokenAddressString, fungibleKycUnfrozenTokenIdAddressString});
+    public void dissociateTokensEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                DISSOCIATE_TOKENS,
+                receiverAccountAliasAddress,
+                asAddressArray(
+                        Arrays.asList(fungibleTokenAddress.toString(), fungibleKycUnfrozenTokenAddress.toString())));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DISSOCIATE_TOKENS.getSelector(),
-                parameters,
-                senderAccountId,
-                DISSOCIATE_TOKENS.getActualGas());
+        validateGasEstimation(data, DISSOCIATE_TOKENS, estimatePrecompileContractSolidityAddress);
     }
 
     @And("I associate the nft_kyc_unfrozen with the receiver account")
@@ -752,17 +594,15 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with dissociateTokens function for NFTs")
-    public void dissociateNFTEstimateGas() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(receiverAccountAlias)
-                .addAddressArray(new String[] {nonFungibleKycUnfrozenAddressString, nonFungibleTokenAddressString});
+    public void dissociateNFTEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                DISSOCIATE_TOKENS,
+                receiverAccountAliasAddress,
+                asAddressArray(Arrays.asList(
+                        nonFungibleKycUnfrozenTokenAddress.toString(), nonFungibleTokenAddress.toString())));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DISSOCIATE_TOKENS.getSelector(),
-                parameters,
-                senderAccountId,
-                DISSOCIATE_TOKENS.getActualGas());
+        validateGasEstimation(data, DISSOCIATE_TOKENS, estimatePrecompileContractSolidityAddress);
     }
 
     @And("I associate and approve the second receiver to use the fungible_kyc_unfrozen token")
@@ -773,18 +613,16 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with transferTokens function")
-    public void transferTokensEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddressArray(new String[] {adminAddressString, receiverAccountAlias, secondReceiverAddressString})
-                .addInt64Array(new long[] {-6L, 3L, 3L});
+    public void transferTokensEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                TRANSFER_TOKENS,
+                fungibleTokenAddress,
+                asAddressArray(Arrays.asList(
+                        adminAddress.toString(), receiverAccountAlias, secondReceiverAccountAddress.toString())),
+                new long[] {-6L, 3L, 3L});
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                TRANSFER_TOKENS.getSelector(),
-                parameters,
-                senderAccountId,
-                TRANSFER_TOKENS.getActualGas());
+        validateGasEstimation(data, TRANSFER_TOKENS, estimatePrecompileContractSolidityAddress);
     }
 
     @And("I mint a new NFT and approve second receiver account to all serial numbers")
@@ -797,42 +635,30 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with transferNFTs function")
-    public void transferNFTsEstimateGas() throws ExecutionException, InterruptedException {
-        // In the modularized scenario the number of senders needs to correspond to the number of receivers.
-        final var sendersList = web3Properties.isModularizedServices()
-                ? new String[] {adminAddressString, adminAddressString}
-                : new String[] {adminAddressString};
+    public void transferNFTsEstimateGas() {
+        final var sendersList = new LinkedList<>(List.of(adminAddress.toString()));
+        if (web3Properties.isModularizedServices()) {
+            // In the modularized scenario the number of senders needs to correspond to the number of receivers.
+            sendersList.add(adminAddress.toString());
+        }
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                TRANSFER_NFTS,
+                nonFungibleTokenAddress,
+                asAddressArray(sendersList),
+                asAddressArray(Arrays.asList(receiverAccountAlias, secondReceiverAccountAddress.toString())),
+                new long[] {1, 2});
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addAddressArray(sendersList)
-                .addAddressArray(new String[] {receiverAccountAlias, secondReceiverAddressString})
-                .addInt64Array(new long[] {1, 2});
-
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                TRANSFER_NFTS.getSelector(),
-                parameters,
-                senderAccountId,
-                TRANSFER_NFTS.getActualGas());
+        validateGasEstimation(data, TRANSFER_NFTS, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with cryptoTransfer function for hbars")
-    public void cryptoTransferHbarEstimateGas() throws ExecutionException, InterruptedException {
-        var senderTransfer = accountAmount(adminAddressString, -10L, false);
-        var receiverTransfer = accountAmount(receiverAccountAlias, 10L, false);
+    public void cryptoTransferHbarEstimateGas() {
+        var senderTransfer = accountAmount(adminAddress.toString(), -10L, false);
+        var receiverTransfer = accountAmount(receiverAccountAliasAddress.toString(), 10L, false);
         var args = Tuple.of((Object) new Tuple[] {senderTransfer, receiverTransfer});
-
-        var dataByteArray = encodeDataToByteArray(ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER_HBARS, args, EMPTY_TUPLE_ARRAY);
-
-        var estimateGasResult = mirrorClient.estimateGasQueryRawData(
-                estimatePrecompileContractId,
-                ByteString.copyFrom(dataByteArray),
-                senderAccountId,
-                CRYPTO_TRANSFER_HBARS.getActualGas());
-
-        assertWithinDeviation(
-                CRYPTO_TRANSFER_HBARS.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
+        var data = encodeData(ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER_HBARS, args, EMPTY_TUPLE_ARRAY);
+        validateGasEstimation(data, CRYPTO_TRANSFER_HBARS, estimatePrecompileContractSolidityAddress);
     }
 
     private TokenTransferListBuilder tokenTransferList() {
@@ -840,160 +666,89 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with cryptoTransfer function for nft")
-    public void cryptoTransferNFTEstimateGas() throws ExecutionException, InterruptedException {
+    public void cryptoTransferNFTEstimateGas() {
         var methodInterface = getFlaggedValue(CRYPTO_TRANSFER_NFT);
         var tokenTransferList = (Object) new Tuple[] {
             tokenTransferList()
-                    .forToken(nonFungibleTokenAddressString)
-                    .withNftTransfers(nftAmount(adminAddressString, receiverAccountAlias, 1L, false))
+                    .forToken(nonFungibleTokenAddress.toString())
+                    .withNftTransfers(
+                            nftAmount(adminAddress.toString(), receiverAccountAliasAddress.toString(), 1L, false))
                     .build()
         };
-        var dataByteArray = encodeDataToByteArray(
+        var data = encodeData(
                 ESTIMATE_PRECOMPILE, methodInterface, Tuple.of((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
-
-        var estimateGasResult = mirrorClient.estimateGasQueryRawData(
-                estimatePrecompileContractId,
-                ByteString.copyFrom(dataByteArray),
-                senderAccountId,
-                methodInterface.getActualGas());
-
-        assertWithinDeviation(methodInterface.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with cryptoTransfer function for fungible tokens")
-    public void cryptoTransferFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void cryptoTransferFungibleEstimateGas() {
         var tokenTransferList = (Object) new Tuple[] {
             tokenTransferList()
-                    .forToken(fungibleTokenAddressString)
+                    .forToken(fungibleTokenAddress.toString())
                     .withAccountAmounts(
-                            accountAmount(adminAddressString, -3L, false),
-                            accountAmount(secondReceiverAddressString, 3L, false))
+                            accountAmount(adminAddress.toString(), -3L, false),
+                            accountAmount(secondReceiverAccountAddress.toString(), 3L, false))
                     .build()
         };
-        var dataByteArray = encodeDataToByteArray(
+        var data = encodeData(
                 ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER, Tuple.of((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
-
-        var estimateGasResult = mirrorClient.estimateGasQueryRawData(
-                estimatePrecompileContractId,
-                ByteString.copyFrom(dataByteArray),
-                senderAccountId,
-                CRYPTO_TRANSFER.getActualGas());
-
-        assertWithinDeviation(CRYPTO_TRANSFER.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
+        validateGasEstimation(data, CRYPTO_TRANSFER, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with burnToken function for fungible token")
-    public void burnFungibleTokenEstimateGas() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addInt64(1L)
-                .addInt64Array(asLongArray(new ArrayList<>()));
+    public void burnFungibleTokenEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, BURN_TOKEN, fungibleKycUnfrozenTokenAddress, 1L, asLongArray(new ArrayList<>()));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                BURN_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                BURN_TOKEN.getActualGas());
+        validateGasEstimation(data, BURN_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with burnToken function for NFT")
-    public void burnNFTEstimateGas() throws ExecutionException, InterruptedException {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addInt64(0L)
-                .addInt64Array(asLongArray(List.of(1L)));
+    public void burnNFTEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, BURN_TOKEN, nonFungibleKycUnfrozenTokenAddress, 0L, asLongArray(List.of(1L)));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                BURN_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                BURN_TOKEN.getActualGas());
+        validateGasEstimation(data, BURN_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with CreateFungibleToken function")
     public void createFungibleTokenEstimateGas() {
-        final var parameters = new ContractFunctionParameters().addAddress(adminAddressString);
+        var data = encodeData(ESTIMATE_PRECOMPILE, CREATE_FUNGIBLE_TOKEN, adminAddress);
 
-        Consumer<Boolean> estimateFunction = current -> {
-            try {
-                validateGasEstimation(
-                        estimatePrecompileContractId,
-                        CREATE_FUNGIBLE_TOKEN.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        CREATE_FUNGIBLE_TOKEN.getActualGas(),
-                        Optional.of(calculateCreateTokenFee(1, current)));
-            } catch (ExecutionException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        };
-
+        Consumer<Boolean> estimateFunction = current -> validateGasEstimationForCreateToken(
+                data, CREATE_FUNGIBLE_TOKEN.getActualGas(), calculateCreateTokenFee(1, current));
         executeAndRetryWithNextExchangeRates(estimateFunction);
     }
 
     @Then("I call estimateGas with CreateNFT function")
     public void createNFTEstimateGas() {
-        var parameters = new ContractFunctionParameters().addAddress(adminAddressString);
+        var data = encodeData(ESTIMATE_PRECOMPILE, CREATE_NFT, adminAddress);
 
-        Consumer<Boolean> estimateFunction = current -> {
-            try {
-                validateGasEstimation(
-                        estimatePrecompileContractId,
-                        CREATE_NFT.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        CREATE_NFT.getActualGas(),
-                        Optional.of(calculateCreateTokenFee(1, current)));
-            } catch (ExecutionException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        };
-
+        Consumer<Boolean> estimateFunction = current -> validateGasEstimationForCreateToken(
+                data, CREATE_NFT.getActualGas(), calculateCreateTokenFee(1, current));
         executeAndRetryWithNextExchangeRates(estimateFunction);
     }
 
     @Then("I call estimateGas with CreateFungibleToken function with custom fees")
     public void createFungibleTokenWithCustomFeesEstimateGas() {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(adminAddressString)
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString);
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                CREATE_FUNGIBLE_TOKEN_WITH_CUSTOM_FEES,
+                adminAddress,
+                fungibleKycUnfrozenTokenAddress);
 
-        Consumer<Boolean> estimateFunction = current -> {
-            try {
-                validateGasEstimation(
-                        estimatePrecompileContractId,
-                        CREATE_FUNGIBLE_TOKEN_WITH_CUSTOM_FEES.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        CREATE_FUNGIBLE_TOKEN_WITH_CUSTOM_FEES.getActualGas(),
-                        Optional.of(calculateCreateTokenFee(2, current)));
-            } catch (ExecutionException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        };
+        Consumer<Boolean> estimateFunction = current -> validateGasEstimationForCreateToken(
+                data, CREATE_FUNGIBLE_TOKEN_WITH_CUSTOM_FEES.getActualGas(), calculateCreateTokenFee(2, current));
         executeAndRetryWithNextExchangeRates(estimateFunction);
     }
 
     @Then("I call estimateGas with CreateNFT function with custom fees")
     public void createNFTWithCustomFeesEstimateGas() {
-        var parameters =
-                new ContractFunctionParameters().addAddress(adminAddressString).addAddress(fungibleTokenAddressString);
+        // The custom fee denomination must be fungible token in modularized services.
+        var data = encodeData(ESTIMATE_PRECOMPILE, CREATE_NFT_WITH_CUSTOM_FEES, adminAddress, fungibleTokenAddress);
 
-        Consumer<Boolean> estimateFunction = current -> {
-            try {
-                validateGasEstimation(
-                        estimatePrecompileContractId,
-                        CREATE_NFT_WITH_CUSTOM_FEES.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        CREATE_NFT_WITH_CUSTOM_FEES.getActualGas(),
-                        Optional.of(calculateCreateTokenFee(2, current)));
-            } catch (ExecutionException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        };
+        Consumer<Boolean> estimateFunction = current -> validateGasEstimationForCreateToken(
+                data, CREATE_NFT_WITH_CUSTOM_FEES.getActualGas(), calculateCreateTokenFee(2, current));
         executeAndRetryWithNextExchangeRates(estimateFunction);
     }
 
@@ -1005,36 +760,24 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with WipeTokenAccount function")
-    public void wipeTokenAccountEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addInt64(1L);
+    public void wipeTokenAccountEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, WIPE_TOKEN_ACCOUNT, fungibleTokenAddress, receiverAccountAliasAddress, 1L);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                WIPE_TOKEN_ACCOUNT.getSelector(),
-                parameters,
-                senderAccountId,
-                WIPE_TOKEN_ACCOUNT.getActualGas());
+        validateGasEstimation(data, WIPE_TOKEN_ACCOUNT, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with WipeTokenAccount function with invalid amount")
     public void wipeTokenAccountInvalidAmountEstimateGas() {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(receiverAccountAlias)
-                .addInt64(100000000000000000L);
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                WIPE_TOKEN_ACCOUNT,
+                fungibleKycUnfrozenTokenAddress,
+                receiverAccountAliasAddress,
+                100000000000000000L);
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        WIPE_TOKEN_ACCOUNT.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        WIPE_TOKEN_ACCOUNT.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(
+                data, WIPE_TOKEN_ACCOUNT.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @And("I transfer NFT to receiver account")
@@ -1050,1023 +793,609 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with WipeNFTAccount function")
-    public void wipeNFTAccountEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addInt64Array(asLongArray(List.of(1L)));
+    public void wipeNFTAccountEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                WIPE_NFT_ACCOUNT,
+                nonFungibleTokenAddress,
+                receiverAccountAliasAddress,
+                asLongArray(List.of(1L)));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                WIPE_NFT_ACCOUNT.getSelector(),
-                parameters,
-                senderAccountId,
-                WIPE_NFT_ACCOUNT.getActualGas());
+        validateGasEstimation(data, WIPE_NFT_ACCOUNT, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with WipeNFTAccount function with invalid serial number")
     public void wipeNFTAccountInvalidSerialNumberEstimateGas() {
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addInt64Array(asLongArray(List.of(66L)));
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                WIPE_NFT_ACCOUNT,
+                nonFungibleKycUnfrozenTokenAddress,
+                receiverAccountAliasAddress,
+                asLongArray(List.of(66L)));
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        WIPE_NFT_ACCOUNT.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        WIPE_NFT_ACCOUNT.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(
+                data, WIPE_NFT_ACCOUNT.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with GrantKYC function for fungible token")
-    public void grantKYCFungibleEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(receiverAccountAlias);
+    public void grantKYCFungibleEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, GRANT_KYC, fungibleKycUnfrozenTokenAddress, receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                GRANT_KYC.getSelector(),
-                parameters,
-                senderAccountId,
-                GRANT_KYC.getActualGas());
+        validateGasEstimation(data, GRANT_KYC, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with GrantKYC function for NFT")
-    public void grantKYCNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(receiverAccountAlias);
+    public void grantKYCNonFungibleEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, GRANT_KYC, nonFungibleKycUnfrozenTokenAddress, receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                GRANT_KYC.getSelector(),
-                parameters,
-                senderAccountId,
-                GRANT_KYC.getActualGas());
+        validateGasEstimation(data, GRANT_KYC, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with RevokeTokenKYC function for fungible token")
-    public void revokeTokenKYCEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(receiverAccountAlias);
+    public void revokeTokenKYCEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, REVOKE_KYC, fungibleKycUnfrozenTokenAddress, receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                REVOKE_KYC.getSelector(),
-                parameters,
-                senderAccountId,
-                REVOKE_KYC.getActualGas());
+        validateGasEstimation(data, REVOKE_KYC, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with RevokeTokenKYC function for NFT")
-    public void revokeTokenKYCNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(receiverAccountAlias);
+    public void revokeTokenKYCNonFungibleEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, REVOKE_KYC, nonFungibleKycUnfrozenTokenAddress, receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                REVOKE_KYC.getSelector(),
-                parameters,
-                senderAccountId,
-                REVOKE_KYC.getActualGas());
+        validateGasEstimation(data, REVOKE_KYC, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with Grant and Revoke KYC nested function")
-    public void nestedGrantRevokeKYCEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(receiverAccountAlias);
+    public void nestedGrantRevokeKYCEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                NESTED_GRANT_REVOKE_KYC,
+                fungibleKycUnfrozenTokenAddress,
+                receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                NESTED_GRANT_REVOKE_KYC.getSelector(),
-                parameters,
-                senderAccountId,
-                NESTED_GRANT_REVOKE_KYC.getActualGas());
+        validateGasEstimation(data, NESTED_GRANT_REVOKE_KYC, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with Freeze function for fungible token")
-    public void freezeFungibleEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(receiverAccountAlias);
+    public void freezeFungibleEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, FREEZE_TOKEN, fungibleKycUnfrozenTokenAddress, receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                FREEZE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                FREEZE_TOKEN.getActualGas());
+        validateGasEstimation(data, FREEZE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with Freeze function for NFT")
-    public void freezeNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(receiverAccountAlias);
+    public void freezeNonFungibleEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, FREEZE_TOKEN, nonFungibleKycUnfrozenTokenAddress, receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                FREEZE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                FREEZE_TOKEN.getActualGas());
+        validateGasEstimation(data, FREEZE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with Unfreeze function for fungible token")
-    public void unfreezeFungibleEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(receiverAccountAlias);
+    public void unfreezeFungibleEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, UNFREEZE_TOKEN, fungibleKycUnfrozenTokenAddress, receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UNFREEZE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                UNFREEZE_TOKEN.getActualGas());
+        validateGasEstimation(data, UNFREEZE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with Unfreeze function for NFT")
-    public void unfreezeNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(receiverAccountAlias);
+    public void unfreezeNonFungibleEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, UNFREEZE_TOKEN, nonFungibleKycUnfrozenTokenAddress, receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UNFREEZE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                UNFREEZE_TOKEN.getActualGas());
+        validateGasEstimation(data, UNFREEZE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with nested Freeze and Unfreeze function for fungible token")
-    public void nestedFreezeAndUnfreezeEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(receiverAccountAlias);
+    public void nestedFreezeAndUnfreezeEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                NESTED_FREEZE_UNFREEZE,
+                fungibleKycUnfrozenTokenAddress,
+                receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                NESTED_FREEZE_UNFREEZE.getSelector(),
-                parameters,
-                senderAccountId,
-                NESTED_FREEZE_UNFREEZE.getActualGas());
+        validateGasEstimation(data, NESTED_FREEZE_UNFREEZE, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with nested Freeze and Unfreeze function for NFT")
-    public void nestedFreezeAndUnfreezeNFTEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(receiverAccountAlias);
+    public void nestedFreezeAndUnfreezeNFTEstimateGas() {
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                NESTED_FREEZE_UNFREEZE,
+                nonFungibleKycUnfrozenTokenAddress,
+                receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                NESTED_FREEZE_UNFREEZE.getSelector(),
-                parameters,
-                senderAccountId,
-                NESTED_FREEZE_UNFREEZE.getActualGas());
+        validateGasEstimation(data, NESTED_FREEZE_UNFREEZE, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with delete function for Fungible token")
-    public void deleteFungibleEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
+    public void deleteFungibleEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, DELETE_TOKEN, fungibleKycUnfrozenTokenAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DELETE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                DELETE_TOKEN.getActualGas());
+        validateGasEstimation(data, DELETE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with delete function for NFT")
-    public void deleteNFTEstimateGas() throws ExecutionException, InterruptedException {
+    public void deleteNFTEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, DELETE_TOKEN, nonFungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
-
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DELETE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                DELETE_TOKEN.getActualGas());
+        validateGasEstimation(data, DELETE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with delete function for invalid token address")
     public void deleteTokenInvalidAddressEstimateGas() {
         String address = Hex.toHexString(ByteBuffer.allocate(20)
-                .putInt((int) commonProperties.getShard())
-                .putLong(commonProperties.getRealm())
+                .putInt(0)
+                .putLong(0)
                 .putLong(new SecureRandom().nextLong(NUM_MAX_SIZE / 100, NUM_MAX_SIZE))
                 .array());
 
-        final var parameters =
-                new ContractFunctionParameters().addAddress(asAddress(address).toString());
+        var data = encodeData(ESTIMATE_PRECOMPILE, DELETE_TOKEN, asAddress(address));
 
-        assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        DELETE_TOKEN.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        DELETE_TOKEN.getActualGas(),
-                        Optional.empty()))
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
+        assertContractCallReturnsBadRequest(data, DELETE_TOKEN.actualGas, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with pause function for fungible token")
-    public void pauseFungibleTokenPositiveEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
+    public void pauseFungibleTokenPositiveEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, PAUSE_TOKEN, fungibleKycUnfrozenTokenAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                PAUSE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                PAUSE_TOKEN.getActualGas());
+        validateGasEstimation(data, PAUSE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with pause function for NFT")
-    public void pauseNFTPositiveEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
+    public void pauseNFTPositiveEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, PAUSE_TOKEN, nonFungibleKycUnfrozenTokenAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                PAUSE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                PAUSE_TOKEN.getActualGas());
+        validateGasEstimation(data, PAUSE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with unpause function for fungible token")
-    public void unpauseFungibleTokenPositiveEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
+    public void unpauseFungibleTokenPositiveEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, UNPAUSE_TOKEN, fungibleKycUnfrozenTokenAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UNPAUSE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                UNPAUSE_TOKEN.getActualGas());
+        validateGasEstimation(data, UNPAUSE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with unpause function for NFT")
-    public void unpauseNFTPositiveEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
+    public void unpauseNFTPositiveEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, UNPAUSE_TOKEN, nonFungibleKycUnfrozenTokenAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UNPAUSE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                UNPAUSE_TOKEN.getActualGas());
+        validateGasEstimation(data, UNPAUSE_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas for nested pause and unpause function")
-    public void pauseUnpauseFungibleTokenNestedCallEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
+    public void pauseUnpauseFungibleTokenNestedCallEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, PAUSE_UNPAUSE_NESTED_TOKEN, fungibleKycUnfrozenTokenAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                PAUSE_UNPAUSE_NESTED_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                PAUSE_UNPAUSE_NESTED_TOKEN.getActualGas());
+        validateGasEstimation(data, PAUSE_UNPAUSE_NESTED_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas for nested pause, unpause NFT function")
-    public void pauseUnpauseNFTNestedCallEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
+    public void pauseUnpauseNFTNestedCallEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, PAUSE_UNPAUSE_NESTED_TOKEN, nonFungibleKycUnfrozenTokenAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                PAUSE_UNPAUSE_NESTED_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                PAUSE_UNPAUSE_NESTED_TOKEN.getActualGas());
+        validateGasEstimation(data, PAUSE_UNPAUSE_NESTED_TOKEN, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with updateTokenExpiryInfo function")
-    public void updateTokenExpiryInfoEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(adminAddressString);
+    public void updateTokenExpiryInfoEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, UPDATE_TOKEN_EXPIRY, fungibleKycUnfrozenTokenAddress, adminAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UPDATE_TOKEN_EXPIRY.getSelector(),
-                parameters,
-                senderAccountId,
-                UPDATE_TOKEN_EXPIRY.getActualGas());
+        validateGasEstimation(data, UPDATE_TOKEN_EXPIRY, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with updateTokenInfo function")
-    public void updateTokenInfoEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(adminAddressString);
+    public void updateTokenInfoEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, UPDATE_TOKEN_INFO, fungibleKycUnfrozenTokenAddress, adminAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UPDATE_TOKEN_INFO.getSelector(),
-                parameters,
-                senderAccountId,
-                UPDATE_TOKEN_INFO.getActualGas());
+        validateGasEstimation(data, UPDATE_TOKEN_INFO, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with updateTokenKeys function")
-    public void updateTokenKeysEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
+    public void updateTokenKeysEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, UPDATE_TOKEN_KEYS, fungibleKycUnfrozenTokenAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UPDATE_TOKEN_KEYS.getSelector(),
-                parameters,
-                senderAccountId,
-                UPDATE_TOKEN_KEYS.getActualGas());
+        validateGasEstimation(data, UPDATE_TOKEN_KEYS, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenExpiryInfo function")
-    public void getTokenExpiryInfoEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenExpiryInfoEstimateGas() {
         var methodInterface = getFlaggedValue(GET_TOKEN_EXPIRY_INFO);
+        var data = encodeData(ESTIMATE_PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
-
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with isToken function")
-    public void isTokenEstimateGas() throws ExecutionException, InterruptedException {
+    public void isTokenEstimateGas() {
         var methodInterface = getFlaggedValue(IS_TOKEN);
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
+        var data = encodeData(ESTIMATE_PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenKey function for supply")
-    public void getTokenKeySupplyEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenKeySupplyEstimateGas() {
         var methodInterface = getFlaggedValue(GET_TOKEN_KEY);
+        var data =
+                encodeData(ESTIMATE_PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress, new BigInteger("16"));
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addUint256(new BigInteger("16"));
-
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenKey function for KYC")
-    public void getTokenKeyKYCEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenKeyKYCEstimateGas() {
         var methodInterface = getFlaggedValue(GET_TOKEN_KEY);
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addUint256(BigInteger.TWO);
+        var data =
+                encodeData(ESTIMATE_PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress, new BigInteger("2"));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenKey function for freeze")
-    public void getTokenKeyFreezeEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenKeyFreezeEstimateGas() {
         var methodInterface = getFlaggedValue(GET_TOKEN_KEY);
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addUint256(new BigInteger("4"));
+        var data =
+                encodeData(ESTIMATE_PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress, new BigInteger("4"));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenKey function for admin")
-    public void getTokenKeyAdminEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenKeyAdminEstimateGas() {
         var methodInterface = getFlaggedValue(GET_TOKEN_KEY);
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addUint256(BigInteger.ONE);
+        var data =
+                encodeData(ESTIMATE_PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress, new BigInteger("1"));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenKey function for wipe")
-    public void getTokenKeyWipeEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenKeyWipeEstimateGas() {
         var methodInterface = getFlaggedValue(GET_TOKEN_KEY);
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addUint256(new BigInteger("8"));
+        var data =
+                encodeData(ESTIMATE_PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress, new BigInteger("8"));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenKey function for fee")
-    public void getTokenKeyFeeEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenKeyFeeEstimateGas() {
         var methodInterface = getFlaggedValue(GET_TOKEN_KEY);
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addUint256(new BigInteger("32"));
+        var data =
+                encodeData(ESTIMATE_PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress, new BigInteger("32"));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenKey function for pause")
-    public void getTokenKeyPauseEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenKeyPauseEstimateGas() {
         var methodInterface = getFlaggedValue(GET_TOKEN_KEY);
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addUint256(new BigInteger("64"));
+        var data =
+                encodeData(ESTIMATE_PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress, new BigInteger("64"));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with ERC allowance function for fungible token")
-    public void ercAllowanceFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void ercAllowanceFungibleEstimateGas() {
         var methodInterface = getFlaggedValue(ALLOWANCE_ERC);
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias);
+        var data = encodeData(
+                ERC, methodInterface, fungibleKycUnfrozenTokenAddress, adminAddress, receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getApproved function for NFT")
-    public void getApprovedNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void getApprovedNonFungibleEstimateGas() {
         var methodInterface = getFlaggedValue(GET_APPROVED);
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE, methodInterface, nonFungibleKycUnfrozenTokenAddress, new BigInteger("1"));
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addUint256(BigInteger.ONE);
-
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with ERC getApproved function for NFT")
-    public void ercGetApprovedNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void ercGetApprovedNonFungibleEstimateGas() {
         var methodInterface = getFlaggedValue(GET_APPROVED_ERC);
+        var data = encodeData(ERC, methodInterface, nonFungibleKycUnfrozenTokenAddress, new BigInteger("1"));
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addUint256(BigInteger.ONE);
-
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with isApprovedForAll function")
-    public void isApprovedForAllEstimateGas() throws ExecutionException, InterruptedException {
+    public void isApprovedForAllEstimateGas() {
         var methodInterface = getFlaggedValue(IS_APPROVED_FOR_ALL);
+        // reminder: check with setApprovalForAll test-> there we have the contract associated so the test can work
+        var data = encodeData(
+                ESTIMATE_PRECOMPILE,
+                methodInterface,
+                nonFungibleKycUnfrozenTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress);
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias);
-
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with ERC isApprovedForAll function")
-    public void ercIsApprovedForAllEstimateGas() throws ExecutionException, InterruptedException {
+    public void ercIsApprovedForAllEstimateGas() {
         var methodInterface = getFlaggedValue(IS_APPROVED_FOR_ALL_ERC);
         // reminder: check with setApprovalForAll test-> there we have the contract associated so the test can work
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias);
+        var data = encodeData(
+                ERC, methodInterface, nonFungibleKycUnfrozenTokenAddress, adminAddress, receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with name function for fungible token")
-    public void nameEstimateGas() throws ExecutionException, InterruptedException {
+    public void nameEstimateGas() {
+        var data = encodeData(ERC, NAME, fungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
-
-        validateGasEstimation(ercTestContractId, NAME.getSelector(), parameters, senderAccountId, NAME.getActualGas());
+        validateGasEstimation(data, NAME, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with name function for NFT")
-    public void nameNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void nameNonFungibleEstimateGas() {
         var methodInterface = getFlaggedValue(NAME_NFT);
+        var data = encodeData(ERC, methodInterface, nonFungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
-
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with symbol function for fungible token")
-    public void symbolEstimateGas() throws ExecutionException, InterruptedException {
+    public void symbolEstimateGas() {
         var methodInterface = getFlaggedValue(SYMBOL);
+        var data = encodeData(ERC, methodInterface, fungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
-
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with symbol function for NFT")
-    public void symbolNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void symbolNonFungibleEstimateGas() {
         var methodInterface = getFlaggedValue(SYMBOL_NFT);
+        var data = encodeData(ERC, methodInterface, nonFungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
-
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with decimals function for fungible token")
-    public void decimalsEstimateGas() throws ExecutionException, InterruptedException {
+    public void decimalsEstimateGas() {
         var methodInterface = getFlaggedValue(DECIMALS);
+        var data = encodeData(ERC, methodInterface, fungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
-
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with totalSupply function for fungible token")
-    public void totalSupplyEstimateGas() throws ExecutionException, InterruptedException {
+    public void totalSupplyEstimateGas() {
         var methodInterface = getFlaggedValue(TOTAL_SUPPLY);
+        var data = encodeData(ERC, methodInterface, fungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
-
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with totalSupply function for NFT")
-    public void totalSupplyNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void totalSupplyNonFungibleEstimateGas() {
         var methodInterface = getFlaggedValue(TOTAL_SUPPLY_NFT);
+        var data = encodeData(ERC, methodInterface, nonFungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
-
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with ownerOf function for NFT")
-    public void ownerOfEstimateGas() throws ExecutionException, InterruptedException {
+    public void ownerOfEstimateGas() {
         var methodInterface = getFlaggedValue(OWNER_OF);
+        var data = encodeData(ERC, methodInterface, nonFungibleKycUnfrozenTokenAddress, new BigInteger("1"));
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addUint256(BigInteger.ONE);
-
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with tokenURI function for NFT")
-    public void tokenURIEstimateGas() throws ExecutionException, InterruptedException {
+    public void tokenURIEstimateGas() {
         var methodInterface = getFlaggedValue(TOKEN_URI);
+        var data = encodeData(ERC, methodInterface, nonFungibleKycUnfrozenTokenAddress, new BigInteger("1"));
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addUint256(BigInteger.ONE);
-
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, ercTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getFungibleTokenInfo function")
-    public void getFungibleTokenInfoEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
+    public void getFungibleTokenInfoEstimateGas() {
+        var data = encodeData(PRECOMPILE, GET_FUNGIBLE_TOKEN_INFO, fungibleKycUnfrozenTokenAddress);
 
-        validateGasEstimation(
-                precompileContractId,
-                GET_FUNGIBLE_TOKEN_INFO.getSelector(),
-                parameters,
-                senderAccountId,
-                GET_FUNGIBLE_TOKEN_INFO.getActualGas());
+        validateGasEstimation(data, GET_FUNGIBLE_TOKEN_INFO, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getNonFungibleTokenInfo function")
-    public void getNonFungibleTokenInfoEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addInt64(1L);
+    public void getNonFungibleTokenInfoEstimateGas() {
+        var data = encodeData(PRECOMPILE, GET_NON_FUNGIBLE_TOKEN_INFO, nonFungibleKycUnfrozenTokenAddress, 1L);
 
-        validateGasEstimation(
-                precompileContractId,
-                GET_NON_FUNGIBLE_TOKEN_INFO.getSelector(),
-                parameters,
-                senderAccountId,
-                GET_NON_FUNGIBLE_TOKEN_INFO.getActualGas());
+        validateGasEstimation(data, GET_NON_FUNGIBLE_TOKEN_INFO, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenInfo function for fungible")
-    public void getTokenInfoEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenInfoEstimateGas() {
+        var data = encodeData(PRECOMPILE, GET_TOKEN_INFO, fungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                GET_TOKEN_INFO.getSelector(),
-                parameters,
-                senderAccountId,
-                GET_TOKEN_INFO.getActualGas());
+        validateGasEstimation(data, GET_TOKEN_INFO, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenInfo function for NFT")
-    public void getTokenInfoNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
+    public void getTokenInfoNonFungibleEstimateGas() {
+        var data = encodeData(PRECOMPILE, GET_TOKEN_INFO_NFT, nonFungibleKycUnfrozenTokenAddress);
 
-        validateGasEstimation(
-                precompileContractId,
-                GET_TOKEN_INFO_NFT.getSelector(),
-                parameters,
-                senderAccountId,
-                GET_TOKEN_INFO_NFT.getActualGas());
+        validateGasEstimation(data, GET_TOKEN_INFO_NFT, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenDefaultFreezeStatus function for fungible token")
-    public void getTokenDefaultFreezeStatusFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenDefaultFreezeStatusFungibleEstimateGas() {
         var methodInterface = getFlaggedValue(GET_TOKEN_DEFAULT_FREEZE_STATUS);
+        var data = encodeData(PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenDefaultFreezeStatus function for NFT")
-    public void getTokenDefaultFreezeStatusNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenDefaultFreezeStatusNonFungibleEstimateGas() {
         var methodInterface = getFlaggedValue(GET_TOKEN_DEFAULT_FREEZE_STATUS);
+        var data = encodeData(PRECOMPILE, methodInterface, nonFungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenDefaultKycStatus function for fungible token")
-    public void getTokenDefaultKycStatusFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenDefaultKycStatusFungibleEstimateGas() {
         var methodInterface = getFlaggedValue(GET_TOKEN_DEFAULT_KYC_STATUS);
+        var data = encodeData(PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenDefaultKycStatus function for NFT")
-    public void getTokenDefaultKycStatusNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenDefaultKycStatusNonFungibleEstimateGas() {
         var methodInterface = getFlaggedValue(GET_TOKEN_DEFAULT_KYC_STATUS);
+        var data = encodeData(PRECOMPILE, methodInterface, nonFungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with isKyc function for fungible token")
-    public void isKycFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void isKycFungibleEstimateGas() {
         final var methodInterface = getFlaggedValue(IS_KYC);
+        var data =
+                encodeData(PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress, receiverAccountAliasAddress);
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(receiverAccountAlias);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with isKyc function for NFT")
-    public void isKycNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void isKycNonFungibleEstimateGas() {
         final var methodInterface = getFlaggedValue(IS_KYC);
+        var data = encodeData(
+                PRECOMPILE, methodInterface, nonFungibleKycUnfrozenTokenAddress, receiverAccountAliasAddress);
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(receiverAccountAlias);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with isFrozen function for fungible token")
-    public void isFrozenFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void isFrozenFungibleEstimateGas() {
         final var methodInterface = getFlaggedValue(IS_FROZEN);
+        var data =
+                encodeData(PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress, receiverAccountAliasAddress);
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(receiverAccountAlias);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with isFrozen function for NFT")
-    public void isFrozenNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void isFrozenNonFungibleEstimateGas() {
         final var methodInterface = getFlaggedValue(IS_FROZEN);
+        var data = encodeData(
+                PRECOMPILE, methodInterface, nonFungibleKycUnfrozenTokenAddress, receiverAccountAliasAddress);
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(receiverAccountAlias);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenType function for fungible token")
-    public void getTokenTypeFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenTypeFungibleEstimateGas() {
         final var methodInterface = getFlaggedValue(GET_TOKEN_TYPE);
+        var data = encodeData(PRECOMPILE, methodInterface, fungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with getTokenType function for NFT")
-    public void getTokenTypeNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void getTokenTypeNonFungibleEstimateGas() {
         final var methodInterface = getFlaggedValue(GET_TOKEN_TYPE);
+        var data = encodeData(PRECOMPILE, methodInterface, nonFungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with redirect balanceOf function")
-    public void redirectBalanceOfEstimateGas() throws ExecutionException, InterruptedException {
+    public void redirectBalanceOfEstimateGas() {
+        var data = encodeData(PRECOMPILE, REDIRECT_FOR_TOKEN_BALANCE_OF, fungibleKycUnfrozenTokenAddress, adminAddress);
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(adminAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_BALANCE_OF.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_BALANCE_OF.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_BALANCE_OF, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with redirect name function")
-    public void redirectNameEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
+    public void redirectNameEstimateGas() {
+        var data = encodeData(PRECOMPILE, REDIRECT_FOR_TOKEN_NAME, fungibleKycUnfrozenTokenAddress);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_NAME.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_NAME.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_NAME, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with redirect symbol function")
-    public void redirectSymbolEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
+    public void redirectSymbolEstimateGas() {
+        var data = encodeData(PRECOMPILE, REDIRECT_FOR_TOKEN_SYMBOL, fungibleKycUnfrozenTokenAddress);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_SYMBOL.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_SYMBOL.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_SYMBOL, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with redirect name function for NFT")
-    public void redirectNameNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void redirectNameNonFungibleEstimateGas() {
+        var data = encodeData(PRECOMPILE, REDIRECT_FOR_TOKEN_NAME, nonFungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_NAME.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_NAME.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_NAME, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with redirect symbol function for NFT")
-    public void redirectSymbolNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void redirectSymbolNonFungibleEstimateGas() {
+        var data = encodeData(PRECOMPILE, REDIRECT_FOR_TOKEN_SYMBOL, nonFungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_SYMBOL.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_SYMBOL.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_SYMBOL, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with redirect decimals function")
-    public void redirectDecimalsEstimateGas() throws ExecutionException, InterruptedException {
+    public void redirectDecimalsEstimateGas() {
+        var data = encodeData(PRECOMPILE, REDIRECT_FOR_TOKEN_DECIMALS, fungibleKycUnfrozenTokenAddress);
 
-        var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_DECIMALS.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_DECIMALS.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_DECIMALS, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with redirect allowance function")
-    public void redirectAllowanceEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias);
+    public void redirectAllowanceEstimateGas() {
+        var data = encodeData(
+                PRECOMPILE,
+                REDIRECT_FOR_TOKEN_ALLOWANCE,
+                fungibleKycUnfrozenTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_ALLOWANCE.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_ALLOWANCE.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_ALLOWANCE, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with redirect getOwnerOf function")
-    public void redirectGetOwnerOfEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addUint256(BigInteger.ONE);
+    public void redirectGetOwnerOfEstimateGas() {
+        var data = encodeData(
+                PRECOMPILE, REDIRECT_FOR_TOKEN_GET_OWNER_OF, nonFungibleKycUnfrozenTokenAddress, new BigInteger("1"));
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_GET_OWNER_OF.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_GET_OWNER_OF.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_GET_OWNER_OF, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with redirect tokenURI function")
-    public void redirectTokenURIEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addUint256(BigInteger.ONE);
+    public void redirectTokenURIEstimateGas() {
+        var data = encodeData(
+                PRECOMPILE, REDIRECT_FOR_TOKEN_TOKEN_URI, nonFungibleKycUnfrozenTokenAddress, new BigInteger("1"));
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_TOKEN_URI.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_TOKEN_URI.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_TOKEN_URI, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with redirect isApprovedForAll function")
-    public void redirectIsApprovedForAllEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias);
+    public void redirectIsApprovedForAllEstimateGas() {
+        var data = encodeData(
+                PRECOMPILE,
+                REDIRECT_FOR_TOKEN_IS_APPROVED_FOR_ALL,
+                nonFungibleKycUnfrozenTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_IS_APPROVED_FOR_ALL.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_IS_APPROVED_FOR_ALL.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_IS_APPROVED_FOR_ALL, precompileTestContractSolidityAddress);
     }
 
     @And("I transfer fungible token to the precompile contract")
@@ -2080,49 +1409,40 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with redirect transfer function")
-    public void redirectTransferEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("5"));
+    public void redirectTransferEstimateGas() {
+        var data = encodeData(
+                PRECOMPILE,
+                REDIRECT_FOR_TOKEN_TRANSFER,
+                fungibleTokenAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("5"));
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_TRANSFER.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_TRANSFER.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_TRANSFER, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with redirect transferFrom function")
-    public void redirectTransferFromEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(new BigInteger("5"));
+    public void redirectTransferFromEstimateGas() {
+        var data = encodeData(
+                PRECOMPILE,
+                REDIRECT_FOR_TOKEN_TRANSFER_FROM,
+                fungibleTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("5"));
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_TRANSFER_FROM.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_TRANSFER_FROM.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_TRANSFER_FROM, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with redirect approve function")
-    public void redirectApproveEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(BigInteger.TEN);
+    public void redirectApproveEstimateGas() {
+        var data = encodeData(
+                PRECOMPILE,
+                REDIRECT_FOR_TOKEN_APPROVE,
+                fungibleTokenAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("10"));
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_APPROVE.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_APPROVE.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_APPROVE, precompileTestContractSolidityAddress);
     }
 
     @And("I approve for all nft for precompile contract")
@@ -2132,90 +1452,62 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with redirect transferFrom NFT function")
-    public void redirectTransferFromNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
+    public void redirectTransferFromNonFungibleEstimateGas() {
         final var methodInterface = getFlaggedValue(REDIRECT_FOR_TOKEN_TRANSFER_FROM_NFT);
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(BigInteger.TWO);
+        var data = encodeData(
+                PRECOMPILE,
+                methodInterface,
+                nonFungibleTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("2"));
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with redirect setApprovalForAll function")
-    public void redirectSetApprovalForAllEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addBool(true);
+    public void redirectSetApprovalForAllEstimateGas() {
+        var data = encodeData(
+                PRECOMPILE,
+                REDIRECT_FOR_TOKEN_SET_APPROVAL_FOR_ALL,
+                nonFungibleKycUnfrozenTokenAddress,
+                receiverAccountAliasAddress,
+                true);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_SET_APPROVAL_FOR_ALL.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_SET_APPROVAL_FOR_ALL.getActualGas());
+        validateGasEstimation(data, REDIRECT_FOR_TOKEN_SET_APPROVAL_FOR_ALL, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimateGas with pseudo random seed")
-    public void pseudoRandomSeedEstimateGas() throws ExecutionException, InterruptedException {
+    public void pseudoRandomSeedEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, PSEUDO_RANDOM_SEED);
 
-        var parameters = new ContractFunctionParameters();
-
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                PSEUDO_RANDOM_SEED.getSelector(),
-                parameters,
-                senderAccountId,
-                PSEUDO_RANDOM_SEED.getActualGas());
+        validateGasEstimation(data, PSEUDO_RANDOM_SEED, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with pseudo random number")
-    public void pseudoRandomNumberEstimateGas() throws ExecutionException, InterruptedException {
+    public void pseudoRandomNumberEstimateGas() {
         final var methodInterface = getFlaggedValue(PSEUDO_RANDOM_NUMBER);
+        var data = encodeData(ESTIMATE_PRECOMPILE, methodInterface, 500L, 1000L);
 
-        var parameters = new ContractFunctionParameters().addUint32(500).addUint32(1000);
-
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with exchange rate tinycents to tinybars")
-    public void exchangeRateTinyCentsToTinyBarsEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addUint256(new BigInteger("100"));
+    public void exchangeRateTinyCentsToTinyBarsEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, EXCHANGE_RATE_TINYCENTS_TO_TINYBARS, new BigInteger("100"));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                EXCHANGE_RATE_TINYCENTS_TO_TINYBARS.getSelector(),
-                parameters,
-                senderAccountId,
-                EXCHANGE_RATE_TINYCENTS_TO_TINYBARS.getActualGas());
+        validateGasEstimation(data, EXCHANGE_RATE_TINYCENTS_TO_TINYBARS, estimatePrecompileContractSolidityAddress);
     }
 
     @Then("I call estimateGas with exchange rate tinybars to tinycents")
-    public void exchangeRateTinyBarsToTinyCentsEstimateGas() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addUint256(new BigInteger("100"));
+    public void exchangeRateTinyBarsToTinyCentsEstimateGas() {
+        var data = encodeData(ESTIMATE_PRECOMPILE, EXCHANGE_RATE_TINYBARS_TO_TINYCENTS, new BigInteger("100"));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                EXCHANGE_RATE_TINYBARS_TO_TINYCENTS.getSelector(),
-                parameters,
-                senderAccountId,
-                EXCHANGE_RATE_TINYBARS_TO_TINYCENTS.getActualGas());
+        validateGasEstimation(data, EXCHANGE_RATE_TINYBARS_TO_TINYCENTS, estimatePrecompileContractSolidityAddress);
     }
 
     private void executeContractTransaction(
-            DeployedContract deployedContract, long gas, ContractMethodInterface contractMethods, byte[] parameters) {
+            DeployedContract deployedContract, int gas, ContractMethodInterface contractMethods, byte[] parameters) {
 
         ExecuteContractResult executeContractResult = contractClient.executeContract(
                 deployedContract.contractId(), gas, contractMethods.getSelector(), parameters, null);
@@ -2224,27 +1516,21 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         verifyMirrorTransactionsResponse(mirrorClient, 200);
     }
 
+    public int validateAndReturnGas(byte[] data, ContractMethodInterface contractMethods, String contractAddress) {
+        var encodedData = Strings.encode(ByteBuffer.wrap(data));
+        var response = estimateContract(encodedData, contractMethods.getActualGas(), contractAddress);
+        var estimateGasValue = response.getResultAsNumber().intValue();
+        assertWithinDeviation(contractMethods.getActualGas(), estimateGasValue, lowerDeviation, upperDeviation);
+        return estimateGasValue;
+    }
+
     @Then("I call estimateGas with balanceOf function for {token} and verify the estimated gas against HAPI")
-    public void executeBalanceOfFunctionWithLimitedGas(TokenNameEnum tokenName)
-            throws ExecutionException, InterruptedException {
+    public void executeBalanceOfFunctionWithLimitedGas(TokenNameEnum tokenName) {
         final var methodInterface = getFlaggedValue(BALANCE_OF);
         var tokenId = tokenClient.getToken(tokenName).tokenId();
-
-        var data = encodeDataToByteArray(ERC, methodInterface, asAddress(tokenId), asAddress(admin));
-
-        var parameters = new ContractFunctionParameters()
-                .addAddress(asAddress(tokenId).toString())
-                .addAddress(adminAddressString);
-        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas(),
-                Optional.empty());
-        assertWithinDeviation(methodInterface.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
-
-        executeContractTransaction(deployedErcTestContract, estimateGasResult, methodInterface, data);
+        var data = encodeDataToByteArray(ERC, methodInterface, asAddress(tokenId), adminAddress);
+        var estimateGasValue = validateAndReturnGas(data, methodInterface, ercTestContractSolidityAddress);
+        executeContractTransaction(deployedErcTestContract, estimateGasValue, methodInterface, data);
     }
 
     @And("I update the account and token keys")
@@ -2276,31 +1562,16 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with transferToken function and verify the estimated gas against HAPI")
-    public void executeTransferForFungibleWithGasLimit() throws ExecutionException, InterruptedException {
+    public void executeTransferForFungibleWithGasLimit() {
         var data = encodeDataToByteArray(
                 ESTIMATE_PRECOMPILE,
                 TRANSFER_TOKEN,
-                asAddress(fungibleTokenId),
-                asAddress(admin),
-                asAddress(secondReceiverAccount),
+                fungibleTokenAddress,
+                adminAddress,
+                secondReceiverAccountAddress,
                 5L);
-
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(secondReceiverAddressString)
-                .addInt64(5L);
-
-        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                TRANSFER_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                TRANSFER_TOKEN.getActualGas(),
-                Optional.empty());
-        assertWithinDeviation(TRANSFER_TOKEN.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
-
-        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, TRANSFER_TOKEN, data);
+        var estimateGasValue = validateAndReturnGas(data, TRANSFER_TOKEN, estimatePrecompileContractSolidityAddress);
+        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasValue, TRANSFER_TOKEN, data);
     }
 
     @And("I associate the contract with the receiver account")
@@ -2309,33 +1580,17 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with transferNFT function and verify the estimated gas against HAPI")
-    public void executeTransferTokenNonFungibleWithGasLimit() throws ExecutionException, InterruptedException {
+    public void executeTransferTokenNonFungibleWithGasLimit() {
         final var methodInterface = getFlaggedValue(TRANSFER_NFT);
         var data = encodeDataToByteArray(
                 ESTIMATE_PRECOMPILE,
                 methodInterface,
-                asAddress(nonFungibleTokenId),
-                asAddress(admin),
-                asAddress(secondReceiverAccount.getAccountId().toSolidityAddress()),
+                nonFungibleTokenAddress,
+                adminAddress,
+                secondReceiverAccountAddress,
                 2L);
-
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(asAddress(secondReceiverAccount.getAccountId().toSolidityAddress())
-                        .toString())
-                .addInt64(2L);
-
-        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas(),
-                Optional.empty());
-        assertWithinDeviation(methodInterface.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
-
-        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, methodInterface, data);
+        var estimateGasValue = validateAndReturnGas(data, methodInterface, estimatePrecompileContractSolidityAddress);
+        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasValue, methodInterface, data);
     }
 
     @And("I approve the receiver to use the token")
@@ -2348,446 +1603,265 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with allowance function for fungible token and verify the estimated gas against HAPI")
-    public void executeAllowanceFungibleWithLimitedGas() throws ExecutionException, InterruptedException {
+    public void executeAllowanceFungibleWithLimitedGas() {
         final var methodInterface = getFlaggedValue(ALLOWANCE);
-        final var data = encodeDataToByteArray(
+        var data = encodeDataToByteArray(
                 ESTIMATE_PRECOMPILE,
                 methodInterface,
-                asAddress(fungibleKycUnfrozenTokenId),
-                asAddress(admin),
-                asAddress(receiverAccountAlias));
-
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleKycUnfrozenTokenIdAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias);
-
-        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas(),
-                Optional.empty());
-        assertWithinDeviation(methodInterface.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
-
-        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, methodInterface, data);
+                fungibleKycUnfrozenTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress);
+        var estimateGasValue = validateAndReturnGas(data, methodInterface, estimatePrecompileContractSolidityAddress);
+        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasValue, methodInterface, data);
     }
 
     @Then("I call estimateGas with allowance function for NFT and verify the estimated gas against HAPI")
-    public void executeAllowanceNonFungibleWithLimitedGas() throws ExecutionException, InterruptedException {
+    public void executeAllowanceNonFungibleWithLimitedGas() {
         final var methodInterface = getFlaggedValue(ALLOWANCE);
         var data = encodeDataToByteArray(
                 ESTIMATE_PRECOMPILE,
                 methodInterface,
-                asAddress(nonFungibleKycUnfrozenTokenId),
-                asAddress(admin),
-                asAddress(receiverAccountAlias));
-
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias);
-
-        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas(),
-                Optional.empty());
-        assertWithinDeviation(methodInterface.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
-
-        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, methodInterface, data);
+                nonFungibleKycUnfrozenTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress);
+        var estimateGasValue = validateAndReturnGas(data, methodInterface, estimatePrecompileContractSolidityAddress);
+        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasValue, methodInterface, data);
     }
 
     @Then("I call estimateGas with approve function and verify the estimated gas against HAPI")
-    public void executeApproveWithLimitedGas() throws ExecutionException, InterruptedException {
-        final var data = encodeDataToByteArray(
-                ESTIMATE_PRECOMPILE,
-                APPROVE,
-                asAddress(fungibleTokenId),
-                asAddress(receiverAccountAlias),
-                BigInteger.TEN);
-
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(BigInteger.TEN);
-
-        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                APPROVE.getSelector(),
-                parameters,
-                senderAccountId,
-                APPROVE.getActualGas(),
-                Optional.empty());
-        assertWithinDeviation(APPROVE.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
-
-        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, APPROVE, data);
+    public void executeApproveWithLimitedGas() {
+        var data = encodeDataToByteArray(
+                ESTIMATE_PRECOMPILE, APPROVE, fungibleTokenAddress, receiverAccountAliasAddress, new BigInteger("10"));
+        var estimateGasValue = validateAndReturnGas(data, APPROVE, estimatePrecompileContractSolidityAddress);
+        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasValue, APPROVE, data);
     }
 
     @Then("I call estimateGas with approveNFT function and verify the estimated gas against HAPI")
-    public void executeApproveNftWithLimitedGas() throws ExecutionException, InterruptedException {
-        final var data = encodeDataToByteArray(
+    public void executeApproveNftWithLimitedGas() {
+        var data = encodeDataToByteArray(
                 ESTIMATE_PRECOMPILE,
                 APPROVE_NFT,
-                asAddress(nonFungibleKycUnfrozenTokenId),
-                asAddress(receiverAccountAlias),
-                BigInteger.ONE);
-
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(BigInteger.ONE);
-
-        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                APPROVE_NFT.getSelector(),
-                parameters,
-                senderAccountId,
-                APPROVE_NFT.getActualGas(),
-                Optional.empty());
-        assertWithinDeviation(APPROVE_NFT.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
-
-        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, APPROVE_NFT, data);
+                nonFungibleKycUnfrozenTokenAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("1"));
+        var estimateGasValue = validateAndReturnGas(data, APPROVE_NFT, estimatePrecompileContractSolidityAddress);
+        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasValue, APPROVE_NFT, data);
     }
 
     @Then("I call estimateGas with transferFrom function with fungible and verify the estimated gas against HAPI")
-    public void executeTransferFromWithGasLimit() throws ExecutionException, InterruptedException {
+    public void executeTransferFromWithGasLimit() {
         var data = encodeDataToByteArray(
                 ESTIMATE_PRECOMPILE,
                 TRANSFER_FROM,
-                asAddress(fungibleTokenId),
-                asAddress(admin),
-                asAddress(secondReceiverAccount.getAccountId().toSolidityAddress()),
+                fungibleTokenAddress,
+                adminAddress,
+                secondReceiverAccountAddress,
                 new BigInteger("5"));
-
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(asAddress(secondReceiverAccount.getAccountId().toSolidityAddress())
-                        .toString())
-                .addUint256(new BigInteger("5"));
-
-        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                TRANSFER_FROM.getSelector(),
-                parameters,
-                senderAccountId,
-                TRANSFER_FROM.getActualGas(),
-                Optional.empty());
-        assertWithinDeviation(TRANSFER_FROM.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
-
-        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, TRANSFER_FROM, data);
+        var estimateGasValue = validateAndReturnGas(data, TRANSFER_FROM, estimatePrecompileContractSolidityAddress);
+        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasValue, TRANSFER_FROM, data);
     }
 
     @Then("I call estimateGas with transferFromNFT function and verify the estimated gas against HAPI")
-    public void executeTransferFromNFTWithGasLimit() throws ExecutionException, InterruptedException {
+    public void executeTransferFromNFTWithGasLimit() {
         final var methodInterface = getFlaggedValue(TRANSFER_FROM_NFT);
         var data = encodeDataToByteArray(
                 ESTIMATE_PRECOMPILE,
                 methodInterface,
-                asAddress(nonFungibleTokenId),
-                asAddress(admin),
-                asAddress(secondReceiverAccount.getAccountId().toSolidityAddress()),
+                nonFungibleTokenAddress,
+                adminAddress,
+                secondReceiverAccountAddress,
                 new BigInteger("3"));
-
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(asAddress(secondReceiverAccount.getAccountId().toSolidityAddress())
-                        .toString())
-                .addUint256(new BigInteger("3"));
-
-        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas(),
-                Optional.empty());
-        assertWithinDeviation(methodInterface.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
-
-        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, methodInterface, data);
+        var estimateGasValue = validateAndReturnGas(data, methodInterface, estimatePrecompileContractSolidityAddress);
+        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasValue, methodInterface, data);
     }
 
     @Then("I call estimate gas that mints FUNGIBLE token and gets the total supply and balance")
-    public void estimateGasMintFungibleTokenGetTotalSupplyAndBalanceOfTreasury()
-            throws ExecutionException, InterruptedException {
+    public void estimateGasMintFungibleTokenGetTotalSupplyAndBalanceOfTreasury() {
         final var methodInterface = getFlaggedValue(MINT_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE);
+        var data = encodeData(PRECOMPILE, methodInterface, fungibleTokenAddress, 1L, new byte[][] {}, adminAddress);
 
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addInt64(1L)
-                .addBytesArray(new byte[][] {})
-                .addAddress(adminAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that mints NFT token and gets the total supply and balance")
-    public void estimateGasMintNftTokenGetTotalSupplyAndBalanceOfTreasury()
-            throws ExecutionException, InterruptedException {
+    public void estimateGasMintNftTokenGetTotalSupplyAndBalanceOfTreasury() {
+        var data = encodeData(
+                PRECOMPILE,
+                MINT_NFT_GET_TOTAL_SUPPLY_AND_BALANCE,
+                nonFungibleTokenAddress,
+                0L,
+                asByteArray(List.of("0x02")),
+                adminAddress);
 
-        final var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addInt64(0L)
-                .addBytesArray(asByteArray(List.of("0x02")))
-                .addAddress(adminAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                MINT_NFT_GET_TOTAL_SUPPLY_AND_BALANCE.getSelector(),
-                parameters,
-                senderAccountId,
-                MINT_NFT_GET_TOTAL_SUPPLY_AND_BALANCE.getActualGas());
+        validateGasEstimation(data, MINT_NFT_GET_TOTAL_SUPPLY_AND_BALANCE, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that burns FUNGIBLE token and gets the total supply and balance")
-    public void estimateGasBurnFungibleTokenGetTotalSupplyAndBalanceOfTreasury()
-            throws ExecutionException, InterruptedException {
+    public void estimateGasBurnFungibleTokenGetTotalSupplyAndBalanceOfTreasury() {
         final var methodInterface = getFlaggedValue(BURN_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE);
+        var data =
+                encodeData(PRECOMPILE, methodInterface, fungibleTokenAddress, 1L, asLongArray(List.of()), adminAddress);
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addInt64(1L)
-                .addInt64Array(asLongArray(List.of()))
-                .addAddress(adminAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that burns NFT token and returns the total supply and balance of treasury")
-    public void estimateGasBurnNftTokenGetTotalSupplyAndBalanceOfTreasury()
-            throws ExecutionException, InterruptedException {
+    public void estimateGasBurnNftTokenGetTotalSupplyAndBalanceOfTreasury() {
+        var data = encodeData(
+                PRECOMPILE,
+                BURN_NFT_GET_TOTAL_SUPPLY_AND_BALANCE,
+                nonFungibleTokenAddress,
+                0L,
+                asLongArray(List.of(1L)),
+                adminAddress);
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addInt64(0L)
-                .addInt64Array(asLongArray(List.of(1L)))
-                .addAddress(adminAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                BURN_NFT_GET_TOTAL_SUPPLY_AND_BALANCE.getSelector(),
-                parameters,
-                senderAccountId,
-                BURN_NFT_GET_TOTAL_SUPPLY_AND_BALANCE.getActualGas());
+        validateGasEstimation(data, BURN_NFT_GET_TOTAL_SUPPLY_AND_BALANCE, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that wipes FUNGIBLE token and gets the total supply and balance")
-    public void estimateGasWipeFungibleTokenGetTotalSupplyAndBalanceOfTreasury()
-            throws ExecutionException, InterruptedException {
+    public void estimateGasWipeFungibleTokenGetTotalSupplyAndBalanceOfTreasury() {
         final var methodInterface = getFlaggedValue(WIPE_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE);
+        var data = encodeData(
+                PRECOMPILE,
+                methodInterface,
+                fungibleTokenAddress,
+                1L,
+                asLongArray(List.of()),
+                receiverAccountAliasAddress);
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addInt64(1L)
-                .addInt64Array(asLongArray(List.of()))
-                .addAddress(receiverAccountAlias);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that wipes NFT token and gets the total supply and balance")
-    public void estimateGasWipeNftTokenGetTotalSupplyAndBalanceOfTreasury()
-            throws ExecutionException, InterruptedException {
+    public void estimateGasWipeNftTokenGetTotalSupplyAndBalanceOfTreasury() {
         final var methodInterface = getFlaggedValue(WIPE_NFT_GET_TOTAL_SUPPLY_AND_BALANCE);
+        var data = encodeData(
+                PRECOMPILE,
+                methodInterface,
+                fungibleTokenAddress,
+                0L,
+                asLongArray(List.of(1L)),
+                receiverAccountAliasAddress);
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addInt64(0L)
-                .addInt64Array(asLongArray(List.of(1L)))
-                .addAddress(receiverAccountAlias);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that pauses FUNGIBLE token, unpauses and gets the token status")
-    public void estimateGasPauseFungibleTokenGetStatusUnpauseGetStatus()
-            throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(fungibleTokenAddressString);
+    public void estimateGasPauseFungibleTokenGetStatusUnpauseGetStatus() {
+        var data = encodeData(PRECOMPILE, PAUSE_UNPAUSE_GET_STATUS, fungibleTokenAddress);
 
-        validateGasEstimation(
-                precompileContractId,
-                PAUSE_UNPAUSE_GET_STATUS.getSelector(),
-                parameters,
-                senderAccountId,
-                PAUSE_UNPAUSE_GET_STATUS.getActualGas());
+        validateGasEstimation(data, PAUSE_UNPAUSE_GET_STATUS, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that pauses NFT token, unpauses and gets the token status")
-    public void estimateGasPauseNFTTokenGetStatusUnpauseGetStatus() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters().addAddress(nonFungibleTokenAddressString);
+    public void estimateGasPauseNFTTokenGetStatusUnpauseGetStatus() {
+        var data = encodeData(PRECOMPILE, PAUSE_UNPAUSE_GET_STATUS, nonFungibleTokenAddress);
 
-        validateGasEstimation(
-                precompileContractId,
-                PAUSE_UNPAUSE_GET_STATUS.getSelector(),
-                parameters,
-                senderAccountId,
-                PAUSE_UNPAUSE_GET_STATUS.getActualGas());
+        validateGasEstimation(data, PAUSE_UNPAUSE_GET_STATUS, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that freezes FUNGIBLE token, unfreezes and gets freeze status")
-    public void estimateGasFreezeFungibleTokenGetFreezeStatusUnfreezeGetFreezeStatus()
-            throws ExecutionException, InterruptedException {
+    public void estimateGasFreezeFungibleTokenGetFreezeStatusUnfreezeGetFreezeStatus() {
         final var methodInterface = getFlaggedValue(FREEZE_UNFREEZE_GET_STATUS);
+        var data = encodeData(PRECOMPILE, methodInterface, fungibleTokenAddress, adminAddress);
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(adminAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that freezes NFT token, unfreezes and gets freeze status")
-    public void estimateGasFreezeNftTokenGetFreezeStatusUnfreezeGetFreezeStatus()
-            throws ExecutionException, InterruptedException {
+    public void estimateGasFreezeNftTokenGetFreezeStatusUnfreezeGetFreezeStatus() {
         final var methodInterface = getFlaggedValue(FREEZE_UNFREEZE_GET_STATUS);
+        var data = encodeData(PRECOMPILE, methodInterface, nonFungibleTokenAddress, adminAddress);
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addAddress(adminAddressString);
-
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that approves FUNGIBLE token and gets allowance")
-    public void estimateGasApproveFungibleTokenGetAllowance() throws ExecutionException, InterruptedException {
+    public void estimateGasApproveFungibleTokenGetAllowance() {
+        var data = encodeData(
+                PRECOMPILE,
+                APPROVE_FUNGIBLE_GET_ALLOWANCE,
+                fungibleTokenAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("1"),
+                new BigInteger("0"));
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(BigInteger.ONE)
-                .addUint256(BigInteger.ZERO);
-
-        validateGasEstimation(
-                precompileContractId,
-                APPROVE_FUNGIBLE_GET_ALLOWANCE.getSelector(),
-                parameters,
-                senderAccountId,
-                APPROVE_FUNGIBLE_GET_ALLOWANCE.getActualGas());
+        validateGasEstimation(data, APPROVE_FUNGIBLE_GET_ALLOWANCE, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that approves NFT token and gets allowance")
-    public void estimateGasApproveNFTTokenGetAllowance() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleKycUnfrozenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(BigInteger.ZERO)
-                .addUint256(BigInteger.ONE);
+    public void estimateGasApproveNFTTokenGetAllowance() {
+        var data = encodeData(
+                PRECOMPILE,
+                APPROVE_NFT_GET_ALLOWANCE,
+                nonFungibleKycUnfrozenTokenAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("0"),
+                new BigInteger("1"));
 
-        validateGasEstimation(
-                precompileContractId,
-                APPROVE_NFT_GET_ALLOWANCE.getSelector(),
-                parameters,
-                senderAccountId,
-                APPROVE_NFT_GET_ALLOWANCE.getActualGas());
+        validateGasEstimation(data, APPROVE_NFT_GET_ALLOWANCE, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that associates FUNGIBLE token dissociates and fails token transfer")
-    public void estimateGasAssociateFungibleTokenDissociateFailTransfer()
-            throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(BigInteger.ONE)
-                .addUint256(BigInteger.ZERO);
+    public void estimateGasAssociateFungibleTokenDissociateFailTransfer() {
+        var data = encodeData(
+                PRECOMPILE,
+                DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER,
+                fungibleTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("1"),
+                new BigInteger("0"));
 
-        validateGasEstimation(
-                precompileContractId,
-                DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER.getSelector(),
-                parameters,
-                senderAccountId,
-                DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER.getActualGas());
+        validateGasEstimation(data, DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that associates NFT token dissociates and fails token transfer")
-    public void estimateGasAssociateNftTokenDissociateFailTransfer() throws ExecutionException, InterruptedException {
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addAddress(adminAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(BigInteger.ZERO)
-                .addUint256(BigInteger.ONE);
+    public void estimateGasAssociateNftTokenDissociateFailTransfer() {
+        var data = encodeData(
+                PRECOMPILE,
+                DISSOCIATE_NFT_AND_TRANSFER,
+                nonFungibleTokenAddress,
+                adminAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("0"),
+                new BigInteger("1"));
 
-        validateGasEstimation(
-                precompileContractId,
-                DISSOCIATE_NFT_AND_TRANSFER.getSelector(),
-                parameters,
-                senderAccountId,
-                DISSOCIATE_NFT_AND_TRANSFER.getActualGas());
+        validateGasEstimation(data, DISSOCIATE_NFT_AND_TRANSFER, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that approves a FUNGIBLE token and transfers it")
-    public void estimateGasApproveFungibleTokenTransferFromGetAllowanceGetBalance()
-            throws ExecutionException, InterruptedException {
+    public void estimateGasApproveFungibleTokenTransferFromGetAllowanceGetBalance() {
         if (web3Properties.isModularizedServices()) {
             // Needs a fix in the implementation that is not merged yet - the EntityId singleton.
             return;
         }
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addAddress(receiverAccountAlias)
-                .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                precompileContractId,
-                APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER.getSelector(),
-                parameters,
-                senderAccountId,
-                APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER.getActualGas());
+        var data = encodeData(
+                PRECOMPILE,
+                APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER,
+                fungibleTokenAddress,
+                receiverAccountAliasAddress,
+                new BigInteger("1"));
+
+        validateGasEstimation(data, APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that approves a NFT token and transfers it")
-    public void approveNftTokenTransferFromGetAllowanceGetBalance() throws ExecutionException, InterruptedException {
+    public void approveNftTokenTransferFromGetAllowanceGetBalance() {
         if (web3Properties.isModularizedServices()) {
             // Needs a fix in the implementation that is not merged yet - the EntityId singleton.
             return;
         }
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addAddress(secondReceiverAddressString)
-                .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                precompileContractId,
-                APPROVE_NFT_TOKEN_AND_TRANSFER_FROM.getSelector(),
-                parameters,
-                senderAccountId,
-                APPROVE_NFT_TOKEN_AND_TRANSFER_FROM.getActualGas());
+        var data = encodeData(
+                PRECOMPILE,
+                APPROVE_NFT_TOKEN_AND_TRANSFER_FROM,
+                nonFungibleTokenAddress,
+                secondReceiverAccountAddress,
+                new BigInteger("1"));
+
+        validateGasEstimation(data, APPROVE_NFT_TOKEN_AND_TRANSFER_FROM, precompileTestContractSolidityAddress);
     }
 
     @And("I approve and transfer NFT tokens to the precompile contract")
@@ -2804,47 +1878,33 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with mintToken function for fungible token and verify the estimated gas against HAPI")
-    public void executeMintFungibleTokenWithLimitedGas() throws ExecutionException, InterruptedException {
+    public void executeMintFungibleTokenWithLimitedGas() {
         var data = encodeDataToByteArray(
-                ESTIMATE_PRECOMPILE, MINT_TOKEN, asAddress(fungibleTokenId), 1L, asByteArray(new ArrayList<>()));
-
-        var parameters = new ContractFunctionParameters()
-                .addAddress(fungibleTokenAddressString)
-                .addInt64(1L)
-                .addBytesArray(asByteArray(new ArrayList<>()));
-
-        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                MINT_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                MINT_TOKEN.getActualGas(),
-                Optional.empty());
-        assertWithinDeviation(MINT_TOKEN.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
-
-        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, MINT_TOKEN, data);
+                ESTIMATE_PRECOMPILE, MINT_TOKEN, fungibleTokenAddress, 1L, asByteArray(new ArrayList<>()));
+        var estimateGasValue = validateAndReturnGas(data, MINT_TOKEN, estimatePrecompileContractSolidityAddress);
+        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasValue, MINT_TOKEN, data);
     }
 
     @Then("I call estimateGas with mintToken function for NFT and verify the estimated gas against HAPI")
-    public void executeMintNonFungibleWithLimitedGas() throws ExecutionException, InterruptedException {
+    public void executeMintNonFungibleWithLimitedGas() {
         var data = encodeDataToByteArray(
-                ESTIMATE_PRECOMPILE, MINT_NFT, asAddress(nonFungibleTokenId), 0L, asByteArray(List.of("0x02")));
+                ESTIMATE_PRECOMPILE, MINT_NFT, nonFungibleTokenAddress, 0L, asByteArray(List.of("0x02")));
+        var estimateGasValue = validateAndReturnGas(data, MINT_NFT, estimatePrecompileContractSolidityAddress);
+        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasValue, MINT_NFT, data);
+    }
 
-        var parameters = new ContractFunctionParameters()
-                .addAddress(nonFungibleTokenAddressString)
-                .addInt64(0L)
-                .addBytesArray(asByteArray(List.of("0x02")));
-
-        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                MINT_NFT.getSelector(),
-                parameters,
-                senderAccountId,
-                MINT_NFT.getActualGas(),
-                Optional.empty());
-        assertWithinDeviation(MINT_NFT.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
-
-        executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, MINT_NFT, data);
+    private void validateGasEstimationForCreateToken(String data, int actualGasUsed, long value) {
+        var contractCallRequest = ModelBuilder.contractCallRequest(actualGasUsed)
+                .data(data)
+                .estimate(true)
+                .from(contractClient.getClientAddress())
+                .to(estimatePrecompileContractSolidityAddress);
+        contractCallRequest.value(value);
+        ContractCallResponse msgSenderResponse = mirrorClient.contractsCall(contractCallRequest);
+        int estimatedGas = Bytes.fromHexString(msgSenderResponse.getResult())
+                .toBigInteger()
+                .intValue();
+        assertWithinDeviation(actualGasUsed, estimatedGas, lowerDeviation, upperDeviation);
     }
 
     /**

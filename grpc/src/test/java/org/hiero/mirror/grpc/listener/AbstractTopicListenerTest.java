@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.grpc.listener;
 
+import static org.hiero.mirror.grpc.domain.ReactiveDomainBuilder.TOPIC_ID;
+
 import com.google.common.util.concurrent.Uninterruptibles;
 import jakarta.annotation.Resource;
 import java.time.Duration;
@@ -25,7 +27,6 @@ import reactor.test.StepVerifier;
 public abstract class AbstractTopicListenerTest extends GrpcIntegrationTest {
 
     protected final long future = DomainUtils.convertToNanosMax(Instant.now().plusSeconds(30L));
-    protected final EntityId topicId = EntityId.of(100L);
 
     @Autowired
     protected ReactiveDomainBuilder domainBuilder;
@@ -67,7 +68,7 @@ public abstract class AbstractTopicListenerTest extends GrpcIntegrationTest {
     @Test
     void noMessages() {
         TopicMessageFilter filter =
-                TopicMessageFilter.builder().startTime(0).topicId(topicId).build();
+                TopicMessageFilter.builder().startTime(0).topicId(TOPIC_ID).build();
 
         topicListener
                 .listen(filter)
@@ -81,7 +82,7 @@ public abstract class AbstractTopicListenerTest extends GrpcIntegrationTest {
     @Test
     void lessThanPageSize() {
         TopicMessageFilter filter =
-                TopicMessageFilter.builder().startTime(0).topicId(topicId).build();
+                TopicMessageFilter.builder().startTime(0).topicId(TOPIC_ID).build();
 
         topicListener
                 .listen(filter)
@@ -100,7 +101,7 @@ public abstract class AbstractTopicListenerTest extends GrpcIntegrationTest {
         listenerProperties.setMaxPageSize(2);
 
         TopicMessageFilter filter =
-                TopicMessageFilter.builder().startTime(0).topicId(topicId).build();
+                TopicMessageFilter.builder().startTime(0).topicId(TOPIC_ID).build();
 
         topicListener
                 .listen(filter)
@@ -121,7 +122,7 @@ public abstract class AbstractTopicListenerTest extends GrpcIntegrationTest {
         listenerProperties.setMaxPageSize(2);
 
         TopicMessageFilter filter =
-                TopicMessageFilter.builder().startTime(0).topicId(topicId).build();
+                TopicMessageFilter.builder().startTime(0).topicId(TOPIC_ID).build();
 
         topicListener
                 .listen(filter)
@@ -139,7 +140,7 @@ public abstract class AbstractTopicListenerTest extends GrpcIntegrationTest {
     @Test
     void startTimeBefore() {
         TopicMessageFilter filter =
-                TopicMessageFilter.builder().startTime(0).topicId(topicId).build();
+                TopicMessageFilter.builder().startTime(0).topicId(TOPIC_ID).build();
 
         topicListener
                 .listen(filter)
@@ -156,7 +157,7 @@ public abstract class AbstractTopicListenerTest extends GrpcIntegrationTest {
     void startTimeEquals() {
         Mono<TopicMessage> topicMessage = domainBuilder.topicMessage(t -> t.consensusTimestamp(future));
         TopicMessageFilter filter =
-                TopicMessageFilter.builder().startTime(future).topicId(topicId).build();
+                TopicMessageFilter.builder().startTime(future).topicId(TOPIC_ID).build();
 
         topicListener
                 .listen(filter)
@@ -173,7 +174,7 @@ public abstract class AbstractTopicListenerTest extends GrpcIntegrationTest {
     void startTimeAfter() {
         Mono<TopicMessage> topicMessage = domainBuilder.topicMessage(t -> t.consensusTimestamp(future - 1));
         TopicMessageFilter filter =
-                TopicMessageFilter.builder().startTime(future).topicId(topicId).build();
+                TopicMessageFilter.builder().startTime(future).topicId(TOPIC_ID).build();
 
         topicListener
                 .listen(filter)
@@ -210,26 +211,24 @@ public abstract class AbstractTopicListenerTest extends GrpcIntegrationTest {
 
     @Test
     void multipleSubscribers() {
+        var topic1 = domainBuilder.entityId();
+        var topic2 = domainBuilder.entityId();
         Flux<TopicMessage> generator = Flux.concat(
                 domainBuilder.topicMessage(
-                        t -> t.topicId(EntityId.of(1L)).sequenceNumber(1).consensusTimestamp(future + 1L)),
+                        t -> t.topicId(topic1).sequenceNumber(1).consensusTimestamp(future + 1L)),
                 domainBuilder.topicMessage(
-                        t -> t.topicId(EntityId.of(1L)).sequenceNumber(2).consensusTimestamp(future + 2L)),
+                        t -> t.topicId(topic1).sequenceNumber(2).consensusTimestamp(future + 2L)),
                 domainBuilder.topicMessage(
-                        t -> t.topicId(EntityId.of(2L)).sequenceNumber(7).consensusTimestamp(future + 3L)),
+                        t -> t.topicId(topic2).sequenceNumber(7).consensusTimestamp(future + 3L)),
                 domainBuilder.topicMessage(
-                        t -> t.topicId(EntityId.of(2L)).sequenceNumber(8).consensusTimestamp(future + 4L)),
+                        t -> t.topicId(topic2).sequenceNumber(8).consensusTimestamp(future + 4L)),
                 domainBuilder.topicMessage(
-                        t -> t.topicId(EntityId.of(1L)).sequenceNumber(3).consensusTimestamp(future + 5L)));
+                        t -> t.topicId(topic1).sequenceNumber(3).consensusTimestamp(future + 5L)));
 
-        TopicMessageFilter filter1 = TopicMessageFilter.builder()
-                .startTime(0)
-                .topicId(EntityId.of(1L))
-                .build();
-        TopicMessageFilter filter2 = TopicMessageFilter.builder()
-                .startTime(0)
-                .topicId(EntityId.of(2L))
-                .build();
+        TopicMessageFilter filter1 =
+                TopicMessageFilter.builder().startTime(0).topicId(topic1).build();
+        TopicMessageFilter filter2 =
+                TopicMessageFilter.builder().startTime(0).topicId(topic2).build();
 
         StepVerifier stepVerifier1 = topicListener
                 .listen(filter1)
