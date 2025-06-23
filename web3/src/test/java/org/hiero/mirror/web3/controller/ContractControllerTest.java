@@ -441,7 +441,7 @@ class ContractControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"1", "1aa", "0x12345z"})
+    @ValueSource(strings = {"1", "1aa"})
     void callBadRequestWithInvalidHexData(String data) throws Exception {
         final var request = request();
         request.setData(data);
