@@ -21,16 +21,44 @@ jobs:
     name: Compare latest two releases of consensus node
     runs-on: hiero-mirror-node-linux-large
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Check if hedera app version changed in the PR
+        id: check-hedera-app-line
+        run: |
+          set -ex
+
+          PR_VERSION=$(grep -o 'api("com\.hedera\.hashgraph:app:[^"]*")' build.gradle.kts | sed -E 's/.*app:([^"]*)".*/\1/')
+          PR_VERSION_TAG="v$PR_VERSION"
+
+          git fetch origin ${{ github.base_ref }} --depth=1
+          git show origin/${{ github.base_ref }}:build.gradle.kts > base_build.gradle.kts
+          BASE_VERSION=$(grep -o 'api("com\.hedera\.hashgraph:app:[^"]*")' base_build.gradle.kts | sed -E 's/.*app:([^"]*)".*/\1/')
+          BASE_VERSION_TAG="v$BASE_VERSION"
+
+          echo "pr_version=$PR_VERSION_TAG" >> $GITHUB_OUTPUT
+          echo "base_version=$BASE_VERSION_TAG" >> $GITHUB_OUTPUT
+
+          if [ "$PR_VERSION_TAG" != "$BASE_VERSION_TAG" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Install JDK
+        if: steps.check-hedera-app-line.outputs.changed == 'true'
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: "temurin"
           java-version: 21
 
       - name: Setup Gradle
+        if: steps.check-hedera-app-line.outputs.changed == 'true'
         uses: gradle/actions/setup-gradle@ac638b010cf58a27ee6c972d7336334ccaf61c96 # v4
 
       - name: Run diff script
+        if: steps.check-hedera-app-line.outputs.changed == 'true'
         run: |
           set -ex
 
@@ -50,31 +78,18 @@ jobs:
           TMP_DIR_ONE=$(mktemp -d)
           TMP_DIR_TWO=$(mktemp -d)
 
-          # Function to clean the temp directories after script finishes
-          cleanup() {
-            rm -rf "$TMP_DIR_ONE" "$TMP_DIR_TWO"
-          }
-          trap cleanup EXIT
-
-          TAGS=($(git ls-remote --tags "$CONSENSUS_NODE_REPO" | \
-                awk '{print $2}' | \
-                grep 'refs/tags/v0' | \
-                grep -v '\^{}' | \
-                sed 's#refs/tags/##' | \
-                sort -Vr))
-
-          TAG_ONE="${TAGS[0]}"
-          TAG_TWO="${TAGS[1]}"
+          TAG_ONE="${{ steps.check-hedera-app-line.outputs.pr_version }}"
+          TAG_TWO="${{ steps.check-hedera-app-line.outputs.base_version }}"
 
           echo "Comparing consensus node release versions $TAG_ONE and $TAG_TWO ..."
 
           git clone --depth 1 --branch "$TAG_ONE" "$CONSENSUS_NODE_REPO" "$TMP_DIR_ONE" > /dev/null 2>&1
           cd "$TMP_DIR_ONE"
-          ./gradlew build -q -x test -x spotlessCheck
+          ./gradlew hapi:generatePbjSource > /dev/null 2>&1
 
           git clone --depth 1 --branch "$TAG_TWO" "$CONSENSUS_NODE_REPO" "$TMP_DIR_TWO" > /dev/null 2>&1
           cd "$TMP_DIR_TWO"
-          ./gradlew build -q -x test -x spotlessCheck > /dev/null 2>&1
+          ./gradlew hapi:generatePbjSource > /dev/null 2>&1
 
           # Flag to track for differences
           CHANGED=false
