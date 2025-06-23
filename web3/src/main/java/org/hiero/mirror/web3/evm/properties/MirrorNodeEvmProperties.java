@@ -34,7 +34,6 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.regex.Pattern;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -128,8 +127,6 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private int maxBatchSizeWipe = 10;
 
     private int maxCustomFeesAllowed = 10;
-
-    private final String dataValidatorPattern = "^(0x)?[0-9a-fA-F]{0,%d}$";
 
     @Getter
     @Min(21_000L)
@@ -363,12 +360,6 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     public boolean directTrafficThroughTransactionExecutionService() {
         return isModularizedServices()
                 && RandomUtils.secure().randomDouble(0.0d, 1.0d) < getModularizedTrafficPercent();
-    }
-
-    public Pattern getDataValidatorPattern() {
-        final var config =
-                getVersionedConfiguration().getConfigData(com.hedera.node.config.data.JumboTransactionsConfig.class);
-        return Pattern.compile(dataValidatorPattern.formatted(config.ethereumMaxCallDataSize() * 2L));
     }
 
     @Getter

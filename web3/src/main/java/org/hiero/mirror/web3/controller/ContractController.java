@@ -43,7 +43,6 @@ class ContractController {
             HttpServletResponse response) {
         try {
             throttleManager.throttle(request);
-            validateContractData(request);
             validateContractMaxGasLimit(request);
 
             final var params = constructServiceParameters(request, isModularizedHeader);
@@ -107,24 +106,6 @@ class ContractController {
                 .sender(sender)
                 .value(request.getValue())
                 .build();
-    }
-
-    /*
-     * Contract data is represented as hexadecimal digits defined as characters in
-     * a String. So, it takes two characters to represent one byte, and the configured max
-     * data size in bytes is doubled for validation of the data length within the request object.
-     */
-    private void validateContractData(final ContractCallRequest request) {
-        var data = request.getData();
-        final var jumboConfig = evmProperties
-                .getVersionedConfiguration()
-                .getConfigData(com.hedera.node.config.data.JumboTransactionsConfig.class);
-        if (data != null
-                && !evmProperties.getDataValidatorPattern().matcher(data).find()) {
-            throw new InvalidParametersException(
-                    "data field of size %d contains invalid hexadecimal characters or exceeds %d characters"
-                            .formatted(data.length(), jumboConfig.ethereumMaxCallDataSize() * 2L));
-        }
     }
 
     private void validateContractMaxGasLimit(ContractCallRequest request) {

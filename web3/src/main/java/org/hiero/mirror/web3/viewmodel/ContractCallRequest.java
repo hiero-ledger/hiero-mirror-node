@@ -24,7 +24,7 @@ public class ContractCallRequest {
     @JsonDeserialize(using = BlockTypeDeserializer.class)
     private BlockType block = BlockType.LATEST;
 
-    // Validated in ContractController
+    @Hex
     private String data;
 
     private boolean estimate;
