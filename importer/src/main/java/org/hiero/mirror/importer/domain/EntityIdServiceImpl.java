@@ -36,13 +36,13 @@ public class EntityIdServiceImpl implements EntityIdService {
 
     private static final Optional<EntityId> EMPTY = Optional.of(EntityId.EMPTY);
 
-    private final Cache aliasCache;
+    private final Cache cache;
 
     private final EntityRepository entityRepository;
 
     public EntityIdServiceImpl(
-            @Qualifier(CACHE_ALIAS) CacheManager aliasCachManager, EntityRepository entityRepository) {
-        this.aliasCache = aliasCachManager.getCache(CACHE_NAME);
+            @Qualifier(CACHE_ALIAS) CacheManager aliasCacheManager, EntityRepository entityRepository) {
+        this.cache = aliasCacheManager.getCache(CACHE_NAME);
         this.entityRepository = entityRepository;
     }
 
@@ -105,7 +105,7 @@ public class EntityIdServiceImpl implements EntityIdService {
 
     private @Nonnull Optional<EntityId> cacheLookup(ByteString key, Callable<Optional<EntityId>> loader) {
         try {
-            return Objects.requireNonNullElse(aliasCache.get(key, loader), Optional.empty());
+            return Objects.requireNonNullElse(cache.get(key, loader), Optional.empty());
         } catch (Cache.ValueRetrievalException e) {
             Utility.handleRecoverableError("Error looking up alias or EVM address {} from cache", key, e);
             return Optional.empty();
@@ -140,14 +140,14 @@ public class EntityIdServiceImpl implements EntityIdService {
 
         switch (type) {
             case ACCOUNT -> {
-                aliasCache.put(alias, entityId);
+                cache.put(alias, entityId);
 
                 // Accounts can have an alias and an EVM address so warm the cache with both
                 if (entity.getAlias() != null && entity.getEvmAddress() != null) {
-                    aliasCache.put(fromBytes(entity.getEvmAddress()), entityId);
+                    cache.put(fromBytes(entity.getEvmAddress()), entityId);
                 }
             }
-            case CONTRACT -> aliasCache.put(alias, entityId);
+            case CONTRACT -> cache.put(alias, entityId);
             default -> Utility.handleRecoverableError("Invalid Entity: {} entity can't have alias", type);
         }
     }
