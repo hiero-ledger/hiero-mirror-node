@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.google.common.primitives.Bytes;
 import jakarta.annotation.Resource;
 import java.nio.charset.StandardCharsets;
 import lombok.Getter;
@@ -56,8 +57,8 @@ public class UpdateSyntheticContractLogsMigrationTest extends ImporterIntegratio
         var contractLogWithLongZero = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
-                        .topic1(Longs.toByteArray(sender1.getNum()))
-                        .topic2(Longs.toByteArray(receiver1.getNum())))
+                        .topic1(Bytes.concat(new byte[12], Longs.toByteArray(sender1.getNum())))
+                        .topic2(Bytes.concat(new byte[12], Longs.toByteArray(receiver1.getNum()))))
                 .persist();
         var contractLogWithSenderEvmReceiverLongZero = domainBuilder
                 .contractLog()
@@ -79,6 +80,13 @@ public class UpdateSyntheticContractLogsMigrationTest extends ImporterIntegratio
                 .persist();
         runMigration();
 
+        var transferContractLogMissingEntity = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
+                        .topic1(Longs.toByteArray(Long.MAX_VALUE))
+                        .topic2(Longs.toByteArray(Long.MAX_VALUE)))
+                .persist();
+
         contractLogWithLongZero.setTopic1(sender1.getEvmAddress());
         contractLogWithLongZero.setTopic2(receiver1.getEvmAddress());
 
@@ -91,7 +99,8 @@ public class UpdateSyntheticContractLogsMigrationTest extends ImporterIntegratio
                         contractLogWithLongZero,
                         contractLogWithSenderEvmReceiverLongZero,
                         nonTransferContractLog,
-                        contractLogWithEmptySender);
+                        contractLogWithEmptySender,
+                        transferContractLogMissingEntity);
     }
 
     @SneakyThrows

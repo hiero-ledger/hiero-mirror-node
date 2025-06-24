@@ -4,10 +4,7 @@ package org.hiero.mirror.common.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.CommonUtils.nextBytes;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.ByteString;
@@ -25,7 +22,9 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.stream.Stream;
+import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
@@ -435,5 +434,52 @@ class DomainUtilsTest {
         CommonProperties.getInstance().setRealm(realm);
         var address = hexAddress != null ? Hex.decodeHex(hexAddress) : null;
         assertThat(DomainUtils.isLongZeroAddress(address)).isEqualTo(result);
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideByteArraysForTrim")
+    void testTrim(byte[] input, byte[] expected) {
+        byte[] result = DomainUtils.trim(input);
+
+        if (input == null) {
+            assertNull(result);
+        } else {
+            assertArrayEquals(expected, result);
+        }
+    }
+
+    @ParameterizedTest
+    @SneakyThrows
+    @CsvSource({
+        ",",
+        "0000000000000000000000000000000000000001, 1",
+        "01, 1",
+        "0001, 1",
+        "00000000000000000000000000000000000000A0, 160",
+        "0000000000000000000000000000000000000100, 256",
+        "010203, 66051",
+        "000000000000000000000000000000000000FFFF, 65535"
+    })
+    void testFromTrimmedEvmAddress(String inputHex, Long expectedNum) {
+        var input = inputHex == null ? null : Hex.decodeHex(inputHex);
+
+        var result = DomainUtils.fromTrimmedEvmAddress(input);
+
+        if (expectedNum == null) {
+            assertNull(result);
+        } else {
+            assertEquals(expectedNum, result.getNum());
+        }
+    }
+
+    private static Stream<Arguments> provideByteArraysForTrim() {
+        return Stream.of(
+                Arguments.of(null, null),
+                Arguments.of(new byte[0], ArrayUtils.EMPTY_BYTE_ARRAY),
+                Arguments.of(new byte[] {1, 2, 3}, new byte[] {1, 2, 3}),
+                Arguments.of(new byte[] {0, 0, 0}, ArrayUtils.EMPTY_BYTE_ARRAY),
+                Arguments.of(new byte[] {0, 0, 1, 2}, new byte[] {1, 2}),
+                Arguments.of(new byte[] {0, 5, 6}, new byte[] {5, 6}),
+                Arguments.of(new byte[] {0, 1, 2, 0}, new byte[] {1, 2, 0}));
     }
 }
