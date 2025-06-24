@@ -18,7 +18,7 @@ public class MarkdownReportGenerator {
     private static final String NEWLINE = System.lineSeparator();
 
     public static void generateTableUsageReport() {
-        final var apiTableQueries = RepositoryUsageTrackerAspect.getApiTableQueries();
+        final var apiTableQueries = RepositoryUsageTrackerAspect.getAPI_TABLE_QUERIES();
         final var path = Paths.get("build/table-usage-report.md");
 
         try (final var writer = Files.newBufferedWriter(path)) {
