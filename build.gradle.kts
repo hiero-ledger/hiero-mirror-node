@@ -24,7 +24,6 @@ extra.apply {
     set("protobufVersion", "4.31.1")
     set("reactorGrpcVersion", "1.2.4")
     set("tuweniVersion", "2.3.1")
-    set("vertx.version", "4.5.16") // Temporary until next Spring Boot
 }
 
 // Creates a platform/BOM with specific versions so subprojects don't need to specify a version when
@@ -63,6 +62,7 @@ dependencies {
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.10.1")
         api("io.projectreactor:reactor-core-micrometer:1.2.7")
         api("io.swagger:swagger-annotations:1.6.16")
+        api("io.vertx:vertx-web:4.5.16") // Temporary until next Spring Boot
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("javax.inject:javax.inject:1")
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
