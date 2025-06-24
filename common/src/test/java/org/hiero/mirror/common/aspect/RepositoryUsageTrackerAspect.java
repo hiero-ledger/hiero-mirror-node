@@ -37,7 +37,12 @@ public class RepositoryUsageTrackerAspect {
     private static final Pattern FROM_JOIN_PATTERN = Pattern.compile("\\bfrom\\s+([\\w\\.]+)|\\bjoin\\s+([\\w\\.]+)");
     private static final Pattern INSERT_PATTERN =
             Pattern.compile("\\binsert\\s+into\\s+([\\w\\.]+)", Pattern.CASE_INSENSITIVE);
-    private static final List<Pattern> TABLE_PATTERNS = List.of(FROM_JOIN_PATTERN, INSERT_PATTERN);
+    private static final Pattern UPDATE_PATTERN = Pattern.compile(
+            "\\bupdate\\s+(?!set\\b)([`\"]?[\\w]+[`\"]?(?:\\.[`\"]?[\\w]+[`\"]?)?)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DELETE_PATTERN =
+            Pattern.compile("\\bdelete\\s+from\\s+([\\w\\.]+)", Pattern.CASE_INSENSITIVE);
+    private static final List<Pattern> TABLE_PATTERNS =
+            List.of(FROM_JOIN_PATTERN, INSERT_PATTERN, UPDATE_PATTERN, DELETE_PATTERN);
 
     @Getter
     private static final Map<String, Map<String, Set<String>>> API_TABLE_QUERIES = new ConcurrentHashMap<>();
