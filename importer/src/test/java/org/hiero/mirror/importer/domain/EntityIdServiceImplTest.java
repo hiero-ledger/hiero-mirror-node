@@ -234,7 +234,8 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         var contractId = ContractID.newBuilder()
                 .setEvmAddress(DomainUtils.fromBytes(PARSABLE_EVM_ADDRESS))
                 .build();
-        assertThat(entityIdService.lookup(contractId)).hasValue(EntityId.of(0, 0, EVM_ADDRESS_NUM));
+        assertThat(entityIdService.lookup(contractId))
+                .hasValue(EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), EVM_ADDRESS_NUM));
     }
 
     @Test
@@ -408,7 +409,9 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         AccountID accountId = AccountID.newBuilder()
                 .setAlias(DomainUtils.fromBytes(PARSABLE_EVM_ADDRESS))
                 .build();
-        assertThat(entityIdService.lookup(accountId)).hasValue(EntityId.of(0, 0, EVM_ADDRESS_NUM));
+
+        assertThat(entityIdService.lookup(accountId))
+                .hasValue(EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), EVM_ADDRESS_NUM));
     }
 
     @Test

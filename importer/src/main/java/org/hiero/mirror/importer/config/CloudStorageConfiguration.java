@@ -84,7 +84,7 @@ class CloudStorageConfiguration {
         }
 
         log.info("Setting up {} client using default credentials provider", type);
-        return DefaultCredentialsProvider.create();
+        return DefaultCredentialsProvider.builder().build();
     }
 
     private S3AsyncClient s3Client(StreamSourceProperties sourceProperties) {

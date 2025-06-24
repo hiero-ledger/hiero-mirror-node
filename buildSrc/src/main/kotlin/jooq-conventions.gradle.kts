@@ -19,20 +19,11 @@ dependencies {
     jooqCodegen("org.jooq:jooq-postgres-extensions:$jooqVersion")
 }
 
-val dbContainerProvider =
-    project.gradle.sharedServices.registerIfAbsent("postgres", PostgresService::class.java) {
-        parameters.getRootDir().set(rootDir.absolutePath)
-    }
 val dbName = "mirror_node"
 val dbPassword = "mirror_node_pass"
 val dbSchema = "public"
 val dbUser = "mirror_node"
 val jooqTargetDir = "build/generated-sources/jooq"
-
-fun getJdbcUrl(container: PostgreSQLContainer<Nothing>): String {
-    val port = container.getMappedPort(5432).toString()
-    return "jdbc:postgresql://" + container.host + ":" + port + "/" + dbName
-}
 
 java.sourceSets["main"].java { srcDir(jooqTargetDir) }
 
@@ -58,8 +49,33 @@ jooq {
                 packageName = "org.hiero.mirror.restjava.jooq.domain"
             }
         }
+        jdbc {
+            driver = "org.postgresql.Driver"
+            password = dbPassword
+            user = dbUser
+        }
     }
 }
+
+val postgresqlContainer =
+    tasks.register("postgresqlContainer") {
+        val initSh =
+            "${project.rootDir.absolutePath}/importer/src/main/resources/db/scripts/init.sh"
+        doLast {
+            val initScript = Transferable.of(File(initSh).readBytes())
+            val container =
+                PostgreSQLContainer<Nothing>("postgres:16-alpine").apply {
+                    withCopyToContainer(initScript, "/docker-entrypoint-initdb.d/init.sh")
+                    withUsername("postgres")
+                    start()
+                }
+            val port = container.getMappedPort(5432)
+
+            project.extra.apply {
+                set("jdbcUrl", "jdbc:postgresql://${container.host}:$port/mirror_node")
+            }
+        }
+    }
 
 tasks.compileJava { dependsOn(tasks.jooqCodegen) }
 
@@ -84,59 +100,17 @@ tasks.flywayMigrate {
         )
     user = dbUser
 
-    usesService(dbContainerProvider)
-
-    doFirst { url = getJdbcUrl(dbContainerProvider.get().getContainer()) }
+    dependsOn(postgresqlContainer)
+    doFirst { url = project.extra["jdbcUrl"] as String }
+    notCompatibleWithConfigurationCache(
+        "Flyway plugin is not compatible with the configuration cache"
+    )
 }
 
 tasks.jooqCodegen {
     dependsOn(tasks.flywayMigrate)
-    usesService(dbContainerProvider)
-
-    doFirst {
-        jooq {
-            configuration {
-                jdbc {
-                    driver = "org.postgresql.Driver"
-                    password = dbPassword
-                    url = getJdbcUrl(dbContainerProvider.get().getContainer())
-                    user = dbUser
-                }
-            }
-        }
-    }
-}
-
-/** Build service for providing database container. */
-abstract class PostgresService : BuildService<PostgresService.Params>, AutoCloseable {
-    interface Params : BuildServiceParameters {
-        fun getRootDir(): Property<String>
-    }
-
-    private var container: PostgreSQLContainer<Nothing>
-
-    init {
-        val initScript =
-            Transferable.of(
-                File(
-                        parameters.getRootDir().get() +
-                            "/importer/src/main/resources/db/scripts/init.sh"
-                    )
-                    .readBytes()
-            )
-        container =
-            PostgreSQLContainer<Nothing>("postgres:16-alpine").apply {
-                withCopyToContainer(initScript, "/docker-entrypoint-initdb.d/init.sh")
-                withUsername("postgres")
-                start()
-            }
-    }
-
-    override fun close() {
-        container.stop()
-    }
-
-    fun getContainer(): PostgreSQLContainer<Nothing> {
-        return container
-    }
+    doFirst { jooq { configuration { jdbc { url = project.extra["jdbcUrl"] as String } } } }
+    notCompatibleWithConfigurationCache(
+        "Jooq plugin is not compatible with the configuration cache"
+    )
 }

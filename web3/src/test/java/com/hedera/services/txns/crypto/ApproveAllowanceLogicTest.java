@@ -5,8 +5,6 @@ package com.hedera.services.txns.crypto;
 import static com.hedera.services.store.models.Id.fromGrpcAccount;
 import static com.hedera.services.utils.EntityNum.fromAccountId;
 import static com.hedera.services.utils.EntityNum.fromTokenId;
-import static com.hedera.services.utils.IdUtils.asAccount;
-import static com.hedera.services.utils.IdUtils.asToken;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_ALLOWANCE_OWNER_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_ALLOWANCE_SPENDER_ID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,6 +38,7 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.evm.store.Store.OnMissing;
 import org.junit.jupiter.api.Test;
@@ -49,6 +48,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class ApproveAllowanceLogicTest {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
+
     @Mock
     private Store store;
 
@@ -59,11 +60,11 @@ class ApproveAllowanceLogicTest {
 
     private static final long SERIAL_1 = 1L;
     private static final long SERIAL_2 = 10L;
-    private static final AccountID SPENDER_1 = asAccount("0.0.123");
-    private static final TokenID TOKEN_1 = asToken("0.0.100");
-    private static final TokenID TOKEN_2 = asToken("0.0.200");
-    private static final AccountID PAYER_ID = asAccount("0.0.5000");
-    private static final AccountID OWNER_ID = asAccount("0.0.6000");
+    private static final AccountID SPENDER_1 = domainBuilder.entityId().toAccountID();
+    private static final TokenID TOKEN_1 = domainBuilder.entityId().toTokenID();
+    private static final TokenID TOKEN_2 = domainBuilder.entityId().toTokenID();
+    private static final AccountID PAYER_ID = domainBuilder.entityId().toAccountID();
+    private static final AccountID OWNER_ID = domainBuilder.entityId().toAccountID();
     private static final Id TOKEN_ID_1 = Id.fromGrpcToken(TOKEN_1);
     private static final Id TOKEN_ID_2 = Id.fromGrpcToken(TOKEN_2);
     private static final Id SPENDER_ID_1 = fromGrpcAccount(SPENDER_1);

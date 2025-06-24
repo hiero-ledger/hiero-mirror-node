@@ -15,10 +15,10 @@ import static org.mockito.BDDMockito.given;
 import com.hedera.node.app.service.evm.store.tokens.TokenAccessor;
 import com.hedera.node.app.service.evm.store.tokens.TokenType;
 import com.hedera.services.store.contracts.precompile.HTSTestsUtil;
-import com.hedera.services.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.TokenID;
 import java.util.function.UnaryOperator;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
@@ -28,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class ERCTransferPrecompileTest {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
     private static final Bytes TRANSFER_INPUT = Bytes.fromHexString(
             "0xa9059cbb00000000000000000000000000000000000000000000000000000000000005a50000000000000000000000000000000000000000000000000000000000000002");
     private static final Bytes TRANSFER_LONG_OVERFLOWN = Bytes.fromHexString(
@@ -74,7 +75,7 @@ class ERCTransferPrecompileTest {
 
     @Test
     void decodeTransferFromFungibleInputUsingApprovalIfNotOwner() {
-        final var notOwner = IdUtils.asAccount("0.0.1002");
+        final var notOwner = domainBuilder.entityNum(1002L).toAccountID();
         given(tokenAccessor.typeOf(any())).willReturn(TokenType.FUNGIBLE_COMMON);
         final var decodedInput = decodeERCTransferFrom(
                 TRANSFER_FROM_FUNGIBLE_INPUT, tokenID, tokenAccessor, notOwner, identity(), x -> true);
@@ -88,21 +89,25 @@ class ERCTransferPrecompileTest {
 
     @Test
     void decodeHapiTransferFromFungibleInputUsingApprovalIfNotOwner() {
-        final var notOwner = IdUtils.asAccount("0.0.1002");
+        final var notOwner = domainBuilder.entityNum(1002L).toAccountID();
         given(tokenAccessor.typeOf(any())).willReturn(TokenType.FUNGIBLE_COMMON);
         final var decodedInput = decodeERCTransferFrom(
                 HAPI_TRANSFER_FROM_FUNGIBLE_INPUT, null, tokenAccessor, notOwner, identity(), x -> true);
         final var fungibleTransfer = decodedInput.tokenTransferWrappers().get(0).fungibleTransfers();
-        assertEquals(HTSTestsUtil.token, fungibleTransfer.get(0).getDenomination());
-        assertEquals(fungibleTransfer.get(1).sender(), IdUtils.asAccount("0.0.1450"));
+        assertEquals(
+                domainBuilder.entityNum(1L).toTokenID(), fungibleTransfer.get(0).getDenomination());
+        assertEquals(
+                fungibleTransfer.get(1).sender(), domainBuilder.entityNum(1450L).toAccountID());
         assertTrue(fungibleTransfer.get(1).isApproval());
-        assertEquals(fungibleTransfer.get(0).receiver(), IdUtils.asAccount("0.0.1451"));
+        assertEquals(
+                fungibleTransfer.get(0).receiver(),
+                domainBuilder.entityNum(1451).toAccountID());
         assertEquals(5, fungibleTransfer.get(0).amount());
     }
 
     @Test
     void decodeTransferFromFungibleInputStillUsesApprovalIfFromIsOperator() {
-        final var owner = IdUtils.asAccount("0.0.1450");
+        final var owner = domainBuilder.entityNum(1450L).toAccountID();
         given(tokenAccessor.typeOf(any())).willReturn(TokenType.FUNGIBLE_COMMON);
         final var decodedInput = decodeERCTransferFrom(
                 TRANSFER_FROM_FUNGIBLE_INPUT, tokenID, tokenAccessor, owner, identity(), x -> true);
@@ -116,22 +121,25 @@ class ERCTransferPrecompileTest {
 
     @Test
     void decodeHapiTransferFromFungibleInputStillUsesApprovalIfFromIsOperator() {
-        final var owner = IdUtils.asAccount("0.0.1450");
+        final var owner = domainBuilder.entityNum(1450L).toAccountID();
         given(tokenAccessor.typeOf(any())).willReturn(TokenType.FUNGIBLE_COMMON);
         final var decodedInput = decodeERCTransferFrom(
                 HAPI_TRANSFER_FROM_FUNGIBLE_INPUT, null, tokenAccessor, owner, identity(), x -> true);
         final var fungibleTransfer = decodedInput.tokenTransferWrappers().get(0).fungibleTransfers();
 
-        assertEquals(IdUtils.asToken("0.0.1"), fungibleTransfer.get(0).getDenomination());
-        assertEquals(fungibleTransfer.get(1).sender(), IdUtils.asAccount("0.0.1450"));
+        assertEquals(
+                domainBuilder.entityNum(1).toTokenID(), fungibleTransfer.get(0).getDenomination());
+        assertEquals(fungibleTransfer.get(1).sender(), owner);
         assertTrue(fungibleTransfer.get(1).isApproval());
-        assertEquals(fungibleTransfer.get(0).receiver(), IdUtils.asAccount("0.0.1451"));
+        assertEquals(
+                fungibleTransfer.get(0).receiver(),
+                domainBuilder.entityNum(1451L).toAccountID());
         assertEquals(5, fungibleTransfer.get(0).amount());
     }
 
     @Test
     void decodeTransferFromNonFungibleInputUsingApprovalIfNotOwner() {
-        final var notOwner = IdUtils.asAccount("0.0.1002");
+        final var notOwner = domainBuilder.entityNum(102).toAccountID();
         given(tokenAccessor.typeOf(any())).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
         final var decodedInput = decodeERCTransferFrom(
                 TRANSFER_FROM_NON_FUNGIBLE_INPUT, tokenID, tokenAccessor, notOwner, identity(), x -> true);
@@ -150,24 +158,28 @@ class ERCTransferPrecompileTest {
 
     @Test
     void decodeHapiTransferFromNFTInputUsingApprovalIfNotOwner() {
-        final var notOwner = IdUtils.asAccount("0.0.1002");
+        final var notOwner = domainBuilder.entityNum(1002).toAccountID();
         given(tokenAccessor.typeOf(any())).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
         final var decodedInput = decodeERCTransferFrom(
                 HAPI_TRANSFER_FROM_NFT_INPUT, null, tokenAccessor, notOwner, identity(), x -> true);
         final var nftTransfer =
                 decodedInput.tokenTransferWrappers().get(0).nftExchanges().get(0);
 
-        assertEquals(IdUtils.asToken("0.0.1"), nftTransfer.getTokenType());
+        assertEquals(domainBuilder.entityNum(1).toTokenID(), nftTransfer.getTokenType());
         final var nftTransferAsGrpc = nftTransfer.asGrpc();
-        assertEquals(nftTransferAsGrpc.getSenderAccountID(), IdUtils.asAccount("0.0.1450"));
+        assertEquals(
+                nftTransferAsGrpc.getSenderAccountID(),
+                domainBuilder.entityNum(1450L).toAccountID());
         assertTrue(nftTransferAsGrpc.getIsApproval());
-        assertEquals(nftTransferAsGrpc.getReceiverAccountID(), IdUtils.asAccount("0.0.1451"));
+        assertEquals(
+                nftTransferAsGrpc.getReceiverAccountID(),
+                domainBuilder.entityNum(1451).toAccountID());
         assertEquals(5, nftTransferAsGrpc.getSerialNumber());
     }
 
     @Test
     void decodeTransferFromNonFungibleInputIfOwner() {
-        final var owner = IdUtils.asAccount("0.0.1001");
+        final var owner = domainBuilder.entityNum(1001L).toAccountID();
         given(tokenAccessor.typeOf(any())).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
         final var decodedInput = decodeERCTransferFrom(
                 TRANSFER_FROM_NON_FUNGIBLE_INPUT, tokenID, tokenAccessor, owner, identity(), x -> true);
@@ -186,24 +198,28 @@ class ERCTransferPrecompileTest {
 
     @Test
     void decodeHapiTransferFromNFTIInputIfOwner() {
-        final var owner = IdUtils.asAccount("0.0.1450");
+        final var owner = domainBuilder.entityNum(1450L).toAccountID();
 
         final var decodedInput =
                 decodeERCTransferFrom(HAPI_TRANSFER_FROM_NFT_INPUT, null, tokenAccessor, owner, identity(), x -> true);
         final var nftTransfer =
                 decodedInput.tokenTransferWrappers().get(0).nftExchanges().get(0);
 
-        assertEquals(IdUtils.asToken("0.0.1"), nftTransfer.getTokenType());
+        assertEquals(domainBuilder.entityNum(1).toTokenID(), nftTransfer.getTokenType());
         final var nftTransferAsGrpc = nftTransfer.asGrpc();
-        assertEquals(nftTransferAsGrpc.getSenderAccountID(), IdUtils.asAccount("0.0.1450"));
+        assertEquals(
+                nftTransferAsGrpc.getSenderAccountID(),
+                domainBuilder.entityNum(1450L).toAccountID());
         assertFalse(nftTransferAsGrpc.getIsApproval());
-        assertEquals(nftTransferAsGrpc.getReceiverAccountID(), IdUtils.asAccount("0.0.1451"));
+        assertEquals(
+                nftTransferAsGrpc.getReceiverAccountID(),
+                domainBuilder.entityNum(1451L).toAccountID());
         assertEquals(5, nftTransferAsGrpc.getSerialNumber());
     }
 
     @Test
     void decodeTransferFromShouldThrowOnAmountOverflown() {
-        final var owner = IdUtils.asAccount("0.0.1450");
+        final var owner = domainBuilder.entityNum(1450L).toAccountID();
         final UnaryOperator<byte[]> identity = identity();
         assertThrows(
                 ArithmeticException.class,

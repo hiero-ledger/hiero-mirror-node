@@ -3,9 +3,7 @@
 package com.hedera.services.store.contracts.precompile;
 
 import static com.google.protobuf.UnsafeByteOperations.unsafeWrap;
-import static com.hedera.services.utils.IdUtils.asAccount;
-import static com.hedera.services.utils.IdUtils.asContract;
-import static com.hedera.services.utils.IdUtils.asToken;
+import static com.hedera.services.utils.EntityIdUtils.asHexedEvmAddress;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_AUTORENEW_ACCOUNT_VALUE;
 
 import com.google.protobuf.ByteString;
@@ -41,37 +39,40 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hyperledger.besu.datatypes.Address;
 
 public class HTSTestsUtil {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
 
     public static final long AMOUNT = 1_234_567L;
     public static final long DEFAULT_GAS_PRICE = 10_000L;
     public static final long TEST_CONSENSUS_TIME = 1_640_000_000L; // Monday, December 20, 2021 11:33:20 AM UTC
-    public static final TokenID token = asToken("0.0.1");
-    public static final TokenID token2 = asToken("0.0.1176");
-    public static final AccountID payer = asAccount("0.0.12345");
-    public static final AccountID sender = asAccount("0.0.2");
-    public static final AccountID receiver = asAccount("0.0.3");
+    public static final TokenID token = domainBuilder.entityId().toTokenID();
+    public static final TokenID token2 = domainBuilder.entityId().toTokenID();
+    public static final AccountID payer = domainBuilder.entityId().toAccountID();
+    public static final AccountID sender = domainBuilder.entityId().toAccountID();
+    public static final AccountID receiver = domainBuilder.entityId().toAccountID();
     public static final AccountID receiverAliased =
             AccountID.newBuilder().setAlias(unsafeWrap(new byte[20])).build();
     public static final AccountID receiverAliased2 = AccountID.newBuilder()
             .setAlias(unsafeWrap(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}))
             .build();
-    public static final AccountID feeCollector = asAccount("0.0.4");
-    public static final AccountID account = asAccount("0.0.3");
-    public static final AccountID contract = asAccount("0.0.7");
-    public static final AccountID secondSender = asAccount("0.0.1154");
-    public static final AccountID accountMerkleId = asAccount("0.0.999");
-    public static final ContractID precompiledContract = asContract(asAccount("0.0.359"));
-    public static final TokenID nonFungible = asToken("0.0.777");
-    public static final TokenID tokenMerkleId = asToken("0.0.777");
+    public static final AccountID feeCollector = domainBuilder.entityId().toAccountID();
+    public static final AccountID account = domainBuilder.entityId().toAccountID();
+    public static final AccountID contract = domainBuilder.entityId().toAccountID();
+    public static final AccountID secondSender = domainBuilder.entityId().toAccountID();
+    public static final AccountID accountMerkleId = domainBuilder.entityId().toAccountID();
+    public static final ContractID precompiledContract =
+            domainBuilder.entityId().toContractID();
+    public static final TokenID nonFungible = domainBuilder.entityId().toTokenID();
+    public static final TokenID tokenMerkleId = domainBuilder.entityId().toTokenID();
     public static final Id accountId = Id.fromGrpcAccount(account);
     public static final Association multiAssociateOp = Association.singleAssociation(accountMerkleId, tokenMerkleId);
     public static final Dissociation multiDissociateOp =
             Dissociation.singleDissociation(accountMerkleId, tokenMerkleId);
     public static final Address recipientAddr = Address.ALTBN128_ADD;
-    public static final Address tokenAddress = Address.ECREC;
+    public static final Address tokenAddress = Address.fromHexString(asHexedEvmAddress(token));
     public static final Address contractAddr = Address.ALTBN128_MUL;
     public static final Address senderAddress = Address.ALTBN128_PAIRING;
     public static final Address create1ContractAddress =

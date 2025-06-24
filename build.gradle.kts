@@ -10,21 +10,18 @@ plugins {
     id("com.github.node-gradle.node")
     id("idea")
     id("java-platform")
-    id("org.sonarqube")
     id("snykcode-extension")
 }
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
+    set("blockNodeVersion", "0.13.0")
     set("grpcVersion", "1.73.0")
     set("jooq.version", "3.20.5") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.14.0")
-    set("postgresql.version", "42.7.7") // Temporary until next Spring Boot version
     set("protobufVersion", "4.31.1")
     set("reactorGrpcVersion", "1.2.4")
-    set("spring-framework.version", "6.2.8") // Temporary until next Spring Boot version
-    set("tomcat.version", "10.1.42") // Temporary until next Spring Boot version
     set("tuweniVersion", "2.3.1")
 }
 
@@ -32,12 +29,14 @@ extra.apply {
 // using a dependency
 dependencies {
     constraints {
+        val blockNodeVersion: String by rootProject.extra
         val grpcVersion: String by rootProject.extra
         val mapStructVersion: String by rootProject.extra
         val protobufVersion: String by rootProject.extra
         val reactorGrpcVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
 
+        api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:10.0.2")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
@@ -74,6 +73,7 @@ dependencies {
         api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api:5.0.2")
         api("org.gaul:s3proxy:2.6.0")
+        api("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:evm:24.3.3")
         api("org.mapstruct:mapstruct:$mapStructVersion")
@@ -81,45 +81,16 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.9")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.springframework.cloud:spring-cloud-dependencies:2025.0.0")
-        api("org.testcontainers:junit-jupiter:1.21.1")
+        api("org.testcontainers:junit-jupiter:1.21.2")
         api("org.mockito:mockito-inline:5.2.0")
-        api("software.amazon.awssdk:bom:2.31.59")
+        api("software.amazon.awssdk:bom:2.31.68")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
         api("org.web3j:core:4.12.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
     }
 }
 
-allprojects {
-    apply(plugin = "jacoco")
-    apply(plugin = "org.sonarqube")
-
-    sonarqube {
-        properties {
-            property("sonar.host.url", "https://sonarcloud.io")
-            property("sonar.organization", "hashgraph")
-            property("sonar.projectKey", "hedera-mirror-node")
-            property("sonar.sourceEncoding", "UTF-8")
-            property("sonar.issue.ignore.multicriteria", "e1,e2,e3,e4,e5,e6")
-            property("sonar.issue.ignore.multicriteria.e1.resourceKey", "**/*.java")
-            property("sonar.issue.ignore.multicriteria.e1.ruleKey", "java:S6212")
-            property("sonar.issue.ignore.multicriteria.e2.resourceKey", "**/*.java")
-            property("sonar.issue.ignore.multicriteria.e2.ruleKey", "java:S125")
-            property("sonar.issue.ignore.multicriteria.e3.resourceKey", "**/*.java")
-            property("sonar.issue.ignore.multicriteria.e3.ruleKey", "java:S2187")
-            property("sonar.issue.ignore.multicriteria.e4.resourceKey", "**/*.js")
-            property("sonar.issue.ignore.multicriteria.e4.ruleKey", "javascript:S3758")
-            property("sonar.issue.ignore.multicriteria.e5.resourceKey", "**/stateproof/*.sql")
-            property("sonar.issue.ignore.multicriteria.e5.ruleKey", "plsql:S1192")
-            property("sonar.issue.ignore.multicriteria.e6.resourceKey", "**/*.java")
-            property("sonar.issue.ignore.multicriteria.e6.ruleKey", "java:S2970")
-            property(
-                "sonar.exclusions",
-                "src/main/java/com/hedera/services/**,src/test/java/com/hedera/services/**",
-            )
-        }
-    }
-}
+allprojects { apply(plugin = "jacoco") }
 
 idea {
     module {
@@ -308,8 +279,6 @@ tasks.register("release") {
         )
     }
 }
-
-tasks.sonar { dependsOn(tasks.build) }
 
 tasks.spotlessApply { dependsOn(tasks.nodeSetup) }
 

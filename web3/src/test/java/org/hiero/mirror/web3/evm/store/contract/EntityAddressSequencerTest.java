@@ -4,10 +4,12 @@ package org.hiero.mirror.web3.evm.store.contract;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-import com.hedera.services.store.models.Id;
+import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,8 +19,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class EntityAddressSequencerTest {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
     private static final long CONTRACT_NUM = 1_000_000_000L;
-    private static final Address sponsor = new Id(0, 0, CONTRACT_NUM).asEvmAddress();
+    private static final EntityId sponsorEntity = domainBuilder.entityId();
+    private static final Address sponsor =
+            EntityIdUtils.idFromEntityId(sponsorEntity).asEvmAddress();
 
     @Mock
     private CommonProperties commonProperties;
@@ -29,8 +34,8 @@ class EntityAddressSequencerTest {
     @Test
     void getNewContractId() {
         assertThat(entityAddressSequencer.getNewContractId(sponsor))
-                .returns(0L, ContractID::getShardNum)
-                .returns(0L, ContractID::getRealmNum)
+                .returns(sponsorEntity.getShard(), ContractID::getShardNum)
+                .returns(sponsorEntity.getRealm(), ContractID::getRealmNum)
                 .returns(CONTRACT_NUM, ContractID::getContractNum);
     }
 

@@ -345,6 +345,19 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
+     * Persists entity of type token in the entity db table with a specified auto renew account.
+     * Entity table contains properties common for all entities on the network (tokens, accounts, smart contracts, topics)
+     *
+     * @param autoRenewAccount - the auto renew account to be set in the entity record
+     */
+    protected Entity tokenEntityPersistWithAutoRenewAccount(final Entity autoRenewAccount) {
+        return domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.TOKEN).autoRenewAccountId(autoRenewAccount.getId()))
+                .persist();
+    }
+
+    /**
      * Method used to persist  Token with no specific customization
      * @return Token object that is persisted in db
      */
