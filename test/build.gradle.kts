@@ -31,6 +31,7 @@ dependencies {
         exclude(group = "com.esaulpaugh", module = "headlong")
     }
     testImplementation(project(":common")) {
+        exclude("com.hedera.hashgraph", "hedera-protobuf-java-api")
         exclude("com.google.protobuf", "protobuf-java")
         exclude("org.springframework.boot", "spring-boot-starter-data-jpa")
         exclude("org.web3j", "core")
