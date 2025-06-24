@@ -18,6 +18,7 @@ extra.apply {
     set("blockNodeVersion", "0.13.0")
     set("grpcVersion", "1.73.0")
     set("jooq.version", "3.20.5") // Must match buildSrc/build.gradle.kts
+    set("prometheus-client.version", "1.3.6") // Temporary until 1.3.9+
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.14.0")
     set("protobufVersion", "4.31.1")
