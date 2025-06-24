@@ -4,9 +4,7 @@ package org.hiero.mirror.importer.domain;
 
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
@@ -58,9 +56,6 @@ public interface EntityIdService {
      * @return An optional of the converted EntityId if it can be resolved, or EntityId.EMPTY if none can be resolved.
      */
     Optional<EntityId> lookup(ContractID... contractIds);
-
-    // TODO:// java doc
-    Map<Long, byte[]> lookupEvmAddresses(Set<Long> encodedIds);
 
     /**
      * Used to notify the system of new aliases / evm addresses for potential use in future lookups.

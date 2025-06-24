@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.util.DomainUtils.trim;
 
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -56,14 +57,14 @@ class SyntheticContractLogTest {
             00000000, ''
             '', ''
             """)
-    void trim(String inputHex, String expectedHex) {
+    void trimsInput(String inputHex, String expectedHex) {
         byte[] input = Hex.decode(inputHex);
         byte[] expected = Hex.decode(expectedHex);
-        assertThat(AbstractSyntheticContractLog.trim(input)).isEqualTo(expected);
+        assertThat(trim(input)).isEqualTo(expected);
     }
 
     @Test
     void trimNull() {
-        assertThat(AbstractSyntheticContractLog.trim(null)).isEqualTo(null);
+        assertThat(trim(null)).isEqualTo(null);
     }
 }

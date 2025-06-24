@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.repository;
 
-import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.springframework.data.jpa.repository.Modifying;
@@ -18,9 +17,6 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
 
     @Query(value = "select id from entity where evm_address = ?1 and deleted <> true", nativeQuery = true)
     Optional<Long> findByEvmAddress(byte[] evmAddress);
-
-    @Query(value = "select evm_address, id from entity where id in (?1)", nativeQuery = true)
-    List<Entity> findEvmAddressesByIds(Iterable<Long> ids);
 
     @Modifying
     @Query(value = "update entity set type = 'CONTRACT' where id in (:ids) and type <> 'CONTRACT'", nativeQuery = true)

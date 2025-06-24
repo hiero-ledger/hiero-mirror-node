@@ -14,18 +14,12 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.commons.codec.binary.Hex;
-import org.hiero.mirror.common.domain.entity.AbstractEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -43,16 +37,12 @@ public class EntityIdServiceImpl implements EntityIdService {
     private static final Optional<EntityId> EMPTY = Optional.of(EntityId.EMPTY);
 
     private final Cache aliasCache;
-    private final Cache evmCache;
 
     private final EntityRepository entityRepository;
 
     public EntityIdServiceImpl(
-            @Qualifier(CACHE_ALIAS) CacheManager aliasCachManager,
-            @Qualifier(CACHE_EVM_ADDRESS) CacheManager evmAddressCacheManager,
-            EntityRepository entityRepository) {
+            @Qualifier(CACHE_ALIAS) CacheManager aliasCachManager, EntityRepository entityRepository) {
         this.aliasCache = aliasCachManager.getCache(CACHE_NAME);
-        this.evmCache = evmAddressCacheManager.getCache(CACHE_NAME);
         this.entityRepository = entityRepository;
     }
 
@@ -111,35 +101,6 @@ public class EntityIdServiceImpl implements EntityIdService {
     @Override
     public Optional<EntityId> lookup(ContractID... contractIds) {
         return doLookups(contractIds, this::lookup);
-    }
-
-    public Map<Long, byte[]> lookupEvmAddresses(Set<Long> entityIds) {
-        Map<Long, byte[]> result = new HashMap<>();
-        Set<Long> missing = new HashSet<>();
-
-        for (Long id : entityIds) {
-            byte[] cached = evmCache.get(id, byte[].class);
-            if (cached != null) {
-                result.put(id, cached);
-            } else {
-                missing.add(id);
-            }
-        }
-
-        if (!missing.isEmpty()) {
-            Map<Long, byte[]> dbResults = entityRepository.findEvmAddressesByIds(missing).stream()
-                    .collect(Collectors.toMap(AbstractEntity::getNum, entity -> {
-                        byte[] evm = entity.getEvmAddress();
-                        return evm != null ? evm : DomainUtils.toEvmAddress(entity.getNum());
-                    }));
-
-            dbResults.forEach((id, evmAddress) -> {
-                evmCache.put(id, evmAddress);
-                result.put(id, evmAddress);
-            });
-        }
-
-        return result;
     }
 
     private @Nonnull Optional<EntityId> cacheLookup(ByteString key, Callable<Optional<EntityId>> loader) {
