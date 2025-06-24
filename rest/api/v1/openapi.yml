@@ -2562,10 +2562,10 @@ components:
           pattern: "^((0x)?[0-9a-fA-F]+|(earliest|pending|latest))$"
           type: string
         data:
-          description: Hexadecimal method signature and encoded parameters. Up to 131072 bytes as at most 262144 hexadecimal digits plus optional leading 0x.
+          description: Hexadecimal method signature and encoded parameters. Up to 131072 bytes as at most 262146 hexadecimal digits including optional leading 0x.
           example: "0x47f1aae7"
           format: binary
-          maxLength: 262144
+          maxLength: 262146
           nullable: true
           pattern: "^(0x)?[0-9a-fA-F]+$"
           type: string
