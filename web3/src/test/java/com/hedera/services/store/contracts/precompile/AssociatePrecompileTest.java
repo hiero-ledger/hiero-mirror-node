@@ -2,12 +2,10 @@
 
 package com.hedera.services.store.contracts.precompile;
 
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.secondSender;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.sender;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.senderAddress;
-import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.tokenAddress;
+import static com.hedera.services.store.contracts.precompile.HTSTestsUtil.*;
 import static com.hedera.services.store.contracts.precompile.impl.AssociatePrecompile.decodeAssociation;
 import static com.hedera.services.store.contracts.precompile.impl.MultiAssociatePrecompile.decodeMultipleAssociations;
+import static com.hedera.services.utils.EntityIdUtils.asHexedEvmAddress;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.TokenAssociateToAccount;
 import static java.util.function.UnaryOperator.identity;
 import static org.hiero.mirror.web3.common.PrecompileContext.PRECOMPILE_CONTEXT;
@@ -368,16 +366,15 @@ class AssociatePrecompileTest {
     }
 
     private void givenTokenAssociate() {
-        given(store.getAccount(Address.fromHexString("0x0000000000000000000000000000000000000482"), OnMissing.THROW))
+        given(store.getAccount(Address.fromHexString(asHexedEvmAddress(secondSender)), OnMissing.THROW))
                 .willReturn(account);
         given(store.getToken(Address.fromHexString(tokenAddress.toHexString()), OnMissing.THROW))
                 .willReturn(token);
-        given(account.getAccountAddress())
-                .willReturn(Address.fromHexString("0x0000000000000000000000000000000000000482"));
+        given(account.getAccountAddress()).willReturn(Address.fromHexString(asHexedEvmAddress(secondSender)));
         given(account.setNumAssociations(1)).willReturn(updatedAccount);
         given(evmProperties.getMaxTokensPerAccount()).willReturn(1000);
         given(token.getId()).willReturn(id);
-        given(id.asEvmAddress()).willReturn(Address.fromHexString("0x0000000000000000000000000000000000000480"));
+        given(id.asEvmAddress()).willReturn(Address.fromHexString(asHexedEvmAddress(secondSender)));
         given(store.hasAssociation(any())).willReturn(false);
     }
 }

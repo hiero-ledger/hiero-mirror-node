@@ -8,6 +8,8 @@ import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.hapi.block.stream.protoc.RecordFileItem;
 import java.util.List;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -29,6 +31,9 @@ public class BlockFile implements StreamFile<BlockItem> {
     private static final int BASENAME_LENGTH = 36;
     private static final char BASENAME_PADDING = '0';
     private static final String COMPRESSED_FILE_SUFFIX = ".blk.gz";
+    private static final String FILE_SUFFIX = ".blk";
+    private static final Predicate<String> STREAMED_FILENAME_PREDICATE =
+            Pattern.compile("^\\d{36}.blk$").asPredicate();
 
     private BlockHeader blockHeader;
 
@@ -76,12 +81,13 @@ public class BlockFile implements StreamFile<BlockItem> {
 
     private int version;
 
-    public static String getBlockStreamFilename(long blockNumber) {
+    public static String getFilename(long blockNumber, boolean gzipped) {
         if (blockNumber < 0) {
             throw new IllegalArgumentException("Block number must be non-negative");
         }
 
-        return leftPad(Long.toString(blockNumber), BASENAME_LENGTH, BASENAME_PADDING) + COMPRESSED_FILE_SUFFIX;
+        var filename = leftPad(Long.toString(blockNumber), BASENAME_LENGTH, BASENAME_PADDING);
+        return gzipped ? filename + COMPRESSED_FILE_SUFFIX : filename + FILE_SUFFIX;
     }
 
     @Override
@@ -92,6 +98,18 @@ public class BlockFile implements StreamFile<BlockItem> {
     @Override
     public String getFileHash() {
         return StringUtils.EMPTY;
+    }
+
+    public BlockSourceType getSourceType() {
+        if (StringUtils.isBlank(name)) {
+            return null;
+        }
+
+        if (STREAMED_FILENAME_PREDICATE.test(name)) {
+            return BlockSourceType.BLOCK_NODE;
+        }
+
+        return BlockSourceType.FILE;
     }
 
     @Override

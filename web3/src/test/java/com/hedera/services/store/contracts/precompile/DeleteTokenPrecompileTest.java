@@ -33,7 +33,6 @@ import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.SubType;
 import com.hederahashgraph.api.proto.java.TokenDeleteTransactionBody;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -43,6 +42,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.common.PrecompileContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.evm.store.Store;
@@ -58,6 +58,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class DeleteTokenPrecompileTest {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
+
     public static final Bytes DELETE_INPUT =
             Bytes.fromHexString("0xf069f712000000000000000000000000000000000000000000000000000000000000046d");
     private static final long TEST_SERVICE_FEE = 5_000_000;
@@ -198,7 +200,7 @@ class DeleteTokenPrecompileTest {
     void decodeTokenDeleteWithValidInput() {
         final var decodedInput = decodeDelete(DELETE_INPUT);
 
-        assertEquals(TokenID.newBuilder().setTokenNum(1133).build(), decodedInput.tokenID());
+        assertEquals(domainBuilder.entityNum(1133L).toTokenID(), decodedInput.tokenID());
     }
 
     private void givenMinimalFrameContext() {

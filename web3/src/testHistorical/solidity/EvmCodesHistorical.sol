@@ -19,6 +19,10 @@ contract EvmCodesHistorical {
         return block.difficulty;
     }
 
+    function getBlockTimestamp() external view returns (uint256) {
+        return block.timestamp;
+    }
+
     function getLatestBlockHash() public view returns (bytes32) {
         return blockhash(block.number);
     }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
+import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer.MergeStrategy
 
 description = "Mirror Node Acceptance Test"
 
@@ -30,6 +31,7 @@ dependencies {
         exclude(group = "com.esaulpaugh", module = "headlong")
     }
     testImplementation(project(":common")) {
+        exclude("com.hedera.hashgraph", "hedera-protobuf-java-api")
         exclude("com.google.protobuf", "protobuf-java")
         exclude("org.springframework.boot", "spring-boot-starter-data-jpa")
         exclude("org.web3j", "core")
@@ -92,8 +94,8 @@ tasks.shadowJar {
     append("META-INF/spring.handlers")
     append("META-INF/spring.schemas")
     append("META-INF/spring.tooling")
-    val transformer = PropertiesFileTransformer()
-    transformer.mergeStrategy = "append"
+    val transformer = PropertiesFileTransformer(project.objects)
+    transformer.mergeStrategy = MergeStrategy.from("append")
     transformer.paths = listOf("META-INF/spring.factories")
     transform(transformer)
 }

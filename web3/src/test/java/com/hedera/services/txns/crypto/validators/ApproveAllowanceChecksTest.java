@@ -3,8 +3,6 @@
 package com.hedera.services.txns.crypto.validators;
 
 import static com.hedera.services.utils.EntityIdUtils.asTypedEvmAddress;
-import static com.hedera.services.utils.IdUtils.asAccount;
-import static com.hedera.services.utils.IdUtils.asToken;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.AMOUNT_EXCEEDS_TOKEN_MAX_SUPPLY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.DELEGATING_SPENDER_CANNOT_GRANT_APPROVE_FOR_ALL;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.DELEGATING_SPENDER_DOES_NOT_HAVE_APPROVE_FOR_ALL;
@@ -48,6 +46,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.evm.store.Store.OnMissing;
 import org.hiero.mirror.web3.evm.store.accessor.model.TokenRelationshipKey;
@@ -59,6 +58,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class ApproveAllowanceChecksTest {
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
 
     @Mock
     private Account owner;
@@ -83,12 +83,12 @@ class ApproveAllowanceChecksTest {
 
     ApproveAllowanceChecks subject;
 
-    private final AccountID spender1 = asAccount("0.0.123");
-    private final AccountID spender2 = asAccount("0.0.1234");
-    private final TokenID token1 = asToken("0.0.100");
-    private final TokenID token2 = asToken("0.0.200");
-    private final AccountID ownerId1 = asAccount("0.0.5000");
-    private final AccountID payer = asAccount("0.0.3000");
+    private final AccountID spender1 = domainBuilder.entityId().toAccountID();
+    private final AccountID spender2 = domainBuilder.entityId().toAccountID();
+    private final TokenID token1 = domainBuilder.entityId().toTokenID();
+    private final TokenID token2 = domainBuilder.entityId().toTokenID();
+    private final AccountID ownerId1 = domainBuilder.entityId().toAccountID();
+    private final AccountID payer = domainBuilder.entityId().toAccountID();
     private final Id tokenId1 = Id.fromGrpcToken(token1);
     private final Id tokenId2 = Id.fromGrpcToken(token2);
 

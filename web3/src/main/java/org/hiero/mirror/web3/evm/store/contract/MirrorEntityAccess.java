@@ -10,17 +10,18 @@ import com.hedera.node.app.service.evm.store.contracts.HederaEvmEntityAccess;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.evm.store.Store.OnMissing;
 import org.hiero.mirror.web3.repository.ContractRepository;
-import org.hiero.mirror.web3.repository.ContractStateRepository;
+import org.hiero.mirror.web3.service.ContractStateService;
 import org.hyperledger.besu.datatypes.Address;
 
 @RequiredArgsConstructor
 @Named
 public class MirrorEntityAccess implements HederaEvmEntityAccess {
-    private final ContractStateRepository contractStateRepository;
     private final ContractRepository contractRepository;
+    private final ContractStateService contractStateService;
     private final Store store;
 
     // An account is usable if it isn't deleted or if it has balance==0 but is not the 0-address
@@ -50,11 +51,7 @@ public class MirrorEntityAccess implements HederaEvmEntityAccess {
             return false;
         }
 
-        if (account.isEmptyAccount()) {
-            return false;
-        }
-
-        return true;
+        return !account.isEmptyAccount();
     }
 
     @Override
@@ -104,10 +101,12 @@ public class MirrorEntityAccess implements HederaEvmEntityAccess {
             return Bytes.EMPTY;
         }
 
+        var contractId = EntityId.of(entityId);
+
         return store.getHistoricalTimestamp()
-                .map(t -> contractStateRepository.findStorageByBlockTimestamp(
-                        entityId, key.trimLeadingZeros().toArrayUnsafe(), t))
-                .orElseGet(() -> contractStateRepository.findStorage(entityId, key.toArrayUnsafe()))
+                .map(t -> contractStateService.findStorageByBlockTimestamp(
+                        contractId, key.trimLeadingZeros().toArrayUnsafe(), t))
+                .orElseGet(() -> contractStateService.findStorage(contractId, key.toArrayUnsafe()))
                 .map(Bytes::wrap)
                 .orElse(Bytes.EMPTY);
     }

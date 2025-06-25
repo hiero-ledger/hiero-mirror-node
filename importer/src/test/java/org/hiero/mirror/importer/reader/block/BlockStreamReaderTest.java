@@ -51,7 +51,7 @@ public class BlockStreamReaderTest {
                     .hash(
                             "fb31381a223175f1f8730df52be31c318eb093f8029440da2d3f0ed19f29e58af111b5c1600412eed02be1e92b4befb4")
                     .index(76L)
-                    .name(BlockFile.getBlockStreamFilename(76))
+                    .name(BlockFile.getFilename(76, true))
                     .previousHash(
                             "47ad177417a4e6a85c67660dc9abcd5e735ae689f5a3096c68bbdff6b330e7951ddd545cd16445d19118975464380a3b")
                     .roundStart(521L)
@@ -66,7 +66,7 @@ public class BlockStreamReaderTest {
                     .hash(
                             "c198f382ba69796c805450842de7f97c91d2a8a7f88f43c977247d15b898b5b09ac7f857fa13fe627f8d15bb68879bb2")
                     .index(77L)
-                    .name(BlockFile.getBlockStreamFilename(77))
+                    .name(BlockFile.getFilename(77, true))
                     .previousHash(
                             "fb31381a223175f1f8730df52be31c318eb093f8029440da2d3f0ed19f29e58af111b5c1600412eed02be1e92b4befb4")
                     .roundStart(528L)
@@ -81,7 +81,7 @@ public class BlockStreamReaderTest {
                     .hash(
                             "958e5fba01f066cdbe2733059b33bf0ebec0fbac5eac5b0806ebc2c792187650e1b0b34a6a4c83025a31c2da787f510d")
                     .index(0L)
-                    .name(BlockFile.getBlockStreamFilename(0))
+                    .name(BlockFile.getFilename(0, true))
                     .previousHash(
                             "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
                     .roundStart(1L)
@@ -125,7 +125,7 @@ public class BlockStreamReaderTest {
                         .setRecordFile(RecordFileItem.getDefaultInstance())
                         .build())
                 .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
         var expected = BlockFile.builder()
                 .bytes(blockStream.bytes())
                 .loadStart(blockStream.loadStart())
@@ -220,7 +220,7 @@ public class BlockStreamReaderTest {
                 .addItems(BlockItem.newBuilder().setStateChanges(postBatchStateChanges))
                 .addItems(blockProof())
                 .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
 
         var blockFile = reader.read(blockStream);
         var items = blockFile.getItems();
@@ -293,7 +293,7 @@ public class BlockStreamReaderTest {
                 .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult1))
                 .addItems(blockProof())
                 .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
 
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
@@ -332,8 +332,7 @@ public class BlockStreamReaderTest {
                 .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult1))
                 .addItems(blockProof())
                 .build();
-        //        var streamFileData = StreamFileData.from(BlockFile.getBlockStreamFilename(1), gzip(block));
-        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
 
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
@@ -354,7 +353,7 @@ public class BlockStreamReaderTest {
                 .addItems(stateChanges)
                 .addItems(blockProof())
                 .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
         long timestamp =
                 DomainUtils.timestampInNanosMax(stateChanges.getStateChanges().getConsensusTimestamp());
         assertThat(reader.read(blockStream))
@@ -391,7 +390,7 @@ public class BlockStreamReaderTest {
                 .addItems(BlockItem.newBuilder().setStateChanges(nonTransactionStateChange))
                 .addItems(blockProof())
                 .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
 
         // when
         var blockFile = reader.read(blockStream);
@@ -415,7 +414,7 @@ public class BlockStreamReaderTest {
     @Test
     void throwWhenMissingBlockHeader() {
         var block = Block.newBuilder().addItems(blockProof()).build();
-        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block header");
@@ -424,7 +423,7 @@ public class BlockStreamReaderTest {
     @Test
     void throwWhenMissingBlockProof() {
         var block = Block.newBuilder().addItems(blockHeader()).build();
-        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block proof");
@@ -441,7 +440,7 @@ public class BlockStreamReaderTest {
                 .addItems(eventTransaction())
                 .addItems(blockProof())
                 .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing transaction result");
@@ -464,7 +463,7 @@ public class BlockStreamReaderTest {
                 .addItems(transactionResult)
                 .addItems(blockProof())
                 .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getBlockStreamFilename(1));
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Failed to deserialize Transaction");

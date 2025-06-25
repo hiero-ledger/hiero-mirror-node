@@ -20,6 +20,7 @@ import lombok.CustomLog;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -41,6 +42,9 @@ class NetworkControllerTest extends GrpcIntegrationTest {
 
     @Resource
     private DomainBuilder domainBuilder;
+
+    @Resource
+    private SystemEntity systemEntity;
 
     @Test
     void missingFileId() {
@@ -79,7 +83,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
     @Test
     void notFound() {
         AddressBookQuery query = AddressBookQuery.newBuilder()
-                .setFileId(FileID.newBuilder().setFileNum(102L).build())
+                .setFileId(systemEntity.addressBookFile102().toFileID())
                 .build();
 
         StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
@@ -94,9 +98,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
         AddressBookEntry addressBookEntry1 = addressBookEntry();
         AddressBookEntry addressBookEntry2 = addressBookEntry();
         AddressBookQuery query = AddressBookQuery.newBuilder()
-                .setFileId(FileID.newBuilder()
-                        .setFileNum(addressBook.getFileId().getNum())
-                        .build())
+                .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
         StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
@@ -113,9 +115,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
         var addressBookEntry1 = addressBookEntryCustomized("www.example-node.com", "", 5000);
 
         var query = AddressBookQuery.newBuilder()
-                .setFileId(FileID.newBuilder()
-                        .setFileNum(addressBook.getFileId().getNum())
-                        .build())
+                .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
         StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
@@ -131,9 +131,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
         var addressBookEntry1 = addressBookEntryCustomized("", "", 0);
 
         var query = AddressBookQuery.newBuilder()
-                .setFileId(FileID.newBuilder()
-                        .setFileNum(addressBook.getFileId().getNum())
-                        .build())
+                .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
         StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
@@ -149,9 +147,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
         AddressBookEntry addressBookEntry1 = addressBookEntry();
         addressBookEntry();
         AddressBookQuery query = AddressBookQuery.newBuilder()
-                .setFileId(FileID.newBuilder()
-                        .setFileNum(addressBook.getFileId().getNum())
-                        .build())
+                .setFileId(addressBook.getFileId().toFileID())
                 .setLimit(1)
                 .build();
 
@@ -176,9 +172,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
                         .stake(null))
                 .persist();
         AddressBookQuery query = AddressBookQuery.newBuilder()
-                .setFileId(FileID.newBuilder()
-                        .setFileNum(addressBook.getFileId().getNum())
-                        .build())
+                .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
         StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))

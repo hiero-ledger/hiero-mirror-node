@@ -214,6 +214,10 @@ contract EvmCodes {
         return block.prevrandao;
     }
 
+    function getBlockTimestamp() external view returns (uint256) {
+        return block.timestamp;
+    }
+
     function getBlockHash(uint256 blockNumber) public view returns (bytes32) {
         return blockhash(blockNumber);
     }

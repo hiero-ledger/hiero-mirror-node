@@ -62,13 +62,12 @@ class NetworkServiceTest extends GrpcIntegrationTest {
 
     @Test
     void addressBookNotFound() {
-        var filter = AddressBookFilter.builder()
-                .fileId(systemEntity.addressBookFile102())
-                .build();
+        var fileId = systemEntity.addressBookFile102();
+        var filter = AddressBookFilter.builder().fileId(fileId).build();
 
         assertThatThrownBy(() -> networkService.getNodes(filter))
                 .isInstanceOf(EntityNotFoundException.class)
-                .hasMessage("0.0.102 does not exist");
+                .hasMessage("%s does not exist".formatted(fileId));
     }
 
     @ParameterizedTest

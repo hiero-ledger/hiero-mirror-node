@@ -28,7 +28,7 @@ class BlockInfoSingletonTest {
                 .isEqualTo(BlockInfo.newBuilder()
                         .blockHashes(Bytes.EMPTY)
                         .consTimeOfLastHandledTxn(convertToTimestamp(recordFile.getConsensusEnd()))
-                        .firstConsTimeOfCurrentBlock(convertToTimestamp(recordFile.getConsensusEnd()))
+                        .firstConsTimeOfCurrentBlock(convertToTimestamp(recordFile.getConsensusStart()))
                         .firstConsTimeOfLastBlock(convertToTimestamp(recordFile.getConsensusStart()))
                         .lastBlockNumber(recordFile.getIndex() - 1)
                         .migrationRecordsStreamed(true)

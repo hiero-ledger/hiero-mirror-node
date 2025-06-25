@@ -201,6 +201,10 @@ public final class EntityIdUtils {
         return CommonUtils.hex(toEvmAddress(id));
     }
 
+    public static String asHexedEvmAddress(final TokenID id) {
+        return CommonUtils.hex(toEvmAddress(id));
+    }
+
     public static String asHexedEvmAddress(final Id id) {
         return CommonUtils.hex(toEvmAddress(id.num()));
     }

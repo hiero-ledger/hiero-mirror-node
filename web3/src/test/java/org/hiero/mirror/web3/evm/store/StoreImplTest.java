@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.evm.store;
 
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
+import static com.hedera.services.utils.EntityIdUtils.asHexedEvmAddress;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
@@ -21,8 +22,10 @@ import com.hedera.services.utils.EntityIdUtils;
 import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.AbstractNft;
 import org.hiero.mirror.common.domain.token.Nft;
@@ -60,7 +63,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class StoreImplTest {
 
-    private static final Address TOKEN_ADDRESS = Address.ALTBN128_ADD;
+    private static final DomainBuilder domainBuilder = new DomainBuilder();
+    private static final EntityId uniqueTokenId = domainBuilder.entityId();
+    private static final Address TOKEN_ADDRESS = Address.fromHexString(asHexedEvmAddress(uniqueTokenId.toTokenID()));
     private static final Address ACCOUNT_ADDRESS = Address.BLS12_MAP_FP2_TO_G2;
     private static final String ALIAS_HEX = "0xabcdefabcdefabcdefbabcdefabcdefabcdefbbb";
     private static final Address ALIAS = Address.fromHexString(ALIAS_HEX);
@@ -316,11 +321,11 @@ class StoreImplTest {
 
     @Test
     void loadUniqueTokensWithoutThrow() {
-        final var nftId = new NftId(0, 0, 6, 1);
-        when(nftRepository.findActiveById(6, 1)).thenReturn(Optional.of(nft));
-        when(nft.getId()).thenReturn(new AbstractNft.Id(1, 6));
+        final var nftId = NftId.fromGrpc(uniqueTokenId.toTokenID(), 1L);
+        when(nftRepository.findActiveById(uniqueTokenId.getId(), 1)).thenReturn(Optional.of(nft));
+        when(nft.getId()).thenReturn(new AbstractNft.Id(1, uniqueTokenId.getId()));
         when(nft.getSerialNumber()).thenReturn(1L);
-        when(nft.getTokenId()).thenReturn(6L);
+        when(nft.getTokenId()).thenReturn(uniqueTokenId.getId());
         final var serials = List.of(nftId.serialNo());
         final var newToken = new com.hedera.services.store.models.Token(TOKEN_ID);
         final var updatedToken = subject.loadUniqueTokens(newToken, serials);
@@ -367,8 +372,8 @@ class StoreImplTest {
     private void setupTokenAndAccount() {
         when(token.getType()).thenReturn(TokenTypeEnum.FUNGIBLE_COMMON);
         when(entityDatabaseAccessor.get(TOKEN_ADDRESS, Optional.empty())).thenReturn(Optional.of(tokenModel));
-        when(tokenModel.getId()).thenReturn(6L);
-        when(tokenModel.getNum()).thenReturn(6L);
+        when(tokenModel.getId()).thenReturn(uniqueTokenId.getId());
+        when(tokenModel.getNum()).thenReturn(uniqueTokenId.getNum());
         when(tokenModel.getType()).thenReturn(EntityType.TOKEN);
         when(tokenRepository.findById(any())).thenReturn(Optional.of(token));
         when(entityDatabaseAccessor.get(ACCOUNT_ADDRESS, Optional.empty())).thenReturn(Optional.of(accountModel));

@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @RequiredArgsConstructor
-abstract class AbstractBlockStreamSource implements BlockStreamSource {
+abstract class AbstractBlockSource implements BlockSource {
 
     private static final long GENESIS_BLOCK_NUMBER = 0;
 
@@ -20,11 +20,12 @@ abstract class AbstractBlockStreamSource implements BlockStreamSource {
     protected final BlockStreamVerifier blockStreamVerifier;
     protected final CommonDownloaderProperties commonDownloaderProperties;
     protected final Logger log = LoggerFactory.getLogger(getClass());
-    protected final BlockStreamProperties properties;
+    protected final BlockProperties properties;
 
     protected final long getNextBlockNumber() {
         return blockStreamVerifier
-                .getLastBlockNumber()
+                .getLastBlockFile()
+                .map(BlockFile::getIndex)
                 .map(v -> v + 1)
                 .or(() -> Optional.ofNullable(
                         commonDownloaderProperties.getImporterProperties().getStartBlockNumber()))
