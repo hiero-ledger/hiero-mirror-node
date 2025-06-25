@@ -136,7 +136,7 @@ class LoggingFilterTest {
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
 
-        var compressed = " H4sIAAAAAAAA/0tMSk5JTUvPyMxKHGWNsmjA0lEoSi0uzSmxUqiuBQA5Z5e3bgIAAA==";
+        var compressed = " H4sIAAAAAAAA/0tMSk5JTUvPyMxKHGURzdJRKEotLs0psVKorgUAVIHoJEIBAAA=";
         assertThat(output.getOut()).contains(compressed).doesNotContain(content);
     }
 
