@@ -73,12 +73,20 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler
-    private ResponseEntity<?> mirrorEvmTransactionError(final MirrorEvmTransactionException e, WebRequest request) {
-        final var exceptionMessage = String.format(
-                "Mirror EVM transaction error: %s, detail: %s, data: %s, childTransactionErrors: %s",
-                e.getMessage(), e.getDetail(), e.getData(), e.getChildTransactionErrors());
+    private ResponseEntity<?> mirrorEvmTransactionError(
+            final MirrorEvmTransactionException e, final WebRequest request) {
+        final var exceptionMessageBuilder =
+                new StringBuilder().append("Mirror EVM transaction error: ").append(e.getMessage());
+        if (!StringUtils.isBlank(e.getDetail())) {
+            exceptionMessageBuilder.append(", detail: ").append(e.getDetail());
+        }
+        if (!e.getChildTransactionErrors().isEmpty()) {
+            exceptionMessageBuilder.append(", childTransactionErrors: ").append(e.getChildTransactionErrors());
+        }
+        exceptionMessageBuilder.append(", data: ").append(e.getData());
+
         request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, e, SCOPE_REQUEST);
-        request.setAttribute(EXCEPTION_MESSAGE, exceptionMessage, SCOPE_REQUEST);
+        request.setAttribute(EXCEPTION_MESSAGE, exceptionMessageBuilder.toString(), SCOPE_REQUEST);
         final var childTransactionErrors = e.getChildTransactionErrors().stream()
                 .map(message -> new ErrorMessage(message, StringUtils.EMPTY, StringUtils.EMPTY))
                 .toList();
