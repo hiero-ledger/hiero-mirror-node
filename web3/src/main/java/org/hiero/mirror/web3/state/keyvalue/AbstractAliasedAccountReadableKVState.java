@@ -166,7 +166,10 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
                     final boolean isBalanceCall = context.isBalanceCall();
                     final long minimumBalance = mirrorNodeEvmProperties.getMinimumAccountBalance();
 
-                    if (!isBalanceCall && (currentBalance == null || currentBalance < minimumBalance)) {
+                    // Return DB balance for balance calls or contract entities (e.g., address(this).balance)
+                    if (!isBalanceCall
+                            && entity.getType() != CONTRACT
+                            && (currentBalance == null || currentBalance < minimumBalance)) {
                         return minimumBalance;
                     }
                     context.setBalanceCall(false);
