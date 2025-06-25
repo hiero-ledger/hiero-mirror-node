@@ -16,7 +16,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class Web3Properties {
     @Positive
-    private int maxPayloadLogSize = 600;
+    private int maxPayloadLogSize = 300;
 
     @DurationMin(seconds = 1L)
     private Duration requestTimeout = Duration.ofSeconds(10L);
