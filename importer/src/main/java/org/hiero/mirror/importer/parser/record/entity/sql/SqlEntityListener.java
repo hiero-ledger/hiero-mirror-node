@@ -68,7 +68,7 @@ import org.springframework.util.CollectionUtils;
 
 @CustomLog
 @Named
-@Order(2)
+@Order(3)
 @ConditionOnEntityRecordParser
 @RequiredArgsConstructor
 public class SqlEntityListener implements EntityListener, RecordStreamFileListener {
