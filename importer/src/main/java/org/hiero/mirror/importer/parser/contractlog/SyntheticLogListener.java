@@ -10,6 +10,7 @@ import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticCont
 import io.micrometer.core.annotation.Timed;
 import jakarta.inject.Named;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -62,7 +63,7 @@ public class SyntheticLogListener implements EntityListener, RecordStreamFileLis
     @Override
     public void onContractLog(ContractLog contractLog) {
         if (entityProperties.getPersist().isSyntheticContractLogEvmAddressLookup()
-                && contractLog.getTopic0() == TRANSFER_SIGNATURE) {
+                && Arrays.equals(contractLog.getTopic0(), TRANSFER_SIGNATURE)) {
             var senderId = fromTrimmedEvmAddress(contractLog.getTopic1());
             var receiverId = fromTrimmedEvmAddress(contractLog.getTopic2());
             if (!(senderId == null && receiverId == null)) {

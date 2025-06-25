@@ -266,6 +266,8 @@ class SyntheticLogListenerTest {
                 .get();
 
         listener.onContractLog(contractLog);
+        listener.onEnd(domainBuilder.recordFile().get());
+
         verifyNoInteractions(jdbcTemplate, cache);
     }
 
