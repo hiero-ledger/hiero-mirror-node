@@ -2,11 +2,9 @@
 
 package org.hiero.mirror.web3.config;
 
-import static org.hiero.mirror.web3.utils.Constants.EXCEPTION_MESSAGE;
 import static org.hiero.mirror.web3.utils.Constants.MODULARIZED_HEADER;
 import static org.springframework.web.util.WebUtils.ERROR_EXCEPTION_ATTRIBUTE;
 
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +17,7 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
@@ -62,7 +61,7 @@ class LoggingFilter extends OncePerRequestFilter {
         }
 
         long elapsed = System.currentTimeMillis() - startTime;
-        var content = getContent(request);
+        var content = getContent(request, e);
         var message = getMessage(request, e);
         var modularized = response.getHeader(MODULARIZED_HEADER);
         int status = response.getStatus();
@@ -79,17 +78,14 @@ class LoggingFilter extends OncePerRequestFilter {
         }
     }
 
-    private String getContent(HttpServletRequest request) {
-        var contentBuilder = new StringBuilder();
+    private String getContent(HttpServletRequest request, Exception e) {
+        var content = StringUtils.EMPTY;
         int maxPayloadLogSize = web3Properties.getMaxPayloadLogSize();
         var wrapper = WebUtils.getNativeRequest(request, ContentCachingRequestWrapper.class);
 
         if (wrapper != null) {
-            contentBuilder.append(StringUtils.deleteWhitespace(wrapper.getContentAsString()));
+            content = StringUtils.deleteWhitespace(wrapper.getContentAsString());
         }
-        var exceptionMessage = getExceptionMessage(request);
-        contentBuilder.append(", result: {").append(exceptionMessage).append("}");
-        var content = contentBuilder.toString();
 
         if (content.length() > maxPayloadLogSize) {
             var bos = new ByteArrayOutputStream();
@@ -101,7 +97,7 @@ class LoggingFilter extends OncePerRequestFilter {
                 if (compressed.length() <= maxPayloadLogSize) {
                     content = compressed;
                 }
-            } catch (Exception e) {
+            } catch (Exception ignored) {
                 // Ignore
             }
         }
@@ -119,15 +115,12 @@ class LoggingFilter extends OncePerRequestFilter {
         }
 
         if (request.getAttribute(ERROR_EXCEPTION_ATTRIBUTE) instanceof Exception ex) {
+            if (ex instanceof MirrorEvmTransactionException mirrorEvmTransactionException) {
+                return mirrorEvmTransactionException.getFullMessage();
+            }
             return ex.getMessage();
         }
 
         return SUCCESS;
-    }
-
-    @Nonnull
-    private String getExceptionMessage(HttpServletRequest request) {
-        final var exceptionMessage = request.getAttribute(EXCEPTION_MESSAGE);
-        return exceptionMessage != null ? (String) exceptionMessage : StringUtils.EMPTY;
     }
 }
