@@ -5,7 +5,7 @@ import log4js from 'log4js';
 
 import {TABLE_USAGE_OUTPUT_DIR} from './testutils.js';
 
-const HEADER = `| Endpoint | Function | Tables |
+const HEADER = `| Endpoint | Functions | Tables |
 |----------|--------|--------|`;
 const REPORT_FILENAME = 'table-usage.md';
 
@@ -35,9 +35,9 @@ const createTableUsageReport = () => {
 
   for (const endpoint of Object.keys(tableUsage).sort()) {
     const callerTables = tableUsage[endpoint];
-    for (const caller of Object.keys(callerTables).sort()) {
-      writeStream.write(`| ${endpoint} | ${caller} | ${callerTables[caller]} |\n`);
-    }
+    const callers = Object.keys(callerTables).sort();
+    const functions = callers.map((caller) => callerTables[caller]);
+    writeStream.write(`| ${endpoint} | ${callers.join('<br>')} | ${functions.join('<br>')} |\n`);
   }
 
   writeStream.close();
