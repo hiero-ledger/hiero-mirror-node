@@ -19,7 +19,6 @@ import static org.hyperledger.besu.evm.frame.MessageFrame.State.NOT_STARTED;
 import static org.hyperledger.besu.evm.frame.MessageFrame.Type.CONTRACT_CREATION;
 import static org.hyperledger.besu.evm.frame.MessageFrame.Type.MESSAGE_CALL;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -29,15 +28,19 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableSortedMap;
+import com.hedera.hapi.node.base.ContractID;
+import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
+import com.hedera.node.app.service.contract.impl.state.StorageAccess;
+import com.hedera.node.app.service.contract.impl.state.StorageAccesses;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractActionType;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Stream;
 import lombok.CustomLog;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.tuweni.bytes.Bytes;
@@ -64,7 +67,6 @@ import org.hyperledger.besu.evm.operation.AbstractOperation;
 import org.hyperledger.besu.evm.operation.Operation;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
 import org.hyperledger.besu.evm.precompile.PrecompiledContract;
-import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -72,16 +74,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.provider.Arguments;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @CustomLog
-@DisplayName("OpcodeTracer")
+@DisplayName("OpcodeActionTracer")
 @ExtendWith(MockitoExtension.class)
-class OpcodeTracerTest {
+class OpcodeActionTracerTest {
 
     private static final Address CONTRACT_ADDRESS = Address.fromHexString("0x123");
     private static final Address ETH_PRECOMPILE_ADDRESS = Address.fromHexString("0x01");
@@ -104,7 +105,7 @@ class OpcodeTracerTest {
     private ContractCallContext contractCallContext;
 
     @Mock
-    private WorldUpdater worldUpdater;
+    private ProxyWorldUpdater worldUpdater;
 
     @Mock
     private MutableAccount recipientAccount;
@@ -116,7 +117,7 @@ class OpcodeTracerTest {
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     // Transient test data
-    private OpcodeTracer tracer;
+    private OpcodeActionTracer tracer;
     private OpcodeTracerOptions tracerOptions;
     private MessageFrame frame;
 
@@ -124,11 +125,6 @@ class OpcodeTracerTest {
     private UInt256[] stackItems;
     private Bytes[] wordsInMemory;
     private Map<UInt256, UInt256> updatedStorage;
-
-    static Stream<Arguments> allMessageFrameTypesAndStates() {
-        return Stream.of(MessageFrame.Type.values())
-                .flatMap(type -> Stream.of(MessageFrame.State.values()).map(state -> Arguments.of(type, state)));
-    }
 
     @BeforeAll
     static void initStaticMocks() {
@@ -151,8 +147,8 @@ class OpcodeTracerTest {
                         EXCHANGE_RATE_SYSTEM_CONTRACT_ADDRESS,
                         mock(PrecompiledContract.class)));
         REMAINING_GAS.set(INITIAL_GAS);
-        tracer = new OpcodeTracer(precompilesHolder, mirrorNodeEvmProperties);
-        tracerOptions = new OpcodeTracerOptions(false, false, false, false);
+        tracer = new OpcodeActionTracer(precompilesHolder);
+        tracerOptions = new OpcodeTracerOptions(false, false, false, true);
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
     }
 
@@ -166,8 +162,6 @@ class OpcodeTracerTest {
 
     private void verifyMocks() {
         if (tracerOptions.isStorage()) {
-            verify(worldUpdater, atLeastOnce()).getAccount(frame.getRecipientAddress());
-
             try {
                 MutableAccount account = worldUpdater.getAccount(frame.getRecipientAddress());
                 if (account != null) {
@@ -245,7 +239,7 @@ class OpcodeTracerTest {
     @Test
     @DisplayName("given stack is enabled in tracer options, should record stack")
     void shouldRecordStackWhenEnabled() {
-        tracerOptions = tracerOptions.toBuilder().stack(true).build();
+        tracerOptions = tracerOptions.toBuilder().stack(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
         final Opcode opcode = executeOperation(frame);
@@ -256,7 +250,7 @@ class OpcodeTracerTest {
     @Test
     @DisplayName("given stack is disabled in tracer options, should not record stack")
     void shouldNotRecordStackWhenDisabled() {
-        tracerOptions = tracerOptions.toBuilder().stack(false).build();
+        tracerOptions = tracerOptions.toBuilder().stack(false).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
         final Opcode opcode = executeOperation(frame);
@@ -266,7 +260,7 @@ class OpcodeTracerTest {
     @Test
     @DisplayName("given memory is enabled in tracer options, should record memory")
     void shouldRecordMemoryWhenEnabled() {
-        tracerOptions = tracerOptions.toBuilder().memory(true).build();
+        tracerOptions = tracerOptions.toBuilder().memory(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
         final Opcode opcode = executeOperation(frame);
@@ -277,7 +271,8 @@ class OpcodeTracerTest {
     @Test
     @DisplayName("given memory is disabled in tracer options, should not record memory")
     void shouldNotRecordMemoryWhenDisabled() {
-        tracerOptions = tracerOptions.toBuilder().memory(false).build();
+        tracerOptions =
+                tracerOptions.toBuilder().memory(false).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
         final Opcode opcode = executeOperation(frame);
@@ -287,7 +282,8 @@ class OpcodeTracerTest {
     @Test
     @DisplayName("given storage is enabled in tracer options, should record storage")
     void shouldRecordStorageWhenEnabled() {
-        tracerOptions = tracerOptions.toBuilder().storage(true).build();
+        tracerOptions =
+                tracerOptions.toBuilder().storage(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
         final Opcode opcode = executeOperation(frame);
@@ -296,25 +292,64 @@ class OpcodeTracerTest {
     }
 
     @Test
-    @DisplayName("given account is missing in the world updater, should only log a warning and return empty storage")
-    void shouldNotThrowExceptionWhenAccountIsMissingInWorldUpdater() {
-        tracerOptions = tracerOptions.toBuilder().storage(true).build();
+    @DisplayName("given storage is enabled in tracer options, should record storage for modularized services")
+    void shouldRecordStorageWhenEnabledModularized() {
+        // Given
+        tracerOptions =
+                tracerOptions.toBuilder().storage(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
-        when(worldUpdater.getAccount(any())).thenReturn(null);
+        // Expected storage map
+        final Map<UInt256, UInt256> expectedStorage = ImmutableSortedMap.of(UInt256.ZERO, UInt256.valueOf(233));
+
+        // When
+        final Opcode opcode = executeOperation(frame);
+
+        // Then
+        assertThat(opcode.storage()).isNotEmpty().containsAllEntriesOf(expectedStorage);
+    }
+
+    @Test
+    @DisplayName(
+            "given storage is enabled in tracer options, should return empty storage when there are no updates for modularized services")
+    void shouldReturnEmptyStorageWhenThereAreNoUpdates() {
+        // Given
+        tracerOptions =
+                tracerOptions.toBuilder().storage(true).modularized(true).build();
+        frame = setupInitialFrame(tracerOptions);
+
+        when(worldUpdater.pendingStorageUpdates()).thenReturn(new ArrayList<>());
+
+        // When
+        final Opcode opcode = executeOperation(frame);
+
+        // Then
+        assertThat(opcode.storage()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given account is missing in the world updater, should only log a warning and return empty storage")
+    void shouldNotThrowExceptionWhenAccountIsMissingInWorldUpdater() {
+        tracerOptions =
+                tracerOptions.toBuilder().storage(true).modularized(true).build();
+        frame = setupInitialFrame(tracerOptions);
+
+        when(worldUpdater.pendingStorageUpdates()).thenReturn(new ArrayList<>());
 
         final Opcode opcode = executeOperation(frame);
         assertThat(opcode.storage()).containsExactlyEntriesOf(new TreeMap<>());
     }
 
     @Test
-    @DisplayName("given ModificationNotAllowedException thrown when trying to retrieve account through WorldUpdater, "
-            + "should only log a warning and return empty storage")
+    @DisplayName(
+            "given ModificationNotAllowedException thrown when trying to get storage changes through WorldUpdater, "
+                    + "should only log a warning and return empty storage")
     void shouldNotThrowExceptionWhenWorldUpdaterThrowsModificationNotAllowedException() {
-        tracerOptions = tracerOptions.toBuilder().storage(true).build();
+        tracerOptions =
+                tracerOptions.toBuilder().storage(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
-        when(worldUpdater.getAccount(any())).thenThrow(new ModificationNotAllowedException());
+        when(worldUpdater.pendingStorageUpdates()).thenThrow(new ModificationNotAllowedException());
 
         final Opcode opcode = executeOperation(frame);
         assertThat(opcode.storage()).containsExactlyEntriesOf(new TreeMap<>());
@@ -323,7 +358,8 @@ class OpcodeTracerTest {
     @Test
     @DisplayName("given storage is disabled in tracer options, should not record storage")
     void shouldNotRecordStorageWhenDisabled() {
-        tracerOptions = tracerOptions.toBuilder().storage(false).build();
+        tracerOptions =
+                tracerOptions.toBuilder().storage(false).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
         final Opcode opcode = executeOperation(frame);
@@ -333,8 +369,12 @@ class OpcodeTracerTest {
     @Test
     @DisplayName("given exceptional halt occurs, should capture frame data and halt reason")
     void shouldCaptureFrameWhenExceptionalHaltOccurs() {
-        tracerOptions =
-                tracerOptions.toBuilder().stack(true).memory(true).storage(true).build();
+        tracerOptions = tracerOptions.toBuilder()
+                .stack(true)
+                .memory(true)
+                .storage(true)
+                .modularized(true)
+                .build();
         frame = setupInitialFrame(tracerOptions);
 
         final Opcode opcode = executeOperation(frame, INSUFFICIENT_GAS);
@@ -350,7 +390,7 @@ class OpcodeTracerTest {
     void shouldCaptureFrameWhenSuccessfulPrecompileCallOccurs() {
         frame = setupInitialFrame(tracerOptions);
 
-        final Opcode opcode = executePrecompileOperation(frame, Bytes.fromHexString("0x01"));
+        final Opcode opcode = executePrecompileOperation(frame);
         assertThat(opcode.pc()).isEqualTo(frame.getPC());
         assertThat(opcode.op()).isNotEmpty().isEqualTo(OPERATION.getName());
         assertThat(opcode.gas()).isEqualTo(REMAINING_GAS.get());
@@ -368,7 +408,7 @@ class OpcodeTracerTest {
     void shouldNotRecordGasRequirementWhenPrecompileCallHasNullOutput() {
         frame = setupInitialFrame(tracerOptions);
 
-        final Opcode opcode = executePrecompileOperation(frame, null);
+        final Opcode opcode = executePrecompileOperation(frame);
         assertThat(opcode.gasCost()).isZero();
     }
 
@@ -377,7 +417,7 @@ class OpcodeTracerTest {
     void shouldNotRecordRevertReasonWhenPrecompileCallHasNoRevertReason() {
         frame = setupInitialFrame(tracerOptions);
 
-        final Opcode opcode = executePrecompileOperation(frame, Bytes.EMPTY);
+        final Opcode opcode = executePrecompileOperation(frame);
         assertThat(opcode.reason()).isNull();
     }
 
@@ -387,7 +427,7 @@ class OpcodeTracerTest {
         frame = setupInitialFrame(tracerOptions, ETH_PRECOMPILE_ADDRESS, MESSAGE_CALL);
         frame.setRevertReason(Bytes.of("revert reason".getBytes()));
 
-        final Opcode opcode = executePrecompileOperation(frame, Bytes.EMPTY);
+        final Opcode opcode = executePrecompileOperation(frame);
         assertThat(opcode.reason())
                 .isNotEmpty()
                 .isEqualTo(frame.getRevertReason().map(Bytes::toString).orElseThrow());
@@ -410,7 +450,7 @@ class OpcodeTracerTest {
         final var frameOfPrecompileCall = buildMessageFrameFromAction(contractActionWithRevert);
         frame = setupFrame(frameOfPrecompileCall);
 
-        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, Bytes.EMPTY);
+        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame);
         assertThat(opcodeForPrecompileCall.reason())
                 .isNotEmpty()
                 .isEqualTo(getAbiEncodedRevertReason(Bytes.of(contractActionWithRevert.getResultData()))
@@ -436,7 +476,7 @@ class OpcodeTracerTest {
         final var frameOfPrecompileCall = buildMessageFrameFromAction(contractActionWithRevert);
         frame = setupFrame(frameOfPrecompileCall);
 
-        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, Bytes.EMPTY);
+        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame);
         assertThat(opcodeForPrecompileCall.reason())
                 .isNotEmpty()
                 .isEqualTo(getAbiEncodedRevertReason(Bytes.of(
@@ -463,7 +503,7 @@ class OpcodeTracerTest {
         final var frameOfPrecompileCall = buildMessageFrameFromAction(contractActionWithRevert);
         frame = setupFrame(frameOfPrecompileCall);
 
-        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, Bytes.EMPTY);
+        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame);
         assertThat(opcodeForPrecompileCall.reason())
                 .isNotEmpty()
                 .isEqualTo(Bytes.of(contractActionWithRevert.getResultData()).toHexString());
@@ -486,7 +526,7 @@ class OpcodeTracerTest {
         final var frameOfPrecompileCall = buildMessageFrameFromAction(contractActionWithRevert);
         frame = setupFrame(frameOfPrecompileCall);
 
-        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, Bytes.EMPTY);
+        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame);
         assertThat(opcodeForPrecompileCall.reason()).isNotNull().isEqualTo(Bytes.EMPTY.toHexString());
     }
 
@@ -495,7 +535,6 @@ class OpcodeTracerTest {
     }
 
     private Opcode executeOperation(final MessageFrame frame, final ExceptionalHaltReason haltReason) {
-        tracer.init(frame);
         if (frame.getState() == NOT_STARTED) {
             tracer.traceContextEnter(frame);
         } else {
@@ -515,7 +554,6 @@ class OpcodeTracerTest {
         if (frame.getState() == COMPLETED_SUCCESS || frame.getState() == COMPLETED_FAILED) {
             tracer.traceContextExit(frame);
         }
-        tracer.finalizeOperation(frame);
 
         EXECUTED_FRAMES.set(EXECUTED_FRAMES.get() + 1);
         Opcode expectedOpcode = contractCallContext.getOpcodes().get(EXECUTED_FRAMES.get() - 1);
@@ -526,18 +564,16 @@ class OpcodeTracerTest {
         return expectedOpcode;
     }
 
-    private Opcode executePrecompileOperation(final MessageFrame frame, final Bytes output) {
-        tracer.init(frame);
+    private Opcode executePrecompileOperation(final MessageFrame frame) {
         if (frame.getState() == NOT_STARTED) {
             tracer.traceContextEnter(frame);
         } else {
             tracer.traceContextReEnter(frame);
         }
-        tracer.tracePrecompileCall(frame, GAS_REQUIREMENT, output);
+        tracer.tracePrecompileResult(frame, com.hedera.hapi.streams.ContractActionType.PRECOMPILE);
         if (frame.getState() == COMPLETED_SUCCESS || frame.getState() == COMPLETED_FAILED) {
             tracer.traceContextExit(frame);
         }
-        tracer.finalizeOperation(frame);
 
         EXECUTED_FRAMES.set(EXECUTED_FRAMES.get() + 1);
         Opcode expectedOpcode = contractCallContext.getOpcodes().get(EXECUTED_FRAMES.get() - 1);
@@ -570,20 +606,24 @@ class OpcodeTracerTest {
         reset(contractCallContext);
         stackItems = setupStackForCapture(messageFrame);
         wordsInMemory = setupMemoryForCapture(messageFrame);
-        updatedStorage = setupStorageForCapture(messageFrame);
+        updatedStorage = setupStorageForCapture();
         return messageFrame;
     }
 
-    private Map<UInt256, UInt256> setupStorageForCapture(final MessageFrame frame) {
+    private Map<UInt256, UInt256> setupStorageForCapture() {
         final Map<UInt256, UInt256> storage = ImmutableSortedMap.of(
                 UInt256.ZERO, UInt256.valueOf(233),
                 UInt256.ONE, UInt256.valueOf(2424));
+        final var storageAccesses = new ArrayList<StorageAccesses>();
+        final var nestedStorageAccesses = new ArrayList<StorageAccess>();
 
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
-            when(recipientAccount.getUpdatedStorage()).thenReturn(storage);
-        }
-        when(worldUpdater.getAccount(frame.getRecipientAddress())).thenReturn(recipientAccount);
-
+        final var nestedStorageAccess1 = new StorageAccess(UInt256.ZERO, UInt256.valueOf(233), UInt256.ONE);
+        final var nestedStorageAccess2 = new StorageAccess(UInt256.ONE, UInt256.valueOf(2424), UInt256.ONE);
+        nestedStorageAccesses.add(nestedStorageAccess1);
+        nestedStorageAccesses.add(nestedStorageAccess2);
+        final var storageAccess = new StorageAccesses(ContractID.DEFAULT, nestedStorageAccesses);
+        storageAccesses.add(storageAccess);
+        when(worldUpdater.pendingStorageUpdates()).thenReturn(storageAccesses);
         return storage;
     }
 
