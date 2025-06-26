@@ -29,7 +29,9 @@ import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationTracer;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
@@ -74,6 +76,12 @@ class TransactionExecutionServiceTest {
     private MirrorOperationTracer mirrorOperationTracer;
 
     @Mock
+    private OpcodeActionTracer opcodeActionTracer;
+
+    @Mock
+    private MirrorOperationActionTracer mirrorOperationActionTracer;
+
+    @Mock
     private TransactionExecutor transactionExecutor;
 
     @Mock
@@ -98,6 +106,8 @@ class TransactionExecutionServiceTest {
                 new MirrorNodeEvmProperties(commonProperties, systemEntity),
                 opcodeTracer,
                 mirrorOperationTracer,
+                opcodeActionTracer,
+                mirrorOperationActionTracer,
                 systemEntity,
                 transactionExecutorFactory);
         when(transactionExecutorFactory.get()).thenReturn(transactionExecutor);

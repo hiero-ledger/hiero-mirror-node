@@ -60,7 +60,7 @@ class MirrorEvmMessageCallProcessorTest extends MirrorEvmMessageCallProcessorBas
     void setUp() {
         when(precompilesHolder.getHederaPrecompiles()).thenReturn(hederaPrecompileList);
         when(messageFrame.getWorldUpdater()).thenReturn(updater);
-        opcodeTracer = Mockito.spy(new OpcodeTracer(precompilesHolder, evmProperties, mirrorNodeState));
+        opcodeTracer = Mockito.spy(new OpcodeTracer(precompilesHolder, evmProperties));
         subject = new MirrorEvmMessageCallProcessor(
                 autoCreationLogic,
                 entityAddressSequencer,

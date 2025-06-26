@@ -7,6 +7,7 @@ import static org.hyperledger.besu.evm.internal.EvmConfiguration.WorldUpdaterMod
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.service.contract.impl.exec.operations.HederaCustomCallOperation;
+import com.hedera.node.app.service.contract.impl.exec.tracers.EvmActionTracer;
 import com.hedera.node.app.service.evm.contracts.execution.traceability.HederaEvmOperationTracer;
 import com.hedera.node.app.service.evm.contracts.operations.CreateOperationExternalizer;
 import com.hedera.node.app.service.evm.contracts.operations.HederaBalanceOperation;
@@ -41,7 +42,9 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmMessageCallProcessor;
 import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmMessageCallProcessorV30;
 import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmMessageCallProcessorV50;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationTracer;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
 import org.hiero.mirror.web3.evm.contracts.operations.HederaBlockHashOperation;
@@ -63,6 +66,7 @@ import org.hyperledger.besu.evm.precompile.PrecompileContractRegistry;
 import org.hyperledger.besu.evm.processor.ContractCreationProcessor;
 import org.hyperledger.besu.evm.processor.MessageCallProcessor;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
@@ -248,11 +252,26 @@ public class EvmConfiguration {
     }
 
     @Bean
-    Map<TracerType, Provider<HederaEvmOperationTracer>> tracerProvider(
+    @ConditionalOnProperty(
+            name = "hiero.mirror.web3.evm.modularizedServices",
+            havingValue = "false",
+            matchIfMissing = true)
+    Map<TracerType, Provider<HederaEvmOperationTracer>> monoTracerProvider(
             final MirrorOperationTracer mirrorOperationTracer, final OpcodeTracer opcodeTracer) {
         Map<TracerType, Provider<HederaEvmOperationTracer>> tracerMap = new EnumMap<>(TracerType.class);
         tracerMap.put(TracerType.OPCODE, () -> opcodeTracer);
         tracerMap.put(TracerType.OPERATION, () -> mirrorOperationTracer);
+        return tracerMap;
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "hiero.mirror.web3.evm.modularizedServices", havingValue = "true")
+    Map<TracerType, Provider<EvmActionTracer>> tracerProvider(
+            final MirrorOperationActionTracer mirrorOperationActionTracer,
+            final OpcodeActionTracer opcodeActionTracer) {
+        Map<TracerType, Provider<EvmActionTracer>> tracerMap = new EnumMap<>(TracerType.class);
+        tracerMap.put(TracerType.OPCODE, () -> opcodeActionTracer);
+        tracerMap.put(TracerType.OPERATION, () -> mirrorOperationActionTracer);
         return tracerMap;
     }
 

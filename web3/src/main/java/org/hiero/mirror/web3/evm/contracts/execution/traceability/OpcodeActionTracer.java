@@ -2,17 +2,12 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import static com.hedera.node.app.service.evm.contracts.operations.HederaExceptionalHaltReason.INVALID_SOLIDITY_ADDRESS;
-import static com.hedera.services.stream.proto.ContractActionType.PRECOMPILE;
-import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_SUSPENDED;
-import static org.hyperledger.besu.evm.frame.MessageFrame.State.COMPLETED_FAILED;
-import static org.hyperledger.besu.evm.frame.MessageFrame.State.EXCEPTIONAL_HALT;
-import static org.hyperledger.besu.evm.frame.MessageFrame.Type.MESSAGE_CALL;
-
-import com.hedera.node.app.service.evm.contracts.operations.HederaExceptionalHaltReason;
-import com.hedera.node.app.service.mono.contracts.execution.traceability.HederaOperationTracer;
-import com.hedera.services.stream.proto.ContractActionType;
+import com.hedera.hapi.streams.ContractActionType;
+import com.hedera.node.app.service.contract.impl.exec.tracers.EvmActionTracer;
+import com.hedera.node.app.service.contract.impl.exec.utils.ActionStack;
+import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,50 +17,36 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
-import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.config.PrecompiledContractProvider;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
-import org.hyperledger.besu.evm.account.MutableAccount;
-import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
-import org.hyperledger.besu.evm.operation.Operation;
+import org.hyperledger.besu.evm.operation.Operation.OperationResult;
 import org.hyperledger.besu.evm.precompile.PrecompiledContract;
 import org.springframework.util.CollectionUtils;
 
 @Named
 @CustomLog
-@Getter
-public class OpcodeTracer implements HederaOperationTracer {
+public class OpcodeActionTracer extends EvmActionTracer {
 
     private final Map<Address, PrecompiledContract> hederaPrecompiles;
-    private final MirrorNodeEvmProperties evmProperties;
 
-    public OpcodeTracer(
-            final PrecompiledContractProvider precompiledContractProvider,
-            final MirrorNodeEvmProperties evmProperties) {
+    public OpcodeActionTracer(@NonNull final PrecompiledContractProvider precompiledContractProvider) {
+        super(new ActionStack());
+
         this.hederaPrecompiles = precompiledContractProvider.getHederaPrecompiles().entrySet().stream()
                 .collect(Collectors.toMap(e -> Address.fromHexString(e.getKey()), Map.Entry::getValue));
-        this.evmProperties = evmProperties;
     }
 
     @Override
-    public void init(final MessageFrame frame) {
-        getContext().incrementContractActionsCounter();
-    }
-
-    @Override
-    public void tracePostExecution(final MessageFrame frame, final Operation.OperationResult operationResult) {
+    public void tracePostExecution(@NonNull MessageFrame frame, @NonNull OperationResult operationResult) {
         ContractCallContext context = getContext();
-        if (frame.getState() == CODE_SUSPENDED) {
-            context.incrementContractActionsCounter();
-        }
+
         OpcodeTracerOptions options = context.getOpcodeTracerOptions();
         final List<Bytes> memory = captureMemory(frame, options);
         final List<Bytes> stack = captureStack(frame, options);
@@ -74,7 +55,8 @@ public class OpcodeTracer implements HederaOperationTracer {
                 .pc(frame.getPC())
                 .op(frame.getCurrentOperation().getName())
                 .gas(frame.getRemainingGas())
-                .gasCost(operationResult.getGasCost())
+                // TODO add gas cost for post-execution
+                .gasCost(0L)
                 .depth(frame.getDepth())
                 .stack(stack)
                 .memory(memory)
@@ -86,10 +68,11 @@ public class OpcodeTracer implements HederaOperationTracer {
     }
 
     @Override
-    public void tracePrecompileCall(final MessageFrame frame, final long gasRequirement, final Bytes output) {
+    public void tracePrecompileResult(@NonNull MessageFrame frame, @NonNull ContractActionType type) {
         ContractCallContext context = getContext();
         Optional<Bytes> revertReason =
                 isCallToHederaPrecompile(frame) ? getRevertReasonFromContractActions(context) : frame.getRevertReason();
+
         Opcode opcode = Opcode.builder()
                 .pc(frame.getPC())
                 .op(
@@ -97,7 +80,8 @@ public class OpcodeTracer implements HederaOperationTracer {
                                 ? frame.getCurrentOperation().getName()
                                 : StringUtils.EMPTY)
                 .gas(frame.getRemainingGas())
-                .gasCost(output != null ? gasRequirement : 0L)
+                // TODO add gas cost for precompile execution
+                .gasCost(0L)
                 .depth(frame.getDepth())
                 .stack(Collections.emptyList())
                 .memory(Collections.emptyList())
@@ -108,84 +92,65 @@ public class OpcodeTracer implements HederaOperationTracer {
         context.addOpcodes(opcode);
     }
 
-    @Override
-    public void traceAccountCreationResult(MessageFrame frame, Optional<ExceptionalHaltReason> haltReason) {
-        if (haltReason.isPresent() && existsSyntheticActionForFrame(frame)) {
-            getContext().incrementContractActionsCounter();
-        }
-    }
-
-    @Override
-    public void tracePrecompileResult(MessageFrame frame, ContractActionType type) {
-        if (type.equals(PRECOMPILE) && frame.getState().equals(EXCEPTIONAL_HALT)) {
-            // if an ETH precompile call exceptional halted, the action is already finalized
-            return;
-        }
-        if (existsSyntheticActionForFrame(frame)) {
-            getContext().incrementContractActionsCounter();
-        }
-    }
-
-    private List<Bytes> captureMemory(final MessageFrame frame, OpcodeTracerOptions options) {
+    private List<Bytes> captureMemory(final MessageFrame frame, final OpcodeTracerOptions options) {
         if (!options.isMemory()) {
             return Collections.emptyList();
         }
 
-        int size = frame.memoryWordSize();
-        var memory = new ArrayList<Bytes>(size);
-        for (int i = 0; i < size; i++) {
+        final var size = frame.memoryWordSize();
+        final var memory = new ArrayList<Bytes>(size);
+        for (var i = 0; i < size; i++) {
             memory.add(frame.readMemory(i * 32L, 32));
         }
 
         return memory;
     }
 
-    private List<Bytes> captureStack(final MessageFrame frame, OpcodeTracerOptions options) {
+    private List<Bytes> captureStack(final MessageFrame frame, final OpcodeTracerOptions options) {
         if (!options.isStack()) {
             return Collections.emptyList();
         }
 
-        int size = frame.stackSize();
-        var stack = new ArrayList<Bytes>(size);
-        for (int i = 0; i < size; ++i) {
+        final var size = frame.stackSize();
+        final var stack = new ArrayList<Bytes>(size);
+        for (var i = 0; i < size; ++i) {
             stack.add(frame.getStackItem(size - 1 - i));
         }
 
         return stack;
     }
 
-    private Map<Bytes, Bytes> captureStorage(final MessageFrame frame, OpcodeTracerOptions options) {
+    private Map<Bytes, Bytes> captureStorage(final MessageFrame frame, final OpcodeTracerOptions options) {
         if (!options.isStorage()) {
             return Collections.emptyMap();
         }
 
         try {
-            final Address address = frame.getRecipientAddress();
-            final MutableAccount account = frame.getWorldUpdater().getAccount(address);
+            final var updates = ((ProxyWorldUpdater) frame.getWorldUpdater()).pendingStorageUpdates();
+            return updates.stream()
+                    .flatMap(storageAccesses ->
+                            storageAccesses.accesses().stream()) // Properly flatten the nested structure
+                    .collect(Collectors.toMap(
+                            e -> Bytes.wrap(e.key().toArray()),
+                            e -> Bytes.wrap(e.value().toArray()),
+                            (v1, v2) -> v1, // in case of duplicates, keep the first value
+                            TreeMap::new));
 
-            if (account == null) {
-                log.warn("Failed to retrieve storage contents. Account not found in WorldUpdater");
-                return Collections.emptyMap();
-            }
-
-            return new TreeMap<>(account.getUpdatedStorage());
         } catch (final ModificationNotAllowedException e) {
             log.warn("Failed to retrieve storage contents", e);
             return Collections.emptyMap();
         }
     }
 
-    private Optional<Bytes> getRevertReasonFromContractActions(ContractCallContext context) {
+    private Optional<Bytes> getRevertReasonFromContractActions(final ContractCallContext context) {
         List<ContractAction> contractActions = context.getContractActions();
 
         if (CollectionUtils.isEmpty(contractActions)) {
             return Optional.empty();
         }
 
-        int currentActionIndex = context.getContractActionIndexOfCurrentFrame();
-
         return contractActions.stream()
-                .filter(action -> action.hasRevertReason() && action.getIndex() == currentActionIndex)
+                .filter(ContractAction::hasRevertReason)
                 .map(action -> Bytes.of(action.getResultData()))
                 .map(this::formatRevertReason)
                 .findFirst();
@@ -195,22 +160,9 @@ public class OpcodeTracer implements HederaOperationTracer {
         return ContractCallContext.get();
     }
 
-    private boolean isCallToHederaPrecompile(MessageFrame frame) {
+    private boolean isCallToHederaPrecompile(final MessageFrame frame) {
         Address recipientAddress = frame.getRecipientAddress();
         return hederaPrecompiles.containsKey(recipientAddress);
-    }
-
-    /**
-     * When a contract tries to call a non-existing address (resulting in a
-     * {@link HederaExceptionalHaltReason#INVALID_SOLIDITY_ADDRESS} failure), a synthetic action is created to record
-     * this, otherwise the details of the intended call (e.g. the targeted invalid address) and sequence of events
-     * leading to the failure are lost
-     */
-    private boolean existsSyntheticActionForFrame(MessageFrame frame) {
-        return (frame.getState() == EXCEPTIONAL_HALT || frame.getState() == COMPLETED_FAILED)
-                && frame.getType().equals(MESSAGE_CALL)
-                && frame.getExceptionalHaltReason().isPresent()
-                && frame.getExceptionalHaltReason().get().equals(INVALID_SOLIDITY_ADDRESS);
     }
 
     /**
