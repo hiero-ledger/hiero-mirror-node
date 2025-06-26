@@ -71,6 +71,9 @@ public class ContractCallContext {
     @Setter
     private Optional<Long> timestamp = Optional.empty();
 
+    @Setter
+    private boolean isBalanceCall;
+
     private ContractCallContext() {}
 
     public static ContractCallContext get() {
