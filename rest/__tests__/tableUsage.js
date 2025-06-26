@@ -12,7 +12,7 @@ const TABLE_EXISTS_SQL = `select table_name
   where table_schema = 'public' and table_name = any($1)`;
 
 const allQueries = {}; // SQL queries by endpoint, then by caller
-const enabled = process.env.GENERATE_TABLE_USAGE === 'true';
+const enabled = process.env.NO_GENERATE_TABLE_USAGE !== 'true';
 
 const getEndpoint = () => {
   const {currentTestName} = expect.getState();

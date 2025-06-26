@@ -36,6 +36,9 @@ Error.prepareStackTrace = (error, structuredStackTrace) => {
     return [
       lines[0],
       ...lines.slice(1).map((line, index) => {
+        if (index >= structuredStackTrace.length) {
+          return line;
+        }
         const functionName = structuredStackTrace[index].getFunctionName();
         return line.replace(/at\s+[^ ]+\s/, `at ${functionName} `);
       }),
