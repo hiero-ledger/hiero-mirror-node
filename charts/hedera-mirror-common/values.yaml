@@ -183,6 +183,8 @@ loki:
     replicas: 0
 
 minio:
+  console:
+    enabled: false
   enabled: false
   persistence:
     enabled: true
