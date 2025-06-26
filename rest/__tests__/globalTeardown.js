@@ -10,7 +10,7 @@ const HEADER = `| Endpoint | Functions | Tables |
 const REPORT_FILENAME = 'table-usage.md';
 
 const createTableUsageReport = () => {
-  if (process.env.NO_GENERATE_TABLE_USAGE === 'true') {
+  if (process.env.NO_GENERATE_TABLE_USAGE === 'true' || !fs.existsSync(TABLE_USAGE_OUTPUT_DIR)) {
     return;
   }
 
