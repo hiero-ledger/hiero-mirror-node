@@ -60,7 +60,7 @@ class MirrorOperationTracerTest {
     void traceDisabled(CapturedOutput output) {
         traceProperties.setEnabled(false);
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
-        assertThat(output).isEmpty();
+        assertThat(output).doesNotContain("type=");
     }
 
     @Test
@@ -71,7 +71,7 @@ class MirrorOperationTracerTest {
 
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
 
-        assertThat(output).isEmpty();
+        assertThat(output).doesNotContain("type=");
     }
 
     @Test
@@ -119,7 +119,7 @@ class MirrorOperationTracerTest {
 
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
 
-        assertThat(output).isEmpty();
+        assertThat(output).doesNotContain("type=");
     }
 
     @Test

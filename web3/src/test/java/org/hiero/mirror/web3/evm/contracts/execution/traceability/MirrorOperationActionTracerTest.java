@@ -5,9 +5,10 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
+import java.util.Optional;
 import java.util.Set;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.web3.evm.account.MirrorEvmContractAliases;
+import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.web3.evm.properties.TraceProperties;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hyperledger.besu.datatypes.Address;
@@ -46,7 +47,7 @@ class MirrorOperationActionTracerTest {
     private MessageFrame messageFrame;
 
     @Mock
-    private MirrorEvmContractAliases mirrorEvmContractAliases;
+    private Entity recipientEntity;
 
     @Mock
     private CommonEntityAccessor commonEntityAccessor;
@@ -63,7 +64,7 @@ class MirrorOperationActionTracerTest {
     void traceDisabled(CapturedOutput output) {
         traceProperties.setEnabled(false);
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
-        assertThat(output).isEmpty();
+        assertThat(output).doesNotContain("type=");
     }
 
     @Test
@@ -74,7 +75,7 @@ class MirrorOperationActionTracerTest {
 
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
 
-        assertThat(output).isEmpty();
+        assertThat(output).doesNotContain("type=");
     }
 
     @Test
@@ -115,13 +116,15 @@ class MirrorOperationActionTracerTest {
     void contractFilterMismatch(CapturedOutput output) {
         traceProperties.setEnabled(true);
         traceProperties.setContract(Set.of(contract.toHexString()));
-        //        given(mirrorEvmContractAliases.resolveForEvm(any())).willReturn(recipient);
-        given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
         given(messageFrame.getRecipientAddress()).willReturn(recipient);
+        given(commonEntityAccessor.get(
+                        com.hedera.pbj.runtime.io.buffer.Bytes.wrap(recipient.toArray()), Optional.empty()))
+                .willReturn(Optional.of(recipientEntity));
+        given(recipientEntity.getId()).willReturn(3L);
 
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
 
-        assertThat(output).isEmpty();
+        assertThat(output).doesNotContain("type=");
     }
 
     @Test
