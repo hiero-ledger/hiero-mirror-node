@@ -78,6 +78,19 @@ public class MirrorEvmTransactionException extends EvmException {
         return Bytes.of(message.getBytes(StandardCharsets.UTF_8));
     }
 
+    public String getFullMessage() {
+        final var exceptionMessageBuilder =
+                new StringBuilder().append("Mirror EVM transaction error: ").append(getMessage());
+        if (!StringUtils.isBlank(getDetail())) {
+            exceptionMessageBuilder.append(", detail: ").append(getDetail());
+        }
+        if (!getChildTransactionErrors().isEmpty()) {
+            exceptionMessageBuilder.append(", childTransactionErrors: ").append(getChildTransactionErrors());
+        }
+        exceptionMessageBuilder.append(", data: ").append(getData());
+        return exceptionMessageBuilder.toString();
+    }
+
     @Override
     public String toString() {
         return "%s(message=%s, detail=%s, data=%s, dataDecoded=%s)"
