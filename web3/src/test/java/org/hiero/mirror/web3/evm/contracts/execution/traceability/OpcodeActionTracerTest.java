@@ -559,7 +559,6 @@ class OpcodeActionTracerTest {
         Opcode expectedOpcode = contractCallContext.getOpcodes().get(EXECUTED_FRAMES.get() - 1);
 
         verify(contractCallContext, times(1)).addOpcodes(expectedOpcode);
-        assertThat(tracer.getContext().getOpcodeTracerOptions()).isEqualTo(tracerOptions);
         assertThat(contractCallContext.getOpcodes()).hasSize(1);
         assertThat(contractCallContext.getContractActions()).isNotNull();
         return expectedOpcode;
@@ -580,7 +579,6 @@ class OpcodeActionTracerTest {
         Opcode expectedOpcode = contractCallContext.getOpcodes().get(EXECUTED_FRAMES.get() - 1);
 
         verify(contractCallContext, times(1)).addOpcodes(expectedOpcode);
-        assertThat(tracer.getContext().getOpcodeTracerOptions()).isEqualTo(tracerOptions);
         assertThat(contractCallContext.getOpcodes()).hasSize(EXECUTED_FRAMES.get());
         assertThat(contractCallContext.getContractActions()).isNotNull();
         return expectedOpcode;
@@ -597,7 +595,6 @@ class OpcodeActionTracerTest {
             final ContractAction... contractActions) {
         contractCallContext.setOpcodeTracerOptions(options);
         contractCallContext.setContractActions(Lists.newArrayList(contractActions));
-        contractCallContext.setContractActionIndexOfCurrentFrame(0);
         EXECUTED_FRAMES.set(0);
 
         final MessageFrame messageFrame = buildMessageFrame(recipientAddress, type);

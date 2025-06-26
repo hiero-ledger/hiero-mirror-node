@@ -25,7 +25,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.config.PrecompilesHolder;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hyperledger.besu.datatypes.Address;
@@ -161,10 +160,6 @@ class MirrorEvmMessageCallProcessorTest extends MirrorEvmMessageCallProcessorBas
         when(messageFrame.getValue()).thenReturn(Wei.of(5000L));
         when(messageFrame.getBlockValues()).thenReturn(new HederaBlockValues(0L, 0L, Instant.EPOCH));
         when(messageFrame.getGasPrice()).thenReturn(Wei.ONE);
-
-        boolean isModularized = evmProperties.isModularizedServices();
-        when(opcodeTracer.getContext().getOpcodeTracerOptions())
-                .thenReturn(new OpcodeTracerOptions(true, true, true, isModularized));
         when(messageFrame.getCurrentOperation()).thenReturn(mock(Operation.class));
 
         subject.start(messageFrame, opcodeTracer);
