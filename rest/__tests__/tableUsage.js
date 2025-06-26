@@ -59,7 +59,7 @@ const recordQuery = (callerInfo, query) => {
     return;
   }
 
-  const caller = `${callerInfo.file}:${callerInfo.line}`;
+  const caller = `${callerInfo.function} (${callerInfo.file}:${callerInfo.line})`;
   const endpoint = getEndpoint();
   const callerQueries = allQueries[endpoint] ?? (allQueries[endpoint] = {});
   const queries = callerQueries[caller] ?? (callerQueries[caller] = []);

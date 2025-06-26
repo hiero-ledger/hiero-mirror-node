@@ -5,7 +5,7 @@ import log4js from 'log4js';
 
 import {TABLE_USAGE_OUTPUT_DIR} from './testutils.js';
 
-const HEADER = `| Endpoint | Caller | Tables |
+const HEADER = `| Endpoint | Function | Tables |
 |----------|--------|--------|`;
 const REPORT_FILENAME = 'table-usage.md';
 
