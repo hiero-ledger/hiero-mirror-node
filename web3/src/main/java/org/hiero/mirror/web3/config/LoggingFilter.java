@@ -61,7 +61,7 @@ class LoggingFilter extends OncePerRequestFilter {
         }
 
         long elapsed = System.currentTimeMillis() - startTime;
-        var content = getContent(request, e);
+        var content = getContent(request);
         var message = getMessage(request, e);
         var modularized = response.getHeader(MODULARIZED_HEADER);
         int status = response.getStatus();
@@ -78,7 +78,7 @@ class LoggingFilter extends OncePerRequestFilter {
         }
     }
 
-    private String getContent(HttpServletRequest request, Exception e) {
+    private String getContent(HttpServletRequest request) {
         var content = StringUtils.EMPTY;
         int maxPayloadLogSize = web3Properties.getMaxPayloadLogSize();
         var wrapper = WebUtils.getNativeRequest(request, ContentCachingRequestWrapper.class);
@@ -97,7 +97,7 @@ class LoggingFilter extends OncePerRequestFilter {
                 if (compressed.length() <= maxPayloadLogSize) {
                     content = compressed;
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
                 // Ignore
             }
         }
