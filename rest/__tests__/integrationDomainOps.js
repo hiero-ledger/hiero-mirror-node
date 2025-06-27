@@ -24,6 +24,7 @@ const DEFAULT_SENDER_ID = 101;
 const defaultFileData = '\\x97c1fc0a6ed5551bc831571325e9bdb365d06803100dc20648640ba24ce69750';
 
 const setup = async (testDataJson) => {
+  // testDataJson = transformValues(testDataJson)
   await loadAccounts(testDataJson.accounts);
   await loadAddressBooks(testDataJson.addressbooks);
   await loadAddressBookEntries(testDataJson.addressbookentries);
@@ -603,7 +604,7 @@ const entityDefaults = {
   public_key: null,
   realm: config.common.realm,
   receiver_sig_required: false,
-  shard: 0,
+  shard: config.common.shard,
   staked_account_id: null,
   staked_node_id: -1,
   stake_period_start: -1,
@@ -621,6 +622,7 @@ const addEntity = async (defaults, custom) => {
   entity.id = EntityId.of(BigInt(entity.shard), BigInt(entity.realm), BigInt(entity.num)).getEncodedId();
   entity.alias = base32.decode(entity.alias);
   entity.evm_address = valueToBuffer(entity.evm_address);
+  entity.staked_account_id = EntityId.of(config.common.shard, config.common.realm, entity.staked_account_id).getEncodedId();
   if (typeof entity.key === 'string') {
     entity.key = Buffer.from(entity.key, 'hex');
   } else if (entity.key != null) {
@@ -658,6 +660,7 @@ const addEntityStake = async (entityStake) => {
     entityStake.timestamp_range = `[${timestamp},)`;
   }
 
+  entityStake.id = EntityId.of(config.common.shard, config.common.realm, entityStake.id).getEncodedId();
   await insertDomainObject(getTableName('entity_stake', entityStake), entityStakeFields, entityStake);
 };
 
@@ -1450,6 +1453,24 @@ const defaultTokenAccount = {
   token_id: null,
 };
 
+function transformValues(obj) {
+  if (Array.isArray(obj)) {
+    return obj.map(transformValues);
+  } else if (typeof obj === 'object' && obj !== null) {
+    return Object.fromEntries(
+      Object.entries(obj).map(([key, value]) => [key, transformValues(value)])
+    );
+  } else if (typeof obj === 'string') {
+    // Match strings that look exactly like 0.0.123 (but not timestamps or other formats)
+    if (/^0\.0\.\d+$/.test(obj)) {
+      return obj.replace(/^0\.0\./, `${config.common.shard}.${config.common.realm}.`);
+    }
+    // Replace in URLs like `/api/v1/accounts?account.id=lt:0.0.21...`
+    return obj.replace(/0\.0\.(\d+)/g, `${config.common.shard}.${config.common.shard}.$1`);
+  } else {
+    return obj;
+  }
+}
 const addTokenAccount = async (tokenAccount) => {
   // create token account object
   tokenAccount = {
@@ -1457,8 +1478,8 @@ const addTokenAccount = async (tokenAccount) => {
     ...tokenAccount,
   };
 
-  tokenAccount.account_id = EntityId.parse(tokenAccount.account_id).getEncodedId();
-  tokenAccount.token_id = EntityId.parse(tokenAccount.token_id).getEncodedId();
+  tokenAccount.account_id = EntityId.parseString(transformValues(tokenAccount.account_id)).getEncodedId();
+  tokenAccount.token_id = EntityId.parseString(transformValues(tokenAccount.token_id)).getEncodedId();
   if (tokenAccount.timestamp_range === null) {
     tokenAccount.timestamp_range = `[${tokenAccount.created_timestamp},)`;
   }

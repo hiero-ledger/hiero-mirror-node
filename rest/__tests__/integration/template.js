@@ -23,7 +23,7 @@ import path from 'path';
 import request from 'supertest';
 import integrationDomainOps from '../integrationDomainOps';
 import IntegrationS3Ops from '../integrationS3Ops';
-import config from '../../config';
+import config, {getMirrorConfig} from '../../config';
 import {cloudProviders} from '../../constants';
 import server from '../../server';
 import {getModuleDirname} from '../testutils';
@@ -39,6 +39,10 @@ const defaultResponseHeaders = {
   'cache-control': 'public, max-age=1',
 };
 const responseHeadersFilename = 'responseHeaders.json';
+
+const {
+  common: {realm: systemRealm, shard: systemShard},
+} = getMirrorConfig();
 
 let specRootPath;
 
@@ -83,6 +87,56 @@ const getResponseHeaders = (spec, specPath) => {
   };
 };
 
+const transformValues = (obj) => {
+  const shardRealm = `${systemShard}.${systemRealm}.`;
+
+  if (Array.isArray(obj)) {
+    return obj.map(transformValues);
+  } else if (typeof obj === 'object' && obj !== null) {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .map(([key, value]) => {
+          if (typeof value === 'string' &&
+            key.toLowerCase().includes('timestamp') ||
+            key.toLowerCase().includes('start') ||
+            key.toLowerCase().endsWith('end')) {
+            return [key, value]; // leave unchanged
+          }
+          return [key, transformValues(value)]
+        })
+    );
+  } else if (typeof obj === 'string') {
+    if (/timestamp=\d+\.\d+/.test(obj)) {
+      return obj;
+    }
+
+    if (/^0\.0\.\d+$/.test(obj)) {
+      return obj.replace(/^0\.0\./, `${systemShard}.${systemRealm}.`);
+    }
+
+    if (/^0\.0\.[A-Z0-9]{40,}$/i.test(obj)) {
+      return obj.replace(/^0\.0\./, shardRealm);
+    }
+
+    if (/^0\.[A-Z0-9]{40,}$/i.test(obj)) {
+      return obj.replace(/^0\./, `${systemRealm}.`);
+    }
+
+    if (/^0\.\d+$/.test(obj)) {
+      return obj.replace(/^0\./, `${systemRealm}.`);
+    }
+
+    obj = obj.replace(/0\.0\.(\d+)/g, `${systemShard}.${systemRealm}.$1`);
+    obj = obj.replace(/0\.0\.([A-Z0-9]{40,})/gi, `${shardRealm}$1`);
+    obj = obj.replace(/0\.([A-Z0-9]{40,})/gi, `${systemRealm}.$1`);
+    obj = obj.replace(/0\.(\d+)\b/g, `${systemRealm}.$1`);
+
+    return obj
+  } else {
+    return obj;
+  }
+}
+
 const getSpecs = async () => {
   const modulePath = getModuleDirname(import.meta);
   specRootPath = path.resolve(path.join(modulePath, '..', 'specs', groupSpecPath));
@@ -95,7 +149,7 @@ const getSpecs = async () => {
         .filter((f) => f.endsWith('.json') && !f.endsWith(responseHeadersFilename))
         .map(async (f) => {
           const specText = fs.readFileSync(f, 'utf8');
-          const spec = JSONParse(specText);
+          const spec = transformValues(JSONParse(specText));
           spec.name = path.basename(f);
           getResponseHeaders(spec, f);
 
