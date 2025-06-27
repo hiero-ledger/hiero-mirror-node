@@ -191,7 +191,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I create estimate precompile contract with 0 balance")
     public void createNewEstimateContract() throws IOException {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_PRECOMPILE);
-        estimatePrecompileContractSolidityAddress = asHexAddress(deployedEstimatePrecompileContract.contractId());
+        estimatePrecompileContractSolidityAddress = asAddress(deployedEstimatePrecompileContract.contractId()).toString();
         admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
         adminAddress = asAddress(admin);
         receiverAccount = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
@@ -205,7 +205,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void createNewERCContract() {
         deployedErcTestContract = getContract(ERC);
         ercTestContractSolidityAddress =
-                asAddress(deployedErcTestContract.contractId()).toString();
+                asHexAddress(deployedErcTestContract.contractId());
     }
 
     @Given("I get exchange rates")

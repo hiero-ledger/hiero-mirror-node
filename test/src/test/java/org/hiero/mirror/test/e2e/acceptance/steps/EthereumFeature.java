@@ -31,7 +31,6 @@ import org.hiero.mirror.test.e2e.acceptance.client.ContractClient;
 import org.hiero.mirror.test.e2e.acceptance.client.EthereumClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
-import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
 import org.springframework.http.HttpStatus;
 import org.web3j.crypto.transaction.type.TransactionType;
 
@@ -155,7 +154,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
     @Override
     protected void verifyContractExecutionResults(ContractResult contractResult) {
         super.verifyContractExecutionResults(contractResult);
-        assertThat(contractResult.getFrom()).isEqualTo(FeatureInputHandler.evmAddress(AccountId.fromString(account)));
+        assertThat(contractResult.getFrom()).isEqualTo(asHexAddress(AccountId.fromString(account)));
     }
 
     protected TransactionDetail verifyEthereumContractCreate(

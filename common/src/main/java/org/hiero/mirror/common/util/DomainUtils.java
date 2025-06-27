@@ -277,6 +277,8 @@ public class DomainUtils {
         try {
             if (isLongZeroAddress(evmAddress)) {
                 final var num = Longs.fromByteArray(Arrays.copyOfRange(evmAddress, 12, 20));
+                //                return num == 0 ? EntityId.of(0, 0, num) : EntityId.of(commonProperties.getShard(),
+                // commonProperties.getRealm(), num);
                 return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), num);
             }
         } catch (InvalidEntityException ex) {

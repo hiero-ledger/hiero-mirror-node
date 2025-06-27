@@ -14,12 +14,13 @@ import com.hedera.services.jproto.JKey;
 import com.hedera.services.store.contracts.precompile.TokenCreateWrapper;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
-import com.hederahashgraph.api.proto.java.TokenID;
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.util.Collections;
 import java.util.List;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.junit.jupiter.api.Test;
 
 class TokenCreateWrapperTest {
@@ -233,8 +234,10 @@ class TokenCreateWrapperTest {
     @Test
     void translatesFixedFeeWithCreatedTokenAsExpected() {
         // given
+        final var commonProperties = CommonProperties.getInstance();
         final var feeWrapper = new TokenCreateWrapper.FixedFeeWrapper(5, null, false, true, receiver);
-
+        final var defaultInstance = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 0)
+                .toTokenID();
         // when
         final var result = feeWrapper.asGrpc();
 
@@ -243,7 +246,7 @@ class TokenCreateWrapperTest {
         final var fixedFee = result.getFixedFee();
         assertEquals(5, fixedFee.getAmount());
         assertTrue(fixedFee.hasDenominatingTokenId());
-        assertEquals(TokenID.getDefaultInstance(), fixedFee.getDenominatingTokenId());
+        assertEquals(defaultInstance, fixedFee.getDenominatingTokenId());
         assertEquals(receiver, result.getFeeCollectorAccountId());
     }
 

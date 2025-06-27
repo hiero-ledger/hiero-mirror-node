@@ -49,6 +49,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.PrecompileContext;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
@@ -77,6 +79,8 @@ public class HTSPrecompiledContract extends EvmHTSPrecompiledContract {
             null, true, MessageFrame.State.COMPLETED_FAILED, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
     private static final Logger log = LogManager.getLogger(HTSPrecompiledContract.class);
     private static final Bytes STATIC_CALL_REVERT_REASON = Bytes.of("HTS precompiles are not static".getBytes());
+    private static final CommonProperties commonProperties = CommonProperties.getInstance();
+
 
     private final MirrorNodeEvmProperties evmProperties;
     private final EvmInfrastructureFactory infrastructureFactory;
@@ -379,8 +383,10 @@ public class HTSPrecompiledContract extends EvmHTSPrecompiledContract {
                         input, aliasResolver, new ApproveParams(Address.ZERO, senderAddress, null, true));
             }
             case AbiConstants.ABI_ID_APPROVE_NFT -> {
+                final var defaultToken =
+                        EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 0L).toTokenID();
                 final var approveDecodedNftInfo =
-                        ApprovePrecompile.decodeTokenIdAndSerialNum(input, TokenID.getDefaultInstance());
+                        ApprovePrecompile.decodeTokenIdAndSerialNum(input, defaultToken);
                 final var tokenID = approveDecodedNftInfo.tokenId();
                 final var serialNumber = approveDecodedNftInfo.serialNumber();
                 final var ownerId = store.getUniqueToken(
