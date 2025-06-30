@@ -85,7 +85,7 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.9")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.springframework.cloud:spring-cloud-dependencies:2025.0.0")
-        api("org.testcontainers:junit-jupiter:1.21.2")
+        api("org.testcontainers:junit-jupiter:1.21.3")
         api("org.mockito:mockito-inline:5.2.0")
         api("software.amazon.awssdk:bom:2.31.68")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
