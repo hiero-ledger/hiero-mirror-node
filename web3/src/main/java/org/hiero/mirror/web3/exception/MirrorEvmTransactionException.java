@@ -84,7 +84,7 @@ public class MirrorEvmTransactionException extends EvmException {
         if (!StringUtils.isBlank(getDetail())) {
             exceptionMessageBuilder.append(", detail: ").append(getDetail());
         }
-        if (!getChildTransactionErrors().isEmpty()) {
+        if (getChildTransactionErrors() != null && !getChildTransactionErrors().isEmpty()) {
             exceptionMessageBuilder.append(", childTransactionErrors: ").append(getChildTransactionErrors());
         }
         exceptionMessageBuilder.append(", data: ").append(getData());
