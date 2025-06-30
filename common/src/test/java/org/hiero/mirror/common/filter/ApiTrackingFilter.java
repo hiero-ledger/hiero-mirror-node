@@ -10,20 +10,20 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
-public class ApiTrackingFilter implements Filter {
+public final class ApiTrackingFilter implements Filter {
 
-    private static final ThreadLocal<String> currentEndpoint = new ThreadLocal<>();
+    private static final ThreadLocal<String> CURRENT_ENDPOINT = new ThreadLocal<>();
 
     @Override
     public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain chain)
             throws IOException, ServletException {
         final var httpRequest = (HttpServletRequest) request;
-        currentEndpoint.set(httpRequest.getRequestURI());
+        CURRENT_ENDPOINT.set(httpRequest.getRequestURI());
         chain.doFilter(request, response);
-        currentEndpoint.remove();
+        CURRENT_ENDPOINT.remove();
     }
 
     public static String getCurrentEndpoint() {
-        return currentEndpoint.get();
+        return CURRENT_ENDPOINT.get();
     }
 }

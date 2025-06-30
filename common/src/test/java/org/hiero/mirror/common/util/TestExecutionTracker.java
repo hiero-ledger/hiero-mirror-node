@@ -2,29 +2,30 @@
 
 package org.hiero.mirror.common.util;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestIdentifier;
 
-public class TestExecutionTracker implements TestExecutionListener {
+public final class TestExecutionTracker implements TestExecutionListener {
 
-    private static final ThreadLocal<Boolean> testRunning = ThreadLocal.withInitial(() -> false);
+    private static final AtomicInteger runningTestsCounter = new AtomicInteger(0);
 
     @Override
     public void executionStarted(final TestIdentifier testIdentifier) {
         if (testIdentifier.isTest()) {
-            testRunning.set(true);
+            runningTestsCounter.incrementAndGet();
         }
     }
 
     @Override
     public void executionFinished(final TestIdentifier testIdentifier, final TestExecutionResult result) {
         if (testIdentifier.isTest()) {
-            testRunning.set(false);
+            runningTestsCounter.decrementAndGet();
         }
     }
 
     public static boolean isTestRunning() {
-        return testRunning.get();
+        return runningTestsCounter.get() > 0;
     }
 }
