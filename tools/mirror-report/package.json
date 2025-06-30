@@ -13,7 +13,7 @@
   "description": "Generates a report showing an account's hbar transfers",
   "devDependencies": {
     "@fetch-mock/jest": "^0.2.16",
-    "jest": "^30.0.2"
+    "jest": "^30.0.3"
   },
   "homepage": "https://github.com/hiero-ledger/hiero-mirror-node/tree/main/tools/mirror-report",
   "jest": {
