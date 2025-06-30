@@ -8,7 +8,7 @@ repositories {
 }
 
 dependencies {
-    val dockerJavaVersion = "3.5.1"
+    val dockerJavaVersion = "3.5.2"
     val flywayVersion = "11.9.1"
     val jooqVersion = "3.20.5" // Always make the version in project root build.gradle.kts match
 
