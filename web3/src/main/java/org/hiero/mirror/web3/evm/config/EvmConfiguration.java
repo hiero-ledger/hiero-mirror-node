@@ -6,8 +6,8 @@ import static org.hyperledger.besu.evm.internal.EvmConfiguration.WorldUpdaterMod
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.SemanticVersion;
+import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.exec.operations.HederaCustomCallOperation;
-import com.hedera.node.app.service.contract.impl.exec.tracers.EvmActionTracer;
 import com.hedera.node.app.service.evm.contracts.execution.traceability.HederaEvmOperationTracer;
 import com.hedera.node.app.service.evm.contracts.operations.CreateOperationExternalizer;
 import com.hedera.node.app.service.evm.contracts.operations.HederaBalanceOperation;
@@ -266,10 +266,10 @@ public class EvmConfiguration {
 
     @Bean
     @ConditionalOnProperty(name = "hiero.mirror.web3.evm.modularizedServices", havingValue = "true")
-    Map<TracerType, Provider<EvmActionTracer>> tracerProvider(
+    Map<TracerType, Provider<ActionSidecarContentTracer>> tracerProvider(
             final MirrorOperationActionTracer mirrorOperationActionTracer,
             final OpcodeActionTracer opcodeActionTracer) {
-        Map<TracerType, Provider<EvmActionTracer>> tracerMap = new EnumMap<>(TracerType.class);
+        Map<TracerType, Provider<ActionSidecarContentTracer>> tracerMap = new EnumMap<>(TracerType.class);
         tracerMap.put(TracerType.OPCODE, () -> opcodeActionTracer);
         tracerMap.put(TracerType.OPERATION, () -> mirrorOperationActionTracer);
         return tracerMap;

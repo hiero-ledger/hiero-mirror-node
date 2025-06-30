@@ -30,6 +30,7 @@ import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer
 import com.hedera.node.app.service.contract.impl.exec.AddressChecks;
 import com.hedera.node.app.service.contract.impl.exec.FeatureFlags;
 import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
+import com.hedera.node.app.service.contract.impl.exec.tracers.AddOnEvmActionTracer;
 import com.hedera.node.app.service.contract.impl.hevm.HederaOpsDuration;
 import com.hedera.node.app.service.contract.impl.state.ProxyEvmContract;
 import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
@@ -40,6 +41,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
@@ -60,6 +62,16 @@ import org.hyperledger.besu.evm.tracing.OperationTracer;
  * </ol>
  * Note these only require changing {@link MessageCallProcessor#start(MessageFrame, OperationTracer)},
  * and the core {@link MessageCallProcessor#process(MessageFrame, OperationTracer)} logic we inherit.
+ *
+ * Copy of the class from hedera-app. The differences with it are:
+ *
+ * - It sets the gasRequirement for a system contract in the ContractCallContext.
+ * - It calls {@link AddOnEvmActionTracer#tracePrecompileCall(MessageFrame, long, Bytes)} instead of
+ * {@link AddOnEvmActionTracer#tracePrecompileResult(MessageFrame, ContractActionType)} for precompiles.
+ * The reasons are that we need to pass the gasRequirement to the tracer and that
+ * {@link org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer} is
+ * added as an addOnTracer. The {@link AddOnEvmActionTracer#tracePrecompileCall(MessageFrame, long, Bytes)} method
+ * delegates the call to the list of addOnTracers, where the {@link org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer} is stored.
  */
 public class CustomMessageCallProcessor extends MessageCallProcessor {
     private final FeatureFlags featureFlags;
@@ -256,6 +268,9 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
                 frame.getInputData(),
                 frame);
         final var gasRequirement = fullResult.gasRequirement();
+
+        ContractCallContext.get().setGasRequirement(gasRequirement);
+
         final PrecompileContractResult result;
         if (frame.getRemainingGas() < gasRequirement) {
             result = PrecompileContractResult.halt(Bytes.EMPTY, Optional.of(INSUFFICIENT_GAS));
@@ -283,7 +298,7 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
         }
         frame.setState(result.getState());
         frame.setExceptionalHaltReason(result.getHaltReason());
-        tracer.tracePrecompileResult(frame, type);
+        tracer.tracePrecompileCall(frame, ContractCallContext.get().getGasRequirement(), result.getOutput());
     }
 
     private void doTransferValueOrHalt(

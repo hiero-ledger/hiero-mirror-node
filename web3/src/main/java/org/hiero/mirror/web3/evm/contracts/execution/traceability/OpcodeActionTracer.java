@@ -8,10 +8,11 @@ import static org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerU
 import static org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerUtils.isCallToHederaPrecompile;
 
 import com.hedera.hapi.streams.ContractActionType;
-import com.hedera.node.app.service.contract.impl.exec.tracers.EvmActionTracer;
-import com.hedera.node.app.service.contract.impl.exec.utils.ActionStack;
+import com.hedera.hapi.streams.ContractActions;
+import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import jakarta.inject.Named;
 import java.util.Collections;
 import java.util.Map;
@@ -30,13 +31,11 @@ import org.hyperledger.besu.evm.precompile.PrecompiledContract;
 
 @Named
 @CustomLog
-public class OpcodeActionTracer extends EvmActionTracer {
+public class OpcodeActionTracer implements ActionSidecarContentTracer {
 
     private final Map<Address, PrecompiledContract> hederaPrecompiles;
 
     public OpcodeActionTracer(@NonNull final PrecompiledContractProvider precompiledContractProvider) {
-        super(new ActionStack());
-
         this.hederaPrecompiles = precompiledContractProvider.getHederaPrecompiles().entrySet().stream()
                 .collect(Collectors.toMap(e -> Address.fromHexString(e.getKey()), Map.Entry::getValue));
     }
@@ -53,8 +52,7 @@ public class OpcodeActionTracer extends EvmActionTracer {
                 .pc(frame.getPC())
                 .op(frame.getCurrentOperation().getName())
                 .gas(frame.getRemainingGas())
-                // TODO add gas cost for post-execution
-                .gasCost(0L)
+                .gasCost(operationResult.getGasCost())
                 .depth(frame.getDepth())
                 .stack(stack)
                 .memory(memory)
@@ -66,7 +64,8 @@ public class OpcodeActionTracer extends EvmActionTracer {
     }
 
     @Override
-    public void tracePrecompileResult(@NonNull final MessageFrame frame, @NonNull final ContractActionType type) {
+    public void tracePrecompileCall(
+            @NonNull final MessageFrame frame, final long gasRequirement, @Nullable final Bytes output) {
         final var context = ContractCallContext.get();
         final var revertReason = isCallToHederaPrecompile(frame, hederaPrecompiles)
                 ? getRevertReasonFromContractActions(context)
@@ -79,15 +78,13 @@ public class OpcodeActionTracer extends EvmActionTracer {
                                 ? frame.getCurrentOperation().getName()
                                 : StringUtils.EMPTY)
                 .gas(frame.getRemainingGas())
-                // TODO add gas cost for precompile execution
-                .gasCost(0L)
+                .gasCost(output != null && !output.isEmpty() ? gasRequirement : 0L)
                 .depth(frame.getDepth())
                 .stack(Collections.emptyList())
                 .memory(Collections.emptyList())
                 .storage(Collections.emptyMap())
                 .reason(revertReason.map(Bytes::toHexString).orElse(null))
                 .build();
-
         context.addOpcodes(opcode);
     }
 
@@ -111,5 +108,25 @@ public class OpcodeActionTracer extends EvmActionTracer {
             log.warn("Failed to retrieve storage contents", e);
             return Collections.emptyMap();
         }
+    }
+
+    @Override
+    public void traceOriginAction(@NonNull MessageFrame frame) {
+        // NO-OP
+    }
+
+    @Override
+    public void sanitizeTracedActions(@NonNull MessageFrame frame) {
+        // NO-OP
+    }
+
+    @Override
+    public void tracePrecompileResult(@NonNull MessageFrame frame, @NonNull ContractActionType type) {
+        // NO-OP
+    }
+
+    @Override
+    public ContractActions contractActions() {
+        return null;
     }
 }

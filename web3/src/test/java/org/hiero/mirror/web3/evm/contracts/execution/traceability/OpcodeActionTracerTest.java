@@ -91,6 +91,7 @@ class OpcodeActionTracerTest {
     private static final long GAS_COST = 2L;
     private static final long GAS_PRICE = 200L;
     private static final long GAS_REQUIREMENT = 100L;
+    private static final Bytes DEFAULT_OUTPUT = Bytes.fromHexString("0x1234567890abcdef");
     private static final AtomicReference<Long> REMAINING_GAS = new AtomicReference<>();
     private static final AtomicReference<Integer> EXECUTED_FRAMES = new AtomicReference<>(0);
     private static final Operation OPERATION = new AbstractOperation(0x02, "MUL", 2, 1, null) {
@@ -390,7 +391,7 @@ class OpcodeActionTracerTest {
     void shouldCaptureFrameWhenSuccessfulPrecompileCallOccurs() {
         frame = setupInitialFrame(tracerOptions);
 
-        final Opcode opcode = executePrecompileOperation(frame);
+        final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
         assertThat(opcode.pc()).isEqualTo(frame.getPC());
         assertThat(opcode.op()).isNotEmpty().isEqualTo(OPERATION.getName());
         assertThat(opcode.gas()).isEqualTo(REMAINING_GAS.get());
@@ -408,7 +409,7 @@ class OpcodeActionTracerTest {
     void shouldNotRecordGasRequirementWhenPrecompileCallHasNullOutput() {
         frame = setupInitialFrame(tracerOptions);
 
-        final Opcode opcode = executePrecompileOperation(frame);
+        final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT, Bytes.EMPTY);
         assertThat(opcode.gasCost()).isZero();
     }
 
@@ -417,7 +418,7 @@ class OpcodeActionTracerTest {
     void shouldNotRecordRevertReasonWhenPrecompileCallHasNoRevertReason() {
         frame = setupInitialFrame(tracerOptions);
 
-        final Opcode opcode = executePrecompileOperation(frame);
+        final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
         assertThat(opcode.reason()).isNull();
     }
 
@@ -427,7 +428,7 @@ class OpcodeActionTracerTest {
         frame = setupInitialFrame(tracerOptions, ETH_PRECOMPILE_ADDRESS, MESSAGE_CALL);
         frame.setRevertReason(Bytes.of("revert reason".getBytes()));
 
-        final Opcode opcode = executePrecompileOperation(frame);
+        final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
         assertThat(opcode.reason())
                 .isNotEmpty()
                 .isEqualTo(frame.getRevertReason().map(Bytes::toString).orElseThrow());
@@ -450,7 +451,7 @@ class OpcodeActionTracerTest {
         final var frameOfPrecompileCall = buildMessageFrameFromAction(contractActionWithRevert);
         frame = setupFrame(frameOfPrecompileCall);
 
-        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame);
+        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
         assertThat(opcodeForPrecompileCall.reason())
                 .isNotEmpty()
                 .isEqualTo(getAbiEncodedRevertReason(Bytes.of(contractActionWithRevert.getResultData()))
@@ -476,7 +477,7 @@ class OpcodeActionTracerTest {
         final var frameOfPrecompileCall = buildMessageFrameFromAction(contractActionWithRevert);
         frame = setupFrame(frameOfPrecompileCall);
 
-        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame);
+        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
         assertThat(opcodeForPrecompileCall.reason())
                 .isNotEmpty()
                 .isEqualTo(getAbiEncodedRevertReason(Bytes.of(
@@ -503,7 +504,7 @@ class OpcodeActionTracerTest {
         final var frameOfPrecompileCall = buildMessageFrameFromAction(contractActionWithRevert);
         frame = setupFrame(frameOfPrecompileCall);
 
-        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame);
+        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
         assertThat(opcodeForPrecompileCall.reason())
                 .isNotEmpty()
                 .isEqualTo(Bytes.of(contractActionWithRevert.getResultData()).toHexString());
@@ -526,7 +527,7 @@ class OpcodeActionTracerTest {
         final var frameOfPrecompileCall = buildMessageFrameFromAction(contractActionWithRevert);
         frame = setupFrame(frameOfPrecompileCall);
 
-        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame);
+        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
         assertThat(opcodeForPrecompileCall.reason()).isNotNull().isEqualTo(Bytes.EMPTY.toHexString());
     }
 
@@ -564,13 +565,13 @@ class OpcodeActionTracerTest {
         return expectedOpcode;
     }
 
-    private Opcode executePrecompileOperation(final MessageFrame frame) {
+    private Opcode executePrecompileOperation(final MessageFrame frame, final long gasRequirement, final Bytes output) {
         if (frame.getState() == NOT_STARTED) {
             tracer.traceContextEnter(frame);
         } else {
             tracer.traceContextReEnter(frame);
         }
-        tracer.tracePrecompileResult(frame, com.hedera.hapi.streams.ContractActionType.PRECOMPILE);
+        tracer.tracePrecompileCall(frame, gasRequirement, output);
         if (frame.getState() == COMPLETED_SUCCESS || frame.getState() == COMPLETED_FAILED) {
             tracer.traceContextExit(frame);
         }
