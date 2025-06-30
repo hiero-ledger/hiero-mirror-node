@@ -46,7 +46,7 @@
     "qs": "^6.14.0",
     "quick-lru": "^7.0.1",
     "rfc4648": "^1.5.4",
-    "sql-formatter": "^15.6.5",
+    "sql-formatter": "^15.6.6",
     "swagger-stats": "^0.99.7",
     "swagger-ui-express": "^5.0.1",
     "word-wrap": "npm:@aashutoshrathi/word-wrap@^1.2.6"
