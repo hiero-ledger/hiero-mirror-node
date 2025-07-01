@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.parser.contractlog;
 
+import static org.hiero.mirror.common.util.DomainUtils.trim;
+
 import lombok.Data;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
@@ -40,7 +42,7 @@ public abstract class AbstractSyntheticContractLog implements SyntheticContractL
         this.data = data;
     }
 
-    static final byte[] TRANSFER_SIGNATURE = Bytes.fromHexString(
+    public static final byte[] TRANSFER_SIGNATURE = Bytes.fromHexString(
                     "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
             .toArray();
     static final byte[] APPROVE_FOR_ALL_SIGNATURE = Bytes.fromHexString(
@@ -64,28 +66,5 @@ public abstract class AbstractSyntheticContractLog implements SyntheticContractL
 
     static byte[] booleanToBytes(boolean value) {
         return value ? TRUE : FALSE;
-    }
-
-    static byte[] trim(byte[] data) {
-        if (ArrayUtils.isEmpty(data)) {
-            return data;
-        }
-
-        int i = 0;
-        for (; i < data.length; i++) {
-            if (data[i] != 0) {
-                break;
-            }
-        }
-
-        if (i == 0) {
-            return data;
-        }
-
-        if (i == data.length) {
-            return ArrayUtils.EMPTY_BYTE_ARRAY;
-        }
-
-        return ArrayUtils.subarray(data, i, data.length);
     }
 }
