@@ -20,4 +20,12 @@ contract TestAddressThis {
     function getAddressThis() public view returns (address) {
         return address(this);
     }
+
+    function getBalance(address _to) external view returns (uint256) {
+        return _to.balance;
+    }
+
+    function getAddressThisBalance() external returns (uint256)  {
+        return address(this).balance;
+    }
 }

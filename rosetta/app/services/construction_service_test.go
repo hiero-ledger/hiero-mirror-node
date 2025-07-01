@@ -1377,6 +1377,16 @@ func TestNewConstructionAPIServiceThrowsWithUnrecognizedNetwork(t *testing.T) {
 	assert.Nil(t, client)
 }
 
+func TestNewConstructionAPIServiceThrowsWithMixedShardAndRealm(t *testing.T) {
+	nodes := config.NodeMap{
+		"10.0.0.1:50211": hiero.AccountID{Account: 3, Realm: 1},
+		"10.0.0.2:50211": hiero.AccountID{Account: 4, Realm: 2, Shard: 1},
+	}
+	client, err := NewConstructionAPIService(nil, onlineBaseService, &config.Mirror{Rosetta: config.Config{Nodes: nodes}}, nil)
+	assert.Error(t, err)
+	assert.Nil(t, client)
+}
+
 func TestUnmarshallTransactionFromHexString(t *testing.T) {
 	for _, signed := range []bool{false, true} {
 		transactions := []hiero.TransactionInterface{

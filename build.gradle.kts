@@ -18,6 +18,7 @@ extra.apply {
     set("blockNodeVersion", "0.13.0")
     set("grpcVersion", "1.73.0")
     set("jooq.version", "3.20.5") // Must match buildSrc/build.gradle.kts
+    set("prometheus-client.version", "1.3.6") // Temporary until 1.3.9+
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.14.0")
     set("protobufVersion", "4.31.1")
@@ -50,7 +51,7 @@ dependencies {
         api("com.hedera.hashgraph:app:0.63.5")
         api("com.hedera.evm:hedera-evm:0.54.2")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:0.63.5")
-        api("com.hedera.hashgraph:sdk:2.58.0")
+        api("com.hedera.hashgraph:sdk:2.59.0")
         api("com.ongres.scram:client:2.1")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.11.0")
@@ -61,6 +62,9 @@ dependencies {
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.10.1")
         api("io.projectreactor:reactor-core-micrometer:1.2.7")
         api("io.swagger:swagger-annotations:1.6.16")
+        api("io.vertx:vertx-core:4.5.16") // Temporary until next Spring Boot
+        api("io.vertx:vertx-web:4.5.16") // Temporary until next Spring Boot
+        api("io.vertx:vertx-web-client:4.5.16") // Temporary until next Spring Boot
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("javax.inject:javax.inject:1")
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
@@ -81,7 +85,7 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.9")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.springframework.cloud:spring-cloud-dependencies:2025.0.0")
-        api("org.testcontainers:junit-jupiter:1.21.2")
+        api("org.testcontainers:junit-jupiter:1.21.3")
         api("org.mockito:mockito-inline:5.2.0")
         api("software.amazon.awssdk:bom:2.31.68")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")

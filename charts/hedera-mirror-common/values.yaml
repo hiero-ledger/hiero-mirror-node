@@ -183,6 +183,8 @@ loki:
     replicas: 0
 
 minio:
+  console:
+    enabled: false
   enabled: false
   persistence:
     enabled: true
@@ -648,6 +650,8 @@ traefik:
     type: ClusterIP
 
 zfs:
+  alloy:
+    enabled: false
   coordinator:
     initialDiskSize: 300GB
   enabled: false
@@ -673,6 +677,8 @@ zfs:
     serviceAccount:
       name: zfs-service-account
       iAmName: sa-name@project.iam.gserviceaccount.com
+  loki:
+    enabled: false
   lvm-localpv:
     enabled: false
   mayastor:

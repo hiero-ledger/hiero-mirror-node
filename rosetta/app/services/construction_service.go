@@ -603,7 +603,7 @@ func NewConstructionAPIService(
 	}
 
 	if len(config.Rosetta.Nodes) > 0 {
-		sdkClient = hiero.ClientForNetwork(config.Rosetta.Nodes)
+		sdkClient, err = hiero.ClientForNetworkV2(config.Rosetta.Nodes)
 	} else {
 		if baseService.IsOnline() {
 			sdkClient, err = hiero.ClientForName(network)
@@ -613,10 +613,10 @@ func NewConstructionAPIService(
 			clientConfig := []byte(fmt.Sprintf("{\"network\": \"%s\"}", network))
 			sdkClient, err = hiero.ClientFromConfig(clientConfig)
 		}
+	}
 
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	if baseService.IsOnline() && len(config.Rosetta.Nodes) == 0 {

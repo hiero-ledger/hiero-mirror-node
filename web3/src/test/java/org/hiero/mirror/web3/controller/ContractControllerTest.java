@@ -185,14 +185,6 @@ class ContractControllerTest {
         contractCall(request).andExpect(status().isTooManyRequests());
     }
 
-    @Test
-    void restoreGasInThrottleBucketOnValidationFail() throws Exception {
-        var request = request();
-        request.setData("With invalid symbol!");
-        contractCall(request).andExpect(status().isBadRequest());
-        verify(throttleManager).restore(request.getGas());
-    }
-
     @ValueSource(
             strings = {
                 " ",
@@ -275,35 +267,6 @@ class ContractControllerTest {
         final var error = "value field must be greater than or equal to 0";
         final var request = request();
         request.setValue(-1L);
-        contractCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), error))));
-    }
-
-    @Test
-    void exceedingDataCallSizeOnEstimate() throws Exception {
-        var error = "data field of size 262148 contains invalid hexadecimal characters or exceeds 262144 characters";
-        final var request = request();
-        final var dataAsHex =
-                ONE_BYTE_HEX.repeat((int) evmProperties.getMaxDataSize().toBytes() + 1);
-        request.setData("0x" + dataAsHex);
-        request.setEstimate(true);
-        contractCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), error))));
-    }
-
-    @Test
-    void exceedingDataCreateSizeOnEstimate() throws Exception {
-        var error = "data field of size 262148 contains invalid hexadecimal characters or exceeds 262144 characters";
-        final var request = request();
-        final var dataAsHex =
-                ONE_BYTE_HEX.repeat((int) evmProperties.getMaxDataSize().toBytes() + 1);
-        request.setTo(null);
-        request.setValue(0);
-        request.setData("0x" + dataAsHex);
-        request.setEstimate(true);
-
         contractCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), error))));
@@ -487,6 +450,18 @@ class ContractControllerTest {
         contractCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(new StringContains("contains invalid odd length characters")));
+    }
+
+    @Test
+    void callBadRequestWithInvalidHexData() throws Exception {
+        var invalidHexData = "0x12345z";
+
+        var request = request();
+        request.setData(invalidHexData);
+
+        contractCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("data field invalid hexadecimal string")));
     }
 
     @Test

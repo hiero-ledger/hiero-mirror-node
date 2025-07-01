@@ -29,6 +29,7 @@ import org.hiero.mirror.common.domain.entity.CryptoAllowance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.CryptoAllowanceRepository;
@@ -155,7 +156,29 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
                         return 0L;
                     }
                 })
-                .orElseGet(() -> Objects.requireNonNullElse(entity.getBalance(), 0L)));
+                .orElseGet(() -> {
+                    final Long currentBalance = entity.getBalance();
+                    if (!mirrorNodeEvmProperties.isOverridePayerBalanceValidation()) {
+                        return Objects.requireNonNullElse(currentBalance, 0L);
+                    }
+
+                    final ContractCallContext context = ContractCallContext.get();
+                    final boolean isBalanceCall = context.isBalanceCall();
+                    final long minimumBalance = mirrorNodeEvmProperties.getMinimumAccountBalance();
+
+                    try {
+                        // Return DB balance for balance calls or contract entities (e.g., address(this).balance)
+                        if (!isBalanceCall
+                                && entity.getType() != CONTRACT
+                                && (currentBalance == null || currentBalance < minimumBalance)) {
+                            return minimumBalance;
+                        }
+                        return currentBalance;
+                    } finally {
+                        // Always reset the balanceCall flag
+                        context.setBalanceCall(false);
+                    }
+                }));
     }
 
     private Supplier<List<AccountCryptoAllowance>> getCryptoAllowances(
