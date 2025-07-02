@@ -123,10 +123,10 @@ const computeAccountParameters = wrapComputeParametersFunc(
 );
 
 const computeAccountWithCryptoAllowanceParameters = wrapComputeParametersFunc(
-  ['DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE'],
+  ['DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE', 'DEFAULT_SPENDER_ID_CRYPTO_ALLOWANCE'],
   () => {
     let accountsPath = `${baseUrlPrefix}/accounts?account.id=gt:${__ENV.DEFAULT_START_ACCOUNT}&balance=false&order=asc&limit=100`;
-    const candidate = {length: 0};
+    const candidate = {cryptoAllowances: []};
     let totalAccounts = 0;
 
     while (accountsPath && totalAccounts < 100000) {
@@ -140,14 +140,17 @@ const computeAccountWithCryptoAllowanceParameters = wrapComputeParametersFunc(
         const cryptoAllowancesPath = `${baseUrlPrefix}/accounts/${account}/allowances/crypto?limit=25`;
         const cryptoAllowances = getEntities(cryptoAllowancesPath, allowanceListName);
 
-        if (cryptoAllowances.length > candidate.length) {
+        if (cryptoAllowances.length > candidate.cryptoAllowances.length) {
           candidate.account = account;
-          candidate.length = cryptoAllowances.length;
+          candidate.cryptoAllowances = cryptoAllowances;
         }
 
         if (cryptoAllowances.length >= 25) {
-          console.info(`Found account ${account} with ${cryptoAllowances.length} token allowances`);
-          return {DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE: account};
+          console.info(`Found account ${account} with ${cryptoAllowances.length} crypto allowances`);
+          return {
+            DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE: account,
+            DEFAULT_SPENDER_ID_CRYPTO_ALLOWANCE: cryptoAllowances[0].spender,
+          };
         }
       }
 
@@ -155,11 +158,16 @@ const computeAccountWithCryptoAllowanceParameters = wrapComputeParametersFunc(
     }
 
     if (candidate.length > 0) {
-      console.warn(`Fallback to account ${candidate.account} with ${candidate.length} token allowances`);
-      return {DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE: candidate.account};
+      console.warn(
+        `Fallback to account ${candidate.account} with ${candidate.cryptoAllowances.length} crypto allowances`
+      );
+      return {
+        DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE: candidate.account,
+        DEFAULT_SPENDER_ID_CRYPTO_ALLOWANCE: candidate.cryptoAllowances[0].spender,
+      };
     }
 
-    throw new Error('It was not possible to find an account with with significant number of allowance tokens.');
+    throw new Error('It was not possible to find an account with with significant number of crypto allowances.');
   }
 );
 
@@ -238,7 +246,7 @@ const computeAccountWithTokenAllowanceParameters = wrapComputeParametersFunc(
       return {DEFAULT_ACCOUNT_ID_TOKEN_ALLOWANCE: candidate.account};
     }
 
-    throw new Error('It was not possible to find an account with with significant number of allowance tokens.');
+    throw new Error('It was not possible to find an account with with significant number of token allowances.');
   }
 );
 
