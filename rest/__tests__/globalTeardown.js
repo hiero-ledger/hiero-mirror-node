@@ -5,9 +5,12 @@ import log4js from 'log4js';
 
 import {TABLE_USAGE_OUTPUT_DIR} from './testutils.js';
 
-const HEADER = `| Endpoint | Functions | Tables |
-|----------|--------|--------|`;
-const REPORT_FILENAME = 'table-usage.md';
+const CSV_HEADER = 'Endpoint,Source,Table\n';
+const MARKDOWN_ENDPOINT_HEADER = `| Endpoint | Tables |
+|----------|--------|\n`;
+const MARKDOWN_TABLE_HEADER = `| Table | Endpoints |
+|-------|-----------|\n`;
+const REPORT_FILENAME = 'table-usage';
 
 const createTableUsageReport = () => {
   if (process.env.NO_GENERATE_TABLE_USAGE === 'true' || !fs.existsSync(TABLE_USAGE_OUTPUT_DIR)) {
@@ -30,14 +33,54 @@ const createTableUsageReport = () => {
     }
   }
 
-  const writeStream = fs.createWriteStream(`${TABLE_USAGE_OUTPUT_DIR}/${REPORT_FILENAME}`);
-  writeStream.write(`${HEADER}\n`);
+  writeCsvReport(tableUsage);
+  writeMarkdownReport(tableUsage);
+};
+
+const writeCsvReport = (tableUsage) => {
+  const writeStream = fs.createWriteStream(`${TABLE_USAGE_OUTPUT_DIR}/${REPORT_FILENAME}.csv`);
+  writeStream.write(CSV_HEADER);
 
   for (const endpoint of Object.keys(tableUsage).sort()) {
     const callerTables = tableUsage[endpoint];
-    const callers = Object.keys(callerTables).sort();
-    const functions = callers.map((caller) => callerTables[caller]);
-    writeStream.write(`| ${endpoint} | ${callers.join('<br>')} | ${functions.join('<br>')} |\n`);
+    for (const caller of Object.keys(callerTables).sort()) {
+      for (const table of callerTables[caller]) {
+        writeStream.write(`${endpoint},${caller},${table}\n`);
+      }
+    }
+  }
+
+  writeStream.close();
+};
+
+const writeMarkdownReport = (tableUsage) => {
+  const writeStream = fs.createWriteStream(`${TABLE_USAGE_OUTPUT_DIR}/${REPORT_FILENAME}.md`);
+
+  // By endpoint
+  writeStream.write('### By Endpoint\n\n');
+  writeStream.write(MARKDOWN_ENDPOINT_HEADER);
+
+  const usageByTable = {};
+  for (const endpoint of Object.keys(tableUsage).sort()) {
+    const callerTables = tableUsage[endpoint];
+    const tables = Array.from(new Set(Object.values(callerTables).flat())).sort();
+    writeStream.write(`| ${endpoint} | ${tables.join(',')}|\n`);
+
+    tables.forEach((table) => {
+      if (!table) {
+        return;
+      }
+
+      (usageByTable[table] ?? (usageByTable[table] = [])).push(endpoint);
+    });
+  }
+
+  // By table
+  writeStream.write('\n### By Table\n\n');
+  writeStream.write(MARKDOWN_TABLE_HEADER);
+
+  for (const table of Object.keys(usageByTable).sort()) {
+    writeStream.write(`| ${table} | ${usageByTable[table].sort().join(',')} |\n`);
   }
 
   writeStream.close();

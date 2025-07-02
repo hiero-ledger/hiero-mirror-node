@@ -111,7 +111,7 @@ const writeTableUsage = async (group) => {
   // remove non tables
   for (const callerTables of Object.values(usage)) {
     for (const caller of Object.keys(callerTables)) {
-      callerTables[caller] = Array.from(callerTables[caller].intersection(knownTables)).sort().join(',');
+      callerTables[caller] = Array.from(callerTables[caller].intersection(knownTables)).sort();
     }
   }
 
