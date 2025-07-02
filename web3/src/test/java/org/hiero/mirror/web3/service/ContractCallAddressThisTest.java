@@ -26,6 +26,8 @@ import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -76,7 +78,7 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(1000));
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, Address.ZERO);
-        final long actualGas = mirrorNodeEvmProperties.isModularizedServices() ? 97768L : 57764L;
+        final long actualGas = mirrorNodeEvmProperties.isModularizedServices() ? 120170 : 57764L;
         long expectedGas = longValueOf.applyAsLong(contractCallService.processCall(serviceParameters));
         assertThat(isWithinExpectedGasRange(expectedGas, actualGas))
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, expectedGas, actualGas)
@@ -151,11 +153,36 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(TestNestedAddressThis::deploy);
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, Address.ZERO);
-        final long actualGas = mirrorNodeEvmProperties.isModularizedServices() ? 147805L : 95401L;
+        final long actualGas = mirrorNodeEvmProperties.isModularizedServices() ? 170000L : 95401L;
         long expectedGas = longValueOf.applyAsLong(contractCallService.processCall(serviceParameters));
         assertThat(isWithinExpectedGasRange(expectedGas, actualGas))
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, expectedGas, actualGas)
                 .isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void getBalance(boolean overridePayerBalance) throws Exception {
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(overridePayerBalance);
+        final var contract = testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(1000));
+        final var entity1 = accountEntityPersist();
+        final var functionCall = contract.call_getBalance(getAddressFromEntity(entity1));
+        final var result = functionCall.send();
+        assertThat(result).isEqualTo(BigInteger.valueOf(entity1.getBalance()));
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void getAddressThisBalance(boolean overridePayerBalance) throws Exception {
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(overridePayerBalance);
+        final long contractBalance = DEFAULT_SMALL_ACCOUNT_BALANCE - 1;
+        final var contract =
+                testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(contractBalance));
+        final var functionCall = contract.call_getAddressThisBalance();
+        final var result = functionCall.send();
+        assertThat(result).isEqualTo(BigInteger.valueOf(contractBalance));
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
     }
 
     private void addressThisContractPersist(byte[] runtimeBytecode, Address contractAddress) {
