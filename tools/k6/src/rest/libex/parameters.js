@@ -122,6 +122,47 @@ const computeAccountParameters = wrapComputeParametersFunc(
   }
 );
 
+const computeAccountWithCryptoAllowanceParameters = wrapComputeParametersFunc(
+  ['DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE'],
+  () => {
+    let accountsPath = `${baseUrlPrefix}/accounts?account.id=gt:${__ENV.DEFAULT_START_ACCOUNT}&balance=false&order=asc&limit=100`;
+    const candidate = {length: 0};
+    let totalAccounts = 0;
+
+    while (accountsPath && totalAccounts < 100000) {
+      const {
+        accounts,
+        links: {next},
+      } = getValidResponse(accountsPath, null, http.get);
+      accountsPath = restUrlFromNext(next);
+
+      for (const {account} of accounts) {
+        const cryptoAllowancesPath = `${baseUrlPrefix}/accounts/${account}/allowances/crypto?limit=25`;
+        const cryptoAllowances = getEntities(cryptoAllowancesPath, allowanceListName);
+
+        if (cryptoAllowances.length > candidate.length) {
+          candidate.account = account;
+          candidate.length = cryptoAllowances.length;
+        }
+
+        if (cryptoAllowances.length >= 25) {
+          console.info(`Found account ${account} with ${cryptoAllowances.length} token allowances`);
+          return {DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE: account};
+        }
+      }
+
+      totalAccounts += accounts.length;
+    }
+
+    if (candidate.length > 0) {
+      console.warn(`Fallback to account ${candidate.account} with ${candidate.length} token allowances`);
+      return {DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE: candidate.account};
+    }
+
+    throw new Error('It was not possible to find an account with with significant number of allowance tokens.');
+  }
+);
+
 const computeAccountWithNftsParameters = wrapComputeParametersFunc(['DEFAULT_ACCOUNT_ID_NFTS'], () => {
   const candidate = {balance: 0};
   let tokensPath = `${baseUrlPrefix}/tokens?type=NON_FUNGIBLE_UNIQUE&limit=100&order=asc`;
@@ -345,6 +386,7 @@ const computeTopicInfo = wrapComputeParametersFunc(
 
 const allHandlers = [
   computeAccountParameters,
+  computeAccountWithCryptoAllowanceParameters,
   computeAccountWithNftsParameters,
   computeAccountWithTokenAllowanceParameters,
   computeAccountWithTokenParameters,
