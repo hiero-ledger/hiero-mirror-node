@@ -8,9 +8,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
-import org.hiero.mirror.common.util.EndpointNormalizer;
-
 import java.io.IOException;
+import org.hiero.mirror.common.util.EndpointNormalizer;
 
 public final class ApiTrackingFilter implements Filter {
 
@@ -37,6 +36,4 @@ public final class ApiTrackingFilter implements Filter {
         chain.doFilter(request, response);
         CURRENT_ENDPOINT.remove();
     }
-
-
 }

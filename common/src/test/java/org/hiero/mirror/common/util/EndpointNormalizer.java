@@ -1,20 +1,26 @@
-package org.hiero.mirror.common.util;
+// SPDX-License-Identifier: Apache-2.0
 
-import lombok.experimental.UtilityClass;
+package org.hiero.mirror.common.util;
 
 import java.util.Map;
 import java.util.regex.Pattern;
+import lombok.experimental.UtilityClass;
 
 @UtilityClass
- public final class EndpointNormalizer {
+public final class EndpointNormalizer {
 
     // normalization patterns, currently used for rest-java endpoints only.
     private static final Map<Pattern, String> endpointNormalizationPatterns = Map.ofEntries(
             Map.entry(Pattern.compile("^/api/v1/topics/(.+)$"), "/api/v1/topics/{id}"),
-            Map.entry(Pattern.compile("^/api/v1/accounts/[^/]+/airdrops/pending$"), "/api/v1/accounts/{id}/airdrops/pending"),
-            Map.entry(Pattern.compile("^/api/v1/accounts/[^/]+/airdrops/outstanding$"), "/api/v1/accounts/{id}/airdrops/outstanding"),
-            Map.entry(Pattern.compile("^/api/v1/accounts/[^/]+/allowances/nfts$"), "/api/v1/accounts/{id}/allowances/nfts")
-    );
+            Map.entry(
+                    Pattern.compile("^/api/v1/accounts/[^/]+/airdrops/pending$"),
+                    "/api/v1/accounts/{id}/airdrops/pending"),
+            Map.entry(
+                    Pattern.compile("^/api/v1/accounts/[^/]+/airdrops/outstanding$"),
+                    "/api/v1/accounts/{id}/airdrops/outstanding"),
+            Map.entry(
+                    Pattern.compile("^/api/v1/accounts/[^/]+/allowances/nfts$"),
+                    "/api/v1/accounts/{id}/allowances/nfts"));
 
     public static String normalize(final String rawPath) {
         for (final var entry : endpointNormalizationPatterns.entrySet()) {
@@ -24,5 +30,4 @@ import java.util.regex.Pattern;
         }
         return rawPath;
     }
-
 }

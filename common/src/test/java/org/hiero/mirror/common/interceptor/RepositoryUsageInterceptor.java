@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.common.interceptor;
 
+import static org.hiero.mirror.common.util.Constants.UNKNOWN_ENDPOINT;
+
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.metamodel.EntityType;
 import java.lang.reflect.Method;
@@ -9,7 +11,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.aopalliance.intercept.MethodInterceptor;
@@ -21,8 +22,6 @@ import org.hiero.mirror.common.util.SqlParsingUtil;
 import org.hiero.mirror.common.util.TestExecutionTracker;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.core.RepositoryInformation;
-
-import static org.hiero.mirror.common.util.Constants.UNKNOWN_ENDPOINT;
 
 @CustomLog
 @RequiredArgsConstructor

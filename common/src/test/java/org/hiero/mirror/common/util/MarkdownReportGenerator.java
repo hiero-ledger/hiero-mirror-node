@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.common.util;
 
+import static org.hiero.mirror.common.util.Constants.UNKNOWN_ENDPOINT;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -13,12 +15,9 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
-
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
 import org.hiero.mirror.common.interceptor.RepositoryUsageInterceptor;
-
-import static org.hiero.mirror.common.util.Constants.UNKNOWN_ENDPOINT;
 
 @CustomLog
 @UtilityClass
@@ -94,9 +93,7 @@ public final class MarkdownReportGenerator {
                     .toList());
         }
 
-        final var sortedSources = allSourcesSet.stream()
-                .sorted()
-                .toList();
+        final var sortedSources = allSourcesSet.stream().sorted().toList();
 
         final var sourcesBuilder = new StringBuilder();
         for (final var source : sortedSources) {
@@ -139,7 +136,7 @@ public final class MarkdownReportGenerator {
 
         for (final var endpointEntry : endpointTableSources.entrySet()) {
             final var endpoint = endpointEntry.getKey();
-            final var  tableSources = endpointEntry.getValue();
+            final var tableSources = endpointEntry.getValue();
 
             for (final var tableEntry : tableSources.entrySet()) {
                 final var table = tableEntry.getKey();
@@ -154,22 +151,20 @@ public final class MarkdownReportGenerator {
     }
 
     private static void writeTableGroupedByTableRow(
-            final BufferedWriter writer, final String table, final Map<String, Set<String>> endpointSources) throws IOException {
+            final BufferedWriter writer, final String table, final Map<String, Set<String>> endpointSources)
+            throws IOException {
         final var escapedTable = escapeMarkdown(table);
 
         // Build endpoints list with bullets, sorted alphabetically
         final var endpoints = new TreeSet<>(endpointSources.keySet());
-        final var endpointList = endpoints.stream()
-                .map(e -> "- " + escapeMarkdown(e))
-                .collect(Collectors.joining(LINE_BREAK));
+        final var endpointList =
+                endpoints.stream().map(e -> "- " + escapeMarkdown(e)).collect(Collectors.joining(LINE_BREAK));
 
         // Build source list from all sources in all endpoints, merged & sorted
-        final var allSources = endpointSources.values().stream()
-                .flatMap(Set::stream)
-                .collect(Collectors.toCollection(TreeSet::new));
-        final var sourceList = allSources.stream()
-                .map(s -> "- " + escapeMarkdown(s))
-                .collect(Collectors.joining(LINE_BREAK));
+        final var allSources =
+                endpointSources.values().stream().flatMap(Set::stream).collect(Collectors.toCollection(TreeSet::new));
+        final var sourceList =
+                allSources.stream().map(s -> "- " + escapeMarkdown(s)).collect(Collectors.joining(LINE_BREAK));
 
         writer.write("| " + escapedTable + " | " + endpointList + " | " + sourceList + " |" + NEWLINE);
     }

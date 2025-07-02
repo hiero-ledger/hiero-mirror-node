@@ -96,7 +96,6 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                     .when(transactionExecutionService)
                     .execute(paramsCaptor.capture(), gasCaptor.capture());
         }
-
     }
 
     protected void verifyOpcodeTracerCall(
@@ -113,8 +112,6 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
         assertThat(paramsCaptor.getValue()).isEqualTo(debugParameters);
         assertThat(gasCaptor.getValue()).isEqualTo(debugParameters.getGas());
     }
-
-
 
     protected void verifyOpcodeTracerCall(final String callData, final Contract contract) {
         setOpcodeEndpoint();
