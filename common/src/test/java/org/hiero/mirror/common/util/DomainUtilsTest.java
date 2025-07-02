@@ -35,6 +35,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class DomainUtilsTest {
 
@@ -436,4 +438,34 @@ class DomainUtilsTest {
         var address = hexAddress != null ? Hex.decodeHex(hexAddress) : null;
         assertThat(DomainUtils.isLongZeroAddress(address)).isEqualTo(result);
     }
+
+    @CsvSource(
+            value = {
+                    "AccountBalance, account_balance",
+                    "accountBalance, account_balance",
+                    "AccountBalanceSnapshot, account_balance_snapshot",
+                    "accountBalanceSnapshot, account_balance_snapshot",
+            })
+    @ParameterizedTest
+    void toSnakeCase_convertsCamelCaseToSnakeCase(final String input, final String expectedResult) {
+        assertThat(DomainUtils.toSnakeCase(input)).isEqualTo(expectedResult);
+    }
+
+    @CsvSource(
+            value = {
+                    "account_balance, account_balance",
+                    "account, account"
+            })
+    @ParameterizedTest
+    void toSnakeCase_doesNotChangeLowercaseOrSnakeCase(final String input, final String expectedResult) {
+        assertThat(DomainUtils.toSnakeCase(input)).isEqualTo(expectedResult);
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {" ", "\t"})
+    void toSnakeCase_returnsInputAsIsForBlankOrNull(final String input) {
+        assertThat(DomainUtils.toSnakeCase(input)).isEqualTo(input);
+    }
+
 }

@@ -24,6 +24,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.filter.ApiTrackingFilter;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
@@ -44,6 +45,10 @@ import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.tx.Contract;
 
 abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContractCallServiceHistoricalTest {
+
+    protected static void setOpcodeEndpoint() {
+        ApiTrackingFilter.setCurrentEndpoint("/api/v1/contracts/results/{transactionIdOrHash}/opcodes");
+    }
 
     @Resource
     protected ContractDebugService contractDebugService;
@@ -91,10 +96,12 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                     .when(transactionExecutionService)
                     .execute(paramsCaptor.capture(), gasCaptor.capture());
         }
+
     }
 
     protected void verifyOpcodeTracerCall(
             final String callData, final ContractFunctionProviderRecord functionProvider) {
+        setOpcodeEndpoint();
         final var callDataBytes = Bytes.fromHexString(callData);
         final var debugParameters = getDebugParameters(functionProvider, callDataBytes);
 
@@ -107,7 +114,10 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
         assertThat(gasCaptor.getValue()).isEqualTo(debugParameters.getGas());
     }
 
+
+
     protected void verifyOpcodeTracerCall(final String callData, final Contract contract) {
+        setOpcodeEndpoint();
         ContractFunctionProviderRecord functionProvider = ContractFunctionProviderRecord.builder()
                 .contractAddress(Address.fromHexString(contract.getContractAddress()))
                 .build();

@@ -3,14 +3,14 @@
 package org.hiero.mirror.common.config;
 
 import jakarta.persistence.EntityManager;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.interceptor.RepositoryUsageInterceptor;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.data.repository.core.RepositoryInformation;
 import org.springframework.data.repository.core.support.RepositoryProxyPostProcessor;
 
-@AllArgsConstructor
-public final class TrackingRepositoryProxyPostProcessor implements RepositoryProxyPostProcessor {
+@RequiredArgsConstructor
+final class TrackingRepositoryProxyPostProcessor implements RepositoryProxyPostProcessor {
 
     private final EntityManager entityManager;
 

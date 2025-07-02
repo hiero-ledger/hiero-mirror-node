@@ -22,8 +22,11 @@ public final class SqlParsingUtil {
     private static final Pattern CREATE_INDEX_PATTERN = Pattern.compile(
             "\\bcreate\\s+(unique\\s+)?index\\s+(if\\s+not\\s+exists\\s+)?[\\w\\.]+\\s+on\\s+([\\w\\.]+)",
             Pattern.CASE_INSENSITIVE);
+    private static final Pattern DROP_TABLE_PATTERN = Pattern.compile(
+            "\\bdrop\\s+table\\s+(if\\s+exists\\s+)?([`\"]?[\\w]+[`\"]?(?:\\.[`\"]?[\\w]+[`\"]?)?)",
+            Pattern.CASE_INSENSITIVE);
     private static final List<Pattern> TABLE_PATTERNS =
-            List.of(FROM_JOIN_PATTERN, INSERT_PATTERN, UPDATE_PATTERN, DELETE_PATTERN);
+            List.of(FROM_JOIN_PATTERN, INSERT_PATTERN, UPDATE_PATTERN, DELETE_PATTERN, DROP_TABLE_PATTERN);
 
     public static Set<String> extractTableNamesFromSql(String sql) {
         final var tables = new HashSet<String>();
@@ -31,7 +34,7 @@ public final class SqlParsingUtil {
             return tables;
         }
 
-        final var loweredSql = sql.toLowerCase();
+        final var loweredSql = sql.trim().toLowerCase();
 
         // Extract common table expressions (CTEs) since they can be used with FROM or JOIN clauses
         final var cteNames = new HashSet<String>();
@@ -51,9 +54,9 @@ public final class SqlParsingUtil {
         }
 
         // Handle CREATE INDEX ON table
-        var createIndexMatcher = CREATE_INDEX_PATTERN.matcher(loweredSql);
+        final var createIndexMatcher = CREATE_INDEX_PATTERN.matcher(loweredSql);
         while (createIndexMatcher.find()) {
-            String table = createIndexMatcher.group(3);
+            final var table = createIndexMatcher.group(3);
             if (table != null) {
                 tables.add(table);
             }

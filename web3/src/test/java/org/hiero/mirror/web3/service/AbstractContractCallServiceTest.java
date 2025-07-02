@@ -59,6 +59,7 @@ import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.filter.ApiTrackingFilter;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
@@ -216,6 +217,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                         .balance(treasuryEntity.getBalance()))
                 .persist();
         persistRewardAccounts();
+
+        ApiTrackingFilter.setCurrentEndpoint("/api/v1/contracts/call");
     }
 
     @AfterEach
@@ -225,6 +228,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         }
 
         testWeb3jService.reset();
+        ApiTrackingFilter.clearCurrentEndpoint();
     }
 
     protected long gasUsedAfterExecution(final ContractExecutionParameters serviceParameters) {

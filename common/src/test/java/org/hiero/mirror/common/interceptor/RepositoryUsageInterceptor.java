@@ -9,8 +9,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.AllArgsConstructor;
+
 import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.hibernate.query.spi.QueryImplementor;
@@ -21,8 +22,10 @@ import org.hiero.mirror.common.util.TestExecutionTracker;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.core.RepositoryInformation;
 
+import static org.hiero.mirror.common.util.Constants.UNKNOWN_ENDPOINT;
+
 @CustomLog
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class RepositoryUsageInterceptor implements MethodInterceptor {
     private static final Map<String, Map<String, Set<String>>> API_TABLE_QUERIES = new ConcurrentHashMap<>();
 
@@ -52,7 +55,7 @@ public class RepositoryUsageInterceptor implements MethodInterceptor {
         }
 
         final var endpoint =
-                Optional.ofNullable(ApiTrackingFilter.getCurrentEndpoint()).orElse("UNKNOWN_ENDPOINT");
+                Optional.ofNullable(ApiTrackingFilter.getCurrentEndpoint()).orElse(UNKNOWN_ENDPOINT);
 
         // Attempt to extract SQL (via @Query or Hibernate)
         final var sql = extractSql(invocation);
@@ -65,11 +68,11 @@ public class RepositoryUsageInterceptor implements MethodInterceptor {
             tableNames = Set.of(tableName);
         }
 
-        final String methodSignature = createMethodSignature(invocation);
+        final var methodSignature = createMethodSignature(invocation);
 
         // Track method under each resolved table for the current endpoint
         final var endpointMap = API_TABLE_QUERIES.computeIfAbsent(endpoint, k -> new ConcurrentHashMap<>());
-        for (var tableName : tableNames) {
+        for (final var tableName : tableNames) {
             endpointMap
                     .computeIfAbsent(tableName, k -> ConcurrentHashMap.newKeySet())
                     .add(methodSignature);
@@ -85,7 +88,7 @@ public class RepositoryUsageInterceptor implements MethodInterceptor {
      * @param entityClass the JPA entity class
      * @return the resolved table name, or {@code "UNKNOWN_TABLE"} if not found
      */
-    private String resolveJpaTableName(Class<?> entityClass) {
+    private String resolveJpaTableName(final Class<?> entityClass) {
         return entityManager.getMetamodel().getEntities().stream()
                 .filter(e -> e.getJavaType().equals(entityClass))
                 .map(EntityType::getName)

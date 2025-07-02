@@ -10,7 +10,7 @@
 
     @TestConfiguration(proxyBeanMethods = false)
     @EnableJpaRepositories(basePackages = "org.hiero.mirror", repositoryFactoryBeanClass = TrackingRepositoryFactoryBean.class)
-    public class TableUsageReportConfiguration {
+    class TableUsageReportConfiguration {
 
         @Bean
         TrackingRepositoryProxyPostProcessor trackingRepositoryProxyPostProcessor(final EntityManager entityManager) {
