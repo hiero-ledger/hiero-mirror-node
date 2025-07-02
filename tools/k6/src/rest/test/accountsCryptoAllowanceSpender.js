@@ -2,7 +2,8 @@
 
 import http from 'k6/http';
 
-import {isSuccess, RestTestScenarioBuilder} from '../libex/common.js';
+import {isValidListResponse, RestTestScenarioBuilder} from '../libex/common.js';
+import {allowanceListName} from '../libex/constants.js';
 
 const urlTag = '/accounts/{id}/allowances/crypto';
 
@@ -17,7 +18,7 @@ const {options, run, setup} = new RestTestScenarioBuilder()
     return http.get(url);
   })
   .requiredParameters('DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE', 'DEFAULT_SPENDER_ID_CRYPTO_ALLOWANCE')
-  .check('Account crypto allowances for spender results OK', (r) => isSuccess(r))
+  .check('Account crypto allowances for spender results OK', (r) => isValidListResponse(r, allowanceListName))
   .build();
 
 export {getUrl, options, run, setup};

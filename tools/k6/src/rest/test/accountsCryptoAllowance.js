@@ -3,7 +3,7 @@
 import http from 'k6/http';
 
 import {isValidListResponse, RestTestScenarioBuilder} from '../libex/common.js';
-import {resultListName} from '../libex/constants.js';
+import {allowanceListName} from '../libex/constants.js';
 
 const urlTag = '/accounts/{id}/allowances/crypto';
 
@@ -18,7 +18,7 @@ const {options, run, setup} = new RestTestScenarioBuilder()
     return http.get(url);
   })
   .requiredParameters('DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE')
-  .check('Account crypto allowances results OK', (r) => isValidListResponse(r, resultListName))
+  .check('Account crypto allowances results OK', (r) => isValidListResponse(r, allowanceListName))
   .build();
 
 export {getUrl, options, run, setup};
