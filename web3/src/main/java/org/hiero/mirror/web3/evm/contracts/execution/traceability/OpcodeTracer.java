@@ -22,7 +22,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.config.PrecompiledContractProvider;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
 import org.hyperledger.besu.evm.account.MutableAccount;
@@ -36,14 +35,10 @@ import org.hyperledger.besu.evm.precompile.PrecompiledContract;
 public class OpcodeTracer implements HederaOperationTracer {
 
     private final Map<Address, PrecompiledContract> hederaPrecompiles;
-    private final MirrorNodeEvmProperties evmProperties;
 
-    public OpcodeTracer(
-            final PrecompiledContractProvider precompiledContractProvider,
-            final MirrorNodeEvmProperties evmProperties) {
+    public OpcodeTracer(final PrecompiledContractProvider precompiledContractProvider) {
         this.hederaPrecompiles = precompiledContractProvider.getHederaPrecompiles().entrySet().stream()
                 .collect(Collectors.toMap(e -> Address.fromHexString(e.getKey()), Map.Entry::getValue));
-        this.evmProperties = evmProperties;
     }
 
     @Override

@@ -151,7 +151,7 @@ class OpcodeTracerTest {
                         EXCHANGE_RATE_SYSTEM_CONTRACT_ADDRESS,
                         mock(PrecompiledContract.class)));
         REMAINING_GAS.set(INITIAL_GAS);
-        tracer = new OpcodeTracer(precompilesHolder, mirrorNodeEvmProperties);
+        tracer = new OpcodeTracer(precompilesHolder);
         tracerOptions = new OpcodeTracerOptions(false, false, false, false);
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
     }

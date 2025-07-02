@@ -2,13 +2,15 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import com.hedera.node.app.service.contract.impl.exec.tracers.EvmActionTracer;
-import com.hedera.node.app.service.contract.impl.exec.utils.ActionStack;
+import com.hedera.hapi.streams.ContractActionType;
+import com.hedera.hapi.streams.ContractActions;
+import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.services.utils.EntityIdUtils;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import jakarta.inject.Named;
 import java.util.Optional;
 import lombok.CustomLog;
+import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.web3.evm.properties.TraceProperties;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
@@ -17,14 +19,13 @@ import org.hyperledger.besu.evm.operation.Operation;
 
 @Named
 @CustomLog
-public class MirrorOperationActionTracer extends EvmActionTracer {
+public class MirrorOperationActionTracer implements ActionSidecarContentTracer {
 
     private final TraceProperties traceProperties;
     private final CommonEntityAccessor commonEntityAccessor;
 
     public MirrorOperationActionTracer(
             @NonNull final TraceProperties traceProperties, @NonNull final CommonEntityAccessor commonEntityAccessor) {
-        super(new ActionStack());
         this.traceProperties = traceProperties;
         this.commonEntityAccessor = commonEntityAccessor;
     }
@@ -35,6 +36,7 @@ public class MirrorOperationActionTracer extends EvmActionTracer {
         if (!traceProperties.isEnabled()) {
             return;
         }
+
         if (traceProperties.stateFilterCheck(frame.getState())) {
             return;
         }
@@ -54,7 +56,9 @@ public class MirrorOperationActionTracer extends EvmActionTracer {
         log.info(
                 "type={} operation={}, callDepth={}, contract={}, sender={}, recipient={}, remainingGas={}, revertReason={}, input={}, output={}, return={}",
                 frame.getType(),
-                frame.getCurrentOperation().getName(),
+                frame.getCurrentOperation() != null
+                        ? frame.getCurrentOperation().getName()
+                        : StringUtils.EMPTY,
                 frame.getDepth(),
                 frame.getContractAddress().toShortHexString(),
                 frame.getSenderAddress().toShortHexString(),
@@ -66,5 +70,25 @@ public class MirrorOperationActionTracer extends EvmActionTracer {
                 frame.getInputData().toShortHexString(),
                 frame.getOutputData().toShortHexString(),
                 frame.getReturnData().toShortHexString());
+    }
+
+    @Override
+    public void traceOriginAction(@NonNull MessageFrame frame) {
+        // NO-OP
+    }
+
+    @Override
+    public void sanitizeTracedActions(@NonNull MessageFrame frame) {
+        // NO-OP
+    }
+
+    @Override
+    public void tracePrecompileResult(@NonNull MessageFrame frame, @NonNull ContractActionType type) {
+        // NO-OP
+    }
+
+    @Override
+    public ContractActions contractActions() {
+        return null;
     }
 }
