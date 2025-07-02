@@ -81,7 +81,7 @@ class EntityId {
   }
 
   isAllZero() {
-    return this.shard === 0 && this.realm === 0 && this.num === 0;
+    return this.num === 0;
   }
 
   /**

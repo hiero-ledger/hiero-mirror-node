@@ -88,28 +88,28 @@ const getResponseHeaders = (spec, specPath) => {
 };
 
 const transformValues = (obj) => {
+  //TODO use this everywhere below
   const shardRealm = `${systemShard}.${systemRealm}.`;
 
   if (Array.isArray(obj)) {
     return obj.map(transformValues);
   } else if (typeof obj === 'object' && obj !== null) {
     return Object.fromEntries(
-      Object.entries(obj)
-        .map(([key, value]) => {
-          if (typeof value === 'string' &&
-            key.toLowerCase().includes('timestamp') ||
-            key.toLowerCase().includes('start') ||
-            key.toLowerCase().endsWith('end')) {
-            return [key, value]; // leave unchanged
-          }
-          return [key, transformValues(value)]
-        })
+      Object.entries(obj).map(([key, value]) => {
+        if (
+          (typeof value === 'string' && key.toLowerCase().endsWith('end')) ||
+          key.toLowerCase().endsWith('time') ||
+          key.toLowerCase() === 'from' ||
+          key.toLowerCase().includes('start') ||
+          key.toLowerCase().includes('timestamp') ||
+          key.toLowerCase() === 'to'
+        ) {
+          return [key, value]; // leave unchanged
+        }
+        return [key, transformValues(value)];
+      })
     );
   } else if (typeof obj === 'string') {
-    if (/timestamp=\d+\.\d+/.test(obj)) {
-      return obj;
-    }
-
     if (/^0\.0\.\d+$/.test(obj)) {
       return obj.replace(/^0\.0\./, `${systemShard}.${systemRealm}.`);
     }
@@ -126,16 +126,28 @@ const transformValues = (obj) => {
       return obj.replace(/^0\./, `${systemRealm}.`);
     }
 
-    obj = obj.replace(/0\.0\.(\d+)/g, `${systemShard}.${systemRealm}.$1`);
-    obj = obj.replace(/0\.0\.([A-Z0-9]{40,})/gi, `${shardRealm}$1`);
-    obj = obj.replace(/0\.([A-Z0-9]{40,})/gi, `${systemRealm}.$1`);
-    obj = obj.replace(/0\.(\d+)\b/g, `${systemRealm}.$1`);
+    let possibleUrlParts = obj.split(/[?&]/);
+    let result = [];
+    for (let i = 0; i < possibleUrlParts.length; i++) {
+      let entry = possibleUrlParts[i];
+      if (/timestamp=(?:gt|gte|lt|lte|eq)?:?\d+\.\d+/i.test(entry)) {
+        result.push(entry);
+        continue;
+      }
 
-    return obj
+      entry = entry.replace(/0\.0\.(\d+)/g, `${systemShard}.${systemRealm}.$1`);
+      entry = entry.replace(/0\.0\.([A-Z0-9]{40,})/gi, `${shardRealm}$1`);
+      entry = entry.replace(/0\.([A-Z0-9]{40,})/gi, `${systemRealm}.$1`);
+      entry = entry.replace(/(?<!\d)0\.(\d+)\b/g, `${systemRealm}.$1`);
+
+      result.push(entry);
+    }
+
+    return result.join('&').replace('&', '?');
   } else {
     return obj;
   }
-}
+};
 
 const getSpecs = async () => {
   const modulePath = getModuleDirname(import.meta);
@@ -149,7 +161,7 @@ const getSpecs = async () => {
         .filter((f) => f.endsWith('.json') && !f.endsWith(responseHeadersFilename))
         .map(async (f) => {
           const specText = fs.readFileSync(f, 'utf8');
-          const spec = transformValues(JSONParse(specText));
+          const spec = f.indexOf('stateproof') > -1 ? JSONParse(specText) : transformValues(JSONParse(specText));
           spec.name = path.basename(f);
           getResponseHeaders(spec, f);
 

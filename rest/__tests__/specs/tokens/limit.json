@@ -19,17 +19,14 @@
         "type": "TOKEN"
       },
       {
-        "realm": 7,
         "num": 25301,
         "type": "TOKEN"
       },
       {
-        "realm": 23,
         "num": 45678,
         "type": "TOKEN"
       },
       {
-        "realm": 23,
         "num": 55555,
         "type": "TOKEN"
       }
@@ -53,7 +50,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.7.25301",
+        "token_id": "0.0.25301",
         "symbol": "MIRRORTOKEN",
         "created_timestamp": "1234567890000000003",
         "decimals": 3,
@@ -62,7 +59,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.23.45678",
+        "token_id": "0.0.45678",
         "symbol": "HEDERACOIN",
         "created_timestamp": "1234567890000000004",
         "decimals": 4,
@@ -70,7 +67,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.23.55555",
+        "token_id": "0.0.55555",
         "symbol": "HEDERACOIN",
         "created_timestamp": "1234567890000000005",
         "type": "FUNGIBLE_COMMON"
@@ -110,12 +107,12 @@
             "metadata": "",
             "name": "Mirror",
             "symbol": "MIRRORTOKEN",
-            "token_id": "0.7.25301",
+            "token_id": "0.0.25301",
             "type": "FUNGIBLE_COMMON"
           }
         ],
         "links": {
-          "next": "/api/v1/tokens?limit=3&token.id=gt:0.7.25301"
+          "next": "/api/v1/tokens?limit=3&token.id=gt:0.0.25301"
         }
       }
     },
@@ -148,7 +145,7 @@
             "metadata": "",
             "name": "Mirror",
             "symbol": "MIRRORTOKEN",
-            "token_id": "0.7.25301",
+            "token_id": "0.0.25301",
             "type": "FUNGIBLE_COMMON"
           },
           {
@@ -157,17 +154,17 @@
             "metadata": "",
             "name": "Hedera",
             "symbol": "HEDERACOIN",
-            "token_id": "0.23.45678",
+            "token_id": "0.0.45678",
             "type": "FUNGIBLE_COMMON"
           }
         ],
         "links": {
-          "next": "/api/v1/tokens?limit=5&token.id=gt:0.23.45678"
+          "next": "/api/v1/tokens?limit=5&token.id=gt:0.0.45678"
         }
       }
     },
     {
-      "url": "/api/v1/tokens?limit=3&token.id=lte:0.7.25301",
+      "url": "/api/v1/tokens?limit=3&token.id=lte:0.0.25301",
       "responseStatus": 200,
       "responseJson": {
         "tokens": [
@@ -195,7 +192,7 @@
             "metadata": "",
             "name": "Mirror",
             "symbol": "MIRRORTOKEN",
-            "token_id": "0.7.25301",
+            "token_id": "0.0.25301",
             "type": "FUNGIBLE_COMMON"
           }
         ],

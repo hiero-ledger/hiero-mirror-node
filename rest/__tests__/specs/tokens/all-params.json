@@ -20,14 +20,12 @@
         "key": [2, 2, 2]
       },
       {
-        "realm": 7,
         "num": 25301,
         "type": "TOKEN",
         "public_key": "2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864",
         "key": [3, 3, 3]
       },
       {
-        "realm": 23,
         "num": 45678,
         "type": "TOKEN",
         "public_key": "2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864",
@@ -48,7 +46,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.7.25301",
+        "token_id": "0.0.25301",
         "symbol": "MIRRORTOKEN",
         "created_timestamp": "1234567890000000003",
         "decimals": 3,
@@ -57,7 +55,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.23.45678",
+        "token_id": "0.0.45678",
         "symbol": "HEDERACOIN",
         "created_timestamp": "1234567890000000004",
         "decimals": 4,
@@ -75,12 +73,12 @@
         "modified_timestamp": "1234569990000000002"
       },
       {
-        "token_id": "0.7.25301",
+        "token_id": "0.0.25301",
         "account_id": "0.0.2",
         "created_timestamp": "1234567890000000005"
       },
       {
-        "token_id": "0.23.45678",
+        "token_id": "0.0.45678",
         "account_id": "0.0.2",
         "created_timestamp": "1234567890000000006"
       }
@@ -88,12 +86,12 @@
   },
   "tests": [
     {
-      "url": "/api/v1/tokens?account.id=2&token.id=gte:0.0.18&token.id=lt:0.30000.0&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc",
+      "url": "/api/v1/tokens?account.id=2&token.id=gte:0.0.18&token.id=lt:0.0.50000&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc",
       "responseStatus": 200,
       "responseJson": {
         "tokens": [
           {
-            "token_id": "0.23.45678",
+            "token_id": "0.0.45678",
             "symbol": "HEDERACOIN",
             "admin_key": {
               "_type": "ProtobufEncoded",
@@ -105,7 +103,7 @@
             "type": "FUNGIBLE_COMMON"
           },
           {
-            "token_id": "0.7.25301",
+            "token_id": "0.0.25301",
             "symbol": "MIRRORTOKEN",
             "admin_key": {
               "_type": "ProtobufEncoded",
@@ -118,17 +116,17 @@
           }
         ],
         "links": {
-          "next": "/api/v1/tokens?account.id=2&token.id=gte:0.0.18&token.id=lt:0.7.25301&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc"
+          "next": "/api/v1/tokens?account.id=2&token.id=gte:0.0.18&token.id=lt:0.0.25301&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc"
         }
       }
     },
     {
-      "url": "/api/v1/tokens?account.id=2&token.id=gte:0000000000000000000000000000000000000012&token.id=lt:0.30000.0&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc",
+      "url": "/api/v1/tokens?account.id=2&token.id=gte:0000000000000000000000000000000000000012&token.id=lt:0.0.50000&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc",
       "responseStatus": 200,
       "responseJson": {
         "tokens": [
           {
-            "token_id": "0.23.45678",
+            "token_id": "0.0.45678",
             "symbol": "HEDERACOIN",
             "admin_key": {
               "_type": "ProtobufEncoded",
@@ -140,7 +138,7 @@
             "type": "FUNGIBLE_COMMON"
           },
           {
-            "token_id": "0.7.25301",
+            "token_id": "0.0.25301",
             "symbol": "MIRRORTOKEN",
             "admin_key": {
               "_type": "ProtobufEncoded",
@@ -153,17 +151,17 @@
           }
         ],
         "links": {
-          "next": "/api/v1/tokens?account.id=2&token.id=gte:0000000000000000000000000000000000000012&token.id=lt:0.7.25301&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc"
+          "next": "/api/v1/tokens?account.id=2&token.id=gte:0000000000000000000000000000000000000012&token.id=lt:0.0.25301&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc"
         }
       }
     },
     {
-      "url": "/api/v1/tokens?account.id=2&token.id=gte:0x0000000000000000000000000000000000000012&token.id=lt:0.30000.0&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc",
+      "url": "/api/v1/tokens?account.id=2&token.id=gte:0x0000000000000000000000000000000000000012&token.id=lt:0.0.50000&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc",
       "responseStatus": 200,
       "responseJson": {
         "tokens": [
           {
-            "token_id": "0.23.45678",
+            "token_id": "0.0.45678",
             "symbol": "HEDERACOIN",
             "admin_key": {
               "_type": "ProtobufEncoded",
@@ -175,7 +173,7 @@
             "type": "FUNGIBLE_COMMON"
           },
           {
-            "token_id": "0.7.25301",
+            "token_id": "0.0.25301",
             "symbol": "MIRRORTOKEN",
             "admin_key": {
               "_type": "ProtobufEncoded",
@@ -188,17 +186,17 @@
           }
         ],
         "links": {
-          "next": "/api/v1/tokens?account.id=2&token.id=gte:0x0000000000000000000000000000000000000012&token.id=lt:0.7.25301&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc"
+          "next": "/api/v1/tokens?account.id=2&token.id=gte:0x0000000000000000000000000000000000000012&token.id=lt:0.0.25301&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc"
         }
       }
     },
     {
-      "url": "/api/v1/tokens?account.id=2&token.id=gte:0.0.0000000000000000000000000000000000000012&token.id=lt:0.30000.0&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc",
+      "url": "/api/v1/tokens?account.id=2&token.id=gte:0.0.0000000000000000000000000000000000000012&token.id=lt:0.0.50000&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc",
       "responseStatus": 200,
       "responseJson": {
         "tokens": [
           {
-            "token_id": "0.23.45678",
+            "token_id": "0.0.45678",
             "symbol": "HEDERACOIN",
             "admin_key": {
               "_type": "ProtobufEncoded",
@@ -210,7 +208,7 @@
             "type": "FUNGIBLE_COMMON"
           },
           {
-            "token_id": "0.7.25301",
+            "token_id": "0.0.25301",
             "symbol": "MIRRORTOKEN",
             "admin_key": {
               "_type": "ProtobufEncoded",
@@ -223,12 +221,12 @@
           }
         ],
         "links": {
-          "next": "/api/v1/tokens?account.id=2&token.id=gte:0.0.0000000000000000000000000000000000000012&token.id=lt:0.7.25301&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc"
+          "next": "/api/v1/tokens?account.id=2&token.id=gte:0.0.0000000000000000000000000000000000000012&token.id=lt:0.0.25301&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=desc"
         }
       }
     },
     {
-      "url": "/api/v1/tokens?account.id=2&token.id=gte:0.0.0000000000000000000000000000000000000012&token.id=lt:0.30000.0&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=asc",
+      "url": "/api/v1/tokens?account.id=2&token.id=gte:0.0.0000000000000000000000000000000000000012&token.id=lt:0.0.50000&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=asc",
       "responseStatus": 200,
       "responseJson": {
         "tokens": [
@@ -241,7 +239,7 @@
             "metadata": "",
             "name": "Mirror",
             "symbol": "MIRRORTOKEN",
-            "token_id": "0.7.25301",
+            "token_id": "0.0.25301",
             "type": "FUNGIBLE_COMMON"
           },
           {
@@ -253,12 +251,12 @@
             "metadata": "AQE=",
             "name": "Hedera",
             "symbol": "HEDERACOIN",
-            "token_id": "0.23.45678",
+            "token_id": "0.0.45678",
             "type": "FUNGIBLE_COMMON"
           }
         ],
         "links": {
-          "next": "/api/v1/tokens?account.id=2&token.id=lt:0.30000.0&token.id=gt:0.23.45678&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=asc"
+          "next": "/api/v1/tokens?account.id=2&token.id=lt:0.0.50000&token.id=gt:0.0.45678&limit=2&publickey=2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864&order=asc"
         }
       }
     }
