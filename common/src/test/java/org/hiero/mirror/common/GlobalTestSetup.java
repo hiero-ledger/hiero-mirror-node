@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common;
 
+import org.hiero.mirror.common.util.CsvGenerator;
 import org.hiero.mirror.common.util.MarkdownReportGenerator;
 import org.hiero.mirror.common.util.TestExecutionTracker;
 import org.junit.platform.engine.TestExecutionResult;
@@ -48,5 +49,6 @@ public class GlobalTestSetup implements LauncherSessionListener, TestExecutionLi
     @Override
     public void launcherSessionClosed(LauncherSession session) {
         MarkdownReportGenerator.generateTableUsageReport();
+        CsvGenerator.generateTableUsageReport();
     }
 }

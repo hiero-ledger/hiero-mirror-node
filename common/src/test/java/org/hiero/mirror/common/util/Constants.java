@@ -2,9 +2,10 @@
 
 package org.hiero.mirror.common.util;
 
-public class Constants {
+import lombok.experimental.UtilityClass;
 
-    private Constants() {}
+@UtilityClass
+public class Constants {
 
     public static final String UNKNOWN_ENDPOINT = "UNKNOWN_ENDPOINT";
 }
