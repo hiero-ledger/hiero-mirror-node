@@ -7,49 +7,48 @@ import static org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerU
 import static org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerUtils.getRevertReasonFromContractActions;
 import static org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerUtils.isCallToHederaPrecompile;
 
-import com.hedera.node.app.service.mono.contracts.execution.traceability.HederaOperationTracer;
-import com.hedera.services.stream.proto.ContractActionType;
+import com.hedera.hapi.streams.ContractActionType;
+import com.hedera.hapi.streams.ContractActions;
+import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
+import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import jakarta.inject.Named;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
-import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.config.PrecompiledContractProvider;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
-import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.frame.MessageFrame;
-import org.hyperledger.besu.evm.operation.Operation;
+import org.hyperledger.besu.evm.operation.Operation.OperationResult;
 import org.hyperledger.besu.evm.precompile.PrecompiledContract;
 
 @Named
 @CustomLog
-@Getter
-public class OpcodeTracer implements HederaOperationTracer {
+public class OpcodeActionTracer implements ActionSidecarContentTracer {
 
     private final Map<Address, PrecompiledContract> hederaPrecompiles;
 
-    public OpcodeTracer(final PrecompiledContractProvider precompiledContractProvider) {
+    public OpcodeActionTracer(@NonNull final PrecompiledContractProvider precompiledContractProvider) {
         this.hederaPrecompiles = precompiledContractProvider.getHederaPrecompiles().entrySet().stream()
                 .collect(Collectors.toMap(e -> Address.fromHexString(e.getKey()), Map.Entry::getValue));
     }
 
     @Override
-    public void tracePostExecution(final MessageFrame frame, final Operation.OperationResult operationResult) {
-        final ContractCallContext context = ContractCallContext.get();
+    public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
+        final var context = ContractCallContext.get();
 
-        final OpcodeTracerOptions options = context.getOpcodeTracerOptions();
-        final List<Bytes> memory = captureMemory(frame, options);
-        final List<Bytes> stack = captureStack(frame, options);
-        final Map<Bytes, Bytes> storage = captureStorage(frame, options);
-        final Opcode opcode = Opcode.builder()
+        final var options = context.getOpcodeTracerOptions();
+        final var memory = captureMemory(frame, options);
+        final var stack = captureStack(frame, options);
+        final var storage = captureStorage(frame, options);
+        final var opcode = Opcode.builder()
                 .pc(frame.getPC())
                 .op(frame.getCurrentOperation().getName())
                 .gas(frame.getRemainingGas())
@@ -65,44 +64,46 @@ public class OpcodeTracer implements HederaOperationTracer {
     }
 
     @Override
-    public void tracePrecompileCall(final MessageFrame frame, final long gasRequirement, final Bytes output) {
-        final ContractCallContext context = ContractCallContext.get();
-        final Optional<Bytes> revertReason = isCallToHederaPrecompile(frame, hederaPrecompiles)
+    public void tracePrecompileCall(
+            @NonNull final MessageFrame frame, final long gasRequirement, @Nullable final Bytes output) {
+        final var context = ContractCallContext.get();
+        final var revertReason = isCallToHederaPrecompile(frame, hederaPrecompiles)
                 ? getRevertReasonFromContractActions(context)
                 : frame.getRevertReason();
-        final Opcode opcode = Opcode.builder()
+
+        final var opcode = Opcode.builder()
                 .pc(frame.getPC())
                 .op(
                         frame.getCurrentOperation() != null
                                 ? frame.getCurrentOperation().getName()
                                 : StringUtils.EMPTY)
                 .gas(frame.getRemainingGas())
-                .gasCost(output != null ? gasRequirement : 0L)
+                .gasCost(output != null && !output.isEmpty() ? gasRequirement : 0L)
                 .depth(frame.getDepth())
                 .stack(Collections.emptyList())
                 .memory(Collections.emptyList())
                 .storage(Collections.emptyMap())
                 .reason(revertReason.map(Bytes::toHexString).orElse(null))
                 .build();
-
         context.addOpcodes(opcode);
     }
 
-    private Map<Bytes, Bytes> captureStorage(final MessageFrame frame, OpcodeTracerOptions options) {
+    private Map<Bytes, Bytes> captureStorage(final MessageFrame frame, final OpcodeTracerOptions options) {
         if (!options.isStorage()) {
             return Collections.emptyMap();
         }
 
         try {
-            final Address address = frame.getRecipientAddress();
-            final MutableAccount account = frame.getWorldUpdater().getAccount(address);
+            final var updates = ((ProxyWorldUpdater) frame.getWorldUpdater()).pendingStorageUpdates();
+            return updates.stream()
+                    .flatMap(storageAccesses ->
+                            storageAccesses.accesses().stream()) // Properly flatten the nested structure
+                    .collect(Collectors.toMap(
+                            e -> Bytes.wrap(e.key().toArray()),
+                            e -> Bytes.wrap(e.value().toArray()),
+                            (v1, v2) -> v1, // in case of duplicates, keep the first value
+                            TreeMap::new));
 
-            if (account == null) {
-                log.warn("Failed to retrieve storage contents. Account not found in WorldUpdater");
-                return Collections.emptyMap();
-            }
-
-            return new TreeMap<>(account.getUpdatedStorage());
         } catch (final ModificationNotAllowedException e) {
             log.warn("Failed to retrieve storage contents", e);
             return Collections.emptyMap();
@@ -110,7 +111,22 @@ public class OpcodeTracer implements HederaOperationTracer {
     }
 
     @Override
-    public void tracePrecompileResult(final MessageFrame frame, final ContractActionType type) {
-        // Empty body
+    public void traceOriginAction(@NonNull MessageFrame frame) {
+        // NO-OP
+    }
+
+    @Override
+    public void sanitizeTracedActions(@NonNull MessageFrame frame) {
+        // NO-OP
+    }
+
+    @Override
+    public void tracePrecompileResult(@NonNull MessageFrame frame, @NonNull ContractActionType type) {
+        // NO-OP
+    }
+
+    @Override
+    public ContractActions contractActions() {
+        return null;
     }
 }

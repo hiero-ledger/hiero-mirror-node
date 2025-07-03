@@ -3,13 +3,14 @@
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
+import java.util.Optional;
 import java.util.Set;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.web3.evm.account.MirrorEvmContractAliases;
+import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.web3.evm.properties.TraceProperties;
+import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.frame.MessageFrame.State;
@@ -26,7 +27,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
-class MirrorOperationTracerTest {
+class MirrorOperationActionTracerTest {
 
     private static final Address contract = Address.fromHexString("0x2");
     private static final Address recipient = Address.fromHexString("0x3");
@@ -46,14 +47,17 @@ class MirrorOperationTracerTest {
     private MessageFrame messageFrame;
 
     @Mock
-    private MirrorEvmContractAliases mirrorEvmContractAliases;
+    private Entity recipientEntity;
 
-    private MirrorOperationTracer mirrorOperationTracer;
+    @Mock
+    private CommonEntityAccessor commonEntityAccessor;
+
+    private MirrorOperationActionTracer mirrorOperationTracer;
 
     @BeforeEach
     void setup() {
         traceProperties = new TraceProperties();
-        mirrorOperationTracer = new MirrorOperationTracer(traceProperties, mirrorEvmContractAliases);
+        mirrorOperationTracer = new MirrorOperationActionTracer(traceProperties, commonEntityAccessor);
     }
 
     @Test
@@ -79,7 +83,6 @@ class MirrorOperationTracerTest {
         traceProperties.setEnabled(true);
         traceProperties.setStatus(Set.of(State.CODE_SUSPENDED));
         given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
-        given(mirrorEvmContractAliases.resolveForEvm(any())).willReturn(recipient);
         given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
         given(messageFrame.getType()).willReturn(Type.MESSAGE_CALL);
         given(messageFrame.getContractAddress()).willReturn(contract);
@@ -92,7 +95,6 @@ class MirrorOperationTracerTest {
         given(messageFrame.getSenderAddress()).willReturn(sender);
         given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
         given(messageFrame.getDepth()).willReturn(1);
-        given(mirrorEvmContractAliases.resolveForEvm(recipient)).willReturn(recipient);
 
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
 
@@ -114,8 +116,11 @@ class MirrorOperationTracerTest {
     void contractFilterMismatch(CapturedOutput output) {
         traceProperties.setEnabled(true);
         traceProperties.setContract(Set.of(contract.toHexString()));
-        given(mirrorEvmContractAliases.resolveForEvm(any())).willReturn(recipient);
-        given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
+        given(messageFrame.getRecipientAddress()).willReturn(recipient);
+        given(commonEntityAccessor.get(
+                        com.hedera.pbj.runtime.io.buffer.Bytes.wrap(recipient.toArray()), Optional.empty()))
+                .willReturn(Optional.of(recipientEntity));
+        given(recipientEntity.getId()).willReturn(3L);
 
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
 
@@ -126,7 +131,6 @@ class MirrorOperationTracerTest {
     void contractFilter(CapturedOutput output) {
         traceProperties.setEnabled(true);
         traceProperties.setContract(Set.of(recipient.toHexString()));
-        given(mirrorEvmContractAliases.resolveForEvm(any())).willReturn(recipient);
         given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
         given(messageFrame.getType()).willReturn(Type.MESSAGE_CALL);
         given(messageFrame.getContractAddress()).willReturn(contract);
@@ -139,7 +143,6 @@ class MirrorOperationTracerTest {
         given(messageFrame.getSenderAddress()).willReturn(sender);
         given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
         given(messageFrame.getDepth()).willReturn(1);
-        given(mirrorEvmContractAliases.resolveForEvm(recipient)).willReturn(recipient);
 
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
 
@@ -170,7 +173,6 @@ class MirrorOperationTracerTest {
         given(messageFrame.getRecipientAddress()).willReturn(recipient);
         given(messageFrame.getReturnData()).willReturn(returnData);
         given(messageFrame.getSenderAddress()).willReturn(sender);
-        given(mirrorEvmContractAliases.resolveForEvm(recipient)).willReturn(recipient);
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
 
         given(messageFrame.getType()).willReturn(Type.MESSAGE_CALL);
@@ -184,7 +186,6 @@ class MirrorOperationTracerTest {
         given(messageFrame.getSenderAddress()).willReturn(sender);
         given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
         given(messageFrame.getDepth()).willReturn(1);
-        given(mirrorEvmContractAliases.resolveForEvm(recipient)).willReturn(recipient);
 
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
         assertThat(output)

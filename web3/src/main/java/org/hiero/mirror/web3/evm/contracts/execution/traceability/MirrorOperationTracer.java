@@ -6,6 +6,7 @@ import com.hedera.node.app.service.evm.contracts.execution.traceability.HederaEv
 import jakarta.inject.Named;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.account.MirrorEvmContractAliases;
 import org.hiero.mirror.web3.evm.properties.TraceProperties;
@@ -39,7 +40,9 @@ public class MirrorOperationTracer implements HederaEvmOperationTracer {
         log.info(
                 "type={} operation={}, callDepth={}, contract={}, sender={}, recipient={}, remainingGas={}, revertReason={}, input={}, output={}, return={}",
                 currentFrame.getType(),
-                currentFrame.getCurrentOperation().getName(),
+                currentFrame.getCurrentOperation() != null
+                        ? currentFrame.getCurrentOperation().getName()
+                        : StringUtils.EMPTY,
                 currentFrame.getDepth(),
                 currentFrame.getContractAddress().toShortHexString(),
                 currentFrame.getSenderAddress().toShortHexString(),

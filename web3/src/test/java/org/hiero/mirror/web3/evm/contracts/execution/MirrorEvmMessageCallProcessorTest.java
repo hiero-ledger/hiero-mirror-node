@@ -23,11 +23,11 @@ import java.time.Instant;
 import java.util.Optional;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.config.PrecompilesHolder;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
@@ -37,6 +37,7 @@ import org.hyperledger.besu.evm.precompile.ECRECPrecompiledContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 class MirrorEvmMessageCallProcessorTest extends MirrorEvmMessageCallProcessorBaseTest {
@@ -44,14 +45,13 @@ class MirrorEvmMessageCallProcessorTest extends MirrorEvmMessageCallProcessorBas
     private static final Address NON_PRECOMPILE_ADDRESS =
             Address.fromHexString("0x00a94f5374fce5edbc8e2a8697c15331677e6ebf");
 
+    private static MockedStatic<ContractCallContext> contextMockedStatic;
+
     @Mock
     private PrecompilesHolder precompilesHolder;
 
     @Mock
     private MirrorNodeEvmProperties evmProperties;
-
-    @Mock
-    private MirrorNodeState mirrorNodeState;
 
     private OpcodeTracer opcodeTracer;
     private MirrorEvmMessageCallProcessor subject;
@@ -60,7 +60,7 @@ class MirrorEvmMessageCallProcessorTest extends MirrorEvmMessageCallProcessorBas
     void setUp() {
         when(precompilesHolder.getHederaPrecompiles()).thenReturn(hederaPrecompileList);
         when(messageFrame.getWorldUpdater()).thenReturn(updater);
-        opcodeTracer = Mockito.spy(new OpcodeTracer(precompilesHolder, evmProperties, mirrorNodeState));
+        opcodeTracer = Mockito.spy(new OpcodeTracer(precompilesHolder));
         subject = new MirrorEvmMessageCallProcessor(
                 autoCreationLogic,
                 entityAddressSequencer,
@@ -163,7 +163,8 @@ class MirrorEvmMessageCallProcessorTest extends MirrorEvmMessageCallProcessorBas
         when(messageFrame.getGasPrice()).thenReturn(Wei.ONE);
 
         boolean isModularized = evmProperties.isModularizedServices();
-        when(opcodeTracer.getContext().getOpcodeTracerOptions())
+
+        when(contractCallContext.getOpcodeTracerOptions())
                 .thenReturn(new OpcodeTracerOptions(true, true, true, isModularized));
         when(messageFrame.getCurrentOperation()).thenReturn(mock(Operation.class));
 

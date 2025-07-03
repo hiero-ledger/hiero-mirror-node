@@ -115,7 +115,7 @@ public abstract class MirrorEvmMessageCallProcessorBaseTest {
             PRNG_PRECOMPILE_ADDRESS, prngSystemPrecompiledContract);
 
     @Spy
-    private ContractCallContext contractCallContext;
+    protected ContractCallContext contractCallContext;
 
     @BeforeAll
     static void initStaticMocks() {
