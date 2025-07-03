@@ -4,7 +4,6 @@
 import express from 'express';
 
 import {createTerminus} from '@godaddy/terminus';
-import {addAsync} from '@awaitjs/express';
 import cors from 'cors';
 import httpContext from 'express-http-context';
 import compression from 'compression';
@@ -12,6 +11,7 @@ import compression from 'compression';
 // local files
 import accounts from './accounts';
 import balances from './balances';
+import extendExpress from './extendExpress';
 import config from './config';
 import * as constants from './constants';
 import health from './health';
@@ -51,7 +51,7 @@ if (port === undefined || Number.isNaN(Number(port))) {
 initializePool();
 
 // Express configuration. Prior to v0.5 all sets should be configured before use or they won't be picked up
-const app = addAsync(express());
+const app = extendExpress(express());
 const {apiPrefix} = constants;
 const applicationCacheEnabled = config.cache.response.enabled && config.redis.enabled;
 const openApiValidatorEnabled = config.openapi.validation.enabled;
@@ -82,86 +82,90 @@ if (config.response.compression) {
 
 // logging middleware
 app.use(httpContext.middleware);
-app.useAsync(requestLogger);
+app.useExt(requestLogger);
 
 // metrics middleware
 if (config.metrics.enabled) {
-  app.use(metricsHandler());
+  app.useExt(metricsHandler());
 }
 
 // Check for cached response
 if (applicationCacheEnabled) {
   logger.info('Response caching is enabled');
-  app.useAsync(responseCacheCheckHandler);
+  app.useExt(responseCacheCheckHandler);
 }
 
 // accounts routes
-app.getAsync(`${apiPrefix}/accounts`, accounts.getAccounts);
-app.getAsync(`${apiPrefix}/accounts/:${constants.filterKeys.ID_OR_ALIAS_OR_EVM_ADDRESS}`, accounts.getOneAccount);
-app.useAsync(`${apiPrefix}/${AccountRoutes.resource}`, AccountRoutes.router);
+app.getExt(`${apiPrefix}/accounts`, accounts.getAccounts);
+app.getExt(`${apiPrefix}/accounts/:${constants.filterKeys.ID_OR_ALIAS_OR_EVM_ADDRESS}`, accounts.getOneAccount);
+app.use(`${apiPrefix}/${AccountRoutes.resource}`, AccountRoutes.router);
 
 // balances routes
-app.getAsync(`${apiPrefix}/balances`, balances.getBalances);
+app.getExt(`${apiPrefix}/balances`, balances.getBalances);
 
 // contracts routes
-app.useAsync(`${apiPrefix}/${ContractRoutes.resource}`, ContractRoutes.router);
+app.use(`${apiPrefix}/${ContractRoutes.resource}`, ContractRoutes.router);
 
 // network routes
-app.useAsync(`${apiPrefix}/${NetworkRoutes.resource}`, NetworkRoutes.router);
+app.use(`${apiPrefix}/${NetworkRoutes.resource}`, NetworkRoutes.router);
 
 // block routes
-app.useAsync(`${apiPrefix}/${BlockRoutes.resource}`, BlockRoutes.router);
+app.use(`${apiPrefix}/${BlockRoutes.resource}`, BlockRoutes.router);
 
 // schedules routes
-app.getAsync(`${apiPrefix}/schedules`, schedules.getSchedules);
-app.getAsync(`${apiPrefix}/schedules/:scheduleId`, schedules.getScheduleById);
+app.getExt(`${apiPrefix}/schedules`, schedules.getSchedules);
+app.getExt(`${apiPrefix}/schedules/:scheduleId`, schedules.getScheduleById);
 
 // stateproof route
 if (config.stateproof.enabled || isTestEnv()) {
   logger.info('stateproof REST API is enabled, install handler');
-  app.getAsync(`${apiPrefix}/transactions/:transactionId/stateproof`, stateproof.getStateProofForTransaction);
+  app.getExt(`${apiPrefix}/transactions/:transactionId/stateproof`, stateproof.getStateProofForTransaction);
 } else {
   logger.info('stateproof REST API is disabled');
 }
 
 // tokens routes
-app.getAsync(`${apiPrefix}/tokens`, tokens.getTokensRequest);
-app.getAsync(`${apiPrefix}/tokens/:tokenId`, tokens.getTokenInfoRequest);
-app.getAsync(`${apiPrefix}/tokens/:tokenId/balances`, tokens.getTokenBalances);
-app.getAsync(`${apiPrefix}/tokens/:tokenId/nfts`, tokens.getNftTokensRequest);
-app.getAsync(`${apiPrefix}/tokens/:tokenId/nfts/:serialNumber`, tokens.getNftTokenInfoRequest);
-app.getAsync(`${apiPrefix}/tokens/:tokenId/nfts/:serialNumber/transactions`, tokens.getNftTransferHistoryRequest);
+app.getExt(`${apiPrefix}/tokens`, tokens.getTokensRequest);
+app.getExt(`${apiPrefix}/tokens/:tokenId`, tokens.getTokenInfoRequest);
+app.getExt(`${apiPrefix}/tokens/:tokenId/balances`, tokens.getTokenBalances);
+app.getExt(`${apiPrefix}/tokens/:tokenId/nfts`, tokens.getNftTokensRequest);
+app.getExt(`${apiPrefix}/tokens/:tokenId/nfts/:serialNumber`, tokens.getNftTokenInfoRequest);
+app.getExt(`${apiPrefix}/tokens/:tokenId/nfts/:serialNumber/transactions`, tokens.getNftTransferHistoryRequest);
 
 // topics routes
-app.getAsync(`${apiPrefix}/topics/:topicId/messages`, topicmessage.getTopicMessages);
-app.getAsync(`${apiPrefix}/topics/:topicId/messages/:sequenceNumber`, topicmessage.getMessageByTopicAndSequenceRequest);
-app.getAsync(`${apiPrefix}/topics/messages/:consensusTimestamp`, topicmessage.getMessageByConsensusTimestamp);
+app.getExt(`${apiPrefix}/topics/:topicId/messages`, topicmessage.getTopicMessages);
+app.getExt(`${apiPrefix}/topics/:topicId/messages/:sequenceNumber`, topicmessage.getMessageByTopicAndSequenceRequest);
+app.getExt(`${apiPrefix}/topics/messages/:consensusTimestamp`, topicmessage.getMessageByConsensusTimestamp);
 
 // transactions routes
-app.getAsync(`${apiPrefix}/transactions`, transactions.getTransactions);
-app.getAsync(`${apiPrefix}/transactions/:transactionIdOrHash`, transactions.getTransactionsByIdOrHash);
+app.getExt(`${apiPrefix}/transactions`, transactions.getTransactions);
+app.getExt(`${apiPrefix}/transactions/:transactionIdOrHash`, transactions.getTransactionsByIdOrHash);
 
 // record ip metrics if enabled
 if (config.metrics.ipMetrics) {
-  app.useAsync(recordIpAndEndpoint);
+  app.useExt(recordIpAndEndpoint);
 }
 
 // response data handling middleware
-app.useAsync(responseHandler);
+app.useExt(responseHandler);
 
 // Update Cache with response
 if (applicationCacheEnabled) {
-  app.useAsync(responseCacheUpdateHandler);
+  app.useExt(responseCacheUpdateHandler);
 }
 
 // response error handling middleware
-app.useAsync(handleError);
+app.useExt(handleError);
 
 process.on('unhandledRejection', handleRejection);
 process.on('uncaughtException', handleUncaughtException);
 
 if (!isTestEnv()) {
-  const server = app.listen(port, () => {
+  const server = app.listen(port, '0.0.0.0', (err) => {
+    if (err) {
+      throw err;
+    }
+
     logger.info(`Server running on port: ${port}`);
   });
 

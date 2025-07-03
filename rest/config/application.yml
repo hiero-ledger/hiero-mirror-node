@@ -117,7 +117,7 @@ hiero:
             /api/v1/blocks/:hashOrNumber:
               { "cache-control": "public, max-age=600" }
             /api/v1/contracts: { "cache-control": "public, max-age=10" }
-            /api/v1/contracts/:contractId/results/:consensusTimestamp([0-9.]+):
+            /api/v1/contracts/:contractId/results/:consensusTimestamp:
               { "cache-control": "public, max-age=600" }
             /api/v1/contracts/results: { "cache-control": "public, max-age=10" }
             /api/v1/contracts/results/logs:

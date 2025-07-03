@@ -21,6 +21,6 @@ const recordRequestPath = async (req, res) => {
   }
 };
 
-[AccountRoutes, BlockRoutes, ContractRoutes, NetworkRoutes].forEach(({router}) => router.useAsync(recordRequestPath));
+[AccountRoutes, BlockRoutes, ContractRoutes, NetworkRoutes].forEach(({router}) => router.useExt(recordRequestPath));
 
 export {AccountRoutes, BlockRoutes, ContractRoutes, NetworkRoutes};
