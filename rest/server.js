@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // external libraries
-import assert from 'assert';
 import express from 'express';
 
 import {createTerminus} from '@godaddy/terminus';
