@@ -263,14 +263,8 @@ public class TransactionExecutionService {
 
     private OperationTracer[] getOperationTracers() {
         return ContractCallContext.get().getOpcodeTracerOptions() != null
-                ? new OperationTracer[] {
-                    mirrorNodeEvmProperties.isModularizedServices() ? opcodeActionTracer : opcodeTracer
-                }
-                : new OperationTracer[] {
-                    mirrorNodeEvmProperties.isModularizedServices()
-                            ? mirrorOperationActionTracer
-                            : mirrorOperationTracer
-                };
+                ? new OperationTracer[] {opcodeActionTracer}
+                : new OperationTracer[] {mirrorOperationActionTracer};
     }
 
     private SequencedCollection<String> populateChildTransactionErrors(

@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import lombok.experimental.UtilityClass;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -20,11 +21,8 @@ import org.springframework.util.CollectionUtils;
 /**
  * Common utility class with methods used for tracing information
  */
+@UtilityClass
 public class TracerUtils {
-
-    private TracerUtils() {
-        // Utility class, no instantiation
-    }
 
     public static List<Bytes> captureMemory(final MessageFrame frame, OpcodeTracerOptions options) {
         if (!options.isMemory()) {
