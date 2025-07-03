@@ -13,7 +13,7 @@ const runMode = __ENV.RUN_WITH_VARIABLES;
 This test covers the full lifecycle of a Fungible Token
 1. Token Creation
 2. Associate token
-3. GrantTokenKyx
+3. GrantTokenKyc
 4. Transfer token from treasury to account1
 5. Freeze / Unfreeze token
 6. Transfer token from account1 to account2
