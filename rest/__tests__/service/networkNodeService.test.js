@@ -11,6 +11,15 @@ import EntityId from '../../entityId';
 setupIntegrationTest();
 
 const defaultNodeFilter = 'abe.node_id = $2';
+
+const bigIntRange = (from, to) => {
+  const result = [];
+  for (let i = from; i < to; i++) {
+    result.push(i);
+  }
+  return result;
+};
+
 describe('NetworkNodeService.getNetworkNodesWithFiltersQuery tests', () => {
   test('Verify simple query', async () => {
     const [query, params] = NetworkNodeService.getNetworkNodesWithFiltersQuery([], [102], 'asc', 5);
@@ -133,22 +142,26 @@ describe('NetworkNodeService.getNetworkNodesWithFiltersQuery tests', () => {
 const defaultInputAddressBooks = [
   {
     start_consensus_timestamp: 1,
-    file_id: 101,
+    file_id: EntityId.systemEntity.addressBookFile101.toString(),
     node_count: 3,
   },
   {
     start_consensus_timestamp: 2,
-    file_id: 102,
+    file_id: EntityId.systemEntity.addressBookFile102.toString(),
     node_count: 4,
   },
 ];
 
+const nodeAccount3 = EntityId.parseString('3');
+const nodeAccount4 = EntityId.parseString('4');
+const nodeId0 = EntityId.parseString('0');
+const nodeId1 = EntityId.parseString('1');
 const defaultInputAddressBookEntries = [
   {
     consensus_timestamp: 1,
     memo: 'memo 1',
-    node_id: 0,
-    node_account_id: 3,
+    node_id: '0',
+    node_account_id: nodeAccount3.toString(),
     node_cert_hash: '[0,)',
     description: 'desc 1',
     stake: 0,
@@ -156,26 +169,26 @@ const defaultInputAddressBookEntries = [
   {
     consensus_timestamp: 1,
     memo: 'memo 2',
-    node_id: 1,
-    node_account_id: 4,
+    node_id: nodeId1.toString(),
+    node_account_id: nodeAccount4.toString(),
     node_cert_hash: '[0,)',
     description: 'desc 2',
     stake: 1000,
   },
   {
     consensus_timestamp: 2,
-    memo: '0.0.3',
-    node_id: 0,
-    node_account_id: 3,
+    memo: nodeAccount3.toString(),
+    node_id: '0',
+    node_account_id: nodeAccount3.toString(),
     node_cert_hash: '[0,)',
     description: 'desc 3',
     stake: 1000,
   },
   {
     consensus_timestamp: 2,
-    memo: '0.0.4',
-    node_id: 1,
-    node_account_id: 4,
+    memo: nodeAccount4.toString(),
+    node_id: nodeId1.toString(),
+    node_account_id: nodeAccount4.toString(),
     node_cert_hash: '[0,)',
     description: 'desc 4',
     stake: null,
@@ -186,25 +199,25 @@ const defaultInputServiceEndpointBooks = [
   {
     consensus_timestamp: 1,
     ip_address_v4: '127.0.0.1',
-    node_id: 0,
+    node_id: '0',
     port: 50211,
   },
   {
     consensus_timestamp: 1,
     ip_address_v4: '127.0.0.2',
-    node_id: 1,
+    node_id: nodeId1.toString(),
     port: 50212,
   },
   {
     consensus_timestamp: 2,
     ip_address_v4: '128.0.0.1',
-    node_id: 0,
+    node_id: '0',
     port: 50212,
   },
   {
     consensus_timestamp: 2,
     ip_address_v4: '128.0.0.2',
-    node_id: 1,
+    node_id: nodeId1.toString(),
     port: 50212,
   },
 ];
@@ -258,7 +271,7 @@ const defaultNodeStakes = [
     epoch_day: 0,
     max_stake: 100,
     min_stake: 1,
-    node_id: 0,
+    node_id: '0',
     reward_rate: 1,
     stake: 1,
     stake_not_rewarded: 0,
@@ -270,7 +283,7 @@ const defaultNodeStakes = [
     epoch_day: 0,
     max_stake: 200,
     min_stake: 2,
-    node_id: 1,
+    node_id: nodeId1.toString(),
     reward_rate: 2,
     stake: 2,
     stake_not_rewarded: 1,
@@ -282,7 +295,7 @@ const defaultNodeStakes = [
     epoch_day: 1,
     max_stake: 300,
     min_stake: 2,
-    node_id: 0,
+    node_id: '0',
     reward_rate: 3,
     stake: 3,
     stake_not_rewarded: 1,
@@ -294,7 +307,7 @@ const defaultNodeStakes = [
     epoch_day: 1,
     max_stake: 400,
     min_stake: 1,
-    node_id: 1,
+    node_id: nodeId1.toString(),
     reward_rate: 4,
     stake: 4,
     stake_not_rewarded: 1,
@@ -307,14 +320,14 @@ const defaultExpectedNetworkNode101 = [
   {
     addressBook: {
       startConsensusTimestamp: 1,
-      fileId: 101,
+      fileId: EntityId.systemEntity.addressBookFile101.getEncodedId(),
       endConsensusTimestamp: null,
     },
     addressBookEntry: {
       description: 'desc 2',
       memo: 'memo 2',
-      nodeAccountId: 4,
-      nodeId: 1,
+      nodeAccountId: nodeAccount4.getEncodedId(),
+      nodeId: nodeId1.getEncodedId(),
     },
     addressBookServiceEndpoints: [
       {
@@ -334,14 +347,14 @@ const defaultExpectedNetworkNode101 = [
   {
     addressBook: {
       startConsensusTimestamp: 1,
-      fileId: 101,
+      fileId: EntityId.systemEntity.addressBookFile101.getEncodedId(),
       endConsensusTimestamp: null,
     },
     addressBookEntry: {
       description: 'desc 1',
       memo: 'memo 1',
-      nodeAccountId: 3,
-      nodeId: 0,
+      nodeAccountId: nodeAccount3.getEncodedId(),
+      nodeId: nodeId0.getEncodedId(),
     },
     addressBookServiceEndpoints: [
       {
@@ -365,14 +378,14 @@ const defaultExpectedNetworkNode102 = [
   {
     addressBook: {
       endConsensusTimestamp: null,
-      fileId: 102,
+      fileId: EntityId.systemEntity.addressBookFile102.getEncodedId(),
       startConsensusTimestamp: 2,
     },
     addressBookEntry: {
       description: 'desc 3',
-      memo: '0.0.3',
-      nodeAccountId: 3,
-      nodeId: 0,
+      memo: nodeAccount3.toString(),
+      nodeAccountId: nodeAccount3.getEncodedId(),
+      nodeId: nodeId0.getEncodedId(),
     },
     addressBookServiceEndpoints: [
       {
@@ -393,14 +406,14 @@ const defaultExpectedNetworkNode102 = [
   {
     addressBook: {
       endConsensusTimestamp: null,
-      fileId: 102,
+      fileId: EntityId.systemEntity.addressBookFile102.getEncodedId(),
       startConsensusTimestamp: 2,
     },
     addressBookEntry: {
       description: 'desc 4',
-      memo: '0.0.4',
-      nodeAccountId: 4,
-      nodeId: 1,
+      memo: nodeAccount4.toString(),
+      nodeAccountId: nodeAccount4.getEncodedId(),
+      nodeId: nodeId1.getEncodedId(),
     },
     addressBookServiceEndpoints: [
       {
@@ -424,14 +437,14 @@ const defaultExpectedNetworkNodeEmptyNodeStake = [
   {
     addressBook: {
       endConsensusTimestamp: null,
-      fileId: 102,
+      fileId: EntityId.systemEntity.addressBookFile102.getEncodedId(),
       startConsensusTimestamp: 2,
     },
     addressBookEntry: {
       description: 'desc 3',
-      memo: '0.0.3',
-      nodeAccountId: 3,
-      nodeId: 0,
+      memo: nodeAccount3.toString(),
+      nodeAccountId: nodeAccount3.getEncodedId(),
+      nodeId: nodeId0.getEncodedId(),
     },
     addressBookServiceEndpoints: [
       {
@@ -449,14 +462,14 @@ const defaultExpectedNetworkNodeEmptyNodeStake = [
   {
     addressBook: {
       endConsensusTimestamp: null,
-      fileId: 102,
+      fileId: EntityId.systemEntity.addressBookFile102.getEncodedId(),
       startConsensusTimestamp: 2,
     },
     addressBookEntry: {
       description: 'desc 4',
-      memo: '0.0.4',
-      nodeAccountId: 4,
-      nodeId: 1,
+      memo: nodeAccount4.toString(),
+      nodeAccountId: nodeAccount4.getEncodedId(),
+      nodeId: nodeId1.getEncodedId(),
     },
     addressBookServiceEndpoints: [
       {
@@ -484,9 +497,9 @@ describe('NetworkNodeService.getNetworkNodes tests', () => {
     await integrationDomainOps.loadAddressBookServiceEndpoints(defaultInputServiceEndpointBooks);
     await integrationDomainOps.loadNodeStakes(defaultNodeStakes);
 
-    await expect(NetworkNodeService.getNetworkNodes([], [101], 'desc', 5)).resolves.toMatchObject(
-      defaultExpectedNetworkNode101
-    );
+    await expect(
+      NetworkNodeService.getNetworkNodes([], [EntityId.systemEntity.addressBookFile101.getEncodedId()], 'desc', 5)
+    ).resolves.toMatchObject(defaultExpectedNetworkNode101);
   });
 
   test('NetworkNodeService.getNetworkNodes - Matching 102 entity', async () => {
@@ -495,9 +508,9 @@ describe('NetworkNodeService.getNetworkNodes tests', () => {
     await integrationDomainOps.loadAddressBookServiceEndpoints(defaultInputServiceEndpointBooks);
     await integrationDomainOps.loadNodeStakes(defaultNodeStakes);
 
-    await expect(NetworkNodeService.getNetworkNodes([], [102], 'asc', 5)).resolves.toMatchObject(
-      defaultExpectedNetworkNode102
-    );
+    await expect(
+      NetworkNodeService.getNetworkNodes([], [EntityId.systemEntity.addressBookFile102.getEncodedId()], 'asc', 5)
+    ).resolves.toMatchObject(defaultExpectedNetworkNode102);
   });
 
   test('NetworkNodeService.getNetworkNodes - Empty node stakes', async () => {
@@ -505,9 +518,9 @@ describe('NetworkNodeService.getNetworkNodes tests', () => {
     await integrationDomainOps.loadAddressBookEntries(defaultInputAddressBookEntries);
     await integrationDomainOps.loadAddressBookServiceEndpoints(defaultInputServiceEndpointBooks);
 
-    await expect(NetworkNodeService.getNetworkNodes([], [102], 'asc', 5)).resolves.toMatchObject(
-      defaultExpectedNetworkNodeEmptyNodeStake
-    );
+    await expect(
+      NetworkNodeService.getNetworkNodes([], [EntityId.systemEntity.addressBookFile102.getEncodedId()], 'asc', 5)
+    ).resolves.toMatchObject(defaultExpectedNetworkNodeEmptyNodeStake);
   });
 });
 
@@ -520,14 +533,14 @@ describe('NetworkNodeService.getNetworkNodes tests node filter', () => {
     {
       addressBook: {
         startConsensusTimestamp: 1,
-        fileId: 101,
+        fileId: EntityId.systemEntity.addressBookFile101.getEncodedId(),
         endConsensusTimestamp: null,
       },
       addressBookEntry: {
         description: 'desc 1',
         memo: 'memo 1',
-        nodeAccountId: 3,
-        nodeId: 0,
+        nodeAccountId: nodeAccount3.getEncodedId(),
+        nodeId: nodeId0.getEncodedId(),
       },
       addressBookServiceEndpoints: [
         {
@@ -548,14 +561,14 @@ describe('NetworkNodeService.getNetworkNodes tests node filter', () => {
     {
       addressBook: {
         endConsensusTimestamp: null,
-        fileId: 102,
+        fileId: EntityId.systemEntity.addressBookFile102.getEncodedId(),
         startConsensusTimestamp: 2,
       },
       addressBookEntry: {
         description: 'desc 3',
-        memo: '0.0.3',
-        nodeAccountId: 3,
-        nodeId: 0,
+        memo: nodeAccount3.toString(),
+        nodeAccountId: nodeAccount3.getEncodedId(),
+        nodeId: nodeId0.getEncodedId(),
       },
       addressBookServiceEndpoints: [
         {
@@ -581,9 +594,14 @@ describe('NetworkNodeService.getNetworkNodes tests node filter', () => {
     await integrationDomainOps.loadAddressBookServiceEndpoints(defaultInputServiceEndpointBooks);
     await integrationDomainOps.loadNodeStakes(defaultNodeStakes);
 
-    await expect(NetworkNodeService.getNetworkNodes([defaultNodeFilter], [101, 0], 'desc', 5)).resolves.toMatchObject(
-      expectedNetworkNode101
-    );
+    await expect(
+      NetworkNodeService.getNetworkNodes(
+        [defaultNodeFilter],
+        [EntityId.systemEntity.addressBookFile101.getEncodedId(), nodeId0.getEncodedId()],
+        'desc',
+        5
+      )
+    ).resolves.toMatchObject(expectedNetworkNode101);
   });
 
   test('NetworkNodeService.getNetworkNodes - Matching 102 entity node', async () => {
@@ -592,9 +610,14 @@ describe('NetworkNodeService.getNetworkNodes tests node filter', () => {
     await integrationDomainOps.loadAddressBookServiceEndpoints(defaultInputServiceEndpointBooks);
     await integrationDomainOps.loadNodeStakes(defaultNodeStakes);
 
-    await expect(NetworkNodeService.getNetworkNodes([defaultNodeFilter], [102, 0], 'asc', 5)).resolves.toMatchObject(
-      expectedNetworkNode102
-    );
+    await expect(
+      NetworkNodeService.getNetworkNodes(
+        [defaultNodeFilter],
+        [EntityId.systemEntity.addressBookFile102.getEncodedId(), nodeId0.getEncodedId()],
+        'asc',
+        5
+      )
+    ).resolves.toMatchObject(expectedNetworkNode102);
   });
 });
 
@@ -628,9 +651,9 @@ describe(`NetworkNodeService.getSupply`, () => {
     const accounts = [];
     const timestamp = utils.nowInNs();
     EntityId.systemEntity.unreleasedSupplyAccounts.forEach((range) => {
-      const from = range.from.getEncodedId();
-      const to = range.to.getEncodedId();
-      _.range(from, to + 1).forEach((id) => {
+      const from = range.from.num;
+      const to = range.to.num;
+      bigIntRange(BigInt(from), BigInt(to) + 1n).forEach((id) => {
         accounts.push({balance: 1n, balance_timestamp: timestamp, num: id});
       });
     });
@@ -644,9 +667,9 @@ describe(`NetworkNodeService.getSupply`, () => {
     const balances = [];
     const timestamp = utils.nowInNs();
     EntityId.systemEntity.unreleasedSupplyAccounts.forEach((range) => {
-      const from = range.from.getEncodedId();
-      const to = range.to.getEncodedId();
-      _.range(from, to + 1).forEach((id) => {
+      const from = range.from.num;
+      const to = range.to.num;
+      bigIntRange(BigInt(from), BigInt(to) + 1n).forEach((id) => {
         balances.push({balance: 1n, timestamp: timestamp, id: id});
       });
     });

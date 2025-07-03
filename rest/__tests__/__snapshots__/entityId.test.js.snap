@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`EntityId parse from entityId string -1.-1.-1 1`] = `"Invalid entity ID "-1.-1.-1""`;
 
@@ -39,16 +39,6 @@ exports[`EntityId parse from entityId string 0x100000000000000000000000000000000
   "Invalid parameter: from",
 ]
 `;
-
-exports[`EntityId parse from entityId string 1.000000000000000000000000000000000186Fb1b 1`] = `"Invalid entity ID "1.000000000000000000000000000000000186Fb1b""`;
-
-exports[`EntityId parse from entityId string 1.2.000000000000000000000000000000000186Fb1b 1`] = `"Invalid entity ID "1.2.000000000000000000000000000000000186Fb1b""`;
-
-exports[`EntityId parse from entityId string 1.2.0000000100000000000000020000000000000007 1`] = `"Invalid entity ID "1.2.0000000100000000000000020000000000000007""`;
-
-exports[`EntityId parse from entityId string 1.2.71eaa748d5252be68c1185588beca495459fdba4 1`] = `"Invalid entity ID "1.2.71eaa748d5252be68c1185588beca495459fdba4""`;
-
-exports[`EntityId parse from entityId string 2.3.0000000100000000000000020000000000000007 1`] = `"Invalid entity ID "2.3.0000000100000000000000020000000000000007""`;
 
 exports[`EntityId parse from entityId string 32768.65536.4294967296 1`] = `"Invalid entity ID "32768.65536.4294967296""`;
 

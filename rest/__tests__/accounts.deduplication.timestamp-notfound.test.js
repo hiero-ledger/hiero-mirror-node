@@ -6,6 +6,7 @@ import * as utils from '../utils';
 import request from 'supertest';
 import server from '../server';
 import * as constants from '../constants';
+import EntityId from '../entityId';
 
 setupIntegrationTest();
 
@@ -88,17 +89,21 @@ describe('Accounts deduplicate timestamp not found tests', () => {
       },
     ]);
   });
-
+  const accountId = EntityId.parseString('8');
   const testSpecs = [
     {
       name: 'Accounts not found',
       urls: [
-        `/api/v1/accounts/0.0.8?timestamp=lte:${utils.nsToSecNs(beginningOfPreviousMonth - 1n)}`,
-        `/api/v1/accounts/0.0.8?timestamp=lt:${utils.nsToSecNs(beginningOfPreviousMonth)}`,
-        `/api/v1/accounts/0.0.KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ?timestamp=lte:${utils.nsToSecNs(
+        `/api/v1/accounts/${accountId.toString()}?timestamp=lte:${utils.nsToSecNs(beginningOfPreviousMonth - 1n)}`,
+        `/api/v1/accounts/${accountId.toString()}?timestamp=lt:${utils.nsToSecNs(beginningOfPreviousMonth)}`,
+        `/api/v1/accounts/${accountId.shard}.${
+          accountId.realm
+        }.KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ?timestamp=lte:${utils.nsToSecNs(
           beginningOfPreviousMonth - 1n
         )}`,
-        `/api/v1/accounts/0.0.KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ?timestamp=lt:${utils.nsToSecNs(
+        `/api/v1/accounts/${accountId.shard}.${
+          accountId.realm
+        }.KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ?timestamp=lt:${utils.nsToSecNs(
           beginningOfPreviousMonth
         )}`,
       ],
@@ -110,7 +115,7 @@ describe('Accounts deduplicate timestamp not found tests', () => {
 
   testSpecs.forEach((spec) => {
     spec.urls.forEach((url) => {
-      test(spec.name, async () => {
+      test(url, async () => {
         const response = await request(server).get(url);
         expect(response.status).toEqual(404);
         expect(response.body._status.messages[0]).toEqual(spec.expected);

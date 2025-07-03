@@ -856,25 +856,20 @@ const parseCustomFeeEntityIds = (fee) => {
 };
 
 const setAccountBalance = async (balance) => {
-  const realm = BigInt(config.common.realm);
-  balance = {timestamp: 0, id: null, balance: 0, realm, ...balance};
-  const accountId = EntityId.of(config.common.shard, BigInt(balance.realm), BigInt(balance.id)).getEncodedId();
+  balance = {timestamp: 0, id: null, balance: 0, ...balance};
+  const accountId = EntityId.parseString(`${balance.id}`);
   await ownerPool.query(
     `insert into account_balance (consensus_timestamp, account_id, balance)
      values ($1, $2, $3);`,
-    [balance.timestamp, accountId, balance.balance]
+    [balance.timestamp, accountId.getEncodedId(), balance.balance]
   );
 
   if (balance.tokens) {
     const tokenBalances = balance.tokens.map((tokenBalance) => [
       balance.timestamp,
-      accountId,
+      accountId.getEncodedId(),
       tokenBalance.balance,
-      EntityId.of(
-        config.common.shard,
-        BigInt(tokenBalance.token_realm || realm),
-        BigInt(tokenBalance.token_num)
-      ).getEncodedId(),
+      EntityId.parseString(`${tokenBalance.token_num}`).getEncodedId(),
     ]);
     await ownerPool.query(
       pgformat(
