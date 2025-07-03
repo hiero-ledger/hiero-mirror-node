@@ -30,6 +30,7 @@ import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 
@@ -40,15 +41,14 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private static final long INFINITE_END_BLOCK_NUMBER = -1;
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
     private static final long UNKNOWN_NODE_ID = -1;
-
-    @Getter
-    private boolean active = true;
-
     private final ManagedChannel channel;
     private final AtomicInteger errors = new AtomicInteger();
     private final BlockNodeProperties properties;
     private final AtomicReference<Instant> readmitTime = new AtomicReference<>(Instant.now());
     private final StreamProperties streamProperties;
+
+    @Getter
+    private boolean active = true;
 
     BlockNode(
             ManagedChannelBuilderProvider channelBuilderProvider,
@@ -84,13 +84,17 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         }
     }
 
-    public void streamBlocks(long blockNumber, Duration blockTimeout, Consumer<BlockStream> onBlockStream) {
+    public void streamBlocks(
+            long blockNumber,
+            CommonDownloaderProperties commonDownloaderProperties,
+            Consumer<BlockStream> onBlockStream) {
         var grpcCall = new AtomicReference<BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse>>();
 
         try {
-            var assembler = new BlockAssembler(blockTimeout);
+            var assembler = new BlockAssembler(commonDownloaderProperties.getTimeout());
             var request = SubscribeStreamRequest.newBuilder()
-                    .setEndBlockNumber(INFINITE_END_BLOCK_NUMBER)
+                    .setEndBlockNumber(
+                            commonDownloaderProperties.getImporterProperties().getEndBlockNumber())
                     .setStartBlockNumber(blockNumber)
                     .build();
             grpcCall.set(ClientCalls.blockingV2ServerStreamingCall(
@@ -172,11 +176,11 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     private class BlockAssembler {
 
-        private long loadStart;
         private final List<List<BlockItem>> pending = new ArrayList<>();
-        private int pendingCount = 0;
         private final Stopwatch stopwatch;
         private final Duration timeout;
+        private long loadStart;
+        private int pendingCount = 0;
 
         BlockAssembler(Duration timeout) {
             this.stopwatch = Stopwatch.createUnstarted();

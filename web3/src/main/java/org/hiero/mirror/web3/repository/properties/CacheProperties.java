@@ -13,7 +13,8 @@ import org.springframework.validation.annotation.Validated;
 public class CacheProperties {
 
     /**
-     *  entity, contract and token models are used mostly simultaneously, so we use the same configuration for consistent reads
+     * entity, contract and token models are used mostly simultaneously, so we use the same configuration for consistent
+     * reads
      */
     private static final String ENTITY_CACHE_CONFIG = "expireAfterWrite=1s,maximumSize=10000,recordStats";
 
@@ -21,7 +22,7 @@ public class CacheProperties {
     private String contract = "expireAfterAccess=1h,maximumSize=1000,recordStats";
 
     @NotBlank
-    private String contractSlots = "expireAfterAccess=5m,maximumSize=3000";
+    private String contractSlots = "expireAfterAccess=5m,maximumSize=3000,recordStats";
 
     @NotBlank
     private String contractState = "expireAfterWrite=5s,maximumSize=25000,recordStats";

@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.gaul.s3proxy.S3Proxy;
@@ -79,6 +80,8 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class BlockFileSourceTest {
 
+    private final CommonProperties commonProperties = CommonProperties.getInstance();
+
     @TempDir
     private Path archivePath;
 
@@ -91,7 +94,6 @@ class BlockFileSourceTest {
     @TempDir
     private Path dataPath;
 
-    private final CommonProperties commonProperties = CommonProperties.getInstance();
     private CommonDownloaderProperties commonDownloaderProperties;
     private FileCopier fileCopier;
     private ImporterProperties importerProperties;
@@ -179,7 +181,7 @@ class BlockFileSourceTest {
     @SneakyThrows
     void poll(Long startBlockNumber, CapturedOutput output) {
         // given
-        importerProperties.setStartBlockNumber(startBlockNumber);
+        commonDownloaderProperties.getImporterProperties().setStartBlockNumber(startBlockNumber);
         properties.setWriteFiles(true);
         fileCopier.filterFiles(blockFile(0).getName()).to("0").copy();
         fileCopier.filterFiles(blockFile(1).getName()).to("2").copy();
@@ -277,19 +279,17 @@ class BlockFileSourceTest {
         var logs = output.getAll();
         assertThat(countMatches(logs, "Downloaded block file " + filename + " from node 0"))
                 .isOne();
-        var errorLogs = findAllMatches(logs, "Failed to process block file " + filename + " from node \\d");
-        var expected = nodes.stream()
-                .map(ConsensusNode::getNodeId)
-                .map(nodeId -> "Failed to process block file %s from node %d".formatted(filename, nodeId))
-                .toList();
-        assertThat(errorLogs).containsExactlyInAnyOrderElementsOf(expected);
+        var errorLogs = findAllMatches(logs, "Failed to process block file " + filename + " from node 0");
+        assertThat(errorLogs).hasSize(1);
     }
 
     @Test
     void startBlockNumber(CapturedOutput output) {
         // given
         var filename = blockFile(0).getName();
-        importerProperties.setStartBlockNumber(blockFile(0).getIndex());
+        commonDownloaderProperties
+                .getImporterProperties()
+                .setStartBlockNumber(blockFile(0).getIndex());
         fileCopier.filterFiles(filename).to("0").copy();
         doNothing().when(blockStreamVerifier).verify(any());
 
@@ -307,6 +307,26 @@ class BlockFileSourceTest {
                 .containsExactly("Downloaded block file " + filename + " from node 0");
         assertThat(countMatches(logs, "Failed to download block file " + filename))
                 .isZero();
+    }
+
+    @Test
+    void endBlockNumber() {
+        // given
+        var block0 = blockFile(0);
+        var block1 = blockFile(1);
+        commonDownloaderProperties.getImporterProperties().setStartBlockNumber(block0.getIndex());
+        commonDownloaderProperties.getImporterProperties().setEndBlockNumber(block0.getIndex());
+        fileCopier.filterFiles(block0.getName()).to("0").copy();
+        fileCopier.filterFiles(block1.getName()).to("1").copy();
+
+        // when
+        blockFileSource.get();
+        blockFileSource.get();
+
+        // then
+        verify(blockStreamVerifier).verify(argThat(b -> b.getIndex() == block0.getIndex() && b.getNodeId() == 0L));
+        verify(consensusNodeService).getNodes();
+        verify(recordFileRepository).findLatest();
     }
 
     @Test
@@ -374,10 +394,13 @@ class BlockFileSourceTest {
                 .containsExactlyInAnyOrder(
                         "Downloaded block file " + filename + " from node 0",
                         "Downloaded block file " + filename + " from node 1");
-        var errorLogs = findAllMatches(logs, "Failed to process block file " + filename + " from node \\d");
-        var expected = nodes.stream()
-                .map(ConsensusNode::getNodeId)
-                .map(nodeId -> "Failed to process block file %s from node %d".formatted(filename, nodeId))
+        var errorLogs = findAllMatches(
+                logs, "(failing to download|Failed to process) block file " + filename + " from node \\d");
+        var expected = Stream.concat(
+                        Stream.of(0L, 1L).map(nodeId -> "Failed to process block file %s from node %d"
+                                .formatted(filename, nodeId)),
+                        Stream.of(2L, 3L).map(nodeId -> "failing to download block file %s from node %d"
+                                .formatted(filename, nodeId)))
                 .toList();
         assertThat(errorLogs).containsExactlyInAnyOrderElementsOf(expected);
     }
