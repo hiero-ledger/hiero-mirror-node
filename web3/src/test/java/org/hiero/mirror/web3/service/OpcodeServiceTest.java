@@ -48,6 +48,7 @@ import org.hiero.mirror.web3.web3j.generated.NestedCalls.KeyValue;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls.TokenKey;
 import org.hiero.mirror.web3.web3j.generated.StorageContract;
 import org.hyperledger.besu.datatypes.Address;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -63,6 +64,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
     private final OpcodeService opcodeService;
     private final EvmEncodingFacade evmEncoder;
+
+    @BeforeEach
+    void configure() {
+        setOpcodeEndpoint();
+    }
 
     @ParameterizedTest
     @CsvSource(
