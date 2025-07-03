@@ -7,6 +7,7 @@ import integrationContainerOps from './integrationContainerOps';
 import testExports from '../timestampRange';
 import {TokenService} from '../service';
 import {getMirrorConfig} from '../config.js';
+import EntityId from '../entityId.js';
 
 // set a large timeout for beforeAll as downloading docker image if not exists can take quite some time. Note
 // it's 12 minutes for CI to workaround possible DockerHub rate limit.
@@ -79,6 +80,15 @@ const transformShardRealmValues = (obj) => {
   }
 };
 
+const encodedIdFromSpecValue = (value) => {
+  if (value !== null && value !== undefined) {
+    //TODO ??? Necessary to transform
+    const transformedValue = transformShardRealmValues(`${value}`);
+    return EntityId.parseString(`${transformedValue}`).getEncodedId();
+  }
+  return null;
+};
+
 const applyResponseJsonMatrix = (spec, key) => {
   if (spec.responseJsonMatrix?.[key]) {
     spec.responseJson = transformShardRealmValues({
@@ -132,6 +142,7 @@ const setupIntegrationTest = () => {
 export {
   applyResponseJsonMatrix,
   defaultBeforeAllTimeoutMillis,
+  encodedIdFromSpecValue,
   isDockerInstalled,
   setupIntegrationTest,
   transformShardRealmValues,

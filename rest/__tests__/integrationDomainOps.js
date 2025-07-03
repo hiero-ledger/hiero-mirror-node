@@ -12,7 +12,7 @@ import EntityId from '../entityId';
 import {valueToBuffer} from './testutils';
 import {JSONStringify} from '../utils';
 import long from 'long';
-import transactions from '../transactions.js';
+import {transformShardRealmValues, encodedIdFromSpecValue} from './integrationUtils';
 
 const config = getMirrorConfig();
 const NETWORK_FEE = 1n;
@@ -630,7 +630,11 @@ const addEntity = async (defaults, custom) => {
     ...defaults,
     ...custom,
   };
-  entity.id = EntityId.of(BigInt(entity.shard), BigInt(entity.realm), BigInt(entity.num)).getEncodedId();
+  entity.id = EntityId.of(
+    BigInt(entity.shard),
+    BigInt(entity.realm),
+    BigInt(entity.num || entity.id || entityDefaults.num)
+  ).getEncodedId();
   entity.alias = base32.decode(entity.alias);
   entity.evm_address = valueToBuffer(entity.evm_address);
   if (entity.staked_account_id) {
@@ -1055,8 +1059,8 @@ const insertTokenTransfers = async (consensusTimestamp, transfers, payerAccountI
   const tokenTransfers = transfers.map((transfer) => {
     return [
       `${consensusTimestamp}`,
-      EntityId.parse(transfer.token_id).getEncodedId(),
-      EntityId.parse(transfer.account).getEncodedId(),
+      encodedIdFromSpecValue(transfer.token_id),
+      encodedIdFromSpecValue(transfer.account),
       transfer.amount,
       payerAccountId,
       transfer.is_approval,
@@ -1344,12 +1348,16 @@ const addCryptoTransaction = async (cryptoTransfer) => {
   if (!('transfers' in cryptoTransfer)) {
     cryptoTransfer.transfers = [
       {
-        account: cryptoTransfer.senderAccountId,
+        account: encodedIdFromSpecValue(cryptoTransfer.senderAccountId),
         amount: -NETWORK_FEE - BigInt(cryptoTransfer.amount),
         is_approval: false,
       },
-      {account: cryptoTransfer.recipientAccountId, amount: cryptoTransfer.amount, is_approval: false},
-      {account: cryptoTransfer.treasuryAccountId, amount: NETWORK_FEE, is_approval: false},
+      {
+        account: encodedIdFromSpecValue(cryptoTransfer.recipientAccountId),
+        amount: cryptoTransfer.amount,
+        is_approval: false,
+      },
+      {account: encodedIdFromSpecValue(cryptoTransfer.treasuryAccountId), amount: NETWORK_FEE, is_approval: false},
     ];
   }
   await addTransaction(cryptoTransfer);
@@ -1563,36 +1571,6 @@ const defaultTokenAccount = {
   token_id: null,
 };
 
-const transformValues = (obj) => {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map(transformValues);
-  } else if (typeof obj === 'object' && obj !== null) {
-    return Object.fromEntries(Object.entries(obj).map(([key, value]) => [key, transformValues(value)]));
-  } else if (typeof obj === 'string') {
-    // Match strings that look exactly like 0.0.123 (but not timestamps or other formats)
-    if (/^0\.0\.\d+$/.test(obj)) {
-      return obj.replace(/^0\.0\./, `${config.common.shard}.${config.common.realm}.`);
-    }
-    // Replace in URLs like `/api/v1/accounts?account.id=lt:0.0.21...`
-    return obj.replace(/0\.0\.(\d+)/g, `${config.common.shard}.${config.common.shard}.$1`);
-  } else {
-    return obj;
-  }
-};
-
-const encodedIdFromSpecValue = (value) => {
-  if (value !== null && value !== undefined) {
-    //TODO ??? Necessary to transform
-    const transformedValue = transformValues(`${value}`);
-    return EntityId.parseString(`${transformedValue}`).getEncodedId();
-  }
-  return null;
-};
-
 const addTokenAccount = async (tokenAccount) => {
   // create token account object
   tokenAccount = {
@@ -1600,8 +1578,8 @@ const addTokenAccount = async (tokenAccount) => {
     ...tokenAccount,
   };
 
-  tokenAccount.account_id = EntityId.parseString(transformValues(tokenAccount.account_id)).getEncodedId();
-  tokenAccount.token_id = EntityId.parseString(transformValues(tokenAccount.token_id)).getEncodedId();
+  tokenAccount.account_id = encodedIdFromSpecValue(tokenAccount.account_id);
+  tokenAccount.token_id = encodedIdFromSpecValue(tokenAccount.token_id);
   if (tokenAccount.timestamp_range === null) {
     tokenAccount.timestamp_range = `[${tokenAccount.created_timestamp},)`;
   }
