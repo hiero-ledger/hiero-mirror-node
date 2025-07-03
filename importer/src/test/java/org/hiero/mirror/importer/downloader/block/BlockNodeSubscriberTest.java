@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
@@ -32,6 +33,7 @@ import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
+import org.hiero.block.api.protoc.SubscribeStreamResponse.Code;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
@@ -60,6 +62,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
     @Mock
     private BlockStreamVerifier blockStreamVerifier;
 
+    private BlockNodeSubscriber blockNodeSubscriber;
     private CommonDownloaderProperties commonDownloaderProperties;
     private Map<String, Server> servers;
     private Map<String, Integer> statusCalls;
@@ -72,16 +75,26 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         servers = new HashMap<>();
         statusCalls = new HashMap<>();
         streamCalls = new HashMap<>();
+        blockProperties.setNodes(List.of(
+                blockNodeProperties(0, SERVER_NAMES[0]),
+                blockNodeProperties(0, SERVER_NAMES[1]),
+                blockNodeProperties(1, SERVER_NAMES[2])));
+        blockNodeSubscriber = new BlockNodeSubscriber(
+                blockStreamReader,
+                blockStreamVerifier,
+                commonDownloaderProperties,
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                blockProperties);
     }
 
     @ParameterizedTest(name = "last block number {0}")
     @CsvSource(
             textBlock =
                     """
-            5, '1,0,0', '1,0,0'
-            6, '1,1,0', '0,1,0'
-            7, '1,1,1', '0,0,1'
-            """)
+                            5, '1,0,0', '1,0,0'
+                            6, '1,1,0', '0,1,0'
+                            7, '1,1,1', '0,0,1'
+                            """)
     void get(long lastBlockNumber, String expectedStatusCalls, String expectedStreamCalls, Resources resources) {
         // given
         doReturn(new BlockFile()).when(blockStreamReader).read(any());
@@ -89,16 +102,6 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 .when(blockStreamVerifier)
                 .getLastBlockFile();
         doNothing().when(blockStreamVerifier).verify(any());
-        blockProperties.setNodes(List.of(
-                blockNodeProperties(0, SERVER_NAMES[0]),
-                blockNodeProperties(0, SERVER_NAMES[1]),
-                blockNodeProperties(1, SERVER_NAMES[2])));
-        var blockNodeSubscriber = new BlockNodeSubscriber(
-                blockStreamReader,
-                blockStreamVerifier,
-                commonDownloaderProperties,
-                InProcessManagedChannelBuilderProvider.INSTANCE,
-                blockProperties);
         startServer(
                 SERVER_NAMES[0],
                 resources,
@@ -135,16 +138,6 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         doReturn(Optional.of(BlockFile.builder().index(20L).build()))
                 .when(blockStreamVerifier)
                 .getLastBlockFile();
-        blockProperties.setNodes(List.of(
-                blockNodeProperties(0, SERVER_NAMES[0]),
-                blockNodeProperties(0, SERVER_NAMES[1]),
-                blockNodeProperties(1, SERVER_NAMES[2])));
-        var blockNodeSubscriber = new BlockNodeSubscriber(
-                blockStreamReader,
-                blockStreamVerifier,
-                commonDownloaderProperties,
-                InProcessManagedChannelBuilderProvider.INSTANCE,
-                blockProperties);
         startServer(
                 SERVER_NAMES[0],
                 resources,
@@ -175,6 +168,41 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
     }
 
     @Test
+    void getWhenEndBlockNumber(Resources resources) {
+        // given
+        commonDownloaderProperties.getImporterProperties().setEndBlockNumber(6L);
+        doReturn(new BlockFile()).when(blockStreamReader).read(any());
+        doReturn(
+                        Optional.of(BlockFile.builder().index(5L).build()),
+                        Optional.of(BlockFile.builder().index(6L).build()))
+                .when(blockStreamVerifier)
+                .getLastBlockFile();
+        doNothing().when(blockStreamVerifier).verify(any());
+        startServer(
+                SERVER_NAMES[0],
+                resources,
+                serverStatusResponse(1, 100),
+                ResponsesOrError.fromResponses(
+                        List.of(subscribeStreamResponse(blockItemSet(6)), subscribeStreamResponse(Code.SUCCESS))));
+
+        // when
+        blockNodeSubscriber.get(); // First call ends the stream
+        blockNodeSubscriber.get(); // Second call never starts the stream
+
+        // then
+        assertCalls(statusCalls, "1,0,0");
+        assertCalls(streamCalls, "1,0,0");
+        verify(blockStreamReader).read(argThat(blockStream -> {
+            assertBlockStream(blockStream, 6L);
+            return true;
+        }));
+        verifyNoMoreInteractions(blockStreamReader);
+        verify(blockStreamVerifier, times(2)).getLastBlockFile();
+        verify(blockStreamVerifier).verify(any());
+        verifyNoMoreInteractions(blockStreamVerifier);
+    }
+
+    @Test
     void getWhenFirstNodeFails(Resources resources) {
         // given
         doReturn(Optional.of(BlockFile.builder().index(9L).build()))
@@ -182,16 +210,6 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 .getLastBlockFile();
         doReturn(new BlockFile()).when(blockStreamReader).read(any());
         doNothing().when(blockStreamVerifier).verify(any());
-        blockProperties.setNodes(List.of(
-                blockNodeProperties(0, SERVER_NAMES[0]),
-                blockNodeProperties(0, SERVER_NAMES[1]),
-                blockNodeProperties(1, SERVER_NAMES[2])));
-        var blockNodeSubscriber = new BlockNodeSubscriber(
-                blockStreamReader,
-                blockStreamVerifier,
-                commonDownloaderProperties,
-                InProcessManagedChannelBuilderProvider.INSTANCE,
-                blockProperties);
         startServer(
                 SERVER_NAMES[0],
                 resources,
@@ -244,14 +262,6 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 .getLastBlockFile();
         doReturn(new BlockFile()).when(blockStreamReader).read(any());
         doNothing().when(blockStreamVerifier).verify(any());
-        blockProperties.setNodes(
-                List.of(blockNodeProperties(0, SERVER_NAMES[0]), blockNodeProperties(0, SERVER_NAMES[1])));
-        var blockNodeSubscriber = new BlockNodeSubscriber(
-                blockStreamReader,
-                blockStreamVerifier,
-                commonDownloaderProperties,
-                InProcessManagedChannelBuilderProvider.INSTANCE,
-                blockProperties);
         startServer(
                 SERVER_NAMES[0],
                 resources,

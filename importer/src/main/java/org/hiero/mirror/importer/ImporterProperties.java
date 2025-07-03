@@ -3,9 +3,10 @@
 package org.hiero.mirror.importer;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
@@ -36,6 +37,13 @@ public class ImporterProperties {
     @NotNull
     private Path dataPath = Paths.get(".", "data");
 
+    @EqualsAndHashCode.Exclude
+    @Getter(lazy = true)
+    private final Path streamPath = dataPath.resolve(STREAMS);
+
+    @Positive
+    private Long endBlockNumber = Long.MAX_VALUE;
+
     @NotNull
     private Instant endDate = Utility.MAX_INSTANT_LONG;
 
@@ -56,18 +64,15 @@ public class ImporterProperties {
 
     private Instant startDate;
 
-    @Min(0)
+    @PositiveOrZero
     private Long startBlockNumber;
-
-    @EqualsAndHashCode.Exclude
-    @Getter(lazy = true)
-    private final Path streamPath = dataPath.resolve(STREAMS);
 
     private Long topicRunningHashV2AddedTimestamp;
 
     public Path getArchiveDestinationFolderPath(StreamFileData streamFileData) {
-        if (groupByDay)
+        if (groupByDay) {
             return getStreamPath().resolve(streamFileData.getFilename().substring(0, 10));
+        }
         return getStreamPath().resolve(streamFileData.getFilename());
     }
 
