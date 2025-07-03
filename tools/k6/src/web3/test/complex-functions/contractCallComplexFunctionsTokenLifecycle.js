@@ -28,12 +28,13 @@ const {options, run} =
   runMode === 'false'
     ? new PrecompileModificationTestTemplate(testName, false)
     : new ContractCallTestScenarioBuilder()
-      .name(testName)
-      .selector(selector)
-      .args([firstReceiver, secondReceiver, treasury])
-      .from(treasury.slice(24)) // Remove first 24 zeros because 'from' field should be 20 bytes long, instead of 32 bytes
-      .value(933333333) // Value is needed because the first operation in the contract call is token create
-      .to(contract)
-      .block("latest").build();
+        .name(testName)
+        .selector(selector)
+        .args([firstReceiver, secondReceiver, treasury])
+        .from(treasury.slice(24)) // Remove first 24 zeros because 'from' field should be 20 bytes long, instead of 32 bytes
+        .value(933333333) // Value is needed because the first operation in the contract call is token create
+        .to(contract)
+        .block('latest')
+        .build();
 
 export {options, run};
