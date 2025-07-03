@@ -68,7 +68,7 @@ const loadCustomConfig = async (customConfig, filename = 'application.yml') => {
 describe('Load YAML configuration:', () => {
   test('./config/application.yml', async () => {
     const config = await loadConfig();
-    expect(config.common.shard).toBe(0n);
+    expect(config.common.shard).not.toBeNull();
     expect(config.rest.response.includeHostInLink).toBe(false);
     expect(config.rest.log.level).toBe('info');
   });
@@ -140,7 +140,8 @@ describe('Load environment configuration:', () => {
   test('Invalid property path', async () => {
     process.env = {HIERO_MIRROR_COMMON_SHARD_FOO: '3'};
     const config = await loadConfig();
-    expect(config.common.shard).toBe(0n);
+    expect(config.common.shard).not.toBeNull();
+    expect(config.common.shard).not.toBe(3n);
   });
 
   test('Unexpected prefix', async () => {

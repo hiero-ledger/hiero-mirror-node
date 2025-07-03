@@ -19,12 +19,10 @@
         "type": "TOKEN"
       },
       {
-        "realm": 7,
         "num": 25301,
         "type": "TOKEN"
       },
       {
-        "realm": 23,
         "num": 45678,
         "type": "TOKEN"
       }
@@ -45,7 +43,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.7.25301",
+        "token_id": "0.0.25301",
         "symbol": "MIRRORTOKEN",
         "created_timestamp": "1234567890000000003",
         "decimals": 5,
@@ -54,7 +52,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.23.45678",
+        "token_id": "0.0.45678",
         "symbol": "HEDERACOIN",
         "created_timestamp": "1234567890000000004",
         "decimals": 6,
@@ -93,7 +91,7 @@
         "created_timestamp": "1234567890000000006"
       },
       {
-        "token_id": "0.7.25301",
+        "token_id": "0.0.25301",
         "account_id": "0.0.2",
         "automatic_association": true,
         "freeze_status": 2,
@@ -101,7 +99,7 @@
         "created_timestamp": "1234567890000000007"
       },
       {
-        "token_id": "0.23.45678",
+        "token_id": "0.0.45678",
         "account_id": "0.0.2",
         "created_timestamp": "1234567899000000007"
       }
@@ -125,7 +123,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.7.25301",
+        "token_id": "0.0.25301",
         "symbol": "MIRRORTOKEN",
         "admin_key": null,
         "decimals": 5,
@@ -134,7 +132,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.23.45678",
+        "token_id": "0.0.45678",
         "symbol": "HEDERACOIN",
         "admin_key": null,
         "decimals": 6,

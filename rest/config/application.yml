@@ -3,8 +3,8 @@
 hiero:
   mirror:
     common:
-      realm: 0
-      shard: 0
+      realm: 2
+      shard: 1
     rest:
       cache:
         entityId:

@@ -5,6 +5,7 @@ import {NetworkController} from '../../controllers';
 import {FileData} from '../../model';
 import networkCtrl from '../../controllers/networkController';
 import * as utils from '../../utils';
+import EntityId from '../../entityId.js';
 
 describe('extractNetworkNodesQuery', () => {
   const defaultExpected = {
@@ -13,7 +14,7 @@ describe('extractNetworkNodesQuery', () => {
     order: constants.orderFilterValues.ASC,
     limit: 10,
   };
-
+  const defaultNodeId = EntityId.parseString('10').getEncodedId();
   const specs = [
     {
       name: 'limit',
@@ -29,7 +30,7 @@ describe('extractNetworkNodesQuery', () => {
       expected: {
         ...defaultExpected,
         limit: 20,
-        params: [102],
+        params: [EntityId.systemEntity.addressBookFile102.getEncodedId()],
       },
     },
     {
@@ -47,7 +48,7 @@ describe('extractNetworkNodesQuery', () => {
         ...defaultExpected,
         order: constants.orderFilterValues.DESC,
         conditions: [],
-        params: [102],
+        params: [EntityId.systemEntity.addressBookFile102.getEncodedId()],
       },
     },
     {
@@ -57,14 +58,14 @@ describe('extractNetworkNodesQuery', () => {
           {
             key: constants.filterKeys.NODE_ID,
             operator: utils.opsMap.eq,
-            value: '10',
+            value: defaultNodeId,
           },
         ],
       },
       expected: {
         ...defaultExpected,
         conditions: ['abe.node_id in ($2)'],
-        params: [102, '10'],
+        params: [EntityId.systemEntity.addressBookFile102.getEncodedId(), defaultNodeId],
       },
     },
   ];

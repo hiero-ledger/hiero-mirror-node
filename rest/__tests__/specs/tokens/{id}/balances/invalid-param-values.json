@@ -7,8 +7,8 @@
     "cryptotransfers": []
   },
   "urls": [
-    "/api/v1/tokens/0.20.1/balances?account.id=lte:0.1.2.3&account.balance=gt:-2&account.publickey=-2&timestamp=-1.2&order=any&slot=1",
-    "/api/v1/tokens/0.20.1/balances?account.id=lte:0.1.2.3&account.balance=gt:9223372036854775808&account.publickey=-2&timestamp=-1.2&order=any&slot=1"
+    "/api/v1/tokens/0.0.1/balances?account.id=lte:0.1.2.3&account.balance=gt:-2&account.publickey=-2&timestamp=-1.2&order=any&slot=1",
+    "/api/v1/tokens/0.0.1/balances?account.id=lte:0.1.2.3&account.balance=gt:9223372036854775808&account.publickey=-2&timestamp=-1.2&order=any&slot=1"
   ],
   "responseStatus": 400,
   "responseJson": {

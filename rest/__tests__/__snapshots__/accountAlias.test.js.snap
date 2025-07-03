@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`AccountAlias fromString invalid  1`] = `"Invalid accountAlias string "`;
 
@@ -68,10 +68,3 @@ exports[`AccountAlias fromString invalid null 1`] = `"Invalid accountAlias strin
 
 exports[`AccountAlias fromString invalid undefined 1`] = `"Invalid accountAlias string undefined"`;
 
-exports[`AccountAlias fromString valid 0.0.AABBCC22 1`] = `"Invalid accountAlias string 0.0.AABBCC22"`;
-
-exports[`AccountAlias fromString valid 0.0.AABBCC22 2`] = `"Invalid accountAlias string 0.0.AABBCC22"`;
-
-exports[`AccountAlias fromString valid 0.1.AABBCC22 1`] = `"Invalid accountAlias string 0.1.AABBCC22"`;
-
-exports[`AccountAlias fromString valid 99999.99999.AABBCC22 1`] = `"Invalid accountAlias string 99999.99999.AABBCC22"`;

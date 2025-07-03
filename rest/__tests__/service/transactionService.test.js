@@ -8,6 +8,7 @@ import {TransactionResult, TransactionType} from '../../model';
 
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
+import EntityId from '../../entityId';
 
 setupIntegrationTest();
 
@@ -19,33 +20,35 @@ const successTransactionResult = TransactionResult.getProtoId('SUCCESS');
 const wrongNonceTransactionResult = TransactionResult.getProtoId('WRONG_NONCE');
 
 describe('TransactionService.getTransactionDetailsFromTransactionId tests', () => {
+  const defaultPayerId = EntityId.parseString('5');
+  const defaultPayerEncodedId = defaultPayerId.getEncodedId();
   const duplicateValidStartNs = 10;
   const inputTransactions = [
-    {consensus_timestamp: 2, payerAccountId: 5}, // crypto transfer, success
-    {consensus_timestamp: 6, payerAccountId: 5, type: contractCreateType}, // success
+    {consensus_timestamp: 2, payerAccountId: defaultPayerId.num}, // crypto transfer, success
+    {consensus_timestamp: 6, payerAccountId: defaultPayerId.num, type: contractCreateType}, // success
     {
       consensus_timestamp: 8,
-      payerAccountId: 5,
+      payerAccountId: defaultPayerId.toString(),
       type: contractCallType,
       result: duplicateTransactionResult, // duplicate of the previous tx, though this is of different tx type
       valid_start_timestamp: 5,
     },
     {
       consensus_timestamp: 11,
-      payerAccountId: 5,
+      payerAccountId: defaultPayerId.toString(),
       type: contractCallType,
       valid_start_timestamp: duplicateValidStartNs, // success
     },
     {
       consensus_timestamp: 13,
-      payerAccountId: 5,
+      payerAccountId: defaultPayerId.toString(),
       type: contractCallType,
       nonce: 1,
       valid_start_timestamp: duplicateValidStartNs, // success, child
     },
     {
       consensus_timestamp: 15,
-      payerAccountId: 5,
+      payerAccountId: defaultPayerId.toString(),
       type: contractCallType,
       result: duplicateTransactionResult,
       valid_start_timestamp: duplicateValidStartNs, // same valid start so duplicate tx id with the 4th tx
@@ -71,65 +74,67 @@ describe('TransactionService.getTransactionDetailsFromTransactionId tests', () =
 
   test('Single row match', async () => {
     const actual = await TransactionService.getTransactionDetailsFromTransactionId(
-      TransactionId.fromString('0.0.5-0-1')
+      TransactionId.fromString(`${defaultPayerId.toString()}-0-1`)
     );
-    expect(pickTransactionFields(actual)).toEqual([{consensusTimestamp: 2, payerAccountId: 5}]);
+    expect(pickTransactionFields(actual)).toEqual([{consensusTimestamp: 2, payerAccountId: defaultPayerEncodedId}]);
   });
 
   test('Single row match nonce=1', async () => {
     const actual = await TransactionService.getTransactionDetailsFromTransactionId(
-      TransactionId.fromString(`0.0.5-0-${duplicateValidStartNs}`),
+      TransactionId.fromString(`${defaultPayerId.toString()}-0-${duplicateValidStartNs}`),
       1
     );
-    expect(pickTransactionFields(actual)).toEqual([{consensusTimestamp: 13, payerAccountId: 5}]);
+    expect(pickTransactionFields(actual)).toEqual([{consensusTimestamp: 13, payerAccountId: defaultPayerEncodedId}]);
   });
 
   test('Multiple rows match with nonce', async () => {
     const actual = await TransactionService.getTransactionDetailsFromTransactionId(
-      TransactionId.fromString('0.0.5-0-5'),
+      TransactionId.fromString(`${defaultPayerId.toString()}-0-5`),
       0
     );
     expect(pickTransactionFields(actual)).toIncludeSameMembers([
-      {consensusTimestamp: 6, payerAccountId: 5},
-      {consensusTimestamp: 8, payerAccountId: 5},
+      {consensusTimestamp: 6, payerAccountId: defaultPayerEncodedId},
+      {consensusTimestamp: 8, payerAccountId: defaultPayerEncodedId},
     ]);
   });
 
   test('Multiple rows match without nonce', async () => {
     const actual = await TransactionService.getTransactionDetailsFromTransactionId(
-      TransactionId.fromString(`0.0.5-0-${duplicateValidStartNs}`)
+      TransactionId.fromString(`${defaultPayerId.toString()}-0-${duplicateValidStartNs}`)
     );
     expect(pickTransactionFields(actual)).toIncludeSameMembers([
-      {consensusTimestamp: 11, payerAccountId: 5},
-      {consensusTimestamp: 13, payerAccountId: 5},
-      {consensusTimestamp: 15, payerAccountId: 5},
+      {consensusTimestamp: 11, payerAccountId: defaultPayerEncodedId},
+      {consensusTimestamp: 13, payerAccountId: defaultPayerEncodedId},
+      {consensusTimestamp: 15, payerAccountId: defaultPayerEncodedId},
     ]);
   });
 
   test('Two rows match without nonce exclude duplicate transaction', async () => {
     const actual = await TransactionService.getTransactionDetailsFromTransactionId(
-      TransactionId.fromString(`0.0.5-0-${duplicateValidStartNs}`),
+      TransactionId.fromString(`${defaultPayerId.toString()}-0-${duplicateValidStartNs}`),
       undefined,
       duplicateTransactionResult
     );
     expect(pickTransactionFields(actual)).toIncludeSameMembers([
-      {consensusTimestamp: 11, payerAccountId: 5},
-      {consensusTimestamp: 13, payerAccountId: 5},
+      {consensusTimestamp: 11, payerAccountId: defaultPayerEncodedId},
+      {consensusTimestamp: 13, payerAccountId: defaultPayerEncodedId},
     ]);
   });
 
   test('Single row match with nonce exclude duplicate transaction', async () => {
     const actual = await TransactionService.getTransactionDetailsFromTransactionId(
-      TransactionId.fromString(`0.0.5-0-${duplicateValidStartNs}`),
+      TransactionId.fromString(`${defaultPayerId.toString()}-0-${duplicateValidStartNs}`),
       0,
       duplicateTransactionResult
     );
-    expect(pickTransactionFields(actual)).toIncludeSameMembers([{consensusTimestamp: 11, payerAccountId: 5}]);
+    expect(pickTransactionFields(actual)).toIncludeSameMembers([
+      {consensusTimestamp: 11, payerAccountId: defaultPayerEncodedId},
+    ]);
   });
 
   test('No match without nonce exclude all possible transaction results', async () => {
     const actual = await TransactionService.getTransactionDetailsFromTransactionId(
-      TransactionId.fromString(`0.0.5-0-${duplicateValidStartNs}`),
+      TransactionId.fromString(`${defaultPayerId.toString()}-0-${duplicateValidStartNs}`),
       undefined,
       [duplicateTransactionResult, successTransactionResult]
     );
@@ -139,18 +144,20 @@ describe('TransactionService.getTransactionDetailsFromTransactionId tests', () =
 
 describe('TransactionService.getEthTransactionByTimestampAndPayerId tests', () => {
   const ethereumTxHash = '4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392';
+  const defaultPayerId = EntityId.parseString('10');
+  const defaultPayerEncodedId = defaultPayerId.getEncodedId();
 
   const inputTransactions = [
     {
       consensus_timestamp: 1,
-      payerAccountId: 10,
+      payerAccountId: defaultPayerId.toString(),
       type: ethereumTxType,
       result: successTransactionResult,
       valid_start_timestamp: 1,
     },
     {
       consensus_timestamp: 2,
-      payerAccountId: 10,
+      payerAccountId: defaultPayerId.toString(),
       type: ethereumTxType,
       result: duplicateTransactionResult,
       valid_start_timestamp: 2,
@@ -161,12 +168,12 @@ describe('TransactionService.getEthTransactionByTimestampAndPayerId tests', () =
     {
       consensus_timestamp: 1,
       hash: ethereumTxHash,
-      payer_account_id: 10,
+      payer_account_id: defaultPayerId.num,
     },
     {
       consensus_timestamp: 2,
       hash: ethereumTxHash,
-      payer_account_id: 10,
+      payer_account_id: defaultPayerId.toString(),
     },
   ];
 
@@ -186,13 +193,15 @@ describe('TransactionService.getEthTransactionByTimestampAndPayerId tests', () =
   });
 
   test('No match', async () => {
-    await expect(TransactionService.getEthTransactionByTimestampAndPayerId('1', 10)).resolves.toHaveLength(0);
+    await expect(
+      TransactionService.getEthTransactionByTimestampAndPayerId('1', defaultPayerEncodedId)
+    ).resolves.toHaveLength(0);
   });
 
   test('Finds a matching eth transaction', async () => {
     await integrationDomainOps.loadEthereumTransactions(inputEthTransactions);
 
-    const ethTransactions = await TransactionService.getEthTransactionByTimestampAndPayerId('2', 10);
+    const ethTransactions = await TransactionService.getEthTransactionByTimestampAndPayerId('2', defaultPayerEncodedId);
 
     expect(pickTransactionFields(ethTransactions)).toIncludeSameMembers([expectedTransaction]);
   });

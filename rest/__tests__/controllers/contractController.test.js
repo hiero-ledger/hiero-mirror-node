@@ -10,17 +10,23 @@ import * as utils from '../../utils';
 import {Entity} from '../../model';
 import Bound from '../../controllers/bound';
 import {ContractBytecodeViewModel, ContractViewModel} from '../../viewmodel';
+import EntityId from '../../entityId.js';
 
 const {default: defaultLimit} = getResponseLimit();
 
 const {eq, gt, gte, lt, lte, ne} = utils.opsMap;
 
-const timestampEq1002Filter = {key: constants.filterKeys.TIMESTAMP, operator: eq, value: '1002'};
-const timestampGt1002Filter = {key: constants.filterKeys.TIMESTAMP, operator: gt, value: '1002'};
-const timestampGte1002Filter = {key: constants.filterKeys.TIMESTAMP, operator: gte, value: '1002'};
-const timestampEq1005Filter = {key: constants.filterKeys.TIMESTAMP, operator: eq, value: '1005'};
-const timestampLt1005Filter = {key: constants.filterKeys.TIMESTAMP, operator: lt, value: '1005'};
-const timestampLte1005Filter = {key: constants.filterKeys.TIMESTAMP, operator: lte, value: '1005'};
+const entityId1000 = EntityId.parseString('1000');
+const entityId1001 = EntityId.parseString('1001');
+const entityId1002 = EntityId.parseString('1002');
+const entityId1005 = EntityId.parseString('1005');
+
+const timestampEq1002Filter = {key: constants.filterKeys.TIMESTAMP, operator: eq, value: entityId1002.toString()};
+const timestampGt1002Filter = {key: constants.filterKeys.TIMESTAMP, operator: gt, value: entityId1002.toString()};
+const timestampGte1002Filter = {key: constants.filterKeys.TIMESTAMP, operator: gte, value: entityId1002.toString()};
+const timestampEq1005Filter = {key: constants.filterKeys.TIMESTAMP, operator: eq, value: entityId1005.toString()};
+const timestampLt1005Filter = {key: constants.filterKeys.TIMESTAMP, operator: lt, value: entityId1005.toString()};
+const timestampLte1005Filter = {key: constants.filterKeys.TIMESTAMP, operator: lte, value: entityId1005.toString()};
 
 const indexEq2Filter = {key: constants.filterKeys.INDEX, operator: eq, value: '2'};
 const indexGt2Filter = {key: constants.filterKeys.INDEX, operator: gt, value: '2'};
@@ -81,23 +87,23 @@ describe('extractSqlFromContractFilters', () => {
         {
           key: constants.filterKeys.CONTRACT_ID,
           operator: eq,
-          value: '1001',
+          value: entityId1001.toString(),
         },
         {
           key: constants.filterKeys.CONTRACT_ID,
           operator: eq,
-          value: '1002',
+          value: entityId1002.toString(),
         },
         {
           key: constants.filterKeys.CONTRACT_ID,
           operator: gt,
-          value: '1000',
+          value: entityId1000.toString(),
         },
       ],
       expected: {
         ...defaultExpected,
         filterQuery: `where e.type = 'CONTRACT' and e.id > $1 and e.id in ($2,$3)`,
-        params: [1000, 1001, 1002, defaultLimit],
+        params: [entityId1000.getEncodedId(), entityId1001.getEncodedId(), entityId1002.getEncodedId(), defaultLimit],
         limitQuery: 'limit $4',
       },
     },

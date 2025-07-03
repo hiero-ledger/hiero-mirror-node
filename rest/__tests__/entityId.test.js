@@ -110,15 +110,15 @@ describe('EntityId parse from entityId string', () => {
     },
     {
       entityIdStr: '10',
-      expected: EntityId.of(shard, realm, 10),
+      expected: EntityId.of(0, 0, 10),
     },
     {
       entityIdStr: '274877906943',
-      expected: EntityId.of(shard, realm, 274877906943),
+      expected: EntityId.of(0, 0, 274877906943),
     },
     {
       entityIdStr: '1377209665535',
-      expected: EntityId.of(shard, 5, 2820130815),
+      expected: EntityId.of(0, 5, 2820130815),
     },
     {
       entityIdStr: '5.1',
@@ -145,15 +145,15 @@ describe('EntityId parse from entityId string', () => {
       expected: EntityId.of(shard, realm, null, '000003ff000000000000ffff0000003fffffffff'),
     },
     {
-      entityIdStr: '0.0.000000000000000000000000000000000186Fb1b',
-      expected: EntityId.of(0, 0, 25623323),
+      entityIdStr: `${shard}.${realm}.000000000000000000000000000000000186Fb1b`,
+      expected: EntityId.of(shard, realm, 25623323),
     },
     {
-      entityIdStr: '1.2.000000000000000000000000000000000186Fb1b',
+      entityIdStr: `${shard + 1n}.${realm + 1n}.000000000000000000000000000000000186Fb1b`,
       expectErr: true,
     },
     {
-      entityIdStr: '0.000000000000000000000000000000000186Fb1b',
+      entityIdStr: `${realm}.000000000000000000000000000000000186Fb1b`,
       expected: EntityId.of(shard, realm, 25623323),
     },
     {
@@ -187,7 +187,7 @@ describe('EntityId parse from entityId string', () => {
       expected: EntityId.of(shard, realm, '0000000100000000000000020000000000000007'),
     },
     {
-      entityIdStr: '1.2.0000000100000000000000020000000000000007',
+      entityIdStr: `${shard + 1n}.${shard + 1n}.0000000100000000000000020000000000000007`,
       expectErr: true,
     },
     {
@@ -199,7 +199,7 @@ describe('EntityId parse from entityId string', () => {
       expected: EntityId.of(shard, realm, null, '71eaa748d5252be68c1185588beca495459fdba4'),
     },
     {
-      entityIdStr: '1.2.71eaa748d5252be68c1185588beca495459fdba4',
+      entityIdStr: `${shard + 1n}.${shard + 1n}.71eaa748d5252be68c1185588beca495459fdba4`,
       expectErr: true,
     },
     {
@@ -288,7 +288,7 @@ describe('EntityId parse from entityId string', () => {
       } else {
         expect(() => {
           EntityId.parse(entityIdStr, options);
-        }).toThrowErrorMatchingSnapshot();
+        }).toThrow(InvalidArgumentError);
       }
     });
   }
@@ -324,7 +324,7 @@ describe('EntityId parse from encoded entityId', () => {
     },
     {
       encodedId: 274877906943,
-      expected: EntityId.of(shard, realm, 274877906943),
+      expected: EntityId.of(0, 0, 274877906943),
     },
     {
       encodedId: 180146733873889290n,
@@ -336,11 +336,11 @@ describe('EntityId parse from encoded entityId', () => {
     },
     {
       encodedId: BigInt(274877906943),
-      expected: EntityId.of(shard, realm, 274877906943),
+      expected: EntityId.of(0, 0, 274877906943),
     },
     {
       encodedId: '274877906943',
-      expected: EntityId.of(shard, realm, 274877906943),
+      expected: EntityId.of(0, 0, 274877906943),
     },
     {
       encodedId: 9223372036854775807n,
@@ -504,7 +504,7 @@ describe('computeContractIdPartsFromContractIdValue', () => {
     {input: '0.0.500', expected: {shard: '0', realm: '0', num: '500'}},
     {
       input: '500',
-      expected: {shard: 0n, realm: 0n, num: '500'},
+      expected: {shard: shard, realm: realm, num: '500'},
     },
     {
       input: '0.0.71eaa748d5252be68c1185588beca495459fdba4',
@@ -535,19 +535,31 @@ describe('parseString', () => {
     },
     {
       input: '500',
-      expected: EntityId.of(0, 0, 500),
+      expected: EntityId.of(shard, realm, 500),
     },
     {
-      input: '0.0.71eaa748d5252be68c1185588beca495459fdba4',
-      expected: EntityId.of(0, 0, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+      input: '4.500',
+      expected: EntityId.of(shard, 4, 500),
+    },
+    {
+      input: `${realm}.71eaa748d5252be68c1185588beca495459fdba4`,
+      expected: EntityId.of(shard, realm, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+    },
+    {
+      input: `${shard}.${realm}.71eaa748d5252be68c1185588beca495459fdba4`,
+      expected: EntityId.of(shard, realm, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+    },
+    {
+      input: `${shard + 1n}.${realm + 1n}.71eaa748d5252be68c1185588beca495459fdba4`,
+      expectErr: true,
     },
     {
       input: '71eaa748d5252be68c1185588beca495459fdba4',
-      expected: EntityId.of(0, 0, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+      expected: EntityId.of(shard, realm, null, '71eaa748d5252be68c1185588beca495459fdba4'),
     },
     {
       input: '0x71eaa748d5252be68c1185588beca495459fdba4',
-      expected: EntityId.of(0, 0, null, '71eaa748d5252be68c1185588beca495459fdba4'),
+      expected: EntityId.of(shard, realm, null, '71eaa748d5252be68c1185588beca495459fdba4'),
     },
     {
       input: null,
@@ -576,7 +588,7 @@ describe('parseString', () => {
       if (!spec.expectErr) {
         expect(EntityId.parseString(spec.input)).toEqual(spec.expected);
       } else {
-        expect(() => EntityId.parseString(spec.input)).toThrowErrorMatchingSnapshot();
+        expect(() => EntityId.parseString(spec.input)).toThrow(InvalidArgumentError);
       }
     });
   }

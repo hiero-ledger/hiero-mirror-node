@@ -8,19 +8,36 @@ import {setupIntegrationTest} from '../integrationUtils';
 import * as utils from '../../utils';
 
 import topicMessage from '../../topicmessage';
+import EntityId from '../../entityId';
 
 setupIntegrationTest();
 
 const {ASC, DESC} = constants.orderFilterValues;
 const {SEQUENCE_NUMBER, TIMESTAMP} = constants.filterKeys;
 const {eq, gt, gte, lt, lte, ne} = utils.opsMap;
+const topicEntityId = EntityId.parseString('123');
 
 describe('getTopicMessageTimestampRanges', () => {
   beforeEach(async () => {
     await integrationDomainOps.loadTopicMessageLookups([
-      {partition: '2022_05', sequence_number_range: '[1, 30)', timestamp_range: '[1000, 2000)', topic_id: 123},
-      {partition: '2022_06', sequence_number_range: '[30, 60)', timestamp_range: '[2000, 3000)', topic_id: 123},
-      {partition: '2022_07', sequence_number_range: '[60, 90)', timestamp_range: '[3000, 4000)', topic_id: 123},
+      {
+        partition: '2022_05',
+        sequence_number_range: '[1, 30)',
+        timestamp_range: '[1000, 2000)',
+        topic_id: topicEntityId.num,
+      },
+      {
+        partition: '2022_06',
+        sequence_number_range: '[30, 60)',
+        timestamp_range: '[2000, 3000)',
+        topic_id: topicEntityId.num,
+      },
+      {
+        partition: '2022_07',
+        sequence_number_range: '[60, 90)',
+        timestamp_range: '[3000, 4000)',
+        topic_id: topicEntityId.num,
+      },
     ]);
   });
 
@@ -101,7 +118,7 @@ describe('getTopicMessageTimestampRanges', () => {
   test.each(spec)(
     '$name',
     async ({
-      topicId = 123,
+      topicId = topicEntityId.getEncodedId(),
       sequenceNumberFilters = [],
       timestampFilters = [],
       limit = 25,

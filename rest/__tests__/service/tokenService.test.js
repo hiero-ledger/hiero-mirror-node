@@ -6,6 +6,7 @@ import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
 import integrationContainerOps from '../integrationContainerOps';
 import {CachedToken} from '../../model';
+import EntityId from '../../entityId';
 
 setupIntegrationTest();
 
@@ -98,11 +99,15 @@ describe('getQuery', () => {
 });
 
 describe('getCachedTokens', () => {
+  const tokenId300 = EntityId.parseString('300');
+  const tokenId400 = EntityId.parseString('400');
+  const tokenId500 = EntityId.parseString('500');
+
   beforeEach(async () => {
     const tokens = [
       {
         decimals: 3,
-        token_id: 300,
+        token_id: tokenId300.toString(),
       },
       {
         decimals: 4,
@@ -110,14 +115,14 @@ describe('getCachedTokens', () => {
         freeze_status: 2, // UNFROZEN
         kyc_key: [1, 1],
         kyc_status: 2, // REVOKED
-        token_id: 400,
+        token_id: tokenId400.toString(),
       },
       {
         decimals: 5,
         freeze_default: true,
         freeze_key: [1, 1],
         freeze_status: 1, // FROZEN
-        token_id: 500,
+        token_id: tokenId500.toString(),
       },
     ];
     await integrationDomainOps.loadTokens(tokens);
@@ -130,26 +135,26 @@ describe('getCachedTokens', () => {
   test('single', async () => {
     const expected = new Map([
       [
-        300,
+        tokenId300.getEncodedId(),
         new CachedToken({
           decimals: 3,
           freeze_status: 0, // not applicable
           kyc_status: 0, // not applicable
-          token_id: 300,
+          token_id: tokenId300.getEncodedId(),
         }),
       ],
     ]);
-    await expect(TokenService.getCachedTokens(new Set([300]))).resolves.toStrictEqual(expected);
+    await expect(TokenService.getCachedTokens(new Set([tokenId300.getEncodedId()]))).resolves.toStrictEqual(expected);
 
     // cache hit
     await integrationContainerOps.cleanUp();
-    await expect(TokenService.getCachedTokens(new Set([300]))).resolves.toStrictEqual(expected);
+    await expect(TokenService.getCachedTokens(new Set([tokenId300.getEncodedId()]))).resolves.toStrictEqual(expected);
   });
 
   test('multiple', async () => {
     const expected = new Map([
       [
-        300,
+        tokenId300.getEncodedId(),
         new CachedToken({
           decimals: 3,
           freeze_status: 0, // NOT_APPLICABLE
@@ -158,7 +163,7 @@ describe('getCachedTokens', () => {
         }),
       ],
       [
-        400,
+        tokenId400.getEncodedId(),
         new CachedToken({
           decimals: 4,
           freeze_status: 2, // UNFROZEN
@@ -167,7 +172,7 @@ describe('getCachedTokens', () => {
         }),
       ],
       [
-        500,
+        tokenId500.getEncodedId(),
         new CachedToken({
           decimals: 5,
           freeze_status: 1, // FROZEN
@@ -177,7 +182,11 @@ describe('getCachedTokens', () => {
       ],
     ]);
 
-    await expect(TokenService.getCachedTokens(new Set([300, 400, 500]))).resolves.toStrictEqual(expected);
+    await expect(
+      TokenService.getCachedTokens(
+        new Set([tokenId300.getEncodedId(), tokenId400.getEncodedId(), tokenId500.getEncodedId()])
+      )
+    ).resolves.toStrictEqual(expected);
   });
 });
 

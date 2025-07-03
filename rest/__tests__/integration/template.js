@@ -23,7 +23,7 @@ import path from 'path';
 import request from 'supertest';
 import integrationDomainOps from '../integrationDomainOps';
 import IntegrationS3Ops from '../integrationS3Ops';
-import config from '../../config';
+import config, {getMirrorConfig} from '../../config';
 import {cloudProviders} from '../../constants';
 import server from '../../server';
 import {getModuleDirname} from '../testutils';
@@ -32,6 +32,7 @@ import {defaultBeforeAllTimeoutMillis, setupIntegrationTest} from '../integratio
 import {CreateBucketCommand, PutObjectCommand, S3} from '@aws-sdk/client-s3';
 import sinon from 'sinon';
 import integrationContainerOps from '../integrationContainerOps';
+import {transformShardRealmValues} from '../integrationUtils';
 
 const groupSpecPath = $$GROUP_SPEC_PATH$$;
 
@@ -95,7 +96,8 @@ const getSpecs = async () => {
         .filter((f) => f.endsWith('.json') && !f.endsWith(responseHeadersFilename))
         .map(async (f) => {
           const specText = fs.readFileSync(f, 'utf8');
-          const spec = JSONParse(specText);
+          const spec =
+            f.indexOf('stateproof') > -1 ? JSONParse(specText) : transformShardRealmValues(JSONParse(specText));
           spec.name = path.basename(f);
           getResponseHeaders(spec, f);
 

@@ -4,37 +4,39 @@ import {FileData} from '../../model';
 import {FileDataService} from '../../service';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
+import EntityId from '../../entityId';
 
 setupIntegrationTest();
 
+const entityId = EntityId.parseString('112');
 const files = [
   {
     consensus_timestamp: 1,
-    entity_id: 112,
+    entity_id: entityId.toString(),
     file_data: Buffer.from('0a1008b0ea0110cac1181a0608a0a1d09306121008b0ea0110e18e191a0608b0bdd09306', 'hex'),
     transaction_type: 17,
   },
   {
     consensus_timestamp: 2,
-    entity_id: 112,
+    entity_id: entityId.toString(),
     file_data: Buffer.from('0a1008b0ea0110f5f3191a06089085d09306121008b0ea0110cac1181a0608a0a1d09306', 'hex'),
     transaction_type: 16,
   },
   {
     consensus_timestamp: 3,
-    entity_id: 112,
+    entity_id: entityId.toString(),
     file_data: Buffer.from('0a1008b0ea0110e9c81a1a060880e9cf9306121008b0ea0110f5f3191a06089085d09306', 'hex'),
     transaction_type: 19,
   },
   {
     consensus_timestamp: 4,
-    entity_id: 112,
+    entity_id: entityId.toString(),
     file_data: Buffer.from('0a1008b0ea0110f9bb1b1a0608f0cccf9306121008b0ea0110e9c81a1a060880e9cf9306', 'hex'),
     transaction_type: 19,
   },
 ];
 
-const fileId = 112;
+const fileId = entityId.getEncodedId();
 describe('FileDataService.getExchangeRate tests', () => {
   test('FileDataService.getExchangeRate - No match', async () => {
     await expect(FileDataService.getExchangeRate({whereQuery: []})).resolves.toBeNull();

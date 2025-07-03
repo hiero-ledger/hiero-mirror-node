@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`EntityService.getAccountFromAlias tests EntityService.getAccountFromAlias - Duplicate alias 1`] = `"Multiple alive entities matching alias"`;
 
@@ -10,25 +10,25 @@ exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Invalid a
 ]
 `;
 
-exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero realm 1`] = `
+exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-default shard/realm 1`] = `
 [
   "Invalid parameter: idOrAliasOrEvmAddress",
 ]
 `;
 
-exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero realm 2`] = `
+exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-default shard/realm 2`] = `
 [
   "Invalid parameter: idOrAliasOrEvmAddress",
 ]
 `;
 
-exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero realm 3`] = `
+exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-default shard/realm 3`] = `
 [
   "Invalid parameter: idOrAliasOrEvmAddress",
 ]
 `;
 
-exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-zero realm 4`] = `
+exports[`EntityService.getEncodedId tests EntityService.getEncodedId - Non-default shard/realm 4`] = `
 [
   "Invalid parameter: idOrAliasOrEvmAddress",
 ]

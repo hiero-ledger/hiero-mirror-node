@@ -6,6 +6,7 @@ import * as testutils from './testutils';
 import subject from '../transactions';
 import * as utils from '../utils';
 import {Transaction} from '../model/';
+import EntityId from '../entityId';
 
 const {
   query: {maxScheduledTransactionConsensusTimestampRangeNs},
@@ -1147,7 +1148,7 @@ describe('getStakingRewardTimestamps', () => {
         consensus_timestamp: 1565779604000000002,
         crypto_transfer_list: [
           {
-            entity_id: 800,
+            entity_id: EntityId.systemEntity.stakingRewardAccount.getEncodedId(),
           },
         ],
       },
@@ -1155,7 +1156,7 @@ describe('getStakingRewardTimestamps', () => {
         consensus_timestamp: 1565779602000000002,
         crypto_transfer_list: [
           {
-            entity_id: 98,
+            entity_id: EntityId.systemEntity.feeCollector.getEncodedId(),
           },
         ],
       },
@@ -1163,7 +1164,7 @@ describe('getStakingRewardTimestamps', () => {
         consensus_timestamp: 1565779600000000002,
         crypto_transfer_list: [
           {
-            entity_id: 800,
+            entity_id: EntityId.systemEntity.stakingRewardAccount.getEncodedId(),
           },
         ],
       },

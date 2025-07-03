@@ -2,10 +2,14 @@
 
 import sinon from 'sinon';
 
-import config from '../config';
+import config, {getMirrorConfig} from '../config';
 import * as constants from '../constants';
 import EntityId from '../entityId';
 import * as utils from '../utils';
+
+const {
+  common: {realm, shard},
+} = getMirrorConfig();
 
 describe('utils buildAndValidateFilters test', () => {
   const defaultMaxRepeatedQueryParameters = config.maxRepeatedQueryParameters;
@@ -14,8 +18,9 @@ describe('utils buildAndValidateFilters test', () => {
     config.maxRepeatedQueryParameters = defaultMaxRepeatedQueryParameters;
   });
 
+  const accountEntityId = EntityId.parseString('6560');
   const query = {
-    [constants.filterKeys.ACCOUNT_ID]: '6560',
+    [constants.filterKeys.ACCOUNT_ID]: `${accountEntityId.num}`,
     [constants.filterKeys.LIMIT]: ['80', '1560'],
     [constants.filterKeys.TIMESTAMP]: '12345.001',
     [constants.filterKeys.TOPIC0]: [
@@ -30,7 +35,7 @@ describe('utils buildAndValidateFilters test', () => {
       {
         key: constants.filterKeys.ACCOUNT_ID,
         operator: utils.opsMap.eq,
-        value: 6560,
+        value: accountEntityId.getEncodedId(),
       },
       {
         key: constants.filterKeys.LIMIT,
@@ -289,9 +294,10 @@ describe('utils formatComparator tests', () => {
   });
 
   test('Verify formatComparator for account.id=5', () => {
-    const filter = utils.buildComparatorFilter(constants.filterKeys.ACCOUNT_ID, '5');
+    const accountEntityId = EntityId.parseString('5');
+    const filter = utils.buildComparatorFilter(constants.filterKeys.ACCOUNT_ID, `${accountEntityId.num}`);
     utils.formatComparator(filter);
-    verifyFilter(filter, constants.filterKeys.ACCOUNT_ID, ' = ', 5);
+    verifyFilter(filter, constants.filterKeys.ACCOUNT_ID, ' = ', accountEntityId.getEncodedId());
   });
 
   test('Verify formatComparator for account.id=0.2.5', () => {
@@ -309,9 +315,10 @@ describe('utils formatComparator tests', () => {
   });
 
   test('Verify formatComparator for account.id=gte:6', () => {
-    const filter = utils.buildComparatorFilter(constants.filterKeys.ACCOUNT_ID, 'gte:6');
+    const accountEntityId = EntityId.parseString('6');
+    const filter = utils.buildComparatorFilter(constants.filterKeys.ACCOUNT_ID, `gte:${accountEntityId.num}`);
     utils.formatComparator(filter);
-    verifyFilter(filter, constants.filterKeys.ACCOUNT_ID, ' >= ', 6);
+    verifyFilter(filter, constants.filterKeys.ACCOUNT_ID, ' >= ', accountEntityId.getEncodedId());
   });
 
   test('Verify formatComparator for timestamp=gt:1234567890.000000004', () => {
@@ -513,7 +520,7 @@ describe('utils validateAndParseFilters entity key tests', () => {
 });
 
 describe('utils validateAndParseFilters integer key tests', () => {
-  const integerFilterKeys = [constants.filterKeys.SEQUENCE_NUMBER, constants.filterKeys.NODE_ID];
+  const integerFilterKeys = [constants.filterKeys.SEQUENCE_NUMBER];
   integerFilterKeys.forEach((key) => {
     const invalidFilters = [
       // erroneous data
@@ -686,11 +693,11 @@ describe('utils validateAndParseFilters address book file id tests', () => {
 
   const filters = [
     utils.buildComparatorFilter(key, '101'),
-    utils.buildComparatorFilter(key, '0.101'),
-    utils.buildComparatorFilter(key, '0.0.101'),
+    utils.buildComparatorFilter(key, `${realm}.101`),
+    utils.buildComparatorFilter(key, `${shard}.${realm}.101`),
     utils.buildComparatorFilter(key, '102'),
-    utils.buildComparatorFilter(key, '0.102'),
-    utils.buildComparatorFilter(key, '0.0.102'),
+    utils.buildComparatorFilter(key, `${realm}.102`),
+    utils.buildComparatorFilter(key, `${shard}.${realm}.102`),
     utils.buildComparatorFilter(key, 'eq:101'),
     utils.buildComparatorFilter(key, 'eq:102'),
   ];

@@ -127,6 +127,7 @@ const getAddressBooksAndNodeAccountIdsByConsensusTimestamp = async (consensusTim
     sqlQuery += ` desc limit 1`;
   }
 
+  // TODO: the hardcoded 102 will not work with non zero shard/realm
   const {rows} = await primaryPool.queryQuietly(sqlQuery, consensusTimestamp);
   if (_.isEmpty(rows)) {
     throw new NotFoundError('No address book found');

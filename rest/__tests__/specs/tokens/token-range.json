@@ -11,12 +11,10 @@
         "type": "TOKEN"
       },
       {
-        "realm": 7,
         "num": 25301,
         "type": "TOKEN"
       },
       {
-        "realm": 23,
         "num": 45678,
         "type": "TOKEN"
       }
@@ -38,7 +36,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.7.25301",
+        "token_id": "0.0.25301",
         "symbol": "MIRRORTOKEN",
         "created_timestamp": "1234567890000000003",
         "decimals": 3,
@@ -47,7 +45,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.23.45678",
+        "token_id": "0.0.45678",
         "symbol": "HEDERACOIN",
         "created_timestamp": "1234567890000000004",
         "type": "FUNGIBLE_COMMON"
@@ -55,9 +53,9 @@
     ]
   },
   "urls": [
-    "/api/v1/tokens?token.id=gte:0.0.18&token.id=lt:0.30000.0&limit=2",
-    "/api/v1/tokens?token.id=gte:0.18&token.id=lt:0.30000.0&limit=2",
-    "/api/v1/tokens?token.id=gte:18&token.id=lt:0.30000.0&limit=2"
+    "/api/v1/tokens?token.id=gte:0.0.18&token.id=lt:0.0.50000&limit=2",
+    "/api/v1/tokens?token.id=gte:0.18&token.id=lt:0.0.50000&limit=2",
+    "/api/v1/tokens?token.id=gte:18&token.id=lt:0.0.50000&limit=2"
   ],
   "responseStatus": 200,
   "responseJson": {
@@ -72,7 +70,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.7.25301",
+        "token_id": "0.0.25301",
         "symbol": "MIRRORTOKEN",
         "admin_key": null,
         "decimals": 3,
@@ -82,7 +80,7 @@
       }
     ],
     "links": {
-      "next": "/api/v1/tokens?token.id=lt:0.30000.0&token.id=gt:0.7.25301&limit=2"
+      "next": "/api/v1/tokens?token.id=lt:0.0.50000&token.id=gt:0.0.25301&limit=2"
     }
   }
 }

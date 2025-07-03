@@ -5,50 +5,42 @@
       {
         "balance": 151,
         "balance_timestamp": 11000000000,
-        "num": 1,
-        "realm": 15
+        "num": 1
       },
       {
         "balance": 152,
         "balance_timestamp": 11000000001,
-        "num": 2,
-        "realm": 15
+        "num": 2
       },
       {
         "balance": 155,
         "balance_timestamp": 11000000000,
-        "num": 5,
-        "realm": 15
+        "num": 5
       },
       {
         "balance": 156,
         "balance_timestamp": 10000000000,
-        "num": 6,
-        "realm": 15
+        "num": 6
       },
       {
         "balance": 157,
         "balance_timestamp": 9000000000,
-        "num": 7,
-        "realm": 15
+        "num": 7
       },
       {
         "balance": 158,
         "balance_timestamp": 9223372036854775806,
-        "num": 8,
-        "realm": 15
+        "num": 8
       },
       {
         "balance": 159,
         "balance_timestamp": 9223372036854775807,
         "num": 9,
-        "realm": 15,
         "expiration_timestamp": "-9223372036854775808"
       },
       {
         "balance": 1510,
         "num": 10,
-        "realm": 15,
         "expiration_timestamp": "9223372036854775807"
       }
     ],
@@ -56,7 +48,6 @@
       {
         "timestamp": 2000,
         "id": 2,
-        "realm_num": 15,
         "balance": 9223372036847275807,
         "tokens": [
           {
@@ -68,50 +59,47 @@
       {
         "timestamp": 2000,
         "id": 3,
-        "realm_num": 15,
         "balance": 30
       }
     ],
     "contracts": [
       {
         "balance": 153,
-        "num": 3,
-        "realm": 15
+        "num": 3
       },
       {
         "balance": 154,
-        "num": 4,
-        "realm": 15
+        "num": 4
       }
     ],
     "tokenaccounts": [
       {
         "token_id": "0.0.90000",
-        "account_id": "0.15.01",
+        "account_id": "0.0.01",
         "balance": 800,
         "created_timestamp": "1234567890000000002"
       },
       {
         "token_id": "0.0.90000",
-        "account_id": "0.15.02",
+        "account_id": "0.0.02",
         "balance": 10000,
         "created_timestamp": "1234567890000000006"
       },
       {
         "token_id": "0.0.90001",
-        "account_id": "0.15.01",
+        "account_id": "0.0.01",
         "balance": 1800,
         "created_timestamp": "1234567890000000002"
       },
       {
         "token_id": "0.0.90002",
-        "account_id": "0.15.02",
+        "account_id": "0.0.02",
         "balance": 8223372036847275807,
         "created_timestamp": "1234567890000000006"
       },
       {
         "token_id": "0.0.90003",
-        "account_id": "0.15.01",
+        "account_id": "0.0.01",
         "associated": false,
         "balance": 8800,
         "created_timestamp": "1234567890000000002"
@@ -126,47 +114,47 @@
         "timestamp": "9223372036.854775807",
         "balances": [
           {
-            "account": "0.15.10",
+            "account": "0.0.10",
             "balance": 1510,
             "tokens": []
           },
           {
-            "account": "0.15.9",
+            "account": "0.0.9",
             "balance": 159,
             "tokens": []
           },
           {
-            "account": "0.15.8",
+            "account": "0.0.8",
             "balance": 158,
             "tokens": []
           },
           {
-            "account": "0.15.7",
+            "account": "0.0.7",
             "balance": 157,
             "tokens": []
           },
           {
-            "account": "0.15.6",
+            "account": "0.0.6",
             "balance": 156,
             "tokens": []
           },
           {
-            "account": "0.15.5",
+            "account": "0.0.5",
             "balance": 155,
             "tokens": []
           },
           {
-            "account": "0.15.4",
+            "account": "0.0.4",
             "balance": 154,
             "tokens": []
           },
           {
-            "account": "0.15.3",
+            "account": "0.0.3",
             "balance": 153,
             "tokens": []
           },
           {
-            "account": "0.15.2",
+            "account": "0.0.2",
             "balance": 152,
             "tokens": [
               {
@@ -180,7 +168,7 @@
             ]
           },
           {
-            "account": "0.15.1",
+            "account": "0.0.1",
             "balance": 151,
             "tokens": [
               {
