@@ -10,6 +10,7 @@ import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -44,6 +45,7 @@ import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tuweni.bytes.Bytes;
+import org.assertj.core.api.AssertionsForClassTypes;
 import org.hamcrest.core.StringContains;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
@@ -575,6 +577,67 @@ class OpcodesControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "*"))
                 .andExpect(header().string("Access-Control-Allow-Methods", "GET,HEAD,POST"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(TransactionProviderEnum.class)
+    void testModularizedRequestIsTrueButModularizedNotEnabled(final TransactionProviderEnum providerEnum)
+            throws Exception {
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            return;
+        }
+
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
+
+        mockMvc.perform(opcodesRequest(transactionIdOrHash).header("Is-Modularized", "true"))
+                .andExpect(status().isOk())
+                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
+
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractDebugParameters.class);
+        verify(contractDebugService).processOpcodeCall(paramsCaptor.capture(), tracerOptionsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isFalse();
+    }
+
+    @ParameterizedTest
+    @EnumSource(TransactionProviderEnum.class)
+    void testModularizedRequestIsTrue(final TransactionProviderEnum providerEnum) throws Exception {
+        if (!mirrorNodeEvmProperties.isModularizedServices()) {
+            return;
+        }
+
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
+
+        mockMvc.perform(opcodesRequest(transactionIdOrHash).header("Is-Modularized", "true"))
+                .andExpect(status().isOk())
+                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
+
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractDebugParameters.class);
+        verify(contractDebugService).processOpcodeCall(paramsCaptor.capture(), tracerOptionsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isTrue();
+    }
+
+    @ParameterizedTest
+    @EnumSource(TransactionProviderEnum.class)
+    void testModularizedRequestIsFalse(final TransactionProviderEnum providerEnum) throws Exception {
+        if (!mirrorNodeEvmProperties.isModularizedServices()) {
+            return;
+        }
+
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
+
+        mockMvc.perform(opcodesRequest(transactionIdOrHash).header("Is-Modularized", "false"))
+                .andExpect(status().isOk())
+                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
+
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractDebugParameters.class);
+        verify(contractDebugService).processOpcodeCall(paramsCaptor.capture(), tracerOptionsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isFalse();
     }
 
     /**

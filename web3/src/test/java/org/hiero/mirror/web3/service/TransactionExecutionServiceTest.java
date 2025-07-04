@@ -104,8 +104,6 @@ class TransactionExecutionServiceTest {
                 aliasesReadableKVState,
                 commonProperties,
                 new MirrorNodeEvmProperties(commonProperties, systemEntity),
-                opcodeTracer,
-                mirrorOperationTracer,
                 opcodeActionTracer,
                 mirrorOperationActionTracer,
                 systemEntity,
