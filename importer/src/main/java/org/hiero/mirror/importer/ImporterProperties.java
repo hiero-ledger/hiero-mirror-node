@@ -42,7 +42,7 @@ public class ImporterProperties {
     private final Path streamPath = dataPath.resolve(STREAMS);
 
     @Positive
-    private Long endBlockNumber = Long.MAX_VALUE;
+    private long endBlockNumber = Long.MAX_VALUE;
 
     @NotNull
     private Instant endDate = Utility.MAX_INSTANT_LONG;
