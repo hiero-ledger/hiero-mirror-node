@@ -447,20 +447,20 @@ class DomainUtilsTest {
                 "accountBalanceSnapshot, account_balance_snapshot",
             })
     @ParameterizedTest
-    void toSnakeCase_convertsCamelCaseToSnakeCase(final String input, final String expectedResult) {
+    void toSnakeCaseConvertsCamelCaseToSnakeCase(final String input, final String expectedResult) {
         assertThat(DomainUtils.toSnakeCase(input)).isEqualTo(expectedResult);
     }
 
     @CsvSource(value = {"account_balance, account_balance", "account, account"})
     @ParameterizedTest
-    void toSnakeCase_doesNotChangeLowercaseOrSnakeCase(final String input, final String expectedResult) {
+    void toSnakeCaseDoesNotChangeLowercaseOrSnakeCase(final String input, final String expectedResult) {
         assertThat(DomainUtils.toSnakeCase(input)).isEqualTo(expectedResult);
     }
 
     @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = {" ", "\t"})
-    void toSnakeCase_returnsInputAsIsForBlankOrNull(final String input) {
+    void toSnakeCaseReturnsInputAsIsForBlankOrNull(final String input) {
         assertThat(DomainUtils.toSnakeCase(input)).isEqualTo(input);
     }
 }

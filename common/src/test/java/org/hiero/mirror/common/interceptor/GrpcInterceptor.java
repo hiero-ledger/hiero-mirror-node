@@ -7,7 +7,7 @@ import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import net.devh.boot.grpc.server.interceptor.GrpcGlobalServerInterceptor;
-import org.hiero.mirror.common.endpoint.EndpointContext;
+import org.hiero.mirror.common.util.EndpointContext;
 
 @GrpcGlobalServerInterceptor
 public class GrpcInterceptor implements ServerInterceptor {

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common.endpoint;
+package org.hiero.mirror.common.util;
+
+import lombok.experimental.UtilityClass;
 
 /**
  * Provides per-thread tracking of the current API endpoint context.
@@ -10,7 +12,8 @@ package org.hiero.mirror.common.endpoint;
  * instrumentation, or logging to access a consistent identifier for attribution purposes.
  * </p>
  */
-public final class EndpointContext {
+@UtilityClass
+public class EndpointContext {
 
     private static final ThreadLocal<String> CURRENT_ENDPOINT = new InheritableThreadLocal<>();
 

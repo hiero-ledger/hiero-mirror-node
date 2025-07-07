@@ -9,7 +9,7 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
-import org.hiero.mirror.common.endpoint.EndpointContext;
+import org.hiero.mirror.common.util.EndpointContext;
 import org.hiero.mirror.common.util.EndpointNormalizer;
 
 public final class ApiTrackingFilter implements Filter {

@@ -88,7 +88,7 @@ public class MarkdownReportGenerator {
 
         final var sourcesBuilder = new StringBuilder();
         for (final var source : sortedSources) {
-            sourcesBuilder.append("- ").append(source).append(LINE_BREAK);
+            sourcesBuilder.append(source).append(LINE_BREAK);
         }
 
         if (!sourcesBuilder.isEmpty()) {
@@ -149,13 +149,14 @@ public class MarkdownReportGenerator {
         // Build endpoints list with bullets, sorted alphabetically
         final var endpoints = new TreeSet<>(endpointSources.keySet());
         final var endpointList =
-                endpoints.stream().map(e -> "- " + escapeMarkdown(e)).collect(Collectors.joining(LINE_BREAK));
+                endpoints.stream().map(MarkdownReportGenerator::escapeMarkdown).collect(Collectors.joining(LINE_BREAK));
 
         // Build source list from all sources in all endpoints, merged & sorted
         final var allSources =
                 endpointSources.values().stream().flatMap(Set::stream).collect(Collectors.toCollection(TreeSet::new));
-        final var sourceList =
-                allSources.stream().map(s -> "- " + escapeMarkdown(s)).collect(Collectors.joining(LINE_BREAK));
+        final var sourceList = allSources.stream()
+                .map(MarkdownReportGenerator::escapeMarkdown)
+                .collect(Collectors.joining(LINE_BREAK));
 
         writer.write("| " + escapedTable + " | " + endpointList + " | " + sourceList + " |" + NEWLINE);
     }

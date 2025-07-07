@@ -10,7 +10,7 @@ import graphql.execution.instrumentation.InstrumentationState;
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
-import org.hiero.mirror.common.endpoint.EndpointContext;
+import org.hiero.mirror.common.util.EndpointContext;
 
 public final class EndpointInstrumentation implements Instrumentation {
 
