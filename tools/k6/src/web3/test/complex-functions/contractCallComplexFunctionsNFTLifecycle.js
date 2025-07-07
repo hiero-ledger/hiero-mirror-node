@@ -17,7 +17,7 @@ const metadata =
   '0200000000000000000000000000000000000000000000000000000000000000';
 
 /*
-This test covers the full lifecycle of a Fungible Token
+This test covers the full lifecycle of a Non-Fungible Token
 1. Token Creation
 2. Associate token
 3. GrantTokenKyc
