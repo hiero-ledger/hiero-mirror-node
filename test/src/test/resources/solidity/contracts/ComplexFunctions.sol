@@ -23,7 +23,7 @@ contract ComplexFunctions is HederaTokenService, ExpiryHelper, KeyHelper {
         require(code == HederaResponseCodes.SUCCESS, "Token creation failed");
 
         require(HederaTokenService.associateToken(acc1, tokenAddr) == 22, "Token Associate of failed for acc1");
-        require(HederaTokenService.associateToken(acc2, tokenAddr) == 22, "Token Associate failed for acc1");
+        require(HederaTokenService.associateToken(acc2, tokenAddr) == 22, "Token Associate failed for acc2");
         require(HederaTokenService.grantTokenKyc(tokenAddr, acc1) == 22, "GrantKyc failed for acc1");
         require(HederaTokenService.grantTokenKyc(tokenAddr, acc2) == 22, "GrantKyC failed for acc2");
         require(HederaTokenService.transferToken(tokenAddr, treasury, acc1, 100) == 22, "Transfer token failed from treasury to acc1");
