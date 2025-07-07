@@ -4,7 +4,7 @@ go 1.24
 
 require (
 	github.com/Code-Hex/go-generics-cache v1.5.1
-	github.com/coinbase/rosetta-sdk-go v0.8.9
+	github.com/coinbase/rosetta-sdk-go v0.9.0
 	github.com/coinbase/rosetta-sdk-go/types v1.0.0
 	github.com/cucumber/godog v0.15.0
 	github.com/go-playground/validator/v10 v10.26.0
