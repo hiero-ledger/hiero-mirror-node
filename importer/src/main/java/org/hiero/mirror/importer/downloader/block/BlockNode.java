@@ -38,7 +38,6 @@ import org.hiero.mirror.importer.reader.block.BlockStream;
 final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(blockNode -> blockNode.properties);
-    private static final long INFINITE_END_BLOCK_NUMBER = -1;
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
     private static final long UNKNOWN_NODE_ID = -1;
     private final ManagedChannel channel;
