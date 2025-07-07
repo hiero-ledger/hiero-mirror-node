@@ -157,7 +157,7 @@ describe('EntityId parse from entityId string', () => {
       expected: EntityId.of(shard, realm, 25623323),
     },
     {
-      entityIdStr: '1.000000000000000000000000000000000186Fb1b',
+      entityIdStr: `${realm + 1n}.000000000000000000000000000000000186Fb1b1`,
       expectErr: true,
     },
     {
@@ -274,7 +274,7 @@ describe('EntityId parse from entityId string', () => {
       expectErr: true,
     },
     {
-      entityIdStr: '2.3.0000000100000000000000020000000000000007',
+      entityIdStr: `${shard + 1n}.${realm + 1n}.0000000100000000000000020000000000000007`,
       expectErr: true,
     },
   ];

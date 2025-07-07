@@ -115,8 +115,8 @@ describe('EntityService.getEntityIdFromEvmAddress tests', () => {
       defaultInputEntity[0],
       {
         ...defaultInputEntity[0],
-        id: defaultInputEntity[0].id + 1n,
-        num: defaultInputEntity[0].num + 1,
+        id: BigInt(defaultInputEntity[0].id) + 1n,
+        num: BigInt(defaultInputEntity[0].num) + 1n,
       },
     ];
     await integrationDomainOps.loadEntities(inputEntities);
