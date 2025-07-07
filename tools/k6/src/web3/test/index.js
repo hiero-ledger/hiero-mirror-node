@@ -137,7 +137,7 @@ if (__ENV.RUN_MODIFICATION_TESTS !== 'false') {
 if (__ENV.RUN_COMPLEX_TESTS !== 'false') {
   Object.assign(tests, {
     contractCallComplexFunctionTokenLifecycle,
-    contractCallComplexFunctionNFTLifecycle
+    contractCallComplexFunctionNFTLifecycle,
   });
 }
 
