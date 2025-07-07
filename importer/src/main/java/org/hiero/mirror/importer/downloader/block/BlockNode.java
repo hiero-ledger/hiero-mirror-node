@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -90,10 +91,11 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         var grpcCall = new AtomicReference<BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse>>();
 
         try {
+            long endBlockNumber = Objects.requireNonNullElse(
+                    commonDownloaderProperties.getImporterProperties().getEndBlockNumber(), -1L);
             var assembler = new BlockAssembler(commonDownloaderProperties.getTimeout());
             var request = SubscribeStreamRequest.newBuilder()
-                    .setEndBlockNumber(
-                            commonDownloaderProperties.getImporterProperties().getEndBlockNumber())
+                    .setEndBlockNumber(endBlockNumber)
                     .setStartBlockNumber(blockNumber)
                     .build();
             grpcCall.set(ClientCalls.blockingV2ServerStreamingCall(

@@ -5,7 +5,6 @@ package org.hiero.mirror.importer;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -41,8 +40,8 @@ public class ImporterProperties {
     @Getter(lazy = true)
     private final Path streamPath = dataPath.resolve(STREAMS);
 
-    @Positive
-    private long endBlockNumber = Long.MAX_VALUE;
+    @PositiveOrZero
+    private Long endBlockNumber;
 
     @NotNull
     private Instant endDate = Utility.MAX_INSTANT_LONG;

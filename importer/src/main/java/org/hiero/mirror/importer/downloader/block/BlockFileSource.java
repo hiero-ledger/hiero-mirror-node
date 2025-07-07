@@ -64,7 +64,9 @@ final class BlockFileSource extends AbstractBlockSource {
     @Override
     public void get() {
         long blockNumber = getNextBlockNumber();
-        if (blockNumber > commonDownloaderProperties.getImporterProperties().getEndBlockNumber()) {
+        var endBlockNumber = commonDownloaderProperties.getImporterProperties().getEndBlockNumber();
+
+        if (endBlockNumber != null && blockNumber > endBlockNumber) {
             return;
         }
 

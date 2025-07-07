@@ -36,12 +36,13 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
     @Override
     public void get() {
         long blockNumber = getNextBlockNumber();
-        if (blockNumber > commonDownloaderProperties.getImporterProperties().getEndBlockNumber()) {
+        var endBlockNumber = commonDownloaderProperties.getImporterProperties().getEndBlockNumber();
+
+        if (endBlockNumber != null && blockNumber > endBlockNumber) {
             return;
         }
 
         var node = getNode(blockNumber);
-
         log.info("Start streaming block {} from {}", blockNumber, node);
         node.streamBlocks(blockNumber, commonDownloaderProperties, this::onBlockStream);
     }
