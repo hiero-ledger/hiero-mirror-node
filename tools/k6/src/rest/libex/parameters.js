@@ -167,7 +167,7 @@ const computeAccountWithCryptoAllowanceParameters = wrapComputeParametersFunc(
       };
     }
 
-    throw new Error('It was not possible to find an account with with significant number of crypto allowances.');
+    throw new Error('It was not possible to find an account with significant number of crypto allowances.');
   }
 );
 
@@ -206,7 +206,7 @@ const computeAccountWithNftsParameters = wrapComputeParametersFunc(['DEFAULT_ACC
     return {DEFAULT_ACCOUNT_ID_NFTS: candidate.account};
   }
 
-  throw new Error('It was not possible to find an account with with significant number of nfts.');
+  throw new Error('It was not possible to find an account with significant number of nfts.');
 });
 
 const computeAccountWithTokenAllowanceParameters = wrapComputeParametersFunc(
@@ -246,7 +246,7 @@ const computeAccountWithTokenAllowanceParameters = wrapComputeParametersFunc(
       return {DEFAULT_ACCOUNT_ID_TOKEN_ALLOWANCE: candidate.account};
     }
 
-    throw new Error('It was not possible to find an account with with significant number of token allowances.');
+    throw new Error('It was not possible to find an account with significant number of token allowances.');
   }
 );
 
@@ -285,7 +285,7 @@ const computeAccountWithTokenParameters = wrapComputeParametersFunc(['DEFAULT_AC
     return {DEFAULT_ACCOUNT_ID_TOKEN: candidate.account};
   }
 
-  throw new Error('It was not possible to find an account with with significant number of tokens.');
+  throw new Error('It was not possible to find an account with significant number of tokens.');
 });
 
 const computeBlockParameters = wrapComputeParametersFunc(['DEFAULT_BLOCK_NUMBER', 'DEFAULT_BLOCK_HASH'], () => {
