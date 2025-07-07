@@ -6,7 +6,8 @@ import {ContractCallTestScenarioBuilder} from '../common.js';
 const contract = __ENV.COMPLEX_FUNCTIONS_CONTRACT_ADDRESS;
 const firstReceiver = __ENV.RECEIVER_ADDRESS;
 const secondReceiver = __ENV.SPENDER_ADDRESS;
-const treasury = __ENV.PAYER_ACCOUNT;
+const payer = __ENV.PAYER_ACCOUNT;
+const treasury = '0'.repeat(24) + payer; // Pad with 24 zeros to convert payer account from 20 to 32 bytes treasury account
 const runMode = __ENV.RUN_WITH_VARIABLES;
 
 /*
@@ -31,7 +32,7 @@ const {options, run} =
         .name(testName)
         .selector(selector)
         .args([firstReceiver, secondReceiver, treasury])
-        .from(treasury.slice(24)) // Remove first 24 zeros because 'from' field should be 20 bytes long, instead of 32 bytes
+        .from(payer)
         .value(933333333) // Value is needed because the first operation in the contract call is token create
         .to(contract)
         .block('latest')

@@ -244,6 +244,6 @@ This test covers the lifecycle of a fungible token, including: token creation, a
 Test Parameters:
 
 - `COMPLEX_FUNCTIONS_CONTRACT_ADDRESS` - contract address for `ComplexFunctions.sol`
-- `RECEIVER_ADDRESS` - First account to be used in the test for the transfer
-- `SPENDER_ADDRESS` - Second account to be used in the test for the second transfer
-- `PAYER_ACCOUNT` - Account to be used as a treasury of the token
+- `RECEIVER_ADDRESS` - First account to be used in the test for the transfer. Not associated account 
+- `SPENDER_ADDRESS` - Second account to be used in the test for the second transfer. Not associated account
+- `PAYER_ACCOUNT` - Account to be used as a treasury of the token and for a payer of the transaction. It should have enough balance to pay for the token creation(at least 9.33 bars ).
