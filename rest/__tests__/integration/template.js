@@ -23,7 +23,7 @@ import path from 'path';
 import request from 'supertest';
 import integrationDomainOps from '../integrationDomainOps';
 import IntegrationS3Ops from '../integrationS3Ops';
-import config, {getMirrorConfig} from '../../config';
+import config from '../../config';
 import {cloudProviders} from '../../constants';
 import server from '../../server';
 import {getModuleDirname} from '../testutils';

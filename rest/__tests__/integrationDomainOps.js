@@ -950,9 +950,11 @@ const addTransaction = async (transaction) => {
   }
 
   if ((transaction.inner_transactions ?? []).length > 0) {
-    for (let i = 0; i < transaction.inner_transactions.length; i += 2) {
-      transaction.inner_transactions[i] = encodedIdFromSpecValue(transaction.inner_transactions[i]);
+    const newInnerTransactions = [...transaction.inner_transactions];
+    for (let i = 0; i < newInnerTransactions.length; i += 2) {
+      newInnerTransactions[i] = encodedIdFromSpecValue(transaction.inner_transactions[i]);
     }
+    transaction.inner_transactions = newInnerTransactions;
   }
 
   const {node_account_id: nodeAccount, payer_account_id: payerAccount} = transaction;
