@@ -99,7 +99,7 @@ const startDbContainerServer = () => {
   process.env.DB_CONTAINER_SERVER_URL = `http://localhost:${server.address().port}`;
   console.log(`DB container server url: ${process.env.DB_CONTAINER_SERVER_URL}`);
 
-  app.post('/connectionParams', async (req, res, next) => {
+  app.post('/connectionParams', async (req, res) => {
     if (Number.isNaN(req.body?.workerId)) {
       res.status(400).end();
       return;
