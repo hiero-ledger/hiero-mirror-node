@@ -239,7 +239,6 @@ Source: src/web3/test/complex-functions/contractCallComplexFunctionsTokenLifecyc
 
 This test covers the lifecycle of a fungible token, including: token creation, association, grantKYC, transfer, Freeze, Unfreeze, Pause, Unpause, Wipe. The test uses `tokenLifecycle(address firstReceiver, address secondReceiver, address treasury)` function from `ComplexFunctions.sol`.
 
-
 Test Parameters:
 - `COMPLEX_FUNCTIONS_CONTRACT_ADDRESS` - contract address for `ComplexFunctions.sol`
 - `RECEIVER_ADDRESS` - First account to be used in the test for the transfer
