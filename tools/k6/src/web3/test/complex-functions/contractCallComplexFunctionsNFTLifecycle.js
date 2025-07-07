@@ -28,7 +28,7 @@ This test covers the full lifecycle of a Non-Fungible Token
 8. Wipe amount 10 token from account2
 9. Pause / Unpause token
 */
-const selector = '0xb046226e'; //nftLifecycle(address firstReceiver,address secondReceiver ,address treasury)
+const selector = '0xb046226e'; //nftLifecycle(address firstReceiver,address secondReceiver ,address treasury, bytes[] memory metadata)
 const testName = 'contractCallComplexFunctionsNFTLifecycle';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
