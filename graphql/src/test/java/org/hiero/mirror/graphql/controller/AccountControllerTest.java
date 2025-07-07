@@ -7,6 +7,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Base32;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.config.GraphqlTestConfiguration;
+import org.hiero.mirror.graphql.GraphqlApplication;
 import org.hiero.mirror.graphql.GraphqlIntegrationTest;
 import org.hiero.mirror.graphql.mapper.AccountMapper;
 import org.hiero.mirror.graphql.viewmodel.Account;
@@ -14,9 +16,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.boot.test.autoconfigure.graphql.tester.AutoConfigureHttpGraphQlTester;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.graphql.ResponseError;
 import org.springframework.graphql.test.tester.HttpGraphQlTester;
 
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        classes = {GraphqlApplication.class, GraphqlTestConfiguration.class})
 @AutoConfigureHttpGraphQlTester
 @RequiredArgsConstructor
 class AccountControllerTest extends GraphqlIntegrationTest {

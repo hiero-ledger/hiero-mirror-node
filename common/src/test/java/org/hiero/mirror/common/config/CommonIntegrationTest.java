@@ -18,7 +18,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.jdbc.Sql;
 
-@Import({CommonTestConfiguration.class, TableUsageReportConfiguration.class})
+@Import({CommonTestConfiguration.class, TableUsageReportTestConfiguration.class})
 @Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD, scripts = "classpath:cleanup.sql")
 @Sql(executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD, scripts = "classpath:cleanup.sql")
 @SpringBootTest

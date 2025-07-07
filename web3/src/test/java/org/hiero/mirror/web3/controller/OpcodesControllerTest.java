@@ -6,6 +6,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_EXECU
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.CommonUtils.instant;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
+import static org.hiero.mirror.web3.utils.Constants.OPCODES_URI;
 import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -104,7 +105,6 @@ import org.springframework.util.StringUtils;
 @WebMvcTest(controllers = OpcodesController.class)
 class OpcodesControllerTest {
 
-    private static final String OPCODES_URI = "/api/v1/contracts/results/{transactionIdOrHash}/opcodes";
     private static final DomainBuilder DOMAIN_BUILDER = new DomainBuilder();
     private final AtomicReference<OpcodesProcessingResult> opcodesResultCaptor = new AtomicReference<>();
     private final AtomicReference<ContractDebugParameters> expectedCallServiceParameters = new AtomicReference<>();

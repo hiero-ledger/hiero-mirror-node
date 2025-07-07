@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.utils.Constants.OPCODES_URI;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
@@ -24,7 +25,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.filter.ApiTrackingFilter;
+import org.hiero.mirror.common.endpoint.EndpointContext;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
@@ -47,7 +48,7 @@ import org.web3j.tx.Contract;
 abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContractCallServiceHistoricalTest {
 
     protected static void setOpcodeEndpoint() {
-        ApiTrackingFilter.setCurrentEndpoint("/api/v1/contracts/results/{transactionIdOrHash}/opcodes");
+        EndpointContext.setCurrentEndpoint(OPCODES_URI);
     }
 
     @Resource

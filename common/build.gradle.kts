@@ -26,6 +26,10 @@ dependencies {
     testImplementation("org.testcontainers:postgresql")
     testImplementation("io.micrometer:micrometer-core")
     testImplementation("org.junit.platform:junit-platform-launcher")
+    testImplementation("org.springframework.graphql:spring-graphql-test")
+    testImplementation("org.springframework:spring-web")
+    testImplementation("io.grpc:grpc-api")
+    testImplementation("net.devh:grpc-spring-boot-starter")
     testClasses(sourceSets["test"].output)
 }
 

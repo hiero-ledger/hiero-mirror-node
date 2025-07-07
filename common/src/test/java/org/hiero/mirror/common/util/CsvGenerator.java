@@ -22,12 +22,10 @@ public final class CsvGenerator {
         try (final var fullWriter = Files.newBufferedWriter(fullPath);
                 final var simpleWriter = Files.newBufferedWriter(simplePath)) {
 
-            fullWriter.write("Id,Endpoint,Table,Source\n");
-            simpleWriter.write("Id,Endpoint,Table\n");
+            fullWriter.write("Endpoint,Table,Source\n");
+            simpleWriter.write("Endpoint,Table\n");
 
             final var seenPairs = new HashSet<String>();
-            int fullId = 1;
-            int simpleId = 1;
 
             for (final var entry : apiTableQueries.entrySet()) {
                 final var endpoint = escapeCsv(entry.getKey());
@@ -38,13 +36,12 @@ public final class CsvGenerator {
 
                     for (final var source : tableEntry.getValue()) {
                         final var escapedSource = escapeCsv(source);
-                        fullWriter.write(String.format("%d,%s,%s,%s%n", fullId++, endpoint, table, escapedSource));
+                        fullWriter.write(String.format("%s,%s,%s%n", endpoint, table, escapedSource));
                     }
 
                     final var pairKey = endpoint + "|" + table;
-                    if (!seenPairs.contains(pairKey)) {
-                        seenPairs.add(pairKey);
-                        simpleWriter.write(String.format("%d,%s,%s%n", simpleId++, endpoint, table));
+                    if (seenPairs.add(pairKey)) {
+                        simpleWriter.write(String.format("%s,%s%n", endpoint, table));
                     }
                 }
             }

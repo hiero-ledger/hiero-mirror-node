@@ -8,7 +8,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.metamodel.EntityType;
 import java.lang.reflect.Method;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.CustomLog;
@@ -16,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.hibernate.query.spi.QueryImplementor;
-import org.hiero.mirror.common.filter.ApiTrackingFilter;
+import org.hiero.mirror.common.endpoint.EndpointContext;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.SqlParsingUtil;
 import org.hiero.mirror.common.util.TestExecutionTracker;
@@ -53,8 +52,11 @@ public class RepositoryUsageInterceptor implements MethodInterceptor {
             return invocation.proceed();
         }
 
-        final var endpoint =
-                Optional.ofNullable(ApiTrackingFilter.getCurrentEndpoint()).orElse(UNKNOWN_ENDPOINT);
+        final var endpoint = EndpointContext.getCurrentEndpoint();
+
+        if (endpoint == null || UNKNOWN_ENDPOINT.equals(endpoint)) {
+            return invocation.proceed();
+        }
 
         // Attempt to extract SQL (via @Query or Hibernate)
         final var sql = extractSql(invocation);

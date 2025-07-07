@@ -8,4 +8,5 @@ import lombok.experimental.UtilityClass;
 public class Constants {
 
     public static final String UNKNOWN_ENDPOINT = "UNKNOWN_ENDPOINT";
+    public static final String CURRENT_ENDPOINT = "CURRENT_ENDPOINT";
 }

@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.common.util;
 
-import static org.hiero.mirror.common.util.Constants.UNKNOWN_ENDPOINT;
-
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -21,7 +19,7 @@ import org.hiero.mirror.common.interceptor.RepositoryUsageInterceptor;
 
 @CustomLog
 @UtilityClass
-public final class MarkdownReportGenerator {
+public class MarkdownReportGenerator {
     private static final String NEWLINE = System.lineSeparator();
     private static final String LINE_BREAK = "<br>";
 
@@ -32,15 +30,8 @@ public final class MarkdownReportGenerator {
         try (final var writer = Files.newBufferedWriter(path)) {
             writeHeader(writer);
 
-            // Sort endpoints so "UNKNOWN_ENDPOINT" is last
-            final var sortedEndpoints = apiTableQueries.keySet().stream()
-                    .sorted((e1, e2) -> {
-                        // pushes "UNKNOWN_ENDPOINT" last
-                        if (e1.equals(UNKNOWN_ENDPOINT)) return 1;
-                        if (e2.equals(UNKNOWN_ENDPOINT)) return -1;
-                        return e1.compareTo(e2);
-                    })
-                    .toList();
+            final var sortedEndpoints =
+                    apiTableQueries.keySet().stream().sorted(String::compareTo).toList();
 
             for (final var endpoint : sortedEndpoints) {
                 writeEndpointTables(writer, endpoint, apiTableQueries.get(endpoint));

@@ -12,7 +12,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EnableJpaRepositories(
         basePackages = "org.hiero.mirror",
         repositoryFactoryBeanClass = TrackingRepositoryFactoryBean.class)
-class TableUsageReportConfiguration {
+class TableUsageReportTestConfiguration {
     @Bean
     TrackingRepositoryProxyPostProcessor trackingRepositoryProxyPostProcessor(final EntityManager entityManager) {
         return new TrackingRepositoryProxyPostProcessor(entityManager);
