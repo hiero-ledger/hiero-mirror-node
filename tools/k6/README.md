@@ -228,3 +228,19 @@ source k6.env && k6 run src/rosetta/test/accountBalance.js
 ```
 
 When it completes, k6 will show a similar summary report. However, there will not be a report file generated.
+
+### Web3 Tests details:
+#### Complex functions 
+Test complex scenarios by using a single smart contract function.
+
+1. Fungible Token Lifecycle
+
+Source: src/web3/test/complex-functions/contractCallComplexFunctionsTokenLifecycle.js.
+
+This test covers the lifecycle of a fungible token, including: token creation, association, grantKYC, transfer, Freeze, Unfreeze, Pause Unpause, Wipe
+
+Test Parameters:
+- `COMPLEX_FUNCTIONS_CONTRACT_ADDRESS` - contract address for `ComplexFunctions.sol`
+- `RECEIVER_ADDRESS` - First account to be used in the test for the transfer
+- `SPENDER_ADDRESS` - Second account to be used in the test for the second transfer
+- `PAYER_ACCOUNT` - Account to be used as a treasury of the token
