@@ -18,7 +18,6 @@ const {
 } = getMirrorConfig();
 
 const transformShardRealmValues = (obj) => {
-  //TODO use this everywhere below
   const shardRealm = `${systemShard}.${systemRealm}.`;
 
   if (Array.isArray(obj)) {
@@ -42,7 +41,7 @@ const transformShardRealmValues = (obj) => {
     );
   } else if (typeof obj === 'string') {
     if (/^0\.0\.\d+$/.test(obj)) {
-      return obj.replace(/^0\.0\./, `${systemShard}.${systemRealm}.`);
+      return obj.replace(/^0\.0\./, `${shardRealm}`);
     }
 
     if (/^0\.0\.[A-Z0-9]{40,}$/i.test(obj)) {
@@ -66,7 +65,7 @@ const transformShardRealmValues = (obj) => {
         continue;
       }
 
-      entry = entry.replace(/0\.0\.(\d+)/g, `${systemShard}.${systemRealm}.$1`);
+      entry = entry.replace(/0\.0\.(\d+)/g, `${shardRealm}$1`);
       entry = entry.replace(/0\.0\.([A-Z0-9]{40,})/gi, `${shardRealm}$1`);
       entry = entry.replace(/0\.([A-Z0-9]{40,})/gi, `${systemRealm}.$1`);
       entry = entry.replace(/(?<!\d)0\.(\d+)\b/g, `${systemRealm}.$1`);
@@ -81,12 +80,11 @@ const transformShardRealmValues = (obj) => {
 };
 
 const encodedIdFromSpecValue = (value) => {
-  if (value !== null && value !== undefined) {
-    //TODO ??? Necessary to transform
-    const transformedValue = transformShardRealmValues(`${value}`);
-    return EntityId.parseString(`${transformedValue}`).getEncodedId();
+  if (value === null || value === undefined) {
+    return value;
   }
-  return null;
+  const transformedValue = transformShardRealmValues(value);
+  return EntityId.parseString(`${transformedValue}`).getEncodedId();
 };
 
 const applyResponseJsonMatrix = (spec, key) => {

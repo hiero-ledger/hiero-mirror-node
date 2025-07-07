@@ -12,13 +12,13 @@ import EntityId from '../entityId';
 import {valueToBuffer} from './testutils';
 import {JSONStringify} from '../utils';
 import long from 'long';
-import {transformShardRealmValues, encodedIdFromSpecValue} from './integrationUtils';
+import {encodedIdFromSpecValue} from './integrationUtils';
 
 const config = getMirrorConfig();
 const NETWORK_FEE = 1n;
 const NODE_FEE = 2n;
 const SERVICE_FEE = 4n;
-const DEFAULT_FEE_COLLECTOR_NUM = 98; //TODO: use system entity
+const DEFAULT_FEE_COLLECTOR_NUM = EntityId.systemEntity.feeCollector.num;
 const DEFAULT_NODE_ID = 3;
 const DEFAULT_PAYER_ACCOUNT_ID = 102;
 const DEFAULT_SENDER_ID = 101;
@@ -554,7 +554,7 @@ const addAddressBookEntry = async (addressBookEntryInput) => {
 
   const addressBookEntry = {
     consensus_timestamp: 0,
-    memo: `${config.common.shard}.${config.common.realm}.3`,
+    memo: EntityId.parseString('3').toString(),
     public_key: '4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f',
     node_id: 2000,
     node_account_id: 3,
@@ -637,23 +637,11 @@ const addEntity = async (defaults, custom) => {
   ).getEncodedId();
   entity.alias = base32.decode(entity.alias);
   entity.evm_address = valueToBuffer(entity.evm_address);
-  if (entity.staked_account_id) {
-    //tODO: change to use parseString
-    entity.staked_account_id = EntityId.of(
-      config.common.shard,
-      config.common.realm,
-      entity.staked_account_id
-    ).getEncodedId();
-  }
-  if (entity.obtainer_id) {
-    entity.obtainer_id = EntityId.parseString(`${entity.obtainer_id}`).getEncodedId();
-  }
-  if (entity.proxy_account_id) {
-    entity.proxy_account_id = EntityId.parseString(`${entity.proxy_account_id}`).getEncodedId();
-  }
-  if (entity.auto_renew_account_id) {
-    entity.auto_renew_account_id = EntityId.parseString(`${entity.auto_renew_account_id}`).getEncodedId();
-  }
+  entity.staked_account_id = encodedIdFromSpecValue(entity.staked_account_id);
+  entity.obtainer_id = encodedIdFromSpecValue(entity.obtainer_id);
+  entity.proxy_account_id = encodedIdFromSpecValue(entity.proxy_account_id);
+  entity.auto_renew_account_id = encodedIdFromSpecValue(entity.auto_renew_account_id);
+
   if (typeof entity.key === 'string') {
     entity.key = Buffer.from(entity.key, 'hex');
   } else if (entity.key != null) {
@@ -691,7 +679,7 @@ const addEntityStake = async (entityStake) => {
     entityStake.timestamp_range = `[${timestamp},)`;
   }
 
-  entityStake.id = EntityId.of(config.common.shard, config.common.realm, entityStake.id).getEncodedId();
+  entityStake.id = encodedIdFromSpecValue(entityStake.id);
   await insertDomainObject(getTableName('entity_stake', entityStake), entityStakeFields, entityStake);
 };
 
@@ -789,7 +777,7 @@ const addAccount = async (account) => {
 const addAssessedCustomFee = async (assessedCustomFee) => {
   assessedCustomFee = {
     effective_payer_account_ids: [],
-    payer_account_id: `${config.common.shard}.${config.common.realm}.300`,
+    payer_account_id: EntityId.parseString('300').toString(),
     ...assessedCustomFee,
   };
   const {amount, collector_account_id, consensus_timestamp, effective_payer_account_ids, payer_account_id, token_id} =
@@ -804,6 +792,7 @@ const addAssessedCustomFee = async (assessedCustomFee) => {
     `insert into assessed_custom_fee
      (amount, collector_account_id, consensus_timestamp, effective_payer_account_ids, token_id, payer_account_id)
      values ($1, $2, $3, $4, $5, $6);`,
+    //TODO:// use encodedIdFromSpecValue?
     [
       amount,
       EntityId.parse(collector_account_id).getEncodedId(),
@@ -849,7 +838,7 @@ const addCustomFee = async (customFee) => {
 const parseCustomFeeEntityIds = (fee) => {
   Object.assign(fee, {
     all_collectors_are_exempt: false,
-    collector_account_id: '0.0.300',
+    collector_account_id: EntityId.parseString('300').toString(),
     ...fee,
   });
 
@@ -873,7 +862,7 @@ const setAccountBalance = async (balance) => {
       balance.timestamp,
       accountId.getEncodedId(),
       tokenBalance.balance,
-      EntityId.parseString(`${tokenBalance.token_num}`).getEncodedId(),
+      encodedIdFromSpecValue(tokenBalance.token_num),
     ]);
     await ownerPool.query(
       pgformat(
@@ -917,15 +906,11 @@ const addTransaction = async (transaction) => {
     valid_start_ns: transaction.valid_start_timestamp,
   };
 
-  if (transaction.entity_id) {
-    transaction.entity_id = EntityId.parseString(`${transaction.entity_id}`, {isNullable: true}).getEncodedId();
-  }
-
+  transaction.entity_id = encodedIdFromSpecValue(transaction.entity_id);
   transaction.node_account_id = encodedIdFromSpecValue(transaction.nodeAccountId);
   transaction.payer_account_id = encodedIdFromSpecValue(transaction.payerAccountId);
 
   if ((transaction.max_custom_fees ?? []).length !== 0) {
-    // can probably just use the num directly TODO
     const idDefaults = {shardNum: long.fromValue(config.common.shard), realmNum: long.fromValue(config.common.realm)};
     transaction.max_custom_fees = transaction.max_custom_fees.map((fee) => {
       if (fee.fees) {
@@ -1103,9 +1088,7 @@ const addContract = async (custom) => {
   };
 
   convertByteaFields(['initcode', 'runtime_bytecode'], contract);
-  if (contract.file_id) {
-    contract.file_id = EntityId.parseString(`${contract.file_id}`).getEncodedId();
-  }
+  contract.file_id = encodedIdFromSpecValue(contract.file_id);
 
   await insertDomainObject('contract', Object.keys(contractDefaults), contract);
 };
@@ -1159,15 +1142,9 @@ const addContractAction = async (contractActionInput) => {
   };
 
   convertByteaFields(['input', 'recipient_address', 'result_data'], action);
-  action.payer_account_id = EntityId.parseString(`${action.payer_account_id}`).getEncodedId();
-
-  if (action.caller) {
-    action.caller = EntityId.parseString(`${action.caller}`).getEncodedId();
-  }
-
-  if (action.recipient_contract) {
-    action.recipient_contract = EntityId.parseString(`${action.recipient_contract}`).getEncodedId();
-  }
+  action.payer_account_id = encodedIdFromSpecValue(action.payer_account_id);
+  action.caller = encodedIdFromSpecValue(action.caller);
+  action.recipient_contract = encodedIdFromSpecValue(action.recipient_contract);
 
   await insertDomainObject('contract_action', Object.keys(contractActionDefaults), action);
 };
@@ -1229,14 +1206,10 @@ const addContractResult = async (contractResultInput) => {
     contractResult
   );
 
-  contractResult.contract_id = EntityId.parseString(`${contractResult.contract_id}`).getEncodedId();
-  contractResult.payer_account_id = EntityId.parseString(`${contractResult.payer_account_id}`).getEncodedId();
-  if (contractResult.sender_id) {
-    contractResult.sender_id = EntityId.parseString(`${contractResult.sender_id}`).getEncodedId();
-  }
-  contractResult.created_contract_ids = contractResult.created_contract_ids.map((id) =>
-    EntityId.parseString(`${id}`).getEncodedId()
-  );
+  contractResult.contract_id = encodedIdFromSpecValue(contractResult.contract_id);
+  contractResult.payer_account_id = encodedIdFromSpecValue(contractResult.payer_account_id);
+  contractResult.sender_id = encodedIdFromSpecValue(contractResult.sender_id);
+  contractResult.created_contract_ids = contractResult.created_contract_ids.map((id) => encodedIdFromSpecValue(id));
 
   const contractHash = {
     consensus_timestamp: contractResult.consensus_timestamp,
@@ -1323,9 +1296,9 @@ const addCryptoAllowance = async (cryptoAllowanceInput) => {
     ...cryptoAllowanceInput,
   };
 
-  cryptoAllowance.owner = EntityId.parseString(`${cryptoAllowance.owner}`).getEncodedId();
-  cryptoAllowance.payer_account_id = EntityId.parseString(`${cryptoAllowance.payer_account_id}`).getEncodedId();
-  cryptoAllowance.spender = EntityId.parseString(`${cryptoAllowance.spender}`).getEncodedId();
+  cryptoAllowance.owner = encodedIdFromSpecValue(cryptoAllowance.owner);
+  cryptoAllowance.payer_account_id = encodedIdFromSpecValue(cryptoAllowance.payer_account_id);
+  cryptoAllowance.spender = encodedIdFromSpecValue(cryptoAllowance.spender);
 
   const table = getTableName('crypto_allowance', cryptoAllowance);
   await insertDomainObject(table, cryptoAllowanceFields, cryptoAllowance);
@@ -1395,11 +1368,10 @@ const addTopicMessage = async (message) => {
   message.initial_transaction_id = valueToBuffer(message.initial_transaction_id);
   if (message.initial_transaction_id) {
     const initialTransactionIdProto = proto.TransactionID.decode(valueToBuffer(message.initial_transaction_id));
-    // TODO use encode instead similar to max custom fees
     initialTransactionIdProto.accountID = proto.AccountID.create({
       accountNum: initialTransactionIdProto.accountID.accountNum,
-      shardNum: long.fromValue(config.common.shard, true),
-      realmNum: long.fromValue(config.common.realm, true),
+      shardNum: long.fromValue(config.common.shard),
+      realmNum: long.fromValue(config.common.realm),
     });
     message.initial_transaction_id = proto.TransactionID.encode(initialTransactionIdProto).finish();
   }
@@ -1413,7 +1385,6 @@ const addTopicMessageLookup = async (topicMessageLookup) => {
   const insertFields = ['partition', 'timestamp_range', 'sequence_number_range', 'topic_id'];
 
   const table = 'topic_message_lookup';
-  // TODO topicMessageLookup.topic_id = encodedIdFromSpecValue(topicMessageLookup.topic_id);
   await insertDomainObject(table, insertFields, topicMessageLookup);
 };
 

@@ -14,32 +14,26 @@ describe('AccountAlias', () => {
     describe('valid', () => {
       const testSpecs = [
         {
-          name: 'no shard and realm',
           input: 'AABBCC22',
           expected: new AccountAlias(null, null, 'AABBCC22'),
         },
         {
-          name: 'only realm',
           input: `${common.realm}.AABBCC22`,
           expected: new AccountAlias(null, common.realm, 'AABBCC22'),
         },
         {
-          name: 'shard and realm',
           input: `${common.shard}.${common.realm}.AABBCC22`,
           expected: new AccountAlias(common.shard, common.realm, 'AABBCC22'),
         },
         {
-          name: 'mismatched realm',
           input: `${common.shard}.${common.realm + 1n}.AABBCC22`,
           expected: InvalidArgumentError,
         },
         {
-          name: 'mismatched shard and realm',
           input: `${common.shard + 1n}.${common.realm + 1n}.AABBCC22`,
           expected: InvalidArgumentError,
         },
         {
-          name: 'mismatched shard',
           input: `${common.shard + 1n}.${common.realm}.AABBCC22`,
           expected: InvalidArgumentError,
         },
