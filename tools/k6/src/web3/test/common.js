@@ -3,8 +3,19 @@
 import {check, sleep} from 'k6';
 import {vu} from 'k6/execution';
 import http from 'k6/http';
+import {SharedArray} from 'k6/data';
+
 import * as utils from '../../lib/common.js';
 
+const defaultVuData = {
+  block: '',
+  data: '',
+  to: '',
+  gas: 0,
+  from: '',
+  value: 0,
+  sleep: 0,
+};
 const resultField = 'result';
 
 function isNonErrorResponse(response) {
@@ -27,6 +38,12 @@ const jsonPost = (url, payload) =>
     headers: {
       'Content-Type': 'application/json',
     },
+  });
+
+const loadVuDataOrDefault = (filepath, key) =>
+  new SharedArray(key, () => {
+    const data = JSON.parse(open(filepath));
+    return key in data ? data[key] : [];
   });
 
 function ContractCallTestScenarioBuilder() {
@@ -66,7 +83,7 @@ function ContractCallTestScenarioBuilder() {
         } else {
           const {_vuData: vuData} = that;
           const data = vuData
-            ? Object.assign({}, vuData[vu.idInTest % vuData.length])
+            ? Object.assign({}, defaultVuData, vuData[vu.idInTest % vuData.length])
             : {
                 block: that._block,
                 data: that._data,
@@ -173,4 +190,4 @@ function ContractCallTestScenarioBuilder() {
   return this;
 }
 
-export {isNonErrorResponse, jsonPost, ContractCallTestScenarioBuilder};
+export {isNonErrorResponse, jsonPost, loadVuDataOrDefault, ContractCallTestScenarioBuilder};

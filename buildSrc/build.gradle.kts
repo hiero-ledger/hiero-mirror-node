@@ -9,7 +9,7 @@ repositories {
 
 dependencies {
     val dockerJavaVersion = "3.5.2"
-    val flywayVersion = "11.10.0"
+    val flywayVersion = "11.10.1"
     val jooqVersion = "3.20.5" // Always make the version in project root build.gradle.kts match
 
     // Add docker-java dependencies before gradle-docker-plugin to avoid the docker-java jars
@@ -18,7 +18,7 @@ dependencies {
     implementation("com.github.docker-java:docker-java-core:$dockerJavaVersion")
     implementation("com.bmuschko:gradle-docker-plugin:9.4.0")
     implementation("com.diffplug.spotless:spotless-plugin-gradle:7.0.4")
-    implementation("com.gradleup.shadow:shadow-gradle-plugin:9.0.0-beta17")
+    implementation("com.gradleup.shadow:shadow-gradle-plugin:9.0.0-rc1")
     implementation("com.github.node-gradle:gradle-node-plugin:7.1.0")
     implementation("com.google.protobuf:protobuf-gradle-plugin:0.9.5")
     implementation("com.gorylenko.gradle-git-properties:gradle-git-properties:2.5.0")
@@ -39,7 +39,7 @@ dependencies {
     implementation("org.openapitools:openapi-generator-gradle-plugin:7.14.0")
     implementation("org.owasp:dependency-check-gradle:12.1.3")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:3.5.3")
-    implementation("org.testcontainers:postgresql:1.21.2")
+    implementation("org.testcontainers:postgresql:1.21.3")
     implementation("org.web3j:web3j-gradle-plugin:4.14.0")
 }
 
