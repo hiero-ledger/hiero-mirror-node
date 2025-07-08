@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // external libraries
-import {Router} from '@awaitjs/express';
+import express from 'express';
 
 import {NetworkController} from '../controllers';
+import extendExpress from '../extendExpress';
 
-const router = Router();
+const router = extendExpress(express.Router());
 
 const resource = 'network';
-router.getAsync('/exchangerate', NetworkController.getExchangeRate);
-router.getAsync('/fees', NetworkController.getFees);
-router.getAsync('/nodes', NetworkController.getNetworkNodes);
-router.getAsync('/stake', NetworkController.getNetworkStake);
-router.getAsync('/supply', NetworkController.getSupply);
+router.getExt('/exchangerate', NetworkController.getExchangeRate);
+router.getExt('/fees', NetworkController.getFees);
+router.getExt('/nodes', NetworkController.getNetworkNodes);
+router.getExt('/stake', NetworkController.getNetworkStake);
+router.getExt('/supply', NetworkController.getSupply);
 
 export default {
   resource,

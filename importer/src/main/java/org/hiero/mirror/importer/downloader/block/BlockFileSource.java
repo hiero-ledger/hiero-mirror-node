@@ -20,6 +20,7 @@ import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
+import org.hiero.mirror.importer.downloader.provider.TransientProviderException;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
@@ -63,6 +64,12 @@ final class BlockFileSource extends AbstractBlockSource {
     @Override
     public void get() {
         long blockNumber = getNextBlockNumber();
+        var endBlockNumber = commonDownloaderProperties.getImporterProperties().getEndBlockNumber();
+
+        if (endBlockNumber != null && blockNumber > endBlockNumber) {
+            return;
+        }
+
         var nodes = getRandomizedNodes();
         var stopwatch = Stopwatch.createStarted();
         var streamFilename = StreamFilename.from(blockNumber);
@@ -94,6 +101,12 @@ final class BlockFileSource extends AbstractBlockSource {
                 }
 
                 return;
+            } catch (TransientProviderException e) {
+                log.warn(
+                        "Trying next node after failing to download block file {} from node {}: {}",
+                        filename,
+                        nodeId,
+                        e.getMessage());
             } catch (Throwable t) {
                 log.error("Failed to process block file {} from node {}", filename, nodeId, t);
             }

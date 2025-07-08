@@ -30,7 +30,7 @@ const ipEndpointHistogram = new client.Counter({
   labelNames: ['endpoint', 'ip'],
 });
 
-const recordIpAndEndpoint = async (req, res, next) => {
+const recordIpAndEndpoint = (req) => {
   if (req.route !== undefined) {
     ipEndpointHistogram.labels(req.route.path, ipMask(req.ip)).inc();
   }
