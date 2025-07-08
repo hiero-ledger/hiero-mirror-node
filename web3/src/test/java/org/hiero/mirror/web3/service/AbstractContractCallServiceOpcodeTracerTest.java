@@ -66,6 +66,8 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     @Resource
     private EntityDatabaseAccessor entityDatabaseAccessor;
 
+    private static final String CALL_OPCODE_NAME = "CALL";
+
     @BeforeEach
     void setUpArgumentCaptors() {
         if (!mirrorNodeEvmProperties.isModularizedServices()) {
@@ -176,6 +178,11 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
 
         assertThat(opcodesResponse.getFailed()).isFalse();
         assertThat(opcodesResponse.getReturnValue()).isEqualTo(expectedReturnValue);
+        // This assures that nested transactions are also being tracked
+        assertThat(opcodesResponse.getOpcodes().stream()
+                        .filter(o -> o.getOp().equals(CALL_OPCODE_NAME))
+                        .count())
+                .isGreaterThan(0);
     }
 
     private OpcodesResponse expectedOpcodesResponse(

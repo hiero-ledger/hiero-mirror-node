@@ -318,8 +318,9 @@ class OpcodesControllerTest {
                 .build());
 
         when(contractTransactionHashRepository.findByHash(hash)).thenReturn(Optional.of(contractTransactionHash));
-        when(transactionRepository.findByPayerAccountIdAndValidStartNs(payerAccountId, validStartNs))
-                .thenReturn(Optional.of(transaction));
+        when(transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
+                        payerAccountId, validStartNs))
+                .thenReturn(Optional.of(List.of(transaction)));
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(
                         contractTransactionHash.getConsensusTimestamp(),
                         EntityId.of(contractTransactionHash.getPayerAccountId())))
@@ -434,7 +435,7 @@ class OpcodesControllerTest {
                     }
                     case TransactionIdParameter parameter -> {
                         reset(transactionRepository);
-                        when(transactionRepository.findByPayerAccountIdAndValidStartNs(
+                        when(transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
                                         parameter.payerAccountId(), convertToNanosMax(parameter.validStart())))
                                 .thenReturn(Optional.empty());
                         yield new GenericErrorResponse(message, "Transaction not found: " + parameter);

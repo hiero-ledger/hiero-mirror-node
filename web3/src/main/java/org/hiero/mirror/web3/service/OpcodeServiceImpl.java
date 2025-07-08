@@ -86,13 +86,18 @@ public class OpcodeServiceImpl implements OpcodeService {
                 final var validStartNs = convertToNanosMax(transactionId.validStart());
                 final var payerAccountId = transactionId.payerAccountId();
 
-                transaction = transactionRepository.findByPayerAccountIdAndValidStartNs(payerAccountId, validStartNs);
-                if (transaction.isEmpty()) {
+                final var transactionList =
+                        transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
+                                payerAccountId, validStartNs);
+                if (transactionList.isEmpty() || transactionList.get().isEmpty()) {
                     throw new EntityNotFoundException("Transaction not found: " + transactionId);
                 }
-                consensusTimestamp = transaction.get().getConsensusTimestamp();
+
+                final var parentTransaction = transactionList.get().getFirst();
+                transaction = Optional.of(parentTransaction);
+                consensusTimestamp = parentTransaction.getConsensusTimestamp();
                 ethereumTransaction = ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(
-                        consensusTimestamp, transaction.get().getPayerAccountId());
+                        consensusTimestamp, parentTransaction.getPayerAccountId());
             }
         }
 

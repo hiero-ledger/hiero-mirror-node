@@ -23,8 +23,9 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
     @Test
     void findByPayerAccountIdAndValidStartNsSuccessful() {
         var transaction = domainBuilder.transaction().persist();
-        assertThat(transactionRepository.findByPayerAccountIdAndValidStartNs(
-                        transaction.getPayerAccountId(), transaction.getValidStartNs()))
+        assertThat((transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
+                                transaction.getPayerAccountId(), transaction.getValidStartNs()))
+                        .get())
                 .contains(transaction);
     }
 }
