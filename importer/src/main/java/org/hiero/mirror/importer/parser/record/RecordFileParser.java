@@ -164,7 +164,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
                 count.incrementAndGet();
             }
             // The log index is incremented when the record item is processed, so
-            // set it directly here in the record file and order to preserve the index
+            // set it directly here in the record file in order to preserve the index
             // and pass it to the next record item.
             recordFile.setLogIndex(recordItem.getLogIndex());
         });
