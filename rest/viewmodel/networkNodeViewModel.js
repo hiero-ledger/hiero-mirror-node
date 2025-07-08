@@ -25,7 +25,7 @@ class NetworkNodeViewModel {
     this.max_stake = utils.asNullIfDefault(nodeStake.maxStake, -1);
     this.memo = addressBookEntry.memo;
     this.min_stake = utils.asNullIfDefault(nodeStake.minStake, -1);
-    this.node_id = this.node_id = addressBookEntry.nodeId;
+    this.node_id = addressBookEntry.nodeId;
     this.node_account_id = EntityId.parse(addressBookEntry.nodeAccountId).toString();
     this.node_cert_hash = utils.addHexPrefix(utils.encodeUtf8(addressBookEntry.nodeCertHash), true);
     this.public_key = utils.addHexPrefix(addressBookEntry.publicKey, true);
