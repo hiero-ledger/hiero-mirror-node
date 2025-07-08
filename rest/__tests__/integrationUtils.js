@@ -8,6 +8,7 @@ import testExports from '../timestampRange';
 import {TokenService} from '../service';
 import {getMirrorConfig} from '../config.js';
 import EntityId from '../entityId.js';
+import {apiPrefix} from '../constants.js';
 
 // set a large timeout for beforeAll as downloading docker image if not exists can take quite some time. Note
 // it's 12 minutes for CI to workaround possible DockerHub rate limit.
@@ -40,8 +41,8 @@ const transformShardRealmValues = (obj) => {
       })
     );
   } else if (typeof obj === 'string') {
-    if (/^0\.0\.\d+$/.test(obj)) {
-      return obj.replace(/^0\.0\./, `${shardRealm}`);
+    if (/^0\.0\.\d+(-\d+-\d+)?$/.test(obj)) {
+      return obj.replace(/^0\.0\.(\d+)/, `${shardRealm}$1`);
     }
 
     if (/^0\.0\.[A-Z0-9]{40,}$/i.test(obj)) {
@@ -56,27 +57,29 @@ const transformShardRealmValues = (obj) => {
       return obj.replace(/^0\./, `${systemRealm}.`);
     }
 
-    let possibleUrlParts = obj.split(/[?&]/);
-    let result = [];
-    for (let i = 0; i < possibleUrlParts.length; i++) {
-      let entry = possibleUrlParts[i];
-      if (/timestamp=(?:gt|gte|lt|lte|eq)?:?\d+\.\d+/i.test(entry)) {
+    if (obj.startsWith(apiPrefix)) {
+      let urlParts = obj.split(/[?&]/);
+      let result = [];
+      for (let i = 0; i < urlParts.length; i++) {
+        let entry = urlParts[i];
+        if (/timestamp=(?:gt|gte|lt|lte|eq)?:?\d+\.\d+/i.test(entry)) {
+          result.push(entry);
+          continue;
+        }
+
+        entry = entry.replace(/0\.0\.(\d+)/g, `${shardRealm}$1`);
+        entry = entry.replace(/0\.0\.([A-Z0-9]{40,})/gi, `${shardRealm}$1`);
+        entry = entry.replace(/0\.([A-Z0-9]{40,})/gi, `${systemRealm}.$1`);
+        entry = entry.replace(/(?<!\d)0\.(\d+)\b/g, `${systemRealm}.$1`);
+
         result.push(entry);
-        continue;
       }
 
-      entry = entry.replace(/0\.0\.(\d+)/g, `${shardRealm}$1`);
-      entry = entry.replace(/0\.0\.([A-Z0-9]{40,})/gi, `${shardRealm}$1`);
-      entry = entry.replace(/0\.([A-Z0-9]{40,})/gi, `${systemRealm}.$1`);
-      entry = entry.replace(/(?<!\d)0\.(\d+)\b/g, `${systemRealm}.$1`);
-
-      result.push(entry);
+      return result.join('&').replace('&', '?');
     }
-
-    return result.join('&').replace('&', '?');
-  } else {
-    return obj;
   }
+
+  return obj;
 };
 
 const encodedIdFromSpecValue = (value) => {

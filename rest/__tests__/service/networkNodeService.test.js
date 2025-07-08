@@ -14,7 +14,7 @@ const defaultNodeFilter = 'abe.node_id = $2';
 
 const bigIntRange = (from, to) => {
   const result = [];
-  for (let i = from; i < to; i++) {
+  for (let i = from; i <= to; i++) {
     result.push(i);
   }
   return result;
@@ -154,13 +154,11 @@ const defaultInputAddressBooks = [
 
 const nodeAccount3 = EntityId.parseString('3');
 const nodeAccount4 = EntityId.parseString('4');
-const nodeId0 = EntityId.parseString('0');
-const nodeId1 = EntityId.parseString('1');
 const defaultInputAddressBookEntries = [
   {
     consensus_timestamp: 1,
     memo: 'memo 1',
-    node_id: '0',
+    node_id: 0,
     node_account_id: nodeAccount3.toString(),
     node_cert_hash: '[0,)',
     description: 'desc 1',
@@ -169,7 +167,7 @@ const defaultInputAddressBookEntries = [
   {
     consensus_timestamp: 1,
     memo: 'memo 2',
-    node_id: nodeId1.toString(),
+    node_id: 1,
     node_account_id: nodeAccount4.toString(),
     node_cert_hash: '[0,)',
     description: 'desc 2',
@@ -178,7 +176,7 @@ const defaultInputAddressBookEntries = [
   {
     consensus_timestamp: 2,
     memo: nodeAccount3.toString(),
-    node_id: '0',
+    node_id: 0,
     node_account_id: nodeAccount3.toString(),
     node_cert_hash: '[0,)',
     description: 'desc 3',
@@ -187,7 +185,7 @@ const defaultInputAddressBookEntries = [
   {
     consensus_timestamp: 2,
     memo: nodeAccount4.toString(),
-    node_id: nodeId1.toString(),
+    node_id: 1,
     node_account_id: nodeAccount4.toString(),
     node_cert_hash: '[0,)',
     description: 'desc 4',
@@ -199,25 +197,25 @@ const defaultInputServiceEndpointBooks = [
   {
     consensus_timestamp: 1,
     ip_address_v4: '127.0.0.1',
-    node_id: '0',
+    node_id: 0,
     port: 50211,
   },
   {
     consensus_timestamp: 1,
     ip_address_v4: '127.0.0.2',
-    node_id: nodeId1.toString(),
+    node_id: 1,
     port: 50212,
   },
   {
     consensus_timestamp: 2,
     ip_address_v4: '128.0.0.1',
-    node_id: '0',
+    node_id: 0,
     port: 50212,
   },
   {
     consensus_timestamp: 2,
     ip_address_v4: '128.0.0.2',
-    node_id: nodeId1.toString(),
+    node_id: 1,
     port: 50212,
   },
 ];
@@ -271,7 +269,7 @@ const defaultNodeStakes = [
     epoch_day: 0,
     max_stake: 100,
     min_stake: 1,
-    node_id: '0',
+    node_id: 0,
     reward_rate: 1,
     stake: 1,
     stake_not_rewarded: 0,
@@ -283,7 +281,7 @@ const defaultNodeStakes = [
     epoch_day: 0,
     max_stake: 200,
     min_stake: 2,
-    node_id: nodeId1.toString(),
+    node_id: 1,
     reward_rate: 2,
     stake: 2,
     stake_not_rewarded: 1,
@@ -295,7 +293,7 @@ const defaultNodeStakes = [
     epoch_day: 1,
     max_stake: 300,
     min_stake: 2,
-    node_id: '0',
+    node_id: 0,
     reward_rate: 3,
     stake: 3,
     stake_not_rewarded: 1,
@@ -307,7 +305,7 @@ const defaultNodeStakes = [
     epoch_day: 1,
     max_stake: 400,
     min_stake: 1,
-    node_id: nodeId1.toString(),
+    node_id: 1,
     reward_rate: 4,
     stake: 4,
     stake_not_rewarded: 1,
@@ -327,7 +325,7 @@ const defaultExpectedNetworkNode101 = [
       description: 'desc 2',
       memo: 'memo 2',
       nodeAccountId: nodeAccount4.getEncodedId(),
-      nodeId: nodeId1.getEncodedId(),
+      nodeId: 1,
     },
     addressBookServiceEndpoints: [
       {
@@ -354,7 +352,7 @@ const defaultExpectedNetworkNode101 = [
       description: 'desc 1',
       memo: 'memo 1',
       nodeAccountId: nodeAccount3.getEncodedId(),
-      nodeId: nodeId0.getEncodedId(),
+      nodeId: 0,
     },
     addressBookServiceEndpoints: [
       {
@@ -385,7 +383,7 @@ const defaultExpectedNetworkNode102 = [
       description: 'desc 3',
       memo: nodeAccount3.toString(),
       nodeAccountId: nodeAccount3.getEncodedId(),
-      nodeId: nodeId0.getEncodedId(),
+      nodeId: 0,
     },
     addressBookServiceEndpoints: [
       {
@@ -413,7 +411,7 @@ const defaultExpectedNetworkNode102 = [
       description: 'desc 4',
       memo: nodeAccount4.toString(),
       nodeAccountId: nodeAccount4.getEncodedId(),
-      nodeId: nodeId1.getEncodedId(),
+      nodeId: 1,
     },
     addressBookServiceEndpoints: [
       {
@@ -444,7 +442,7 @@ const defaultExpectedNetworkNodeEmptyNodeStake = [
       description: 'desc 3',
       memo: nodeAccount3.toString(),
       nodeAccountId: nodeAccount3.getEncodedId(),
-      nodeId: nodeId0.getEncodedId(),
+      nodeId: 0,
     },
     addressBookServiceEndpoints: [
       {
@@ -469,7 +467,7 @@ const defaultExpectedNetworkNodeEmptyNodeStake = [
       description: 'desc 4',
       memo: nodeAccount4.toString(),
       nodeAccountId: nodeAccount4.getEncodedId(),
-      nodeId: nodeId1.getEncodedId(),
+      nodeId: 1,
     },
     addressBookServiceEndpoints: [
       {
@@ -540,7 +538,7 @@ describe('NetworkNodeService.getNetworkNodes tests node filter', () => {
         description: 'desc 1',
         memo: 'memo 1',
         nodeAccountId: nodeAccount3.getEncodedId(),
-        nodeId: nodeId0.getEncodedId(),
+        nodeId: 0,
       },
       addressBookServiceEndpoints: [
         {
@@ -568,7 +566,7 @@ describe('NetworkNodeService.getNetworkNodes tests node filter', () => {
         description: 'desc 3',
         memo: nodeAccount3.toString(),
         nodeAccountId: nodeAccount3.getEncodedId(),
-        nodeId: nodeId0.getEncodedId(),
+        nodeId: 0,
       },
       addressBookServiceEndpoints: [
         {
@@ -597,7 +595,7 @@ describe('NetworkNodeService.getNetworkNodes tests node filter', () => {
     await expect(
       NetworkNodeService.getNetworkNodes(
         [defaultNodeFilter],
-        [EntityId.systemEntity.addressBookFile101.getEncodedId(), nodeId0.getEncodedId()],
+        [EntityId.systemEntity.addressBookFile101.getEncodedId(), 0],
         'desc',
         5
       )
@@ -613,7 +611,7 @@ describe('NetworkNodeService.getNetworkNodes tests node filter', () => {
     await expect(
       NetworkNodeService.getNetworkNodes(
         [defaultNodeFilter],
-        [EntityId.systemEntity.addressBookFile102.getEncodedId(), nodeId0.getEncodedId()],
+        [EntityId.systemEntity.addressBookFile102.getEncodedId(), 0],
         'asc',
         5
       )
@@ -653,7 +651,7 @@ describe(`NetworkNodeService.getSupply`, () => {
     EntityId.systemEntity.unreleasedSupplyAccounts.forEach((range) => {
       const from = range.from.num;
       const to = range.to.num;
-      bigIntRange(BigInt(from), BigInt(to) + 1n).forEach((id) => {
+      bigIntRange(BigInt(from), BigInt(to)).forEach((id) => {
         accounts.push({balance: 1n, balance_timestamp: timestamp, num: id});
       });
     });
@@ -669,7 +667,7 @@ describe(`NetworkNodeService.getSupply`, () => {
     EntityId.systemEntity.unreleasedSupplyAccounts.forEach((range) => {
       const from = range.from.num;
       const to = range.to.num;
-      bigIntRange(BigInt(from), BigInt(to) + 1n).forEach((id) => {
+      bigIntRange(BigInt(from), BigInt(to)).forEach((id) => {
         balances.push({balance: 1n, timestamp: timestamp, id: id});
       });
     });

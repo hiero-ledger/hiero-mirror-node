@@ -570,7 +570,6 @@ const addAddressBookEntry = async (addressBookEntryInput) => {
       ? Buffer.from(addressBookEntryInput.node_cert_hash, 'hex')
       : Buffer.from(addressBookEntry.node_cert_hash);
 
-  addressBookEntry.node_id = encodedIdFromSpecValue(addressBookEntry.node_id);
   addressBookEntry.node_account_id = encodedIdFromSpecValue(addressBookEntry.node_account_id);
 
   await insertDomainObject('address_book_entry', insertFields, addressBookEntry);
@@ -588,7 +587,6 @@ const addAddressBookServiceEndpoint = async (addressBookServiceEndpointInput) =>
     ...addressBookServiceEndpointInput,
   };
 
-  addressBookServiceEndpoint.node_id = encodedIdFromSpecValue(addressBookServiceEndpoint.node_id);
   await insertDomainObject('address_book_service_endpoint', insertFields, addressBookServiceEndpoint);
 };
 
@@ -1679,7 +1677,6 @@ const addNode = async (nodeInput) => {
 
   convertByteaFields(['admin_key'], node);
   node.grpc_proxy_endpoint = node.grpc_proxy_endpoint ? JSONStringify(node.grpc_proxy_endpoint) : null;
-  node.node_id = encodedIdFromSpecValue(node.node_id);
   await insertDomainObject('node', Object.keys(nodeDefaults), node);
 };
 
@@ -1702,7 +1699,6 @@ const addNodeStake = async (nodeStakeInput) => {
     .filter((k) => !k.startsWith('_'))
     .sort();
 
-  nodeStake.node_id = encodedIdFromSpecValue(nodeStake.node_id);
   await insertDomainObject('node_stake', insertFields, nodeStake);
 };
 

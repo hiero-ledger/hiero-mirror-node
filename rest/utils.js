@@ -1362,8 +1362,6 @@ const formatComparator = (comparator) => {
         comparator.value = math.min(Number(comparator.value), responseLimit.max);
         break;
       case constants.filterKeys.NODE_ID:
-        comparator.value = EntityId.parseString(comparator.value).getEncodedId();
-        break;
       case constants.filterKeys.NONCE:
         comparator.value = Number(comparator.value);
         break;
