@@ -158,10 +158,15 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             aggregator.accept(recordItem);
 
             if (dateRangeFilter.filter(recordItem.getConsensusTimestamp())) {
+                recordItem.setLogIndex(recordFile.getLogIndex());
                 recordItemListener.onItem(recordItem);
                 recordMetrics(recordItem);
                 count.incrementAndGet();
             }
+            // The log index is incremented when the record item is processed, so
+            // set it directly here in the record file and order to preserve the index
+            // and pass it to the next record item.
+            recordFile.setLogIndex(recordItem.getLogIndex());
         });
 
         recordFile.setCount(count.get());
