@@ -32,6 +32,7 @@ import {defaultBeforeAllTimeoutMillis, setupIntegrationTest} from '../integratio
 import {CreateBucketCommand, PutObjectCommand, S3} from '@aws-sdk/client-s3';
 import sinon from 'sinon';
 import integrationContainerOps from '../integrationContainerOps';
+import {writeTableUsage} from '../tableUsage';
 import {transformShardRealmValues} from '../integrationUtils';
 
 const groupSpecPath = $$GROUP_SPEC_PATH$$;
@@ -326,6 +327,8 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
     if (s3Ops) {
       await s3Ops.stop();
     }
+
+    await writeTableUsage(groupSpecPath);
   });
 
   afterEach(() => {

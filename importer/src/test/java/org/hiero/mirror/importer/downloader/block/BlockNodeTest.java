@@ -33,6 +33,8 @@ import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.junit.jupiter.api.AfterEach;
@@ -51,12 +53,22 @@ class BlockNodeTest extends BlockNodeTestBase {
     private static final String SERVER = "test1";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
+    private CommonDownloaderProperties commonDownloaderProperties;
     private BlockNodeProperties blockNodeProperties;
     private BlockNode node;
     private StreamProperties streamProperties;
 
+    private static Stream<Arguments> provideUnexpectedNewBlockItem() {
+        return Stream.of(
+                Arguments.of(BlockItem.ItemCase.BLOCK_HEADER, blockHead(1)),
+                Arguments.of(BlockItem.ItemCase.RECORD_FILE, recordFileItem()));
+    }
+
     @BeforeEach
     void setup() {
+        commonDownloaderProperties = new CommonDownloaderProperties(new ImporterProperties());
+        commonDownloaderProperties.init();
+        commonDownloaderProperties.setTimeout(TIMEOUT);
         blockNodeProperties = new BlockNodeProperties();
         blockNodeProperties.setHost(SERVER);
         streamProperties = new StreamProperties();
@@ -137,7 +149,7 @@ class BlockNodeTest extends BlockNodeTestBase {
 
         // when fails twice in a row, the node should still be active
         for (int i = 0; i < 2; i++) {
-            assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
+            assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
                     .isInstanceOf(BlockStreamException.class)
                     .hasMessageContaining("Received status NOT_AVAILABLE from block node");
             assertThat(node.isActive()).isTrue();
@@ -148,7 +160,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         server = runBlockStreamSubscribeService(
                 resources,
                 ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.SUCCESS)));
-        node.streamBlocks(0, TIMEOUT, IGNORE);
+        node.streamBlocks(0, commonDownloaderProperties, IGNORE);
         assertThat(node.isActive()).isTrue();
 
         // when fails three times in a row
@@ -157,7 +169,7 @@ class BlockNodeTest extends BlockNodeTestBase {
                 resources,
                 ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.NOT_AVAILABLE)));
         for (int i = 0; i < 3; i++) {
-            assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
+            assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
                     .isInstanceOf(BlockStreamException.class)
                     .hasMessageContaining("Received status NOT_AVAILABLE from block node");
             boolean expected = i < 2;
@@ -177,7 +189,7 @@ class BlockNodeTest extends BlockNodeTestBase {
 
         // when
         var streamed = new ArrayList<BlockStream>();
-        node.streamBlocks(0, TIMEOUT, streamed::add);
+        node.streamBlocks(0, commonDownloaderProperties, streamed::add);
 
         // then
         assertThat(streamed)
@@ -194,7 +206,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
+        assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("Received status NOT_AVAILABLE from block node");
     }
@@ -206,7 +218,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
+        assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("Incorrect first block item case EVENT_HEADER");
     }
@@ -221,7 +233,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
+        assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("Received block items of a new block while the previous block is still pending");
     }
@@ -233,7 +245,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
+        assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("The first block item is record file and there are more than one block items");
     }
@@ -244,7 +256,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromError(new RuntimeException("oops")));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
+        assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(StatusException.class);
     }
@@ -260,7 +272,7 @@ class BlockNodeTest extends BlockNodeTestBase {
 
         // when, then
         var streamed = new ArrayList<BlockStream>();
-        node.streamBlocks(0, TIMEOUT, streamed::add);
+        node.streamBlocks(0, commonDownloaderProperties, streamed::add);
 
         // then
         assertThat(streamed)
@@ -285,7 +297,8 @@ class BlockNodeTest extends BlockNodeTestBase {
         });
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, Duration.ofMillis(100), IGNORE))
+        commonDownloaderProperties.setTimeout(Duration.ofMillis(100));
+        assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(TimeoutException.class);
         latch.countDown();
@@ -301,7 +314,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
+        assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("Too many block items in a pending block: received 4, limit 2");
     }
@@ -327,7 +340,7 @@ class BlockNodeTest extends BlockNodeTestBase {
 
         // when
         for (int i = 0; i < 3; i++) {
-            assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
+            assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
                     .isInstanceOf(BlockStreamException.class)
                     .hasMessageContaining("Received status NOT_AVAILABLE from block node");
         }
@@ -338,7 +351,7 @@ class BlockNodeTest extends BlockNodeTestBase {
 
         // when become inactive again
         for (int i = 0; i < 3; i++) {
-            assertThatThrownBy(() -> node.streamBlocks(0, TIMEOUT, IGNORE))
+            assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
                     .isInstanceOf(BlockStreamException.class)
                     .hasMessageContaining("Received status NOT_AVAILABLE from block node");
         }
@@ -350,12 +363,6 @@ class BlockNodeTest extends BlockNodeTestBase {
             assertThat(node.isActive()).isFalse();
             assertThat(node.tryReadmit(false).isActive()).isTrue();
         }
-    }
-
-    private static Stream<Arguments> provideUnexpectedNewBlockItem() {
-        return Stream.of(
-                Arguments.of(BlockItem.ItemCase.BLOCK_HEADER, blockHead(1)),
-                Arguments.of(BlockItem.ItemCase.RECORD_FILE, recordFileItem()));
     }
 
     private void assertRecordItem(BlockStream blockStream) {
