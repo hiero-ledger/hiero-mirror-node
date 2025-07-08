@@ -6,8 +6,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
 import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
 import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogListener.MAX_CACHE_LOAD_ENTRIES;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.mockito.ArgumentMatchers.anyIterable;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import com.google.common.primitives.Longs;
 import java.util.Collections;
@@ -51,7 +59,6 @@ class SyntheticLogListenerTest {
 
     private static final byte[] LONG_ZERO_1 = Longs.toByteArray(ENTITY_1.getNum());
     private static final byte[] LONG_ZERO_2 = Longs.toByteArray(ENTITY_2.getNum());
-    ;
     private static final byte[] LONG_ZERO_3 = Longs.toByteArray(ENTITY_3.getNum());
 
     private static final byte[] TRIMMED_LONG_ZERO_1 = trim(LONG_ZERO_1);
@@ -124,7 +131,7 @@ class SyntheticLogListenerTest {
                         .syntheticTransfer(true))
                 .get();
 
-        final var evmAddressMappings = List.<EvmAddressMapping>of();
+        final var evmAddressMappings = Collections.<EvmAddressMapping>emptyList();
         when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId())))
                 .thenReturn(evmAddressMappings);
         when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog));
@@ -387,7 +394,7 @@ class SyntheticLogListenerTest {
         when(parserContext.get(ContractLog.class)).thenReturn(contractLogMap.values());
         when(parserContext.get(eq(Entity.class), anyLong())).thenReturn(null);
 
-        when(entityRepository.findEvmAddressesByIds(any())).thenAnswer(invocation -> {
+        when(entityRepository.findEvmAddressesByIds(anyIterable())).thenAnswer(invocation -> {
             final Iterable<? extends Long> ids = invocation.getArgument(0);
             return StreamSupport.stream(ids.spliterator(), false)
                     .map(evmAddressMappings::get)

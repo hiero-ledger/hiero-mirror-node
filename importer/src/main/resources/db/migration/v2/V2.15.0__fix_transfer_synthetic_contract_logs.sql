@@ -33,5 +33,3 @@ where cl.contract_id = cl_ext.contract_id
       e1.num is not null or
       e2.num is not null
   );
-
-

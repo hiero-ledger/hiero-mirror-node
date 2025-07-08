@@ -20,7 +20,6 @@ public class CacheConfiguration {
 
     public static final String CACHE_ADDRESS_BOOK = "addressBook";
     public static final String CACHE_ALIAS = "alias";
-    public static final String CACHE_EVM_ADDRESS = "evmAddress";
     public static final String CACHE_TIME_PARTITION_OVERLAP = "timePartitionOverlap";
     public static final String CACHE_TIME_PARTITION = "timePartition";
     public static final String CACHE_NAME = "default";
@@ -47,11 +46,6 @@ public class CacheConfiguration {
     @Bean(CACHE_TIME_PARTITION_OVERLAP)
     CacheManager cacheManagerTimePartitionOverlap() {
         return cacheManager(cacheProperties.getTimePartitionOverlap());
-    }
-
-    @Bean(CACHE_EVM_ADDRESS)
-    CacheManager cacheManagerEvmAddress() {
-        return cacheManager(cacheProperties.getEvmAddress());
     }
 
     private CacheManager cacheManager(String specification) {
