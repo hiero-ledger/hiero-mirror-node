@@ -285,9 +285,11 @@ public class DomainUtils {
         return null;
     }
 
-    public static EntityId fromTrimmedEvmAddress(byte[] evmAddress) {
-        if (evmAddress == null) {
+    public static EntityId fromTrimmedEvmAddress(final byte[] evmAddress) {
+        if (evmAddress == null || evmAddress.length > EVM_ADDRESS_LENGTH) {
             return null;
+        } else if (evmAddress.length == EVM_ADDRESS_LENGTH) {
+            return fromEvmAddress(evmAddress);
         }
 
         var padding = new byte[EVM_ADDRESS_LENGTH - evmAddress.length];
@@ -295,7 +297,7 @@ public class DomainUtils {
         return fromEvmAddress(Bytes.concat(padding, evmAddress));
     }
 
-    public static byte[] trim(byte[] data) {
+    public static byte[] trim(final byte[] data) {
         if (ArrayUtils.isEmpty(data)) {
             return data;
         }

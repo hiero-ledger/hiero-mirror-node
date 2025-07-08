@@ -3,41 +3,39 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.util.DomainUtils.trim;
 import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.google.common.primitives.Bytes;
 import jakarta.annotation.Resource;
 import java.nio.charset.StandardCharsets;
-import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
-import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.boot.test.util.TestPropertyValues;
+import org.springframework.context.ApplicationContextInitializer;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.Profiles;
+import org.springframework.test.context.ContextConfiguration;
 import org.testcontainers.shaded.com.google.common.primitives.Longs;
 
 @Tag("migration")
-public class UpdateSyntheticContractLogsMigrationTest extends ImporterIntegrationTest {
-    @Owner
-    @Resource
-    private JdbcTemplate ownerJdbcTemplate;
+@DisablePartitionMaintenance
+@DisableRepeatableSqlMigration
+@ContextConfiguration(initializers = UpdateSyntheticContractLogsMigrationTest.Initializer.class)
+final class UpdateSyntheticContractLogsMigrationTest extends ImporterIntegrationTest {
 
     @Resource
     private ContractLogRepository contractLogRepository;
 
     @Resource
     private DomainBuilder domainBuilder;
-
-    @Getter
-    @Value("#{environment.matchesProfiles('!v2')}")
-    private boolean v1;
 
     @Test
     void emptyDatabase() {
@@ -57,35 +55,37 @@ public class UpdateSyntheticContractLogsMigrationTest extends ImporterIntegratio
         var contractLogWithLongZero = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
-                        .topic1(Bytes.concat(new byte[12], Longs.toByteArray(sender1.getNum())))
-                        .topic2(Bytes.concat(new byte[12], Longs.toByteArray(receiver1.getNum()))))
+                        .topic1(Longs.toByteArray(sender1.getNum()))
+                        .topic2(trim(Longs.toByteArray(receiver1.getNum()))))
                 .persist();
         var contractLogWithSenderEvmReceiverLongZero = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
-                        .topic1(sender2.getEvmAddress())
+                        .topic1(trim(sender2.getEvmAddress()))
                         .topic2(Longs.toByteArray(receiver2.getNum())))
                 .persist();
 
         var nonTransferContractLog = domainBuilder
                 .contractLog()
-                .customize(cl ->
-                        cl.topic1(Longs.toByteArray(sender3.getNum())).topic2(Longs.toByteArray(receiver3.getNum())))
+                .customize(cl -> cl.topic1(trim(Longs.toByteArray(sender3.getNum())))
+                        .topic2(trim(Longs.toByteArray(receiver3.getNum()))))
                 .persist();
 
         var contractLogWithEmptySender = domainBuilder
                 .contractLog()
-                .customize(cl ->
-                        cl.topic0(TRANSFER_SIGNATURE).topic1(new byte[0]).topic2(Longs.toByteArray(receiver3.getNum())))
+                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
+                        .topic1(trim(new byte[0]))
+                        .topic2(Longs.toByteArray(receiver3.getNum())))
                 .persist();
-        runMigration();
 
         var transferContractLogMissingEntity = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
-                        .topic1(Longs.toByteArray(Long.MAX_VALUE))
-                        .topic2(Longs.toByteArray(Long.MAX_VALUE)))
+                        .topic1(trim(Longs.toByteArray(Long.MAX_VALUE)))
+                        .topic2(trim(Longs.toByteArray(Long.MAX_VALUE))))
                 .persist();
+
+        runMigration();
 
         contractLogWithLongZero.setTopic1(sender1.getEvmAddress());
         contractLogWithLongZero.setTopic2(receiver1.getEvmAddress());
@@ -110,5 +110,15 @@ public class UpdateSyntheticContractLogsMigrationTest extends ImporterIntegratio
                 : "v2/V2.15.0__fix_transfer_synthetic_contract_logs.sql";
         var file = TestUtils.getResource("db/migration/" + migrationFilepath);
         ownerJdbcTemplate.execute(FileUtils.readFileToString(file, StandardCharsets.UTF_8));
+    }
+
+    static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+
+        @Override
+        public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
+            var environment = configurableApplicationContext.getEnvironment();
+            String version = environment.acceptsProfiles(Profiles.of("v2")) ? "2.14.0" : "1.109.0";
+            TestPropertyValues.of("spring.flyway.target=" + version).applyTo(environment);
+        }
     }
 }

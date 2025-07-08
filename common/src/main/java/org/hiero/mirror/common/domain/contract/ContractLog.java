@@ -5,11 +5,13 @@ package org.hiero.mirror.common.domain.contract;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Entity;
 import jakarta.persistence.IdClass;
+import jakarta.persistence.Transient;
 import java.io.Serializable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -52,6 +54,12 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     private byte[] transactionHash;
 
     private int transactionIndex;
+
+    @Transient
+    @JsonIgnore
+    @Builder.Default
+    @EqualsAndHashCode.Exclude
+    private boolean syntheticTransfer = false;
 
     @Override
     @JsonIgnore

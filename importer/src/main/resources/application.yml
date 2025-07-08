@@ -34,6 +34,11 @@ hiero:
           checksum: 2
         tokenAccountBalanceMigration:
           checksum: 3
+      parser:
+        record:
+          entity:
+            persist:
+              synthetic-contract-log-evm-address-lookup: true
 
 logging:
   level:

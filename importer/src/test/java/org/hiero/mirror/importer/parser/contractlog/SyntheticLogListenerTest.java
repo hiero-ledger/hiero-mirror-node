@@ -4,287 +4,427 @@ package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
-import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_NAME;
-import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.APPROVE_SIGNATURE;
 import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogListener.MAX_CACHE_LOAD_ENTRIES;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.google.common.primitives.Longs;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
-import org.hiero.mirror.common.CommonProperties;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.hiero.mirror.common.domain.DomainBuilder;
-import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.contract.ContractLog;
+import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.config.CacheProperties;
+import org.hiero.mirror.importer.domain.EvmAddressMapping;
+import org.hiero.mirror.importer.parser.record.entity.ParserContext;
+import org.hiero.mirror.importer.repository.EntityRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
-@Slf4j
 @ExtendWith(MockitoExtension.class)
 @SuppressWarnings("unchecked")
 class SyntheticLogListenerTest {
     private static final DomainBuilder domainBuilder = new DomainBuilder();
 
     @Mock
-    private NamedParameterJdbcTemplate jdbcTemplate;
+    private EntityRepository entityRepository;
 
     @Mock
-    private CacheManager cacheManager;
-
-    @Mock
-    private Cache cache;
-
-    private EntityProperties entityProperties;
+    private ParserContext parserContext;
 
     private SyntheticLogListener listener;
 
     private static final EntityId ENTITY_1 = domainBuilder.entityId();
     private static final EntityId ENTITY_2 = domainBuilder.entityId();
+    private static final EntityId ENTITY_3 = domainBuilder.entityId();
 
     private static final byte[] LONG_ZERO_1 = Longs.toByteArray(ENTITY_1.getNum());
     private static final byte[] LONG_ZERO_2 = Longs.toByteArray(ENTITY_2.getNum());
+    ;
+    private static final byte[] LONG_ZERO_3 = Longs.toByteArray(ENTITY_3.getNum());
+
+    private static final byte[] TRIMMED_LONG_ZERO_1 = trim(LONG_ZERO_1);
+    private static final byte[] TRIMMED_LONG_ZERO_2 = trim(LONG_ZERO_2);
+    private static final byte[] TRIMMED_LONG_ZERO_3 = trim(LONG_ZERO_3);
 
     private static final byte[] EVM_1 = domainBuilder.evmAddress();
     private static final byte[] EVM_2 = domainBuilder.evmAddress();
-
-    @Captor
-    ArgumentCaptor<MapSqlParameterSource> parameterSourceCaptor;
+    private static final byte[] EVM_3 = domainBuilder.evmAddress();
 
     @BeforeEach
     void setup() {
-        var systemEntity = new SystemEntity(CommonProperties.getInstance());
-        entityProperties = new EntityProperties(systemEntity);
-
-        when(cacheManager.getCache(CACHE_NAME)).thenReturn(cache);
-        listener = new SyntheticLogListener(jdbcTemplate, entityProperties, cacheManager);
+        listener = new SyntheticLogListener(parserContext, new CacheProperties(), entityRepository);
     }
 
     @Test
-    void syntheticLogUpdateDisabled() {
-        entityProperties.getPersist().setSyntheticContractLogEvmAddressLookup(false);
-
-        var contractLog = domainBuilder
+    void cachesDbResults() {
+        final var contractLog = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
-                        .topic1(Longs.toByteArray(ENTITY_1.getNum()))
-                        .topic2(Longs.toByteArray(ENTITY_2.getNum())))
+                        .topic1(LONG_ZERO_1)
+                        .topic2(LONG_ZERO_2)
+                        .syntheticTransfer(true))
                 .get();
 
-        listener.onContractLog(contractLog);
+        final var evmAddressMappings =
+                List.of(new EvmAddressMapping(EVM_1, ENTITY_1.getId()), new EvmAddressMapping(EVM_2, ENTITY_2.getId()));
+        when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId())))
+                .thenReturn(evmAddressMappings);
+        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog));
 
-        verifyNoInteractions(jdbcTemplate, cache);
+        assertArrayEquals(LONG_ZERO_1, contractLog.getTopic1());
+        assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
 
         listener.onEnd(domainBuilder.recordFile().get());
 
-        verifyNoInteractions(jdbcTemplate, cache);
-
-        assertArrayEquals(Longs.toByteArray(ENTITY_1.getNum()), contractLog.getTopic1());
-        assertArrayEquals(Longs.toByteArray(ENTITY_2.getNum()), contractLog.getTopic2());
-    }
-
-    @Test
-    void allInCache() {
-        when(cache.get(ENTITY_1.getNum(), byte[].class)).thenReturn(EVM_1);
-        when(cache.get(ENTITY_2.getNum(), byte[].class)).thenReturn(EVM_2);
-
-        var contractLog = domainBuilder
-                .contractLog()
-                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
-                        .topic1(Longs.toByteArray(ENTITY_1.getNum()))
-                        .topic2(Longs.toByteArray(ENTITY_2.getNum())))
-                .get();
-
-        listener.onContractLog(contractLog);
-        assertArrayEquals(Longs.toByteArray(ENTITY_1.getNum()), contractLog.getTopic1());
-        assertArrayEquals(Longs.toByteArray(ENTITY_2.getNum()), contractLog.getTopic2());
-
-        verifyNoInteractions(cache);
-
-        listener.onEnd(domainBuilder.recordFile().get());
-
-        verify(cache, times(1)).get(ENTITY_1.getNum(), byte[].class);
-        verify(cache, times(1)).get(ENTITY_2.getNum(), byte[].class);
-
-        verifyNoInteractions(jdbcTemplate);
+        verify(entityRepository, times(1)).findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId()));
 
         assertArrayEquals(EVM_1, contractLog.getTopic1());
         assertArrayEquals(EVM_2, contractLog.getTopic2());
-    }
 
-    @Test
-    void someInCache() {
-        when(cache.get(ENTITY_1.getNum(), byte[].class)).thenReturn(null);
-        when(cache.get(ENTITY_2.getNum(), byte[].class)).thenReturn(EVM_2);
+        reset(parserContext, entityRepository);
 
-        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
-                .thenReturn(List.of(new SyntheticLogListener.EvmAddressMapping(EVM_1, ENTITY_1.getNum())));
-
-        var transferContractLog = domainBuilder
-                .contractLog()
-                .customize(
-                        cl -> cl.topic0(TRANSFER_SIGNATURE).topic1(LONG_ZERO_1).topic2(LONG_ZERO_2))
-                .get();
-
-        var approvalContractLog = domainBuilder
-                .contractLog()
-                .customize(cl -> cl.topic0(APPROVE_SIGNATURE)
-                        .topic1(Longs.toByteArray(domainBuilder.entityId().getNum()))
-                        .topic2(Longs.toByteArray(domainBuilder.entityId().getNum())))
-                .get();
-
-        listener.onContractLog(transferContractLog);
-        listener.onContractLog(approvalContractLog);
-
-        verifyNoInteractions(cache);
-
-        assertNotEquals(EVM_1, transferContractLog.getTopic1());
-        assertNotEquals(EVM_2, transferContractLog.getTopic2());
-
-        listener.onEnd(domainBuilder.recordFile().get());
-
-        verify(cache, times(1)).get(ENTITY_1.getNum(), byte[].class);
-        verify(cache, times(1)).get(ENTITY_2.getNum(), byte[].class);
-        verify(cache, times(1)).put(ENTITY_1.getNum(), EVM_1);
-        verify(jdbcTemplate).query(anyString(), parameterSourceCaptor.capture(), any(RowMapper.class));
-        verifyNoMoreInteractions(cache, jdbcTemplate);
-
-        var capturedParams = parameterSourceCaptor.getValue();
-        var value = capturedParams.getValue("ids");
-        assertInstanceOf(List.class, value);
-        var list = (List<Long>) value;
-        assertThat(list).containsExactlyInAnyOrder(ENTITY_1.getNum());
-        assertEquals(EVM_1, transferContractLog.getTopic1());
-        assertEquals(EVM_2, transferContractLog.getTopic2());
-    }
-
-    @Test
-    void noneInCache() {
-        when(cache.get(ENTITY_1.getNum(), byte[].class)).thenReturn(null);
-        when(cache.get(ENTITY_2.getNum(), byte[].class)).thenReturn(null);
-
-        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
-                .thenReturn(List.of(
-                        new SyntheticLogListener.EvmAddressMapping(EVM_1, ENTITY_1.getNum()),
-                        new SyntheticLogListener.EvmAddressMapping(EVM_2, ENTITY_2.getNum())));
-
-        var contractLog = domainBuilder
-                .contractLog()
-                .customize(
-                        cl -> cl.topic0(TRANSFER_SIGNATURE).topic1(LONG_ZERO_1).topic2(LONG_ZERO_2))
-                .get();
-
-        listener.onContractLog(contractLog);
-
-        verifyNoInteractions(cache);
-
-        assertNotEquals(EVM_1, contractLog.getTopic1());
-        assertNotEquals(EVM_2, contractLog.getTopic2());
-
-        listener.onEnd(domainBuilder.recordFile().get());
-
-        verify(cache, times(1)).get(ENTITY_1.getNum(), byte[].class);
-        verify(cache, times(1)).get(ENTITY_2.getNum(), byte[].class);
-        verify(cache, times(1)).put(ENTITY_1.getNum(), EVM_1);
-        verify(cache, times(1)).put(ENTITY_2.getNum(), EVM_2);
-        verify(jdbcTemplate).query(anyString(), parameterSourceCaptor.capture(), any(RowMapper.class));
-        verifyNoMoreInteractions(cache, jdbcTemplate);
-
-        var capturedParams = parameterSourceCaptor.getValue();
-        var value = capturedParams.getValue("ids");
-        assertInstanceOf(List.class, value);
-        var list = (List<Long>) value;
-        assertThat(list).containsExactlyInAnyOrder(ENTITY_1.getNum(), ENTITY_2.getNum());
-        assertEquals(EVM_1, contractLog.getTopic1());
-        assertEquals(EVM_2, contractLog.getTopic2());
-    }
-
-    @Test
-    void noneInCacheMissingSomeInDatabase() {
-        when(cache.get(ENTITY_1.getNum(), byte[].class)).thenReturn(null);
-        when(cache.get(ENTITY_2.getNum(), byte[].class)).thenReturn(null);
-
-        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
-                .thenReturn(List.of(new SyntheticLogListener.EvmAddressMapping(EVM_2, ENTITY_2.getNum())));
-
-        var contractLog = domainBuilder
+        final var contractLog2 = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
-                        .topic1(Longs.toByteArray(ENTITY_1.getNum()))
-                        .topic2(Longs.toByteArray(ENTITY_2.getNum())))
+                        .topic1(LONG_ZERO_1)
+                        .topic2(LONG_ZERO_2)
+                        .syntheticTransfer(true))
                 .get();
+        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog2));
 
-        var contractLog2 = domainBuilder
+        assertArrayEquals(LONG_ZERO_1, contractLog2.getTopic1());
+        assertArrayEquals(LONG_ZERO_2, contractLog2.getTopic2());
+
+        listener.onEnd(domainBuilder.recordFile().get());
+
+        verifyNoInteractions(entityRepository);
+        assertArrayEquals(EVM_1, contractLog2.getTopic1());
+        assertArrayEquals(EVM_2, contractLog2.getTopic2());
+    }
+
+    @Test
+    void cachesNoDbResults() {
+        final var contractLog = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
-                        .topic1(Longs.toByteArray(ENTITY_1.getNum()))
-                        .topic2(Longs.toByteArray(ENTITY_2.getNum())))
+                        .topic1(LONG_ZERO_1)
+                        .topic2(LONG_ZERO_2)
+                        .syntheticTransfer(true))
                 .get();
 
-        listener.onContractLog(contractLog);
-        listener.onContractLog(contractLog2);
+        final var evmAddressMappings = List.<EvmAddressMapping>of();
+        when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId())))
+                .thenReturn(evmAddressMappings);
+        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog));
 
-        verifyNoInteractions(cache);
-
-        assertNotEquals(EVM_1, contractLog.getTopic1());
-        assertNotEquals(EVM_2, contractLog.getTopic2());
+        assertArrayEquals(LONG_ZERO_1, contractLog.getTopic1());
+        assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
 
         listener.onEnd(domainBuilder.recordFile().get());
 
-        verify(cache, times(1)).get(ENTITY_1.getNum(), byte[].class);
-        verify(cache, times(1)).get(ENTITY_2.getNum(), byte[].class);
-        verify(cache, times(1)).put(ENTITY_1.getNum(), trim(Longs.toByteArray(ENTITY_1.getNum())));
-        verify(cache, times(1)).put(ENTITY_2.getNum(), EVM_2);
-        verify(jdbcTemplate, times(1)).query(anyString(), parameterSourceCaptor.capture(), any(RowMapper.class));
-        verifyNoMoreInteractions(cache, jdbcTemplate);
+        verify(entityRepository, times(1)).findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId()));
 
-        var capturedParams = parameterSourceCaptor.getValue();
-        var value = capturedParams.getValue("ids");
-        assertInstanceOf(List.class, value);
-        var list = (List<Long>) value;
-        assertThat(list).containsExactlyInAnyOrder(ENTITY_1.getNum(), ENTITY_2.getNum());
-        assertArrayEquals(trim(Longs.toByteArray(ENTITY_1.getNum())), contractLog.getTopic1());
-        assertEquals(EVM_2, contractLog.getTopic2());
+        assertArrayEquals(TRIMMED_LONG_ZERO_1, contractLog.getTopic1());
+        assertArrayEquals(TRIMMED_LONG_ZERO_2, contractLog.getTopic2());
+
+        reset(parserContext, entityRepository);
+
+        final var contractLog2 = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
+                        .topic1(LONG_ZERO_1)
+                        .topic2(LONG_ZERO_2)
+                        .syntheticTransfer(true))
+                .get();
+
+        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog2));
+
+        assertArrayEquals(LONG_ZERO_1, contractLog2.getTopic1());
+        assertArrayEquals(LONG_ZERO_2, contractLog2.getTopic2());
+
+        listener.onEnd(domainBuilder.recordFile().get());
+
+        verifyNoInteractions(entityRepository);
+
+        assertArrayEquals(TRIMMED_LONG_ZERO_1, contractLog2.getTopic1());
+        assertArrayEquals(TRIMMED_LONG_ZERO_2, contractLog2.getTopic2());
     }
 
     @Test
-    void alreadyHasEvmAddress() {
-        var contractLog = domainBuilder
+    void cachesWithSomeDbResults() {
+        final var contractLog = domainBuilder
                 .contractLog()
-                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE).topic1(EVM_1).topic2(EVM_2))
+                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
+                        .topic1(LONG_ZERO_1)
+                        .topic2(LONG_ZERO_2)
+                        .syntheticTransfer(true))
                 .get();
 
-        listener.onContractLog(contractLog);
+        final var evmAddressMappings = List.of(new EvmAddressMapping(EVM_1, ENTITY_1.getId()));
+        when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId())))
+                .thenReturn(evmAddressMappings);
+        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog));
+
+        assertArrayEquals(LONG_ZERO_1, contractLog.getTopic1());
+        assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
+
         listener.onEnd(domainBuilder.recordFile().get());
 
-        verifyNoInteractions(jdbcTemplate, cache);
+        verify(entityRepository, times(1)).findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId()));
+        assertArrayEquals(EVM_1, contractLog.getTopic1());
+        assertArrayEquals(TRIMMED_LONG_ZERO_2, contractLog.getTopic2());
+
+        reset(parserContext, entityRepository);
+
+        final var contractLog2 = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
+                        .topic1(LONG_ZERO_1)
+                        .topic2(LONG_ZERO_2)
+                        .syntheticTransfer(true))
+                .get();
+        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog2));
+
+        assertArrayEquals(LONG_ZERO_1, contractLog2.getTopic1());
+        assertArrayEquals(LONG_ZERO_2, contractLog2.getTopic2());
+
+        listener.onEnd(domainBuilder.recordFile().get());
+
+        verifyNoInteractions(entityRepository);
+        assertArrayEquals(EVM_1, contractLog2.getTopic1());
+        assertArrayEquals(TRIMMED_LONG_ZERO_2, contractLog2.getTopic2());
     }
 
     @Test
-    void noSenderOrReceiver() {
-        var contractLog = domainBuilder
+    void queryNonCachedEntries() {
+        final var contractLog = domainBuilder
                 .contractLog()
-                .customize(
-                        cl -> cl.topic0(TRANSFER_SIGNATURE).topic1(new byte[0]).topic2(new byte[0]))
+                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
+                        .topic1(LONG_ZERO_1)
+                        .topic2(LONG_ZERO_2)
+                        .syntheticTransfer(true))
                 .get();
 
-        listener.onContractLog(contractLog);
+        final var evmAddressMappings =
+                List.of(new EvmAddressMapping(EVM_1, ENTITY_1.getId()), new EvmAddressMapping(EVM_2, ENTITY_2.getId()));
+        when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId())))
+                .thenReturn(evmAddressMappings);
+        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog));
 
-        verifyNoInteractions(jdbcTemplate, cache);
+        assertArrayEquals(LONG_ZERO_1, contractLog.getTopic1());
+        assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
 
         listener.onEnd(domainBuilder.recordFile().get());
 
-        verifyNoInteractions(jdbcTemplate, cache);
+        verify(entityRepository, times(1)).findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId()));
+        assertArrayEquals(EVM_1, contractLog.getTopic1());
+        assertArrayEquals(EVM_2, contractLog.getTopic2());
+
+        reset(parserContext, entityRepository);
+
+        final var contractLog2 = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
+                        .topic1(LONG_ZERO_1)
+                        .topic2(LONG_ZERO_3)
+                        .syntheticTransfer(true))
+                .get();
+
+        final var evmAddressMappings2 = List.of(new EvmAddressMapping(EVM_3, ENTITY_3.getId()));
+        when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_3.getId()))).thenReturn(evmAddressMappings2);
+        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog2));
+
+        assertArrayEquals(LONG_ZERO_1, contractLog2.getTopic1());
+        assertArrayEquals(LONG_ZERO_3, contractLog2.getTopic2());
+
+        listener.onEnd(domainBuilder.recordFile().get());
+
+        verify(entityRepository, times(1)).findEvmAddressesByIds(Set.of(ENTITY_3.getId()));
+        assertArrayEquals(EVM_1, contractLog2.getTopic1());
+        assertArrayEquals(EVM_3, contractLog2.getTopic2());
+    }
+
+    @Test
+    void queryAndUpdateOnlySyntheticTransferLogs() {
+        final var contractLog = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
+                        .topic1(LONG_ZERO_1)
+                        .topic2(LONG_ZERO_2)
+                        .syntheticTransfer(true))
+                .get();
+
+        final var contractLog2 = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
+                        .topic1(LONG_ZERO_1)
+                        .topic2(LONG_ZERO_3)
+                        .syntheticTransfer(false))
+                .get();
+
+        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog, contractLog2));
+
+        assertArrayEquals(LONG_ZERO_1, contractLog.getTopic1());
+        assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
+        assertArrayEquals(LONG_ZERO_1, contractLog2.getTopic1());
+        assertArrayEquals(LONG_ZERO_3, contractLog2.getTopic2());
+
+        final var evmAddressMappings =
+                List.of(new EvmAddressMapping(EVM_1, ENTITY_1.getId()), new EvmAddressMapping(EVM_2, ENTITY_2.getId()));
+        when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId())))
+                .thenReturn(evmAddressMappings);
+
+        listener.onEnd(domainBuilder.recordFile().get());
+
+        verify(entityRepository, times(1)).findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId()));
+        verifyNoMoreInteractions(entityRepository);
+
+        assertArrayEquals(EVM_1, contractLog.getTopic1());
+        assertArrayEquals(EVM_2, contractLog.getTopic2());
+        assertArrayEquals(LONG_ZERO_1, contractLog2.getTopic1());
+        assertArrayEquals(LONG_ZERO_3, contractLog2.getTopic2());
+    }
+
+    @Test
+    void addsNewEntityToCache() {
+        final var entityEvmAddress = domainBuilder.evmAddress();
+        final var entity = domainBuilder
+                .entity()
+                .customize(e -> e.evmAddress(entityEvmAddress).timestampRange(null))
+                .get();
+        final var contractLog = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
+                        .topic1(LONG_ZERO_1)
+                        .topic2(LONG_ZERO_2)
+                        .syntheticTransfer(true))
+                .get();
+
+        final var contractLog2 = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
+                        .topic1(Longs.toByteArray(entity.getNum()))
+                        .topic2(LONG_ZERO_3)
+                        .syntheticTransfer(true))
+                .get();
+
+        assertArrayEquals(LONG_ZERO_1, contractLog.getTopic1());
+        assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
+        assertArrayEquals(Longs.toByteArray(entity.getNum()), contractLog2.getTopic1());
+        assertArrayEquals(LONG_ZERO_3, contractLog2.getTopic2());
+
+        final var evmAddressMappings = List.of(
+                new EvmAddressMapping(EVM_1, ENTITY_1.getId()),
+                new EvmAddressMapping(EVM_2, ENTITY_2.getId()),
+                new EvmAddressMapping(EVM_3, ENTITY_3.getId()));
+        when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId(), ENTITY_3.getId())))
+                .thenReturn(evmAddressMappings);
+        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog, contractLog2));
+        when(parserContext.get(Entity.class, entity.getId())).thenReturn(entity);
+        when(parserContext.get(Entity.class, ENTITY_1.getId())).thenReturn(null);
+        when(parserContext.get(Entity.class, ENTITY_2.getId())).thenReturn(null);
+        when(parserContext.get(Entity.class, ENTITY_3.getId())).thenReturn(null);
+
+        listener.onEnd(domainBuilder.recordFile().get());
+
+        verify(entityRepository, times(1))
+                .findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId(), ENTITY_3.getId()));
+        verifyNoMoreInteractions(entityRepository);
+
+        assertArrayEquals(EVM_1, contractLog.getTopic1());
+        assertArrayEquals(EVM_2, contractLog.getTopic2());
+
+        assertArrayEquals(entityEvmAddress, contractLog2.getTopic1());
+        assertArrayEquals(EVM_3, contractLog2.getTopic2());
+    }
+
+    @Test
+    void batchesCorrectly() {
+        final var evmAddressMappings = new HashMap<Long, EvmAddressMapping>(MAX_CACHE_LOAD_ENTRIES * 2);
+        final var contractLogMap = new HashMap<Long, ContractLog>(MAX_CACHE_LOAD_ENTRIES * 2);
+
+        for (int i = 0; i < MAX_CACHE_LOAD_ENTRIES; i++) {
+            var lookupIdBatch1 = domainBuilder.entityId();
+            var evmAddressBatch1 = domainBuilder.evmAddress();
+            var contractLogBatch1 = domainBuilder
+                    .contractLog()
+                    .customize(cl -> cl.topic1(Longs.toByteArray(lookupIdBatch1.getNum()))
+                            .topic2(Longs.toByteArray(lookupIdBatch1.getNum()))
+                            .syntheticTransfer(true))
+                    .get();
+
+            var lookupIdBatch2 = domainBuilder.entityId();
+            var evmAddressBatch2 = domainBuilder.evmAddress();
+            var contractLogBatch2 = domainBuilder
+                    .contractLog()
+                    .customize(cl -> cl.topic1(Longs.toByteArray(lookupIdBatch2.getNum()))
+                            .topic2(Longs.toByteArray(lookupIdBatch2.getNum()))
+                            .syntheticTransfer(true))
+                    .get();
+
+            contractLogMap.put(lookupIdBatch1.getId(), contractLogBatch1);
+            contractLogMap.put(lookupIdBatch2.getId(), contractLogBatch2);
+
+            evmAddressMappings.put(
+                    lookupIdBatch1.getId(), new EvmAddressMapping(evmAddressBatch1, lookupIdBatch1.getId()));
+            evmAddressMappings.put(
+                    lookupIdBatch2.getId(), new EvmAddressMapping(evmAddressBatch2, lookupIdBatch2.getId()));
+        }
+
+        ArgumentCaptor<Iterable<Long>> idCaptor = ArgumentCaptor.forClass(Iterable.class);
+        when(parserContext.get(ContractLog.class)).thenReturn(contractLogMap.values());
+        when(parserContext.get(eq(Entity.class), anyLong())).thenReturn(null);
+
+        when(entityRepository.findEvmAddressesByIds(any())).thenAnswer(invocation -> {
+            final Iterable<? extends Long> ids = invocation.getArgument(0);
+            return StreamSupport.stream(ids.spliterator(), false)
+                    .map(evmAddressMappings::get)
+                    .collect(Collectors.toList());
+        });
+
+        for (var entrySet : contractLogMap.entrySet()) {
+            var entityId = EntityId.of(entrySet.getKey());
+            var contractLog = entrySet.getValue();
+            assertThat(contractLog.getTopic1()).isEqualTo(Longs.toByteArray(entityId.getNum()));
+            assertThat(contractLog.getTopic1()).isEqualTo(Longs.toByteArray(entityId.getNum()));
+        }
+
+        listener.onEnd(domainBuilder.recordFile().get());
+
+        verify(entityRepository, times(2)).findEvmAddressesByIds(idCaptor.capture());
+        verifyNoMoreInteractions(entityRepository);
+
+        List<Iterable<Long>> capturedIds = idCaptor.getAllValues();
+        Iterable<Long> firstBatch = capturedIds.get(0);
+        Iterable<Long> secondBatch = capturedIds.get(1);
+
+        assertThat(firstBatch).hasSize(MAX_CACHE_LOAD_ENTRIES);
+        assertThat(secondBatch).hasSize(MAX_CACHE_LOAD_ENTRIES);
+
+        var batch1Set = new HashSet<Long>(MAX_CACHE_LOAD_ENTRIES);
+        var batch2Set = new HashSet<Long>(MAX_CACHE_LOAD_ENTRIES);
+        firstBatch.forEach(batch1Set::add);
+        secondBatch.forEach(batch2Set::add);
+        assertThat(Collections.disjoint(batch1Set, batch2Set)).isTrue();
+
+        for (var entry : contractLogMap.entrySet()) {
+            var contractLog = entry.getValue();
+            var evmAddressMapping = evmAddressMappings.get(entry.getKey());
+
+            assertThat(contractLog.getTopic1()).isEqualTo(trim(evmAddressMapping.getEvmAddress()));
+            assertThat(contractLog.getTopic2()).isEqualTo(trim(evmAddressMapping.getEvmAddress()));
+        }
     }
 }

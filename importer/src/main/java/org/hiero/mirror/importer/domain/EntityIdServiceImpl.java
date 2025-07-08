@@ -5,7 +5,8 @@ package org.hiero.mirror.importer.domain;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
-import static org.hiero.mirror.importer.config.CacheConfiguration.*;
+import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_ALIAS;
+import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 import static org.hiero.mirror.importer.util.Utility.aliasToEvmAddress;
 
 import com.google.protobuf.ByteString;
@@ -37,12 +38,10 @@ public class EntityIdServiceImpl implements EntityIdService {
     private static final Optional<EntityId> EMPTY = Optional.of(EntityId.EMPTY);
 
     private final Cache cache;
-
     private final EntityRepository entityRepository;
 
-    public EntityIdServiceImpl(
-            @Qualifier(CACHE_ALIAS) CacheManager aliasCacheManager, EntityRepository entityRepository) {
-        this.cache = aliasCacheManager.getCache(CACHE_NAME);
+    public EntityIdServiceImpl(@Qualifier(CACHE_ALIAS) CacheManager cacheManager, EntityRepository entityRepository) {
+        this.cache = cacheManager.getCache(CACHE_NAME);
         this.entityRepository = entityRepository;
     }
 

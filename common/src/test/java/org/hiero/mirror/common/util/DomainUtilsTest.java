@@ -4,7 +4,11 @@ package org.hiero.mirror.common.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.CommonUtils.nextBytes;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.ByteString;
@@ -468,7 +472,7 @@ class DomainUtilsTest {
         if (expectedNum == null) {
             assertNull(result);
         } else {
-            assertEquals(expectedNum, result.getNum());
+            assertThat(result.getNum()).isEqualTo(expectedNum);
         }
     }
 

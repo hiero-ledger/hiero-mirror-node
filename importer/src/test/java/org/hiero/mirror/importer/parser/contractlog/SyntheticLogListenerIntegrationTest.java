@@ -3,7 +3,7 @@
 package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
+import static org.hiero.mirror.common.util.DomainUtils.trim;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 import com.google.common.primitives.Longs;
@@ -40,14 +40,13 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         entityListener.onContractLog(contractLog);
 
-        assertArrayEquals(contractLog.getTopic1(), Longs.toByteArray(sender1.getNum()));
-        assertArrayEquals(contractLog.getTopic2(), Longs.toByteArray(receiver1.getNum()));
+        assertArrayEquals(Longs.toByteArray(sender1.getNum()), contractLog.getTopic1());
+        assertArrayEquals(Longs.toByteArray(receiver1.getNum()), contractLog.getTopic2());
 
         completeFileAndCommit();
 
-        assertArrayEquals(contractLog.getTopic1(), Longs.toByteArray(sender1.getNum()));
-        assertArrayEquals(contractLog.getTopic2(), Longs.toByteArray(receiver1.getNum()));
-
+        assertArrayEquals(Longs.toByteArray(sender1.getNum()), contractLog.getTopic1());
+        assertArrayEquals(Longs.toByteArray(receiver1.getNum()), contractLog.getTopic2());
         assertThat(contractLogRepository.count()).isEqualTo(1);
         assertThat(contractLogRepository.findAll()).containsExactly(contractLog);
     }
@@ -59,21 +58,20 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         var contractLog = domainBuilder
                 .contractLog()
-                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
-                        .topic1(Longs.toByteArray(sender1.getNum()))
-                        .topic2(Longs.toByteArray(receiver1.getNum())))
+                .customize(cl -> cl.topic1(Longs.toByteArray(sender1.getNum()))
+                        .topic2(Longs.toByteArray(receiver1.getNum()))
+                        .syntheticTransfer(true))
                 .get();
 
         entityListener.onContractLog(contractLog);
 
-        assertArrayEquals(contractLog.getTopic1(), Longs.toByteArray(sender1.getNum()));
-        assertArrayEquals(contractLog.getTopic2(), Longs.toByteArray(receiver1.getNum()));
+        assertArrayEquals(Longs.toByteArray(sender1.getNum()), contractLog.getTopic1());
+        assertArrayEquals(Longs.toByteArray(receiver1.getNum()), contractLog.getTopic2());
 
         completeFileAndCommit();
 
-        assertArrayEquals(contractLog.getTopic1(), sender1.getEvmAddress());
-        assertArrayEquals(contractLog.getTopic2(), receiver1.getEvmAddress());
-
+        assertArrayEquals(trim(sender1.getEvmAddress()), contractLog.getTopic1());
+        assertArrayEquals(trim(receiver1.getEvmAddress()), contractLog.getTopic2());
         assertThat(contractLogRepository.count()).isEqualTo(1);
         assertThat(contractLogRepository.findAll()).containsExactly(contractLog);
     }
