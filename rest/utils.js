@@ -1441,6 +1441,17 @@ const ipMask = (ip) => {
   return anonymize(ip, 24, 48);
 };
 
+const recordQuery = (() => {
+  let func;
+  return async (callerInfo, query) => {
+    if (!func) {
+      func = (await import('./__tests__/tableUsage')).recordQuery;
+    }
+
+    func(callerInfo, query);
+  };
+})();
+
 /**
  * Gets the pool class with queryQuietly
  */
@@ -1456,22 +1467,30 @@ const getPoolClass = () => {
       logger.error(`error event emitted on pg pool. ${error.stack}`);
     };
 
-    if (logger.isTraceEnabled()) {
-      startTime = Date.now();
+    const traceEnabled = logger.isTraceEnabled();
+    if (traceEnabled || isTestEnv()) {
       const callerInfo = new Error().stack
         .split('\n')
         .splice(1)
         .filter((s) => !(s.includes('utils.js') || s.includes('baseService.js')))
         .map((entry) => {
-          const result = entry.match(/^\s*at\s+(\S+).*\/(.*\.js):(\d+):.*/);
-          return result && result.length === 4 && {function: result[1], file: result[2], line: result[3]};
+          const result = entry.match(/^\s*at\s+(\S+)[^(]+\((.*\/(.*\.js)):(\d+):.*\)$/);
+          return result?.length === 5 && {function: result[1], file: result[3], line: result[4], path: result[2]};
         })[0];
-      const prettyQuery = format(query, {language: 'postgresql'});
-      logger.trace(
-        `${callerInfo.function} (${callerInfo.file}:${callerInfo.line})\nquery: ${prettyQuery}\nparams: ${JSONStringify(
-          params
-        )}`
-      );
+
+      if (isTestEnv()) {
+        await recordQuery(callerInfo, query);
+      }
+
+      if (traceEnabled) {
+        startTime = Date.now();
+        const prettyQuery = format(query, {language: 'postgresql'});
+        logger.trace(
+          `${callerInfo.function} (${callerInfo.file}:${
+            callerInfo.line
+          })\nquery: ${prettyQuery}\nparams: ${JSONStringify(params)}`
+        );
+      }
     }
 
     try {
@@ -1485,7 +1504,7 @@ const getPoolClass = () => {
         await client.query('commit');
       }
 
-      if (logger.isTraceEnabled()) {
+      if (traceEnabled) {
         const elapsed = Date.now() - startTime;
         logger.trace(`Query took ${elapsed} ms and returned ${result.rows.length} entries`);
       }

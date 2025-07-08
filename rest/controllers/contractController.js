@@ -782,6 +782,8 @@ class ContractController extends BaseController {
 
     const contractId = await ContractService.computeContractIdFromString(contractIdParam);
 
+    // workaround for conflict with /contracts/:contractId/results/:consensusTimestamp API
+    res.locals[requestPathLabel] = `${req.baseUrl}${req.route.path}`;
     if (!contractId) {
       res.locals[responseDataLabel] = {
         logs: [],
@@ -993,6 +995,10 @@ class ContractController extends BaseController {
    * @returns {Promise<void>}
    */
   getContractResultsByTimestamp = async (req, res) => {
+    if (requestPathLabel in res.locals) {
+      return;
+    }
+
     const {contractId, timestamp} = await getAndValidateContractIdAndConsensusTimestampPathParams(req);
     const contractDetails = await ContractService.getInvolvedContractsByTimestampAndContractId(timestamp, contractId);
     if (!contractDetails) {

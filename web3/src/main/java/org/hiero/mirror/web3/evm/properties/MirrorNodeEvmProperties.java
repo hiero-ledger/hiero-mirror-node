@@ -69,7 +69,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     private final SystemEntity systemEntity;
 
-    @Value("${HIERO_MIRROR_WEB3_MODULARIZED_ALLOWLONGZEROADDRESS:false}")
+    @Value("${" + ALLOW_LONG_ZERO_ADDRESSES + ":false}")
     private boolean allowLongZeroAddresses = false;
 
     @Getter
@@ -195,6 +195,12 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     @Getter
     private long entityNumBuffer = 1000L;
+
+    @Getter
+    private long minimumAccountBalance = 100_000_000_000_000_000L;
+
+    @Getter
+    private boolean overridePayerBalanceValidation;
 
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);
@@ -362,6 +368,11 @@ public class MirrorNodeEvmProperties implements EvmProperties {
                 && RandomUtils.secure().randomDouble(0.0d, 1.0d) < getModularizedTrafficPercent();
     }
 
+    @PostConstruct
+    public void init() {
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(allowLongZeroAddresses));
+    }
+
     @Getter
     @RequiredArgsConstructor
     public enum HederaNetwork {
@@ -385,10 +396,5 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
             return Collections.unmodifiableNavigableMap(evmVersionsMap);
         }
-    }
-
-    @PostConstruct
-    public void init() {
-        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(allowLongZeroAddresses));
     }
 }

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {addAsync} from '@awaitjs/express';
 import {execSync} from 'child_process';
 import express from 'express';
 import fs from 'fs';
@@ -92,7 +91,7 @@ const initializeFlyway = () => {
 };
 
 const startDbContainerServer = () => {
-  const app = addAsync(express());
+  const app = express();
   app.use(express.json()); // process POST json body
   const server = app.listen();
   globalThis.__DB_CONTAINER_SERVER__ = server;
@@ -100,7 +99,7 @@ const startDbContainerServer = () => {
   process.env.DB_CONTAINER_SERVER_URL = `http://localhost:${server.address().port}`;
   console.log(`DB container server url: ${process.env.DB_CONTAINER_SERVER_URL}`);
 
-  app.postAsync('/connectionParams', async (req, res) => {
+  app.post('/connectionParams', async (req, res) => {
     if (Number.isNaN(req.body?.workerId)) {
       res.status(400).end();
       return;
