@@ -122,6 +122,55 @@ const computeAccountParameters = wrapComputeParametersFunc(
   }
 );
 
+const computeAccountWithCryptoAllowanceParameters = wrapComputeParametersFunc(
+  ['DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE', 'DEFAULT_SPENDER_ID_CRYPTO_ALLOWANCE'],
+  () => {
+    let accountsPath = `${baseUrlPrefix}/accounts?account.id=gt:${__ENV.DEFAULT_START_ACCOUNT}&balance=false&order=asc&limit=100`;
+    const candidate = {cryptoAllowances: []};
+    let totalAccounts = 0;
+
+    while (accountsPath && totalAccounts < 100000) {
+      const {
+        accounts,
+        links: {next},
+      } = getValidResponse(accountsPath, null, http.get);
+      accountsPath = restUrlFromNext(next);
+
+      for (const {account} of accounts) {
+        const cryptoAllowancesPath = `${baseUrlPrefix}/accounts/${account}/allowances/crypto?limit=25`;
+        const cryptoAllowances = getEntities(cryptoAllowancesPath, allowanceListName);
+
+        if (cryptoAllowances.length > candidate.cryptoAllowances.length) {
+          candidate.account = account;
+          candidate.cryptoAllowances = cryptoAllowances;
+        }
+
+        if (cryptoAllowances.length >= 25) {
+          console.info(`Found account ${account} with ${cryptoAllowances.length} crypto allowances`);
+          return {
+            DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE: account,
+            DEFAULT_SPENDER_ID_CRYPTO_ALLOWANCE: cryptoAllowances[0].spender,
+          };
+        }
+      }
+
+      totalAccounts += accounts.length;
+    }
+
+    if (candidate.length > 0) {
+      console.warn(
+        `Fallback to account ${candidate.account} with ${candidate.cryptoAllowances.length} crypto allowances`
+      );
+      return {
+        DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE: candidate.account,
+        DEFAULT_SPENDER_ID_CRYPTO_ALLOWANCE: candidate.cryptoAllowances[0].spender,
+      };
+    }
+
+    throw new Error('It was not possible to find an account with significant number of crypto allowances.');
+  }
+);
+
 const computeAccountWithNftsParameters = wrapComputeParametersFunc(['DEFAULT_ACCOUNT_ID_NFTS'], () => {
   const candidate = {balance: 0};
   let tokensPath = `${baseUrlPrefix}/tokens?type=NON_FUNGIBLE_UNIQUE&limit=100&order=asc`;
@@ -157,7 +206,7 @@ const computeAccountWithNftsParameters = wrapComputeParametersFunc(['DEFAULT_ACC
     return {DEFAULT_ACCOUNT_ID_NFTS: candidate.account};
   }
 
-  throw new Error('It was not possible to find an account with with significant number of nfts.');
+  throw new Error('It was not possible to find an account with significant number of nfts.');
 });
 
 const computeAccountWithTokenAllowanceParameters = wrapComputeParametersFunc(
@@ -197,7 +246,7 @@ const computeAccountWithTokenAllowanceParameters = wrapComputeParametersFunc(
       return {DEFAULT_ACCOUNT_ID_TOKEN_ALLOWANCE: candidate.account};
     }
 
-    throw new Error('It was not possible to find an account with with significant number of allowance tokens.');
+    throw new Error('It was not possible to find an account with significant number of token allowances.');
   }
 );
 
@@ -236,7 +285,7 @@ const computeAccountWithTokenParameters = wrapComputeParametersFunc(['DEFAULT_AC
     return {DEFAULT_ACCOUNT_ID_TOKEN: candidate.account};
   }
 
-  throw new Error('It was not possible to find an account with with significant number of tokens.');
+  throw new Error('It was not possible to find an account with significant number of tokens.');
 });
 
 const computeBlockParameters = wrapComputeParametersFunc(['DEFAULT_BLOCK_NUMBER', 'DEFAULT_BLOCK_HASH'], () => {
@@ -345,6 +394,7 @@ const computeTopicInfo = wrapComputeParametersFunc(
 
 const allHandlers = [
   computeAccountParameters,
+  computeAccountWithCryptoAllowanceParameters,
   computeAccountWithNftsParameters,
   computeAccountWithTokenAllowanceParameters,
   computeAccountWithTokenParameters,

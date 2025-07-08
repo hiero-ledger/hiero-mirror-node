@@ -1,20 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {SharedArray} from 'k6/data';
-import {ContractCallTestScenarioBuilder} from './common.js';
+import {loadVuDataOrDefault, ContractCallTestScenarioBuilder} from './common.js';
 
 function PrecompileModificationTestTemplate(key, shouldRevert) {
-  const data = new SharedArray(key, () => {
-    return JSON.parse(open('../resources/modificationFunctions.json'))[key];
-  });
-
-  const {options, run} = new ContractCallTestScenarioBuilder()
+  return new ContractCallTestScenarioBuilder()
     .name(key)
-    .vuData(data)
+    .vuData(loadVuDataOrDefault('../resources/modificationFunctions.json', key))
     .shouldRevert(shouldRevert)
     .build();
-
-  return {options, run};
 }
 
 export {PrecompileModificationTestTemplate};
