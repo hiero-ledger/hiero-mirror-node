@@ -6,7 +6,6 @@ import com.google.common.base.Stopwatch;
 import jakarta.inject.Named;
 import java.util.Map;
 import org.flywaydb.core.api.MigrationVersion;
-import org.hiero.mirror.importer.ImporterProperties;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
@@ -46,9 +45,7 @@ public class ContractLogIndexesMigration extends AbstractJavaMigration {
 
     @Lazy
     public ContractLogIndexesMigration(
-            Environment environment,
-            NamedParameterJdbcOperations jdbcOperations,
-            ImporterProperties importerProperties) {
+            final Environment environment, final NamedParameterJdbcOperations jdbcOperations) {
         this.jdbcOperations = jdbcOperations;
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
     }
