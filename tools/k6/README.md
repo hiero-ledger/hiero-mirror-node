@@ -239,7 +239,7 @@ Test complex scenarios by using a single smart contract function.
 
 Source: src/web3/test/complex-functions/contractCallComplexFunctionsTokenLifecycle.js.
 
-This test covers the lifecycle of a fungible token, including: token creation, association, grantKYC, transfer, Freeze, Unfreeze, Pause, Unpause, Wipe. The test uses `tokenLifecycle(address firstReceiver, address secondReceiver, address treasury)` function from `ComplexFunctions.sol`.
+This test covers the lifecycle of a fungible token, including: token creation, association, grantKyC, transfer, freeze, unfreeze, pause, unpause, wipe. The test uses `tokenLifecycle(address firstReceiver, address secondReceiver, address treasury)` function from `ComplexFunctions.sol`.
 
 Test Parameters:
 
@@ -252,7 +252,7 @@ Test Parameters:
 
 Source: src/web3/test/complex-functions/contractCallComplexFunctionsNFTLifecycle.js.
 
-This test covers the lifecycle of a Non-fungible token, including: token creation, association, grantKYC, Mint, transfer, Freeze, Unfreeze, Pause, Unpause, Wipe. The test uses `nftLifecycle(address firstReceiver, address secondReceiver, address treasury, bytes[] memory metadata)` function from `ComplexFunctions.sol`.
+This test covers the lifecycle of a Non-fungible token, including: token creation, association, grantKyc, mint, transfer, freeze, unfreeze, pause, unpause, wipe. The test uses `nftLifecycle(address firstReceiver, address secondReceiver, address treasury, bytes[] memory metadata)` function from `ComplexFunctions.sol`.
 
 Test Parameters:
 

@@ -22,17 +22,17 @@ contract ComplexFunctions is HederaTokenService, ExpiryHelper, KeyHelper {
         (int code, address tokenAddr) = HederaTokenService.createFungibleToken(token, 1000000, 8);
         require(code == HederaResponseCodes.SUCCESS, "Token creation failed");
 
-        require(HederaTokenService.associateToken(acc1, tokenAddr) == 22, "Token Associate of failed for acc1");
-        require(HederaTokenService.associateToken(acc2, tokenAddr) == 22, "Token Associate failed for acc2");
-        require(HederaTokenService.grantTokenKyc(tokenAddr, acc1) == 22, "GrantKyc failed for acc1");
-        require(HederaTokenService.grantTokenKyc(tokenAddr, acc2) == 22, "GrantKyC failed for acc2");
-        require(HederaTokenService.transferToken(tokenAddr, treasury, acc1, 100) == 22, "Transfer token failed from treasury to acc1");
-        require(HederaTokenService.freezeToken(tokenAddr, acc1) == 22, "Freeze token failed for acc1");
-        require(HederaTokenService.unfreezeToken(tokenAddr, acc1) == 22, "Unfreeze token failed for acc1");
-        require(HederaTokenService.transferToken(tokenAddr, acc1, acc2, 50) == 22, "Transfer token failed from acc1 to acc2");
-        require(HederaTokenService.wipeTokenAccount(tokenAddr, acc2, 10) == 22, "Wipe token failed for acc2");
-        require(HederaTokenService.pauseToken(tokenAddr) == 22, "Pause token failed");
-        require(HederaTokenService.unpauseToken(tokenAddr) == 22, "Unpause token failed");
+        require(HederaTokenService.associateToken(acc1, tokenAddr) == HederaResponseCodes.SUCCESS, "Token Associate of failed for acc1");
+        require(HederaTokenService.associateToken(acc2, tokenAddr) == HederaResponseCodes.SUCCESS, "Token Associate failed for acc2");
+        require(HederaTokenService.grantTokenKyc(tokenAddr, acc1) == HederaResponseCodes.SUCCESS, "GrantKyc failed for acc1");
+        require(HederaTokenService.grantTokenKyc(tokenAddr, acc2) == HederaResponseCodes.SUCCESS, "GrantKyC failed for acc2");
+        require(HederaTokenService.transferToken(tokenAddr, treasury, acc1, 100) == HederaResponseCodes.SUCCESS, "Transfer token failed from treasury to acc1");
+        require(HederaTokenService.freezeToken(tokenAddr, acc1) == HederaResponseCodes.SUCCESS, "Freeze token failed for acc1");
+        require(HederaTokenService.unfreezeToken(tokenAddr, acc1) == HederaResponseCodes.SUCCESS, "Unfreeze token failed for acc1");
+        require(HederaTokenService.transferToken(tokenAddr, acc1, acc2, 50) == HederaResponseCodes.SUCCESS, "Transfer token failed from acc1 to acc2");
+        require(HederaTokenService.wipeTokenAccount(tokenAddr, acc2, 10) == HederaResponseCodes.SUCCESS, "Wipe token failed for acc2");
+        require(HederaTokenService.pauseToken(tokenAddr) == HederaResponseCodes.SUCCESS, "Pause token failed");
+        require(HederaTokenService.unpauseToken(tokenAddr) == HederaResponseCodes.SUCCESS, "Unpause token failed");
     }
 
     function nftLifecycle(address acc1, address acc2, address treasury, bytes[] memory metadata) public payable {
@@ -49,22 +49,22 @@ contract ComplexFunctions is HederaTokenService, ExpiryHelper, KeyHelper {
         (int code, address tokenAddr) = HederaTokenService.createNonFungibleToken(token);
         require(code == HederaResponseCodes.SUCCESS, "NFT creation failed");
 
-        require(HederaTokenService.associateToken(acc1, tokenAddr) == 22, "Associate failed for acc1");
-        require(HederaTokenService.associateToken(acc2, tokenAddr) == 22, "Associate failed for acc2");
-        require(HederaTokenService.grantTokenKyc(tokenAddr, acc1) == 22, "KYC failed for acc1");
-        require(HederaTokenService.grantTokenKyc(tokenAddr, acc2) == 22, "KYC failed for acc2");
+        require(HederaTokenService.associateToken(acc1, tokenAddr) == HederaResponseCodes.SUCCESS, "Associate failed for acc1");
+        require(HederaTokenService.associateToken(acc2, tokenAddr) == HederaResponseCodes.SUCCESS, "Associate failed for acc2");
+        require(HederaTokenService.grantTokenKyc(tokenAddr, acc1) == HederaResponseCodes.SUCCESS, "KYC failed for acc1");
+        require(HederaTokenService.grantTokenKyc(tokenAddr, acc2) == HederaResponseCodes.SUCCESS, "KYC failed for acc2");
 
         (int mintResponse, , int64[] memory serials) =
                             HederaTokenService.mintToken(tokenAddr, 0, metadata);
 
         int64 firstSerial = serials[0];
 
-        require(HederaTokenService.transferNFT(tokenAddr, treasury, acc1, firstSerial) == 22, "NFT transfer to acc1 failed");
-        require(HederaTokenService.freezeToken(tokenAddr, acc1) == 22, "Freeze failed for acc1");
-        require(HederaTokenService.unfreezeToken(tokenAddr, acc1) == 22, "Unfreeze failed for acc1");
-        require(HederaTokenService.transferNFT(tokenAddr, acc1, acc2, firstSerial) == 22, "NFT transfer to acc2 failed");
-        require(HederaTokenService.wipeTokenAccountNFT(tokenAddr, acc2, serials) == 22, "Wipe failed for acc2");
-        require(HederaTokenService.pauseToken(tokenAddr) == 22, "Pause failed");
-        require(HederaTokenService.unpauseToken(tokenAddr) == 22, "Unpause failed");
+        require(HederaTokenService.transferNFT(tokenAddr, treasury, acc1, firstSerial) == HederaResponseCodes.SUCCESS, "NFT transfer to acc1 failed");
+        require(HederaTokenService.freezeToken(tokenAddr, acc1) == HederaResponseCodes.SUCCESS, "Freeze failed for acc1");
+        require(HederaTokenService.unfreezeToken(tokenAddr, acc1) == HederaResponseCodes.SUCCESS, "Unfreeze failed for acc1");
+        require(HederaTokenService.transferNFT(tokenAddr, acc1, acc2, firstSerial) == HederaResponseCodes.SUCCESS, "NFT transfer to acc2 failed");
+        require(HederaTokenService.wipeTokenAccountNFT(tokenAddr, acc2, serials) == HederaResponseCodes.SUCCESS, "Wipe failed for acc2");
+        require(HederaTokenService.pauseToken(tokenAddr) == HederaResponseCodes.SUCCESS, "Pause failed");
+        require(HederaTokenService.unpauseToken(tokenAddr) == HederaResponseCodes.SUCCESS, "Unpause failed");
     }
 }
