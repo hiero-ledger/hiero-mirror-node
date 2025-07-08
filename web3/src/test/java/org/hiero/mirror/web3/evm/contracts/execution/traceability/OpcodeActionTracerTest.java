@@ -187,18 +187,26 @@ class OpcodeActionTracerTest {
     @Test
     @DisplayName("should record program counter")
     void shouldRecordProgramCounter() {
+        // Given
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executeOperation(frame);
+
+        // Then
         assertThat(opcode.pc()).isEqualTo(frame.getPC());
     }
 
     @Test
     @DisplayName("should record opcode")
     void shouldRecordOpcode() {
+        // Given
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executeOperation(frame);
+
+        // Then
         assertThat(opcode.op()).isNotEmpty();
         assertThat(opcode.op()).contains(OPERATION.getName());
     }
@@ -206,6 +214,7 @@ class OpcodeActionTracerTest {
     @Test
     @DisplayName("should record depth")
     void shouldRecordDepth() {
+        // Given
         frame = setupInitialFrame(tracerOptions);
 
         // simulate 4 calls
@@ -215,35 +224,50 @@ class OpcodeActionTracerTest {
                     .add(buildMessageFrame(Address.fromHexString("0x10%d".formatted(i)), MESSAGE_CALL));
         }
 
+        // When
         final Opcode opcode = executeOperation(frame);
+
+        // Then
         assertThat(opcode.depth()).isEqualTo(expectedDepth);
     }
 
     @Test
     @DisplayName("should record remaining gas")
     void shouldRecordRemainingGas() {
+        // Given
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executeOperation(frame);
+
+        // Then
         assertThat(opcode.gas()).isEqualTo(REMAINING_GAS.get());
     }
 
     @Test
     @DisplayName("should record gas cost")
     void shouldRecordGasCost() {
+        // Given
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executeOperation(frame);
+
+        // Then
         assertThat(opcode.gasCost()).isEqualTo(GAS_COST);
     }
 
     @Test
     @DisplayName("given stack is enabled in tracer options, should record stack")
     void shouldRecordStackWhenEnabled() {
+        // Given
         tracerOptions = tracerOptions.toBuilder().stack(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executeOperation(frame);
+
+        // Then
         assertThat(opcode.stack()).isNotEmpty();
         assertThat(opcode.stack()).containsExactly(stackItems);
     }
@@ -251,20 +275,28 @@ class OpcodeActionTracerTest {
     @Test
     @DisplayName("given stack is disabled in tracer options, should not record stack")
     void shouldNotRecordStackWhenDisabled() {
+        // Given
         tracerOptions = tracerOptions.toBuilder().stack(false).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executeOperation(frame);
+
+        // Then
         assertThat(opcode.stack()).isEmpty();
     }
 
     @Test
     @DisplayName("given memory is enabled in tracer options, should record memory")
     void shouldRecordMemoryWhenEnabled() {
+        // Given
         tracerOptions = tracerOptions.toBuilder().memory(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executeOperation(frame);
+
+        // Then
         assertThat(opcode.memory()).isNotEmpty();
         assertThat(opcode.memory()).containsExactly(wordsInMemory);
     }
@@ -272,22 +304,30 @@ class OpcodeActionTracerTest {
     @Test
     @DisplayName("given memory is disabled in tracer options, should not record memory")
     void shouldNotRecordMemoryWhenDisabled() {
+        // Given
         tracerOptions =
                 tracerOptions.toBuilder().memory(false).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executeOperation(frame);
+
+        // Then
         assertThat(opcode.memory()).isEmpty();
     }
 
     @Test
     @DisplayName("given storage is enabled in tracer options, should record storage")
     void shouldRecordStorageWhenEnabled() {
+        // Given
         tracerOptions =
                 tracerOptions.toBuilder().storage(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executeOperation(frame);
+
+        // Then
         assertThat(opcode.storage()).isNotEmpty();
         assertThat(opcode.storage()).containsAllEntriesOf(updatedStorage);
     }
@@ -331,13 +371,16 @@ class OpcodeActionTracerTest {
     @Test
     @DisplayName("given account is missing in the world updater, should only log a warning and return empty storage")
     void shouldNotThrowExceptionWhenAccountIsMissingInWorldUpdater() {
+        // Given
         tracerOptions =
                 tracerOptions.toBuilder().storage(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
-
         when(worldUpdater.pendingStorageUpdates()).thenReturn(new ArrayList<>());
 
+        // When
         final Opcode opcode = executeOperation(frame);
+
+        // Then
         assertThat(opcode.storage()).containsExactlyEntriesOf(new TreeMap<>());
     }
 
@@ -346,30 +389,39 @@ class OpcodeActionTracerTest {
             "given ModificationNotAllowedException thrown when trying to get storage changes through WorldUpdater, "
                     + "should only log a warning and return empty storage")
     void shouldNotThrowExceptionWhenWorldUpdaterThrowsModificationNotAllowedException() {
+        // Given
         tracerOptions =
                 tracerOptions.toBuilder().storage(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
         when(worldUpdater.pendingStorageUpdates()).thenThrow(new ModificationNotAllowedException());
 
+        // When
         final Opcode opcode = executeOperation(frame);
+
+        // Then
         assertThat(opcode.storage()).containsExactlyEntriesOf(new TreeMap<>());
     }
 
     @Test
     @DisplayName("given storage is disabled in tracer options, should not record storage")
     void shouldNotRecordStorageWhenDisabled() {
+        // Given
         tracerOptions =
                 tracerOptions.toBuilder().storage(false).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executeOperation(frame);
+
+        // Then
         assertThat(opcode.storage()).isEmpty();
     }
 
     @Test
     @DisplayName("given exceptional halt occurs, should capture frame data and halt reason")
     void shouldCaptureFrameWhenExceptionalHaltOccurs() {
+        // Given
         tracerOptions = tracerOptions.toBuilder()
                 .stack(true)
                 .memory(true)
@@ -378,7 +430,10 @@ class OpcodeActionTracerTest {
                 .build();
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executeOperation(frame, INSUFFICIENT_GAS);
+
+        // Then
         assertThat(opcode.reason())
                 .contains(Hex.encodeHexString(INSUFFICIENT_GAS.getDescription().getBytes()));
         assertThat(opcode.stack()).contains(stackItems);
@@ -389,9 +444,13 @@ class OpcodeActionTracerTest {
     @Test
     @DisplayName("should capture a precompile call")
     void shouldCaptureFrameWhenSuccessfulPrecompileCallOccurs() {
+        // Given
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+
+        // Then
         assertThat(opcode.pc()).isEqualTo(frame.getPC());
         assertThat(opcode.op()).isNotEmpty().isEqualTo(OPERATION.getName());
         assertThat(opcode.gas()).isEqualTo(REMAINING_GAS.get());
@@ -407,28 +466,40 @@ class OpcodeActionTracerTest {
     @Test
     @DisplayName("should not record gas requirement of precompile call with null output")
     void shouldNotRecordGasRequirementWhenPrecompileCallHasNullOutput() {
+        // Given
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT, Bytes.EMPTY);
+
+        // Then
         assertThat(opcode.gasCost()).isZero();
     }
 
     @Test
     @DisplayName("should not record revert reason of precompile call with no revert reason")
     void shouldNotRecordRevertReasonWhenPrecompileCallHasNoRevertReason() {
+        // Given
         frame = setupInitialFrame(tracerOptions);
 
+        // When
         final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+
+        // Then
         assertThat(opcode.reason()).isNull();
     }
 
     @Test
     @DisplayName("should record revert reason of precompile call when frame has revert reason")
     void shouldRecordRevertReasonWhenEthPrecompileCallHasRevertReason() {
+        // Given
         frame = setupInitialFrame(tracerOptions, ETH_PRECOMPILE_ADDRESS, MESSAGE_CALL);
         frame.setRevertReason(Bytes.of("revert reason".getBytes()));
 
+        // When
         final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+
+        // Then
         assertThat(opcode.reason())
                 .isNotEmpty()
                 .isEqualTo(frame.getRevertReason().map(Bytes::toString).orElseThrow());
@@ -437,6 +508,7 @@ class OpcodeActionTracerTest {
     @Test
     @DisplayName("should return ABI-encoded revert reason for precompile call with plaintext revert reason")
     void shouldReturnAbiEncodedRevertReasonWhenPrecompileCallHasContractActionWithPlaintextRevertReason() {
+        // Given
         final var contractActionNoRevert =
                 contractAction(0, 0, CallOperationType.OP_CREATE, OUTPUT.getNumber(), CONTRACT_ADDRESS);
         final var contractActionWithRevert =
@@ -445,6 +517,8 @@ class OpcodeActionTracerTest {
 
         frame = setupInitialFrame(
                 tracerOptions, CONTRACT_ADDRESS, MESSAGE_CALL, contractActionNoRevert, contractActionWithRevert);
+
+        // When
         final Opcode opcode = executeOperation(frame);
         assertThat(opcode.reason()).isNull();
 
@@ -452,6 +526,8 @@ class OpcodeActionTracerTest {
         frame = setupFrame(frameOfPrecompileCall);
 
         final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+
+        // Then
         assertThat(opcodeForPrecompileCall.reason())
                 .isNotEmpty()
                 .isEqualTo(getAbiEncodedRevertReason(Bytes.of(contractActionWithRevert.getResultData()))
@@ -461,6 +537,7 @@ class OpcodeActionTracerTest {
     @Test
     @DisplayName("should return ABI-encoded revert reason for precompile call with response code for revert reason")
     void shouldReturnAbiEncodedRevertReasonWhenPrecompileCallHasContractActionWithResponseCodeNumberRevertReason() {
+        // Given
         final var contractActionNoRevert =
                 contractAction(0, 0, CallOperationType.OP_CREATE, OUTPUT.getNumber(), CONTRACT_ADDRESS);
         final var contractActionWithRevert =
@@ -471,6 +548,8 @@ class OpcodeActionTracerTest {
 
         frame = setupInitialFrame(
                 tracerOptions, CONTRACT_ADDRESS, MESSAGE_CALL, contractActionNoRevert, contractActionWithRevert);
+
+        // When
         final Opcode opcode = executeOperation(frame);
         assertThat(opcode.reason()).isNull();
 
@@ -478,6 +557,8 @@ class OpcodeActionTracerTest {
         frame = setupFrame(frameOfPrecompileCall);
 
         final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+
+        // Then
         assertThat(opcodeForPrecompileCall.reason())
                 .isNotEmpty()
                 .isEqualTo(getAbiEncodedRevertReason(Bytes.of(
@@ -488,6 +569,7 @@ class OpcodeActionTracerTest {
     @Test
     @DisplayName("should return ABI-encoded revert reason for precompile call with ABI-encoded revert reason")
     void shouldReturnAbiEncodedRevertReasonWhenPrecompileCallHasContractActionWithAbiEncodedRevertReason() {
+        // Given
         final var contractActionNoRevert =
                 contractAction(0, 0, CallOperationType.OP_CREATE, OUTPUT.getNumber(), CONTRACT_ADDRESS);
         final var contractActionWithRevert =
@@ -498,6 +580,8 @@ class OpcodeActionTracerTest {
 
         frame = setupInitialFrame(
                 tracerOptions, CONTRACT_ADDRESS, MESSAGE_CALL, contractActionNoRevert, contractActionWithRevert);
+
+        // When
         final Opcode opcode = executeOperation(frame);
         assertThat(opcode.reason()).isNull();
 
@@ -505,6 +589,8 @@ class OpcodeActionTracerTest {
         frame = setupFrame(frameOfPrecompileCall);
 
         final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+
+        // Then
         assertThat(opcodeForPrecompileCall.reason())
                 .isNotEmpty()
                 .isEqualTo(Bytes.of(contractActionWithRevert.getResultData()).toHexString());
@@ -513,6 +599,7 @@ class OpcodeActionTracerTest {
     @Test
     @DisplayName("should return empty revert reason of precompile call with empty revert reason")
     void shouldReturnEmptyReasonWhenPrecompileCallHasContractActionWithEmptyRevertReason() {
+        // Given
         final var contractActionNoRevert =
                 contractAction(0, 0, CallOperationType.OP_CREATE, OUTPUT.getNumber(), CONTRACT_ADDRESS);
         final var contractActionWithRevert =
@@ -521,6 +608,8 @@ class OpcodeActionTracerTest {
 
         frame = setupInitialFrame(
                 tracerOptions, CONTRACT_ADDRESS, MESSAGE_CALL, contractActionNoRevert, contractActionWithRevert);
+
+        // When
         final Opcode opcode = executeOperation(frame);
         assertThat(opcode.reason()).isNull();
 
@@ -528,6 +617,8 @@ class OpcodeActionTracerTest {
         frame = setupFrame(frameOfPrecompileCall);
 
         final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+
+        // Then
         assertThat(opcodeForPrecompileCall.reason()).isNotNull().isEqualTo(Bytes.EMPTY.toHexString());
     }
 

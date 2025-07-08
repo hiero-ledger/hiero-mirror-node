@@ -62,24 +62,33 @@ class MirrorOperationActionTracerTest {
 
     @Test
     void traceDisabled(CapturedOutput output) {
+        // Given
         traceProperties.setEnabled(false);
+
+        // When
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
+
+        // Then
         assertThat(output).doesNotContain("type=");
     }
 
     @Test
     void stateFilterMismatch(CapturedOutput output) {
+        // Given
         traceProperties.setEnabled(true);
         traceProperties.setStatus(Set.of(State.CODE_EXECUTING));
         given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
 
+        // When
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
 
+        // Then
         assertThat(output).doesNotContain("type=");
     }
 
     @Test
     void stateFilter(CapturedOutput output) {
+        // Given
         traceProperties.setEnabled(true);
         traceProperties.setStatus(Set.of(State.CODE_SUSPENDED));
         given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
@@ -96,8 +105,10 @@ class MirrorOperationActionTracerTest {
         given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
         given(messageFrame.getDepth()).willReturn(1);
 
+        // When
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
 
+        // Then
         assertThat(output)
                 .contains(
                         "type=MESSAGE_CALL",
@@ -114,6 +125,7 @@ class MirrorOperationActionTracerTest {
 
     @Test
     void contractFilterMismatch(CapturedOutput output) {
+        // Given
         traceProperties.setEnabled(true);
         traceProperties.setContract(Set.of(contract.toHexString()));
         given(messageFrame.getRecipientAddress()).willReturn(recipient);
@@ -122,13 +134,16 @@ class MirrorOperationActionTracerTest {
                 .willReturn(Optional.of(recipientEntity));
         given(recipientEntity.getId()).willReturn(3L);
 
+        // When
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
 
+        // Then
         assertThat(output).doesNotContain("type=");
     }
 
     @Test
     void contractFilter(CapturedOutput output) {
+        // Given
         traceProperties.setEnabled(true);
         traceProperties.setContract(Set.of(recipient.toHexString()));
         given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
@@ -144,8 +159,10 @@ class MirrorOperationActionTracerTest {
         given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
         given(messageFrame.getDepth()).willReturn(1);
 
+        // When
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
 
+        // Then
         assertThat(output)
                 .contains(
                         "type=MESSAGE_CALL",
@@ -162,6 +179,7 @@ class MirrorOperationActionTracerTest {
 
     @Test
     void tracePostExecution(CapturedOutput output) {
+        // Given
         traceProperties.setEnabled(true);
 
         given(messageFrame.getType()).willReturn(Type.MESSAGE_CALL);
@@ -187,7 +205,10 @@ class MirrorOperationActionTracerTest {
         given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
         given(messageFrame.getDepth()).willReturn(1);
 
+        // When
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
+
+        // Then
         assertThat(output)
                 .contains(
                         "type=MESSAGE_CALL",
