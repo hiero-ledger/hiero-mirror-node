@@ -4,9 +4,12 @@ package org.hiero.mirror.importer.parser.record;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -125,8 +128,15 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         assertThat(recordFileRepository.findAll()).hasSize(1);
         final var contractLogs = contractLogRepository.findAll();
         assertThat(contractLogs).hasSize(transactions * 2);
-        AtomicInteger index = new AtomicInteger();
-        contractLogs.forEach(cl -> assertThat(cl.getIndex()).isEqualTo(index.getAndIncrement()));
+        final var contractLogsList = new LinkedList<ContractLog>();
+        contractLogs.forEach(contractLogsList::add);
+        contractLogsList.sort(
+                Comparator.comparing(ContractLog::getConsensusTimestamp).thenComparing(ContractLog::getIndex));
+
+        final var index = new AtomicInteger();
+        contractLogsList.forEach(cl -> {
+            assertThat(cl.getIndex()).isEqualTo(index.getAndIncrement());
+        });
     }
 
     @Test
