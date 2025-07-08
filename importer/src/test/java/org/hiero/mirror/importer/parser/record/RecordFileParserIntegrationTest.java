@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.parser.record;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
@@ -15,6 +16,7 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.domain.RecordFileBuilder;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
+import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.CryptoTransferRepository;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -37,6 +39,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
     private final RecordFileParser recordFileParser;
     private final RecordFileRepository recordFileRepository;
     private final TransactionRepository transactionRepository;
+    private final ContractLogRepository contractLogRepository;
 
     @BeforeEach
     void setup() {
@@ -108,6 +111,25 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void parseWithLogIndexValidation() {
+        // given
+        int transactions = 10;
+        var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
+                .type(TransactionType.CONTRACTCALL));
+        var recordFile = recordFileTemplate.build();
+
+        // when
+        recordFileParser.parse(recordFile);
+
+        // then
+        assertThat(recordFileRepository.findAll()).hasSize(1);
+        final var contractLogs = contractLogRepository.findAll();
+        assertThat(contractLogs).hasSize(transactions * 2);
+        AtomicInteger index = new AtomicInteger();
+        contractLogs.forEach(cl -> assertThat(cl.getIndex()).isEqualTo(index.getAndIncrement()));
+    }
+
+    @Test
     void topicMessage() {
         int count = 3;
         var topicMessage = recordItemBuilder.consensusSubmitMessage();
@@ -159,7 +181,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
     private void assertRecordFile(RecordFile... recordFiles) {
         assertThat(recordFileRepository.findAll())
                 .hasSize(recordFiles.length)
-                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("bytes", "items", "logsBloom", "sidecars")
+                .usingRecursiveFieldByFieldElementComparatorIgnoringFields(
+                        "bytes", "items", "logsBloom", "sidecars", "logIndex")
                 .containsExactlyInAnyOrder(recordFiles)
                 .allSatisfy(rf -> {
                     assertThat(rf.getLoadStart()).isPositive();

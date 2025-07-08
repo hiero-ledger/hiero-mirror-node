@@ -289,7 +289,7 @@ public class ContractResultServiceImpl implements ContractResultService {
             contractLog.setConsensusTimestamp(contractResult.getConsensusTimestamp());
             contractLog.setContractId(contractId);
             contractLog.setData(DomainUtils.toBytes(contractLoginfo.getData()));
-            contractLog.setIndex(index);
+            contractLog.setIndex(recordItem.getAndIncrementLogIndex());
             contractLog.setRootContractId(rootContractId);
             contractLog.setPayerAccountId(contractResult.getPayerAccountId());
             contractLog.setTopic0(Utility.getTopic(contractLoginfo, 0));
