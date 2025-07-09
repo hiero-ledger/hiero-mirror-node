@@ -79,8 +79,10 @@ public class HTSPrecompiledContract extends EvmHTSPrecompiledContract {
             null, true, MessageFrame.State.COMPLETED_FAILED, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
     private static final Logger log = LogManager.getLogger(HTSPrecompiledContract.class);
     private static final Bytes STATIC_CALL_REVERT_REASON = Bytes.of("HTS precompiles are not static".getBytes());
-    private static final CommonProperties commonProperties = CommonProperties.getInstance();
-
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private static final TokenID DEFAULT_TOKEN_ID = EntityId.of(
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 0L)
+            .toTokenID();
 
     private final MirrorNodeEvmProperties evmProperties;
     private final EvmInfrastructureFactory infrastructureFactory;
@@ -383,10 +385,7 @@ public class HTSPrecompiledContract extends EvmHTSPrecompiledContract {
                         input, aliasResolver, new ApproveParams(Address.ZERO, senderAddress, null, true));
             }
             case AbiConstants.ABI_ID_APPROVE_NFT -> {
-                final var defaultToken =
-                        EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 0L).toTokenID();
-                final var approveDecodedNftInfo =
-                        ApprovePrecompile.decodeTokenIdAndSerialNum(input, defaultToken);
+                final var approveDecodedNftInfo = ApprovePrecompile.decodeTokenIdAndSerialNum(input, DEFAULT_TOKEN_ID);
                 final var tokenID = approveDecodedNftInfo.tokenId();
                 final var serialNumber = approveDecodedNftInfo.serialNumber();
                 final var ownerId = store.getUniqueToken(

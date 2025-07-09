@@ -479,8 +479,7 @@ public class ConversionUtils {
      */
     public static boolean isLongZeroAddress(@NonNull final EntityIdFactory entityIdFactory, final byte[] explicit) {
         // check if first bytes are matching the shard and the realm
-        //        final var zeroAddress = unhex(entityIdFactory.hexLongZero(0));
-        final var zeroAddress = Address.fromHexString("").toArray();
+        final var zeroAddress = unhex(entityIdFactory.hexLongZero(0));
 
         for (int i = 0; i < NUM_LONG_ZEROS; i++) {
             if (explicit[i] != zeroAddress[i]) {

@@ -14,6 +14,7 @@ import com.hedera.services.jproto.JKey;
 import com.hedera.services.store.contracts.precompile.TokenCreateWrapper;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
+import com.hederahashgraph.api.proto.java.TokenID;
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.util.Collections;
@@ -27,6 +28,10 @@ class TokenCreateWrapperTest {
     private static final DomainBuilder domainBuilder = new DomainBuilder();
     private static final byte[] ecdsaSecpk256k1 = "123456789012345678901234567890123".getBytes();
     private static final byte[] ed25519 = "12345678901234567890123456789012".getBytes();
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private static final TokenID DEFAULT_TOKEN_ID = EntityId.of(
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 0)
+            .toTokenID();
     private final TokenKeyWrapper tokenKeyWrapper =
             new TokenKeyWrapper(1, new KeyValueWrapper(true, null, new byte[] {}, new byte[] {}, null));
     private final ContractID contractID = contractIdFromEvmAddress(contractAddress);
@@ -234,10 +239,9 @@ class TokenCreateWrapperTest {
     @Test
     void translatesFixedFeeWithCreatedTokenAsExpected() {
         // given
-        final var commonProperties = CommonProperties.getInstance();
+
         final var feeWrapper = new TokenCreateWrapper.FixedFeeWrapper(5, null, false, true, receiver);
-        final var defaultInstance = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 0)
-                .toTokenID();
+
         // when
         final var result = feeWrapper.asGrpc();
 
@@ -246,7 +250,7 @@ class TokenCreateWrapperTest {
         final var fixedFee = result.getFixedFee();
         assertEquals(5, fixedFee.getAmount());
         assertTrue(fixedFee.hasDenominatingTokenId());
-        assertEquals(defaultInstance, fixedFee.getDenominatingTokenId());
+        assertEquals(DEFAULT_TOKEN_ID, fixedFee.getDenominatingTokenId());
         assertEquals(receiver, result.getFeeCollectorAccountId());
     }
 

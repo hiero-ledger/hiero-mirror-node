@@ -33,6 +33,11 @@ class ApprovePrecompileTest {
     private static final long TOKEN_NUM_HAPI_TOKEN = 0x1234;
     private static final TokenID TOKEN_ID =
             TokenID.newBuilder().setTokenNum(TOKEN_NUM_HAPI_TOKEN).build();
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private static final TokenID DEFAULT_TOKEN_ID = EntityId.of(
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 0)
+            .toTokenID();
+    ;
 
     @Test
     void decodeApproveForNFTERC() {
@@ -54,10 +59,7 @@ class ApprovePrecompileTest {
     @Test
     void decodeApproveForNFTHAPI() {
         UnaryOperator<byte[]> identity = identity();
-        var commonProps = CommonProperties.getInstance();
-        var defaultTokenIdInstance =
-                EntityId.of(commonProps.getShard(), commonProps.getRealm(), 0).toTokenID();
-        final var decodedInput = decodeTokenApprove(APPROVE_NFT_INPUT_HAPI, defaultTokenIdInstance, false, identity);
+        final var decodedInput = decodeTokenApprove(APPROVE_NFT_INPUT_HAPI, DEFAULT_TOKEN_ID, false, identity);
 
         assertEquals(ACCOUNT_NUM_SPENDER_NFT, decodedInput.spender().getAccountNum());
         assertEquals(TOKEN_NUM_HAPI_TOKEN, decodedInput.tokenId().getTokenNum());
@@ -67,10 +69,7 @@ class ApprovePrecompileTest {
     @Test
     void decodeApproveForTokenAHPI() {
         UnaryOperator<byte[]> identity = identity();
-        var commonProps = CommonProperties.getInstance();
-        var defaultTokenIdInstance =
-                EntityId.of(commonProps.getShard(), commonProps.getRealm(), 0).toTokenID();
-        final var decodedInput = decodeTokenApprove(APPROVE_TOKEN_INPUT_HAPI, defaultTokenIdInstance, true, identity);
+        final var decodedInput = decodeTokenApprove(APPROVE_TOKEN_INPUT_HAPI, DEFAULT_TOKEN_ID, true, identity);
 
         assertEquals(ACCOUNT_NUM_SPENDER, decodedInput.spender().getAccountNum());
         assertEquals(TOKEN_NUM_HAPI_TOKEN, decodedInput.tokenId().getTokenNum());

@@ -169,6 +169,8 @@ public class TokenCreateWrapper {
             USE_EXISTING_FUNGIBLE_TOKEN
         }
 
+        private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+
         private final long amount;
         private final TokenID tokenID;
         private final boolean useHbarsForPayment;
@@ -206,7 +208,6 @@ public class TokenCreateWrapper {
         }
 
         private FixedFee.Builder asBuilder() {
-            final var commonProperties = CommonProperties.getInstance();
             return switch (fixedFeePayment) {
                 case USE_HBAR -> FixedFee.newBuilder().setAmount(amount);
                 case USE_EXISTING_FUNGIBLE_TOKEN ->
@@ -215,8 +216,8 @@ public class TokenCreateWrapper {
                     FixedFee.newBuilder()
                             .setAmount(amount)
                             .setDenominatingTokenId(TokenID.newBuilder()
-                                    .setRealmNum(commonProperties.getRealm())
-                                    .setShardNum(commonProperties.getShard())
+                                    .setRealmNum(COMMON_PROPERTIES.getRealm())
+                                    .setShardNum(COMMON_PROPERTIES.getShard())
                                     .setTokenNum(0L)
                                     .build());
                 default -> throw new InvalidTransactionException(ResponseCodeEnum.FAIL_INVALID);

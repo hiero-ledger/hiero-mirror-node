@@ -93,7 +93,10 @@ public class ApprovePrecompile extends AbstractWritePrecompile {
     private static final Function HAPI_APPROVE_NFT_FUNCTION = new Function("approveNFT(address,address,uint256)", INT);
     private static final Bytes HAPI_APPROVE_NFT_SELECTOR = Bytes.wrap(HAPI_APPROVE_NFT_FUNCTION.selector());
     private static final ABIType<Tuple> HAPI_APPROVE_NFT_DECODER = TypeFactory.create(ADDRESS_ADDRESS_UINT256_RAW_TYPE);
-    private static final CommonProperties commonProperties = CommonProperties.getInstance();
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private static final TokenID DEFAULT_TOKEN_ID = EntityId.of(
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 0L)
+            .toTokenID();
 
     private final EncodingFacade encoder;
     private final ApproveAllowanceLogic approveAllowanceLogic;
@@ -293,9 +296,7 @@ public class ApprovePrecompile extends AbstractWritePrecompile {
             final TokenID impliedTokenId,
             final boolean isFungible,
             final UnaryOperator<byte[]> aliasResolver) {
-        final var defaultToken =
-                EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 0L).toTokenID();
-        final var offset = impliedTokenId.equals(defaultToken) ? 1 : 0;
+        final var offset = impliedTokenId.equals(DEFAULT_TOKEN_ID) ? 1 : 0;
         final Tuple decodedArguments;
         final TokenID tokenId;
 
@@ -323,9 +324,7 @@ public class ApprovePrecompile extends AbstractWritePrecompile {
     }
 
     public static ApproveDecodedNftInfo decodeTokenIdAndSerialNum(final Bytes input, final TokenID impliedTokenId) {
-        final var defaultToken =
-                EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 0L).toTokenID();
-        final var offset = impliedTokenId.equals(defaultToken) ? 1 : 0;
+        final var offset = impliedTokenId.equals(DEFAULT_TOKEN_ID) ? 1 : 0;
         final Tuple decodedArguments;
         final TokenID tokenId;
 
