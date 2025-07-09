@@ -8,8 +8,6 @@ import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticCont
 import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogListener.MAX_CACHE_LOAD_ENTRIES;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.mockito.ArgumentMatchers.anyIterable;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -23,6 +21,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BinaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.hiero.mirror.common.domain.DomainBuilder;
@@ -43,34 +42,32 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 @SuppressWarnings("unchecked")
 class SyntheticLogListenerTest {
+
     private static final DomainBuilder domainBuilder = new DomainBuilder();
-
-    @Mock
-    private EntityRepository entityRepository;
-
-    @Mock
-    private ParserContext parserContext;
-
-    private SyntheticLogListener listener;
+    private static BinaryOperator<Entity> NO_OP_MERGE = (e1, e2) -> e1;
 
     private static final EntityId ENTITY_1 = domainBuilder.entityId();
     private static final EntityId ENTITY_2 = domainBuilder.entityId();
     private static final EntityId ENTITY_3 = domainBuilder.entityId();
 
-    private static final byte[] LONG_ZERO_1 = Longs.toByteArray(ENTITY_1.getNum());
-    private static final byte[] LONG_ZERO_2 = Longs.toByteArray(ENTITY_2.getNum());
-    private static final byte[] LONG_ZERO_3 = Longs.toByteArray(ENTITY_3.getNum());
-
-    private static final byte[] TRIMMED_LONG_ZERO_1 = trim(LONG_ZERO_1);
-    private static final byte[] TRIMMED_LONG_ZERO_2 = trim(LONG_ZERO_2);
-    private static final byte[] TRIMMED_LONG_ZERO_3 = trim(LONG_ZERO_3);
+    private static final byte[] LONG_ZERO_1 = trim(Longs.toByteArray(ENTITY_1.getNum()));
+    private static final byte[] LONG_ZERO_2 = trim(Longs.toByteArray(ENTITY_2.getNum()));
+    private static final byte[] LONG_ZERO_3 = trim(Longs.toByteArray(ENTITY_3.getNum()));
 
     private static final byte[] EVM_1 = domainBuilder.evmAddress();
     private static final byte[] EVM_2 = domainBuilder.evmAddress();
     private static final byte[] EVM_3 = domainBuilder.evmAddress();
 
+    @Mock
+    private EntityRepository entityRepository;
+
+    private ParserContext parserContext;
+
+    private SyntheticLogListener listener;
+
     @BeforeEach
     void setup() {
+        parserContext = new ParserContext();
         listener = new SyntheticLogListener(parserContext, new CacheProperties(), entityRepository);
     }
 
@@ -86,21 +83,21 @@ class SyntheticLogListenerTest {
 
         final var evmAddressMappings =
                 List.of(new EvmAddressMapping(EVM_1, ENTITY_1.getId()), new EvmAddressMapping(EVM_2, ENTITY_2.getId()));
-        when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId())))
-                .thenReturn(evmAddressMappings);
-        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog));
+        final var expectedLookupIds = Set.of(ENTITY_1.getId(), ENTITY_2.getId());
+        when(entityRepository.findEvmAddressesByIds(expectedLookupIds)).thenReturn(evmAddressMappings);
 
+        listener.onContractLog(contractLog);
         assertArrayEquals(LONG_ZERO_1, contractLog.getTopic1());
         assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
 
-        listener.onEnd(domainBuilder.recordFile().get());
+        submitAndClear();
 
-        verify(entityRepository, times(1)).findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId()));
+        verify(entityRepository, times(1)).findEvmAddressesByIds(expectedLookupIds);
 
         assertArrayEquals(EVM_1, contractLog.getTopic1());
         assertArrayEquals(EVM_2, contractLog.getTopic2());
 
-        reset(parserContext, entityRepository);
+        reset(entityRepository);
 
         final var contractLog2 = domainBuilder
                 .contractLog()
@@ -109,12 +106,12 @@ class SyntheticLogListenerTest {
                         .topic2(LONG_ZERO_2)
                         .syntheticTransfer(true))
                 .get();
-        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog2));
+        listener.onContractLog(contractLog2);
 
         assertArrayEquals(LONG_ZERO_1, contractLog2.getTopic1());
         assertArrayEquals(LONG_ZERO_2, contractLog2.getTopic2());
 
-        listener.onEnd(domainBuilder.recordFile().get());
+        submitAndClear();
 
         verifyNoInteractions(entityRepository);
         assertArrayEquals(EVM_1, contractLog2.getTopic1());
@@ -134,19 +131,20 @@ class SyntheticLogListenerTest {
         final var evmAddressMappings = Collections.<EvmAddressMapping>emptyList();
         when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId())))
                 .thenReturn(evmAddressMappings);
-        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog));
+
+        listener.onContractLog(contractLog);
 
         assertArrayEquals(LONG_ZERO_1, contractLog.getTopic1());
         assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
 
-        listener.onEnd(domainBuilder.recordFile().get());
+        submitAndClear();
 
         verify(entityRepository, times(1)).findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId()));
 
-        assertArrayEquals(TRIMMED_LONG_ZERO_1, contractLog.getTopic1());
-        assertArrayEquals(TRIMMED_LONG_ZERO_2, contractLog.getTopic2());
+        assertArrayEquals(LONG_ZERO_1, contractLog.getTopic1());
+        assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
 
-        reset(parserContext, entityRepository);
+        reset(entityRepository);
 
         final var contractLog2 = domainBuilder
                 .contractLog()
@@ -156,17 +154,17 @@ class SyntheticLogListenerTest {
                         .syntheticTransfer(true))
                 .get();
 
-        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog2));
+        listener.onContractLog(contractLog2);
 
         assertArrayEquals(LONG_ZERO_1, contractLog2.getTopic1());
         assertArrayEquals(LONG_ZERO_2, contractLog2.getTopic2());
 
-        listener.onEnd(domainBuilder.recordFile().get());
+        submitAndClear();
 
         verifyNoInteractions(entityRepository);
 
-        assertArrayEquals(TRIMMED_LONG_ZERO_1, contractLog2.getTopic1());
-        assertArrayEquals(TRIMMED_LONG_ZERO_2, contractLog2.getTopic2());
+        assertArrayEquals(LONG_ZERO_1, contractLog2.getTopic1());
+        assertArrayEquals(LONG_ZERO_2, contractLog2.getTopic2());
     }
 
     @Test
@@ -182,18 +180,20 @@ class SyntheticLogListenerTest {
         final var evmAddressMappings = List.of(new EvmAddressMapping(EVM_1, ENTITY_1.getId()));
         when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId())))
                 .thenReturn(evmAddressMappings);
-        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog));
+
+        listener.onContractLog(contractLog);
 
         assertArrayEquals(LONG_ZERO_1, contractLog.getTopic1());
         assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
 
-        listener.onEnd(domainBuilder.recordFile().get());
+        submitAndClear();
 
         verify(entityRepository, times(1)).findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId()));
         assertArrayEquals(EVM_1, contractLog.getTopic1());
-        assertArrayEquals(TRIMMED_LONG_ZERO_2, contractLog.getTopic2());
+        assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
 
-        reset(parserContext, entityRepository);
+        reset(entityRepository);
+        parserContext.clear();
 
         final var contractLog2 = domainBuilder
                 .contractLog()
@@ -202,7 +202,8 @@ class SyntheticLogListenerTest {
                         .topic2(LONG_ZERO_2)
                         .syntheticTransfer(true))
                 .get();
-        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog2));
+
+        listener.onContractLog(contractLog2);
 
         assertArrayEquals(LONG_ZERO_1, contractLog2.getTopic1());
         assertArrayEquals(LONG_ZERO_2, contractLog2.getTopic2());
@@ -211,7 +212,7 @@ class SyntheticLogListenerTest {
 
         verifyNoInteractions(entityRepository);
         assertArrayEquals(EVM_1, contractLog2.getTopic1());
-        assertArrayEquals(TRIMMED_LONG_ZERO_2, contractLog2.getTopic2());
+        assertArrayEquals(LONG_ZERO_2, contractLog2.getTopic2());
     }
 
     @Test
@@ -226,20 +227,21 @@ class SyntheticLogListenerTest {
 
         final var evmAddressMappings =
                 List.of(new EvmAddressMapping(EVM_1, ENTITY_1.getId()), new EvmAddressMapping(EVM_2, ENTITY_2.getId()));
-        when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId())))
-                .thenReturn(evmAddressMappings);
-        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog));
+        final var expectedLookupIds = Set.of(ENTITY_1.getId(), ENTITY_2.getId());
+        when(entityRepository.findEvmAddressesByIds(expectedLookupIds)).thenReturn(evmAddressMappings);
+
+        listener.onContractLog(contractLog);
 
         assertArrayEquals(LONG_ZERO_1, contractLog.getTopic1());
         assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
 
-        listener.onEnd(domainBuilder.recordFile().get());
+        submitAndClear();
 
-        verify(entityRepository, times(1)).findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId()));
+        verify(entityRepository, times(1)).findEvmAddressesByIds(expectedLookupIds);
         assertArrayEquals(EVM_1, contractLog.getTopic1());
         assertArrayEquals(EVM_2, contractLog.getTopic2());
 
-        reset(parserContext, entityRepository);
+        reset(entityRepository);
 
         final var contractLog2 = domainBuilder
                 .contractLog()
@@ -251,12 +253,13 @@ class SyntheticLogListenerTest {
 
         final var evmAddressMappings2 = List.of(new EvmAddressMapping(EVM_3, ENTITY_3.getId()));
         when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_3.getId()))).thenReturn(evmAddressMappings2);
-        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog2));
+
+        listener.onContractLog(contractLog2);
 
         assertArrayEquals(LONG_ZERO_1, contractLog2.getTopic1());
         assertArrayEquals(LONG_ZERO_3, contractLog2.getTopic2());
 
-        listener.onEnd(domainBuilder.recordFile().get());
+        submitAndClear();
 
         verify(entityRepository, times(1)).findEvmAddressesByIds(Set.of(ENTITY_3.getId()));
         assertArrayEquals(EVM_1, contractLog2.getTopic1());
@@ -281,7 +284,8 @@ class SyntheticLogListenerTest {
                         .syntheticTransfer(false))
                 .get();
 
-        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog, contractLog2));
+        listener.onContractLog(contractLog);
+        listener.onContractLog(contractLog2);
 
         assertArrayEquals(LONG_ZERO_1, contractLog.getTopic1());
         assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
@@ -293,7 +297,7 @@ class SyntheticLogListenerTest {
         when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId())))
                 .thenReturn(evmAddressMappings);
 
-        listener.onEnd(domainBuilder.recordFile().get());
+        submitAndClear();
 
         verify(entityRepository, times(1)).findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId()));
         verifyNoMoreInteractions(entityRepository);
@@ -327,6 +331,9 @@ class SyntheticLogListenerTest {
                         .syntheticTransfer(true))
                 .get();
 
+        listener.onContractLog(contractLog);
+        listener.onContractLog(contractLog2);
+
         assertArrayEquals(LONG_ZERO_1, contractLog.getTopic1());
         assertArrayEquals(LONG_ZERO_2, contractLog.getTopic2());
         assertArrayEquals(Longs.toByteArray(entity.getNum()), contractLog2.getTopic1());
@@ -335,19 +342,16 @@ class SyntheticLogListenerTest {
         final var evmAddressMappings = List.of(
                 new EvmAddressMapping(EVM_1, ENTITY_1.getId()),
                 new EvmAddressMapping(EVM_2, ENTITY_2.getId()),
-                new EvmAddressMapping(EVM_3, ENTITY_3.getId()));
-        when(entityRepository.findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId(), ENTITY_3.getId())))
-                .thenReturn(evmAddressMappings);
-        when(parserContext.get(ContractLog.class)).thenReturn(List.of(contractLog, contractLog2));
-        when(parserContext.get(Entity.class, entity.getId())).thenReturn(entity);
-        when(parserContext.get(Entity.class, ENTITY_1.getId())).thenReturn(null);
-        when(parserContext.get(Entity.class, ENTITY_2.getId())).thenReturn(null);
-        when(parserContext.get(Entity.class, ENTITY_3.getId())).thenReturn(null);
+                new EvmAddressMapping(EVM_3, ENTITY_3.getId()),
+                new EvmAddressMapping(entityEvmAddress, entity.getId()));
+        final var expectedLookupIds = Set.of(ENTITY_1.getId(), ENTITY_2.getId(), ENTITY_3.getId(), entity.getId());
 
-        listener.onEnd(domainBuilder.recordFile().get());
+        parserContext.merge(entity.getId(), entity, NO_OP_MERGE);
+        when(entityRepository.findEvmAddressesByIds(expectedLookupIds)).thenReturn(evmAddressMappings);
 
-        verify(entityRepository, times(1))
-                .findEvmAddressesByIds(Set.of(ENTITY_1.getId(), ENTITY_2.getId(), ENTITY_3.getId()));
+        submitAndClear();
+
+        verify(entityRepository, times(1)).findEvmAddressesByIds(expectedLookupIds);
         verifyNoMoreInteractions(entityRepository);
 
         assertArrayEquals(EVM_1, contractLog.getTopic1());
@@ -388,11 +392,12 @@ class SyntheticLogListenerTest {
                     lookupIdBatch1.getId(), new EvmAddressMapping(evmAddressBatch1, lookupIdBatch1.getId()));
             evmAddressMappings.put(
                     lookupIdBatch2.getId(), new EvmAddressMapping(evmAddressBatch2, lookupIdBatch2.getId()));
+
+            listener.onContractLog(contractLogBatch1);
+            listener.onContractLog(contractLogBatch2);
         }
 
         ArgumentCaptor<Iterable<Long>> idCaptor = ArgumentCaptor.forClass(Iterable.class);
-        when(parserContext.get(ContractLog.class)).thenReturn(contractLogMap.values());
-        when(parserContext.get(eq(Entity.class), anyLong())).thenReturn(null);
 
         when(entityRepository.findEvmAddressesByIds(anyIterable())).thenAnswer(invocation -> {
             final Iterable<? extends Long> ids = invocation.getArgument(0);
@@ -408,7 +413,7 @@ class SyntheticLogListenerTest {
             assertThat(contractLog.getTopic1()).isEqualTo(Longs.toByteArray(entityId.getNum()));
         }
 
-        listener.onEnd(domainBuilder.recordFile().get());
+        submitAndClear();
 
         verify(entityRepository, times(2)).findEvmAddressesByIds(idCaptor.capture());
         verifyNoMoreInteractions(entityRepository);
@@ -433,5 +438,10 @@ class SyntheticLogListenerTest {
             assertThat(contractLog.getTopic1()).isEqualTo(trim(evmAddressMapping.getEvmAddress()));
             assertThat(contractLog.getTopic2()).isEqualTo(trim(evmAddressMapping.getEvmAddress()));
         }
+    }
+
+    private void submitAndClear() {
+        listener.onEnd(domainBuilder.recordFile().get());
+        parserContext.clear();
     }
 }

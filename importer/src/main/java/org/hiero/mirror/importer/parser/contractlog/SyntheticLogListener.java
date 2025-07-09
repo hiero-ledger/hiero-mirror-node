@@ -10,19 +10,21 @@ import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.CaffeineSpec;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.google.common.collect.Iterators;
 import io.micrometer.core.annotation.Timed;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -56,18 +58,24 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
     @Override
     @Timed
     public void onEnd(RecordFile recordFile) {
-        final var candidates = parserContext.get(ContractLog.class).stream()
-                .map(this::toLogUpdater)
-                .filter(Objects::nonNull)
-                .toList();
-
-        final var keys = new HashSet<Long>(candidates.size());
-        for (var updater : candidates) {
-            keys.addAll(updater.getSearchIds());
-        }
-
+        final var logUpdaters = parserContext.getTransient(SyntheticLogUpdater.class);
+        final var keys = parserContext.getEvmAddressLookupIds();
         final var entityMap = getEvmCache().getAll(keys);
-        candidates.forEach(updater -> updater.updateContractLog(entityMap));
+
+        for (var updater : logUpdaters) {
+            updater.updateContractLog(entityMap);
+        }
+    }
+
+    @Override
+    public void onContractLog(ContractLog contractLog) {
+        if (contractLog.isSyntheticTransfer()) {
+            var updater = toLogUpdater(contractLog);
+            if (updater != null) {
+                parserContext.getEvmAddressLookupIds().addAll(updater.getSearchIds());
+                parserContext.addTransient(updater);
+            }
+        }
     }
 
     private LoadingCache<Long, byte[]> buildCache() {
@@ -80,16 +88,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
 
                     @Override
                     public Map<Long, byte[]> loadAll(Set<? extends Long> keys) {
-                        var evmAddressMapping = getCacheMisses(keys);
-                        // Populate cache with entries not in cache or database
-                        if (evmAddressMapping.size() != keys.size()) {
-                            for (var key : keys) {
-                                if (!evmAddressMapping.containsKey(key)) {
-                                    evmAddressMapping.put(key, trim(toEvmAddress(EntityId.of(key))));
-                                }
-                            }
-                        }
-                        return evmAddressMapping;
+                        return getCacheMisses(keys);
                     }
                 });
     }
@@ -100,17 +99,15 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         }
 
         Map<Long, byte[]> loadedFromDb = new HashMap<>(keys.size());
-
         if (keys.size() <= MAX_CACHE_LOAD_ENTRIES) {
             processBatch(loadedFromDb, entityRepository.findEvmAddressesByIds(keys));
         } else {
-            var i = 0;
-            final var keyList = new ArrayList<>(keys);
-            while (i < keyList.size()) {
-                final var end = Math.min(i + MAX_CACHE_LOAD_ENTRIES, keyList.size());
-                final var batch = keyList.subList(i, end);
+            final var keyIterator = keys.iterator();
+            final var batches = Iterators.partition(keyIterator, MAX_CACHE_LOAD_ENTRIES);
+
+            while (batches.hasNext()) {
+                List<? extends Long> batch = batches.next();
                 processBatch(loadedFromDb, entityRepository.findEvmAddressesByIds(batch));
-                i += MAX_CACHE_LOAD_ENTRIES;
             }
         }
 
@@ -132,10 +129,6 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             var senderId = fromTrimmedEvmAddress(contractLog.getTopic1());
             var receiverId = fromTrimmedEvmAddress(contractLog.getTopic2());
             if (!(EntityId.isEmpty(senderId) && EntityId.isEmpty(receiverId))) {
-
-                addNewEntityToCache(senderId, contractLog.getTopic1());
-                addNewEntityToCache(receiverId, contractLog.getTopic2());
-
                 return new SyntheticLogUpdater(senderId, receiverId, contractLog);
             }
         }
@@ -145,18 +138,24 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
     private void addNewEntityToCache(EntityId entityId, byte[] defaultValue) {
         if (!EntityId.isEmpty(entityId)) {
             var contextEntity = parserContext.get(Entity.class, entityId.getId());
-            if (contextEntity != null && !contextEntity.hasHistory()) {
+            if (contextEntity != null) {
                 var evmAddress = contextEntity.getEvmAddress();
-                if (evmAddress != null && evmAddress.length > 0) {
-                    getEvmCache().put(entityId.getId(), trim(evmAddress));
+                if (ArrayUtils.isEmpty(evmAddress)) {
+                    if (contextEntity.getCreatedTimestamp() != null) {
+                        getEvmCache().put(entityId.getId(), defaultValue);
+                    }
                 } else {
-                    getEvmCache().put(entityId.getId(), defaultValue);
+                    getEvmCache().put(entityId.getId(), trim(evmAddress));
                 }
             }
         }
     }
 
-    private record SyntheticLogUpdater(EntityId sender, EntityId receiver, ContractLog contractLog) {
+    @RequiredArgsConstructor
+    class SyntheticLogUpdater {
+        private final EntityId sender;
+        private final EntityId receiver;
+        private final ContractLog contractLog;
 
         public List<Long> getSearchIds() {
             var ids = new ArrayList<Long>();
@@ -173,12 +172,30 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         }
 
         public void updateContractLog(Map<Long, byte[]> entityEvmAddresses) {
-            if (!EntityId.isEmpty(sender) && entityEvmAddresses.containsKey(sender.getNum())) {
-                contractLog.setTopic1(entityEvmAddresses.get(sender.getId()));
-            }
+            updateTopicField(
+                    sender, entityEvmAddresses.get(sender.getId()), contractLog::setTopic1, contractLog::getTopic1);
+            updateTopicField(
+                    receiver, entityEvmAddresses.get(receiver.getId()), contractLog::setTopic2, contractLog::getTopic2);
+        }
 
-            if (!EntityId.isEmpty(receiver) && entityEvmAddresses.containsKey(receiver.getNum())) {
-                contractLog.setTopic2(entityEvmAddresses.get(receiver.getId()));
+        public void updateTopicField(
+                final EntityId key,
+                final byte[] cachedResult,
+                final Consumer<byte[]> setter,
+                final Supplier<byte[]> defaultValue) {
+            if (!EntityId.isEmpty(key)) {
+                if (cachedResult != null) {
+                    setter.accept(cachedResult);
+                } else {
+                    var contextEntity = parserContext.get(Entity.class, key.getId());
+                    if (contextEntity != null && !ArrayUtils.isEmpty(contextEntity.getEvmAddress())) {
+                        var trimmedEvmAddress = trim(contextEntity.getEvmAddress());
+                        getEvmCache().put(key.getId(), trimmedEvmAddress);
+                        setter.accept(trimmedEvmAddress);
+                    } else {
+                        getEvmCache().put(key.getId(), defaultValue.get());
+                    }
+                }
             }
         }
     }

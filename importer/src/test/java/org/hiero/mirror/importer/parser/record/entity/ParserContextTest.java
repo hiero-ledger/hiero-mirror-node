@@ -39,8 +39,10 @@ class ParserContextTest {
     @Test
     void clear() {
         parserContext.add(domainBuilder.entity().get());
+        parserContext.getEvmAddressLookupIds().add(1L);
         parserContext.clear();
         assertThat(getItems()).isEmpty();
+        assertThat(parserContext.getEvmAddressLookupIds()).isEmpty();
     }
 
     @Test
@@ -48,6 +50,16 @@ class ParserContextTest {
         assertThat(parserContext.get(Entity.class, 1L)).isNull();
         assertThatThrownBy(() -> parserContext.get(null, 1L)).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> parserContext.get(Entity.class, null)).isInstanceOf(NullPointerException.class);
+
+        var domain = domainBuilder.entity().get();
+        parserContext.merge(domain.getId(), domain, (a, b) -> a);
+        assertThat(parserContext.get(Entity.class, domain.getId())).isEqualTo(domain);
+    }
+
+    @Test
+    void getTransient() {
+        assertThat(parserContext.getTransient(Entity.class)).isEmpty();
+        assertThatThrownBy(() -> parserContext.getTransient(null)).isInstanceOf(NullPointerException.class);
 
         var domain = domainBuilder.entity().get();
         parserContext.merge(domain.getId(), domain, (a, b) -> a);
@@ -72,6 +84,15 @@ class ParserContextTest {
         parserContext.add(domain);
         parserContext.remove(Entity.class);
         assertThat(getItems()).containsExactly(List.of());
+    }
+
+    @Test
+    void addTransient() {
+        assertThatThrownBy(() -> parserContext.addTransient(null)).isInstanceOf(NullPointerException.class);
+        var domain = domainBuilder.entity().get();
+        parserContext.addTransient(domain);
+
+        assertThat(parserContext.getTransient(Entity.class)).containsExactly(domain);
     }
 
     private Collection<Collection<?>> getItems() {
