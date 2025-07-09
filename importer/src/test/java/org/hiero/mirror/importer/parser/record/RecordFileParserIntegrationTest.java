@@ -191,8 +191,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
     private void assertRecordFile(RecordFile... recordFiles) {
         assertThat(recordFileRepository.findAll())
                 .hasSize(recordFiles.length)
-                .usingRecursiveFieldByFieldElementComparatorIgnoringFields(
-                        "bytes", "items", "logsBloom", "sidecars", "logIndex")
+                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("bytes", "items", "logsBloom", "sidecars")
                 .containsExactlyInAnyOrder(recordFiles)
                 .allSatisfy(rf -> {
                     assertThat(rf.getLoadStart()).isPositive();
