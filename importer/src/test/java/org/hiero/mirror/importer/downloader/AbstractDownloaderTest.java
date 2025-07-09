@@ -282,7 +282,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     @ParameterizedTest(name = "Download and verify files with path type: {0}")
     @EnumSource(PathType.class)
     void download(PathType pathType) {
-        importerProperties.setStartBlockNumber(null);
         preparePathType(pathType);
 
         expectLastStreamFile(Instant.EPOCH);
@@ -295,8 +294,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     @Test
     @DisplayName("Non-unanimous consensus reached")
     void partialConsensus() throws IOException {
-        importerProperties.setStartBlockNumber(null);
-
         fileCopier.copy();
         var nodePath =
                 fileCopier.getTo().resolve(downloaderProperties.getStreamType().getNodePrefix() + "0.0.6");
@@ -312,7 +309,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     void oneThirdConsensus() {
         nodes.forEach(c -> ((ConsensusNodeStub) c).setTotalStake(3));
         nodes.remove(Iterables.getLast(nodes));
-        importerProperties.setStartBlockNumber(null);
         var nodeAccountId = nodes.iterator().next().getNodeAccountId();
 
         var srcPath = downloaderProperties.getStreamType().getNodePrefix() + "0.0." + nodeAccountId.getNum();
@@ -329,7 +325,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     void lessThanOneThirdConsensus() {
         nodes.forEach(c -> ((ConsensusNodeStub) c).setTotalStake(4));
         nodes.remove(Iterables.getLast(nodes));
-        importerProperties.setStartBlockNumber(null);
         var nodeAccountId = nodes.iterator().next().getNodeAccountId();
 
         var srcPath = downloaderProperties.getStreamType().getNodePrefix() + "0.0." + nodeAccountId.getNum();
@@ -456,7 +451,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     @Test
     @DisplayName("Download and verify two group of files in the same bucket")
     void downloadValidFilesInSameBucket() {
-        importerProperties.setStartBlockNumber(null);
 
         // last valid downloaded file's timestamp is set to file1's timestamp - (I/2 + 1ns), so both file1 and file2
         // will be in the bucket [lastTimestamp + I/2, lastTimestamp + 3*I/2). Note the interval I is set to twice of
@@ -506,7 +500,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     })
     void endDate(long seconds, String fileChoice) {
         importerProperties.setEndDate(chooseFileInstant(fileChoice).plusSeconds(seconds));
-        importerProperties.setStartBlockNumber(null);
         commonDownloaderProperties.setBatchSize(1);
         List<String> expectedFiles = instantFilenamePairs.stream()
                 .filter(pair -> !pair.getLeft().isAfter(importerProperties.getEndDate()))
@@ -525,7 +518,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     @Test
     void singleNodeSigFileCorrupted() throws Exception {
         corruptedNodeAccountId = nodes.iterator().next().getNodeAccountId();
-        importerProperties.setStartBlockNumber(null);
         fileCopier.copy();
         Files.walk(s3Path)
                 .filter(this::isSigFile)
@@ -539,7 +531,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     @Test
     void singleNodeStreamFileCorrupted() throws Exception {
         corruptedNodeAccountId = nodes.iterator().next().getNodeAccountId();
-        importerProperties.setStartBlockNumber(null);
         fileCopier.copy();
         Files.walk(s3Path)
                 .filter(Predicate.not(this::isSigFile))
@@ -554,7 +545,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     @DisplayName("Max download items reached")
     void maxDownloadItemsReached() {
         commonDownloaderProperties.setBatchSize(1);
-        importerProperties.setStartBlockNumber(null);
         fileCopier.copy();
         expectLastStreamFile(Instant.EPOCH);
 
@@ -594,7 +584,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     @Test
     void persistBytes() {
         downloaderProperties.setPersistBytes(true);
-        importerProperties.setStartBlockNumber(null);
         fileCopier.copy();
         expectLastStreamFile(Instant.EPOCH);
         downloader.download();
@@ -636,8 +625,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
 
     @SneakyThrows
     private void differentFilenames(Duration offset) {
-        importerProperties.setStartBlockNumber(null);
-
         // Copy all files and modify only node 0.0.3's files to have a different timestamp
         fileCopier.filterFiles(getStreamFilenameInstantString(file2) + "*").copy();
         Path basePath = fileCopier.getTo().resolve(streamType.getNodePrefix() + entityNum(3));

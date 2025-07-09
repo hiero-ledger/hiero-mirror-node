@@ -17,20 +17,20 @@
     ],
     "tokens": [
       {
-        "token_id": "0.20.1",
+        "token_id": "0.0.1",
         "symbol": "TOKEN1",
         "created_timestamp": "1234567890000000001",
         "decimals": 1,
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.20.2",
+        "token_id": "0.0.2",
         "symbol": "TOKEN2",
         "created_timestamp": "1234567890000000002",
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.20.3",
+        "token_id": "0.0.3",
         "symbol": "TOKEN3",
         "created_timestamp": "1234567890000000003",
         "type": "FUNGIBLE_COMMON"
@@ -38,7 +38,7 @@
     ],
     "tokenaccounts": [
       {
-        "token_id": "0.20.1",
+        "token_id": "0.0.1",
         "account_id": "0.0.8",
         "balance": 20,
         "balance_timestamp": 5432
@@ -47,7 +47,7 @@
     "transactions": [],
     "cryptotransfers": []
   },
-  "url": "/api/v1/tokens/0.20.1/balances?account.publickey=519a008fabde4d28d68293c71fcdcdcca38d8fae6102a832b31e802f257fd1d9",
+  "url": "/api/v1/tokens/0.0.1/balances?account.publickey=519a008fabde4d28d68293c71fcdcdcca38d8fae6102a832b31e802f257fd1d9",
   "responseStatus": 200,
   "responseJson": {
     "timestamp": "0.000005432",

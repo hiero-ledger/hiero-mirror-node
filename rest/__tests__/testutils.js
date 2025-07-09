@@ -18,6 +18,8 @@ const invalidBase32Strs = [
   'AA======', // padding not accepted
 ];
 
+const TABLE_USAGE_OUTPUT_DIR = 'build/table-usage';
+
 const assertSqlQueryEqual = (actual, expected) => {
   expect(formatSqlQueryString(actual)).toEqual(formatSqlQueryString(expected));
 };
@@ -68,4 +70,5 @@ export {
   invalidBase32Strs,
   isV2Schema,
   valueToBuffer,
+  TABLE_USAGE_OUTPUT_DIR,
 };

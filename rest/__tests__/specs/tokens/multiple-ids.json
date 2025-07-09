@@ -11,12 +11,10 @@
         "type": "TOKEN"
       },
       {
-        "realm": 7,
         "num": 25301,
         "type": "TOKEN"
       },
       {
-        "realm": 23,
         "num": 45678,
         "type": "TOKEN"
       }
@@ -38,7 +36,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.7.25301",
+        "token_id": "0.0.25301",
         "symbol": "MIRRORTOKEN",
         "created_timestamp": "1234567890000000003",
         "decimals": 3,
@@ -46,7 +44,7 @@
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.23.45678",
+        "token_id": "0.0.45678",
         "symbol": "HEDERACOIN",
         "created_timestamp": "1234567890000000004",
         "type": "FUNGIBLE_COMMON"
@@ -56,10 +54,10 @@
   "tests": [
     {
       "urls": [
-        "/api/v1/tokens?token.id=0.0.1135&token.id=0.7.25301",
-        "/api/v1/tokens?token.id=0.0.1135&token.id=eq:0.7.25301",
-        "/api/v1/tokens?token.id=0.0.1135&token.id=eq:0.7.25301&token.id=gt:1134&token.id=lte:0.7.25301",
-        "/api/v1/tokens?token.id=0.0.1135&token.id=eq:0.7.25301&token.id=gte:1135&token.id=lt:0.7.25302"
+        "/api/v1/tokens?token.id=0.0.1135&token.id=0.0.25301",
+        "/api/v1/tokens?token.id=0.0.1135&token.id=eq:0.0.25301",
+        "/api/v1/tokens?token.id=0.0.1135&token.id=eq:0.0.25301&token.id=gt:1134&token.id=lte:0.0.25301",
+        "/api/v1/tokens?token.id=0.0.1135&token.id=eq:0.0.25301&token.id=gte:1135&token.id=lt:0.0.25302"
       ],
       "responseStatus": 200,
       "responseJson": {
@@ -74,7 +72,7 @@
             "type": "FUNGIBLE_COMMON"
           },
           {
-            "token_id": "0.7.25301",
+            "token_id": "0.0.25301",
             "symbol": "MIRRORTOKEN",
             "admin_key": null,
             "decimals": 3,
@@ -90,7 +88,7 @@
     },
     {
       "urls": [
-        "/api/v1/tokens?token.id=0.0.1135&token.id=0.7.25301&token.id=gt:1134&token.id=lt:0.7.25301"
+        "/api/v1/tokens?token.id=0.0.1135&token.id=0.7.25301&token.id=gt:1134&token.id=lt:0.0.25301"
       ],
       "responseStatus": 200,
       "responseJson": {

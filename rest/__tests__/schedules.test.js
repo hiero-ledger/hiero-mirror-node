@@ -6,6 +6,7 @@ import {getResponseLimit} from '../config';
 import * as constants from '../constants';
 import schedules from '../schedules';
 import * as utils from '../utils';
+import EntityId from '../entityId';
 
 const {default: defaultLimit} = getResponseLimit();
 
@@ -269,9 +270,12 @@ describe('schedule extractSqlFromScheduleFilters tests', () => {
   });
 
   test('Verify all filter params query /api/v1/schedules?account.id=gte:0.0.123&schedule.id=lt:456&order=desc&limit=10', () => {
+    const accountEntityId = EntityId.parseString('123');
+    const scheduleEntityId = EntityId.parseString('456');
+
     const filters = [
-      utils.buildComparatorFilter(constants.filterKeys.ACCOUNT_ID, 'gte:123'),
-      utils.buildComparatorFilter(constants.filterKeys.SCHEDULE_ID, 'lt:456'),
+      utils.buildComparatorFilter(constants.filterKeys.ACCOUNT_ID, `gte:${accountEntityId.num}`),
+      utils.buildComparatorFilter(constants.filterKeys.SCHEDULE_ID, `lt:${scheduleEntityId.num}`),
       utils.buildComparatorFilter(constants.filterKeys.ORDER, 'desc'),
       utils.buildComparatorFilter(constants.filterKeys.LIMIT, '10'),
     ];
@@ -281,7 +285,7 @@ describe('schedule extractSqlFromScheduleFilters tests', () => {
     }
 
     const expectedquery = 'where creator_account_id >= $1 and s.schedule_id < $2';
-    const expectedparams = [123, 456, 10];
+    const expectedparams = [accountEntityId.getEncodedId(), scheduleEntityId.getEncodedId(), 10];
     const expectedorder = constants.orderFilterValues.DESC;
     const expectedlimit = 10;
 

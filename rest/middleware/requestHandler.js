@@ -11,7 +11,7 @@ const queryCanonicalizationMap = {
   result: lowerCaseQueryValue,
 };
 
-const requestLogger = async (req, res, next) => {
+const requestLogger = async (req, res) => {
   const requestId = await randomString(8);
   httpContext.set(requestIdLabel, requestId);
 
