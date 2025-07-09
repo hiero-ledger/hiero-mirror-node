@@ -6,7 +6,6 @@ import static org.hyperledger.besu.evm.internal.EvmConfiguration.WorldUpdaterMod
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.SemanticVersion;
-import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.exec.operations.HederaCustomCallOperation;
 import com.hedera.node.app.service.evm.contracts.execution.traceability.HederaEvmOperationTracer;
 import com.hedera.node.app.service.evm.contracts.operations.CreateOperationExternalizer;
@@ -42,9 +41,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmMessageCallProcessor;
 import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmMessageCallProcessorV30;
 import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmMessageCallProcessorV50;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationTracer;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
 import org.hiero.mirror.web3.evm.contracts.operations.HederaBlockHashOperation;
@@ -261,17 +258,6 @@ public class EvmConfiguration {
         Map<TracerType, Provider<HederaEvmOperationTracer>> tracerMap = new EnumMap<>(TracerType.class);
         tracerMap.put(TracerType.OPCODE, () -> opcodeTracer);
         tracerMap.put(TracerType.OPERATION, () -> mirrorOperationTracer);
-        return tracerMap;
-    }
-
-    @Bean
-    @ConditionalOnProperty(name = "hiero.mirror.web3.evm.modularizedServices", havingValue = "true")
-    Map<TracerType, Provider<ActionSidecarContentTracer>> tracerProvider(
-            final MirrorOperationActionTracer mirrorOperationActionTracer,
-            final OpcodeActionTracer opcodeActionTracer) {
-        Map<TracerType, Provider<ActionSidecarContentTracer>> tracerMap = new EnumMap<>(TracerType.class);
-        tracerMap.put(TracerType.OPCODE, () -> opcodeActionTracer);
-        tracerMap.put(TracerType.OPERATION, () -> mirrorOperationActionTracer);
         return tracerMap;
     }
 

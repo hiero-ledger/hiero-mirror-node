@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import static com.hedera.services.store.contracts.precompile.ExchangeRatePrecompiledContract.EXCHANGE_RATE_SYSTEM_CONTRACT_ADDRESS;
-import static com.hedera.services.store.contracts.precompile.PrngSystemPrecompiledContract.PRNG_PRECOMPILE_ADDRESS;
 import static com.hedera.services.store.contracts.precompile.SyntheticTxnFactory.HTS_PRECOMPILED_CONTRACT_ADDRESS;
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.OUTPUT;
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REVERT_REASON;
@@ -29,6 +27,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.ContractID;
+import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
 import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
 import com.hedera.node.app.service.contract.impl.state.StorageAccess;
 import com.hedera.node.app.service.contract.impl.state.StorageAccesses;
@@ -51,7 +50,6 @@ import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.config.PrecompilesHolder;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
@@ -66,7 +64,6 @@ import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.AbstractOperation;
 import org.hyperledger.besu.evm.operation.Operation;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
-import org.hyperledger.besu.evm.precompile.PrecompiledContract;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -112,9 +109,6 @@ class OpcodeActionTracerTest {
     private MutableAccount recipientAccount;
 
     @Mock
-    private PrecompilesHolder precompilesHolder;
-
-    @Mock
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     // Transient test data
@@ -139,16 +133,9 @@ class OpcodeActionTracerTest {
 
     @BeforeEach
     void setUp() {
-        when(precompilesHolder.getHederaPrecompiles())
-                .thenReturn(Map.of(
-                        HTS_PRECOMPILE_ADDRESS.toString(),
-                        mock(PrecompiledContract.class),
-                        PRNG_PRECOMPILE_ADDRESS,
-                        mock(PrecompiledContract.class),
-                        EXCHANGE_RATE_SYSTEM_CONTRACT_ADDRESS,
-                        mock(PrecompiledContract.class)));
         REMAINING_GAS.set(INITIAL_GAS);
-        tracer = new OpcodeActionTracer(precompilesHolder);
+        tracer = new OpcodeActionTracer();
+        tracer.setSystemContracts(Map.of(HTS_PRECOMPILE_ADDRESS, mock(HederaSystemContract.class)));
         tracerOptions = new OpcodeTracerOptions(false, false, false, true);
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
     }
@@ -509,10 +496,8 @@ class OpcodeActionTracerTest {
     @DisplayName("should return ABI-encoded revert reason for precompile call with plaintext revert reason")
     void shouldReturnAbiEncodedRevertReasonWhenPrecompileCallHasContractActionWithPlaintextRevertReason() {
         // Given
-        final var contractActionNoRevert =
-                contractAction(0, 0, CallOperationType.OP_CREATE, OUTPUT.getNumber(), CONTRACT_ADDRESS);
-        final var contractActionWithRevert =
-                contractAction(1, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
+        final var contractActionNoRevert = getContractActionNoRevert();
+        final var contractActionWithRevert = getContractActionWithRevert();
         contractActionWithRevert.setResultData("revert reason".getBytes());
 
         frame = setupInitialFrame(
@@ -538,10 +523,8 @@ class OpcodeActionTracerTest {
     @DisplayName("should return ABI-encoded revert reason for precompile call with response code for revert reason")
     void shouldReturnAbiEncodedRevertReasonWhenPrecompileCallHasContractActionWithResponseCodeNumberRevertReason() {
         // Given
-        final var contractActionNoRevert =
-                contractAction(0, 0, CallOperationType.OP_CREATE, OUTPUT.getNumber(), CONTRACT_ADDRESS);
-        final var contractActionWithRevert =
-                contractAction(1, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
+        final var contractActionNoRevert = getContractActionNoRevert();
+        final var contractActionWithRevert = getContractActionWithRevert();
         contractActionWithRevert.setResultData(ByteBuffer.allocate(32)
                 .putInt(28, ResponseCodeEnum.INVALID_ACCOUNT_ID.getNumber())
                 .array());
@@ -570,8 +553,7 @@ class OpcodeActionTracerTest {
     @DisplayName("should return ABI-encoded revert reason for precompile call with ABI-encoded revert reason")
     void shouldReturnAbiEncodedRevertReasonWhenPrecompileCallHasContractActionWithAbiEncodedRevertReason() {
         // Given
-        final var contractActionNoRevert =
-                contractAction(0, 0, CallOperationType.OP_CREATE, OUTPUT.getNumber(), CONTRACT_ADDRESS);
+        final var contractActionNoRevert = getContractActionNoRevert();
         final var contractActionWithRevert =
                 contractAction(1, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
         contractActionWithRevert.setResultData(
@@ -600,10 +582,8 @@ class OpcodeActionTracerTest {
     @DisplayName("should return empty revert reason of precompile call with empty revert reason")
     void shouldReturnEmptyReasonWhenPrecompileCallHasContractActionWithEmptyRevertReason() {
         // Given
-        final var contractActionNoRevert =
-                contractAction(0, 0, CallOperationType.OP_CREATE, OUTPUT.getNumber(), CONTRACT_ADDRESS);
-        final var contractActionWithRevert =
-                contractAction(1, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
+        final var contractActionNoRevert = getContractActionNoRevert();
+        final var contractActionWithRevert = getContractActionWithRevert();
         contractActionWithRevert.setResultData(Bytes.EMPTY.toArray());
 
         frame = setupInitialFrame(
@@ -794,7 +774,15 @@ class OpcodeActionTracerTest {
                 .contextVariables(Map.of(ContractCallContext.CONTEXT_NAME, contractCallContext));
     }
 
-    private ContractAction contractAction(
+    private ContractAction getContractActionNoRevert() {
+        return contractAction(0, 0, CallOperationType.OP_CREATE, OUTPUT.getNumber(), CONTRACT_ADDRESS);
+    }
+
+    private ContractAction getContractActionWithRevert() {
+        return contractAction(1, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
+    }
+
+    private static ContractAction contractAction(
             final int index,
             final int depth,
             final CallOperationType callOperationType,

@@ -2,11 +2,6 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import static org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerUtils.captureMemory;
-import static org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerUtils.captureStack;
-import static org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerUtils.getRevertReasonFromContractActions;
-import static org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerUtils.isCallToHederaPrecompile;
-
 import com.hedera.hapi.streams.ContractActionType;
 import com.hedera.hapi.streams.ContractActions;
 import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
@@ -22,23 +17,13 @@ import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.config.PrecompiledContractProvider;
-import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
-import org.hyperledger.besu.evm.precompile.PrecompiledContract;
 
 @Named
 @CustomLog
-public class OpcodeActionTracer implements ActionSidecarContentTracer {
-
-    private final Map<Address, PrecompiledContract> hederaPrecompiles;
-
-    public OpcodeActionTracer(@NonNull final PrecompiledContractProvider precompiledContractProvider) {
-        this.hederaPrecompiles = precompiledContractProvider.getHederaPrecompiles().entrySet().stream()
-                .collect(Collectors.toMap(e -> Address.fromHexString(e.getKey()), Map.Entry::getValue));
-    }
+public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSidecarContentTracer {
 
     @Override
     public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
@@ -67,7 +52,7 @@ public class OpcodeActionTracer implements ActionSidecarContentTracer {
     public void tracePrecompileCall(
             @NonNull final MessageFrame frame, final long gasRequirement, @Nullable final Bytes output) {
         final var context = ContractCallContext.get();
-        final var revertReason = isCallToHederaPrecompile(frame, hederaPrecompiles)
+        final var revertReason = isCallToSystemContracts(frame, systemContracts)
                 ? getRevertReasonFromContractActions(context)
                 : frame.getRevertReason();
 

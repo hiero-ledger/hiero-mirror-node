@@ -89,11 +89,11 @@ public class OpcodeServiceImpl implements OpcodeService {
                 final var transactionList =
                         transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
                                 payerAccountId, validStartNs);
-                if (transactionList.isEmpty() || transactionList.get().isEmpty()) {
+                if (transactionList.isEmpty()) {
                     throw new EntityNotFoundException("Transaction not found: " + transactionId);
                 }
 
-                final var parentTransaction = transactionList.get().getFirst();
+                final var parentTransaction = transactionList.getFirst();
                 transaction = Optional.of(parentTransaction);
                 consensusTimestamp = parentTransaction.getConsensusTimestamp();
                 ethereumTransaction = ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(

@@ -42,6 +42,7 @@ import java.util.Objects;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
@@ -66,6 +67,7 @@ import org.hyperledger.besu.evm.tracing.OperationTracer;
  * Copy of the class from hedera-app. The differences with it are:
  *
  * - It sets the gasRequirement for a system contract in the ContractCallContext.
+ * - It sets the current Map with system contracts coming from hedera.app inside {@link OpcodeActionTracer}
  * - It calls {@link AddOnEvmActionTracer#tracePrecompileCall(MessageFrame, long, Bytes)} instead of
  * {@link AddOnEvmActionTracer#tracePrecompileResult(MessageFrame, ContractActionType)} for precompiles.
  * The reasons are that we need to pass the gasRequirement to the tracer and that
@@ -141,6 +143,11 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
                 if (alreadyHalted(frame)) {
                     return;
                 }
+            }
+
+            if (tracer instanceof final OpcodeActionTracer opcodeActionTracer
+                    && opcodeActionTracer.getSystemContracts().isEmpty()) {
+                opcodeActionTracer.setSystemContracts(systemContracts);
             }
             doExecuteSystemContract(systemContracts.get(codeAddress), codeAddress, frame, tracer);
             return;

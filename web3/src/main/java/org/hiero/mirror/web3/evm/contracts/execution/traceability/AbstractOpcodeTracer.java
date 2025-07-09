@@ -2,13 +2,16 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
+import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import lombok.experimental.UtilityClass;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -18,13 +21,15 @@ import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.precompile.PrecompiledContract;
 import org.springframework.util.CollectionUtils;
 
-/**
- * Common utility class with methods used for tracing information
- */
-@UtilityClass
-public class TracerUtils {
+public abstract class AbstractOpcodeTracer {
 
-    public static List<Bytes> captureMemory(final MessageFrame frame, OpcodeTracerOptions options) {
+    @Getter
+    @Setter
+    protected Map<Address, HederaSystemContract> systemContracts = new HashMap<>();
+
+    protected Map<Address, PrecompiledContract> hederaPrecompiles = new HashMap<>();
+
+    protected List<Bytes> captureMemory(final MessageFrame frame, final OpcodeTracerOptions options) {
         if (!options.isMemory()) {
             return Collections.emptyList();
         }
@@ -38,7 +43,7 @@ public class TracerUtils {
         return memory;
     }
 
-    public static List<Bytes> captureStack(final MessageFrame frame, OpcodeTracerOptions options) {
+    protected List<Bytes> captureStack(final MessageFrame frame, final OpcodeTracerOptions options) {
         if (!options.isStack()) {
             return Collections.emptyList();
         }
@@ -52,8 +57,8 @@ public class TracerUtils {
         return stack;
     }
 
-    public static Optional<Bytes> getRevertReasonFromContractActions(final ContractCallContext context) {
-        List<ContractAction> contractActions = context.getContractActions();
+    protected Optional<Bytes> getRevertReasonFromContractActions(final ContractCallContext context) {
+        final var contractActions = context.getContractActions();
 
         if (CollectionUtils.isEmpty(contractActions)) {
             return Optional.empty();
@@ -62,14 +67,20 @@ public class TracerUtils {
         return contractActions.stream()
                 .filter(ContractAction::hasRevertReason)
                 .map(action -> Bytes.of(action.getResultData()))
-                .map(TracerUtils::formatRevertReason)
+                .map(this::formatRevertReason)
                 .findFirst();
     }
 
-    public static boolean isCallToHederaPrecompile(
+    protected boolean isCallToHederaPrecompile(
             final MessageFrame frame, final Map<Address, PrecompiledContract> hederaPrecompiles) {
         final var recipientAddress = frame.getRecipientAddress();
         return hederaPrecompiles.containsKey(recipientAddress);
+    }
+
+    protected boolean isCallToSystemContracts(
+            final MessageFrame frame, final Map<Address, HederaSystemContract> systemContracts) {
+        final var recipientAddress = frame.getRecipientAddress();
+        return systemContracts.containsKey(recipientAddress);
     }
 
     /**
@@ -79,7 +90,7 @@ public class TracerUtils {
      * @param revertReason the revert reason
      * @return the formatted revert reason
      */
-    public static Bytes formatRevertReason(final Bytes revertReason) {
+    protected Bytes formatRevertReason(final Bytes revertReason) {
         if (revertReason == null || revertReason.isZero()) {
             return Bytes.EMPTY;
         }

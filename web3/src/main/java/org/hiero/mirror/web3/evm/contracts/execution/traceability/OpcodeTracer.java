@@ -2,11 +2,6 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import static org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerUtils.captureMemory;
-import static org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerUtils.captureStack;
-import static org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerUtils.getRevertReasonFromContractActions;
-import static org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerUtils.isCallToHederaPrecompile;
-
 import com.hedera.node.app.service.mono.contracts.execution.traceability.HederaOperationTracer;
 import com.hedera.services.stream.proto.ContractActionType;
 import jakarta.inject.Named;
@@ -27,14 +22,11 @@ import org.hyperledger.besu.evm.ModificationNotAllowedException;
 import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation;
-import org.hyperledger.besu.evm.precompile.PrecompiledContract;
 
 @Named
 @CustomLog
 @Getter
-public class OpcodeTracer implements HederaOperationTracer {
-
-    private final Map<Address, PrecompiledContract> hederaPrecompiles;
+public class OpcodeTracer extends AbstractOpcodeTracer implements HederaOperationTracer {
 
     public OpcodeTracer(final PrecompiledContractProvider precompiledContractProvider) {
         this.hederaPrecompiles = precompiledContractProvider.getHederaPrecompiles().entrySet().stream()
