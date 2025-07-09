@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.common.interceptor;
 
-import static org.hiero.mirror.common.util.Constants.UNKNOWN_ENDPOINT;
+import static org.hiero.mirror.common.util.EndpointContext.UNKNOWN_ENDPOINT;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.metamodel.EntityType;

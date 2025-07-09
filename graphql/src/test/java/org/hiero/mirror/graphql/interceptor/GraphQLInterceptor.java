@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common.interceptor;
+package org.hiero.mirror.graphql.interceptor;
 
-import static org.hiero.mirror.common.util.Constants.CURRENT_ENDPOINT;
+import static org.hiero.mirror.common.util.EndpointContext.ENDPOINT;
 
 import graphql.language.Field;
 import graphql.language.OperationDefinition;
@@ -19,9 +19,9 @@ public final class GraphQLInterceptor implements WebGraphQlInterceptor {
     @Override
     public Mono<WebGraphQlResponse> intercept(final WebGraphQlRequest request, final Chain chain) {
         final var endpoint = extractEndpointFromQuery(request);
-        request.configureExecutionInput((input, builder) -> builder.graphQLContext(
-                        contextBuilder -> contextBuilder.of(CURRENT_ENDPOINT, endpoint))
-                .build());
+        request.configureExecutionInput(
+                (input, builder) -> builder.graphQLContext(contextBuilder -> contextBuilder.of(ENDPOINT, endpoint))
+                        .build());
         return chain.next(request);
     }
 

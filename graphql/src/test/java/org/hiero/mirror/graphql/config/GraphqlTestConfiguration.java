@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common.config;
+package org.hiero.mirror.graphql.config;
 
-import org.hiero.mirror.common.graphql.EndpointInstrumentation;
-import org.hiero.mirror.common.interceptor.GraphQLInterceptor;
+import org.hiero.mirror.graphql.interceptor.EndpointInstrumentation;
+import org.hiero.mirror.graphql.interceptor.GraphQLInterceptor;
 import org.springframework.boot.autoconfigure.graphql.GraphQlSourceBuilderCustomizer;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;

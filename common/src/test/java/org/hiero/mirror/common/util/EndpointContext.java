@@ -15,6 +15,9 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class EndpointContext {
 
+    public static final String UNKNOWN_ENDPOINT = "UNKNOWN_ENDPOINT";
+    public static final String ENDPOINT = "ENDPOINT";
+
     private static final ThreadLocal<String> CURRENT_ENDPOINT = new InheritableThreadLocal<>();
 
     public static void setCurrentEndpoint(final String endpoint) {

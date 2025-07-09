@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common.graphql;
+package org.hiero.mirror.graphql.interceptor;
 
-import static org.hiero.mirror.common.util.Constants.CURRENT_ENDPOINT;
-import static org.hiero.mirror.common.util.Constants.UNKNOWN_ENDPOINT;
+import static org.hiero.mirror.common.util.EndpointContext.ENDPOINT;
+import static org.hiero.mirror.common.util.EndpointContext.UNKNOWN_ENDPOINT;
 
 import graphql.execution.instrumentation.Instrumentation;
 import graphql.execution.instrumentation.InstrumentationState;
@@ -37,7 +37,7 @@ public final class EndpointInstrumentation implements Instrumentation {
 
         return (DataFetchingEnvironment env) -> {
             // read the endpoint straight from GraphQLContext (it survives thread hops)
-            final var endpoint = env.getGraphQlContext().getOrDefault(CURRENT_ENDPOINT, UNKNOWN_ENDPOINT);
+            final var endpoint = env.getGraphQlContext().getOrDefault(ENDPOINT, UNKNOWN_ENDPOINT);
 
             // setting the ThreadLocal so RepositoryUsageInterceptor can see it
             EndpointContext.setCurrentEndpoint(endpoint);

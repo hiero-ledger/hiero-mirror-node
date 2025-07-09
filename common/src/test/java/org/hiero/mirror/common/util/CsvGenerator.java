@@ -51,7 +51,9 @@ public final class CsvGenerator {
     }
 
     private static String escapeCsv(String value) {
-        if (value == null) return "";
+        if (value == null) {
+            return "";
+        }
         var escaped = value.replace("\"", "\"\"");
         if (escaped.contains(",") || escaped.contains("\"") || escaped.contains("\n") || escaped.contains("\r")) {
             return "\"" + escaped + "\"";
