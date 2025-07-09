@@ -13,7 +13,6 @@ import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.collect.Iterators;
 import io.micrometer.core.annotation.Timed;
 import jakarta.inject.Named;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -72,7 +71,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         if (contractLog.isSyntheticTransfer()) {
             var updater = toLogUpdater(contractLog);
             if (updater != null) {
-                parserContext.getEvmAddressLookupIds().addAll(updater.getSearchIds());
+                updater.populateSearchIds();
                 parserContext.addTransient(updater);
             }
         }
@@ -141,18 +140,14 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         private final EntityId receiver;
         private final ContractLog contractLog;
 
-        public List<Long> getSearchIds() {
-            var ids = new ArrayList<Long>();
-
+        public void populateSearchIds() {
             if (!EntityId.isEmpty(receiver)) {
-                ids.add(receiver.getId());
+                parserContext.getEvmAddressLookupIds().add(receiver.getId());
             }
 
             if (!EntityId.isEmpty(sender)) {
-                ids.add(sender.getId());
+                parserContext.getEvmAddressLookupIds().add(sender.getId());
             }
-
-            return ids;
         }
 
         public void updateContractLog(Map<Long, byte[]> entityEvmAddresses) {

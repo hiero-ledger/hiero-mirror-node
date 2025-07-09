@@ -1,6 +1,6 @@
 set citus.max_intermediate_result_size = -1;
 
-    with entity_addresses as (
+with entity_addresses as (
     select num, evm_address
     from entity
     where length(evm_address) > 0

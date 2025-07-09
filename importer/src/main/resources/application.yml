@@ -38,7 +38,7 @@ hiero:
         record:
           entity:
             persist:
-              synthetic-contract-log-evm-address-lookup: true
+              syntheticContractLogEvmAddressLookup: true
 
 logging:
   level:
