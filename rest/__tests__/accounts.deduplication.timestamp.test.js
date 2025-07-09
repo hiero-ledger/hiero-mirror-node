@@ -6,6 +6,7 @@ import * as utils from '../utils';
 import request from 'supertest';
 import server from '../server';
 import * as constants from '../constants';
+import EntityId from '../entityId';
 
 setupIntegrationTest();
 
@@ -23,110 +24,122 @@ describe('Accounts deduplicate timestamp tests', () => {
   const consensusTimestamp1 = createdTimestamp1 - 1n;
   const consensusTimestamp2 = balanceTimestamp1 + nanoSecondsPerSecond;
 
+  const entityId1 = EntityId.parseString('1');
+  const entityId2 = EntityId.systemEntity.treasuryAccount;
+  const entityId3 = EntityId.parseString('3');
+  const entityId7 = EntityId.parseString('7');
+  const entityId8 = EntityId.parseString('8');
+  const entityId9 = EntityId.parseString('9');
+  const entityId98 = EntityId.systemEntity.feeCollector;
+  const entityId1679 = EntityId.parseString('1679');
+  const entityId90000 = EntityId.parseString('90000');
+  const entityId99998 = EntityId.parseString('99998');
+  const entityId99999 = EntityId.parseString('99999');
+
   beforeEach(async () => {
     await integrationDomainOps.loadAccounts([
       {
-        num: 3,
+        num: entityId3.num,
       },
       {
-        num: 7,
+        num: entityId7.num,
       },
       {
         balance: 80,
         balance_timestamp: balanceTimestamp1,
-        num: 8,
+        num: entityId8.num,
         alias: 'KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ',
         public_key: '519a008fabde4d28d68293c71fcdcdcca38d8fae6102a832b31e802f257fd1d9',
         timestamp_range: `[${timestampRange1},)`,
-        staked_node_id: 1,
-        staked_account_id: 1,
+        staked_node_id: entityId1.num,
+        staked_account_id: entityId1.num,
       },
       {
         balance: 30,
-        num: 8,
+        num: entityId8.num,
         alias: 'KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ',
         public_key: '519a008fabde4d28d68293c71fcdcdcca38d8fae6102a832b31e802f257fd1d9',
         timestamp_range: `[${timestampRange2 - 1n}, ${timestampRange2})`,
-        staked_node_id: 2,
-        staked_account_id: 2,
+        staked_node_id: entityId2.num,
+        staked_account_id: entityId2.num,
       },
       {
-        num: 9,
+        num: entityId9.num,
       },
       {
-        num: 98,
+        num: entityId98.num,
       },
     ]);
     await integrationDomainOps.loadBalances([
       {
         timestamp: balanceTimestamp1,
-        id: 2,
+        id: entityId2.num,
         balance: 2,
       },
       {
         timestamp: balanceTimestamp1,
-        id: 7,
+        id: entityId7.num,
         balance: 80,
         tokens: [
           {
-            token_num: 99998,
+            token_num: entityId99998.num,
             balance: 7,
           },
           {
-            token_num: 99999,
+            token_num: entityId99999.num,
             balance: 77,
           },
         ],
       },
       {
         timestamp: balanceTimestamp1,
-        id: 8,
+        id: entityId8.num,
         balance: 80,
         tokens: [
           {
-            token_num: 99998,
+            token_num: entityId99998.num,
             balance: 98,
           },
           {
-            token_num: 99999,
+            token_num: entityId99999.num,
             balance: 88,
           },
         ],
       },
       {
         timestamp: beginningOfPreviousMonth,
-        id: 2,
+        id: entityId2.num,
         balance: 2,
       },
       {
         timestamp: beginningOfPreviousMonth,
-        id: 9,
+        id: entityId9.num,
         balance: 999,
       },
     ]);
 
     await integrationDomainOps.loadTokenAccounts([
       {
-        token_id: '0.0.99998',
-        account_id: '0.0.7',
+        token_id: entityId99998.num,
+        account_id: entityId7.num,
         balance: 7,
         created_timestamp: createdTimestamp1,
       },
       {
-        token_id: '0.0.99999',
-        account_id: '0.0.7',
+        token_id: entityId99999.num,
+        account_id: entityId7.num,
         balance: 77,
         created_timestamp: '2200',
       },
       {
-        token_id: '0.0.99998',
-        account_id: '0.0.8',
+        token_id: entityId99998.num,
+        account_id: entityId8.num,
         balance: 8,
         created_timestamp: createdTimestamp1,
       },
       {
-        token_id: '0.0.99999',
-        account_id: '0.0.8',
+        token_id: entityId99999.num,
+        account_id: entityId8.num,
         balance: 88,
         created_timestamp: createdTimestamp1,
       },
@@ -134,48 +147,48 @@ describe('Accounts deduplicate timestamp tests', () => {
 
     await integrationDomainOps.loadTransactions([
       {
-        payerAccountId: '0.0.9',
-        nodeAccountId: '0.0.3',
+        payerAccountId: entityId9.num,
+        nodeAccountId: entityId3.num,
         consensus_timestamp: beginningOfPreviousMonth,
         name: 'TOKENCREATION',
         type: '29',
-        entity_id: '0.0.90000',
+        entity_id: entityId90000.num,
       },
       {
-        payerAccountId: '0.0.9',
-        nodeAccountId: '0.0.3',
+        payerAccountId: entityId9.num,
+        nodeAccountId: entityId3.num,
         consensus_timestamp: consensusTimestamp1,
         name: 'CRYPTODELETE',
         type: '12',
-        entity_id: '0.0.7',
+        entity_id: entityId7.num,
       },
       {
         charged_tx_fee: 0,
-        payerAccountId: '0.0.9',
-        nodeAccountId: '0.0.3',
+        payerAccountId: entityId9.num,
+        nodeAccountId: entityId3.num,
         consensus_timestamp: consensusTimestamp2,
         name: 'CRYPTOUPDATEACCOUNT',
         type: '15',
-        entity_id: '0.0.8',
+        entity_id: entityId8.num,
       },
     ]);
 
     await integrationDomainOps.loadCryptoTransfers([
       {
         consensus_timestamp: createdTimestamp1,
-        payerAccountId: '0.0.8',
-        nodeAccountId: '0.0.3',
-        treasuryAccountId: '0.0.98',
+        payerAccountId: entityId8.num,
+        nodeAccountId: entityId3.num,
+        treasuryAccountId: entityId98.num,
         token_transfer_list: [
           {
-            token_id: '0.0.90000',
-            account: '0.0.8',
+            token_id: entityId90000.num,
+            account: entityId8.num,
             amount: -1200,
             is_approval: true,
           },
           {
-            token_id: '0.0.90000',
-            account: '0.0.9',
+            token_id: entityId90000.num,
+            account: entityId9.num,
             amount: 1200,
             is_approval: true,
           },
@@ -183,19 +196,19 @@ describe('Accounts deduplicate timestamp tests', () => {
       },
       {
         consensus_timestamp: balanceTimestamp1,
-        payerAccountId: '0.0.8',
-        nodeAccountId: '0.0.3',
-        treasuryAccountId: '0.0.98',
+        payerAccountId: entityId8.num,
+        nodeAccountId: entityId3.num,
+        treasuryAccountId: entityId98.num,
         token_transfer_list: [
           {
-            token_id: '0.0.90000',
-            account: '0.0.8',
+            token_id: entityId90000.num,
+            account: entityId8.num,
             amount: -200,
             is_approval: true,
           },
           {
-            token_id: '0.0.90000',
-            account: '0.0.1679',
+            token_id: entityId90000.num,
+            account: entityId1679.num,
             amount: 200,
             is_approval: true,
           },
@@ -208,11 +221,11 @@ describe('Accounts deduplicate timestamp tests', () => {
     {
       name: 'Account with timestamp gt and ne',
       urls: [
-        `/api/v1/accounts/0.0.8?timestamp=gt:${utils.nsToSecNs(consensusTimestamp1)}`,
-        `/api/v1/accounts/0.0.KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ?timestamp=gt:${utils.nsToSecNs(
-          consensusTimestamp1
-        )}`,
-        `/api/v1/accounts/0.0.8?timestamp=ne:${utils.nsToSecNs(consensusTimestamp1)}`,
+        `/api/v1/accounts/${entityId8.toString()}?timestamp=gt:${utils.nsToSecNs(consensusTimestamp1)}`,
+        `/api/v1/accounts/${entityId8.shard}.${
+          entityId8.realm
+        }.KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ?timestamp=gt:${utils.nsToSecNs(consensusTimestamp1)}`,
+        `/api/v1/accounts/${entityId8.toString()}?timestamp=ne:${utils.nsToSecNs(consensusTimestamp1)}`,
       ],
       expected: {
         transactions: [
@@ -227,7 +240,7 @@ describe('Accounts deduplicate timestamp tests', () => {
             memo_base64: null,
             name: 'CRYPTOTRANSFER',
             nft_transfers: [],
-            node: '0.0.3',
+            node: entityId3.toString(),
             nonce: 0,
             parent_consensus_timestamp: null,
             result: 'SUCCESS',
@@ -235,33 +248,33 @@ describe('Accounts deduplicate timestamp tests', () => {
             staking_reward_transfers: [],
             token_transfers: [
               {
-                account: '0.0.8',
+                account: entityId8.toString(),
                 amount: -200,
-                token_id: '0.0.90000',
+                token_id: entityId90000.toString(),
                 is_approval: true,
               },
               {
-                account: '0.0.1679',
+                account: entityId1679.toString(),
                 amount: 200,
-                token_id: '0.0.90000',
+                token_id: entityId90000.toString(),
                 is_approval: true,
               },
             ],
             transaction_hash: 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w',
-            transaction_id: `0.0.8-${utils.nsToSecNsWithHyphen((balanceTimestamp1 - 1n).toString())}`,
+            transaction_id: `${entityId8.toString()}-${utils.nsToSecNsWithHyphen((balanceTimestamp1 - 1n).toString())}`,
             transfers: [
               {
-                account: '0.0.3',
+                account: entityId3.toString(),
                 amount: 2,
                 is_approval: false,
               },
               {
-                account: '0.0.8',
+                account: entityId8.toString(),
                 amount: -3,
                 is_approval: false,
               },
               {
-                account: '0.0.98',
+                account: entityId98.toString(),
                 amount: 1,
                 is_approval: false,
               },
@@ -280,42 +293,42 @@ describe('Accounts deduplicate timestamp tests', () => {
             memo_base64: null,
             name: 'CRYPTOTRANSFER',
             nft_transfers: [],
-            node: '0.0.3',
+            node: entityId3.toString(),
             nonce: 0,
             parent_consensus_timestamp: null,
             result: 'SUCCESS',
             scheduled: false,
             staking_reward_transfers: [],
             transaction_hash: 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w',
-            transaction_id: `0.0.8-${utils.nsToSecNsWithHyphen(consensusTimestamp1.toString())}`,
+            transaction_id: `${entityId8.toString()}-${utils.nsToSecNsWithHyphen(consensusTimestamp1.toString())}`,
             transfers: [
               {
-                account: '0.0.3',
+                account: entityId3.toString(),
                 amount: 2,
                 is_approval: false,
               },
               {
-                account: '0.0.8',
+                account: entityId8.toString(),
                 amount: -3,
                 is_approval: false,
               },
               {
-                account: '0.0.98',
+                account: entityId98.toString(),
                 amount: 1,
                 is_approval: false,
               },
             ],
             token_transfers: [
               {
-                account: '0.0.8',
+                account: entityId8.toString(),
                 amount: -1200,
-                token_id: '0.0.90000',
+                token_id: entityId90000.toString(),
                 is_approval: true,
               },
               {
-                account: '0.0.9',
+                account: entityId9.toString(),
                 amount: 1200,
-                token_id: '0.0.90000',
+                token_id: entityId90000.toString(),
                 is_approval: true,
               },
             ],
@@ -328,16 +341,16 @@ describe('Accounts deduplicate timestamp tests', () => {
           balance: 80,
           tokens: [
             {
-              token_id: '0.0.99998',
+              token_id: entityId99998.toString(),
               balance: 98,
             },
             {
-              token_id: '0.0.99999',
+              token_id: entityId99999.toString(),
               balance: 88,
             },
           ],
         },
-        account: '0.0.8',
+        account: entityId8.toString(),
         alias: 'KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ',
         created_timestamp: null,
         decline_reward: false,
@@ -351,8 +364,8 @@ describe('Accounts deduplicate timestamp tests', () => {
         memo: 'entity memo',
         pending_reward: 0,
         receiver_sig_required: false,
-        staked_account_id: '0.0.1',
-        staked_node_id: 1,
+        staked_account_id: entityId1.toString(),
+        staked_node_id: entityId1.num,
         stake_period_start: null,
         links: {
           next: null,

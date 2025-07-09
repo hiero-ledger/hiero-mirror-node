@@ -6,6 +6,7 @@ import * as utils from '../utils';
 import request from 'supertest';
 import server from '../server';
 import * as constants from '../constants';
+import EntityId from '../entityId';
 
 setupIntegrationTest();
 
@@ -44,31 +45,41 @@ describe('Balances deduplicate tests', () => {
   const middleOfPreviousMonthSeconds = utils.nsToSecNs(middleOfPreviousMonth);
   const middleOfPreviousMonthSecondsMinusOne = utils.nsToSecNs(middleOfPreviousMonth - 1n);
 
+  const entityId2 = EntityId.parseString('2').toString();
+  const entityId16 = EntityId.parseString('16').toString();
+  const entityId17 = EntityId.parseString('17').toString();
+  const entityId18 = EntityId.parseString('18').toString();
+  const entityId19 = EntityId.parseString('19').toString();
+  const entityId20 = EntityId.parseString('20').toString();
+  const entityId21 = EntityId.parseString('21').toString();
+  const entityId70000 = EntityId.parseString('70000').toString();
+  const entityId70007 = EntityId.parseString('70007').toString();
+  const entityId90000 = EntityId.parseString('90000').toString();
+
   beforeEach(async () => {
     await integrationDomainOps.loadBalances([
       {
         timestamp: beginningOfPreviousMonth - nanoSecondsPerSecond,
-        id: 2,
+        id: entityId2,
         balance: 1,
       },
       {
         timestamp: beginningOfPreviousMonth - nanoSecondsPerSecond,
-        id: 16,
+        id: entityId16,
         balance: 16,
       },
       {
         timestamp: beginningOfPreviousMonth,
-        id: 2,
+        id: entityId2,
         balance: 2,
       },
       {
         timestamp: beginningOfPreviousMonth,
-        id: 17,
-        realm_num: 1,
+        id: entityId17,
         balance: 70,
         tokens: [
           {
-            token_num: 70000,
+            token_num: entityId70000,
             balance: 7,
           },
           {
@@ -79,58 +90,54 @@ describe('Balances deduplicate tests', () => {
       },
       {
         timestamp: tenDaysInToPreviousMonth,
-        id: 2,
+        id: entityId2,
         balance: 222,
       },
       {
         timestamp: tenDaysInToPreviousMonth,
-        id: 18,
-        realm_num: 1,
+        id: entityId18,
         balance: 80,
       },
       {
         timestamp: tenDaysInToPreviousMonth,
-        id: 20,
-        realm_num: 1,
+        id: entityId20,
         balance: 19,
         tokens: [
           {
-            token_num: 90000,
+            token_num: entityId90000,
             balance: 1000,
           },
         ],
       },
       {
         timestamp: middleOfPreviousMonth,
-        id: 2,
+        id: entityId2,
         balance: 223,
       },
       {
         timestamp: middleOfPreviousMonth,
-        id: 19,
-        realm_num: 1,
+        id: entityId19,
         balance: 90,
       },
       {
         timestamp: endOfPreviousMonth,
-        id: 20,
-        realm_num: 1,
+        id: entityId20,
         balance: 20,
         tokens: [
           {
-            token_num: 90000,
+            token_num: entityId90000,
             balance: 1001,
           },
         ],
       },
       {
         timestamp: endOfPreviousMonth,
-        id: 2,
+        id: entityId2,
         balance: 22,
       },
       {
         timestamp: endOfPreviousMonth,
-        id: 21,
+        id: entityId21,
         realm_num: 1,
         balance: 21,
       },
@@ -147,43 +154,43 @@ describe('Balances deduplicate tests', () => {
         timestamp: `${middleOfPreviousMonthSeconds}`,
         balances: [
           {
-            account: '0.0.2',
+            account: entityId2,
             balance: 223,
             tokens: [],
           },
           {
-            account: '0.1.17',
+            account: entityId17,
             balance: 70,
             tokens: [
               {
                 balance: 7,
-                token_id: '0.0.70000',
+                token_id: entityId70000,
               },
               {
                 balance: 700,
-                token_id: '0.0.70007',
+                token_id: entityId70007,
               },
             ],
           },
           // Though 0.1.18's balance is at NE timestamp, its results are expected
           {
-            account: '0.1.18',
+            account: entityId18,
             balance: 80,
             tokens: [],
           },
           {
-            account: '0.1.19',
+            account: entityId19,
             balance: 90,
             tokens: [],
           },
           // Though 0.1.20's balance is at NE timestamp, its results are expected
           {
-            account: '0.1.20',
+            account: entityId20,
             balance: 19,
             tokens: [
               {
                 balance: 1000,
-                token_id: '0.0.90000',
+                token_id: entityId90000,
               },
             ],
           },
@@ -196,42 +203,42 @@ describe('Balances deduplicate tests', () => {
     {
       name: 'Accounts with upper and lower bounds lt',
       urls: [
-        `/api/v1/balances?account.id=gte:0.1.16&account.id=lt:0.1.21&timestamp=lt:${endOfPreviousMonthSeconds}&timestamp=gte:${beginningOfPreviousMonthSeconds}&order=asc`,
+        `/api/v1/balances?account.id=gte:${entityId16}&account.id=lt:${entityId21}&timestamp=lt:${endOfPreviousMonthSeconds}&timestamp=gte:${beginningOfPreviousMonthSeconds}&order=asc`,
       ],
       expected: {
         timestamp: `${middleOfPreviousMonthSeconds}`,
         balances: [
           {
-            account: '0.1.17',
+            account: entityId17,
             balance: 70,
             tokens: [
               {
                 balance: 7,
-                token_id: '0.0.70000',
+                token_id: entityId70000,
               },
               {
                 balance: 700,
-                token_id: '0.0.70007',
+                token_id: entityId70007,
               },
             ],
           },
           {
-            account: '0.1.18',
+            account: entityId18,
             balance: 80,
             tokens: [],
           },
           {
-            account: '0.1.19',
+            account: entityId19,
             balance: 90,
             tokens: [],
           },
           {
-            account: '0.1.20',
+            account: entityId20,
             balance: 19,
             tokens: [
               {
                 balance: 1000,
-                token_id: '0.0.90000',
+                token_id: entityId90000,
               },
             ],
           },
@@ -244,42 +251,42 @@ describe('Balances deduplicate tests', () => {
     {
       name: 'Accounts with upper and lower bounds lte',
       urls: [
-        `/api/v1/balances?account.id=gte:0.1.16&account.id=lt:0.1.21&timestamp=lte:${endOfPreviousMonthSeconds}&timestamp=gte:${beginningOfPreviousMonthSeconds}&order=asc`,
+        `/api/v1/balances?account.id=gte:${entityId16}&account.id=lt:${entityId21}&timestamp=lte:${endOfPreviousMonthSeconds}&timestamp=gte:${beginningOfPreviousMonthSeconds}&order=asc`,
       ],
       expected: {
         timestamp: `${endOfPreviousMonthSeconds}`,
         balances: [
           {
-            account: '0.1.17',
+            account: entityId17,
             balance: 70,
             tokens: [
               {
                 balance: 7,
-                token_id: '0.0.70000',
+                token_id: entityId70000,
               },
               {
                 balance: 700,
-                token_id: '0.0.70007',
+                token_id: entityId70007,
               },
             ],
           },
           {
-            account: '0.1.18',
+            account: entityId18,
             balance: 80,
             tokens: [],
           },
           {
-            account: '0.1.19',
+            account: entityId19,
             balance: 90,
             tokens: [],
           },
           {
-            account: '0.1.20',
+            account: entityId20,
             balance: 20,
             tokens: [
               {
                 balance: 1001,
-                token_id: '0.0.90000',
+                token_id: entityId90000,
               },
             ],
           },
@@ -291,41 +298,43 @@ describe('Balances deduplicate tests', () => {
     },
     {
       name: 'Account and timestamp equals',
-      urls: [`/api/v1/balances?account.id=gte:0.1.16&account.id=lt:0.1.21&timestamp=${endOfPreviousMonthSeconds}`],
+      urls: [
+        `/api/v1/balances?account.id=gte:${entityId16}&account.id=lt:${entityId21}&timestamp=${endOfPreviousMonthSeconds}`,
+      ],
       expected: {
         timestamp: `${endOfPreviousMonthSeconds}`,
         balances: [
           {
-            account: '0.1.20',
+            account: entityId20,
             balance: 20,
             tokens: [
               {
                 balance: 1001,
-                token_id: '0.0.90000',
+                token_id: entityId90000,
               },
             ],
           },
           {
-            account: '0.1.19',
+            account: entityId19,
             balance: 90,
             tokens: [],
           },
           {
-            account: '0.1.18',
+            account: entityId18,
             balance: 80,
             tokens: [],
           },
           {
-            account: '0.1.17',
+            account: entityId17,
             balance: 70,
             tokens: [
               {
                 balance: 700,
-                token_id: '0.0.70007',
+                token_id: entityId70007,
               },
               {
                 balance: 7,
-                token_id: '0.0.70000',
+                token_id: entityId70000,
               },
             ],
           },
@@ -345,46 +354,46 @@ describe('Balances deduplicate tests', () => {
         timestamp: `${endOfPreviousMonthSeconds}`,
         balances: [
           {
-            account: '0.1.21',
+            account: entityId21,
             balance: 21,
             tokens: [],
           },
           {
-            account: '0.1.20',
+            account: entityId20,
             balance: 20,
             tokens: [
               {
                 balance: 1001,
-                token_id: '0.0.90000',
+                token_id: entityId90000,
               },
             ],
           },
           {
-            account: '0.1.19',
+            account: entityId19,
             balance: 90,
             tokens: [],
           },
           {
-            account: '0.1.18',
+            account: entityId18,
             balance: 80,
             tokens: [],
           },
           {
-            account: '0.1.17',
+            account: entityId17,
             balance: 70,
             tokens: [
               {
                 balance: 700,
-                token_id: '0.0.70007',
+                token_id: entityId70007,
               },
               {
                 balance: 7,
-                token_id: '0.0.70000',
+                token_id: entityId70000,
               },
             ],
           },
           {
-            account: '0.0.2',
+            account: entityId2,
             balance: 22,
             tokens: [],
           },
@@ -404,46 +413,46 @@ describe('Balances deduplicate tests', () => {
         timestamp: `${endOfPreviousMonthSeconds}`,
         balances: [
           {
-            account: '0.1.21',
+            account: entityId21,
             balance: 21,
             tokens: [],
           },
           {
-            account: '0.1.20',
+            account: entityId20,
             balance: 20,
             tokens: [
               {
                 balance: 1001,
-                token_id: '0.0.90000',
+                token_id: entityId90000,
               },
             ],
           },
           {
-            account: '0.1.19',
+            account: entityId19,
             balance: 90,
             tokens: [],
           },
           {
-            account: '0.1.18',
+            account: entityId18,
             balance: 80,
             tokens: [],
           },
           {
-            account: '0.1.17',
+            account: entityId17,
             balance: 70,
             tokens: [
               {
                 balance: 700,
-                token_id: '0.0.70007',
+                token_id: entityId70007,
               },
               {
                 balance: 7,
-                token_id: '0.0.70000',
+                token_id: entityId70000,
               },
             ],
           },
           {
-            account: '0.0.2',
+            account: entityId2,
             balance: 22,
             tokens: [],
           },
@@ -473,46 +482,46 @@ describe('Balances deduplicate tests', () => {
         timestamp: `${endOfPreviousMonthSeconds}`,
         balances: [
           {
-            account: '0.1.21',
+            account: entityId21,
             balance: 21,
             tokens: [],
           },
           {
-            account: '0.1.20',
+            account: entityId20,
             balance: 20,
             tokens: [
               {
                 balance: 1001,
-                token_id: '0.0.90000',
+                token_id: entityId90000,
               },
             ],
           },
           {
-            account: '0.1.19',
+            account: entityId19,
             balance: 90,
             tokens: [],
           },
           {
-            account: '0.1.18',
+            account: entityId18,
             balance: 80,
             tokens: [],
           },
           {
-            account: '0.1.17',
+            account: entityId17,
             balance: 70,
             tokens: [
               {
                 balance: 700,
-                token_id: '0.0.70007',
+                token_id: entityId70007,
               },
               {
                 balance: 7,
-                token_id: '0.0.70000',
+                token_id: entityId70000,
               },
             ],
           },
           {
-            account: '0.0.2',
+            account: entityId2,
             balance: 22,
             tokens: [],
           },
@@ -532,41 +541,41 @@ describe('Balances deduplicate tests', () => {
         timestamp: `${middleOfPreviousMonthSeconds}`,
         balances: [
           {
-            account: '0.1.20',
+            account: entityId20,
             balance: 19,
             tokens: [
               {
                 balance: 1000,
-                token_id: '0.0.90000',
+                token_id: entityId90000,
               },
             ],
           },
           {
-            account: '0.1.19',
+            account: entityId19,
             balance: 90,
             tokens: [],
           },
           {
-            account: '0.1.18',
+            account: entityId18,
             balance: 80,
             tokens: [],
           },
           {
-            account: '0.1.17',
+            account: entityId17,
             balance: 70,
             tokens: [
               {
                 balance: 700,
-                token_id: '0.0.70007',
+                token_id: entityId70007,
               },
               {
                 balance: 7,
-                token_id: '0.0.70000',
+                token_id: entityId70000,
               },
             ],
           },
           {
-            account: '0.0.2',
+            account: entityId2,
             balance: 223,
             tokens: [],
           },
@@ -583,36 +592,36 @@ describe('Balances deduplicate tests', () => {
         timestamp: `${tenDaysInToPreviousMonthSeconds}`,
         balances: [
           {
-            account: '0.1.20',
+            account: entityId20,
             balance: 19,
             tokens: [
               {
                 balance: 1000,
-                token_id: '0.0.90000',
+                token_id: entityId90000,
               },
             ],
           },
           {
-            account: '0.1.18',
+            account: entityId18,
             balance: 80,
             tokens: [],
           },
           {
-            account: '0.1.17',
+            account: entityId17,
             balance: 70,
             tokens: [
               {
                 balance: 700,
-                token_id: '0.0.70007',
+                token_id: entityId70007,
               },
               {
                 balance: 7,
-                token_id: '0.0.70000',
+                token_id: entityId70000,
               },
             ],
           },
           {
-            account: '0.0.2',
+            account: entityId2,
             balance: 222,
             tokens: [],
           },
@@ -625,7 +634,7 @@ describe('Balances deduplicate tests', () => {
     {
       name: 'Upper bound in the past and lower bound greater than end of previous month',
       urls: [
-        `/api/v1/balances?account.id=gte:0.1.16&account.id=lt:0.1.21&timestamp=1567296000.000000000`,
+        `/api/v1/balances?account.id=gte:${entityId16}&account.id=lt:${entityId21}&timestamp=1567296000.000000000`,
         `/api/v1/balances?timestamp=1567296000.000000000`,
         `/api/v1/balances?timestamp=lte:1567296000.000000000`,
         `/api/v1/balances?timestamp=lt:1567296000.000000000`,

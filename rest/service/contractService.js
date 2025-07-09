@@ -491,7 +491,7 @@ class ContractService extends BaseService {
       return this.getContractIdByEvmAddress(contractIdParts);
     }
 
-    return EntityId.parse(contractIdValue, {paramName: filterKeys.CONTRACTID}).getEncodedId();
+    return EntityId.parseString(contractIdValue, {paramName: filterKeys.CONTRACTID}).getEncodedId();
   }
 
   async getContractActionsByConsensusTimestamp(consensusTimestamp, payerAccountId, filters, order, limit) {
