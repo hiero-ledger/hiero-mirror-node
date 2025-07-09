@@ -135,22 +135,6 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         return null;
     }
 
-    private void addNewEntityToCache(EntityId entityId, byte[] defaultValue) {
-        if (!EntityId.isEmpty(entityId)) {
-            var contextEntity = parserContext.get(Entity.class, entityId.getId());
-            if (contextEntity != null) {
-                var evmAddress = contextEntity.getEvmAddress();
-                if (ArrayUtils.isEmpty(evmAddress)) {
-                    if (contextEntity.getCreatedTimestamp() != null) {
-                        getEvmCache().put(entityId.getId(), defaultValue);
-                    }
-                } else {
-                    getEvmCache().put(entityId.getId(), trim(evmAddress));
-                }
-            }
-        }
-    }
-
     @RequiredArgsConstructor
     class SyntheticLogUpdater {
         private final EntityId sender;
