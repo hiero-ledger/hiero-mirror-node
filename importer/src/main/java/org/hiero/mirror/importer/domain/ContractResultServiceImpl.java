@@ -280,22 +280,21 @@ public class ContractResultServiceImpl implements ContractResultService {
 
     private void processContractLogs(
             ContractFunctionResult functionResult, ContractResult contractResult, RecordItem recordItem) {
-        for (int index = 0; index < functionResult.getLogInfoCount(); ++index) {
-            var contractLoginfo = functionResult.getLogInfo(index);
+        for (final var contractLogInfo : functionResult.getLogInfoList()) {
             var contractLog = new ContractLog();
-            var contractId = EntityId.of(contractLoginfo.getContractID());
+            var contractId = EntityId.of(contractLogInfo.getContractID());
             var rootContractId = EntityId.of(contractResult.getContractId());
-            contractLog.setBloom(DomainUtils.toBytes(contractLoginfo.getBloom()));
+            contractLog.setBloom(DomainUtils.toBytes(contractLogInfo.getBloom()));
             contractLog.setConsensusTimestamp(contractResult.getConsensusTimestamp());
             contractLog.setContractId(contractId);
-            contractLog.setData(DomainUtils.toBytes(contractLoginfo.getData()));
+            contractLog.setData(DomainUtils.toBytes(contractLogInfo.getData()));
             contractLog.setIndex(recordItem.getAndIncrementLogIndex());
             contractLog.setRootContractId(rootContractId);
             contractLog.setPayerAccountId(contractResult.getPayerAccountId());
-            contractLog.setTopic0(Utility.getTopic(contractLoginfo, 0));
-            contractLog.setTopic1(Utility.getTopic(contractLoginfo, 1));
-            contractLog.setTopic2(Utility.getTopic(contractLoginfo, 2));
-            contractLog.setTopic3(Utility.getTopic(contractLoginfo, 3));
+            contractLog.setTopic0(Utility.getTopic(contractLogInfo, 0));
+            contractLog.setTopic1(Utility.getTopic(contractLogInfo, 1));
+            contractLog.setTopic2(Utility.getTopic(contractLogInfo, 2));
+            contractLog.setTopic3(Utility.getTopic(contractLogInfo, 3));
             contractLog.setTransactionHash(recordItem.getTransactionHash());
             contractLog.setTransactionIndex(recordItem.getTransactionIndex());
             entityListener.onContractLog(contractLog);
