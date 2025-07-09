@@ -63,7 +63,6 @@ import org.hyperledger.besu.evm.precompile.PrecompileContractRegistry;
 import org.hyperledger.besu.evm.processor.ContractCreationProcessor;
 import org.hyperledger.besu.evm.processor.MessageCallProcessor;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
@@ -249,10 +248,6 @@ public class EvmConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty(
-            name = "hiero.mirror.web3.evm.modularizedServices",
-            havingValue = "false",
-            matchIfMissing = true)
     Map<TracerType, Provider<HederaEvmOperationTracer>> monoTracerProvider(
             final MirrorOperationTracer mirrorOperationTracer, final OpcodeTracer opcodeTracer) {
         Map<TracerType, Provider<HederaEvmOperationTracer>> tracerMap = new EnumMap<>(TracerType.class);
