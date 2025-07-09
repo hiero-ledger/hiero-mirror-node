@@ -11,7 +11,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Transient;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -120,12 +119,6 @@ public class RecordFile implements StreamFile<RecordItem> {
 
     private int version;
 
-    // The log index is used to keep track of the contract log count in each block.
-    @EqualsAndHashCode.Exclude
-    @JsonIgnore
-    @Transient
-    private final AtomicInteger logIndex = new AtomicInteger(0);
-
     @Override
     public RecordFile clear() {
         StreamFile.super.clear();
@@ -143,14 +136,6 @@ public class RecordFile implements StreamFile<RecordItem> {
     @JsonIgnore
     public StreamType getType() {
         return StreamType.RECORD;
-    }
-
-    public int getLogIndex() {
-        return logIndex.get();
-    }
-
-    public void setLogIndex(int newIndex) {
-        logIndex.set(newIndex);
     }
 
     private Version hapiVersion() {
