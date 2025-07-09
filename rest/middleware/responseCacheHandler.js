@@ -37,7 +37,7 @@ const getCache = (() => {
 })();
 
 // Response middleware that checks for and returns cached response.
-const responseCacheCheckHandler = async (req, res, next) => {
+const responseCacheCheckHandler = async (req, res) => {
   const startTime = res.locals[requestStartTime] || Date.now();
   const responseCacheKey = cacheKeyGenerator(req);
   const cachedTtlAndValue = await getCache().getSingleWithTtl(responseCacheKey);
@@ -87,7 +87,7 @@ const responseCacheCheckHandler = async (req, res, next) => {
 };
 
 // Response middleware that caches the completed response.
-const responseCacheUpdateHandler = async (req, res, next) => {
+const responseCacheUpdateHandler = async (req, res) => {
   const responseCacheKey = res.locals[responseCacheKeyLabel];
   const responseBody = res.locals[responseBodyLabel];
   const isUnmodified = res.statusCode === httpStatusCodes.UNMODIFIED.code;

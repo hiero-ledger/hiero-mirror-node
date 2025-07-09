@@ -27,31 +27,31 @@ const responseHandler = async (req, res, next) => {
   if (responseData === undefined) {
     // unmatched route will have no response data, pass NotFoundError to next middleware
     throw new NotFoundError();
-  } else {
-    const path = res.locals[requestPathLabel] ?? req.route.path;
-    const mergedHeaders = {
-      ...headers.default,
-      ...(headers.path[path] ?? {}),
-      ...(res.locals[responseHeadersLabel] ?? {}),
-    };
-    res.set(mergedHeaders);
-
-    const code = res.locals.statusCode;
-    const linksNext = res.locals.responseData.links?.next;
-    res.status(code);
-
-    if (linksNext) {
-      res.set(LINK_NEXT_HEADER, linkNextHeaderValue(linksNext));
-    }
-    const contentType = res.get(contentTypeHeader);
-
-    res.locals[responseBodyLabel] = contentType === APPLICATION_JSON ? JSONStringify(responseData) : responseData;
-    res.send(res.locals[responseBodyLabel]);
-
-    const startTime = res.locals[requestStartTime];
-    const elapsed = startTime ? Date.now() - startTime : 0;
-    logger.info(`${req.ip} ${req.method} ${req.originalUrl} in ${elapsed} ms: ${code}`);
   }
+
+  const path = res.locals[requestPathLabel] ?? req.route.path;
+  const mergedHeaders = {
+    ...headers.default,
+    ...(headers.path[path] ?? {}),
+    ...(res.locals[responseHeadersLabel] ?? {}),
+  };
+  res.set(mergedHeaders);
+
+  const code = res.locals.statusCode;
+  const linksNext = res.locals.responseData.links?.next;
+  res.status(code);
+
+  if (linksNext) {
+    res.set(LINK_NEXT_HEADER, linkNextHeaderValue(linksNext));
+  }
+  const contentType = res.get(contentTypeHeader);
+
+  res.locals[responseBodyLabel] = contentType === APPLICATION_JSON ? JSONStringify(responseData) : responseData;
+  res.send(res.locals[responseBodyLabel]);
+
+  const startTime = res.locals[requestStartTime];
+  const elapsed = startTime ? Date.now() - startTime : 0;
+  logger.info(`${req.ip} ${req.method} ${req.originalUrl} in ${elapsed} ms: ${code}`);
 
   next();
 };
