@@ -62,8 +62,8 @@ class ParserContextTest {
         assertThatThrownBy(() -> parserContext.getTransient(null)).isInstanceOf(NullPointerException.class);
 
         var domain = domainBuilder.entity().get();
-        parserContext.merge(domain.getId(), domain, (a, b) -> a);
-        assertThat(parserContext.get(Entity.class, domain.getId())).isEqualTo(domain);
+        parserContext.addTransient(domain);
+        assertThat(parserContext.getTransient(Entity.class)).containsExactly(domain);
     }
 
     @Test
