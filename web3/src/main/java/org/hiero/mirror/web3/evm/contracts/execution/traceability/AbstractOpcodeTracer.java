@@ -65,7 +65,7 @@ public abstract class AbstractOpcodeTracer {
      * @param revertReason the revert reason
      * @return the formatted revert reason
      */
-    protected Bytes formatRevertReason(final Bytes revertReason) {
+    protected final Bytes formatRevertReason(final Bytes revertReason) {
         if (revertReason == null || revertReason.isZero()) {
             return Bytes.EMPTY;
         }
