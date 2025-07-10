@@ -22,11 +22,14 @@ import org.hyperledger.besu.evm.ModificationNotAllowedException;
 import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation;
+import org.hyperledger.besu.evm.precompile.PrecompiledContract;
 
 @Named
 @CustomLog
 @Getter
 public class OpcodeTracer extends AbstractOpcodeTracer implements HederaOperationTracer {
+
+    private final Map<Address, PrecompiledContract> hederaPrecompiles;
 
     public OpcodeTracer(final PrecompiledContractProvider precompiledContractProvider) {
         this.hederaPrecompiles = precompiledContractProvider.getHederaPrecompiles().entrySet().stream()
@@ -104,5 +107,11 @@ public class OpcodeTracer extends AbstractOpcodeTracer implements HederaOperatio
     @Override
     public void tracePrecompileResult(final MessageFrame frame, final ContractActionType type) {
         // Empty body
+    }
+
+    private boolean isCallToHederaPrecompile(
+            final MessageFrame frame, final Map<Address, PrecompiledContract> hederaPrecompiles) {
+        final var recipientAddress = frame.getRecipientAddress();
+        return hederaPrecompiles.containsKey(recipientAddress);
     }
 }

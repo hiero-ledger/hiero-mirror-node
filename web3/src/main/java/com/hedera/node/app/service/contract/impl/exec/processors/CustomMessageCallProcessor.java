@@ -145,8 +145,7 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
                 }
             }
 
-            if (tracer instanceof final OpcodeActionTracer opcodeActionTracer
-                    && opcodeActionTracer.getSystemContracts().isEmpty()) {
+            if (tracer instanceof final OpcodeActionTracer opcodeActionTracer) {
                 opcodeActionTracer.setSystemContracts(systemContracts);
             }
             doExecuteSystemContract(systemContracts.get(codeAddress), codeAddress, frame, tracer);
