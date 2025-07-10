@@ -15,6 +15,7 @@ import com.hedera.hashgraph.sdk.TopicDeleteTransaction;
 import com.hedera.hashgraph.sdk.TopicId;
 import com.hedera.hashgraph.sdk.TopicMessageSubmitTransaction;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
+import com.hedera.hashgraph.sdk.TransactionReceiptQuery;
 import com.hedera.hashgraph.sdk.proto.AccountID;
 import com.hedera.hashgraph.sdk.proto.NodeAddress;
 import com.hedera.hashgraph.sdk.proto.NodeAddressBook;
@@ -43,6 +44,7 @@ import org.hiero.mirror.test.e2e.acceptance.config.SdkProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.props.NodeProperties;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.CollectionUtils;
 
 @CustomLog
@@ -58,6 +60,7 @@ public class SDKClient implements Cleanable {
     private final AcceptanceTestProperties acceptanceTestProperties;
     private final SdkProperties sdkProperties;
     private final MirrorNodeClient mirrorNodeClient;
+    private final RetryTemplate retryTemplate;
     private final TopicId topicId;
 
     @Getter
@@ -69,21 +72,29 @@ public class SDKClient implements Cleanable {
     public SDKClient(
             AcceptanceTestProperties acceptanceTestProperties,
             MirrorNodeClient mirrorNodeClient,
+            RetryTemplate retryTemplate,
             SdkProperties sdkProperties,
             StartupProbe startupProbe)
             throws InterruptedException, TimeoutException {
-        defaultOperator = new ExpandedAccountId(
-                acceptanceTestProperties.getOperatorId(), acceptanceTestProperties.getOperatorKey());
-        this.mirrorNodeClient = mirrorNodeClient;
-        this.acceptanceTestProperties = acceptanceTestProperties;
-        this.sdkProperties = sdkProperties;
-        this.client = createClient();
-        var receipt = startupProbe.validateEnvironment(client);
-        this.topicId = receipt != null ? receipt.topicId : null;
-        validateClient();
-        expandedOperatorAccountId = getOperatorAccount(receipt);
-        this.client.setOperator(expandedOperatorAccountId.getAccountId(), expandedOperatorAccountId.getPrivateKey());
-        validateNetworkMap = this.client.getNetwork();
+        try {
+            defaultOperator = new ExpandedAccountId(
+                    acceptanceTestProperties.getOperatorId(), acceptanceTestProperties.getOperatorKey());
+            this.mirrorNodeClient = mirrorNodeClient;
+            this.acceptanceTestProperties = acceptanceTestProperties;
+            this.retryTemplate = retryTemplate;
+            this.sdkProperties = sdkProperties;
+            this.client = createClient();
+            var receipt = startupProbe.validateEnvironment(client);
+            this.topicId = receipt != null ? receipt.topicId : null;
+            validateClient();
+            expandedOperatorAccountId = getOperatorAccount(receipt);
+            this.client.setOperator(
+                    expandedOperatorAccountId.getAccountId(), expandedOperatorAccountId.getPrivateKey());
+            validateNetworkMap = this.client.getNetwork();
+        } catch (Throwable t) {
+            clean();
+            throw t;
+        }
     }
 
     public AccountId getRandomNodeAccountId() {
@@ -180,13 +191,22 @@ public class SDKClient implements Cleanable {
                         .getOperatorBalance()
                         .divide(exchangeRateUsd, 8, RoundingMode.HALF_EVEN));
 
-                var accountId = new AccountCreateTransaction()
+                var response = new AccountCreateTransaction()
                         .setAlias(alias)
                         .setInitialBalance(balance)
                         .setKeyWithoutAlias(publicKey)
-                        .execute(client)
-                        .getReceipt(client)
-                        .accountId;
+                        .execute(client);
+
+                // Verify all nodes have created the account since state is updated at different wall clocks
+                TransactionReceipt queryReceipt = null;
+                for (final var nodeAccountId : client.getNetwork().values()) {
+                    queryReceipt = retryTemplate.execute(x -> new TransactionReceiptQuery()
+                            .setNodeAccountIds(List.of(nodeAccountId))
+                            .setTransactionId(response.transactionId)
+                            .execute(client));
+                }
+
+                var accountId = queryReceipt.accountId;
                 log.info("Created operator account {} with public key {}", accountId, publicKey);
                 return new ExpandedAccountId(accountId, privateKey);
             }

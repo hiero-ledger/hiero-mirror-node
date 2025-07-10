@@ -547,7 +547,10 @@ public class TokenClient extends AbstractNetworkClient {
         KeyList keyList = KeyList.of(newTreasuryId.getPrivateKey());
         var response = executeTransactionAndRetrieveReceipt(tokenUpdateTransaction, keyList);
         log.info(
-                "Updated token {} treasury account {} via {}", tokenId, treasuryAccountId, response.getTransactionId());
+                "Updated token {} treasury account to {} via {}",
+                tokenId,
+                treasuryAccountId,
+                response.getTransactionId());
         return response;
     }
 

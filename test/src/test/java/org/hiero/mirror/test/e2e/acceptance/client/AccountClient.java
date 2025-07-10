@@ -44,8 +44,16 @@ public class AccountClient extends AbstractNetworkClient {
 
     public AccountClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
         super(sdkClient, retryTemplate);
-        initialBalance = getBalance();
-        log.info("Operator account {} initial balance is {}", sdkClient.getExpandedOperatorAccountId(), initialBalance);
+        try {
+            initialBalance = getBalance();
+            log.info(
+                    "Operator account {} initial balance is {}",
+                    sdkClient.getExpandedOperatorAccountId(),
+                    initialBalance);
+        } catch (Throwable t) {
+            clean();
+            throw t;
+        }
     }
 
     @Override
