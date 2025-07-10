@@ -20,11 +20,14 @@ dependencies {
     api("org.springframework.boot:spring-boot-starter-data-jpa")
     api("org.springframework.boot:spring-boot-starter-validation")
     api("org.web3j:core")
+    api("jakarta.servlet:jakarta.servlet-api")
     testImplementation("org.hyperledger.besu:evm")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql")
     testImplementation("io.micrometer:micrometer-core")
     testImplementation("org.junit.platform:junit-platform-launcher")
+    testImplementation("org.springframework:spring-web")
+
     testClasses(sourceSets["test"].output)
 }
 

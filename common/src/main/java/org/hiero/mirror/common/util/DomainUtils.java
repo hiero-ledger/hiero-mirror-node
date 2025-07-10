@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common.util;
 
+import com.google.common.base.CaseFormat;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteOutput;
@@ -365,6 +366,13 @@ public class DomainUtils {
         }
 
         return Arrays.equals(MIRROR_PREFIX, 0, 12, evmAddress, 0, 12);
+    }
+
+    public static String toSnakeCase(final String text) {
+        if (StringUtils.isBlank(text)) {
+            return text;
+        }
+        return CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, text);
     }
 
     static class UnsafeByteOutput extends ByteOutput {

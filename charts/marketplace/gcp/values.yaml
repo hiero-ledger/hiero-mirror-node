@@ -19,7 +19,7 @@ grpc:
       mirror:
         grpc:
           listener:
-            type: NOTIFY
+            type: SHARED_POLL
     management:
       endpoint:
         health:
@@ -47,8 +47,6 @@ importer:
           parser:
             record:
               entity:
-                notify:
-                  enabled: true
                 redis:
                   enabled: false
     management:

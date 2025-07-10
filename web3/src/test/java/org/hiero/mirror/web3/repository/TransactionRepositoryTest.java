@@ -22,9 +22,35 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByPayerAccountIdAndValidStartNsSuccessful() {
-        var transaction = domainBuilder.transaction().persist();
-        assertThat(transactionRepository.findByPayerAccountIdAndValidStartNs(
-                        transaction.getPayerAccountId(), transaction.getValidStartNs()))
-                .contains(transaction);
+        // Given
+        final var senderEntityId = domainBuilder.entityId();
+        final var parentConsensusTimestamp = domainBuilder.timestamp();
+        final var validStartNs = parentConsensusTimestamp - 1000L;
+
+        var consensusTimestampInMillis = parentConsensusTimestamp;
+        for (long i = 0; i < 10; i++) {
+            final var consensusTimestampToSet = consensusTimestampInMillis;
+            domainBuilder
+                    .transaction()
+                    .customize(transaction -> transaction
+                            .consensusTimestamp(consensusTimestampToSet)
+                            .payerAccountId(senderEntityId)
+                            .validStartNs(validStartNs))
+                    .persist();
+            consensusTimestampInMillis += 1;
+        }
+
+        // When
+        final var transactions = transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
+                senderEntityId, validStartNs);
+
+        // Then
+        var expectedConsensusTimestamp = parentConsensusTimestamp;
+        for (final var transaction : transactions) {
+            assertThat(transaction.getPayerAccountId()).isEqualTo(senderEntityId);
+            assertThat(transaction.getValidStartNs()).isEqualTo(validStartNs);
+            assertThat(transaction.getConsensusTimestamp()).isEqualTo(expectedConsensusTimestamp);
+            expectedConsensusTimestamp += 1;
+        }
     }
 }

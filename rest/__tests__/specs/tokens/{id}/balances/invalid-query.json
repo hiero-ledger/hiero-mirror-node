@@ -6,7 +6,7 @@
     "transactions": [],
     "cryptotransfers": []
   },
-  "url": "/api/v1/tokens/0.20.1/balances?consensus=hashgraph",
+  "url": "/api/v1/tokens/0.0.1/balances?consensus=hashgraph",
   "responseStatus": 400,
   "responseJson": {
     "_status": {

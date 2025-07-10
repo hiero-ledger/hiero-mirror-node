@@ -9,6 +9,7 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddre
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
+import static org.hiero.mirror.web3.utils.Constants.CALL_URI;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
@@ -59,6 +60,7 @@ import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.util.EndpointContext;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
@@ -217,6 +219,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                         .balance(treasuryEntity.getBalance()))
                 .persist();
         persistRewardAccounts();
+
+        EndpointContext.setCurrentEndpoint(CALL_URI);
     }
 
     @AfterEach
@@ -226,6 +230,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         }
 
         testWeb3jService.reset();
+        EndpointContext.clearCurrentEndpoint();
     }
 
     protected long gasUsedAfterExecution(final ContractExecutionParameters serviceParameters) {

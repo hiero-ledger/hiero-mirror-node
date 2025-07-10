@@ -4,6 +4,7 @@ import {CryptoAllowanceService} from '../../service';
 import {assertSqlQueryEqual} from '../testutils';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
+import EntityId from '../../entityId';
 
 setupIntegrationTest();
 
@@ -31,12 +32,15 @@ describe('CryptoAllowanceService.getAccountAllowancesQuery tests', () => {
   });
 });
 
+const defaultOwner = EntityId.parseString('2000');
+const defaultPayer = EntityId.parseString('3000');
+const defaultSpender = EntityId.parseString('4000');
 const defaultInputCryptoAllowance = [
   {
     amount: 1000,
-    owner: 2000,
-    payer_account_id: 3000,
-    spender: 4000,
+    owner: defaultOwner.toString(),
+    payer_account_id: defaultPayer.toString(),
+    spender: defaultSpender.toString(),
     timestamp_range: '[0,)',
   },
 ];
@@ -44,9 +48,9 @@ const defaultInputCryptoAllowance = [
 const defaultExpectedCryptoAllowance = [
   {
     amount: 1000,
-    owner: 2000,
-    payerAccountId: 3000,
-    spender: 4000,
+    owner: defaultOwner.getEncodedId(),
+    payerAccountId: defaultPayer.getEncodedId(),
+    spender: defaultSpender.getEncodedId(),
   },
 ];
 
@@ -61,37 +65,40 @@ describe('CryptoAllowanceService.getAccountCrytoAllownces tests', () => {
     await integrationDomainOps.loadCryptoAllowances(defaultInputCryptoAllowance);
 
     await expect(
-      CryptoAllowanceService.getAccountCryptoAllowances([defaultOwnerFilter], [2000], 'asc', 5)
+      CryptoAllowanceService.getAccountCryptoAllowances([defaultOwnerFilter], [defaultOwner.getEncodedId()], 'asc', 5)
     ).resolves.toMatchObject(defaultExpectedCryptoAllowance);
   });
 
+  const spender4001 = EntityId.parseString('4001');
+  const spender4002 = EntityId.parseString('4002');
+  const spender4003 = EntityId.parseString('4003');
   const inputCryptoAllowance = [
     {
       amount: 1000,
-      owner: 2000,
-      payer_account_id: 3000,
-      spender: 4000,
+      owner: defaultOwner.toString(),
+      payer_account_id: defaultPayer.toString(),
+      spender: defaultSpender.toString(),
       timestamp_range: '[0,)',
     },
     {
       amount: 1000,
-      owner: 2000,
-      payer_account_id: 3000,
-      spender: 4001,
+      owner: defaultOwner.toString(),
+      payer_account_id: defaultPayer.toString(),
+      spender: spender4001.toString(),
       timestamp_range: '[0,)',
     },
     {
       amount: 1000,
-      owner: 2000,
-      payer_account_id: 3000,
-      spender: 4002,
+      owner: defaultOwner.toString(),
+      payer_account_id: defaultPayer.toString(),
+      spender: spender4002.toString(),
       timestamp_range: '[0,)',
     },
     {
       amount: 1000,
-      owner: 2000,
-      payer_account_id: 3000,
-      spender: 4003,
+      owner: defaultOwner.toString(),
+      payer_account_id: defaultPayer.toString(),
+      spender: spender4003.toString(),
       timestamp_range: '[0,)',
     },
   ];
@@ -99,15 +106,15 @@ describe('CryptoAllowanceService.getAccountCrytoAllownces tests', () => {
   const expectedCryptoAllowance = [
     {
       amount: 1000,
-      owner: 2000,
-      payerAccountId: 3000,
-      spender: 4002,
+      owner: defaultOwner.getEncodedId(),
+      payerAccountId: defaultPayer.getEncodedId(),
+      spender: spender4002.getEncodedId(),
     },
     {
       amount: 1000,
-      owner: 2000,
-      payerAccountId: 3000,
-      spender: 4003,
+      owner: defaultOwner.getEncodedId(),
+      payerAccountId: defaultPayer.getEncodedId(),
+      spender: spender4003.getEncodedId(),
     },
   ];
 
@@ -115,7 +122,12 @@ describe('CryptoAllowanceService.getAccountCrytoAllownces tests', () => {
     await integrationDomainOps.loadCryptoAllowances(inputCryptoAllowance);
 
     await expect(
-      CryptoAllowanceService.getAccountCryptoAllowances([defaultOwnerFilter, 'spender > $2'], [2000, 4001], 'asc', 5)
+      CryptoAllowanceService.getAccountCryptoAllowances(
+        [defaultOwnerFilter, 'spender > $2'],
+        [defaultOwner.getEncodedId(), spender4001.getEncodedId()],
+        'asc',
+        5
+      )
     ).resolves.toMatchObject(expectedCryptoAllowance);
   });
 
@@ -125,7 +137,7 @@ describe('CryptoAllowanceService.getAccountCrytoAllownces tests', () => {
     await expect(
       CryptoAllowanceService.getAccountCryptoAllowances(
         [defaultOwnerFilter, 'spender in ($2, $3)'],
-        [2000, 4002, 4003],
+        [defaultOwner.getEncodedId(), spender4002.getEncodedId(), spender4003.getEncodedId()],
         'asc',
         5
       )

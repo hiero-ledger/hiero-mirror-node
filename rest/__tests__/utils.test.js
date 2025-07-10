@@ -9,6 +9,7 @@ import * as constants from '../constants';
 import {InvalidArgumentError, InvalidClauseError} from '../errors';
 import {Entity} from '../model/index';
 import {Range} from 'pg-range';
+import EntityId from '../entityId';
 
 const ecdsaKey = '02b5ffadf88d625cd9074fa01e5280b773a60ed2de55b0d6f94460c0b5a001a258';
 const ecdsaProtoKey = {ECDSASecp256k1: Buffer.from(ecdsaKey, 'hex')};
@@ -725,12 +726,16 @@ describe('Utils parseParams tests', () => {
 });
 
 describe('Utils parseAccountIdQueryParam tests', () => {
+  const accountId2 = EntityId.parseString('2');
+  const accountId3 = EntityId.parseString('3');
+  const accountId4 = EntityId.parseString('4');
+  const accountId5 = EntityId.parseString('5');
   const testSpecs = [
     {
       name: singleParamTestName,
-      parsedQueryParams: {'account.id': 'gte:0.0.3'},
+      parsedQueryParams: {'account.id': `gte:${accountId3.toString()}`},
       expectedClause: 'account.id >= ?',
-      expectedValues: [3],
+      expectedValues: [accountId3.getEncodedId()],
     },
     {
       name: noParamTestName,
@@ -740,24 +745,24 @@ describe('Utils parseAccountIdQueryParam tests', () => {
     },
     {
       name: multipleParamsTestName,
-      parsedQueryParams: {'account.id': ['gte:0.0.3', 'lt:0.0.5', '2']},
+      parsedQueryParams: {'account.id': [`gte:${accountId3.toString()}`, `lt:${accountId5.toString()}`, '2']},
       expectedClause: 'account.id >= ? and account.id < ? and account.id IN (?)',
-      expectedValues: [3, 5, 2],
+      expectedValues: [accountId3.getEncodedId(), accountId5.getEncodedId(), accountId2.getEncodedId()],
     },
     {
       name: extraParamTestName,
       parsedQueryParams: {
-        'account.id': '0.0.3',
+        'account.id': accountId3.toString(),
         timestamp: '2000',
       },
       expectedClause: 'account.id IN (?)',
-      expectedValues: [3],
+      expectedValues: [accountId3.getEncodedId()],
     },
     {
       name: multipleEqualsTestName,
-      parsedQueryParams: {'account.id': ['0.0.3', '4']},
+      parsedQueryParams: {'account.id': [accountId3.toString(), '4']},
       expectedClause: 'account.id IN (?, ?)',
-      expectedValues: [3, 4],
+      expectedValues: [accountId3.getEncodedId(), accountId4.getEncodedId()],
     },
   ];
   parseQueryParamTest(testSpecs, (spec) => utils.parseAccountIdQueryParam(spec.parsedQueryParams, 'account.id'));

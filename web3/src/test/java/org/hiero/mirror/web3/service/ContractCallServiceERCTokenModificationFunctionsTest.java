@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.utils.Constants.CALL_URI;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -33,8 +34,6 @@ import org.springframework.test.web.servlet.ResultActions;
 
 @AutoConfigureMockMvc
 class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContractCallServiceTest {
-
-    private static final String CALL_URI = "/api/v1/contracts/call";
 
     @Resource
     private MockMvc mockMvc;

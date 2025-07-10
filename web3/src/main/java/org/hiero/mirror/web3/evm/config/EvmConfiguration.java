@@ -248,7 +248,7 @@ public class EvmConfiguration {
     }
 
     @Bean
-    Map<TracerType, Provider<HederaEvmOperationTracer>> tracerProvider(
+    Map<TracerType, Provider<HederaEvmOperationTracer>> monoTracerProvider(
             final MirrorOperationTracer mirrorOperationTracer, final OpcodeTracer opcodeTracer) {
         Map<TracerType, Provider<HederaEvmOperationTracer>> tracerMap = new EnumMap<>(TracerType.class);
         tracerMap.put(TracerType.OPCODE, () -> opcodeTracer);

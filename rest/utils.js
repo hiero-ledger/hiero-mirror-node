@@ -418,7 +418,7 @@ const isValidContractIdQueryParam = (op, val) => {
 };
 
 const isValidUserFileId = (val) => {
-  return !_.isNil(val) && val > 1000;
+  return !_.isNil(val) && val !== '' && EntityId.parse(val).num > 1000;
 };
 
 /**
@@ -1326,7 +1326,7 @@ const formatComparator = (comparator) => {
     switch (comparator.key) {
       case constants.filterKeys.ACCOUNT_ID:
         // Accepted forms: shard.realm.num or encoded ID string
-        comparator.value = EntityId.parse(comparator.value).getEncodedId();
+        comparator.value = EntityId.parseString(comparator.value).getEncodedId();
         break;
       case constants.filterKeys.ACCOUNT_PUBLICKEY:
         comparator.value = parsePublicKey(comparator.value);

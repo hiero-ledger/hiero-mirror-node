@@ -27,7 +27,6 @@ import org.hiero.mirror.web3.evm.config.PrecompilesHolder;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
@@ -50,9 +49,6 @@ class MirrorEvmMessageCallProcessorTest extends MirrorEvmMessageCallProcessorBas
     @Mock
     private MirrorNodeEvmProperties evmProperties;
 
-    @Mock
-    private MirrorNodeState mirrorNodeState;
-
     private OpcodeTracer opcodeTracer;
     private MirrorEvmMessageCallProcessor subject;
 
@@ -60,7 +56,7 @@ class MirrorEvmMessageCallProcessorTest extends MirrorEvmMessageCallProcessorBas
     void setUp() {
         when(precompilesHolder.getHederaPrecompiles()).thenReturn(hederaPrecompileList);
         when(messageFrame.getWorldUpdater()).thenReturn(updater);
-        opcodeTracer = Mockito.spy(new OpcodeTracer(precompilesHolder, evmProperties, mirrorNodeState));
+        opcodeTracer = Mockito.spy(new OpcodeTracer(precompilesHolder));
         subject = new MirrorEvmMessageCallProcessor(
                 autoCreationLogic,
                 entityAddressSequencer,
@@ -163,7 +159,8 @@ class MirrorEvmMessageCallProcessorTest extends MirrorEvmMessageCallProcessorBas
         when(messageFrame.getGasPrice()).thenReturn(Wei.ONE);
 
         boolean isModularized = evmProperties.isModularizedServices();
-        when(opcodeTracer.getContext().getOpcodeTracerOptions())
+
+        when(contractCallContext.getOpcodeTracerOptions())
                 .thenReturn(new OpcodeTracerOptions(true, true, true, isModularized));
         when(messageFrame.getCurrentOperation()).thenReturn(mock(Operation.class));
 
