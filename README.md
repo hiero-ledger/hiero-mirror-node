@@ -2,8 +2,9 @@
 [![Codacy Grade](https://app.codacy.com/project/badge/Grade/e0e3a2f2770644eaa5cfc7b274569a3a)](https://app.codacy.com/gh/hiero-ledger/hiero-mirror-node/dashboard?utm_campaign=Badge_grade)
 [![Codacy Coverage](https://app.codacy.com/project/badge/Coverage/e0e3a2f2770644eaa5cfc7b274569a3a)](https://app.codacy.com/gh/hiero-ledger/hiero-mirror-node/dashboard?utm_campaign=Badge_coverage)
 [![Discord](https://img.shields.io/badge/discord-join%20chat-blue.svg)](https://discord.com/channels/905194001349627914/1289954446712770600)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/hiero-ledger/hiero-mirror-node/badge)](https://api.scorecard.dev/projects/github.com/hiero-ledger/hiero-mirror-node)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/hiero-ledger/hiero-mirror-node/badge)](https://scorecard.dev/viewer/?uri=github.com/hiero-ledger/hiero-mirror-node)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/10697/badge)](https://bestpractices.coreinfrastructure.org/projects/10697)
+[![License](https://img.shields.io/badge/license-apache2-blue.svg)](LICENSE)
 
 # Mirror Node
 
