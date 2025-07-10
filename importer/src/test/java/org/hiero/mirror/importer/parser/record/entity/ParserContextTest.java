@@ -39,7 +39,7 @@ class ParserContextTest {
     @Test
     void clear() {
         parserContext.add(domainBuilder.entity().get());
-        parserContext.getEvmAddressLookupIds().add(1L);
+        parserContext.addEvmAddressLookupId(1L);
         parserContext.clear();
         assertThat(getItems()).isEmpty();
         assertThat(parserContext.getEvmAddressLookupIds()).isEmpty();
