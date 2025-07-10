@@ -19,13 +19,19 @@ import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.util.Collections;
 import java.util.List;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.junit.jupiter.api.Test;
 
 class TokenCreateWrapperTest {
     private static final DomainBuilder domainBuilder = new DomainBuilder();
     private static final byte[] ecdsaSecpk256k1 = "123456789012345678901234567890123".getBytes();
     private static final byte[] ed25519 = "12345678901234567890123456789012".getBytes();
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private static final TokenID DEFAULT_TOKEN_ID = EntityId.of(
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 0)
+            .toTokenID();
     private final TokenKeyWrapper tokenKeyWrapper =
             new TokenKeyWrapper(1, new KeyValueWrapper(true, null, new byte[] {}, new byte[] {}, null));
     private final ContractID contractID = contractIdFromEvmAddress(contractAddress);
@@ -233,6 +239,7 @@ class TokenCreateWrapperTest {
     @Test
     void translatesFixedFeeWithCreatedTokenAsExpected() {
         // given
+
         final var feeWrapper = new TokenCreateWrapper.FixedFeeWrapper(5, null, false, true, receiver);
 
         // when
@@ -243,7 +250,7 @@ class TokenCreateWrapperTest {
         final var fixedFee = result.getFixedFee();
         assertEquals(5, fixedFee.getAmount());
         assertTrue(fixedFee.hasDenominatingTokenId());
-        assertEquals(TokenID.getDefaultInstance(), fixedFee.getDenominatingTokenId());
+        assertEquals(DEFAULT_TOKEN_ID, fixedFee.getDenominatingTokenId());
         assertEquals(receiver, result.getFeeCollectorAccountId());
     }
 

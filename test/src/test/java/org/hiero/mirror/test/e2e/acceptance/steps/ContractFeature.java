@@ -34,7 +34,6 @@ import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.ExecuteContractResult;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
-import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -315,7 +314,7 @@ public class ContractFeature extends BaseContractFeature {
                 : ContractExecutionStage.CALL;
 
         assertThat(contractResult.getFrom())
-                .isEqualTo(FeatureInputHandler.evmAddress(contractClient
+                .isEqualTo(asHexAddress(contractClient
                         .getSdkClient()
                         .getExpandedOperatorAccountId()
                         .getAccountId()));
