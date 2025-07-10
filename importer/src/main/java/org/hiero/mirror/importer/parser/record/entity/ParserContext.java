@@ -124,7 +124,6 @@ public class ParserContext {
             getInserts().clear();
             getState().clear();
             getNonPersisted().clear();
-            getEvmAddressLookupIds().clear();
         }
     }
 }
