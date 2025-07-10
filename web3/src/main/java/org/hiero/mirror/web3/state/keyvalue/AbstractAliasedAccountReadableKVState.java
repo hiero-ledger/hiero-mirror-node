@@ -80,10 +80,16 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
         } else if (entity.getAlias() != null && entity.getAlias().length > 0) {
             alias = entity.getAlias();
         }
-        final boolean isSmartContract = CONTRACT.equals(entity.getType());
+
+        final var senderAccountId  = ContractCallContext.get().getSenderAccountId();
+        boolean isSmartContract = CONTRACT.equals(entity.getType());
+        final var accountId = EntityIdUtils.toAccountId(entity.toEntityId());
+        if (isSmartContract && accountId.equals(senderAccountId)) {
+            isSmartContract = false;
+        }
 
         return Account.newBuilder()
-                .accountId(EntityIdUtils.toAccountId(entity.toEntityId()))
+                .accountId(accountId)
                 .alias(Bytes.wrap(alias))
                 .approveForAllNftAllowances(getApproveForAllNfts(entity.getId(), timestamp))
                 .autoRenewAccountId(toAccountId(entity.getAutoRenewAccountId()))

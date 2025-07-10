@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.common;
 
+import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.common.EntityNumber;
 import java.util.ArrayList;
 import java.util.EmptyStackException;
@@ -82,6 +83,9 @@ public class ContractCallContext {
 
     @Setter
     private boolean isBalanceCall;
+
+    @Setter
+    private AccountID senderAccountId;
 
     private ContractCallContext() {}
 

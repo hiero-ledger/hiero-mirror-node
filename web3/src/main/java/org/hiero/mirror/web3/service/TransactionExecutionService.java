@@ -220,11 +220,10 @@ public class TransactionExecutionService {
         final var senderAddress = params.getSender().canonicalAddress();
         final var accountIDNum = getSenderAccountIDAsNum(senderAddress);
 
+        ContractCallContext.get().setSenderAccountId(accountIDNum);
         final var account = accountReadableKVState.get(accountIDNum);
         if (account == null) {
             throwPayerAccountNotFoundException(SENDER_NOT_FOUND);
-        } else if (account.smartContract()) {
-            throwPayerAccountNotFoundException(SENDER_IS_SMART_CONTRACT);
         }
 
         return accountIDNum;
