@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.hiero.mirror.common.util.DomainUtils.fromTrimmedEvmAddress;
-import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
 
 import com.github.benmanes.caffeine.cache.CacheLoader;
@@ -19,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -69,8 +67,10 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
     @Override
     public void onContractLog(ContractLog contractLog) {
         if (contractLog.isSyntheticTransfer()) {
-            var updater = toLogUpdater(contractLog);
-            if (updater != null) {
+            var senderId = fromTrimmedEvmAddress(contractLog.getTopic1());
+            var receiverId = fromTrimmedEvmAddress(contractLog.getTopic2());
+            if (!(EntityId.isEmpty(senderId) && EntityId.isEmpty(receiverId))) {
+                final var updater = new SyntheticLogUpdater(senderId, receiverId, contractLog);
                 updater.populateSearchIds();
                 parserContext.addTransient(updater);
             }
@@ -115,23 +115,8 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
 
     private void processBatch(Map<Long, byte[]> result, List<EvmAddressMapping> evmAddressMappings) {
         for (var mapping : evmAddressMappings) {
-            if (mapping.getEvmAddress() == null || mapping.getEvmAddress().length == 0) {
-                result.put(mapping.getId(), trim(toEvmAddress(EntityId.of(mapping.getId()))));
-            } else {
-                result.put(mapping.getId(), trim(mapping.getEvmAddress()));
-            }
+            result.put(mapping.getId(), trim(mapping.getEvmAddress()));
         }
-    }
-
-    private SyntheticLogUpdater toLogUpdater(ContractLog contractLog) {
-        if (contractLog.isSyntheticTransfer()) {
-            var senderId = fromTrimmedEvmAddress(contractLog.getTopic1());
-            var receiverId = fromTrimmedEvmAddress(contractLog.getTopic2());
-            if (!(EntityId.isEmpty(senderId) && EntityId.isEmpty(receiverId))) {
-                return new SyntheticLogUpdater(senderId, receiverId, contractLog);
-            }
-        }
-        return null;
     }
 
     @RequiredArgsConstructor
@@ -142,27 +127,26 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
 
         public void populateSearchIds() {
             if (!EntityId.isEmpty(receiver)) {
-                parserContext.getEvmAddressLookupIds().add(receiver.getId());
+                parserContext.addEvmAddressLookupId(receiver.getId());
             }
 
             if (!EntityId.isEmpty(sender)) {
-                parserContext.getEvmAddressLookupIds().add(sender.getId());
+                parserContext.addEvmAddressLookupId(sender.getId());
             }
         }
 
         public void updateContractLog(Map<Long, byte[]> entityEvmAddresses) {
-            updateTopicField(
-                    sender, entityEvmAddresses.get(sender.getId()), contractLog::setTopic1, contractLog::getTopic1);
-            updateTopicField(
-                    receiver, entityEvmAddresses.get(receiver.getId()), contractLog::setTopic2, contractLog::getTopic2);
+            updateTopicField(sender, entityEvmAddresses, contractLog::setTopic1, contractLog.getTopic1());
+            updateTopicField(receiver, entityEvmAddresses, contractLog::setTopic2, contractLog.getTopic2());
         }
 
         public void updateTopicField(
                 final EntityId key,
-                final byte[] cachedResult,
+                final Map<Long, byte[]> entityEvmAddresses,
                 final Consumer<byte[]> setter,
-                final Supplier<byte[]> defaultValue) {
+                final byte[] defaultValue) {
             if (!EntityId.isEmpty(key)) {
+                var cachedResult = entityEvmAddresses.get(key.getId());
                 if (cachedResult != null) {
                     setter.accept(cachedResult);
                 } else {
@@ -172,7 +156,12 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
                         getEvmCache().put(key.getId(), trimmedEvmAddress);
                         setter.accept(trimmedEvmAddress);
                     } else {
-                        getEvmCache().put(key.getId(), defaultValue.get());
+                        /* The entity repository only returns rows that have a non-empty evm address
+                        and the entity was not created in this block so we can safely assume the
+                        entity does not have an evm address. In addition, we know the default value here
+                        will be non-null as the key is derived from this value and is checked to be non-empty
+                        */
+                        getEvmCache().put(key.getId(), defaultValue);
                     }
                 }
             }

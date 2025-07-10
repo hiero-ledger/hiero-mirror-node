@@ -7,8 +7,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
@@ -20,8 +22,7 @@ import lombok.NonNull;
  */
 @Named
 public class ParserContext {
-    @Getter
-    private List<Long> evmAddressLookupIds = new ArrayList<>();
+    private Set<Long> evmAddressLookupIds = new HashSet<>();
 
     private final Map<Class<?>, DomainContext<?>> state = new ConcurrentSkipListMap<>(new DomainClassComparator());
 
@@ -87,6 +88,14 @@ public class ParserContext {
     public void remove(@NonNull Class<?> domainClass) {
         var domainContext = getDomainContext(domainClass);
         domainContext.clear();
+    }
+
+    public Collection<Long> getEvmAddressLookupIds() {
+        return Collections.unmodifiableSet(evmAddressLookupIds);
+    }
+
+    public void addEvmAddressLookupId(long id) {
+        evmAddressLookupIds.add(id);
     }
 
     @SuppressWarnings("unchecked")

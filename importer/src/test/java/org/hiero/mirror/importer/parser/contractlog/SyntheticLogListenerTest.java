@@ -229,6 +229,29 @@ class SyntheticLogListenerTest {
         assertLogHasTopics(contractLog2, newEvm, EVM_3);
     }
 
+    @Test
+    void nullSenderAndOrReceiver() {
+        final var contractLog = syntheticTransferLog(LONG_ZERO_1, null);
+        final var contractLog2 = syntheticTransferLog(null, LONG_ZERO_2);
+        final var contractLog3 = syntheticTransferLog(null, null);
+
+        listener.onContractLog(contractLog);
+        listener.onContractLog(contractLog2);
+        listener.onContractLog(contractLog3);
+
+        final var ids = Set.of(ENTITY_1.getId(), ENTITY_2.getId());
+        mockFind(ids, Collections.emptyList());
+
+        submitAndClear();
+
+        verify(entityRepository, times(1)).findEvmAddressesByIds(ids);
+        verifyNoMoreInteractions(entityRepository);
+
+        assertLogHasTopics(contractLog, LONG_ZERO_1, null);
+        assertLogHasTopics(contractLog2, null, LONG_ZERO_2);
+        assertLogHasTopics(contractLog3, null, null);
+    }
+
     private ContractLog syntheticTransferLog(final byte[] topic1, final byte[] topic2) {
         return domainBuilder
                 .contractLog()

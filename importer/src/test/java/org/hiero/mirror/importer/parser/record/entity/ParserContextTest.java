@@ -95,6 +95,16 @@ class ParserContextTest {
         assertThat(parserContext.getTransient(Entity.class)).containsExactly(domain);
     }
 
+    @Test
+    void addEvmAddressLookupId() {
+        assertThatThrownBy(() -> parserContext.getEvmAddressLookupIds().add(0L))
+                .isInstanceOf(UnsupportedOperationException.class);
+        parserContext.addEvmAddressLookupId(1L);
+        parserContext.addEvmAddressLookupId(2L);
+        parserContext.addEvmAddressLookupId(1L);
+        assertThat(parserContext.getEvmAddressLookupIds()).containsExactlyInAnyOrder(1L, 2L);
+    }
+
     private Collection<Collection<?>> getItems() {
         var items = new ArrayList<Collection<?>>();
         parserContext.forEach(items::add);
