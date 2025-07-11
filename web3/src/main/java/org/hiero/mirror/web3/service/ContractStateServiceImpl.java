@@ -83,20 +83,17 @@ final class ContractStateServiceImpl implements ContractStateService {
      * @return slotKey-value pairs for contractId
      */
     private Optional<byte[]> findStorageBatch(final EntityId contractId, final byte[] key) {
-        final var contractSlotsCache = this.contractSlotsCache.get(
-                contractId, () -> cacheManagerSlotsPerContract.getCache(contractId.toString()));
-        contractSlotsCache.putIfAbsent(ByteBuffer.wrap(key), EMPTY_VALUE);
-
+        final var contractSlotsCache = ((CaffeineCache) this.contractSlotsCache.get(
+                contractId, () -> cacheManagerSlotsPerContract.getCache(contractId.toString())));
         // Cached slot keys for contract, whose slot values are not present in the contractStateCache
         final var cachedSlots = new ArrayList<byte[]>();
-        ((CaffeineCache) contractSlotsCache).getNativeCache().asMap().keySet().forEach(slot -> {
-            final var slotBytes = ((ByteBuffer) slot).array();
-            final var value = contractStateCache.putIfAbsent(generateCacheKey(contractId, slotBytes), EMPTY_VALUE);
-
-            if (value == null) {
+        synchronized (contractSlotsCache) {
+            contractSlotsCache.putIfAbsent(ByteBuffer.wrap(key), EMPTY_VALUE);
+            (contractSlotsCache).getNativeCache().asMap().keySet().forEach(slot -> {
+                final var slotBytes = ((ByteBuffer) slot).array();
                 cachedSlots.add(slotBytes);
-            }
-        });
+            });
+        }
 
         final var contractSlotValues = contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots);
         byte[] cachedValue = null;
@@ -105,7 +102,6 @@ final class ContractStateServiceImpl implements ContractStateService {
             final byte[] slotKey = contractSlotValue.getSlot();
             final byte[] slotValue = contractSlotValue.getValue();
             contractStateCache.put(generateCacheKey(contractId, slotKey), slotValue);
-            contractSlotsCache.put(ByteBuffer.wrap(slotKey), EMPTY_VALUE);
 
             if (Arrays.equals(slotKey, key)) {
                 cachedValue = slotValue;
