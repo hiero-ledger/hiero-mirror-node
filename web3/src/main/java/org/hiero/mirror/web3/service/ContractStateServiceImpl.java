@@ -85,18 +85,24 @@ final class ContractStateServiceImpl implements ContractStateService {
     private Optional<byte[]> findStorageBatch(final EntityId contractId, final byte[] key) {
         final var contractSlotsCache = this.contractSlotsCache.get(
                 contractId, () -> cacheManagerSlotsPerContract.getCache(contractId.toString()));
-        contractSlotsCache.putIfAbsent(ByteBuffer.wrap(key), EMPTY_VALUE);
-
         // Cached slot keys for contract, whose slot values are not present in the contractStateCache
         final var cachedSlots = new ArrayList<byte[]>();
-        ((CaffeineCache) contractSlotsCache).getNativeCache().asMap().keySet().forEach(slot -> {
-            final var slotBytes = ((ByteBuffer) slot).array();
-            final var value = contractStateCache.putIfAbsent(generateCacheKey(contractId, slotBytes), EMPTY_VALUE);
+        synchronized (contractSlotsCache) {
+            contractSlotsCache.putIfAbsent(ByteBuffer.wrap(key), EMPTY_VALUE);
+            ((CaffeineCache) contractSlotsCache)
+                    .getNativeCache()
+                    .asMap()
+                    .keySet()
+                    .forEach(slot -> {
+                        final var slotBytes = ((ByteBuffer) slot).array();
+                        final var value =
+                                contractStateCache.putIfAbsent(generateCacheKey(contractId, slotBytes), EMPTY_VALUE);
 
-            if (value == null) {
-                cachedSlots.add(slotBytes);
-            }
-        });
+                        if (value == null || value.get().equals(EMPTY_VALUE)) {
+                            cachedSlots.add(slotBytes);
+                        }
+                    });
+        }
 
         final var contractSlotValues = contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots);
         byte[] cachedValue = null;
