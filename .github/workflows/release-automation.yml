@@ -120,6 +120,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Output Release Notes
+        if: ${{ steps.version_parser.outputs.prerelease == '' }}
         continue-on-error: true
         run: cat changelog.md
 

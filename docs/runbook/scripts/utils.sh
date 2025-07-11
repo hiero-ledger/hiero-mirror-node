@@ -20,11 +20,74 @@ function watchInBackground() {
   "$@" || kill -INT -- -"$pid"
 }
 
+function patroniFailoverToFirstPod() {
+  local namespace="${1}"
+
+  local clustersInNamespace
+  clustersInNamespace=$(echo "${CITUS_CLUSTERS}" | jq -c --arg ns "${namespace}" '
+          map(select(.namespace == $ns))')
+
+  local clusterCount
+  clusterCount=$(echo "${clustersInNamespace}" | jq length)
+
+  for ((i = 0; i < clusterCount; i++)); do
+    local cluster
+    cluster=$(echo "${clustersInNamespace}" | jq -c ".[$i]")
+
+    local citusGroup
+    citusGroup=$(echo "${cluster}" | jq -r '.citusGroup')
+
+    local currentPrimaryPod
+    currentPrimaryPod=$(echo "${cluster}" | jq -r 'select(.primary == true) | .podName')
+
+    # The expected primary pod is the one ending with -0, build its name:
+    local podPrefix
+    podPrefix=$(echo "${currentPrimaryPod}" | sed -E 's/-[0-9]+$//')
+    local expectedPrimaryPod="${podPrefix}-0"
+
+    if [[ -z "${currentPrimaryPod}" ]]; then
+      log "No primary pod found for Citus cluster group '${citusGroup}' in namespace ${namespace}. Exiting."
+      exit 1
+    fi
+
+    if [[ "${currentPrimaryPod}" != "${expectedPrimaryPod}" ]]; then
+      log "Current primary pod '${currentPrimaryPod}' is not '${expectedPrimaryPod}' for cluster group '${citusGroup}' in namespace ${namespace}. Triggering failover..."
+
+      kubectl exec -n "${namespace}" -c patroni "${currentPrimaryPod}" -- \
+        patronictl failover --group "${citusGroup}" --scheduled --candidate "${expectedPrimaryPod}" --force
+
+      # Wait for failover to complete
+      local timeout=600
+      local start_time=$SECONDS
+      local newPrimaryPod
+      while true; do
+        log "Waiting for failover to complete..."
+        sleep 5
+        CITUS_CLUSTERS=$(getCitusClusters)
+        newPrimaryPod=$(echo "${CITUS_CLUSTERS}" | jq -r --arg ns "${namespace}" --arg group "${citusGroup}" '
+                map(select(.namespace == $ns and .citusGroup == $group and .primary == true)) | .[0].podName')
+
+        if [[ "${newPrimaryPod}" == "${expectedPrimaryPod}" ]]; then
+          log "Failover successful for cluster group '${citusGroup}'. '${expectedPrimaryPod}' is now primary."
+          break
+        fi
+
+        if ((SECONDS - start_time > timeout)); then
+          log "Timed out waiting for failover to '${expectedPrimaryPod}' in cluster group '${citusGroup}', namespace ${namespace}."
+          exit 1
+        fi
+      done
+    else
+      log "Pod '${expectedPrimaryPod}' is already primary for cluster group '${citusGroup}' in namespace ${namespace}. Skipping."
+    fi
+  done
+}
+
 function checkCitusMetadataSyncStatus() {
   TIMEOUT_SECONDS=600
   local namespace="${1}"
 
-  deadline=$((SECONDS+TIMEOUT_SECONDS))
+  deadline=$((SECONDS + TIMEOUT_SECONDS))
   while [[ "$SECONDS" -lt "$deadline" ]]; do
     synced=$(kubectl exec -n "${namespace}" "${HELM_RELEASE_NAME}-citus-coord-0" -c postgres-util -- psql -U postgres -d mirror_node -P format=unaligned -t -c "select bool_and(metadatasynced) from pg_dist_node")
     if [[ "${synced}" == "t" ]]; then
@@ -85,7 +148,7 @@ function unrouteTraffic() {
   local namespace="${1}"
   if [[ "${AUTO_UNROUTE}" == "true" ]]; then
     log "Unrouting traffic to cluster in namespace ${namespace}"
-    if kubectl get helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" > /dev/null; then
+    if kubectl get helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" >/dev/null; then
       log "Suspending helm release ${HELM_RELEASE_NAME} in namespace ${namespace}"
       doContinue
       flux suspend helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}"
@@ -120,7 +183,7 @@ function routeTraffic() {
     fi
   done
   if [[ "${AUTO_UNROUTE}" == "true" ]]; then
-    if kubectl get helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" > /dev/null; then
+    if kubectl get helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" >/dev/null; then
       log "Resuming helm release ${HELM_RELEASE_NAME} in namespace ${namespace}.
           Be sure to configure values.yaml with any changes before continuing"
       doContinue
@@ -138,6 +201,7 @@ function pauseCitus() {
   if [[ -z "${citusPods}" ]]; then
     log "Citus is not currently running"
   else
+    patroniFailoverToFirstPod "${namespace}"
     log "Removing pods (${citusPods}) in ${namespace} for ${CURRENT_CONTEXT}"
     doContinue
     kubectl annotate sgclusters.stackgres.io -n "${namespace}" --all stackgres.io/reconciliation-pause="true" --overwrite
@@ -151,7 +215,7 @@ function pauseCitus() {
 function waitForPatroniMasters() {
   local namespace="${1}"
   local masterPods=($(kubectl get pods -n "${namespace}" -l "${STACKGRES_MASTER_LABELS}" -o jsonpath='{.items[*].metadata.name}'))
-  local expectedTotal=$(($(kubectl get sgshardedclusters -n "${namespace}" -o jsonpath='{.items[0].spec.shards.clusters}')+1))
+  local expectedTotal=$(($(kubectl get sgshardedclusters -n "${namespace}" -o jsonpath='{.items[0].spec.shards.clusters}') + 1))
 
   if [[ "${#masterPods[@]}" -ne "${expectedTotal}" ]]; then
     log "Expected ${expectedTotal} master pods and found only ${#masterPods[@]} in namespace ${namespace}"
@@ -161,9 +225,9 @@ function waitForPatroniMasters() {
   local patroniPod="${masterPods[0]}"
 
   while [[ "$(kubectl exec -n "${namespace}" "${patroniPod}" -c patroni -- patronictl list --format=json |
-              jq -r --arg PATRONI_MASTER_ROLE "${PATRONI_MASTER_ROLE}" \
-                    --arg EXPECTED_MASTERS "${expectedTotal}" \
-                    'map(select(.Role == $PATRONI_MASTER_ROLE)) |
+    jq -r --arg PATRONI_MASTER_ROLE "${PATRONI_MASTER_ROLE}" \
+      --arg EXPECTED_MASTERS "${expectedTotal}" \
+      'map(select(.Role == $PATRONI_MASTER_ROLE)) |
                      length == ($EXPECTED_MASTERS | tonumber) and all(.State == "running")')" != "true" ]]; do
     log "Waiting for Patroni to be ready"
     sleep 5
@@ -190,7 +254,7 @@ function unpauseCitus() {
       sleep 1
     done
 
-    expectedTotal=$(($(kubectl get sgshardedclusters -n "${namespace}" -o jsonpath='{.items[0].spec.shards.clusters}')+1))
+    expectedTotal=$(($(kubectl get sgshardedclusters -n "${namespace}" -o jsonpath='{.items[0].spec.shards.clusters}') + 1))
     while [[ "$(kubectl get sts -n "${namespace}" -l 'app=StackGresCluster' -o name | wc -l)" -ne "${expectedTotal}" ]]; do
       sleep 1
     done
@@ -215,7 +279,7 @@ function unpauseCitus() {
 
 function getCitusClusters() {
   kubectl get sgclusters.stackgres.io -A -o json |
-      jq -r '.items|
+    jq -r '.items|
              map(
                .metadata as $metadata|
                .spec.postgres.version as $pgVersion|
@@ -245,10 +309,10 @@ function getDiskPrefix() {
   fi
 }
 
-function getZFSVolumes () {
+function getZFSVolumes() {
   kubectl get pv -o json |
-      jq -r --arg CITUS_CLUSTERS "${CITUS_CLUSTERS}" \
-        '.items|
+    jq -r --arg CITUS_CLUSTERS "${CITUS_CLUSTERS}" \
+      '.items|
          map(select(.metadata.annotations."pv.kubernetes.io/provisioned-by"=="zfs.csi.openebs.io" and
                     .status.phase == "Bound")|
             (.spec.claimRef.name) as $pvcName |
@@ -305,8 +369,8 @@ function updateStackgresCreds() {
   local cluster="${1}"
   local namespace="${2}"
   local sgPasswords=$(kubectl get secret -n "${namespace}" "${cluster}" -o json |
-      ksd |
-      jq -r '.stringData')
+    ksd |
+    jq -r '.stringData')
   local superuserUsername=$(echo "${sgPasswords}" | jq -r '.["superuser-username"]')
   local superuserPassword=$(echo "${sgPasswords}" | jq -r '.["superuser-password"]')
   local replicationUsername=$(echo "${sgPasswords}" | jq -r '.["replication-username"]')
