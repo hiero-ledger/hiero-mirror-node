@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension
+import org.flywaydb.core.Flyway
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.images.builder.Transferable
 
 plugins {
     id("java-conventions")
-    id("org.flywaydb.flyway")
     id("org.jooq.jooq-codegen-gradle")
 }
 
@@ -19,10 +19,15 @@ dependencies {
     jooqCodegen("org.jooq:jooq-postgres-extensions:$jooqVersion")
 }
 
-val dbName = "mirror_node"
-val dbPassword = "mirror_node_pass"
-val dbSchema = "public"
-val dbUser = "mirror_node"
+object Database {
+    val name = "mirror_node"
+    val password = "mirror_node_pass"
+    val schema = "public"
+    val username = "mirror_node"
+    var url = "postgresql://localhost:5432/mirror_node"
+}
+
+val dbDir = "${rootDir.absolutePath}/importer/src/main/resources/db"
 val jooqTargetDir = "build/generated-sources/jooq"
 
 java.sourceSets["main"].java { srcDir(jooqTargetDir) }
@@ -39,7 +44,7 @@ jooq {
                     | .*_p\d+_\d+
                 """
                 includes = ".*"
-                inputSchema = dbSchema
+                inputSchema = Database.schema
                 isIncludeRoutines = false
                 isIncludeUDTs = false
                 name = "org.jooq.meta.postgres.PostgresDatabase"
@@ -51,16 +56,16 @@ jooq {
         }
         jdbc {
             driver = "org.postgresql.Driver"
-            password = dbPassword
-            user = dbUser
+            password = Database.password
+            user = Database.username
         }
     }
+    delayedConfiguration { jdbc { url = Database.url } }
 }
 
 val postgresqlContainer =
     tasks.register("postgresqlContainer") {
-        val initSh =
-            "${project.rootDir.absolutePath}/importer/src/main/resources/db/scripts/init.sh"
+        val initSh = "${dbDir}/scripts/init.sh"
         doLast {
             val initScript = Transferable.of(File(initSh).readBytes())
             val container =
@@ -70,47 +75,41 @@ val postgresqlContainer =
                     start()
                 }
             val port = container.getMappedPort(5432)
-
-            project.extra.apply {
-                set("jdbcUrl", "jdbc:postgresql://${container.host}:$port/mirror_node")
-            }
+            Database.url = "jdbc:postgresql://${container.host}:$port/mirror_node"
         }
     }
 
 tasks.compileJava { dependsOn(tasks.jooqCodegen) }
 
-tasks.flywayMigrate {
-    locations =
-        arrayOf(
-            "filesystem:../importer/src/main/resources/db/migration/v1",
-            "filesystem:../importer/src/main/resources/db/migration/common",
-        )
-    password = dbPassword
-    placeholders =
-        mapOf(
-            "api-password" to "mirror_api_password",
-            "api-user" to "mirror_api_user",
-            "db-name" to dbName,
-            "db-user" to dbUser,
-            "partitionStartDate" to "'1970-01-01'",
-            "partitionTimeInterval" to "'100 years'",
-            "schema" to dbSchema,
-            "tempSchema" to "temporary",
-            "topicRunningHashV2AddedTimestamp" to "0",
-        )
-    user = dbUser
+val flywayMigrate =
+    tasks.register("flywayMigrate") {
+        val config =
+            mutableMapOf("flyway.password" to Database.password, "flyway.user" to Database.username)
+        val migrationDir = "${dbDir}/migration"
+        val locations =
+            arrayOf("filesystem:${migrationDir}/v1", "filesystem:${migrationDir}/common")
+        val placeholders =
+            mapOf(
+                "api-password" to "mirror_api_password",
+                "api-user" to "mirror_api_user",
+                "db-name" to Database.name,
+                "db-user" to Database.username,
+                "partitionStartDate" to "'1970-01-01'",
+                "partitionTimeInterval" to "'100 years'",
+                "schema" to Database.schema,
+                "tempSchema" to "temporary",
+                "topicRunningHashV2AddedTimestamp" to "0",
+            )
+        doLast {
+            config["flyway.url"] = Database.url
+            Flyway.configure()
+                .configuration(config)
+                .locations(*locations)
+                .placeholders(placeholders)
+                .load()
+                .migrate()
+        }
+        dependsOn(postgresqlContainer)
+    }
 
-    dependsOn(postgresqlContainer)
-    doFirst { url = project.extra["jdbcUrl"] as String }
-    notCompatibleWithConfigurationCache(
-        "Flyway plugin is not compatible with the configuration cache"
-    )
-}
-
-tasks.jooqCodegen {
-    dependsOn(tasks.flywayMigrate)
-    doFirst { jooq { configuration { jdbc { url = project.extra["jdbcUrl"] as String } } } }
-    notCompatibleWithConfigurationCache(
-        "Jooq plugin is not compatible with the configuration cache"
-    )
-}
+tasks.jooqCodegen { dependsOn(flywayMigrate) }

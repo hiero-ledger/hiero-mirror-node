@@ -12,7 +12,7 @@
     "dev": "HIERO_MIRROR_REST_LOG_LEVEL=trace nodemon --import=extensionless/register server.js",
     "start": "node --import=extensionless/register server.js",
     "pretest": "node --import=extensionless/register __tests__/integration/generator.js",
-    "test": "node --import=extensionless/register --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "NODE_NO_WARNINGS=1 node --import=extensionless/register --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "author": "Mirror Node Team",
   "license": "Apache-2.0",

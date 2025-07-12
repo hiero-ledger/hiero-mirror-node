@@ -18,11 +18,12 @@ extra.apply {
     set("blockNodeVersion", "0.13.0")
     set("grpcVersion", "1.73.0")
     set("jooq.version", "3.20.5") // Must match buildSrc/build.gradle.kts
-    set("prometheus-client.version", "1.3.6") // Temporary until 1.3.9+
+    set("prometheus-client.version", "1.3.10") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.14.0")
     set("protobufVersion", "4.31.1")
     set("reactorGrpcVersion", "1.2.4")
+    set("tomcat.version", "10.1.43") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
 
@@ -85,12 +86,11 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.9")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.springframework.cloud:spring-cloud-dependencies:2025.0.0")
-        api("org.testcontainers:junit-jupiter:1.21.3")
         api("org.mockito:mockito-inline:5.2.0")
-        api("software.amazon.awssdk:bom:2.31.77")
-        api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
         api("org.web3j:core:4.12.2")
+        api("software.amazon.awssdk:bom:2.31.77")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
+        api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
 }
 
