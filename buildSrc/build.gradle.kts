@@ -8,7 +8,7 @@ repositories {
 }
 
 dependencies {
-    val dockerJavaVersion = "3.5.2"
+    val dockerJavaVersion = "3.5.3"
     val jooqVersion = "3.20.5" // Always make the version in project root build.gradle.kts match
 
     // Add docker-java dependencies before gradle-docker-plugin to avoid the docker-java jars
@@ -16,11 +16,11 @@ dependencies {
     implementation("com.github.docker-java:docker-java-api:$dockerJavaVersion")
     implementation("com.github.docker-java:docker-java-core:$dockerJavaVersion")
     implementation("com.bmuschko:gradle-docker-plugin:9.4.0")
-    implementation("com.diffplug.spotless:spotless-plugin-gradle:7.0.4")
+    implementation("com.diffplug.spotless:spotless-plugin-gradle:7.1.0")
     implementation("com.gradleup.shadow:shadow-gradle-plugin:9.0.0-rc1")
     implementation("com.github.node-gradle:gradle-node-plugin:7.1.0")
     implementation("com.google.protobuf:protobuf-gradle-plugin:0.9.5")
-    implementation("com.gorylenko.gradle-git-properties:gradle-git-properties:2.5.0")
+    implementation("com.gorylenko.gradle-git-properties:gradle-git-properties:2.5.2")
     implementation("com.graphql-java-generator:graphql-gradle-plugin3:2.9")
     implementation("gradle.plugin.io.snyk.gradle.plugin:snyk:0.7.0")
     implementation("io.freefair.gradle:lombok-plugin:8.14")
