@@ -40,7 +40,7 @@ jobs:
           { echo "Deploying to ${{ github.event.inputs.environment }} is not allowed" && false; }
 
       - name: Validate version
-        run: curl -fsSL -o /dev/null ${{ github.server_url }}/${{ github.repository }}/releases/tags/v${{ github.event.inputs.version }}
+        run: curl -fsSL -o /dev/null ${{ github.server_url }}/${{ github.repository }}/tree/v${{ github.event.inputs.version }}
 
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
