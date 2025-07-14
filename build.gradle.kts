@@ -59,7 +59,7 @@ dependencies {
         api("io.cucumber:cucumber-bom:7.23.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-63:3.10.2")
+        api("io.hypersistence:hypersistence-utils-hibernate-63:3.10.3")
         api("io.projectreactor:reactor-core-micrometer:1.2.7")
         api("io.swagger:swagger-annotations:1.6.16")
         api("io.vertx:vertx-core:4.5.16") // Temporary until next Spring Boot
