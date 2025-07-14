@@ -14,7 +14,6 @@ import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
-import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.repository.NetworkStakeRepository;
@@ -24,19 +23,11 @@ import org.hiero.mirror.importer.util.Utility;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerTest {
+final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerTest {
 
     private final NodeRepository nodeRepository;
     private final NetworkStakeRepository networkStakeRepository;
     private final NodeStakeRepository nodeStakeRepository;
-
-    private static Node.NodeBuilder<?, ?> getExpectedNode(RecordItem recordItem) {
-        return Node.builder()
-                .createdTimestamp(recordItem.getConsensusTimestamp())
-                .declineReward(false)
-                .nodeId(recordItem.getTransactionRecord().getReceipt().getNodeId())
-                .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()));
-    }
 
     @SuppressWarnings("deprecation")
     @Test
@@ -101,13 +92,17 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
         var recordItem = recordItemBuilder.nodeCreate().build();
         var nodeCreate = recordItem.getTransactionBody().getNodeCreate();
         var protoEndpoint = nodeCreate.getGrpcProxyEndpoint();
-        var expectedNode = getExpectedNode(recordItem)
+        var expectedNode = Node.builder()
                 .adminKey(nodeCreate.getAdminKey().toByteArray())
+                .createdTimestamp(recordItem.getConsensusTimestamp())
+                .declineReward(false)
                 .grpcProxyEndpoint(ServiceEndpoint.builder()
                         .domainName(protoEndpoint.getDomainName())
                         .ipAddressV4("")
                         .port(protoEndpoint.getPort())
                         .build())
+                .nodeId(recordItem.getTransactionRecord().getReceipt().getNodeId())
+                .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                 .build();
 
         parseRecordItemAndCommit(recordItem);
@@ -163,11 +158,41 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
     }
 
     @Test
+    void nodeUpdateUnsetGrpcProxyEndpoint() {
+        var recordItem = recordItemBuilder
+                .nodeUpdate()
+                .transactionBody(b -> b.clearAdminKey()
+                        .setGrpcProxyEndpoint(com.hederahashgraph.api.proto.java.ServiceEndpoint.getDefaultInstance()))
+                .build();
+        var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
+        var timestamp = recordItem.getConsensusTimestamp() - 1;
+        var node = domainBuilder
+                .node()
+                .customize(n -> n.createdTimestamp(timestamp)
+                        .nodeId(nodeUpdate.getNodeId())
+                        .timestampRange(Range.atLeast(timestamp)))
+                .persist();
+
+        var expectedNode = node.toBuilder()
+                .grpcProxyEndpoint(null) // Should clear
+                .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
+                .build();
+
+        parseRecordItemAndCommit(recordItem);
+
+        node.setTimestampUpper(recordItem.getConsensusTimestamp());
+
+        softly.assertThat(nodeRepository.findAll()).containsExactly(expectedNode);
+        softly.assertThat(findHistory(Node.class)).containsExactly(node);
+    }
+
+    @Test
     void nodeUpdateNoChange() {
         var recordItem = recordItemBuilder
                 .nodeUpdate()
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearAdminKey)
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearDeclineReward)
+                .transactionBody(NodeUpdateTransactionBody.Builder::clearGrpcProxyEndpoint)
                 .build();
         var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
         var timestamp = recordItem.getConsensusTimestamp() - 1;
@@ -211,10 +236,9 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
                 .receipt(r -> r.setNodeId(node.getNodeId()))
                 .transactionBody(b -> b.setNodeId(node.getNodeId()))
                 .build();
-        var expectedNode = getExpectedNode(recordItem)
-                .adminKey(node.getAdminKey())
-                .createdTimestamp(node.getCreatedTimestamp())
+        var deletedNode = node.toBuilder()
                 .deleted(true)
+                .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                 .build();
 
         parseRecordItemAndCommit(recordItem);
@@ -228,7 +252,7 @@ class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemListenerT
                 .isNotNull()
                 .returns(recordItem.getTransaction().toByteArray(), Transaction::getTransactionBytes)
                 .returns(recordItem.getTransactionRecord().toByteArray(), Transaction::getTransactionRecordBytes);
-        softly.assertThat(nodeRepository.findAll()).containsExactly(expectedNode);
+        softly.assertThat(nodeRepository.findAll()).containsExactly(deletedNode);
         softly.assertThat(findHistory(Node.class)).containsExactly(node);
     }
 }
