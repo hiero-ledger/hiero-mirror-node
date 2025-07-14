@@ -94,7 +94,8 @@ final class ContractStateServiceImpl implements ContractStateService {
         });
 
         final var contractSlotValues = contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots);
-        boolean evicted = !cachedSlots.contains(ByteBuffer.wrap(key).array());
+        boolean isKeyEvictedFromCache =
+                !cachedSlots.contains(ByteBuffer.wrap(key).array());
         byte[] cachedValue = null;
 
         for (final var contractSlotValue : contractSlotValues) {
@@ -109,7 +110,7 @@ final class ContractStateServiceImpl implements ContractStateService {
 
         // If the cache key was evicted and hasn't been requested since, the cached value will be null.
         // In that case, fall back to the original query.
-        if (cachedValue == null && evicted) {
+        if (isKeyEvictedFromCache) {
             return contractStateRepository.findStorage(contractId.getId(), key);
         }
         return Optional.ofNullable(cachedValue);
