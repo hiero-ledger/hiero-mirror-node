@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.service;
 
-import static net.i2p.crypto.eddsa.Utils.hexToBytes;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.awaitility.Awaitility.await;
@@ -19,6 +18,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.awaitility.Durations;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -289,8 +290,8 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         final var slot1 = generateSlotKey(1);
         final var slot2 = generateSlotKey(2);
 
-        final byte[] value1 = hexToBytes("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-        final byte[] value2 = hexToBytes("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+        final byte[] value1 = Hex.decodeHex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        final byte[] value2 = Hex.decodeHex("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 
         persistContractState(contract.getId(), slot1, value1);
         persistContractState(contract.getId(), slot2, value2);
@@ -324,10 +325,10 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
             final var slots = List.of(generateSlotKey(1), generateSlotKey(2), generateSlotKey(3), generateSlotKey(4));
 
             final var values = List.of(
-                    hexToBytes("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-                    hexToBytes("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
-                    hexToBytes("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"),
-                    hexToBytes("dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"));
+                    Hex.decodeHex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                    Hex.decodeHex("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+                    Hex.decodeHex("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"),
+                    Hex.decodeHex("dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"));
 
             final var contractId = contract.toEntityId();
             for (int i = 0; i < 4; i++) {
@@ -377,14 +378,14 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
-    void verifyBatchSlotLoadingReturnsCorrectValuesSequentially() throws InterruptedException {
+    void verifyBatchSlotLoadingReturnsCorrectValuesSequentially() throws InterruptedException, DecoderException {
         // Given
         final var contract = persistContract();
         final var slot1 = generateSlotKey(1);
         final var slot2 = generateSlotKey(2);
 
-        final byte[] value1 = hexToBytes("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-        final byte[] value2 = hexToBytes("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+        final byte[] value1 = Hex.decodeHex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        final byte[] value2 = Hex.decodeHex("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 
         persistContractState(contract.getId(), slot1, value1);
         persistContractState(contract.getId(), slot2, value2);
