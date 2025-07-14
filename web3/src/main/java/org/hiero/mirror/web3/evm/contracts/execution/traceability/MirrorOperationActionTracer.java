@@ -2,9 +2,6 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import com.hedera.hapi.streams.ContractActionType;
-import com.hedera.hapi.streams.ContractActions;
-import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.services.utils.EntityIdUtils;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import jakarta.inject.Named;
@@ -17,11 +14,12 @@ import org.hiero.mirror.web3.evm.properties.TraceProperties;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation;
+import org.hyperledger.besu.evm.tracing.OperationTracer;
 
 @Named
 @CustomLog
 @RequiredArgsConstructor
-public class MirrorOperationActionTracer implements ActionSidecarContentTracer {
+public class MirrorOperationActionTracer implements OperationTracer {
 
     private final TraceProperties traceProperties;
     private final CommonEntityAccessor commonEntityAccessor;
@@ -66,25 +64,5 @@ public class MirrorOperationActionTracer implements ActionSidecarContentTracer {
                 frame.getInputData().toShortHexString(),
                 frame.getOutputData().toShortHexString(),
                 frame.getReturnData().toShortHexString());
-    }
-
-    @Override
-    public void traceOriginAction(@NonNull MessageFrame frame) {
-        // NO-OP
-    }
-
-    @Override
-    public void sanitizeTracedActions(@NonNull MessageFrame frame) {
-        // NO-OP
-    }
-
-    @Override
-    public void tracePrecompileResult(@NonNull MessageFrame frame, @NonNull ContractActionType type) {
-        // NO-OP
-    }
-
-    @Override
-    public ContractActions contractActions() {
-        return null;
     }
 }

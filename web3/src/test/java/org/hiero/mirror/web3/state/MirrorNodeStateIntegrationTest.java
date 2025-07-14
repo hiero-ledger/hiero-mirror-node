@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.state;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hedera.node.app.blocks.BlockStreamService;
 import com.hedera.node.app.fees.FeeService;
 import com.hedera.node.app.ids.EntityIdService;
 import com.hedera.node.app.records.BlockRecordService;
@@ -160,7 +161,8 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
                 FeeService.class,
                 CongestionThrottleService.class,
                 RecordCacheService.class,
-                ScheduleServiceImpl.class));
+                ScheduleServiceImpl.class,
+                BlockStreamService.class));
 
         final var registeredServices = servicesRegistry.registrations();
 

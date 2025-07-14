@@ -2,9 +2,6 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import com.hedera.hapi.streams.ContractActionType;
-import com.hedera.hapi.streams.ContractActions;
-import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
 import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -24,10 +21,11 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
+import org.hyperledger.besu.evm.tracing.OperationTracer;
 
 @Named
 @CustomLog
-public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSidecarContentTracer {
+public class OpcodeActionTracer extends AbstractOpcodeTracer implements OperationTracer {
 
     @Getter
     private final Map<Address, HederaSystemContract> systemContracts = new ConcurrentHashMap<>();
@@ -100,26 +98,6 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
             log.warn("Failed to retrieve storage contents", e);
             return Collections.emptyMap();
         }
-    }
-
-    @Override
-    public void traceOriginAction(@NonNull MessageFrame frame) {
-        // NO-OP
-    }
-
-    @Override
-    public void sanitizeTracedActions(@NonNull MessageFrame frame) {
-        // NO-OP
-    }
-
-    @Override
-    public void tracePrecompileResult(@NonNull MessageFrame frame, @NonNull ContractActionType type) {
-        // NO-OP
-    }
-
-    @Override
-    public ContractActions contractActions() {
-        return null;
     }
 
     public void setSystemContracts(final Map<Address, HederaSystemContract> systemContracts) {
