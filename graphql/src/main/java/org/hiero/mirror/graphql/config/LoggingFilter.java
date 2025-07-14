@@ -9,7 +9,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -39,7 +39,7 @@ class LoggingFilter extends OncePerRequestFilter {
 
     private void logRequest(HttpServletRequest request, HttpServletResponse response, long startTime, Exception cause) {
         String uri = request.getRequestURI();
-        boolean actuator = StringUtils.startsWith(uri, ACTUATOR_PATH);
+        boolean actuator = Strings.CS.startsWith(uri, ACTUATOR_PATH);
 
         if (!log.isDebugEnabled() && actuator) {
             return;

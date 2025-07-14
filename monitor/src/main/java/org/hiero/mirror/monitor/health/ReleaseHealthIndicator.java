@@ -12,7 +12,7 @@ import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.ReactiveHealthIndicator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnCloudPlatform;
@@ -75,7 +75,7 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
         var status = (Map<String, Object>) resource.getAdditionalProperties().get("status");
         var conditions = (List<Map<String, String>>) status.get("conditions");
         return conditions.stream()
-                .filter(condition -> StringUtils.equals(condition.get("type"), "Ready"))
+                .filter(condition -> Strings.CS.equals(condition.get("type"), "Ready"))
                 .findFirst()
                 .map(this::mapStatus)
                 .orElse(DOWN)

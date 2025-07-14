@@ -12,6 +12,7 @@ import java.util.Objects;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.rest.model.ContractCallResponse;
 
@@ -32,7 +33,7 @@ public class ContractCallResponseWrapper {
 
     public BigInteger getResultAsNumber() {
         var result = getResult();
-        if (!StringUtils.startsWith(result, "0x")) {
+        if (!Strings.CS.startsWith(result, "0x")) {
             return new BigInteger(result);
         } else {
             return getResultAsBytes().toBigInteger();
