@@ -87,15 +87,14 @@ final class ContractStateServiceImpl implements ContractStateService {
                 contractId, () -> cacheManagerSlotsPerContract.getCache(contractId.toString())));
         // Cached slot keys for contract, whose slot values are not present in the contractStateCache
         final var cachedSlots = new ArrayList<byte[]>();
-        synchronized (contractSlotsCache) {
-            contractSlotsCache.putIfAbsent(ByteBuffer.wrap(key), EMPTY_VALUE);
-            (contractSlotsCache).getNativeCache().asMap().keySet().forEach(slot -> {
-                final var slotBytes = ((ByteBuffer) slot).array();
-                cachedSlots.add(slotBytes);
-            });
-        }
+        contractSlotsCache.putIfAbsent(ByteBuffer.wrap(key), EMPTY_VALUE);
+        (contractSlotsCache).getNativeCache().asMap().keySet().forEach(slot -> {
+            final var slotBytes = ((ByteBuffer) slot).array();
+            cachedSlots.add(slotBytes);
+        });
 
         final var contractSlotValues = contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots);
+        boolean evicted = !cachedSlots.contains(ByteBuffer.wrap(key).array());
         byte[] cachedValue = null;
 
         for (final var contractSlotValue : contractSlotValues) {
@@ -108,6 +107,11 @@ final class ContractStateServiceImpl implements ContractStateService {
             }
         }
 
+        // If the cache key was evicted and hasn't been requested since, the cached value will be null.
+        // In that case, fall back to the original query.
+        if (cachedValue == null && evicted) {
+            return contractStateRepository.findStorage(contractId.getId(), key);
+        }
         return Optional.ofNullable(cachedValue);
     }
 
