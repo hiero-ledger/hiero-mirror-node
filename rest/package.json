@@ -53,7 +53,7 @@
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^11.2.1",
-    "@testcontainers/redis": "^11.1.0",
+    "@testcontainers/redis": "^11.2.1",
     "app-root-path": "^3.1.0",
     "crypto-random-string": "^5.0.0",
     "jest": "^30.0.4",
