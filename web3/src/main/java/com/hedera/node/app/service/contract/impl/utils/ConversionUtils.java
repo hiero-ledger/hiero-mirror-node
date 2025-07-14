@@ -12,6 +12,7 @@ import static com.hedera.node.app.service.contract.impl.utils.SynthTxnUtils.hasN
 import static com.hedera.node.app.service.token.AliasUtils.extractEvmAddress;
 import static java.util.Objects.requireNonNull;
 import static org.hiero.base.utility.CommonUtils.unhex;
+import static org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.ALLOW_LONG_ZERO_ADDRESSES;
 
 import com.esaulpaugh.headlong.abi.Tuple;
 import com.hedera.hapi.block.stream.trace.ContractSlotUsage;
@@ -469,6 +470,8 @@ public class ConversionUtils {
             @NonNull final HederaNativeOperations nativeOperations) {
         final var explicit = explicitFromHeadlong(address);
         final var number = maybeMissingNumberOf(explicit, nativeOperations);
+        final var longZeroAddressPermitted = Boolean.parseBoolean(System.getProperty(ALLOW_LONG_ZERO_ADDRESSES));
+
         if (number == MISSING_ENTITY_NUMBER) {
             return MISSING_ENTITY_NUMBER;
         } else {
@@ -476,7 +479,7 @@ public class ConversionUtils {
                     nativeOperations.entityIdFactory().newAccountId(number));
             if (account == null || account.deleted()) {
                 return MISSING_ENTITY_NUMBER;
-            } else if (!Arrays.equals(explicit, explicitAddressOf(account))) {
+            } else if (!longZeroAddressPermitted && !Arrays.equals(explicit, explicitAddressOf(account))) {
                 return NON_CANONICAL_REFERENCE_NUMBER;
             }
             return number;
