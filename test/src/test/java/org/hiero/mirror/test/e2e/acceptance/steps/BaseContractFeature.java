@@ -3,11 +3,11 @@
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 
 import java.util.List;
 import org.hiero.mirror.rest.model.ContractResponse;
 import org.hiero.mirror.rest.model.ContractResult;
-import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
 
 public abstract class BaseContractFeature extends AbstractFeature {
     protected DeployedContract deployedParentContract;
@@ -88,7 +88,6 @@ public abstract class BaseContractFeature extends AbstractFeature {
                         .getFeatureProperties()
                         .getMaxContractFunctionGas());
         assertThat(contractResult.getGasUsed()).isPositive();
-        assertThat(contractResult.getTo())
-                .isEqualTo(FeatureInputHandler.evmAddress(deployedParentContract.contractId()));
+        assertThat(contractResult.getTo()).isEqualTo(asHexAddress(deployedParentContract.contractId()));
     }
 }

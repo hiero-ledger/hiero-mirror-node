@@ -2,7 +2,9 @@
 
 package org.hiero.mirror.web3.evm.contracts.operations;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.INVALID_SOLIDITY_ADDRESS;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.OBTAINER_SAME_CONTRACT_ID;
 import static com.hedera.node.app.service.evm.utils.EthSigsUtils.recoverAddressFromPubKey;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
@@ -46,5 +48,16 @@ class SelfDestructOperationTest extends AbstractContractCallServiceTest {
 
         MirrorEvmTransactionException exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         assertThat(exception.getMessage()).isEqualTo(INVALID_SOLIDITY_ADDRESS.name());
+    }
+
+    @Test
+    void testSelfDestruct() {
+        final var contract = testWeb3jService.deployWithValue(SelfDestructContract::deploy, BigInteger.valueOf(1000));
+        final var functionCall = contract.send_destructContract(contract.getContractAddress());
+        MirrorEvmTransactionException exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        final var message = exception.getMessage();
+        final var condition = message.equals(CONTRACT_EXECUTION_EXCEPTION.protoName())
+                || message.equals(OBTAINER_SAME_CONTRACT_ID.protoName());
+        assertThat(condition).isTrue();
     }
 }

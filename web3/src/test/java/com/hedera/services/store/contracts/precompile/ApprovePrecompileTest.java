@@ -11,6 +11,8 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import java.math.BigInteger;
 import java.util.function.UnaryOperator;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -31,6 +33,11 @@ class ApprovePrecompileTest {
     private static final long TOKEN_NUM_HAPI_TOKEN = 0x1234;
     private static final TokenID TOKEN_ID =
             TokenID.newBuilder().setTokenNum(TOKEN_NUM_HAPI_TOKEN).build();
+    private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private static final TokenID DEFAULT_TOKEN_ID = EntityId.of(
+                    COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), 0)
+            .toTokenID();
+    ;
 
     @Test
     void decodeApproveForNFTERC() {
@@ -52,8 +59,7 @@ class ApprovePrecompileTest {
     @Test
     void decodeApproveForNFTHAPI() {
         UnaryOperator<byte[]> identity = identity();
-        final var decodedInput =
-                decodeTokenApprove(APPROVE_NFT_INPUT_HAPI, TokenID.getDefaultInstance(), false, identity);
+        final var decodedInput = decodeTokenApprove(APPROVE_NFT_INPUT_HAPI, DEFAULT_TOKEN_ID, false, identity);
 
         assertEquals(ACCOUNT_NUM_SPENDER_NFT, decodedInput.spender().getAccountNum());
         assertEquals(TOKEN_NUM_HAPI_TOKEN, decodedInput.tokenId().getTokenNum());
@@ -63,9 +69,7 @@ class ApprovePrecompileTest {
     @Test
     void decodeApproveForTokenAHPI() {
         UnaryOperator<byte[]> identity = identity();
-
-        final var decodedInput =
-                decodeTokenApprove(APPROVE_TOKEN_INPUT_HAPI, TokenID.getDefaultInstance(), true, identity);
+        final var decodedInput = decodeTokenApprove(APPROVE_TOKEN_INPUT_HAPI, DEFAULT_TOKEN_ID, true, identity);
 
         assertEquals(ACCOUNT_NUM_SPENDER, decodedInput.spender().getAccountNum());
         assertEquals(TOKEN_NUM_HAPI_TOKEN, decodedInput.tokenId().getTokenNum());

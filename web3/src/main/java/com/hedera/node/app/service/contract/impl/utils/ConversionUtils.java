@@ -734,8 +734,8 @@ public class ConversionUtils {
     public static byte[] asEvmAddress(final long shard, final long realm, final long num) {
         final byte[] evmAddress = new byte[20];
 
-        arraycopy(Ints.toByteArray((int) shard), 0, evmAddress, 0, 4);
-        arraycopy(Longs.toByteArray(realm), 0, evmAddress, 4, 8);
+        arraycopy(Ints.toByteArray(0), 0, evmAddress, 0, 4);
+        arraycopy(Longs.toByteArray(0), 0, evmAddress, 4, 8);
         arraycopy(Longs.toByteArray(num), 0, evmAddress, 12, 8);
 
         return evmAddress;
