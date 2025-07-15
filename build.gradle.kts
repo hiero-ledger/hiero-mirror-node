@@ -16,6 +16,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("blockNodeVersion", "0.13.0")
+    set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.73.0")
     set("jooq.version", "3.20.5") // Must match buildSrc/build.gradle.kts
     set("prometheus-client.version", "1.3.6") // Temporary until 1.3.9+
@@ -23,6 +24,7 @@ extra.apply {
     set("nodeJsVersion", "22.14.0")
     set("protobufVersion", "4.31.1")
     set("reactorGrpcVersion", "1.2.4")
+    set("tomcat.version", "10.1.43") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
 
