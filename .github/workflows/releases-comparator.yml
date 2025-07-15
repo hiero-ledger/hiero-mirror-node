@@ -108,10 +108,9 @@ jobs:
             local target_dir="$2"
 
             git clone --depth 1 --branch "$tag" "$CONSENSUS_NODE_REPO" "$target_dir" > /dev/null 2>&1
-            (
-              cd "$target_dir"
-              ./gradlew hapi:generatePbjSource > /dev/null 2>&1
-            )
+            cd "$target_dir"
+            ./gradlew hapi:generatePbjSource > /dev/null 2>&1
+            cd - > /dev/null
           }
 
           generate_pbj_source "$TAG_ONE" "$TMP_DIR_ONE"
@@ -123,37 +122,19 @@ jobs:
             local input_file_path="$1"
             local branch_one_file_path branch_two_file_path
 
-            case "$input_file_path" in
-              com/hedera/hapi/*)
-                branch_one_file_path="$TMP_DIR_ONE/hapi/hapi/build/generated/source/pbj-proto/main/java/$input_file_path"
-                branch_two_file_path="$TMP_DIR_TWO/hapi/hapi/build/generated/source/pbj-proto/main/java/$input_file_path"
-                ;;
-              com/swirlds/*)
-                branch_one_file_path="$TMP_DIR_ONE/platform-sdk/swirlds-state-api/src/main/java/$input_file_path"
-                branch_two_file_path="$TMP_DIR_TWO/platform-sdk/swirlds-state-api/src/main/java/$input_file_path"
-                ;;
-              com/hedera/node/app/service/*)
-                branch_one_file_path="$TMP_DIR_ONE/hedera-node/hedera-app/src/main/java/$input_file_path"
-                branch_two_file_path="$TMP_DIR_TWO/hedera-node/hedera-app/src/main/java/$input_file_path"
-                ;;
-              *)
-                echo "::error::Unknown path structure for '$input_file_path'. Cannot determine its location in the consensus-node repository."
-                return
-                ;;
-            esac
-
-            # Check if files exist before diffing to avoid errors
-            if [ ! -f "$branch_one_file_path" ] || [ ! -f "$branch_two_file_path" ]; then
-                echo "::warning::Could not find one or both files for comparison: $input_file_path"
-                return
-            fi
+            if [[ "$input_file_path" == com/swirlds/* ]]; then
+              branch_one_file_path="$TMP_DIR_ONE/platform-sdk/swirlds-state-api/src/main/java/$input_file_path"
+              branch_two_file_path="$TMP_DIR_TWO/platform-sdk/swirlds-state-api/src/main/java/$input_file_path"
+            else
+              branch_one_file_path="$TMP_DIR_ONE/hapi/hapi/build/generated/source/pbj-proto/main/java/$input_file_path"
+              branch_two_file_path="$TMP_DIR_TWO/hapi/hapi/build/generated/source/pbj-proto/main/java/$input_file_path"
 
             if ! diff_output=$(diff -u "$branch_two_file_path" "$branch_one_file_path"); then
               echo ""
               echo "File changed: $input_file_path"
-              echo "------------------------------------------------------------------------"
+              echo "----------------------------------------"
               echo "$diff_output"
-              echo "------------------------------------------------------------------------"
+              echo "----------------------------------------"
               CHANGES_COUNT=$((CHANGES_COUNT + 1))
             fi
           }
@@ -162,12 +143,11 @@ jobs:
             compare_file "$file"
           done
 
-          echo "" # Add a newline for better log separation
-
           if [ "$CHANGES_COUNT" -eq 0 ]; then
             echo "✅ No differences detected between versions $TAG_TWO and $TAG_ONE for the specified set of files."
           else
             echo "::warning::Found ${CHANGES_COUNT} changed file(s) between versions $TAG_TWO and $TAG_ONE. Please review the diffs in the logs above."
+            exit 1
           fi
 
         timeout-minutes: 30
