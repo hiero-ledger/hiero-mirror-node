@@ -33,7 +33,7 @@ class BlockStreamInfoSingletonTest {
     void set() {
         // when
         final var blockStreamInfo = BlockStreamInfo.newBuilder()
-                .blockNumber(0) // Setting to 0 to indicate a default or empty state
+                .blockNumber(0)
                 .inputTreeRootHash(Bytes.wrap(domainBuilder.bytes(20)))
                 .build();
         blockStreamInfoSingleton.set(blockStreamInfo);

@@ -8,7 +8,7 @@ import com.hedera.hapi.node.state.blockstream.BlockStreamInfo;
 import jakarta.inject.Named;
 
 @Named
-final class BlockStreamInfoSingleton implements SingletonState<com.hedera.hapi.node.state.blockstream.BlockStreamInfo> {
+final class BlockStreamInfoSingleton implements SingletonState<BlockStreamInfo> {
 
     @Override
     public String getKey() {
