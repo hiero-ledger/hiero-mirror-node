@@ -11,9 +11,10 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.node.Node;
+import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.junit.jupiter.api.Test;
 
-class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {
@@ -57,7 +58,27 @@ class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
                 .returns(adminKey, Node::getAdminKey)
                 .returns(null, Node::getCreatedTimestamp)
                 .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
-                .returns(false, Node::isDeleted)));
+                .returns(false, Node::isDeleted)
+                .returns(new ServiceEndpoint("node1.hedera.com", "", 80), Node::getGrpcProxyEndpoint)));
+    }
+
+    @Test
+    void nodeUpdateClearGrpcProxyEndpoint() {
+        // given
+        var recordItem = recordItemBuilder
+                .nodeUpdate()
+                .transactionBody(b ->
+                        b.setGrpcProxyEndpoint(com.hederahashgraph.api.proto.java.ServiceEndpoint.getDefaultInstance()))
+                .build();
+        var transaction = domainBuilder.transaction().get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener, times(1))
+                .onNode(assertArg(
+                        t -> assertThat(t).isNotNull().returns(ServiceEndpoint.CLEAR, Node::getGrpcProxyEndpoint)));
     }
 
     @Test
@@ -93,6 +114,7 @@ class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
                 .nodeUpdate()
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearAdminKey)
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearDeclineReward)
+                .transactionBody(NodeUpdateTransactionBody.Builder::clearGrpcProxyEndpoint)
                 .build();
         var transaction = domainBuilder.transaction().get();
 
@@ -112,6 +134,7 @@ class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
                 .returns(null, Node::getAdminKey)
                 .returns(null, Node::getDeclineReward)
                 .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
-                .returns(false, Node::isDeleted)));
+                .returns(false, Node::isDeleted)
+                .returns(null, Node::getGrpcProxyEndpoint)));
     }
 }
