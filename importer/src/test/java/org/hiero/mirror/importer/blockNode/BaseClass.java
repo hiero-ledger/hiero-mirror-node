@@ -81,7 +81,7 @@ public class BaseClass {
 
     protected static GenericContainer<?> createImporterContainer() {
 //        Path dockerContext = Paths.get("../../../../../../../../../../../Mirror-node-HELPER/hiero-mirror-node/importer");
-        importerContainer = new GenericContainer<>("mirror-node-importer:latest")
+        importerContainer = new GenericContainer<>("gcr.io/mirrornode/hedera-mirror-importer:latest")
 //        importerContainer = new GenericContainer<>(
 //                new ImageFromDockerfile()
 //                        .withFileFromPath(".", dockerContext) // build context root (e.g., Dockerfile + build/libs/*.jar in this dir)
