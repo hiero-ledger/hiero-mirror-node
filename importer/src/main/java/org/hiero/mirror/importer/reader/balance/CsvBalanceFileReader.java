@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -57,7 +57,7 @@ public abstract class CsvBalanceFileReader implements BalanceFileReader {
     }
 
     protected boolean supports(String firstLine) {
-        return StringUtils.startsWithIgnoreCase(firstLine, getVersionHeaderPrefix());
+        return Strings.CI.startsWith(firstLine, getVersionHeaderPrefix());
     }
 
     protected abstract String getTimestampHeaderPrefix();

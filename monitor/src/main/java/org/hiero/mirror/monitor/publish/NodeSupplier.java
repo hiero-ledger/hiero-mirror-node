@@ -25,6 +25,7 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.monitor.MonitorProperties;
 import org.hiero.mirror.monitor.NodeProperties;
 import org.hiero.mirror.monitor.subscribe.rest.RestApiClient;
@@ -134,7 +135,7 @@ public class NodeSupplier {
                             : serviceEndpoint.getIpAddressV4();
                     var nodeProperties = new NodeProperties();
                     nodeProperties.setAccountId(networkNode.getNodeAccountId());
-                    nodeProperties.setCertHash(StringUtils.remove(networkNode.getNodeCertHash(), "0x"));
+                    nodeProperties.setCertHash(Strings.CS.remove(networkNode.getNodeCertHash(), "0x"));
                     nodeProperties.setHost(host);
                     nodeProperties.setNodeId(networkNode.getNodeId());
                     nodeProperties.setPort(serviceEndpoint.getPort());

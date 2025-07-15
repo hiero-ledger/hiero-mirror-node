@@ -10,7 +10,7 @@ import java.util.function.Predicate;
 import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.springframework.validation.annotation.Validated;
 
@@ -51,7 +51,7 @@ final class RequestFilter implements Predicate<ContractCallRequest> {
     @Getter
     @RequiredArgsConstructor
     enum FilterType {
-        CONTAINS(StringUtils::containsIgnoreCase),
+        CONTAINS(Strings.CI::contains),
         EQUALS(String::equalsIgnoreCase);
 
         private final BiPredicate<String, String> predicate;

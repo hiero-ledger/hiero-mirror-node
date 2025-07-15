@@ -48,7 +48,7 @@ import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.config.PrecompilesHolder;
+import org.hiero.mirror.web3.evm.config.PrecompiledContractProvider;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
@@ -110,7 +110,7 @@ class OpcodeTracerTest {
     private MutableAccount recipientAccount;
 
     @Mock
-    private PrecompilesHolder precompilesHolder;
+    private PrecompiledContractProvider precompilesHolder;
 
     @Mock
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;

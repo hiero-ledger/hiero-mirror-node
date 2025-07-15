@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.slf4j.LoggerFactory;
@@ -96,7 +96,7 @@ public class CommonTestConfiguration {
         var excluded = "terminating connection due to unexpected postmaster exit";
         var logConsumer = new FilteringConsumer(
                 new Slf4jLogConsumer(logger, true),
-                o -> !StringUtils.contains(o.getUtf8StringWithoutLineEnding(), excluded));
+                o -> !Strings.CS.contains(o.getUtf8StringWithoutLineEnding(), excluded));
         return new PostgreSQLContainer<>(dockerImageName)
                 .withClasspathResourceMapping("init.sql", "/docker-entrypoint-initdb.d/init.sql", BindMode.READ_ONLY)
                 .withDatabaseName("mirror_node")

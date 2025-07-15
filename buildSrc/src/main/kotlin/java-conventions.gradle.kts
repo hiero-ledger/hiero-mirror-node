@@ -12,6 +12,7 @@ plugins {
 }
 
 configurations.all {
+    exclude(group = "com.nimbusds") // Unused and has a vulnerability
     exclude(group = "com.github.jnr") // Unused and has licensing issues
     exclude(group = "commons-logging", "commons-logging")
     exclude(group = "org.jetbrains", module = "annotations")

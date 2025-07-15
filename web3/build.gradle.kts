@@ -61,7 +61,7 @@ val latestSolidityVersion = "0.8.25"
 
 // Define "testHistorical" source set needed for the test historical solidity contracts and web3j
 sourceSets {
-    val testHistorical by creating {
+    val testHistorical by registering {
         java { setSrcDirs(listOf("src/testHistorical/java", "src/testHistorical/solidity")) }
         resources { setSrcDirs(listOf("src/testHistorical/resources")) }
         compileClasspath += sourceSets["test"].output + configurations["testRuntimeClasspath"]
@@ -106,6 +106,9 @@ afterEvaluate {
 
     tasks.withType<SolidityCompile>().configureEach {
         resolvedImports = solidityResolve.flatMap { it.allImports }
+        notCompatibleWithConfigurationCache(
+            "See https://github.com/LFDT-web3j/web3j-solidity-gradle-plugin/issues/85"
+        )
     }
 
     tasks.named("compileTestHistoricalSolidity", SolidityCompile::class.java).configure {

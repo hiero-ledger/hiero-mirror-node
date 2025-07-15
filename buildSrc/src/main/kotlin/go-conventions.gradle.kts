@@ -12,9 +12,11 @@ plugins {
 
 apply<GoPlugin>()
 
+val go = project.extensions.getByName<GoExtension>("go")
+
 val goBuild =
     tasks.register<Go>("goBuild") {
-        val binary = layout.buildDirectory.asFile.get().resolve(project.projectDir.name)
+        val binary = layout.buildDirectory.asFile.get().resolve(layout.projectDirectory.asFile.name)
         val ldFlags = "-w -s -X main.Version=${project.version}"
         environment["CGO_ENABLED"] = "true"
         args("build", "-ldflags", ldFlags, "-o", binary)
@@ -41,12 +43,11 @@ tasks.register<Go>("generate") {
 }
 
 tasks.register<Exec>("run") {
-    commandLine(layout.buildDirectory.asFile.get().resolve(project.projectDir.name))
+    commandLine(layout.buildDirectory.asFile.get().resolve(layout.projectDirectory.asFile.name))
     dependsOn(goBuild)
 }
 
 tasks.register<Go>("test") {
-    val go = project.extensions.getByName<GoExtension>("go")
     args(
         "test",
         "-coverpkg=${go.pkg}",
@@ -57,11 +58,11 @@ tasks.register<Go>("test") {
         go.pkg,
     )
     dependsOn("fix")
-
-    // Gradle is logging all Go output to stdout, so this change makes it behave like other tasks
-    // and not log
-    if (gradle.startParameter.logLevel >= LogLevel.LIFECYCLE) {
-        standardOutput = NullOutputStream.INSTANCE
+    val disableLogging = gradle.startParameter.logLevel >= LogLevel.LIFECYCLE
+    doFirst {
+        if (disableLogging) {
+            standardOutput = NullOutputStream.INSTANCE
+        }
     }
 }
 
@@ -73,13 +74,6 @@ tasks.register("clean") { dependsOn(goClean) }
 listOf(tasks.dependencyCheckAggregate, tasks.dependencyCheckAnalyze).forEach {
     it.configure {
         dependsOn("setup")
-        doFirst {
-            dependencyCheck {
-                analyzers {
-                    val go = project.extensions.getByName<GoExtension>("go")
-                    pathToGo = go.goBin.toString()
-                }
-            }
-        }
+        doFirst { dependencyCheck { analyzers { pathToGo = go.goBin.toString() } } }
     }
 }

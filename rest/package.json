@@ -12,14 +12,14 @@
     "dev": "HIERO_MIRROR_REST_LOG_LEVEL=trace nodemon --import=extensionless/register server.js",
     "start": "node --import=extensionless/register server.js",
     "pretest": "node --import=extensionless/register __tests__/integration/generator.js",
-    "test": "node --import=extensionless/register --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "NODE_NO_WARNINGS=1 node --import=extensionless/register --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.842.0",
+    "@aws-sdk/client-s3": "^3.844.0",
     "@godaddy/terminus": "^4.12.1",
-    "@hashgraph/proto": "^2.19.0",
+    "@hashgraph/proto": "^2.20.0",
     "@trufflesuite/bigint-buffer": "^1.1.10",
     "asn1js": "^3.0.6",
     "assert": "^2.1.0",
@@ -52,8 +52,8 @@
     "word-wrap": "npm:@aashutoshrathi/word-wrap@^1.2.6"
   },
   "devDependencies": {
-    "@testcontainers/postgresql": "^11.2.0",
-    "@testcontainers/redis": "^11.1.0",
+    "@testcontainers/postgresql": "^11.2.1",
+    "@testcontainers/redis": "^11.2.1",
     "app-root-path": "^3.1.0",
     "crypto-random-string": "^5.0.0",
     "jest": "^30.0.4",
@@ -62,10 +62,10 @@
     "node-flywaydb": "^3.0.7",
     "nodemon": "^3.1.10",
     "pg-format": "^1.0.4",
-    "pgsql-parser": "^17.7.2",
-    "rewire": "^8.0.0",
+    "pgsql-parser": "^17.7.8",
+    "rewire": "^9.0.0",
     "sinon": "^21.0.0",
-    "supertest": "^7.1.1"
+    "supertest": "^7.1.3"
   },
   "jest-junit": {
     "outputDirectory": "build/test-results/test",

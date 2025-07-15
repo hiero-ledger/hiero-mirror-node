@@ -17,7 +17,7 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.monitor.MonitorProperties;
 import org.hiero.mirror.monitor.exception.ExpressionConversionException;
 import org.hiero.mirror.monitor.publish.PublishRequest;
@@ -50,7 +50,7 @@ public class ExpressionConverterImpl implements ExpressionConverter {
 
     @Override
     public String convert(String property) {
-        if (!StringUtils.startsWith(property, EXPRESSION_START) || !StringUtils.endsWith(property, EXPRESSION_END)) {
+        if (!Strings.CS.startsWith(property, EXPRESSION_START) || !Strings.CS.endsWith(property, EXPRESSION_END)) {
             return property;
         }
 
