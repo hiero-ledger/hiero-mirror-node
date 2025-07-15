@@ -86,14 +86,15 @@ final class ContractStateServiceImpl implements ContractStateService {
         final var contractSlotsCache = ((CaffeineCache) this.contractSlotsCache.get(
                 contractId, () -> cacheManagerSlotsPerContract.getCache(contractId.toString())));
         // Cached slot keys for contract, whose slot values are not present in the contractStateCache
-        final var cachedSlots = new ArrayList<byte[]>();
         contractSlotsCache.putIfAbsent(ByteBuffer.wrap(key), EMPTY_VALUE);
-        (contractSlotsCache).getNativeCache().asMap().keySet().forEach(slot -> {
-            final var slotBytes = ((ByteBuffer) slot).array();
-            cachedSlots.add(slotBytes);
-        });
+        final var cachedSlots = contractSlotsCache.getNativeCache().asMap().keySet();
 
-        final var contractSlotValues = contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots);
+        final var contractSlotValues = contractStateRepository.findStorageBatch(
+                contractId.getId(),
+                cachedSlots.stream()
+                        .map(slot -> ((ByteBuffer) slot).array())
+                        .toList()
+        );
         boolean isKeyEvictedFromCache =
                 !cachedSlots.contains(ByteBuffer.wrap(key).array());
         byte[] cachedValue = null;
