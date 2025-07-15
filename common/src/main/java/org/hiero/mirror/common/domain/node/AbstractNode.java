@@ -37,7 +37,7 @@ public abstract class AbstractNode implements History {
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
     @JdbcTypeCode(SqlTypes.JSON)
-    @UpsertColumn(shouldCoalesce = false)
+    @UpsertColumn(coalesce = "case when ({0} -> ''port'')::integer = -1 then null else coalesce({0}, e_{0}) end")
     private ServiceEndpoint grpcProxyEndpoint;
 
     @Id
