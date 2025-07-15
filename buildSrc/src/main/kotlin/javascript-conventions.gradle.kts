@@ -26,10 +26,9 @@ val test =
     tasks.register<NpmTask>("test") {
         dependsOn(tasks.npmInstall)
         args = listOf("test")
+        val disableLogs = gradle.startParameter.logLevel >= LogLevel.LIFECYCLE
         execOverrides {
-            // Gradle is logging all NPM output to stdout, so this change makes it behave like other
-            // tasks and not log
-            if (gradle.startParameter.logLevel >= LogLevel.LIFECYCLE) {
+            if (disableLogs) {
                 standardOutput = NullOutputStream.INSTANCE
             }
         }

@@ -34,15 +34,18 @@ const custom = {
   },
 };
 
+const env = {...process.env};
+
 beforeEach(() => {
   jest.resetModules();
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rest-'));
-  process.env = {CONFIG_PATH: tempDir};
   cleanup();
+  process.env = {CONFIG_PATH: tempDir};
 });
 
 afterEach(() => {
   fs.rmSync(tempDir, {recursive: true});
+  process.env = env;
   cleanup();
 });
 
@@ -90,7 +93,8 @@ describe('Load YAML configuration:', () => {
   });
 
   test('CONFIG_PATH/CONFIG_NAME.yml', async () => {
-    process.env = {CONFIG_NAME: 'config', CONFIG_PATH: tempDir};
+    process.env['CONFIG_NAME'] = 'config';
+    process.env['CONFIG_PATH'] = tempDir;
     const config = await loadCustomConfig(custom, 'config.yml');
     assertCustomConfig(config, custom);
   });
@@ -98,7 +102,9 @@ describe('Load YAML configuration:', () => {
 
 describe('Load environment configuration:', () => {
   test('Number', async () => {
-    process.env = {HEDERA_MIRROR_COMMON_REALM: '3', HIERO_MIRROR_COMMON_SHARD: '2', HIERO_MIRROR_REST_PORT: '5552'};
+    process.env['HEDERA_MIRROR_COMMON_REALM'] = '3';
+    process.env['HIERO_MIRROR_COMMON_SHARD'] = '2';
+    process.env['HIERO_MIRROR_REST_PORT'] = '5552';
     const config = await loadConfig();
     expect(config.common.realm).toBe(3n);
     expect(config.common.shard).toBe(2n);
@@ -107,74 +113,75 @@ describe('Load environment configuration:', () => {
 
   test('Secret', async () => {
     const secret = 'secret';
-    process.env = {HIERO_MIRROR_REST_DB_PASSWORD: secret, HIERO_MIRROR_REST_DB_TLS_KEY: secret};
+    process.env['HIERO_MIRROR_REST_DB_PASSWORD'] = secret;
+    process.env['HIERO_MIRROR_REST_DB_TLS_KEY'] = secret;
     const config = await loadConfig();
     expect(config.rest.db.password).toBe(secret);
     expect(config.rest.db.tls.key).toBe(secret);
   });
 
   test('String', async () => {
-    process.env = {HIERO_MIRROR_REST_LOG_LEVEL: 'warn'};
+    process.env['HIERO_MIRROR_REST_LOG_LEVEL'] = 'warn';
     const config = await loadConfig();
     expect(config.rest.log.level).toBe('warn');
   });
 
   test('Boolean', async () => {
-    process.env = {HIERO_MIRROR_REST_RESPONSE_INCLUDEHOSTINLINK: 'true'};
+    process.env['HIERO_MIRROR_REST_RESPONSE_INCLUDEHOSTINLINK'] = 'true';
     const config = await loadConfig();
     expect(config.rest.response.includeHostInLink).toBe(true);
   });
 
   test('Camel case', async () => {
-    process.env = {HIERO_MIRROR_REST_QUERY_MAXREPEATEDQUERYPARAMETERS: '50'};
+    process.env['HIERO_MIRROR_REST_QUERY_MAXREPEATEDQUERYPARAMETERS'] = '50';
     const config = await loadConfig();
     expect(config.rest.query.maxRepeatedQueryParameters).toBe(50);
   });
 
   test('Unknown property', async () => {
-    process.env = {HIERO_MIRROR_REST_FOO: '3'};
+    process.env['HIERO_MIRROR_REST_FOO'] = '3';
     const config = await loadConfig();
     expect(config.rest.foo).toBeUndefined();
   });
 
   test('Invalid property path', async () => {
-    process.env = {HIERO_MIRROR_COMMON_SHARD_FOO: '3'};
+    process.env['HIERO_MIRROR_COMMON_SHARD_FOO'] = '3';
     const config = await loadConfig();
     expect(config.common.shard).not.toBeNull();
     expect(config.common.shard).not.toBe(3n);
   });
 
   test('Unexpected prefix', async () => {
-    process.env = {HIERO_MIRROR_NODE_REST_PORT: '80'};
+    process.env['HIERO_MIRROR_NODE_REST_PORT'] = '80';
     const config = await loadConfig();
     expect(config.rest.port).not.toBe(80);
   });
 
   test('Extra path', async () => {
-    process.env = {HIERO_MIRROR_REST_SERVICE_PORT: '80'};
+    process.env['HIERO_MIRROR_REST_SERVICE_PORT'] = '80';
     const config = await loadConfig();
     expect(config.rest.port).not.toBe(80);
   });
 
   test('Max Timestamp Range 3d', async () => {
-    process.env = {HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: '3d'};
+    process.env['HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE'] = '3d';
     const config = await loadConfig();
     expect(config.rest.query.maxTimestampRangeNs).toBe(259200000000000n);
   });
 
   test('Max Timestamp Range 120d - larger than js MAX_SAFE_INTEGER', async () => {
-    process.env = {HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: '120d'};
+    process.env['HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE'] = '120d';
     const config = await loadConfig();
     expect(config.rest.query.maxTimestampRangeNs).toBe(10368000000000000n);
   });
 
   test('Max Timestamp Range invalid', async () => {
-    process.env = {HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: '3x'};
+    process.env['HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE'] = '3x';
     await expect(loadConfig()).rejects.toThrowErrorMatchingSnapshot();
   });
 
   test('Max Timestamp Range null', async () => {
-    process.env = {HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE: null};
+    process.env['HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE'] = null;
     await expect(loadConfig()).rejects.toThrowErrorMatchingSnapshot();
   });
 });

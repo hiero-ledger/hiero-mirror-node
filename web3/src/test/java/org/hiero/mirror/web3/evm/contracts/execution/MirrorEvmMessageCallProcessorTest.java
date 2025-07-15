@@ -23,7 +23,7 @@ import java.time.Instant;
 import java.util.Optional;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.web3.evm.config.PrecompilesHolder;
+import org.hiero.mirror.web3.evm.config.PrecompiledContractProvider;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
@@ -44,7 +44,7 @@ class MirrorEvmMessageCallProcessorTest extends MirrorEvmMessageCallProcessorBas
             Address.fromHexString("0x00a94f5374fce5edbc8e2a8697c15331677e6ebf");
 
     @Mock
-    private PrecompilesHolder precompilesHolder;
+    private PrecompiledContractProvider precompilesHolder;
 
     @Mock
     private MirrorNodeEvmProperties evmProperties;

@@ -6,7 +6,7 @@ import jakarta.inject.Named;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.time.format.DateTimeParseException;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.hiero.mirror.importer.parser.balance.BalanceParserProperties;
 import org.hiero.mirror.importer.reader.balance.line.AccountBalanceLineParserV1;
@@ -14,8 +14,8 @@ import org.hiero.mirror.importer.reader.balance.line.AccountBalanceLineParserV1;
 @Named
 public class BalanceFileReaderImplV1 extends CsvBalanceFileReader {
 
-    private static final int MAX_HEADER_ROWS = 10;
     static final String TIMESTAMP_HEADER_PREFIX = "timestamp:";
+    private static final int MAX_HEADER_ROWS = 10;
 
     public BalanceFileReaderImplV1(BalanceParserProperties balanceParserProperties, AccountBalanceLineParserV1 parser) {
         super(balanceParserProperties, parser);
@@ -53,7 +53,7 @@ public class BalanceFileReaderImplV1 extends CsvBalanceFileReader {
                 line = reader.readLine();
                 if (supports(line)) {
                     consensusTimestamp = convertTimestamp(line.substring(TIMESTAMP_HEADER_PREFIX.length()));
-                } else if (StringUtils.startsWithIgnoreCase(line, COLUMN_HEADER_PREFIX)) {
+                } else if (Strings.CI.startsWith(line, COLUMN_HEADER_PREFIX)) {
                     if (consensusTimestamp == -1) {
                         break;
                     }

@@ -15,7 +15,7 @@ import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ClassUtils;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.RetentionRepository;
@@ -89,7 +89,7 @@ public class RetentionJob {
     private String getTableName(RetentionRepository repository) {
         Class<?> targetClass = repository.getClass().getInterfaces()[0];
         String className = ClassUtils.getSimpleName(targetClass);
-        return Utility.toSnakeCase(StringUtils.removeEnd(className, "Repository"));
+        return Utility.toSnakeCase(Strings.CS.removeEnd(className, "Repository"));
     }
 
     private Instant toInstant(long nanos) {
