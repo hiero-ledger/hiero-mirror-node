@@ -128,6 +128,7 @@ jobs:
             else
               branch_one_file_path="$TMP_DIR_ONE/hapi/hapi/build/generated/source/pbj-proto/main/java/$input_file_path"
               branch_two_file_path="$TMP_DIR_TWO/hapi/hapi/build/generated/source/pbj-proto/main/java/$input_file_path"
+            fi
 
             if ! diff_output=$(diff -u "$branch_two_file_path" "$branch_one_file_path"); then
               echo ""
