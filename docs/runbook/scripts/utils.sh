@@ -20,65 +20,130 @@ function watchInBackground() {
   "$@" || kill -INT -- -"$pid"
 }
 
+function waitForReplicaToBeInSync() {
+  local namespace="${1}"
+  local replicaPod="${2}"
+  local primaryPod="${3}"
+
+  log "Waiting for '${expectedPrimaryPod}' to catch up"
+
+  local lag_timeout=300
+  local lag_start_time=$SECONDS
+
+  while true; do
+    lag=$(kubectl exec -n "${namespace}" -c postgres-util "${primaryPod}" -- \
+      psql -tAc "SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn)
+                 FROM pg_stat_replication
+                 WHERE application_name = '${replicaPod}'")
+
+    lag=$(echo "$lag" | xargs)
+
+    if [[ "$lag" == "0" ]]; then
+      log "Replica '${replicaPod}' has 0-byte lag"
+      break
+    fi
+
+    if [[ -z "$lag" ]]; then
+      log "WAL lag for '${expectedPrimaryPod}' not available. Waiting..."
+    else
+      log "WAL lag on '${expectedPrimaryPod}': ${lag} bytes. Waiting..."
+    fi
+
+    if ((SECONDS - lag_start_time > lag_timeout)); then
+      log "Timed out waiting for WAL lag = 0 on '${expectedPrimaryPod}' (current lag is ${lag:-unknown})"
+      exit 1
+    fi
+
+    sleep 5
+  done
+}
+
 function patroniFailoverToFirstPod() {
   local namespace="${1}"
 
   local clustersInNamespace
   clustersInNamespace=$(echo "${CITUS_CLUSTERS}" | jq -c --arg ns "${namespace}" '
-          map(select(.namespace == $ns))')
+    map(select(.namespace == $ns)) |
+    group_by(.citusGroup)')
 
-  local clusterCount
-  clusterCount=$(echo "${clustersInNamespace}" | jq length)
+  local groupCount
+  groupCount=$(echo "${clustersInNamespace}" | jq length)
 
-  for ((i = 0; i < clusterCount; i++)); do
-    local cluster
-    cluster=$(echo "${clustersInNamespace}" | jq -c ".[$i]")
+  for ((i = 0; i < groupCount; i++)); do
+    local group
+    group=$(echo "${clustersInNamespace}" | jq -c ".[$i]")
 
     local citusGroup
-    citusGroup=$(echo "${cluster}" | jq -r '.citusGroup')
+    citusGroup=$(echo "${group}" | jq -r ".[0].citusGroup")
 
     local currentPrimaryPod
-    currentPrimaryPod=$(echo "${cluster}" | jq -r 'select(.primary == true) | .podName')
+    currentPrimaryPod=$(echo "${group}" | jq -r 'map(select(.primary == true)) | .[0].podName')
 
-    # The expected primary pod is the one ending with -0, build its name:
+    if [[ -z "${currentPrimaryPod}" || "${currentPrimaryPod}" == "null" ]]; then
+      log "No primary pod found for Citus group '${citusGroup}' in namespace ${namespace}. Exiting."
+      exit 1
+    fi
+
     local podPrefix
     podPrefix=$(echo "${currentPrimaryPod}" | sed -E 's/-[0-9]+$//')
     local expectedPrimaryPod="${podPrefix}-0"
 
-    if [[ -z "${currentPrimaryPod}" ]]; then
-      log "No primary pod found for Citus cluster group '${citusGroup}' in namespace ${namespace}. Exiting."
-      exit 1
-    fi
-
     if [[ "${currentPrimaryPod}" != "${expectedPrimaryPod}" ]]; then
-      log "Current primary pod '${currentPrimaryPod}' is not '${expectedPrimaryPod}' for cluster group '${citusGroup}' in namespace ${namespace}. Triggering failover..."
+      log "Failover required: '${expectedPrimaryPod}' is not primary"
+      waitForReplicaToBeInSync "${namespace}" "${expectedPrimaryPod}" "${currentPrimaryPod}"
 
       kubectl exec -n "${namespace}" -c patroni "${currentPrimaryPod}" -- \
-        patronictl failover --group "${citusGroup}" --scheduled --candidate "${expectedPrimaryPod}" --force
+        patronictl failover --group "${citusGroup}" --candidate "${expectedPrimaryPod}" --force
 
       # Wait for failover to complete
       local timeout=600
       local start_time=$SECONDS
-      local newPrimaryPod
       while true; do
-        log "Waiting for failover to complete..."
+        log "Waiting for failover of group ${citusGroup} to '${expectedPrimaryPod}'..."
         sleep 5
-        CITUS_CLUSTERS=$(getCitusClusters)
-        newPrimaryPod=$(echo "${CITUS_CLUSTERS}" | jq -r --arg ns "${namespace}" --arg group "${citusGroup}" '
-                map(select(.namespace == $ns and .citusGroup == $group and .primary == true)) | .[0].podName')
 
-        if [[ "${newPrimaryPod}" == "${expectedPrimaryPod}" ]]; then
-          log "Failover successful for cluster group '${citusGroup}'. '${expectedPrimaryPod}' is now primary."
+        CITUS_CLUSTERS=$(getCitusClusters)
+
+        local newPrimary
+        newPrimary=$(echo "${CITUS_CLUSTERS}" | jq -r --arg ns "${namespace}" --argjson group "${citusGroup}" '
+          map(select(.namespace == $ns and .citusGroup == $group and .primary == true)) | .[0].podName')
+
+        if [[ "${newPrimary}" == "${expectedPrimaryPod}" ]]; then
+          log "Failover successful: '${expectedPrimaryPod}' is now primary."
           break
         fi
 
         if ((SECONDS - start_time > timeout)); then
-          log "Timed out waiting for failover to '${expectedPrimaryPod}' in cluster group '${citusGroup}', namespace ${namespace}."
+          log "Timeout during failover to '${expectedPrimaryPod}' in group '${citusGroup}' (namespace ${namespace})"
+          exit 1
+        fi
+      done
+
+      # Verify SGCluster reflects new primary pod
+      local sgCheckTimeout=60
+      local sgCheckStart=$SECONDS
+      local sgClusterName
+      sgClusterName=$(echo "${group}" | jq -r ".[0].clusterName")
+
+      while true; do
+        log "Waiting for SGCluster '${sgClusterName}' to show '${expectedPrimaryPod}' as primary..."
+        sleep 5
+        local sgPrimary
+        sgPrimary=$(kubectl get sgcluster "${sgClusterName}" -n "${namespace}" -o json |
+          jq -r '.status.podStatuses[] | select(.primary == true) | .name')
+
+        if [[ "${sgPrimary}" == "${expectedPrimaryPod}" ]]; then
+          log "SGCluster '${sgClusterName}' reflects new primary: '${expectedPrimaryPod}'"
+          break
+        fi
+
+        if ((SECONDS - sgCheckStart > sgCheckTimeout)); then
+          log "Timed out waiting for SGCluster '${sgClusterName}' to reflect new primary '${expectedPrimaryPod}'."
           exit 1
         fi
       done
     else
-      log "Pod '${expectedPrimaryPod}' is already primary for cluster group '${citusGroup}' in namespace ${namespace}. Skipping."
+      log "No failover needed: '${expectedPrimaryPod}' is already primary for group ${citusGroup}."
     fi
   done
 }
@@ -105,7 +170,7 @@ function checkCitusMetadataSyncStatus() {
 
 function doContinue() {
   while true; do
-    read -p "Continue? (Y/N): " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] && return || \
+    read -p "Continue? (Y/N): " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] && return ||
       { [[ -n "$confirm" ]] && exit 1 || true; }
   done
 }
@@ -197,7 +262,8 @@ function routeTraffic() {
 
 function pauseCitus() {
   local namespace="${1}"
-  local citusPods=$(kubectl get pods -n "${namespace}" -l 'stackgres.io/cluster=true' -o 'jsonpath={.items[*].metadata.name}')
+  local citusPods
+  citusPods=$(kubectl get pods -n "${namespace}" -l 'stackgres.io/cluster=true' -o 'jsonpath={.items[*].metadata.name}')
   if [[ -z "${citusPods}" ]]; then
     log "Citus is not currently running"
   else
@@ -214,7 +280,8 @@ function pauseCitus() {
 
 function waitForPatroniMasters() {
   local namespace="${1}"
-  local masterPods=($(kubectl get pods -n "${namespace}" -l "${STACKGRES_MASTER_LABELS}" -o jsonpath='{.items[*].metadata.name}'))
+  local masterPods
+  masterPods=($(kubectl get pods -n "${namespace}" -l "${STACKGRES_MASTER_LABELS}" -o jsonpath='{.items[*].metadata.name}'))
   local expectedTotal=$(($(kubectl get sgshardedclusters -n "${namespace}" -o jsonpath='{.items[0].spec.shards.clusters}') + 1))
 
   if [[ "${#masterPods[@]}" -ne "${expectedTotal}" ]]; then
@@ -239,8 +306,8 @@ function waitForPatroniMasters() {
 function unpauseCitus() {
   local namespace="${1}"
   local reinitializeCitus="${2:-false}"
-  local waitForMaster="${3:-true}"
-  local citusPods=$(kubectl get pods -n "${namespace}" -l 'stackgres.io/cluster=true' -o 'jsonpath={.items[*].metadata.name}')
+  local citusPods
+  citusPods=$(kubectl get pods -n "${namespace}" -l 'stackgres.io/cluster=true' -o 'jsonpath={.items[*].metadata.name}')
 
   if [[ -z "${citusPods}" ]]; then
     log "Starting citus cluster in namespace ${namespace}"
@@ -249,7 +316,7 @@ function unpauseCitus() {
     fi
     kubectl annotate sgclusters.stackgres.io -n "${namespace}" --all stackgres.io/reconciliation-pause- --overwrite
 
-    log "Waiting for all StackGresCluster StatefulSets to be created"
+    log "Waiting for all SGCluster StatefulSets to be created"
     while ! kubectl get sgshardedclusters -n "${namespace}" -o jsonpath='{.items[0].spec.shards.clusters}' >/dev/null 2>&1; do
       sleep 1
     done
@@ -262,16 +329,16 @@ function unpauseCitus() {
     log "Waiting for all StackGresCluster pods to be ready"
     for sts in $(kubectl get sts -n "${namespace}" -l 'app=StackGresCluster' -o name); do
       expected=$(kubectl get "${sts}" -n "${namespace}" -o jsonpath='{.spec.replicas}')
+      log "Waiting for ${expected} replicas in ${sts}"
+      sleep 1 # small pause is sometimes needed between these calls
       kubectl wait --for=jsonpath='{.status.readyReplicas}'=${expected} "${sts}" -n "${namespace}" --timeout=-1s
     done
 
-    if [[ "${waitForMaster}" == "true" ]]; then
-      while [[ "$(kubectl get pods -n "${namespace}" -l "${STACKGRES_MASTER_LABELS}" -o name | wc -l)" -ne "${expectedTotal}" ]]; do
-        log "Waiting for all pods to be marked with master role label"
-        sleep 1
-      done
-      waitForPatroniMasters "${namespace}"
-    fi
+    while [[ "$(kubectl get pods -n "${namespace}" -l "${STACKGRES_MASTER_LABELS}" -o name | wc -l)" -ne "${expectedTotal}" ]]; do
+      log "Waiting for a pod in each cluster to be marked with master role label"
+      sleep 1
+    done
+    waitForPatroniMasters "${namespace}"
   else
     log "Citus is already running in namespace ${namespace}. Skipping"
   fi
@@ -301,7 +368,7 @@ function getCitusClusters() {
 }
 
 function getDiskPrefix() {
-  DISK_PREFIX=$(kubectl_common get daemonsets -l 'app=zfs-init' -o json | \
+  DISK_PREFIX=$(kubectl_common get daemonsets -l 'app=zfs-init' -o json |
     jq -r '.items[0].spec.template.spec.initContainers[0].env[] | select (.name == "DISK_PREFIX") | .value')
   if [[ -z "${DISK_PREFIX}" ]]; then
     log "DISK_PREFIX can not be empty. Exiting"
