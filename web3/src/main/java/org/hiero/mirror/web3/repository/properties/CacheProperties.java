@@ -27,7 +27,7 @@ public class CacheProperties {
     @NotBlank
     private String contractState = "expireAfterWrite=2s,maximumSize=25000,recordStats";
 
-    private boolean enableBatchContractSlotCaching = false;
+    private boolean enableBatchContractSlotCaching = true;
 
     @NotBlank
     private String entity = ENTITY_CACHE_CONFIG;
