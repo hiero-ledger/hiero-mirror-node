@@ -35,6 +35,13 @@ public abstract class AbstractNodeTransactionHandler extends AbstractTransaction
 
     protected final ServiceEndpoint toServiceEndpoint(
             long consensusTimestamp, com.hederahashgraph.api.proto.java.ServiceEndpoint proto) {
+
+        // This won't happen for node create since consensus nodes reject default ServiceEndpoint
+        if (com.hederahashgraph.api.proto.java.ServiceEndpoint.getDefaultInstance()
+                .equals(proto)) {
+            return ServiceEndpoint.CLEAR;
+        }
+
         String ipAddress = StringUtils.EMPTY;
 
         try {

@@ -37,7 +37,7 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.Value;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.awaitility.Durations;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.SdkProperties;
@@ -309,7 +309,7 @@ public class SDKClient implements Cleanable {
                             .setShardNum(accountId.shard)
                             .setRealmNum(accountId.realm)
                             .setAccountNum(accountId.num))
-                    .setNodeCertHash(ByteString.copyFromUtf8(StringUtils.remove(node.getNodeCertHash(), "0x")))
+                    .setNodeCertHash(ByteString.copyFromUtf8(Strings.CS.remove(node.getNodeCertHash(), "0x")))
                     .setRSAPubKey(node.getPublicKey())
                     .setNodeId(node.getNodeId());
 

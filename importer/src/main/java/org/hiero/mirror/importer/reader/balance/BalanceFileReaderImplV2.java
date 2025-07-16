@@ -6,7 +6,7 @@ import jakarta.inject.Named;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.time.format.DateTimeParseException;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.hiero.mirror.importer.parser.balance.BalanceParserProperties;
 import org.hiero.mirror.importer.reader.balance.line.AccountBalanceLineParserV2;
@@ -14,8 +14,8 @@ import org.hiero.mirror.importer.reader.balance.line.AccountBalanceLineParserV2;
 @Named
 public class BalanceFileReaderImplV2 extends CsvBalanceFileReader {
 
-    private static final String TIMESTAMP_HEADER_PREFIX = "# TimeStamp:";
     static final String VERSION_HEADER = "# version:2";
+    private static final String TIMESTAMP_HEADER_PREFIX = "# TimeStamp:";
 
     public BalanceFileReaderImplV2(BalanceParserProperties balanceParserProperties, AccountBalanceLineParserV2 parser) {
         super(balanceParserProperties, parser);
@@ -40,12 +40,12 @@ public class BalanceFileReaderImplV2 extends CsvBalanceFileReader {
                 throw new InvalidDatasetException("Version number not found in account balance file");
             }
             line = reader.readLine();
-            if (!StringUtils.startsWith(line, TIMESTAMP_HEADER_PREFIX)) {
+            if (!Strings.CS.startsWith(line, TIMESTAMP_HEADER_PREFIX)) {
                 throw new InvalidDatasetException("Timestamp not found in account balance file");
             }
             long consensusTimestamp = convertTimestamp(line.substring(TIMESTAMP_HEADER_PREFIX.length()));
             line = reader.readLine();
-            if (!StringUtils.startsWith(line, COLUMN_HEADER_PREFIX)) {
+            if (!Strings.CS.startsWith(line, COLUMN_HEADER_PREFIX)) {
                 throw new InvalidDatasetException("Column header not found in account balance file");
             }
             return consensusTimestamp;

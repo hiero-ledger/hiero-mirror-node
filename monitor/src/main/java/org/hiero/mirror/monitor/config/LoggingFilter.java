@@ -8,6 +8,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.util.CollectionUtils;
@@ -56,7 +57,7 @@ class LoggingFilter implements WebFilter {
                 cause != null ? cause.getMessage() : exchange.getResponse().getStatusCode();
         var params = new Object[] {getClient(request), request.getMethod(), uri, elapsed, message};
 
-        if (StringUtils.startsWith(uri.getPath(), ACTUATOR_PATH)) {
+        if (Strings.CS.startsWith(uri.getPath(), ACTUATOR_PATH)) {
             log.debug(LOG_FORMAT, params);
         } else if (cause != null) {
             log.warn(LOG_FORMAT, params);

@@ -12,7 +12,7 @@ import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Base32;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.graphql.viewmodel.EntityIdInput;
 import org.hiero.mirror.graphql.viewmodel.HbarUnit;
@@ -90,7 +90,7 @@ public class GraphQlUtils {
         }
 
         try {
-            evmAddress = StringUtils.removeStart(evmAddress, HEX_PREFIX);
+            evmAddress = Strings.CS.removeStart(evmAddress, HEX_PREFIX);
             return Hex.decodeHex(evmAddress);
         } catch (DecoderException e) {
             throw new IllegalArgumentException("Unable to decode evmAddress: " + evmAddress);

@@ -5,7 +5,7 @@ description = "Hedera Mirror Node Common"
 plugins { id("java-conventions") }
 
 dependencies {
-    val testClasses by configurations.creating
+    val testClasses by configurations.registering
     annotationProcessor("jakarta.persistence:jakarta.persistence-api")
     api("com.fasterxml.jackson.core:jackson-databind")
     api("com.github.ben-manes.caffeine:caffeine")

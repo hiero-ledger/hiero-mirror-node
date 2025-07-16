@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.function.Function;
 import lombok.CustomLog;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.core.Ordered;
@@ -54,7 +54,7 @@ public class HieroPropertiesMigrator implements ApplicationListener<ApplicationE
         Function<String, String> replacer = environment ? this::convertEnvironmentVariable : this::convertPropertyName;
 
         for (var name : propertySource.getPropertyNames()) {
-            if (StringUtils.startsWithIgnoreCase(name, "hedera")) {
+            if (Strings.CI.startsWith(name, "hedera")) {
                 var value = propertySource.getProperty(name);
                 var migratedName = replacer.apply(name);
                 properties.put(migratedName, value);
@@ -77,10 +77,10 @@ public class HieroPropertiesMigrator implements ApplicationListener<ApplicationE
     }
 
     private String convertPropertyName(String name) {
-        return StringUtils.replaceIgnoreCase(name, "hedera.", "hiero.", 1);
+        return Strings.CI.replace(name, "hedera.", "hiero.", 1);
     }
 
     private String convertEnvironmentVariable(String name) {
-        return StringUtils.replaceIgnoreCase(name, "HEDERA_", "HIERO_", 1);
+        return Strings.CI.replace(name, "HEDERA_", "HIERO_", 1);
     }
 }

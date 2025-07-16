@@ -12,8 +12,14 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.awaitility.Durations;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -278,6 +284,131 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
+    void verifyConcurrentBatchSlotLoadingReturnsCorrectValues() throws Exception {
+        // Given
+        final var contract = persistContract();
+        final var slot1 = generateSlotKey(1);
+        final var slot2 = generateSlotKey(2);
+
+        final byte[] value1 = Hex.decodeHex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        final byte[] value2 = Hex.decodeHex("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+
+        persistContractState(contract.getId(), slot1, value1);
+        persistContractState(contract.getId(), slot2, value2);
+
+        final var contractId = contract.toEntityId();
+
+        // When: run two parallel lookups
+        final var executor = Executors.newFixedThreadPool(2);
+        final var future1 = executor.submit(() -> contractStateService.findStorage(contractId, slot1));
+        final var future2 = executor.submit(() -> contractStateService.findStorage(contractId, slot2));
+
+        final var result1 = future1.get(2, TimeUnit.SECONDS);
+        final var result2 = future2.get(2, TimeUnit.SECONDS);
+
+        // Then
+        assertThat(result1).get().isEqualTo(value1);
+        assertThat(result2).get().isEqualTo(value2);
+
+        executor.shutdown();
+    }
+
+    @Test
+    void verifyConcurrentBatchSlotLoadingReturnsCorrectValuesWithFourConcurrentValues() throws Exception {
+        // Given
+        try {
+            final int maxCacheSize = 3;
+            cacheProperties.setSlotsPerContract("expireAfterAccess=10s,maximumSize=" + maxCacheSize);
+            cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
+            final var contract = persistContract();
+
+            final var slots = List.of(generateSlotKey(1), generateSlotKey(2), generateSlotKey(3), generateSlotKey(4));
+
+            final var values = List.of(
+                    Hex.decodeHex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                    Hex.decodeHex("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+                    Hex.decodeHex("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"),
+                    Hex.decodeHex("dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"));
+
+            final var contractId = contract.toEntityId();
+            for (int i = 0; i < 4; i++) {
+                persistContractState(contract.getId(), slots.get(i), values.get(i));
+            }
+
+            final var executor = Executors.newFixedThreadPool(4);
+
+            // First parallel lookup
+            final List<Future<Optional<byte[]>>> firstFutures = new ArrayList<>();
+            for (var slot : slots) {
+                firstFutures.add(executor.submit(() -> contractStateService.findStorage(contractId, slot)));
+            }
+
+            final List<Optional<byte[]>> firstResults = new ArrayList<>();
+            for (var future : firstFutures) {
+                firstResults.add(future.get(2, TimeUnit.SECONDS));
+            }
+
+            for (int i = 0; i < 4; i++) {
+                assertThat(firstResults.get(i)).get().isEqualTo(values.get(i));
+            }
+
+            // Wait for contract state cache to expire
+            Thread.sleep(6000);
+
+            final List<Future<Optional<byte[]>>> secondFutures = new ArrayList<>();
+            for (var slot : slots) {
+                secondFutures.add(executor.submit(() -> contractStateService.findStorage(contractId, slot)));
+            }
+
+            final List<Optional<byte[]>> secondResults = new ArrayList<>();
+            for (var future : secondFutures) {
+                secondResults.add(future.get(2, TimeUnit.SECONDS));
+            }
+
+            for (int i = 0; i < 4; i++) {
+                assertThat(secondResults.get(i)).get().isEqualTo(values.get(i));
+            }
+            executor.shutdown();
+        } finally {
+            // reset cache
+            final int initialSize = 10;
+            cacheProperties.setSlotsPerContract("expireAfterAccess=2s,maximumSize=" + initialSize);
+            cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
+        }
+    }
+
+    @Test
+    void verifyBatchSlotLoadingReturnsCorrectValuesSequentially() throws InterruptedException, DecoderException {
+        // Given
+        final var contract = persistContract();
+        final var slot1 = generateSlotKey(1);
+        final var slot2 = generateSlotKey(2);
+
+        final byte[] value1 = Hex.decodeHex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        final byte[] value2 = Hex.decodeHex("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+
+        persistContractState(contract.getId(), slot1, value1);
+        persistContractState(contract.getId(), slot2, value2);
+
+        final var contractId = contract.toEntityId();
+
+        // When: read both slots one after the other
+        final var result1 = contractStateService.findStorage(contractId, slot1);
+        final var result2 = contractStateService.findStorage(contractId, slot2);
+
+        Thread.sleep(6000);
+
+        final var result1Again = contractStateService.findStorage(contractId, slot1);
+        final var result2Again = contractStateService.findStorage(contractId, slot2);
+
+        // Then: both should return the correct values
+        assertThat(result1).get().isEqualTo(value1);
+        assertThat(result2).get().isEqualTo(value2);
+        assertThat(result1Again).get().isEqualTo(value1);
+        assertThat(result2Again).get().isEqualTo(value2);
+    }
+
+    @Test
     void verifyDeletedHistoricalContractSlotIsNotReturned() {
         // Given
         final var olderContractState = domainBuilder.contractStateChange().persist();
@@ -345,6 +476,13 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         final byte[] value = (EXPECTED_SLOT_VALUE + index).getBytes();
 
         return domainBuilder
+                .contractState()
+                .customize(cs -> cs.contractId(contractId).slot(slotKey).value(value))
+                .persist();
+    }
+
+    private void persistContractState(final long contractId, final byte[] slotKey, final byte[] value) {
+        domainBuilder
                 .contractState()
                 .customize(cs -> cs.contractId(contractId).slot(slotKey).value(value))
                 .persist();
