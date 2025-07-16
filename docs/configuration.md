@@ -21,7 +21,7 @@ support automatic generation of random [passwords](/charts/README.md#passwords).
 Some variables are common to more than one module.
 
 | Name                        | Default | Description                                                |
-| --------------------------- | ------- | ---------------------------------------------------------- |
+|-----------------------------|---------|------------------------------------------------------------|
 | `hiero.mirror.common.realm` | 0       | The default base realm the mirror node participates in.    |
 | `hiero.mirror.common.shard` | 0       | The default shard number this mirror node participates in. |
 
@@ -37,7 +37,7 @@ The following table lists the available properties along with their default valu
 value, it is recommended to only populate overridden properties in the custom `application.yml`.
 
 | Name                                                                            | Default                                              | Description                                                                                                                                                                                                                                                        |
-| ------------------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+|---------------------------------------------------------------------------------|------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `hiero.mirror.importer.block.enabled`                                           | false                                                | Whether to enable block stream source                                                                                                                                                                                                                              |
 | `hiero.mirror.importer.block.frequency`                                         | 100ms                                                | The fixed period between invocations. Can accept duration units like `10s`, `2m`, etc. If not specified, millisecond is implied as the unit.                                                                                                                       |
 | `hiero.mirror.importer.block.nodes[].host`                                      |                                                      | The hostname or IP of the block node server.                                                                                                                                                                                                                       |
@@ -74,6 +74,7 @@ value, it is recommended to only populate overridden properties in the custom `a
 | `hiero.mirror.importer.db.restUsername`                                         | mirror_api                                           | The username the API uses to connect to the database                                                                                                                                                                                                               |
 | `hiero.mirror.importer.db.schema`                                               | public                                               | The name of the custom schema database objects will be created in. This is applicable from v2 of the data schema                                                                                                                                                   |
 | `hiero.mirror.importer.db.username`                                             | mirror_importer                                      | The Importer username the processor uses to connect to the database                                                                                                                                                                                                |
+| `hiero.mirror.importer.db.sslMode`                                              | DISABLE                                              | The ssl level of protection against Eavesdropping, Man-in-the-middle (MITM) and Impersonation on the db connection. Accepts either DISABLE, ALLOW, PREFER, REQUIRE, VERIFY_CA or VERIFY_FULL.                                                                      |
 | `hiero.mirror.importer.downloader.accessKey`                                    | ""                                                   | The cloud storage access key                                                                                                                                                                                                                                       |
 | `hiero.mirror.importer.downloader.allowAnonymousAccess`                         |                                                      | Whether the cloud storage bucket allows for anonymous access.                                                                                                                                                                                                      |
 | `hiero.mirror.importer.downloader.balance.enabled`                              | false                                                | Whether to enable balance file downloads                                                                                                                                                                                                                           |
@@ -290,13 +291,13 @@ hiero:
     importer:
       parser:
         exclude:
-          - entity: [0.0.98]
+          - entity: [ 0.0.98 ]
         include:
-          - transaction: [CRYPTOTRANSFER]
-          - entity: [0.0.1000, 0.0.1001]
-          - entity: [0.0.101, 0.0.102]
-            transaction: [FILEAPPEND, FILECREATE, FILEDELETE, FILEUPDATE]
-          - transaction: [CONTRACTCREATEINSTANCE]
+          - transaction: [ CRYPTOTRANSFER ]
+          - entity: [ 0.0.1000, 0.0.1001 ]
+          - entity: [ 0.0.101, 0.0.102 ]
+            transaction: [ FILEAPPEND, FILECREATE, FILEDELETE, FILEUPDATE ]
+          - transaction: [ CONTRACTCREATEINSTANCE ]
             expression: "transactionBody.contractCreateInstance.autoRenewAccountId.accountNum == 2000"
         record:
           entity:
@@ -374,7 +375,7 @@ The following table lists the available properties along with their default valu
 value, it is recommended to only populate overridden properties in the custom `application.yml`.
 
 | Name                                                       | Default          | Description                                                                                               |
-| ---------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------- |
+|------------------------------------------------------------|------------------|-----------------------------------------------------------------------------------------------------------|
 | `hiero.mirror.grpc.addressbook.cacheExpiry`                | 5s               | The amount of time to cache address book entries                                                          |
 | `hiero.mirror.grpc.addressbook.cacheSize`                  | 50               | The maximum number of address book pages to cache                                                         |
 | `hiero.mirror.grpc.addressbook.maxPageDelay`               | 250ms            | The maximum amount of time to sleep between paging for address book entries                               |
@@ -426,7 +427,7 @@ See the monitor [documentation](/docs/monitor/README.md) for more general inform
 monitor.
 
 | Name                                                              | Default     | Description                                                                                                                                      |
-| ----------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+|-------------------------------------------------------------------|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
 | `hiero.mirror.monitor.health.release.cacheExpiry`                 | 30s         | The amount of time to cache cluster release health status                                                                                        |
 | `hiero.mirror.monitor.health.release.enabled`                     | false       | Whether to enable cluster release health check                                                                                                   |
 | `hiero.mirror.monitor.mirrorNode.grpc.host`                       | ""          | The hostname of the mirror node's gRPC API                                                                                                       |
@@ -514,7 +515,7 @@ The following table lists the available properties along with their default valu
 value, it is recommended to only populate overridden properties in the custom `application.yml`.
 
 | Name                                                                     | Default                 | Description                                                                                                                                                                                   |
-| ------------------------------------------------------------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|--------------------------------------------------------------------------|-------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `hiero.mirror.rest.cache.entityId.maxAge`                                | 1800                    | The number of seconds until the entityId cache entry expires                                                                                                                                  |
 | `hiero.mirror.rest.cache.entityId.maxSize`                               | 100000                  | The maximum number of entries in the entityId cache                                                                                                                                           |
 | `hiero.mirror.rest.cache.token.maxSize`                                  | 100000                  | The maximum number of entries in the token cache                                                                                                                                              |
@@ -625,7 +626,7 @@ The following table lists the available properties along with their default valu
 value, it is recommended to only populate overridden properties in the custom `application.yml`.
 
 | Name                                              | Default               | Description                                                                                                                                                   |
-| ------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|---------------------------------------------------|-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `hiero.mirror.restJava.db.host`                   | 127.0.0.1             | The IP or hostname used to connect to the database                                                                                                            |
 | `hiero.mirror.restJava.db.name`                   | mirror_node           | The name of the database                                                                                                                                      |
 | `hiero.mirror.restJava.db.password`               | mirror_rest_java_pass | The database password used to connect to the database                                                                                                         |
@@ -651,7 +652,7 @@ latter configuration overwriting (technically recursively merged into) the curre
 The following table lists the available properties along with their default values.
 
 | Name                                              | Default             | Description                                                                                         |
-| ------------------------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------- |
+|---------------------------------------------------|---------------------|-----------------------------------------------------------------------------------------------------|
 | `hiero.mirror.rosetta.cache.entity.maxSize`       | 524288              | The max number of entities to cache                                                                 |
 | `hiero.mirror.rosetta.db.host`                    | 127.0.0.1           | The IP or hostname used to connect to the database                                                  |
 | `hiero.mirror.rosetta.db.name`                    | mirror_node         | The name of the database                                                                            |
@@ -684,7 +685,7 @@ The following table lists the available properties along with their default valu
 value, it is recommended to only populate overridden properties in the custom `application.yml`.
 
 | Name                                                         | Default                                            | Description                                                                                                                                                                                      |
-| ------------------------------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+|--------------------------------------------------------------|----------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `hiero.mirror.web3.cache.contract`                           | expireAfterAccess=60m,maximumSize=1000,recordStats | Cache configuration for contract                                                                                                                                                                 |
 | `hiero.mirror.web3.cache.contractSlots`                      | expireAfterAccess=5m,maximumSize=3000,recordStats  | Cache for contract slots queried within a findStorage query                                                                                                                                      |
 | `hiero.mirror.web3.cache.contractState`                      | expireAfterWrite=2s,maximumSize=25000,recordStats  | Cache configuration for contract state                                                                                                                                                           |
