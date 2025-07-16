@@ -2,7 +2,7 @@
 
 ## Problem
 
-Need to update k8s version for Citus Node Pool(s)
+Need to update k8s version for clusters with citus installed
 
 ## Prerequisites
 

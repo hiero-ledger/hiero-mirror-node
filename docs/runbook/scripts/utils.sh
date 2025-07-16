@@ -20,6 +20,29 @@ function watchInBackground() {
   "$@" || kill -INT -- -"$pid"
 }
 
+function getCitusClusters() {
+  kubectl get sgclusters.stackgres.io -A -o json |
+    jq -r '.items|
+             map(
+               .metadata as $metadata|
+               .spec.postgres.version as $pgVersion|
+               ((.metadata.labels["stackgres.io/coordinator"] // "false")| test("true")) as $isCoordinator |
+               .spec.configurations.patroni.initialConfig.citus.group as $citusGroup|
+               .status.podStatuses[]|
+                 {
+                   citusGroup: $citusGroup,
+                   clusterName: $metadata.name,
+                   isCoordinator: $isCoordinator,
+                   namespace: $metadata.namespace,
+                   pgVersion: $pgVersion,
+                   podName: .name,
+                   pvcName: "\($metadata.name)-data-\(.name)",
+                   primary: .primary,
+                   shardedClusterName: $metadata.ownerReferences[0].name
+                 }
+             )'
+}
+
 function waitForReplicaToBeInSync() {
   local namespace="${1}"
   local replicaPod="${2}"
@@ -27,16 +50,11 @@ function waitForReplicaToBeInSync() {
 
   log "Waiting for '${expectedPrimaryPod}' to catch up"
 
-  local lag_timeout=300
-  local lag_start_time=$SECONDS
-
   while true; do
     lag=$(kubectl exec -n "${namespace}" -c postgres-util "${primaryPod}" -- \
       psql -tAc "SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn)
                  FROM pg_stat_replication
-                 WHERE application_name = '${replicaPod}'")
-
-    lag=$(echo "$lag" | xargs)
+                 WHERE application_name = '${replicaPod}'" | xargs)
 
     if [[ "$lag" == "0" ]]; then
       log "Replica '${replicaPod}' has 0-byte lag"
@@ -48,12 +66,6 @@ function waitForReplicaToBeInSync() {
     else
       log "WAL lag on '${expectedPrimaryPod}': ${lag} bytes. Waiting..."
     fi
-
-    if ((SECONDS - lag_start_time > lag_timeout)); then
-      log "Timed out waiting for WAL lag = 0 on '${expectedPrimaryPod}' (current lag is ${lag:-unknown})"
-      exit 1
-    fi
-
     sleep 5
   done
 }
@@ -62,7 +74,7 @@ function patroniFailoverToFirstPod() {
   local namespace="${1}"
 
   local clustersInNamespace
-  clustersInNamespace=$(echo "${CITUS_CLUSTERS}" | jq -c --arg ns "${namespace}" '
+  clustersInNamespace=$(getCitusClusters | jq -c --arg ns "${namespace}" '
     map(select(.namespace == $ns)) |
     group_by(.citusGroup)')
 
@@ -74,72 +86,59 @@ function patroniFailoverToFirstPod() {
     group=$(echo "${clustersInNamespace}" | jq -c ".[$i]")
 
     local citusGroup
+    local clusterName
     citusGroup=$(echo "${group}" | jq -r ".[0].citusGroup")
+    clusterName=$(echo "${group}" | jq -r ".[0].clusterName")
+
+    local expectedPrimaryPod="${clusterName}-0"
+
+    local patroniCluster
+    patroniCluster=$(kubectl exec -n "${namespace}" -c patroni "${expectedPrimaryPod}" -- \
+    patronictl list --group "${citusGroup}" --format json)
 
     local currentPrimaryPod
-    currentPrimaryPod=$(echo "${group}" | jq -r 'map(select(.primary == true)) | .[0].podName')
-
-    if [[ -z "${currentPrimaryPod}" || "${currentPrimaryPod}" == "null" ]]; then
-      log "No primary pod found for Citus group '${citusGroup}' in namespace ${namespace}. Exiting."
-      exit 1
-    fi
-
-    local podPrefix
-    podPrefix=$(echo "${currentPrimaryPod}" | sed -E 's/-[0-9]+$//')
-    local expectedPrimaryPod="${podPrefix}-0"
+    currentPrimaryPod=$(echo "${patroniCluster}" | jq -r 'map(select(.Role == "Leader")) | .[0].Member'| xargs)
 
     if [[ "${currentPrimaryPod}" != "${expectedPrimaryPod}" ]]; then
       log "Failover required: '${expectedPrimaryPod}' is not primary"
-      waitForReplicaToBeInSync "${namespace}" "${expectedPrimaryPod}" "${currentPrimaryPod}"
+      if [[ -z "${currentPrimaryPod}" || "${currentPrimaryPod}" == "null" ]]; then
+        log "No current primary found for group ${citusGroup}"
+      else
+        local expectedGroupPodCount
+        expectedGroupPodCount=$(echo "${group}" | jq length)
+        if [[ "${expectedGroupPodCount}" -gt 1 ]]; then
+          waitForReplicaToBeInSync "${namespace}" "${expectedPrimaryPod}" "${currentPrimaryPod}"
+        fi
+      fi
 
-      kubectl exec -n "${namespace}" -c patroni "${currentPrimaryPod}" -- \
+      log "Setting primary ${expectedPrimaryPod} with failover"
+      kubectl exec -n "${namespace}" -c patroni "${expectedPrimaryPod}" -- \
         patronictl failover --group "${citusGroup}" --candidate "${expectedPrimaryPod}" --force
 
-      # Wait for failover to complete
-      local timeout=600
-      local start_time=$SECONDS
       while true; do
         log "Waiting for failover of group ${citusGroup} to '${expectedPrimaryPod}'..."
         sleep 5
-
-        CITUS_CLUSTERS=$(getCitusClusters)
-
+        patroniCluster=$(kubectl exec -n "${namespace}" -c patroni "${expectedPrimaryPod}" -- \
+            patronictl list --group "${citusGroup}" --format json)
         local newPrimary
-        newPrimary=$(echo "${CITUS_CLUSTERS}" | jq -r --arg ns "${namespace}" --argjson group "${citusGroup}" '
-          map(select(.namespace == $ns and .citusGroup == $group and .primary == true)) | .[0].podName')
+        newPrimary=$(echo "${patroniCluster}" | jq -r 'map(select(.Role == "Leader")) | .[0].Member'| xargs)
 
         if [[ "${newPrimary}" == "${expectedPrimaryPod}" ]]; then
           log "Failover successful: '${expectedPrimaryPod}' is now primary."
           break
         fi
-
-        if ((SECONDS - start_time > timeout)); then
-          log "Timeout during failover to '${expectedPrimaryPod}' in group '${citusGroup}' (namespace ${namespace})"
-          exit 1
-        fi
       done
 
-      # Verify SGCluster reflects new primary pod
-      local sgCheckTimeout=60
-      local sgCheckStart=$SECONDS
-      local sgClusterName
-      sgClusterName=$(echo "${group}" | jq -r ".[0].clusterName")
-
       while true; do
-        log "Waiting for SGCluster '${sgClusterName}' to show '${expectedPrimaryPod}' as primary..."
+        log "Waiting for SGCluster '${clusterName}' to show '${expectedPrimaryPod}' as primary..."
         sleep 5
         local sgPrimary
-        sgPrimary=$(kubectl get sgcluster "${sgClusterName}" -n "${namespace}" -o json |
+        sgPrimary=$(kubectl get sgcluster "${clusterName}" -n "${namespace}" -o json |
           jq -r '.status.podStatuses[] | select(.primary == true) | .name')
 
         if [[ "${sgPrimary}" == "${expectedPrimaryPod}" ]]; then
-          log "SGCluster '${sgClusterName}' reflects new primary: '${expectedPrimaryPod}'"
+          log "SGCluster '${clusterName}' reflects new primary: '${expectedPrimaryPod}'"
           break
-        fi
-
-        if ((SECONDS - sgCheckStart > sgCheckTimeout)); then
-          log "Timed out waiting for SGCluster '${sgClusterName}' to reflect new primary '${expectedPrimaryPod}'."
-          exit 1
         fi
       done
     else
@@ -195,7 +194,8 @@ function scaleDeployment() {
     log "Waiting for pods with label ${deploymentLabel} to be ready"
     kubectl wait --for=condition=Ready pod -n "${namespace}" -l "${deploymentLabel}" --timeout=-1s
   else # scale down
-    local deploymentPods=$(kubectl get pods -n "${namespace}" -l "${deploymentLabel}" -o 'jsonpath={.items[*].metadata.name}')
+    local deploymentPods
+    deploymentPods=$(kubectl get pods -n "${namespace}" -l "${deploymentLabel}" -o 'jsonpath={.items[*].metadata.name}')
     if [[ -z "${deploymentPods}" ]]; then
       log "No pods found for deployment ${deploymentLabel} in namespace ${namespace}"
       return
@@ -260,6 +260,53 @@ function routeTraffic() {
   fi
 }
 
+function cleanShutdown() {
+  local namespace="${1}"
+
+  log "Stopping PostgreSQL cleanly for all clusters in namespace ${namespace}"
+
+  local clusterNames
+  clusterNames=$(kubectl get pods -n "${namespace}" -l 'stackgres.io/cluster=true' \
+    -o json | jq -r '
+      .items
+      | map(.metadata.labels["stackgres.io/cluster-name"])
+      | unique[]
+    ')
+
+  for cluster in ${clusterNames}; do
+    local pod
+    pod=$(kubectl get pods -n "${namespace}" \
+      -l "stackgres.io/cluster-name=${cluster}" \
+      -o json | jq -r '
+        .items
+        | sort_by(.metadata.name)
+        | .[0].metadata.name
+      ')
+
+    if [[ -z "${pod}" ]]; then
+      log "No pod found for cluster ${cluster} in namespace ${namespace}. Skipping"
+      continue
+    fi
+
+    log "Pausing Patroni cluster '${cluster}' via pod '${pod}'"
+    kubectl exec -n "${namespace}" "${pod}" -c patroni -- patronictl pause --wait
+  done
+
+  # Get all pod names to shut down individually
+  local podNames
+  podNames=$(kubectl get pods -n "${namespace}" -l 'stackgres.io/cluster=true' \
+    -o json | jq -r '
+      .items
+      | sort_by(.metadata.name)
+      | .[].metadata.name
+    ')
+
+  for pod in ${podNames}; do
+    log "Shutting down PostgreSQL on pod '${pod}' with pg_ctl"
+    kubectl exec -n "${namespace}" "${pod}" -c patroni -- pg_ctl stop -m fast -D /var/lib/postgresql/data
+  done
+}
+
 function pauseCitus() {
   local namespace="${1}"
   local citusPods
@@ -271,7 +318,7 @@ function pauseCitus() {
     log "Removing pods (${citusPods}) in ${namespace} for ${CURRENT_CONTEXT}"
     doContinue
     kubectl annotate sgclusters.stackgres.io -n "${namespace}" --all stackgres.io/reconciliation-pause="true" --overwrite
-    sleep 5
+    cleanShutdown "${namespace}"
     kubectl scale sts -n "${namespace}" -l 'stackgres.io/cluster=true' --replicas=0
     log "Waiting for citus pods to terminate"
     kubectl wait --for=delete pod -l 'stackgres.io/cluster=true' -n "${namespace}" --timeout=-1s
@@ -303,6 +350,42 @@ function waitForPatroniMasters() {
   log "All Patroni masters are ready"
 }
 
+function resumePatroni() {
+  local namespace="${1}"
+  local cluster="${2}"
+  local pod"${cluster}-0"
+
+  until kubectl exec -n "${namespace}" "${pod}" -c patroni -- patronictl list >/dev/null 2>&1; do
+    log "Patroni not ready in pod ${pod}. Waiting..."
+    sleep 2
+  done
+
+  log "Resuming Patroni cluster '${cluster}' via pod '${pod}'"
+
+  until kubectl exec -n "${namespace}" "${pod}" -c patroni -- patronictl resume --wait >/dev/null 2>&1; do
+    log "Resume failed in pod ${pod}. Retrying..."
+    sleep 2
+  done
+}
+
+function waitForStatefulSetPodsStarted() {
+  local namespace="${1}"
+  local sts="${2}"
+
+  while true; do
+    log "Waiting for pods from StatefulSet ${sts} in namespace ${namespace} to be started"
+    local startedCount
+    startedCount=$(kubectl get pods -n "${namespace}" -l "statefulset.kubernetes.io/pod-name" \
+      -o json | jq '[.items[] | select(.metadata.ownerReferences[]?.name == "'"${sts}"'" and .status.containerStatuses[]?.started == true)] | length')
+
+    if [[ "${startedCount}" -ge 1 ]]; then
+      echo "Pods for sts ${sts} are started"
+      break
+    fi
+    sleep 5
+  done
+}
+
 function unpauseCitus() {
   local namespace="${1}"
   local reinitializeCitus="${2:-false}"
@@ -328,43 +411,24 @@ function unpauseCitus() {
 
     log "Waiting for all StackGresCluster pods to be ready"
     for sts in $(kubectl get sts -n "${namespace}" -l 'app=StackGresCluster' -o name); do
+      waitForStatefulSetPodsStarted "${namespace}" "${sts##*/}"
+      resumePatroni "${namespace}" "${sts##*/}"
       expected=$(kubectl get "${sts}" -n "${namespace}" -o jsonpath='{.spec.replicas}')
       log "Waiting for ${expected} replicas in ${sts}"
-      sleep 1 # small pause is sometimes needed between these calls
       kubectl wait --for=jsonpath='{.status.readyReplicas}'=${expected} "${sts}" -n "${namespace}" --timeout=-1s
     done
+
+    patroniFailoverToFirstPod "${namespace}" # Ensure there is a marked primary
 
     while [[ "$(kubectl get pods -n "${namespace}" -l "${STACKGRES_MASTER_LABELS}" -o name | wc -l)" -ne "${expectedTotal}" ]]; do
       log "Waiting for a pod in each cluster to be marked with master role label"
       sleep 1
     done
+
     waitForPatroniMasters "${namespace}"
   else
     log "Citus is already running in namespace ${namespace}. Skipping"
   fi
-}
-
-function getCitusClusters() {
-  kubectl get sgclusters.stackgres.io -A -o json |
-    jq -r '.items|
-             map(
-               .metadata as $metadata|
-               .spec.postgres.version as $pgVersion|
-               ((.metadata.labels["stackgres.io/coordinator"] // "false")| test("true")) as $isCoordinator |
-               .spec.configurations.patroni.initialConfig.citus.group as $citusGroup|
-               .status.podStatuses[]|
-                 {
-                   citusGroup: $citusGroup,
-                   clusterName: $metadata.name,
-                   isCoordinator: $isCoordinator,
-                   namespace: $metadata.namespace,
-                   pgVersion: $pgVersion,
-                   podName: .name,
-                   pvcName: "\($metadata.name)-data-\(.name)",
-                   primary: .primary,
-                   shardedClusterName: $metadata.ownerReferences[0].name
-                 }
-             )'
 }
 
 function getDiskPrefix() {
@@ -378,7 +442,7 @@ function getDiskPrefix() {
 
 function getZFSVolumes() {
   kubectl get pv -o json |
-    jq -r --arg CITUS_CLUSTERS "${CITUS_CLUSTERS}" \
+    jq -r --arg CITUS_CLUSTERS "$(getCitusClusters)" \
       '.items|
          map(select(.metadata.annotations."pv.kubernetes.io/provisioned-by"=="zfs.csi.openebs.io" and
                     .status.phase == "Bound")|
@@ -466,7 +530,8 @@ function updateStackgresCreds() {
   local web3Username=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_USERNAME')
   local web3Password=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_PASSWORD')
   local dbName=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_NAME')
-  local sql=$(cat <<EOF
+  local sql=$(
+    cat <<EOF
 alter user ${superuserUsername} with password '${superuserPassword}';
 alter user ${graphqlUsername} with password '${graphqlPassword}';
 alter user ${grpcUsername} with password '${grpcPassword}';
@@ -503,11 +568,10 @@ EOF
 }
 
 AUTO_UNROUTE="${AUTO_UNROUTE:-true}"
-CITUS_CLUSTERS="$(getCitusClusters)"
 COMMON_NAMESPACE="${COMMON_NAMESPACE:-common}"
 CURRENT_CONTEXT="$(kubectl config current-context)"
 DISK_PREFIX=
-GCP_COORDINATOR_POOL_NAME="${GCP_COORDINATOR_POOL_NAME:-citus-coordinator}"
+GCP_COORDINATOR_POOL_NAME="${GCP_COORDINATOR_POOL_NAME:-citus-coordinator2}"
 GCP_WORKER_POOL_NAME="${GCP_WORKER_POOL_NAME:-citus-worker}"
 HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-mirror}"
 STACKGRES_MASTER_LABELS="${STACKGRES_MASTER_LABELS:-app=StackGresCluster,role=master}"
