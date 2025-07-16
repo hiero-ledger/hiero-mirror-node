@@ -88,25 +88,6 @@ while true; do
   fi
 done
 
-upgradePool() {
-  local pool="$1"
-  log "Upgrading node pool: ${pool}"
-
-  local args=(
-    "${GCP_K8S_CLUSTER_NAME}"
-    --node-pool="${pool}"
-    --cluster-version="${VERSION}"
-    --location="${GCP_K8S_CLUSTER_REGION}"
-    --project="${GCP_PROJECT}"
-  )
-
-  if [[ -n "${SYSTEM_CONFIG_FILE}" ]]; then
-    args+=(--system-config-from-file="${SYSTEM_CONFIG_FILE}")
-  fi
-
-  gcloud container clusters upgrade "${args[@]}"
-}
-
 POOLS_WITH_CITUS_ROLE=()
 POOLS_WITHOUT_CITUS_ROLE=()
 
@@ -127,11 +108,19 @@ done
 function upgradePool() {
   local pool="$1"
   log "Upgrading node pool: ${pool}"
-  gcloud container clusters upgrade "${GCP_K8S_CLUSTER_NAME}" \
-    --node-pool="${pool}" \
-    --cluster-version="${VERSION}" \
-    --location="${GCP_K8S_CLUSTER_REGION}" \
+  local args=(
+    "${GCP_K8S_CLUSTER_NAME}"
+    --node-pool="${pool}"
+    --cluster-version="${VERSION}"
+    --location="${GCP_K8S_CLUSTER_REGION}"
     --project="${GCP_PROJECT}"
+  )
+
+  if [[ -n "${SYSTEM_CONFIG_FILE}" ]]; then
+    args+=(--system-config-from-file="${SYSTEM_CONFIG_FILE}")
+  fi
+
+  gcloud container clusters upgrade "${args[@]}"
 }
 
 function upgradeCitusPools() {
