@@ -3,6 +3,7 @@
 package com.hedera.services.store.contracts.precompile;
 
 import static com.hedera.node.app.service.evm.utils.ValidationUtils.validateTrue;
+import static com.hedera.services.store.contracts.precompile.utils.NonZeroProtoAndShardUtils.getDefaultTokenIDInstance;
 
 import com.hedera.node.app.service.evm.exceptions.InvalidTransactionException;
 import com.hedera.services.jproto.JKey;
@@ -21,6 +22,10 @@ import java.security.InvalidKeyException;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Copied class from the legacy mono services codebase. A discrepancy from there is
+ * added logic about handling non-zero shard and realm values
+ */
 public class TokenCreateWrapper {
     private final boolean isFungible;
     private final String name;
@@ -191,7 +196,7 @@ public class TokenCreateWrapper {
         }
 
         private FixedFeePayment setFixedFeePaymentType() {
-            if (tokenID != null) {
+            if (tokenID != null && tokenID.getTokenNum() != 0) {
                 return !useHbarsForPayment && !useCurrentTokenForPayment
                         ? FixedFeePayment.USE_EXISTING_FUNGIBLE_TOKEN
                         : FixedFeePayment.INVALID_PAYMENT;
@@ -210,10 +215,7 @@ public class TokenCreateWrapper {
                 case USE_EXISTING_FUNGIBLE_TOKEN ->
                     FixedFee.newBuilder().setAmount(amount).setDenominatingTokenId(tokenID);
                 case USE_CURRENTLY_CREATED_TOKEN ->
-                    FixedFee.newBuilder()
-                            .setAmount(amount)
-                            .setDenominatingTokenId(
-                                    TokenID.newBuilder().setTokenNum(0L).build());
+                    FixedFee.newBuilder().setAmount(amount).setDenominatingTokenId(getDefaultTokenIDInstance());
                 default -> throw new InvalidTransactionException(ResponseCodeEnum.FAIL_INVALID);
             };
         }

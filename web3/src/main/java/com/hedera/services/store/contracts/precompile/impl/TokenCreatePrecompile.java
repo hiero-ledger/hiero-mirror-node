@@ -402,7 +402,7 @@ public class TokenCreatePrecompile extends AbstractWritePrecompile {
                 isFungible,
                 tokenName,
                 tokenSymbol,
-                tokenTreasury.getAccountNum() != 0 ? tokenTreasury : null,
+                (tokenTreasury.getShardNum() != 0 || tokenTreasury.getRealmNum() != 0) ? tokenTreasury : null,
                 memo,
                 isSupplyTypeFinite,
                 initSupply,
@@ -459,10 +459,10 @@ public class TokenCreatePrecompile extends AbstractWritePrecompile {
             final var feeCollector = convertLeftPaddedAddressToAccountId(fixedFeeTuple.get(4), aliasResolver);
             fixedFees.add(new FixedFeeWrapper(
                     amount,
-                    tokenId.getTokenNum() != 0 ? tokenId : null,
+                    (tokenId.getShardNum() != 0 || tokenId.getRealmNum() != 0) ? tokenId : null,
                     useHbarsForPayment,
                     useCurrentTokenForPayment,
-                    feeCollector.getAccountNum() != 0 ? feeCollector : null));
+                    (feeCollector.getShardNum() != 0 || feeCollector.getRealmNum() != 0) ? feeCollector : null));
         }
         return fixedFees;
     }
@@ -483,7 +483,7 @@ public class TokenCreatePrecompile extends AbstractWritePrecompile {
                     minimumAmount,
                     maximumAmount,
                     netOfTransfers,
-                    feeCollector.getAccountNum() != 0 ? feeCollector : null));
+                    (feeCollector.getShardNum() != 0 || feeCollector.getRealmNum() != 0) ? feeCollector : null));
         }
         return fractionalFees;
     }
@@ -526,7 +526,10 @@ public class TokenCreatePrecompile extends AbstractWritePrecompile {
 
             final var feeCollector = convertLeftPaddedAddressToAccountId(royaltyFeeTuple.get(5), aliasResolver);
             decodedRoyaltyFees.add(new RoyaltyFeeWrapper(
-                    numerator, denominator, fixedFee, feeCollector.getAccountNum() != 0 ? feeCollector : null));
+                    numerator,
+                    denominator,
+                    fixedFee,
+                    (feeCollector.getShardNum() != 0 || feeCollector.getRealmNum() != 0) ? feeCollector : null));
         }
         return decodedRoyaltyFees;
     }
