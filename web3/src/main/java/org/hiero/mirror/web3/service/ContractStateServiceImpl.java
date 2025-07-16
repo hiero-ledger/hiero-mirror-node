@@ -83,20 +83,22 @@ final class ContractStateServiceImpl implements ContractStateService {
      * @return slotKey-value pairs for contractId
      */
     private Optional<byte[]> findStorageBatch(final EntityId contractId, final byte[] key) {
-        final var contractSlotsCache = this.contractSlotsCache.get(
-                contractId, () -> cacheManagerSlotsPerContract.getCache(contractId.toString()));
-        contractSlotsCache.putIfAbsent(ByteBuffer.wrap(key), EMPTY_VALUE);
-
+        final var contractSlotsCache = ((CaffeineCache) this.contractSlotsCache.get(
+                contractId, () -> cacheManagerSlotsPerContract.getCache(contractId.toString())));
+        final var wrappedKey = ByteBuffer.wrap(key);
         // Cached slot keys for contract, whose slot values are not present in the contractStateCache
-        final var cachedSlots = new ArrayList<byte[]>();
-        ((CaffeineCache) contractSlotsCache).getNativeCache().asMap().keySet().forEach(slot -> {
-            final var slotBytes = ((ByteBuffer) slot).array();
-            final var value = contractStateCache.putIfAbsent(generateCacheKey(contractId, slotBytes), EMPTY_VALUE);
+        contractSlotsCache.putIfAbsent(wrappedKey, EMPTY_VALUE);
+        final var cachedSlotKeys = contractSlotsCache.getNativeCache().asMap().keySet();
 
-            if (value == null) {
-                cachedSlots.add(slotBytes);
+        final var cachedSlots = new ArrayList<byte[]>(cachedSlotKeys.size());
+        boolean isKeyEvictedFromCache = true;
+
+        for (var slot : cachedSlotKeys) {
+            cachedSlots.add(((ByteBuffer) slot).array());
+            if (wrappedKey.equals(slot)) {
+                isKeyEvictedFromCache = false;
             }
-        });
+        }
 
         final var contractSlotValues = contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots);
         byte[] cachedValue = null;
@@ -105,13 +107,17 @@ final class ContractStateServiceImpl implements ContractStateService {
             final byte[] slotKey = contractSlotValue.getSlot();
             final byte[] slotValue = contractSlotValue.getValue();
             contractStateCache.put(generateCacheKey(contractId, slotKey), slotValue);
-            contractSlotsCache.put(ByteBuffer.wrap(slotKey), EMPTY_VALUE);
 
             if (Arrays.equals(slotKey, key)) {
                 cachedValue = slotValue;
             }
         }
 
+        // If the cache key was evicted and hasn't been requested since, the cached value will be null.
+        // In that case, fall back to the original query.
+        if (isKeyEvictedFromCache) {
+            return contractStateRepository.findStorage(contractId.getId(), key);
+        }
         return Optional.ofNullable(cachedValue);
     }
 
