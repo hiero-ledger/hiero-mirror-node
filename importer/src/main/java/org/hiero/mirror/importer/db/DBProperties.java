@@ -51,6 +51,9 @@ public class DBProperties {
     @NotBlank
     private String username = "";
 
+    @NotBlank
+    private String sslMode = "";
+
     @NotNull
     private Duration metricRefreshInterval = Duration.ofMinutes(5L);
 }
