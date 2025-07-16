@@ -3,7 +3,7 @@
 package com.hedera.services.store.contracts.precompile;
 
 import static com.hedera.node.app.service.evm.utils.ValidationUtils.validateTrue;
-import static com.hedera.services.store.contracts.precompile.utils.NonZeroProtoAndShardUtils.getDefaultTokenIDInstance;
+import static com.hedera.services.store.contracts.precompile.utils.NonZeroShardAndRealmUtils.getDefaultTokenIDInstance;
 
 import com.hedera.node.app.service.evm.exceptions.InvalidTransactionException;
 import com.hedera.services.jproto.JKey;

@@ -12,7 +12,7 @@ import org.hiero.mirror.common.CommonProperties;
  * TODO can be deleted once mono code is removed from the codebase
  */
 @UtilityClass
-public class NonZeroProtoAndShardUtils {
+public class NonZeroShardAndRealmUtils {
 
     public static TokenID getDefaultTokenIDInstance() {
         final var commonProperties = CommonProperties.getInstance();
