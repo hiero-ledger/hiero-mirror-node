@@ -27,6 +27,9 @@ env:
 jobs:
   deploy:
     name: Deploy
+    env:
+      ENVIRONMENT: ${{ github.event.inputs.environment }}
+      VERSION: ${{ github.event.inputs.version }}
     runs-on: hiero-mirror-node-linux-medium
     steps:
       - name: Harden Runner
@@ -38,7 +41,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
           [[ ! "$ENVIRONMENT" =~ ^(common|integration|mainnet.*|previewnet.*|testnet.*)$ ]] || \
             { echo "Deploying to $ENVIRONMENT is not allowed" && false; }
           [[ "$ENVIRONMENT" = "performance" ]] && ENVIRONMENT="${ENVIRONMENT}-citus" || true
@@ -48,7 +50,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          VERSION="${{ github.event.inputs.version }}"
           VERSION=${VERSION#v}
           curl -fsSL -o /dev/null ${{ github.server_url }}/${{ github.repository }}/tree/"v$VERSION"
           echo VERSION=${VERSION} >> $GITHUB_ENV
