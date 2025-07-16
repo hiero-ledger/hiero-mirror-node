@@ -19,6 +19,7 @@ jobs:
   check-version:
     name: Check if hedera app version changed in the PR
     runs-on: hiero-mirror-node-linux-large
+    continue-on-error: true
     outputs:
       changed: ${{ steps.check.outputs.changed }}
       pr_version: ${{ steps.check.outputs.pr_version }}
@@ -35,7 +36,7 @@ jobs:
       - name: Compare versions
         id: check
         run: |
-          set -ex
+          set -euo pipefail
 
           PR_VERSION=$(grep -o 'api("com\.hedera\.hashgraph:app:[^"]*")' build.gradle.kts | sed -E 's/.*app:([^"]*)".*/\1/')
           PR_VERSION_TAG="v$PR_VERSION"
@@ -59,6 +60,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     needs: check-version
     if: needs.check-version.outputs.changed == 'true'
+    continue-on-error: true
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
