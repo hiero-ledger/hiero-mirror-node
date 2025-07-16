@@ -260,3 +260,29 @@ Test Parameters:
 - `RECEIVER_ADDRESS` - First account to be used in the test for the transfer. Not associated account
 - `SPENDER_ADDRESS` - Second account to be used in the test for the second transfer. Not associated account
 - `PAYER_ACCOUNT` - Account to be used as a treasury of the token and for a payer of the transaction. It should have enough balance to pay for the token creation (at least 9.33 Hbars).
+
+### Storage Load Test
+
+This test is designed to stress the EVM storage system by executing a smart contract function that performs thousands of SLOAD operations.
+It is useful for benchmarking and performance regression testing of `findStorage` calls.
+
+#### Overview
+
+**Test File:**
+`tools/k6/src/web3/test/contractCallEstimateReadStorage.js`
+
+#### Primary Contracts
+
+- **`SlotContract`**: Initializes 600 storage slots in a mapping during construction.
+- **`SlotContractCaller`**: The `heavyReadBothHalves()` method calls `readFirstHalf()` and `readSecondHalf()` from `SlotContract` **five times each**,
+  resulting in 3,000 total SLOAD operations (600 slots × 5 calls).
+
+#### General Storage Read Stress Test
+
+This test is not limited to a specific contract or method. You can stress-test any smart contract that performs heavy storage reads by updating the following parameters:
+
+- `STORAGE_SLOTS_CONTRACT`: Set this to the **contract address** you want to test.
+  **Example:** `0x00000000000000000000000000000000008f005f` (SlotContractCaller)
+
+- `STORAGE_SLOTS_CALLDATA`: Set this to the **method call data** you want to simulate.
+  **Example:** `0x523adad6` (`heavyReadBothHalves()` method selector from SlotContractCaller)
