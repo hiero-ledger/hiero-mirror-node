@@ -17,6 +17,7 @@ hiero:
         schema: public
         tempSchema: temporary
         username: mirror_importer
+        sslMode: DISABLE
       migration:
         backfillTransactionHashMigration:
           checksum: 2
@@ -97,6 +98,7 @@ spring:
       data-source-properties:
         #loggerLevel: TRACE
         logUnclosedConnections: true
+        sslmode: ${hiero.mirror.importer.db.sslMode}
         reWriteBatchedInserts: true
       maximumPoolSize: 20
   flyway:
