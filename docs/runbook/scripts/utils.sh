@@ -463,15 +463,6 @@ function resizeCitusNodePools() {
     return 1
   fi
 
-  if [[ "${numNodes}" -eq 0 ]]; then
-    local existingNodes
-    existingNodes=$(kubectl get nodes -l'citus-role' -o 'jsonpath={.items[*].metadata.name}')
-    if [[ -z "${existingNodes}" ]]; then
-      log "No nodes with citus-role found; skipping scale down"
-      return 0
-    fi
-  fi
-
   for pool in "${citusPools[@]}"; do
     log "Scaling pool ${pool} to ${numNodes} nodes"
 
@@ -491,7 +482,6 @@ function resizeCitusNodePools() {
     kubectl wait --for=delete node -l'citus-role' --timeout=-1s
   fi
 }
-
 
 function updateStackgresCreds() {
   local cluster="${1}"

@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 
-set -euox pipefail
+set -euo pipefail
 
 source ./utils.sh
 
