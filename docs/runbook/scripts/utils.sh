@@ -73,30 +73,21 @@ function waitForReplicaToBeInSync() {
 function patroniFailoverToFirstPod() {
   local namespace="${1}"
 
-  local clustersInNamespace
+  local clustersInNamespace groupCount
   clustersInNamespace=$(getCitusClusters | jq -c --arg ns "${namespace}" '
     map(select(.namespace == $ns)) |
     group_by(.citusGroup)')
-
-  local groupCount
   groupCount=$(echo "${clustersInNamespace}" | jq length)
 
   for ((i = 0; i < groupCount; i++)); do
-    local group
-    group=$(echo "${clustersInNamespace}" | jq -c ".[$i]")
+    local group citusGroup clusterName expectedPrimaryPod patroniCluster currentPrimaryPod
 
-    local citusGroup
-    local clusterName
+    group=$(echo "${clustersInNamespace}" | jq -c ".[$i]")
     citusGroup=$(echo "${group}" | jq -r ".[0].citusGroup")
     clusterName=$(echo "${group}" | jq -r ".[0].clusterName")
-
-    local expectedPrimaryPod="${clusterName}-0"
-
-    local patroniCluster
+    expectedPrimaryPod="${clusterName}-0"
     patroniCluster=$(kubectl exec -n "${namespace}" -c patroni "${expectedPrimaryPod}" -- \
     patronictl list --group "${citusGroup}" --format json)
-
-    local currentPrimaryPod
     currentPrimaryPod=$(echo "${patroniCluster}" | jq -r 'map(select(.Role == "Leader")) | .[0].Member'| xargs)
 
     if [[ "${currentPrimaryPod}" != "${expectedPrimaryPod}" ]]; then
@@ -292,7 +283,6 @@ function cleanShutdown() {
     kubectl exec -n "${namespace}" "${pod}" -c patroni -- patronictl pause --wait
   done
 
-  # Get all pod names to shut down individually
   local podNames
   podNames=$(kubectl get pods -n "${namespace}" -l 'stackgres.io/cluster=true' \
     -o json | jq -r '
@@ -327,9 +317,9 @@ function pauseCitus() {
 
 function waitForPatroniMasters() {
   local namespace="${1}"
-  local masterPods
-  masterPods=($(kubectl get pods -n "${namespace}" -l "${STACKGRES_MASTER_LABELS}" -o jsonpath='{.items[*].metadata.name}'))
-  local expectedTotal=$(($(kubectl get sgshardedclusters -n "${namespace}" -o jsonpath='{.items[0].spec.shards.clusters}') + 1))
+  local expectedTotal masterPods
+  expectedTotal=$(($(kubectl get sgshardedclusters -n "${namespace}" -o jsonpath='{.items[0].spec.shards.clusters}') + 1))
+  mapfile -t masterPods < <(kubectl get pods -n "${namespace}" -l "${STACKGRES_MASTER_LABELS}" -o jsonpath='{.items[*].metadata.name}')
 
   if [[ "${#masterPods[@]}" -ne "${expectedTotal}" ]]; then
     log "Expected ${expectedTotal} master pods and found only ${#masterPods[@]} in namespace ${namespace}"
@@ -353,12 +343,7 @@ function waitForPatroniMasters() {
 function resumePatroni() {
   local namespace="${1}"
   local cluster="${2}"
-  local pod"${cluster}-0"
-
-  until kubectl exec -n "${namespace}" "${pod}" -c patroni -- patronictl list >/dev/null 2>&1; do
-    log "Patroni not ready in pod ${pod}. Waiting..."
-    sleep 2
-  done
+  local pod="${cluster}-0"
 
   log "Resuming Patroni cluster '${cluster}' via pod '${pod}'"
 
@@ -463,38 +448,50 @@ function getZFSVolumes() {
 function resizeCitusNodePools() {
   local numNodes="${1}"
 
-  log "Scaling nodepool ${GCP_COORDINATOR_POOL_NAME} and ${GCP_WORKER_POOL_NAME} in cluster ${GCP_K8S_CLUSTER_NAME}
-  for project ${GCP_PROJECT} to ${numNodes} nodes per zone"
+  log "Discovering node pools with label 'citus-role' in cluster ${GCP_K8S_CLUSTER_NAME}, project ${GCP_PROJECT}"
+
+  local citusPools=()
+  mapfile -t citusPools < <(gcloud container node-pools list \
+    --project="${GCP_PROJECT}" \
+    --location="${GCP_K8S_CLUSTER_REGION}" \
+    --cluster="${GCP_K8S_CLUSTER_NAME}" \
+    --format="value(name)" \
+    --filter="config.labels.citus-role:*")
+
+  if [[ ${#citusPools[@]} -eq 0 ]]; then
+    log "No citus-role node pools found"
+    return 1
+  fi
+
+  if [[ "${numNodes}" -eq 0 ]]; then
+    local existingNodes
+    existingNodes=$(kubectl get nodes -l'citus-role' -o 'jsonpath={.items[*].metadata.name}')
+    if [[ -z "${existingNodes}" ]]; then
+      log "No nodes with citus-role found; skipping scale down"
+      return 0
+    fi
+  fi
+
+  for pool in "${citusPools[@]}"; do
+    log "Scaling pool ${pool} to ${numNodes} nodes"
+
+    gcloud container clusters resize "${GCP_K8S_CLUSTER_NAME}" \
+      --node-pool="${pool}" \
+      --num-nodes="${numNodes}" \
+      --location="${GCP_K8S_CLUSTER_REGION}" \
+      --project="${GCP_PROJECT}" --quiet &
+  done
+
+  log "Waiting for resize operations to complete"
+  wait
 
   if [[ "${numNodes}" -gt 0 ]]; then
-    gcloud container clusters resize "${GCP_K8S_CLUSTER_NAME}" --node-pool "${GCP_COORDINATOR_POOL_NAME}" --num-nodes "${numNodes}" --location "${GCP_K8S_CLUSTER_REGION}" --project "${GCP_PROJECT}" --quiet &
-    gcloud container clusters resize "${GCP_K8S_CLUSTER_NAME}" --node-pool "${GCP_WORKER_POOL_NAME}" --num-nodes "${numNodes}" --location "${GCP_K8S_CLUSTER_REGION}" --project "${GCP_PROJECT}" --quiet &
-    log "Waiting for nodes to be ready"
-    wait
-    kubectl wait --for=condition=Ready node -l'citus-role=coordinator' --timeout=-1s
-    kubectl wait --for=condition=Ready node -l'citus-role=worker' --timeout=-1s
+    kubectl wait --for=condition=Ready node -l'citus-role' --timeout=-1s
   else
-    local coordinatorNodes=$(kubectl get nodes -l'citus-role=coordinator' -o 'jsonpath={.items[*].metadata.name}')
-    if [[ -z "${coordinatorNodes}" ]]; then
-      log "No coordinator nodes found"
-    else
-      log "Scaling down coordinator nodes ${coordinatorNodes}"
-      gcloud container clusters resize "${GCP_K8S_CLUSTER_NAME}" --node-pool "${GCP_COORDINATOR_POOL_NAME}" --num-nodes 0 --location "${GCP_K8S_CLUSTER_REGION}" --project "${GCP_PROJECT}" --quiet &
-    fi
-
-    local workerNodes=$(kubectl get nodes -l'citus-role=worker' -o 'jsonpath={.items[*].metadata.name}')
-    if [[ -z "${workerNodes}" ]]; then
-      log "No worker nodes found"
-    else
-      log "Scaling down worker nodes ${workerNodes}"
-      gcloud container clusters resize "${GCP_K8S_CLUSTER_NAME}" --node-pool "${GCP_WORKER_POOL_NAME}" --num-nodes 0 --location "${GCP_K8S_CLUSTER_REGION}" --project "${GCP_PROJECT}" --quiet &
-    fi
-    log "Waiting for nodes to be deleted"
-    wait
-    kubectl wait --for=delete node -l'citus-role=coordinator' --timeout=-1s
-    kubectl wait --for=delete node -l'citus-role=worker' --timeout=-1s
+    kubectl wait --for=delete node -l'citus-role' --timeout=-1s
   fi
 }
+
 
 function updateStackgresCreds() {
   local cluster="${1}"
@@ -571,8 +568,6 @@ AUTO_UNROUTE="${AUTO_UNROUTE:-true}"
 COMMON_NAMESPACE="${COMMON_NAMESPACE:-common}"
 CURRENT_CONTEXT="$(kubectl config current-context)"
 DISK_PREFIX=
-GCP_COORDINATOR_POOL_NAME="${GCP_COORDINATOR_POOL_NAME:-citus-coordinator2}"
-GCP_WORKER_POOL_NAME="${GCP_WORKER_POOL_NAME:-citus-worker}"
 HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-mirror}"
 STACKGRES_MASTER_LABELS="${STACKGRES_MASTER_LABELS:-app=StackGresCluster,role=master}"
 PATRONI_MASTER_ROLE="${PATRONI_MASTER_ROLE:-Leader}"
