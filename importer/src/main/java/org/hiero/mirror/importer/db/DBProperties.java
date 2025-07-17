@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Data;
+import org.postgresql.jdbc.SslMode;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -51,8 +52,10 @@ public class DBProperties {
     @NotBlank
     private String username = "";
 
-    @NotBlank
-    private String sslMode = "";
+    @NotNull
+    private SslMode sslMode = SslMode.DISABLE;
+
+    private String sslRootCert;
 
     @NotNull
     private Duration metricRefreshInterval = Duration.ofMinutes(5L);
