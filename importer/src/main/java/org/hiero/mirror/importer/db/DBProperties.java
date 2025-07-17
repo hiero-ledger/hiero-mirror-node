@@ -55,8 +55,6 @@ public class DBProperties {
     @NotNull
     private SslMode sslMode = SslMode.DISABLE;
 
-    private String sslRootCert;
-
     @NotNull
     private Duration metricRefreshInterval = Duration.ofMinutes(5L);
 }
