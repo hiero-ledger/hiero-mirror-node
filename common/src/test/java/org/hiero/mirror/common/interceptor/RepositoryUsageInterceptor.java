@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.common.interceptor;
 
-import static org.hiero.mirror.common.util.EndpointContext.UNKNOWN_ENDPOINT;
+import static org.hiero.mirror.common.tableusage.EndpointContext.UNKNOWN_ENDPOINT;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.metamodel.EntityType;
@@ -15,31 +15,31 @@ import lombok.RequiredArgsConstructor;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.hibernate.query.spi.QueryImplementor;
+import org.hiero.mirror.common.tableusage.EndpointContext;
+import org.hiero.mirror.common.tableusage.SqlParsingUtil;
+import org.hiero.mirror.common.tableusage.TestExecutionTracker;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.common.util.EndpointContext;
-import org.hiero.mirror.common.util.SqlParsingUtil;
-import org.hiero.mirror.common.util.TestExecutionTracker;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.core.RepositoryInformation;
 
 @CustomLog
 @RequiredArgsConstructor
 public class RepositoryUsageInterceptor implements MethodInterceptor {
+
     private static final Map<String, Map<String, Set<String>>> API_TABLE_QUERIES = new ConcurrentHashMap<>();
+
+    private final RepositoryInformation repositoryInformation;
+    private final EntityManager entityManager;
 
     public static Map<String, Map<String, Set<String>>> getApiTableQueries() {
         return API_TABLE_QUERIES;
     }
 
-    private final RepositoryInformation repositoryInformation;
-    private final EntityManager entityManager;
-
     /**
-     * Intercepts repository method invocation to track accessed database tables per API endpoint.
-     * Only tracks during test execution as determined by {@link TestExecutionTracker}.
-     * Extracts SQL queries either from native {@code @Query} annotations or Hibernate's query string,
-     * then parses table names from the SQL.
-     * Falls back to resolving the table name from the JPA entity metadata if no SQL found.
+     * Intercepts repository method invocation to track accessed database tables per API endpoint. Only tracks during
+     * test execution as determined by {@link TestExecutionTracker}. Extracts SQL queries either from native
+     * {@code @Query} annotations or Hibernate's query string, then parses table names from the SQL. Falls back to
+     * resolving the table name from the JPA entity metadata if no SQL found.
      *
      * @param invocation the method invocation context
      * @return the method invocation's original return value
@@ -83,8 +83,8 @@ public class RepositoryUsageInterceptor implements MethodInterceptor {
     }
 
     /**
-     * Resolves the JPA table name for the given entity class by querying the JPA metamodel.
-     * Converts the entity name to snake_case.
+     * Resolves the JPA table name for the given entity class by querying the JPA metamodel. Converts the entity name to
+     * snake_case.
      *
      * @param entityClass the JPA entity class
      * @return the resolved table name, or {@code "UNKNOWN_TABLE"} if not found
@@ -113,10 +113,9 @@ public class RepositoryUsageInterceptor implements MethodInterceptor {
     }
 
     /**
-     * Attempts to extract the SQL query string executed by the repository method invocation.
-     * First tries to get native SQL from {@link Query} annotation,
-     * then attempts to invoke the method and check if it returns a Hibernate {@link QueryImplementor}
-     * to obtain the query string.
+     * Attempts to extract the SQL query string executed by the repository method invocation. First tries to get native
+     * SQL from {@link Query} annotation, then attempts to invoke the method and check if it returns a Hibernate
+     * {@link QueryImplementor} to obtain the query string.
      *
      * @param invocation the method invocation context
      * @return the SQL query string if available, or {@code null} if not extractable

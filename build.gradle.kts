@@ -21,7 +21,7 @@ extra.apply {
     set("jooq.version", "3.20.5") // Must match buildSrc/build.gradle.kts
     set("prometheus-client.version", "1.3.10") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
-    set("nodeJsVersion", "22.14.0")
+    set("nodeJsVersion", "22.17.1")
     set("protobufVersion", "4.31.1")
     set("reactorGrpcVersion", "1.2.4")
     set("tomcat.version", "10.1.43") // Temporary until next Spring Boot

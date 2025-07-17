@@ -4,6 +4,8 @@ package org.hiero.mirror.common.config;
 
 import jakarta.persistence.EntityManager;
 import org.hiero.mirror.common.filter.ApiTrackingFilter;
+import org.hiero.mirror.common.tableusage.TrackingRepositoryFactoryBean;
+import org.hiero.mirror.common.tableusage.TrackingRepositoryProxyPostProcessor;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;

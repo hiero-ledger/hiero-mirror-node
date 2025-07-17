@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common.util;
+package org.hiero.mirror.common.tableusage;
 
 import java.util.Map;
 import java.util.regex.Pattern;

@@ -43,7 +43,7 @@ import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
-import org.hiero.mirror.common.util.EndpointContext;
+import org.hiero.mirror.common.tableusage.EndpointContext;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.converter.JsonbToListConverter;
