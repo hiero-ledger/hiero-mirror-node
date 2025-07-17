@@ -6,7 +6,7 @@ import static org.hyperledger.besu.evm.internal.EvmConfiguration.WorldUpdaterMod
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.SemanticVersion;
-import com.hedera.node.app.service.contract.impl.exec.operations.HederaCustomCallOperation;
+import org.hiero.mirror.web3.evm.contracts.operations.HederaCustomCallOperation;
 import com.hedera.node.app.service.evm.contracts.execution.traceability.HederaEvmOperationTracer;
 import com.hedera.node.app.service.evm.contracts.operations.CreateOperationExternalizer;
 import com.hedera.node.app.service.evm.contracts.operations.HederaBalanceOperation;

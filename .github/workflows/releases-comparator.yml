@@ -97,7 +97,6 @@ jobs:
             "com/hedera/node/app/service/contract/impl/state/DispatchingEvmFrameState.java"
             "com/hedera/node/app/service/contract/impl/utils/ConversionUtils.java"
             "com/hedera/node/app/service/contract/impl/exec/operations/CustomBalanceOperation.java"
-            "com/hedera/node/app/service/contract/impl/exec/operations/CustomCallOperation.java"
           )
 
           # Temp directories to store cloned repos
