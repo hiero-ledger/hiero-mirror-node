@@ -361,7 +361,7 @@ class TokenCreatePrecompileTest {
         assertEquals(
                 domainBuilder.entityNum(1L).toTokenID(),
                 actualFallbackFee2.getFixedFee().getDenominatingTokenId());
-        assertThat(royaltyFeeWrapper2.feeCollector().getAccountNum()).isZero();
+        assertNull(royaltyFeeWrapper2.feeCollector());
     }
 
     @Test
@@ -369,23 +369,11 @@ class TokenCreatePrecompileTest {
         final var decodedInput =
                 decodeFungibleCreateWithFees(CREATE_FUNGIBLE_WITH_FEES_INPUT_NULL_ACCOUNTS, identity());
 
-        assertThat(decodedInput.getTreasury().getAccountNum()).isZero();
+        assertNull(decodedInput.getTreasury());
         assertNull(decodedInput.getTokenKeys().get(0).key().getContractID());
         assertNull(decodedInput.getTokenKeys().get(1).key().getDelegatableContractID());
-        assertThat(decodedInput
-                        .getFixedFees()
-                        .get(0)
-                        .asGrpc()
-                        .getFeeCollectorAccountId()
-                        .getAccountNum())
-                .isZero();
-        assertThat(decodedInput
-                        .getFractionalFees()
-                        .get(0)
-                        .asGrpc()
-                        .getFeeCollectorAccountId()
-                        .getAccountNum())
-                .isZero();
+        assertFalse(decodedInput.getFixedFees().get(0).asGrpc().hasFeeCollectorAccountId());
+        assertFalse(decodedInput.getFractionalFees().get(0).asGrpc().hasFeeCollectorAccountId());
     }
 
     @Test

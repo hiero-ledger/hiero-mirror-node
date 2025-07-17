@@ -79,7 +79,9 @@ import org.hyperledger.besu.evm.log.Log;
  *  7. All the necessary fields used in body method are extracted from ApproveParams
  *  8. Added {@link ApproveDecodedNftInfo} and decodeTokenIdAndSerialNum method in order to access tokenID from HtsPrecompiledContract and
  *     avoid passing Store unnecessarily
- *  9. Added check about added logic about handling non-zero shard and realm values
+ *  9. Substitute {@link TokenID.getDefaultInstance()} with
+ *     {@link com.hedera.services.store.contracts.precompile.utils.NonZeroShardAndRealmUtils.getDefaultTokenIDInstance()},
+ *     so that non-zero shard and realm numbers are respected
  */
 public class ApprovePrecompile extends AbstractWritePrecompile {
     private static final Function ERC_TOKEN_APPROVE_FUNCTION = new Function("approve(address,uint256)", BOOL);
