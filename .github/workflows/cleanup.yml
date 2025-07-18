@@ -17,6 +17,7 @@ jobs:
   images:
     runs-on: hiero-mirror-node-linux-medium
     strategy:
+      fail-fast: false
       matrix:
         module:
           [
