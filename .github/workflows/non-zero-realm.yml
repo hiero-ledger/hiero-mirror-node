@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-name: "Test non-zero shard and realm network"
+name: "Non-Zero Realm"
 on:
   schedule:
     - cron: "0 0 * * *" # Daily at midnight
@@ -28,6 +28,8 @@ jobs:
     env:
       HIERO_MIRROR_COMMON_REALM: 1
       HIERO_MIRROR_COMMON_SHARD: 1
+      HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
+      HIERO_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1.0"
     runs-on: hiero-mirror-node-linux-large
     strategy:
       fail-fast: false
@@ -42,16 +44,6 @@ jobs:
           - rest-java
           - rosetta
           - web3
-        schema:
-          - v1
-          - v2
-        exclude:
-          - project: common
-            schema: v2
-          - project: monitor
-            schema: v2
-          - project: rosetta
-            schema: v2
     timeout-minutes: 40 # increase it from 20 minutes since some jobs often run longer on self-hosted runners
     steps:
       - name: Harden Runner
@@ -79,14 +71,4 @@ jobs:
         uses: gradle/actions/setup-gradle@ac638b010cf58a27ee6c972d7336334ccaf61c96 # v4
 
       - name: Execute Gradle
-        env:
-          MIRROR_NODE_SCHEMA: ${{ matrix.schema}}
-          SPRING_PROFILES_ACTIVE: ${{ matrix.schema}}
         run: ./gradlew :${{matrix.project}}:build --scan ${{ secrets.GRADLE_ARGS }}
-
-      - name: Build and test web3 with modularized code
-        env:
-          HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
-          HIERO_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1.0"
-        if: ${{ matrix.project == 'web3' && matrix.schema == 'v1'}}
-        run: ./gradlew :${{ matrix.project }}:build
