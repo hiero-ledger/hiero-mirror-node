@@ -73,6 +73,7 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
         }
 
         long previousPostProcessingLatency = lastPostProcessingLatency.getAndSet(System.currentTimeMillis() - start);
+        int priority = current.get().getProperties().getPriority();
         if (previousPostProcessingLatency
                 <= scheduling.getMaxPostProcessingLatency().toMillis()) {
             // when post-processing takes too long, it can cause a significant delay between data reception and the
@@ -80,17 +81,13 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
             // low post-processing latency conditions
             long latency = start - blockFile.getConsensusEnd() / 1_000_000;
             current.get().recordLatency(latency);
-        }
-
-        if (lastScheduleTime.plus(scheduling.getMinRescheduleInterval()).isAfter(Instant.now())) {
-            int priority = current.get().getProperties().getPriority();
-            if (nodes.get(priority).size() <= 1) {
-                return false;
-            }
-
             // remove and add the node back to sort it in the priority group
             nodes.remove(priority, current.get());
             nodes.put(priority, current.get());
+        }
+
+        if (lastScheduleTime.plus(scheduling.getMinRescheduleInterval()).isAfter(Instant.now())
+                && nodes.get(priority).size() > 1) {
             for (var other : nodes.get(priority)) {
                 if (!other.tryReadmit(false).isActive()) {
                     continue;
