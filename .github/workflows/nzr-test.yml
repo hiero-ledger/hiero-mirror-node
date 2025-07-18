@@ -2,9 +2,6 @@
 
 name: "Test non-zero shard and realm network"
 on:
-  push:
-    branches:
-      - 11540-create-github-action-to-run-tests-with-non-zero-shard-and-realm
   schedule:
     - cron: "0 0 * * *" # Daily at midnight
   workflow_dispatch:
