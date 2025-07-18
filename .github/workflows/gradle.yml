@@ -29,6 +29,7 @@ jobs:
     name: Build
     runs-on: hiero-mirror-node-linux-large
     strategy:
+      fail-fast: false
       matrix:
         project:
           - common
