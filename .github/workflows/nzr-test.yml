@@ -1,17 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
-name: "Gradle"
+name: "Test non-zero shard and realm network"
 on:
-  pull_request:
-    branches:
-      - "main"
-      - "release/**"
   push:
     branches:
-      - "main"
-      - "release/**"
-    tags:
-      - "v*"
+      - 11540-create-github-action-to-run-tests-with-non-zero-shard-and-realm
+  schedule:
+    - cron: "0 0 * * *" # Daily at midnight
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch"
+        required: true
+        type: string
 
 defaults:
   run:
@@ -27,6 +28,9 @@ env:
 jobs:
   build:
     name: Build
+    env:
+      HIERO_MIRROR_COMMON_REALM: 1
+      HIERO_MIRROR_COMMON_SHARD: 1
     runs-on: hiero-mirror-node-linux-large
     strategy:
       matrix:
@@ -38,9 +42,7 @@ jobs:
           - monitor
           - rest
           - rest-java
-          - "rest:check-state-proof"
           - rosetta
-          - test
           - web3
         schema:
           - v1
@@ -50,11 +52,7 @@ jobs:
             schema: v2
           - project: monitor
             schema: v2
-          - project: rest:check-state-proof
-            schema: v2
           - project: rosetta
-            schema: v2
-          - project: test
             schema: v2
     timeout-minutes: 40 # increase it from 20 minutes since some jobs often run longer on self-hosted runners
     steps:
@@ -64,7 +62,14 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Checkout Code from Branch
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.inputs.branch }}
 
       - name: Install JDK
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
@@ -81,33 +86,9 @@ jobs:
           SPRING_PROFILES_ACTIVE: ${{ matrix.schema}}
         run: ./gradlew :${{matrix.project}}:build --scan ${{ secrets.GRADLE_ARGS }}
 
-      - name: Upload coverage report
-        continue-on-error: true
-        env:
-          CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
-        if: ${{ matrix.schema == 'v1' && matrix.project != 'test' && always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
-        run: ./gradlew :${{ matrix.project }}:uploadCoverage
-
       - name: Build and test web3 with modularized code
         env:
           HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
           HIERO_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1.0"
         if: ${{ matrix.project == 'web3' && matrix.schema == 'v1'}}
         run: ./gradlew :${{ matrix.project }}:build
-
-  coverage:
-    if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository)
-    name: Upload coverage
-    needs: build
-    runs-on: hiero-mirror-node-linux-large
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
-        with:
-          egress-policy: audit
-
-      - name: Finalize coverage report
-        continue-on-error: true
-        env:
-          CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
-        run: bash <(curl -Ls https://coverage.codacy.com/get.sh) final
