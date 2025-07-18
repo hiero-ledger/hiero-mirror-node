@@ -20,6 +20,7 @@ env:
 jobs:
   publish:
     strategy:
+      fail-fast: false
       matrix:
         project:
           - graphql
