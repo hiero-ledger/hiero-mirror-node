@@ -9,21 +9,23 @@ import lombok.Getter;
  */
 final class Latency {
 
+    private static final int HISTORY_SIZE = 5;
+
     @Getter
-    private long average;
+    private long average = Long.MIN_VALUE;
 
     private int count = 0;
-    private final long[] history = new long[5];
+    private final long[] history = new long[HISTORY_SIZE];
 
     void record(long latency) {
-        history[count++ % 5] = latency;
+        history[count++ % HISTORY_SIZE] = latency;
         if (count >= 10) {
             // avoid overflow
-            count -= 5;
+            count = HISTORY_SIZE + (count % HISTORY_SIZE);
         }
 
         long sum = 0;
-        int available = Math.min(5, count);
+        int available = Math.min(HISTORY_SIZE, count);
         for (int i = 0; i < available; i++) {
             sum += history[i];
         }

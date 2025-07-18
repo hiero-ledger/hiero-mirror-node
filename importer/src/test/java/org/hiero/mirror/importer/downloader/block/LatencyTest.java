@@ -20,7 +20,7 @@ final class LatencyTest {
     @CsvSource(
             textBlock =
                     """
-            '', 0
+            '', -9223372036854775808
             '1,2', 1
             '1,2,3', 2
             '1,2,3,4,5', 3
