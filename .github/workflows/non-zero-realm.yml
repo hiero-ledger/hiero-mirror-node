@@ -2,6 +2,9 @@
 
 name: "Non-Zero Realm"
 on:
+  push:
+    branches:
+      - 11540-create-github-action-to-run-tests-with-non-zero-shard-and-realm
   schedule:
     - cron: "0 0 * * *" # Daily at midnight
   workflow_dispatch:
@@ -52,14 +55,10 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Checkout Code from Branch
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && }}
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: ${{ github.event.inputs.branch }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref }}
 
       - name: Install JDK
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
@@ -71,4 +70,4 @@ jobs:
         uses: gradle/actions/setup-gradle@ac638b010cf58a27ee6c972d7336334ccaf61c96 # v4
 
       - name: Execute Gradle
-        run: ./gradlew :${{matrix.project}}:build --scan ${{ secrets.GRADLE_ARGS }}
+        run: ./gradlew :${{matrix.project}}:build
