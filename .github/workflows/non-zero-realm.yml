@@ -29,8 +29,8 @@ jobs:
   build:
     name: Build
     env:
-      HIERO_MIRROR_COMMON_REALM: 1
-      HIERO_MIRROR_COMMON_SHARD: 1
+      HIERO_MIRROR_COMMON_REALM: 127
+      HIERO_MIRROR_COMMON_SHARD: 113
       HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
       HIERO_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1.0"
     runs-on: hiero-mirror-node-linux-large

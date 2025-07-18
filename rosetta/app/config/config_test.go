@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -42,7 +43,9 @@ hiero:
         host: 192.168.120.51
         port: 12000
       network: TESTNET`
+	realmEnvKey     = "HIERO_MIRROR_COMMON_REALM"
 	serviceEndpoint = "192.168.0.1:50211"
+	shardEnvKey     = "HIERO_MIRROR_COMMON_SHARD"
 )
 
 var expectedNodeRefreshInterval = 30 * time.Minute
@@ -82,7 +85,7 @@ func TestLoadCustomConfig(t *testing.T) {
 			if tt.fromCwd {
 				os.Chdir(tempDir)
 			} else {
-				em := envManager{}
+				em := newEnvManager()
 				em.SetEnv(apiConfigEnvKey, filePath)
 				t.Cleanup(em.Cleanup)
 			}
@@ -108,8 +111,10 @@ func TestLoadCustomConfigFromCwdAndEnvVar(t *testing.T) {
 	tempDir2, filePath2 := createYamlConfigFile(yml2, t)
 	defer os.RemoveAll(tempDir2)
 
-	em := envManager{}
+	em := newEnvManager()
 	em.SetEnv(apiConfigEnvKey, filePath2)
+	em.UnsetEnv(realmEnvKey)
+	em.UnsetEnv(shardEnvKey)
 	t.Cleanup(em.Cleanup)
 
 	// when
@@ -131,7 +136,7 @@ func TestLoadCustomConfigFromCwdAndEnvVar(t *testing.T) {
 func TestLoadCustomConfigFromEnvVar(t *testing.T) {
 	// given
 	dbHost := "192.168.100.200"
-	em := envManager{}
+	em := newEnvManager()
 	em.SetEnv("HIERO_MIRROR_ROSETTA_DB_HOST", dbHost)
 	t.Cleanup(em.Cleanup)
 
@@ -165,7 +170,7 @@ func TestLoadCustomConfigInvalidYaml(t *testing.T) {
 				os.Chdir(tempDir)
 			}
 
-			em := envManager{}
+			em := newEnvManager()
 			em.SetEnv(apiConfigEnvKey, filePath)
 			t.Cleanup(em.Cleanup)
 
@@ -179,7 +184,7 @@ func TestLoadCustomConfigInvalidYaml(t *testing.T) {
 
 func TestLoadCustomConfigByEnvVarFileNotFound(t *testing.T) {
 	// given
-	em := envManager{}
+	em := newEnvManager()
 	em.SetEnv(apiConfigEnvKey, "/foo/bar/not_found.yml")
 	t.Cleanup(em.Cleanup)
 
@@ -211,7 +216,7 @@ func TestLoadNodeMapFromEnv(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.value, func(t *testing.T) {
-			em := envManager{}
+			em := newEnvManager()
 			em.SetEnv("HIERO_MIRROR_ROSETTA_NODES", tt.value)
 			t.Cleanup(em.Cleanup)
 
@@ -229,7 +234,7 @@ func TestLoadNodeMapFromEnvError(t *testing.T) {
 	values := []string{"192.168.0.1:0.0.3", "192.168.0.1:50211:0.3", "192.168.0.1"}
 	for _, value := range values {
 		t.Run(value, func(t *testing.T) {
-			em := envManager{}
+			em := newEnvManager()
 			em.SetEnv("HIERO_MIRROR_ROSETTA_NODES", value)
 			t.Cleanup(em.Cleanup)
 
@@ -303,22 +308,59 @@ func createYamlConfigFile(content string, t *testing.T) (string, string) {
 }
 
 type envManager struct {
-	keys []string
+	added      []string
+	overridden map[string]string
 }
 
 func (e *envManager) SetEnv(key, value string) {
+	if oldValue, present := os.LookupEnv(key); present {
+		e.overridden[key] = oldValue
+	} else {
+		e.added = append(e.added, key)
+	}
 	os.Setenv(key, value)
-	e.keys = append(e.keys, key)
+}
+
+func (e *envManager) UnsetEnv(key string) {
+	if value, present := os.LookupEnv(key); present {
+		e.overridden[key] = value
+	}
+	os.Unsetenv(key)
 }
 
 func (e *envManager) Cleanup() {
-	for _, key := range e.keys {
+	for _, key := range e.added {
 		os.Unsetenv(key)
 	}
+
+	for key, value := range e.overridden {
+		os.Setenv(key, value)
+	}
+}
+
+func newEnvManager() envManager {
+	return envManager{overridden: make(map[string]string)}
 }
 
 func getDefaultConfig() *Mirror {
 	config := fullConfig{}
 	yaml.Unmarshal([]byte(defaultConfig), &config)
+
+	if value, present := os.LookupEnv(realmEnvKey); present {
+		var err error
+		config.Hiero.Mirror.Common.Realm, err = strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if value, present := os.LookupEnv(shardEnvKey); present {
+		var err error
+		config.Hiero.Mirror.Common.Shard, err = strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	return &config.Hiero.Mirror
 }
