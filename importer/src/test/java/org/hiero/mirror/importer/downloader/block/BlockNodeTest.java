@@ -17,11 +17,15 @@ import io.grpc.stub.StreamObserver;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -49,7 +53,7 @@ import org.mockito.Mockito;
 @ExtendWith(GrpcCleanupExtension.class)
 class BlockNodeTest extends BlockNodeTestBase {
 
-    private static final Consumer<BlockStream> IGNORE = b -> {};
+    private static final Function<BlockStream, Boolean> IGNORE = b -> false;
     private static final String SERVER = "test1";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
@@ -82,6 +86,7 @@ class BlockNodeTest extends BlockNodeTestBase {
 
     @Test
     void compareTo() {
+        // given
         var first = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
                 blockNodeProperties("localhost", 100, 0),
@@ -96,8 +101,21 @@ class BlockNodeTest extends BlockNodeTestBase {
                 InProcessManagedChannelBuilderProvider.INSTANCE,
                 blockNodeProperties("localhost", 50, 1),
                 streamProperties);
-        var all = Stream.of(forth, third, second, first).sorted().toList();
+
+        // when
+        var all = Stream.of(forth, third, second, first).sorted().collect(Collectors.toList());
+
+        // then
         assertThat(all).containsExactly(first, second, third, forth);
+
+        // when latency changes and sorts again
+        third.recordLatency(1);
+        second.recordLatency(2);
+        first.recordLatency(5);
+        Collections.sort(all);
+
+        // then
+        assertThat(all).containsExactly(third, second, first, forth);
     }
 
     @Test
@@ -189,7 +207,7 @@ class BlockNodeTest extends BlockNodeTestBase {
 
         // when
         var streamed = new ArrayList<BlockStream>();
-        node.streamBlocks(0, commonDownloaderProperties, streamed::add);
+        node.streamBlocks(0, commonDownloaderProperties, accumulate(streamed));
 
         // then
         assertThat(streamed)
@@ -272,7 +290,7 @@ class BlockNodeTest extends BlockNodeTestBase {
 
         // when, then
         var streamed = new ArrayList<BlockStream>();
-        node.streamBlocks(0, commonDownloaderProperties, streamed::add);
+        node.streamBlocks(0, commonDownloaderProperties, accumulate(streamed));
 
         // then
         assertThat(streamed)
@@ -363,6 +381,13 @@ class BlockNodeTest extends BlockNodeTestBase {
             assertThat(node.isActive()).isFalse();
             assertThat(node.tryReadmit(false).isActive()).isTrue();
         }
+    }
+
+    private Function<BlockStream, Boolean> accumulate(Collection<BlockStream> collection) {
+        return blockStream -> {
+            collection.add(blockStream);
+            return false;
+        };
     }
 
     private void assertRecordItem(BlockStream blockStream) {

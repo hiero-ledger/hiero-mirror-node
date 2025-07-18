@@ -34,6 +34,7 @@ import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.block.api.protoc.SubscribeStreamResponse.Code;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
@@ -54,7 +55,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
     private final String[] SERVER_NAMES = {"test1", "test2", "test3"};
 
-    private BlockProperties blockProperties;
+    private final DomainBuilder domainBuilder = new DomainBuilder();
 
     @Mock
     private BlockStreamReader blockStreamReader;
@@ -70,7 +71,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
     @BeforeEach
     void setup() {
-        blockProperties = new BlockProperties();
+        var blockProperties = new BlockProperties();
         commonDownloaderProperties = new CommonDownloaderProperties(new ImporterProperties());
         servers = new HashMap<>();
         statusCalls = new HashMap<>();
@@ -97,7 +98,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                             """)
     void get(long lastBlockNumber, String expectedStatusCalls, String expectedStreamCalls, Resources resources) {
         // given
-        doReturn(new BlockFile()).when(blockStreamReader).read(any());
+        doReturn(blockFile(0)).when(blockStreamReader).read(any());
         doReturn(Optional.of(BlockFile.builder().index(lastBlockNumber).build()))
                 .when(blockStreamVerifier)
                 .getLastBlockFile();
@@ -171,7 +172,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
     void getWhenEndBlockNumber(Resources resources) {
         // given
         commonDownloaderProperties.getImporterProperties().setEndBlockNumber(6L);
-        doReturn(new BlockFile()).when(blockStreamReader).read(any());
+        doReturn(blockFile(0)).when(blockStreamReader).read(any());
         doReturn(
                         Optional.of(BlockFile.builder().index(5L).build()),
                         Optional.of(BlockFile.builder().index(6L).build()))
@@ -208,7 +209,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         doReturn(Optional.of(BlockFile.builder().index(9L).build()))
                 .when(blockStreamVerifier)
                 .getLastBlockFile();
-        doReturn(new BlockFile()).when(blockStreamReader).read(any());
+        doReturn(blockFile(0)).when(blockStreamReader).read(any());
         doNothing().when(blockStreamVerifier).verify(any());
         startServer(
                 SERVER_NAMES[0],
@@ -257,10 +258,8 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
     @Test
     void getWhenAllFailThenForceReadmit(Resources resources) {
         // given
-        doReturn(Optional.of(BlockFile.builder().index(9L).build()))
-                .when(blockStreamVerifier)
-                .getLastBlockFile();
-        doReturn(new BlockFile()).when(blockStreamReader).read(any());
+        doReturn(Optional.of(blockFile(9))).when(blockStreamVerifier).getLastBlockFile();
+        doReturn(blockFile(10)).when(blockStreamReader).read(any());
         doNothing().when(blockStreamVerifier).verify(any());
         startServer(
                 SERVER_NAMES[0],
@@ -333,6 +332,15 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
         properties.setHost(serverName);
         properties.setPriority(priority);
         return properties;
+    }
+
+    private BlockFile blockFile(long blockNumber) {
+        long consensusTimestamp = domainBuilder.timestamp();
+        return BlockFile.builder()
+                .consensusEnd(consensusTimestamp + 1000)
+                .consensusStart(consensusTimestamp)
+                .index(blockNumber)
+                .build();
     }
 
     private void recordCall(String name, Map<String, Integer> calls) {
