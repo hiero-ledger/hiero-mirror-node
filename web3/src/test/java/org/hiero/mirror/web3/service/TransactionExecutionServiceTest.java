@@ -11,7 +11,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.state.token.Account;
@@ -194,29 +193,6 @@ class TransactionExecutionServiceTest {
             } else {
                 when(aliasesReadableKVState.get(any())).thenReturn(null);
                 when(accountReadableKVState.get(any())).thenReturn(mock(Account.class));
-            }
-
-            var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, senderAddress);
-
-            // Then
-            assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
-        }
-
-        @MockitoSettings(strictness = Strictness.LENIENT)
-        @ParameterizedTest
-        @MethodSource("invalidSenderAddress")
-        void testExecuteContractCallInvalidSenderContract(final Address senderAddress) {
-            // Given
-            final var smartContractAccount = mock(Account.class);
-            when(smartContractAccount.smartContract()).thenReturn(true);
-            if (isMirror(senderAddress)) {
-                when(accountReadableKVState.get(any())).thenReturn(smartContractAccount);
-            } else {
-                final var accountID = mock(AccountID.class);
-                when(aliasesReadableKVState.get(any())).thenReturn(accountID);
-                when(accountReadableKVState.get(accountID)).thenReturn(smartContractAccount);
             }
 
             var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, senderAddress);

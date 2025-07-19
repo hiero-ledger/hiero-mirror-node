@@ -600,7 +600,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
     }
 
     @Test
-    void ethCallWithValueAndSenderContractFails() {
+    void ethCallWithValueAndSenderContractSucceeds() {
         // Given
         final var receiverEntity = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
@@ -610,14 +610,8 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 getContractExecutionParametersWithValue(Bytes.EMPTY, contractAddress, receiverAddress, 10L);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
-        } else {
-            final var result = contractExecutionService.processCall(serviceParameters);
-            assertThat(result).isEqualTo(HEX_PREFIX);
-        }
+        final var result = contractExecutionService.processCall(serviceParameters);
+        assertThat(result).isEqualTo(HEX_PREFIX);
 
         assertGasLimit(serviceParameters);
     }

@@ -423,6 +423,30 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         }
     }
 
+    @ParameterizedTest
+    @CsvSource({"true", "false"})
+    void isAssociatedWithSmartContractSender(boolean isAssociated) throws Exception {
+        final var token = persistToken(true);
+        final var tokenAddress = getTokenAddress(token);
+        final var senderContract =
+                domainBuilder.entity().customize(e -> e.type(CONTRACT)).persist();
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        testWeb3jService.setSender(getAddressFromEntity(senderContract));
+        final var contractEntityId = getEntityId(contract.getContractAddress());
+        if (isAssociated) {
+            tokenAccountPersist(token.getTokenId(), contractEntityId.getId());
+        }
+        final var functionCall = contract.call_isAssociated(tokenAddress);
+
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            assertThat(functionCall.send()).isEqualTo(isAssociated);
+            verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+            verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+        } else {
+            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
+        }
+    }
+
     @ParameterizedTest(name = "isAssociated returns false for {0} token when no association exists")
     @MethodSource("tokenData")
     void isAssociatedWhenNoAssociation(final String tokenType, final boolean isFungible) throws Exception {

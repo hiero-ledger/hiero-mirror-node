@@ -224,7 +224,8 @@ public class TransactionExecutionService {
         if (account == null) {
             throwPayerAccountNotFoundException(SENDER_NOT_FOUND);
         } else if (account.smartContract()) {
-            throwPayerAccountNotFoundException(SENDER_IS_SMART_CONTRACT);
+            // If the sender is a smart contract, use the treasury account to allow simulation to proceed
+            return EntityIdUtils.toAccountId(systemEntity.treasuryAccount());
         }
 
         return accountIDNum;
