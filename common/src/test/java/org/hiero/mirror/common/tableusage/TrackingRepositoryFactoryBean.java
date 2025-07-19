@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common.config;
+package org.hiero.mirror.common.tableusage;
 
 import jakarta.persistence.EntityManager;
 import java.io.Serializable;
@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean;
 import org.springframework.data.repository.core.support.RepositoryFactorySupport;
 
-final class TrackingRepositoryFactoryBean<R extends JpaRepository<T, I>, T, I extends Serializable>
+public final class TrackingRepositoryFactoryBean<R extends JpaRepository<T, I>, T, I extends Serializable>
         extends JpaRepositoryFactoryBean<R, T, I> {
 
     /**

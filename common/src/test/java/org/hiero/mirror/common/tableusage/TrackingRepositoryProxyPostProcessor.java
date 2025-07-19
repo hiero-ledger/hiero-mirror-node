@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common.config;
+package org.hiero.mirror.common.tableusage;
 
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +10,7 @@ import org.springframework.data.repository.core.RepositoryInformation;
 import org.springframework.data.repository.core.support.RepositoryProxyPostProcessor;
 
 @RequiredArgsConstructor
-final class TrackingRepositoryProxyPostProcessor implements RepositoryProxyPostProcessor {
+public final class TrackingRepositoryProxyPostProcessor implements RepositoryProxyPostProcessor {
 
     private final EntityManager entityManager;
 

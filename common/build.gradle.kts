@@ -8,6 +8,7 @@ dependencies {
     val testClasses by configurations.registering
     annotationProcessor("jakarta.persistence:jakarta.persistence-api")
     api("com.fasterxml.jackson.core:jackson-databind")
+    api("com.fasterxml.jackson.dataformat:jackson-dataformat-csv")
     api("com.github.ben-manes.caffeine:caffeine")
     api("com.google.guava:guava")
     api("com.google.protobuf:protobuf-java")

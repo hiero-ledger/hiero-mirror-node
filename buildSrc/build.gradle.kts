@@ -43,4 +43,4 @@ val gitHook =
         commandLine("git", "config", "core.hookspath", "buildSrc/src/main/resources/hooks")
     }
 
-project.tasks.build { dependsOn(gitHook) }
+tasks.processResources { dependsOn(gitHook) }

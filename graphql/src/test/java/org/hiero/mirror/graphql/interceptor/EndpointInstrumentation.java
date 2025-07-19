@@ -2,27 +2,25 @@
 
 package org.hiero.mirror.graphql.interceptor;
 
-import static org.hiero.mirror.common.util.EndpointContext.ENDPOINT;
-import static org.hiero.mirror.common.util.EndpointContext.UNKNOWN_ENDPOINT;
+import static org.hiero.mirror.common.tableusage.EndpointContext.ENDPOINT;
+import static org.hiero.mirror.common.tableusage.EndpointContext.UNKNOWN_ENDPOINT;
 
 import graphql.execution.instrumentation.Instrumentation;
 import graphql.execution.instrumentation.InstrumentationState;
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
-import org.hiero.mirror.common.util.EndpointContext;
+import org.hiero.mirror.common.tableusage.EndpointContext;
 
 public final class EndpointInstrumentation implements Instrumentation {
 
     /**
-     * GraphQL-Java Instrumentation that ensures the CURRENT_ENDPOINT value
-     * (published to the GraphQLContext by our WebGraphQlInterceptor)
-     * is available on every DataFetcher thread.
+     * GraphQL-Java Instrumentation that ensures the CURRENT_ENDPOINT value (published to the GraphQLContext by our
+     * WebGraphQlInterceptor) is available on every DataFetcher thread.
      *
      * <p>Because GraphQL execution may hop threads for field resolution,
-     * we must explicitly read from GraphQLContext and re-populate our
-     * ThreadLocal before each resolver runs—and then clear it immediately
-     * afterward to avoid leakage.</p>
+     * we must explicitly read from GraphQLContext and re-populate our ThreadLocal before each resolver runs—and then
+     * clear it immediately afterward to avoid leakage.</p>
      */
     @Override
     public DataFetcher<?> instrumentDataFetcher(

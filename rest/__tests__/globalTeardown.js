@@ -4,14 +4,12 @@ import fs from 'fs';
 import log4js from 'log4js';
 
 import {TABLE_USAGE_OUTPUT_DIR} from './testutils.js';
+import {EOL} from 'os';
 
-const CSV_HEADER = 'Endpoint,Source,Table\n';
-const MARKDOWN_ENDPOINT_HEADER = `### By Endpoint\n
-| Endpoint | Tables |
-|----------|--------|\n`;
-const MARKDOWN_TABLE_HEADER = `\n### By Table\n
-| Table | Endpoints |
-|-------|-----------|\n`;
+const BR = '<br>';
+const CSV_HEADER = `endpoint,table,source${EOL}`;
+const MARKDOWN_ENDPOINT_HEADER = `# Table Usage Report${EOL}${EOL}## By Endpoint${EOL}${EOL}| Endpoint | Tables | Sources |${EOL}|----------|--------|---------|${EOL}`;
+const MARKDOWN_TABLE_HEADER = `${EOL}## By Table${EOL}${EOL}| Table | Endpoints | Sources |${EOL}|-------|---------|-----------|${EOL}`;
 const REPORT_FILENAME = 'table-usage';
 
 const createTableUsageReport = () => {
@@ -45,7 +43,7 @@ const writeCsvReport = (data, writeStream) => {
     const callerTables = data[endpoint];
     for (const caller of Object.keys(callerTables).sort()) {
       for (const table of callerTables[caller]) {
-        writeStream.write(`${endpoint},${caller},${table}\n`);
+        writeStream.write(`${endpoint},${table},${caller}${EOL}`);
       }
     }
   }
@@ -57,22 +55,25 @@ const writeMarkdownReport = (data, writeStream) => {
   const usageByTable = {};
   for (const endpoint of Object.keys(data).sort()) {
     const callerTables = data[endpoint];
+    const sources = Object.keys(callerTables).sort();
     const tables = Array.from(new Set(Object.values(callerTables).flat())).sort();
-    writeStream.write(`| ${endpoint} | ${tables.join(',')}|\n`);
+    writeStream.write(`| ${endpoint} | ${tables.join(BR)}|${sources.join(BR)}|${EOL}`);
 
-    tables.forEach((table) => {
-      if (!table) {
-        return;
-      }
-
-      (usageByTable[table] ?? (usageByTable[table] = [])).push(endpoint);
+    Object.entries(callerTables).forEach(([caller, table]) => {
+      table.forEach((t) => {
+        const entry = usageByTable[t] ?? (usageByTable[t] = {endpoints: new Set(), sources: new Set()});
+        entry.endpoints.add(endpoint);
+        entry.sources.add(caller);
+      });
     });
   }
 
   // By table
   writeStream.write(MARKDOWN_TABLE_HEADER);
   for (const table of Object.keys(usageByTable).sort()) {
-    writeStream.write(`| ${table} | ${usageByTable[table].sort().join(',')} |\n`);
+    const endpoints = Array.from(usageByTable[table].endpoints).sort().join(BR);
+    const sources = Array.from(usageByTable[table].sources).sort().join(BR);
+    writeStream.write(`| ${table} | ${endpoints} | ${sources} |${EOL}`);
   }
 };
 
