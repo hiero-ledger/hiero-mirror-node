@@ -26,15 +26,15 @@ import org.springframework.transaction.support.TransactionOperations;
 @Named
 public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
 
+    // 30-day intervals of data to take advantage of the monthly partitioning of record_file and contract_log tables.
+    static final long INTERVAL = Duration.ofDays(30).toNanos();
+
     private final RecordFileRepository recordFileRepository;
 
     @Getter
     private final TransactionOperations transactionOperations;
 
     private static final RowMapper<RecordFile> RECORD_FILE_ROW_MAPPER = new DataClassRowMapper<>(RecordFile.class);
-
-    // 30-day intervals of data to take advantage of the monthly partitioning of record_file and contract_log tables.
-    static final long INTERVAL = Duration.ofDays(30).toNanos();
 
     private static final String SELECT_RECORD_FILES =
             """
