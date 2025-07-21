@@ -92,38 +92,18 @@ class ContractLogIndexMigrationTest extends ImporterIntegrationTest {
         // Given
         // Persist 1 record file before the interval
         final var timestamp = domainBuilder.timestamp();
-        final var firstRecordFile = domainBuilder
-                .recordFile()
-                .customize(r -> r.index(0L)
-                        .consensusStart(timestamp - Duration.ofMinutes(2).toNanos())
-                        .consensusEnd(timestamp))
-                .persist();
+        recordFilePersistAtIndexAndTimestamp(0L, timestamp);
+
         // Persist 2 record files in the same interval.
         final var timestampSecondRecordFile = timestamp + INTERVAL / 2;
-        final var secondRecordFile = domainBuilder
-                .recordFile()
-                .customize(r -> r.index(1L)
-                        .consensusStart(timestampSecondRecordFile
-                                - Duration.ofMinutes(2).toNanos())
-                        .consensusEnd(timestampSecondRecordFile))
-                .persist();
+        final var secondRecordFile = recordFilePersistAtIndexAndTimestamp(1L, timestampSecondRecordFile);
+
         final var timestampThirdRecordFile = timestamp + INTERVAL;
-        final var thirdRecordFile = domainBuilder
-                .recordFile()
-                .customize(r -> r.index(2L)
-                        .consensusStart(
-                                timestampThirdRecordFile - Duration.ofMinutes(2).toNanos())
-                        .consensusEnd(timestampThirdRecordFile))
-                .persist();
+        final var thirdRecordFile = recordFilePersistAtIndexAndTimestamp(2L, timestampThirdRecordFile);
+
         // Persist 1 record file after the interval
         final var timestampFourthRecordFile = timestamp + INTERVAL + 1;
-        final var fourthRecordFile = domainBuilder
-                .recordFile()
-                .customize(r -> r.index(3L)
-                        .consensusStart(timestampFourthRecordFile
-                                - Duration.ofMinutes(2).toNanos())
-                        .consensusEnd(timestampFourthRecordFile))
-                .persist();
+        recordFilePersistAtIndexAndTimestamp(3L, timestampFourthRecordFile);
 
         // When
         final var slicedRecordFiles = migration.getRecordFiles(timestampThirdRecordFile);
@@ -133,6 +113,16 @@ class ContractLogIndexMigrationTest extends ImporterIntegrationTest {
                 .usingRecursiveComparison()
                 .ignoringFields("previousHash", "sidecars")
                 .isEqualTo(List.of(secondRecordFile, thirdRecordFile));
+    }
+
+    private RecordFile recordFilePersistAtIndexAndTimestamp(final long index, final long consensusEndTimestamp) {
+        return domainBuilder
+                .recordFile()
+                .customize(r -> r.index(index)
+                        .consensusStart(
+                                consensusEndTimestamp - Duration.ofMinutes(2).toNanos())
+                        .consensusEnd(consensusEndTimestamp))
+                .persist();
     }
 
     private Integer findIndex(final long consensusTimestamp) {
