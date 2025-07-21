@@ -49,7 +49,6 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
             System.out.println("Index " + i + ": " + blockItems.get(i).getItemCase());
         }
 
-//        System.out.println("WHOLE CONTEXT  = " + context);
         byte[] bytes = blockStream.bytes();
         Integer size = bytes != null ? bytes.length : null;
         var blockFileBuilder = context.getBlockFile()
@@ -66,24 +65,29 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
         }
         System.out.println("READ BLOCK HEADER...");
         System.out.println("Reading Block header, index = " + context.getIndex());
-        System.out.println("Item at index: " + context.getBlockItems().get(context.getIndex()).getItemCase());
+        System.out.println("Item at index: "
+                + context.getBlockItems().get(context.getIndex()).getItemCase());
         readBlockHeader(context);
         System.out.println("READ BLOCK ROUNDS...");
         System.out.println("Reading Block rounds, index = " + context.getIndex());
-        System.out.println("Item at index: " + context.getBlockItems().get(context.getIndex()).getItemCase());
+        System.out.println("Item at index: "
+                + context.getBlockItems().get(context.getIndex()).getItemCase());
         readRounds(context);
         System.out.println("READ STANDALONE STATE CHANGES..");
         System.out.println("Reading STANDALONE STATE CHANGES, index = " + context.getIndex());
-        System.out.println("Item at index: " + context.getBlockItems().get(context.getIndex()).getItemCase());
+        System.out.println("Item at index: "
+                + context.getBlockItems().get(context.getIndex()).getItemCase());
         readStandaloneStateChanges(context);
         System.out.println("READ BLOCK PROOF...");
         System.out.println("Reading Block Proof, index = " + context.getIndex());
-        System.out.println("Item at index: " + context.getBlockItems().get(context.getIndex()).getItemCase());
+        System.out.println("Item at index: "
+                + context.getBlockItems().get(context.getIndex()).getItemCase());
         readBlockProof(context);
 
         var blockFile = blockFileBuilder.build();
         var items = blockFile.getItems();
         blockFile.setCount((long) items.size());
+        System.out.println("Block file = " + blockFile);
         blockFile.setHash(context.getBlockRootHashDigest().digest());
 
         if (!items.isEmpty()) {
@@ -93,7 +97,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
             blockFile.setConsensusStart(context.getLastMetaTimestamp());
             blockFile.setConsensusEnd(context.getLastMetaTimestamp());
         }
-
+        System.out.println("Returning blockFile = " + blockFile);
         return blockFile;
     }
 

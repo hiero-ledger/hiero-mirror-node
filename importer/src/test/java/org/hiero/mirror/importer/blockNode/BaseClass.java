@@ -1,19 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package org.hiero.mirror.importer.blockNode;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.block.api.protoc.BlockAccessServiceGrpc;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.mirror.common.config.CommonTestConfiguration.FilteringConsumer;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
@@ -29,11 +28,14 @@ public class BaseClass {
     protected static PostgreSQLContainer<?> dbContainer;
     protected static GenericContainer<?> importerContainer;
     protected static GenericContainer<?> simulatorContainer;
+    protected static GenericContainer<?> blockNodeSecondContainer;
+    protected static GenericContainer<?> simulatorSecondContainer;
     protected static Network network;
     /** Container running the Block Node Application */
 
     /** Port that is used by the Block Node Application */
     protected static int blockNodePort;
+
     protected static int dbPort;
 
     /** Port that is used by the Block Node Application for metrics */
@@ -50,8 +52,6 @@ public class BaseClass {
 
     private static final String SIMULATOR_IMAGE_NAME = "local/block-stream-simulator";
 
-
-
     public BaseClass() {
         // No additional setup required
     }
@@ -61,32 +61,29 @@ public class BaseClass {
      *
      * <p>This method initializes the Block Node server container using Testcontainers.
      */
-    @BeforeEach
-    public void setup() {
-        network = Network.newNetwork();
-        dbContainer = createDBContainer();
-        dbContainer.start();
-        blockNodeContainer = createBlockNodeContainer();
-        blockNodeContainer.start();
-//        blockAccessStub = initializeBlockAccessGrpcClient();
-//        blockServiceStub = initializeBlockNodeServiceGrpcClient();
-        simulatorContainer = createSimulatorContainer();
-        simulatorContainer.start();
-        importerContainer = createImporterContainer();
-        importerContainer.start();
+    //    @BeforeEach
+    //    public void setup() {
+    //        network = Network.newNetwork();
+    //        dbContainer = createDBContainer();
+    //        dbContainer.start();
+    //        blockNodeContainer = createBlockNodeContainer(network);
+    //        blockNodeContainer.start();
+    //        simulatorContainer = createSimulatorContainer(network);
+    //        simulatorContainer.start();
+    //        importerContainer = createImporterContainer(network);
+    //        importerContainer.start();
+    //    }
 
-//        blockAccessStub = initializeBlockAccessGrpcClient();
-//        blockServiceStub = initializeBlockNodeServiceGrpcClient();
-    }
-
-    protected static GenericContainer<?> createImporterContainer() {
-//        Path dockerContext = Paths.get("../../../../../../../../../../../Mirror-node-HELPER/hiero-mirror-node/importer");
+    protected static GenericContainer<?> createImporterContainer(Network network) {
+        //        Path dockerContext =
+        // Paths.get("../../../../../../../../../../../Mirror-node-HELPER/hiero-mirror-node/importer");
         importerContainer = new GenericContainer<>("gcr.io/mirrornode/hedera-mirror-importer:latest")
-//        importerContainer = new GenericContainer<>(
-//                new ImageFromDockerfile()
-//                        .withFileFromPath(".", dockerContext) // build context root (e.g., Dockerfile + build/libs/*.jar in this dir)
-//                        .withBuildArg("VERSION", "latest") // optional build args
-//        )
+                //        importerContainer = new GenericContainer<>(
+                //                new ImageFromDockerfile()
+                //                        .withFileFromPath(".", dockerContext) // build context root (e.g., Dockerfile
+                // + build/libs/*.jar in this dir)
+                //                        .withBuildArg("VERSION", "latest") // optional build args
+                //        )
                 .withExposedPorts(8080, 5005)
                 .withEnv("JAVA_TOOL_OPTIONS", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005")
                 .withNetwork(network)
@@ -98,8 +95,11 @@ public class BaseClass {
                 .withEnv("HIERO_MIRROR_IMPORTER_DOWNLOADER_RECORD_ENABLED", "false")
                 .withEnv("HIERO_MIRROR_IMPORTER_DOWNLOADER_BALANCE_ENABLED", "false")
                 .withEnv("HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST", "block-node")
-                .withEnv("HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_PORT", String.valueOf(blockNodeContainer.getMappedPort(8080)))
+                .withEnv("HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_PORT", "8080")
                 .withEnv("HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_PRIORITY", "0")
+                //                .withEnv("HIERO_MIRROR_IMPORTER_BLOCK_NODES_1_HOST", "block-node-2")
+                //                .withEnv("HIERO_MIRROR_IMPORTER_BLOCK_NODES_1_PORT", "8081")
+                //                .withEnv("HIERO_MIRROR_IMPORTER_BLOCK_NODES_1_PRIORITY", "0")
                 .withEnv("HIERO_MIRROR_IMPORTER_DOWNLOADER_BUCKETNAME", "test")
                 .withEnv("HIERO_MIRROR_IMPORTER_IMPORTHISTORICALACCOUNTINFO", "false")
                 .withEnv("HIERO_MIRROR_IMPORTER_MIGRATION_ASYNC_ENABLED", "false")
@@ -113,26 +113,25 @@ public class BaseClass {
                 .withEnv("HIERO_MIRROR_IMPORTER_TEST_PERFORMANCE_PARSER_ENABLED", "true")
                 .withEnv("HIERO_MIRROR_IMPORTER_TEST_PERFORMANCE_PARSER_SCENARIO", "simple")
                 .withCreateContainerCmdModifier(cmd -> cmd.withName("importer"))
-                .waitingFor(Wait.forHttp("/actuator/health/liveness").forStatusCode(200))
                 .dependsOn(dbContainer, blockNodeContainer);
 
         return importerContainer;
     }
 
-    protected static GenericContainer<?> createSimulatorContainer() {
+    protected static GenericContainer<?> createSimulatorContainer(Network network) {
         simulatorContainer = new GenericContainer<>("hedera-block-simulator:latest")
                 .withNetwork(network)
                 .withNetworkAliases("simulator")
-                .withEnv("BLOCK_NODE_HOST", "block-node")  // Use Docker alias of block node
+                .withEnv("BLOCK_NODE_HOST", "block-node") // Use Docker alias of block node
                 .withEnv("BLOCK_NODE_PORT", "8080")
                 .withCreateContainerCmdModifier(cmd -> cmd.withName("simulator"))
                 .dependsOn(blockNodeContainer);
-//                .waitingFor(Wait.forLogMessage(".*Sending blocks.*", 1));
+        //                .waitingFor(Wait.forLogMessage(".*Sending blocks.*", 1));
 
         return simulatorContainer;
     }
 
-    protected static GenericContainer<?> createBlockNodeContainer() {
+    protected static GenericContainer<?> createBlockNodeContainer(Network network) {
         String blockNodeVersion = "0.15.0-SNAPSHOT";
         blockNodePort = 8080;
         blockNodeMetricsPort = 9999;
@@ -152,7 +151,38 @@ public class BaseClass {
         return blockNodeContainer;
     }
 
-    protected static PostgreSQLContainer<?> createDBContainer() {
+    protected static GenericContainer<?> createSecondSimulatorContainer() {
+        return new GenericContainer<>("hedera-block-simulator:latest")
+                .withNetwork(network)
+                .withNetworkAliases("simulator-2")
+                .withEnv("BLOCK_NODE_HOST", "block-node-2")
+                .withEnv("BLOCK_NODE_PORT", "8081")
+                .withCreateContainerCmdModifier(cmd -> cmd.withName("simulator-2"))
+                .dependsOn(blockNodeSecondContainer);
+    }
+
+    protected static GenericContainer<?> createSecondBlockNodeContainer() {
+        String blockNodeVersion = "0.15.0-SNAPSHOT";
+        int secondBlockNodePort = 8081;
+        int secondBlockNodeMetricsPort = 9998;
+        List<String> portBindings = new ArrayList<>();
+        portBindings.add(String.format("%d:%2d", secondBlockNodePort, secondBlockNodePort));
+        portBindings.add(String.format("%d:%2d", secondBlockNodeMetricsPort, secondBlockNodeMetricsPort));
+        blockNodeSecondContainer = new GenericContainer<>(
+                        DockerImageName.parse("block-node-server:" + blockNodeVersion))
+                .withExposedPorts(secondBlockNodePort)
+                .withEnv("VERSION", blockNodeVersion)
+                .waitingFor(Wait.forListeningPort())
+                .withNetwork(network)
+                .withNetworkAliases("block-node-2")
+                .withCreateContainerCmdModifier(cmd -> cmd.withName("block-node-2"))
+                .waitingFor(Wait.forHealthcheck());
+
+        blockNodeSecondContainer.setPortBindings(portBindings);
+        return blockNodeSecondContainer;
+    }
+
+    protected static PostgreSQLContainer<?> createDBContainer(Network network) {
         var dockerImageName = DockerImageName.parse("postgres:16-alpine");
         var logger = LoggerFactory.getLogger(PostgreSQLContainer.class);
         var excluded = "terminating connection due to unexpected postmaster exit";
@@ -170,7 +200,8 @@ public class BaseClass {
                 .withPassword("mirror_node_pass")
                 .withCreateContainerCmdModifier(cmd -> cmd.withName("db"))
                 .withUsername("mirror_node")
-                .withNetworkAliases("postgres");;
+                .withNetworkAliases("postgres");
+        ;
         dbContainer.setPortBindings(portBindings);
         return dbContainer;
     }
@@ -178,7 +209,6 @@ public class BaseClass {
     ImageFromDockerfile image = new ImageFromDockerfile(SIMULATOR_IMAGE_NAME, false)
             .withDockerfile(Paths.get("importer/src/test/resources/block-node-images/SimulatorDockerfile"))
             .withFileFromPath(".", Paths.get("."));
-
 
     private static String getBlockNodeVersion() {
         String version = System.getProperty("block.node.version");
@@ -210,6 +240,20 @@ public class BaseClass {
         return BlockNodeServiceGrpc.newBlockingStub(channel);
     }
 
+    protected boolean waitForLogMessage(
+            GenericContainer<?> container, String expectedMessage, int timeoutSeconds, int pollIntervalMillis)
+            throws InterruptedException {
+        long start = System.currentTimeMillis();
+        while (System.currentTimeMillis() - start < timeoutSeconds * 1000L) {
+            String logs = container.getLogs();
+            if (logs.contains(expectedMessage)) {
+                return true;
+            }
+            Thread.sleep(pollIntervalMillis);
+        }
+        return false;
+    }
+
     @AfterEach
     public void teardown() throws InterruptedException {
         if (blockNodeContainer != null) {
@@ -220,6 +264,4 @@ public class BaseClass {
             channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
         }
     }
-
 }
-
