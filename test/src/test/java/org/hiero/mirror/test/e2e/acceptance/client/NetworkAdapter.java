@@ -19,6 +19,7 @@ import org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterf
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 
+@SuppressWarnings("rawtypes")
 @Named
 public class NetworkAdapter extends EncoderDecoderFacade {
 
@@ -85,6 +86,7 @@ public class NetworkAdapter extends EncoderDecoderFacade {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private ContractCallResponse convertConsensusResponse(
             final ContractFunctionResult result, final TupleType returnTupleType) {
         final var tupleResult = result.getResult(returnTupleType.getCanonicalType());

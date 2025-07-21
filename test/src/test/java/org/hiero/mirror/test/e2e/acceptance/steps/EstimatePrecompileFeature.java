@@ -656,7 +656,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void cryptoTransferHbarEstimateGas() {
         var senderTransfer = accountAmount(adminAddress.toString(), -10L, false);
         var receiverTransfer = accountAmount(receiverAccountAliasAddress.toString(), 10L, false);
-        var args = Tuple.of((Object) new Tuple[] {senderTransfer, receiverTransfer});
+        var args = Tuple.from((Object) new Tuple[] {senderTransfer, receiverTransfer});
         var data = encodeData(ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER_HBARS, args, EMPTY_TUPLE_ARRAY);
         validateGasEstimation(data, CRYPTO_TRANSFER_HBARS, estimatePrecompileContractSolidityAddress);
     }
@@ -676,7 +676,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                     .build()
         };
         var data = encodeData(
-                ESTIMATE_PRECOMPILE, methodInterface, Tuple.of((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
+                ESTIMATE_PRECOMPILE, methodInterface, Tuple.from((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
         validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
@@ -691,7 +691,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                     .build()
         };
         var data = encodeData(
-                ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER, Tuple.of((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
+                ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER, Tuple.from((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
         validateGasEstimation(data, CRYPTO_TRANSFER, estimatePrecompileContractSolidityAddress);
     }
 

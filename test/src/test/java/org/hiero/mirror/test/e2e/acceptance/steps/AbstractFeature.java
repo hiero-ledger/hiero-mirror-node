@@ -180,6 +180,7 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
         return ContractCallResponseWrapper.of(mirrorClient.contractsCall(contractCallRequest));
     }
 
+    @SuppressWarnings("rawtypes")
     protected ContractCallResponseWrapper callContract(
             final NodeNameEnum node,
             final String from,
