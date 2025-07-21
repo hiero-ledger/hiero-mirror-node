@@ -57,7 +57,7 @@ dependencies {
         api("com.ongres.scram:client:2.1")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.11.0")
-        api("commons-io:commons-io:2.19.0")
+        api("commons-io:commons-io:2.20.0")
         api("io.cucumber:cucumber-bom:7.23.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
