@@ -21,4 +21,8 @@ final class SchedulingProperties {
     @DurationMin(seconds = 2)
     @NotNull
     private Duration minRescheduleInterval = Duration.ofSeconds(10);
+
+    @DurationMin(millis = 10)
+    @NotNull
+    private Duration rescheduleLatencyThreshold = Duration.ofMillis(50);
 }

@@ -38,10 +38,8 @@ import org.hiero.mirror.importer.reader.block.BlockStream;
 @CustomLog
 final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
-    private static final Comparator<BlockNode> PRIORITY_COMPARATOR =
-            Comparator.comparing(b -> b.properties.getPriority());
-    private static final Comparator<BlockNode> COMPARATOR = PRIORITY_COMPARATOR
-            .thenComparing(b -> b.latency.getAverage())
+    private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(BlockNode::getPriority)
+            .thenComparing(BlockNode::getLatency)
             .thenComparing(blockNode -> blockNode.properties.getHost())
             .thenComparing(blockNode -> blockNode.properties.getPort());
 
@@ -80,6 +78,14 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         }
 
         channel.shutdown();
+    }
+
+    public long getLatency() {
+        return latency.getAverage();
+    }
+
+    public int getPriority() {
+        return properties.getPriority();
     }
 
     public boolean hasBlock(long blockNumber) {

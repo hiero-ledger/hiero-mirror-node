@@ -5,12 +5,12 @@ package org.hiero.mirror.importer.downloader.block;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
-import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.NonNull;
 import org.apache.commons.io.FilenameUtils;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
@@ -71,7 +71,7 @@ public class BlockStreamVerifier {
         });
     }
 
-    public void verify(@NotNull BlockFile blockFile) {
+    public void verify(@NonNull BlockFile blockFile) {
         var startTime = Instant.now();
         boolean success = true;
         try {

@@ -93,8 +93,8 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
                     continue;
                 }
 
-                // should try to reschedule if the first active node is not the current node
-                boolean shouldReschedule = !other.equals(current.get());
+                boolean shouldReschedule = current.get().getLatency() - other.getLatency()
+                        >= scheduling.getRescheduleLatencyThreshold().toMillis();
                 if (shouldReschedule) {
                     log.info("Try to reschedule to select a block node with lower latency");
                 }
