@@ -3,29 +3,25 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.migration.ContractLogIndexMigration.INTERVAL;
 
-import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
-import lombok.SneakyThrows;
-import org.apache.commons.io.FileUtils;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
-import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.util.TestPropertyValues;
-import org.springframework.context.ApplicationContextInitializer;
-import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.core.env.Profiles;
-import org.springframework.test.context.ContextConfiguration;
 
-@ContextConfiguration(initializers = ContractLogIndexesMigrationTest.Initializer.class)
-@DisablePartitionMaintenance
-@DisableRepeatableSqlMigration
+@RequiredArgsConstructor
 @Tag("migration")
-class ContractLogIndexesMigrationTest extends ImporterIntegrationTest {
+class ContractLogIndexMigrationTest extends ImporterIntegrationTest {
+
+    private final ContractLogIndexMigration migration;
+    private final RecordFileRepository recordFileRepository;
 
     @Test
     void migrateSuccessful() {
@@ -62,7 +58,7 @@ class ContractLogIndexesMigrationTest extends ImporterIntegrationTest {
                 contractLogPersist(0, recordFiles.get(3).getConsensusEnd());
 
         // When
-        runMigration();
+        migration.migrateAsync();
 
         // Then
         assertThat(findIndex(contractLogFirstRecordFile0.getConsensusTimestamp()))
@@ -91,6 +87,54 @@ class ContractLogIndexesMigrationTest extends ImporterIntegrationTest {
                 .isEqualTo(2);
     }
 
+    @Test
+    void testRecordFileSlicing() {
+        // Given
+        // Persist 1 record file before the interval
+        final var timestamp = domainBuilder.timestamp();
+        final var firstRecordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.index(0L)
+                        .consensusStart(timestamp - Duration.ofMinutes(2).toNanos())
+                        .consensusEnd(timestamp))
+                .persist();
+        // Persist 2 record files in the same interval.
+        final var timestampSecondRecordFile = timestamp + INTERVAL / 2;
+        final var secondRecordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.index(1L)
+                        .consensusStart(timestampSecondRecordFile
+                                - Duration.ofMinutes(2).toNanos())
+                        .consensusEnd(timestampSecondRecordFile))
+                .persist();
+        final var timestampThirdRecordFile = timestamp + INTERVAL;
+        final var thirdRecordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.index(2L)
+                        .consensusStart(
+                                timestampThirdRecordFile - Duration.ofMinutes(2).toNanos())
+                        .consensusEnd(timestampThirdRecordFile))
+                .persist();
+        // Persist 1 record file after the interval
+        final var timestampFourthRecordFile = timestamp + INTERVAL + 1;
+        final var fourthRecordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.index(3L)
+                        .consensusStart(timestampFourthRecordFile
+                                - Duration.ofMinutes(2).toNanos())
+                        .consensusEnd(timestampFourthRecordFile))
+                .persist();
+
+        // When
+        final var slicedRecordFiles = migration.getRecordFiles(timestampThirdRecordFile);
+
+        // Then
+        assertThat(slicedRecordFiles)
+                .usingRecursiveComparison()
+                .ignoringFields("previousHash", "sidecars")
+                .isEqualTo(List.of(secondRecordFile, thirdRecordFile));
+    }
+
     private Integer findIndex(final long consensusTimestamp) {
         var query = "select index from contract_log where consensus_timestamp = ?";
         return jdbcOperations.queryForObject(query, Integer.class, consensusTimestamp);
@@ -113,27 +157,12 @@ class ContractLogIndexesMigrationTest extends ImporterIntegrationTest {
     }
 
     private RecordFile recordFilePersist(final long index) {
+        final var timestamp = domainBuilder.timestamp() + index * INTERVAL;
         return domainBuilder
                 .recordFile()
-                .customize(r -> r.index(index).consensusStart(index * 100).consensusEnd(index * 100 + 99))
+                .customize(r -> r.index(index)
+                        .consensusStart(timestamp - Duration.ofMinutes(2).toNanos())
+                        .consensusEnd(timestamp))
                 .persist();
-    }
-
-    @SneakyThrows
-    private void runMigration() {
-        String migrationFilepath =
-                isV1() ? "v1/V1.110.1__fix_contract_log_indexes.sql" : "v2/V2.15.1__fix_contract_log_indexes.sql";
-        var file = TestUtils.getResource("db/migration/" + migrationFilepath);
-        ownerJdbcTemplate.execute(FileUtils.readFileToString(file, StandardCharsets.UTF_8));
-    }
-
-    static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
-
-        @Override
-        public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
-            var environment = configurableApplicationContext.getEnvironment();
-            String version = environment.acceptsProfiles(Profiles.of("v2")) ? "2.15.1" : "1.110.1";
-            TestPropertyValues.of("spring.flyway.target=" + version).applyTo(environment);
-        }
     }
 }
