@@ -52,7 +52,7 @@
     "word-wrap": "npm:@aashutoshrathi/word-wrap@^1.2.6"
   },
   "devDependencies": {
-    "@testcontainers/postgresql": "^11.2.1",
+    "@testcontainers/postgresql": "^11.3.1",
     "@testcontainers/redis": "^11.3.1",
     "app-root-path": "^3.1.0",
     "crypto-random-string": "^5.0.0",
