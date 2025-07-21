@@ -25,11 +25,7 @@ dependencies {
     testImplementation("io.grpc:grpc-inprocess")
     testImplementation("com.esaulpaugh:headlong")
     testImplementation("com.google.guava:guava")
-    // With 2.38.0, the SDK updated the headlong dependency from 10.0.0 to 12.1.0. Web3 is not ready
-    // for that yet.
-    testImplementation("com.hedera.hashgraph:sdk") {
-        exclude(group = "com.esaulpaugh", module = "headlong")
-    }
+    testImplementation("com.hedera.hashgraph:sdk")
     testImplementation(project(":common")) {
         exclude("com.hedera.hashgraph", "hedera-protobuf-java-api")
         exclude("com.google.protobuf", "protobuf-java")
