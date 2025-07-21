@@ -89,7 +89,7 @@ dependencies {
         api("org.springframework.cloud:spring-cloud-dependencies:2025.0.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:4.12.2")
-        api("software.amazon.awssdk:bom:2.31.78")
+        api("software.amazon.awssdk:bom:2.32.4")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
