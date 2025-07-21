@@ -46,14 +46,14 @@ public class DBProperties {
     @NotBlank
     private String schema = "";
 
+    @NotNull
+    private SslMode sslMode = SslMode.DISABLE;
+
     @NotBlank
     private String tempSchema = "";
 
     @NotBlank
     private String username = "";
-
-    @NotNull
-    private SslMode sslMode = SslMode.DISABLE;
 
     @NotNull
     private Duration metricRefreshInterval = Duration.ofMinutes(5L);
