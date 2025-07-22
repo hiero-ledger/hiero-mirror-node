@@ -4,6 +4,8 @@ plugins {
     id("com.gorylenko.gradle-git-properties")
     id("docker-conventions")
     id("java-conventions")
+    id("org.cyclonedx.bom")
+    id("org.graalvm.buildtools.native")
     id("org.springframework.boot")
 }
 
@@ -18,19 +20,32 @@ tasks.named("dockerBuild") { dependsOn(tasks.bootJar) }
 
 tasks.register("run") { dependsOn(tasks.bootRun) }
 
+val imagePlatform: String by project
+val platform = imagePlatform.ifBlank { null }
+
 tasks.bootBuildImage {
     val env = System.getenv()
     val repo = env.getOrDefault("GITHUB_REPOSITORY", "hiero-ledger/hiero-mirror-node")
-    val image = "ghcr.io/${repo}"
+    val image = "ghcr.io/${repo}/${project.name}"
 
+    buildpacks =
+        listOf(
+            "urn:cnb:builder:paketo-buildpacks/java",
+            "paketobuildpacks/health-checker",
+            "paketo-buildpacks/native-image",
+        )
     docker {
         imageName = image
-        tags = listOf("${image}:${project.version}")
-        publishRegistry { token = env["GITHUB_TOKEN"] }
+        imagePlatform = platform
+        publishRegistry {
+            password = env.getOrDefault("GITHUB_TOKEN", "")
+            username = env.getOrDefault("GITHUB_ACTOR", "")
+        }
+        tags = listOf("${image}:${project.version}2")
     }
-
     environment =
         mapOf(
+            "BP_HEALTH_CHECKER_ENABLED" to "true",
             "BP_NATIVE_IMAGE_BUILD_ARGUMENTS" to
                 "--initialize-at-build-time=org.slf4j.helpers.Reporter,org.slf4j.LoggerFactory,ch.qos.logback",
             "BP_OCI_AUTHORS" to "mirrornode@hedera.com",

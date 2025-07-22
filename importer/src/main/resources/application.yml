@@ -123,13 +123,10 @@ spring:
       hibernate:
         hbm2ddl:
           import_files_sql_extractor: org.hibernate.tool.hbm2ddl.MultipleLinesSqlCommandExtractor
-        generate_statistics: true
         jdbc:
           batch_size: 250
         order_inserts: true
         order_updates: true
-        type:
-          json_format_mapper: org.hiero.mirror.common.converter.CustomJsonFormatMapper
     show-sql: false
   lifecycle:
     timeout-per-shutdown-phase: 20s
