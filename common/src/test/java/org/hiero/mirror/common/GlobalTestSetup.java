@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common;
 
+import java.util.function.Consumer;
 import org.hiero.mirror.common.tableusage.CsvReportGenerator;
 import org.hiero.mirror.common.tableusage.MarkdownReportGenerator;
 import org.hiero.mirror.common.tableusage.TestExecutionTracker;
@@ -13,7 +14,8 @@ import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.TestPlan;
 
 public class GlobalTestSetup implements LauncherSessionListener, TestExecutionListener {
-    private CommonProperties originalCommonProperties;
+
+    private final CommonProperties originalCommonProperties = new CommonProperties();
 
     @Override
     public void launcherSessionOpened(LauncherSession session) {
@@ -29,21 +31,18 @@ public class GlobalTestSetup implements LauncherSessionListener, TestExecutionLi
         try {
             CommonProperties.getInstance();
         } catch (IllegalStateException ex) {
-            new CommonProperties().init();
+            var commonProperties = new CommonProperties();
+            commonProperties.init();
+            setPropertyFromEnv("HIERO_MIRROR_COMMON_REALM", commonProperties::setRealm);
+            setPropertyFromEnv("HIERO_MIRROR_COMMON_SHARD", commonProperties::setShard);
         } finally {
-            var commonProperties = CommonProperties.getInstance();
-
-            originalCommonProperties = new CommonProperties();
-            originalCommonProperties.setShard(commonProperties.getShard());
-            originalCommonProperties.setRealm(commonProperties.getRealm());
+            copyCommonProperties(CommonProperties.getInstance(), originalCommonProperties);
         }
     }
 
     @Override
     public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
-        var commonProperties = CommonProperties.getInstance();
-        commonProperties.setShard(originalCommonProperties.getShard());
-        commonProperties.setRealm(originalCommonProperties.getRealm());
+        copyCommonProperties(originalCommonProperties, CommonProperties.getInstance());
     }
 
     @Override
@@ -53,6 +52,18 @@ public class GlobalTestSetup implements LauncherSessionListener, TestExecutionLi
         if (Boolean.parseBoolean(generateTableUsage)) {
             MarkdownReportGenerator.generateReport();
             CsvReportGenerator.generateReport();
+        }
+    }
+
+    private void copyCommonProperties(CommonProperties src, CommonProperties dst) {
+        dst.setRealm(src.getRealm());
+        dst.setShard(src.getShard());
+    }
+
+    private void setPropertyFromEnv(String key, Consumer<Long> setter) {
+        var value = System.getenv(key);
+        if (value != null) {
+            setter.accept(Long.valueOf(value));
         }
     }
 }

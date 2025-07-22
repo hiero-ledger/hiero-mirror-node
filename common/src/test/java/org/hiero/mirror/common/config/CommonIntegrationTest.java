@@ -8,6 +8,7 @@ import java.util.Collection;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
@@ -41,16 +42,26 @@ public abstract class CommonIntegrationTest {
     @Autowired(required = false)
     private Collection<CacheManager> cacheManagers;
 
+    private final CommonProperties defaultCommonProperties = new CommonProperties();
+
     @BeforeEach
     void logTest(TestInfo testInfo) {
+        defaultCommonProperties.setShard(commonProperties.getShard());
+        defaultCommonProperties.setRealm(commonProperties.getRealm());
         reset();
         log.info("Executing: {}", testInfo.getDisplayName());
     }
 
-    protected void reset() {
-        var defaultCommonProperties = new CommonProperties();
+    @AfterEach
+    void resetCommonProperties() {
         commonProperties.setRealm(defaultCommonProperties.getRealm());
         commonProperties.setShard(defaultCommonProperties.getShard());
+    }
+
+    protected void reset() {
+        //        var defaultCommonProperties = new CommonProperties();
+        //        commonProperties.setRealm(defaultCommonProperties.getRealm());
+        //        commonProperties.setShard(defaultCommonProperties.getShard());
 
         if (cacheManagers != null) {
             cacheManagers.forEach(this::resetCacheManager);
