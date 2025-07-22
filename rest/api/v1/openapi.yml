@@ -2002,6 +2002,12 @@ components:
         memo:
           example: contract memo
           type: string
+        nonce:
+          description: The nonce of the wrapped ethereum transaction
+          nullable: true
+          format: int64
+          type: integer
+          example: 1
         obtainer_id:
           $ref: "#/components/schemas/EntityId"
         permanent_removal:

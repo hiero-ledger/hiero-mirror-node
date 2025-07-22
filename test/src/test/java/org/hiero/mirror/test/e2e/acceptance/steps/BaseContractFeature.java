@@ -29,6 +29,7 @@ public abstract class BaseContractFeature extends AbstractFeature {
         assertThat(address).isNotBlank().isNotEqualTo("0x").isNotEqualTo("0x0000000000000000000000000000000000000000");
         assertThat(mirrorContract.getTimestamp()).isNotNull();
         assertThat(mirrorContract.getTimestamp().getFrom()).isNotNull();
+        assertThat(mirrorContract.getNonce()).isNotNull();
 
         if (contractClient
                 .getSdkClient()
