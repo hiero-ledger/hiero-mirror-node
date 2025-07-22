@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 import org.hiero.mirror.common.tableusage.CsvReportGenerator;
 import org.hiero.mirror.common.tableusage.MarkdownReportGenerator;
 import org.hiero.mirror.common.tableusage.TestExecutionTracker;
+import org.hiero.mirror.common.util.CommonUtils;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.launcher.LauncherSession;
 import org.junit.platform.launcher.LauncherSessionListener;
@@ -36,13 +37,13 @@ public class GlobalTestSetup implements LauncherSessionListener, TestExecutionLi
             setPropertyFromEnv("HIERO_MIRROR_COMMON_REALM", commonProperties::setRealm);
             setPropertyFromEnv("HIERO_MIRROR_COMMON_SHARD", commonProperties::setShard);
         } finally {
-            copyCommonProperties(CommonProperties.getInstance(), originalCommonProperties);
+            CommonUtils.copyCommonProperties(CommonProperties.getInstance(), originalCommonProperties);
         }
     }
 
     @Override
     public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
-        copyCommonProperties(originalCommonProperties, CommonProperties.getInstance());
+        CommonUtils.copyCommonProperties(originalCommonProperties, CommonProperties.getInstance());
     }
 
     @Override
@@ -53,11 +54,6 @@ public class GlobalTestSetup implements LauncherSessionListener, TestExecutionLi
             MarkdownReportGenerator.generateReport();
             CsvReportGenerator.generateReport();
         }
-    }
-
-    private void copyCommonProperties(CommonProperties src, CommonProperties dst) {
-        dst.setRealm(src.getRealm());
-        dst.setShard(src.getShard());
     }
 
     private void setPropertyFromEnv(String key, Consumer<Long> setter) {
