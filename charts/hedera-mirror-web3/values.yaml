@@ -110,7 +110,7 @@ hpa:
           name: evm_gas_used_per_second
         target:
           type: AverageValue
-          averageValue: 7M
+          averageValue: 6750k
   minReplicas: 1
 
 image:
