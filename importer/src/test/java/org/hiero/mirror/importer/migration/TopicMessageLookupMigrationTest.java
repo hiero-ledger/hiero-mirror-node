@@ -15,6 +15,9 @@ import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.flywaydb.core.api.callback.Event;
+import org.flywaydb.core.api.configuration.FluentConfiguration;
+import org.flywaydb.core.internal.callback.SimpleContext;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.TopicMessageLookup;
 import org.hiero.mirror.importer.EnabledIfV2;
@@ -288,6 +291,7 @@ class TopicMessageLookupMigrationTest extends AbstractTopicMessageLookupIntegrat
     @SneakyThrows
     private void runMigration() {
         migration.doMigrate();
+        migration.handle(Event.AFTER_MIGRATE_OPERATION_FINISH, new SimpleContext(new FluentConfiguration()));
         waitForCompletion();
     }
 

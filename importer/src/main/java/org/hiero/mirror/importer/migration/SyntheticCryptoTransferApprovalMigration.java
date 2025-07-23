@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.migration;
 import com.google.common.annotations.VisibleForTesting;
 import com.hederahashgraph.api.proto.java.Key;
 import jakarta.inject.Named;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -249,10 +248,10 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
                         .filter(f -> f.getHapiVersion().isLessThan(HAPI_VERSION_0_38_0))
                         .isPresent()) {
                     log.info("Run migration after the first record file with HAPI {} is parsed", HAPI_VERSION_0_38_0);
-                    doMigrate();
+                    runMigrateAsync();
                 }
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Error executing the migration again after consensus_timestamp {}", streamFile.getConsensusEnd());
         }
     }
