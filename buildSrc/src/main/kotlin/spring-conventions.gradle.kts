@@ -41,7 +41,7 @@ tasks.bootBuildImage {
             password = env.getOrDefault("GITHUB_TOKEN", "")
             username = env.getOrDefault("GITHUB_ACTOR", "")
         }
-        tags = listOf("${image}:${project.version}2")
+        tags = listOf("${image}:${project.version}")
     }
     environment =
         mapOf(
