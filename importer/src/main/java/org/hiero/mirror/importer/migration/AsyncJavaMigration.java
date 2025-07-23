@@ -215,7 +215,7 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
      * Perform any synchronous portion of the migration
      *
      * @return boolean indicating if async migration should be performed
-     * */
+     */
     protected boolean performSynchronousSteps() {
         return true;
     }
