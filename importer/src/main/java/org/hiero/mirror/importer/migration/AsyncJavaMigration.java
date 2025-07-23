@@ -132,6 +132,11 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
             return;
         }
 
+        if (!performSynchronousSteps()) {
+            onSuccess();
+            return;
+        }
+
         runMigrateAsync();
     }
 
@@ -159,10 +164,7 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
             throw new IllegalArgumentException(String.format("Invalid non-positive success checksum %d", checksum));
         }
 
-        shouldMigrate.set(performSynchronousSteps());
-        if (!shouldMigrate.get()) {
-            onSuccess();
-        }
+        shouldMigrate.set(true);
     }
 
     protected abstract T getInitial();
