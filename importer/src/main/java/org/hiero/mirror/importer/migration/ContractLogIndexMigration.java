@@ -6,20 +6,16 @@ import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Getter;
-import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
-import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.jdbc.core.DataClassRowMapper;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionOperations;
 
@@ -29,18 +25,55 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
     // 30-day intervals of data to take advantage of the monthly partitioning of record_file and contract_log tables.
     static final long INTERVAL = Duration.ofDays(30).toNanos();
 
-    private final RecordFileRepository recordFileRepository;
-
     @Getter
     private final TransactionOperations transactionOperations;
 
-    private static final RowMapper<RecordFile> RECORD_FILE_ROW_MAPPER = new DataClassRowMapper<>(RecordFile.class);
+    private final JdbcTemplate jdbcTemplate;
 
-    private static final String SELECT_RECORD_FILES =
+    private static final String CREATE_TEMPORARY_RECORD_FILE_TABLE =
             """
-                    select *
+                    begin;
+                    create table if not exists processed_record_file_temp(
+                        consensus_end bigint not null
+                    );
+                    insert into processed_record_file_temp(consensus_end)
+                    select consensus_end
                     from record_file
-                    where consensus_end > :consensusEndLowerBound and consensus_end <= :consensusEndUpperBound
+                    order by consensus_end desc
+                    limit 1;
+                    commit;
+            """;
+
+    private static final String SELECT_TEMPORARY_RECORD_FILE_TABLE =
+            """
+                    select consensus_end
+                    from processed_record_file_temp;
+            """;
+
+    private static final String UPDATE_TEMPORARY_RECORD_FILE_TABLE =
+            """
+                    update processed_record_file_temp
+                    set consensus_end = :lastProcessedRecordFileEndTimestamp;
+            """;
+
+    private static final String DROP_TEMPORARY_RECORD_FILE_TABLE =
+            """
+                    drop table if exists processed_record_file_temp;
+            """;
+
+    private static final String SELECT_RECORD_FILES_MIN_AND_MAX_TIMESTAMP =
+            """
+                    select
+                        (select consensus_start
+                        from record_file
+                        where consensus_end > :consensusEndLowerBound
+                                and consensus_end <= :consensusEndUpperBound
+                        order by consensus_end limit 1) as min_consensus_timestamp,
+                        (select consensus_end
+                        from record_file
+                        where consensus_end > :consensusEndLowerBound
+                                and consensus_end <= :consensusEndUpperBound
+                        order by consensus_end desc limit 1) as max_consensus_timestamp;
             """;
     private static final String SELECT_CONTRACT_LOG_INDEXES =
             """
@@ -55,7 +88,7 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                     join record_file rf on cl.consensus_timestamp >= rf.consensus_start
                                       and cl.consensus_timestamp <= rf.consensus_end
                     where cl.consensus_timestamp >= :consensusStart and cl.consensus_timestamp <= :lastConsensusEnd
-                    order by cl.consensus_timestamp desc, cl.index desc
+                    order by cl.consensus_timestamp desc, cl.index desc;
             """;
 
     private static final String UPDATE_CONTRACT_LOG_INDEX =
@@ -63,7 +96,7 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                      update contract_log cl
                      set "index" = :newIndex
                      where cl.consensus_timestamp = :consensusTimestamp
-                         and cl.index = :index
+                         and cl.index = :index;
             """;
 
     @Lazy
@@ -71,40 +104,50 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
             DBProperties dbProperties,
             ImporterProperties importerProperties,
             @Owner JdbcTemplate jdbcTemplate,
-            RecordFileRepository recordFileRepository,
             TransactionOperations transactionOperations) {
         super(
                 importerProperties.getMigration(),
                 new NamedParameterJdbcTemplate(jdbcTemplate),
                 dbProperties.getSchema());
-        this.recordFileRepository = recordFileRepository;
         this.transactionOperations = transactionOperations;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
     protected Long getInitial() {
-        return recordFileRepository
-                .findLatest()
-                .map(RecordFile::getConsensusEnd)
-                .orElse(0L);
+        if (!isMigrationTableExists()) {
+            log.info("Create and initialize table processed_record_file_temp");
+            jdbcTemplate.execute(CREATE_TEMPORARY_RECORD_FILE_TABLE);
+        }
+
+        return getCurrentRecordFileEndTimestamp();
     }
 
     @Nonnull
     @Override
     protected Optional<Long> migratePartial(Long lastConsensusEnd) {
         // Get record files for an interval of time.
-        final var recordFiles = getRecordFiles(lastConsensusEnd);
-        if (recordFiles.isEmpty()) {
+        final var recordFileSlice = getRecordFilesMinAndMaxTimestamp(lastConsensusEnd);
+        if (recordFileSlice.isEmpty()) {
+            log.info(
+                    "No more record files remaining to process. Last consensus end timestamp: {}. Dropping temporary table processed_record_file_temp.",
+                    lastConsensusEnd);
+            jdbcTemplate.execute(DROP_TEMPORARY_RECORD_FILE_TABLE);
             return Optional.empty();
         }
 
-        // The record files are sorted, so we can determine the min and max timestamp only from the first and the last
-        // record file to avoid a sort in the query.
-        final long endConsensusTimestamp = getMaxEndRecordFileTimestamp(recordFiles);
-        final long startConsensusTimestamp = getMinStartRecordFileTimestamp(recordFiles);
+        // The record file slice contains only one element.
+        final var recordFileSliceObject = recordFileSlice.get();
+        final long startConsensusTimestamp = recordFileSliceObject.minConsensusTimestamp();
+        final long endConsensusTimestamp = recordFileSliceObject.maxConsensusTimestamp();
         final var params = Map.of(
                 "lastConsensusEnd", endConsensusTimestamp,
                 "consensusStart", startConsensusTimestamp);
+
+        log.info(
+                "Recalculating contract log indexes between {} and {} timestamp.",
+                startConsensusTimestamp,
+                endConsensusTimestamp);
         final var contractLogs = namedParameterJdbcTemplate.queryForList(SELECT_CONTRACT_LOG_INDEXES, params);
         for (var contractLog : contractLogs) {
             final var consensusTimestamp = (long) contractLog.get("consensus_timestamp");
@@ -117,11 +160,11 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                             "index", index,
                             "newIndex", newIndex));
         }
+        namedParameterJdbcTemplate.update(
+                UPDATE_TEMPORARY_RECORD_FILE_TABLE,
+                Map.of("lastProcessedRecordFileEndTimestamp", endConsensusTimestamp));
 
         final var nextConsensusEnd = lastConsensusEnd - INTERVAL;
-        if (nextConsensusEnd < 0) {
-            return Optional.of(0L);
-        }
         return Optional.of(nextConsensusEnd);
     }
 
@@ -131,21 +174,38 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
     }
 
     @VisibleForTesting
-    List<RecordFile> getRecordFiles(final Long lastConsensusEnd) {
-        var params = new MapSqlParameterSource()
-                .addValue("consensusEndUpperBound", lastConsensusEnd)
-                .addValue("consensusEndLowerBound", lastConsensusEnd - INTERVAL);
-        return namedParameterJdbcTemplate.query(SELECT_RECORD_FILES, params, RECORD_FILE_ROW_MAPPER);
+    Optional<RecordFileSlice> getRecordFilesMinAndMaxTimestamp(final Long lastConsensusEnd) {
+        var params = Map.of(
+                "consensusEndUpperBound", lastConsensusEnd, "consensusEndLowerBound", lastConsensusEnd - INTERVAL);
+        final var minTimestamp = new AtomicLong();
+        final var maxTimestamp = new AtomicLong();
+        namedParameterJdbcTemplate.query(SELECT_RECORD_FILES_MIN_AND_MAX_TIMESTAMP, params, rs -> {
+            minTimestamp.set(rs.getLong("min_consensus_timestamp"));
+            maxTimestamp.set(rs.getLong("max_consensus_timestamp"));
+        });
+
+        return (minTimestamp.get() == 0L && maxTimestamp.get() == 0)
+                ? Optional.empty()
+                : Optional.of(new RecordFileSlice(minTimestamp.get(), maxTimestamp.get()));
     }
 
-    private long getMaxEndRecordFileTimestamp(final List<RecordFile> recordFiles) {
-        return Math.max(
-                recordFiles.getFirst().getConsensusEnd(), recordFiles.getLast().getConsensusEnd());
+    private boolean isMigrationTableExists() {
+        try {
+            jdbcTemplate.execute("select 'processed_record_file_temp'::regclass");
+            return true;
+        } catch (DataAccessException ex) {
+            return false;
+        }
     }
 
-    private long getMinStartRecordFileTimestamp(final List<RecordFile> recordFiles) {
-        return Math.min(
-                recordFiles.getFirst().getConsensusStart(),
-                recordFiles.getLast().getConsensusStart());
+    private Long getCurrentRecordFileEndTimestamp() {
+        try {
+            return jdbcTemplate.queryForObject(SELECT_TEMPORARY_RECORD_FILE_TABLE, Long.class);
+        } catch (Exception e) {
+            // If the table is empty, there will be no record file, thus endTimestamp is null, return 0 instead.
+            return 0L;
+        }
     }
+
+    record RecordFileSlice(long minConsensusTimestamp, long maxConsensusTimestamp) {}
 }

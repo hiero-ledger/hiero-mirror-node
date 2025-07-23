@@ -5,27 +5,49 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.migration.ContractLogIndexMigration.INTERVAL;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.List;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.importer.ImporterIntegrationTest;
+import org.hiero.mirror.importer.migration.ContractLogIndexMigration.RecordFileSlice;
+import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
 @Tag("migration")
-class ContractLogIndexMigrationTest extends ImporterIntegrationTest {
+class ContractLogIndexMigrationTest extends AbstractAsyncJavaMigrationTest<ContractLogIndexMigration> {
 
+    @Getter
     private final ContractLogIndexMigration migration;
+
     private final RecordFileRepository recordFileRepository;
+    private final ContractLogRepository contractLogRepository;
+
+    @AfterEach
+    void temporaryTableCleanedUp() {
+        assertThat(tableExists("processed_record_file_temp")).isFalse();
+    }
 
     @Test
-    void migrateSuccessful() {
-        // Given
+    void migrationOnEmptyDB() throws IOException {
+        // given, when
+        migration.doMigrate();
+
+        // then
+        waitForCompletion();
+        assertThat(recordFileRepository.findAll()).isEmpty();
+        assertThat(contractLogRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void migrateSuccessful() throws IOException {
+        // given
         // Persist record files
         final var recordFiles = new ArrayList<RecordFile>();
         for (int index = 0; index < 4; index++) {
@@ -57,10 +79,11 @@ class ContractLogIndexMigrationTest extends ImporterIntegrationTest {
         final var contractLogFourthRecordFile2 =
                 contractLogPersist(0, recordFiles.get(3).getConsensusEnd());
 
-        // When
-        migration.migrateAsync();
+        // when
+        migration.doMigrate();
+        waitForCompletion();
 
-        // Then
+        // then
         assertThat(findIndex(contractLogFirstRecordFile0.getConsensusTimestamp()))
                 .isEqualTo(0);
         assertThat(findIndexForData(
@@ -106,13 +129,14 @@ class ContractLogIndexMigrationTest extends ImporterIntegrationTest {
         recordFilePersistAtIndexAndTimestamp(3L, timestampFourthRecordFile);
 
         // When
-        final var slicedRecordFiles = migration.getRecordFiles(timestampThirdRecordFile);
+        final var slicedRecordFiles = migration.getRecordFilesMinAndMaxTimestamp(timestampThirdRecordFile);
 
         // Then
         assertThat(slicedRecordFiles)
-                .usingRecursiveComparison()
-                .ignoringFields("previousHash", "sidecars")
-                .isEqualTo(List.of(secondRecordFile, thirdRecordFile));
+                .isNotEmpty()
+                .get()
+                .isEqualTo(
+                        new RecordFileSlice(secondRecordFile.getConsensusStart(), thirdRecordFile.getConsensusEnd()));
     }
 
     private RecordFile recordFilePersistAtIndexAndTimestamp(final long index, final long consensusEndTimestamp) {
