@@ -28,7 +28,6 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeatu
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.TOTAL_SUPPLY_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.ZERO_ADDRESS;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.getAbiFunctionAsJsonString;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -102,7 +101,8 @@ public class PrecompileContractFeature extends AbstractFeature {
     @Given("I successfully create and verify a precompile contract from contract bytes")
     public void createNewContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileTestContractSolidityAddress = asHexAddress(deployedPrecompileContract.contractId());
+        precompileTestContractSolidityAddress =
+                deployedPrecompileContract.contractId().toEvmAddress();
         contractClientAddress = asAddress(contractClient.getClientAddress());
     }
 
@@ -692,7 +692,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat((long) fractionalFee.get(3)).isEqualTo(MAX_FEE_AMOUNT);
         assertFalse((boolean) fractionalFee.get(4));
         assertThat(fractionalFee.get(5).toString().toLowerCase())
-                .isEqualTo(contractClient.getClientAddress().toLowerCase());
+                .isEqualTo("0x" + contractClient.getClientAddress().toLowerCase());
     }
 
     // ETHCALL-033
@@ -708,10 +708,12 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat((long) royaltyFee.get(0)).isEqualTo(NUMERATOR_VALUE);
         assertThat((long) royaltyFee.get(1)).isEqualTo(DENOMINATOR_VALUE);
         assertThat(royaltyFee.get(5).toString().toLowerCase())
-                .isEqualTo(asHexAddress(tokenClient
-                        .getSdkClient()
-                        .getExpandedOperatorAccountId()
-                        .getAccountId()));
+                .isEqualTo("0x"
+                        + tokenClient
+                                .getSdkClient()
+                                .getExpandedOperatorAccountId()
+                                .getAccountId()
+                                .toEvmAddress());
     }
 
     // ETHCALL-034
@@ -728,10 +730,12 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat(royaltyFee.get(3).toString()).hasToString(fungibleTokenCustomFeeAddress.toString());
         assertFalse((boolean) royaltyFee.get(4));
         assertThat(royaltyFee.get(5).toString().toLowerCase())
-                .hasToString(asHexAddress(tokenClient
-                        .getSdkClient()
-                        .getExpandedOperatorAccountId()
-                        .getAccountId()));
+                .hasToString("0x"
+                        + tokenClient
+                                .getSdkClient()
+                                .getExpandedOperatorAccountId()
+                                .getAccountId()
+                                .toEvmAddress());
     }
 
     private void tokenKeyCheck(final Tuple result) {

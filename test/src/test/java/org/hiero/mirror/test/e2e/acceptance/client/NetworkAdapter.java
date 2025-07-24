@@ -3,7 +3,6 @@
 package org.hiero.mirror.test.e2e.acceptance.client;
 
 import static org.apache.commons.lang3.ObjectUtils.isNotEmpty;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 
 import com.esaulpaugh.headlong.abi.TupleType;
 import com.esaulpaugh.headlong.util.Strings;
@@ -50,7 +49,7 @@ public class NetworkAdapter extends EncoderDecoderFacade {
                         .data(data)
                         .estimate(isEstimate)
                         .from(from.isEmpty() ? contractClient.getClientAddress() : from)
-                        .to(asHexAddress(deployedContract.contractId()));
+                        .to(deployedContract.contractId().toEvmAddress());
 
                 return mirrorClient.contractsCall(contractCallRequestBody);
             } catch (Exception e) {

@@ -13,7 +13,6 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.EquivalenceFeature.Cont
 import static org.hiero.mirror.test.e2e.acceptance.steps.EquivalenceFeature.ContractMethods.GET_CODE_HASH;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EquivalenceFeature.ContractMethods.GET_CODE_SIZE;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 
 import com.esaulpaugh.headlong.abi.TupleType;
 import io.cucumber.java.en.Given;
@@ -45,13 +44,15 @@ public class EquivalenceFeature extends AbstractFeature {
     @Given("I successfully create selfdestruct contract")
     public void createNewSelfDestructContract() {
         equivalenceDestructContract = getContract(EQUIVALENCE_DESTRUCT);
-        equivalenceDestructContractSolidityAddress = asHexAddress(equivalenceDestructContract.contractId());
+        equivalenceDestructContractSolidityAddress =
+                equivalenceDestructContract.contractId().toEvmAddress();
     }
 
     @Given("I successfully create equivalence call contract")
     public void createNewEquivalenceCallContract() {
         equivalenceCallContract = getContract(EQUIVALENCE_CALL);
-        equivalenceCallContractSolidityAddress = asHexAddress(equivalenceCallContract.contractId());
+        equivalenceCallContractSolidityAddress =
+                equivalenceCallContract.contractId().toEvmAddress();
     }
 
     @RetryAsserts

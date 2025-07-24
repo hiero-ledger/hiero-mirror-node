@@ -191,7 +191,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I create estimate precompile contract with 0 balance")
     public void createNewEstimateContract() throws IOException {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_PRECOMPILE);
-        estimatePrecompileContractSolidityAddress = asHexAddress(deployedEstimatePrecompileContract.contractId());
+        estimatePrecompileContractSolidityAddress =
+                deployedEstimatePrecompileContract.contractId().toEvmAddress();
         admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
         adminAddress = asAddress(admin);
         receiverAccount = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
@@ -216,7 +217,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I successfully create Precompile contract with 0 balance")
     public void createNewPrecompileTestContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileTestContractSolidityAddress = asHexAddress(deployedPrecompileContract.contractId());
+        precompileTestContractSolidityAddress =
+                deployedPrecompileContract.contractId().toEvmAddress();
     }
 
     @Given("I successfully create fungible tokens")

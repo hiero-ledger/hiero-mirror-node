@@ -16,7 +16,6 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.ERCContractFeature.Cont
 import static org.hiero.mirror.test.e2e.acceptance.steps.ERCContractFeature.ContractMethods.TOKEN_URI_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.ERCContractFeature.ContractMethods.TOTAL_SUPPLY_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.hedera.hashgraph.sdk.NftId;
@@ -208,7 +207,7 @@ public class ERCContractFeature extends AbstractFeature {
     @Given("I successfully create an erc contract from contract bytes with balance 0")
     public void createNewContract() {
         deployedErcContract = getContract(ERC);
-        ercTestContractSolidityAddress = asHexAddress(deployedErcContract.contractId());
+        ercTestContractSolidityAddress = deployedErcContract.contractId().toEvmAddress();
     }
 
     @Then("I create a new token with freeze status 2 and kyc status 1")
