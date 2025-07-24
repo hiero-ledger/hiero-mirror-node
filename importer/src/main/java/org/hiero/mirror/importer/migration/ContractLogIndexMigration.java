@@ -13,7 +13,6 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -32,22 +31,18 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
 
     private static final String CREATE_TEMPORARY_RECORD_FILE_TABLE =
             """
-                    begin;
                     create table if not exists processed_record_file_temp(
                         consensus_end bigint not null
                     );
-                    insert into processed_record_file_temp(consensus_end)
-                    select consensus_end
-                    from record_file
-                    order by consensus_end desc
-                    limit 1;
-                    commit;
             """;
 
-    private static final String SELECT_TEMPORARY_RECORD_FILE_TABLE =
+    private static final String SELECT_LAST_CONSENSUS_END_TIMESTAMP =
             """
-                    select consensus_end
-                    from processed_record_file_temp;
+                    select coalesce(
+                       (select consensus_end from processed_record_file_temp limit 1),
+                       (select consensus_end from record_file order by consensus_end desc limit 1),
+                       0
+                    );
             """;
 
     private static final String UPDATE_TEMPORARY_RECORD_FILE_TABLE =
@@ -118,12 +113,12 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
 
     @Override
     protected Long getInitial() {
-        if (!isMigrationTableExists()) {
-            log.info("Create and initialize table processed_record_file_temp");
-            jdbcTemplate.execute(CREATE_TEMPORARY_RECORD_FILE_TABLE);
-        }
+        log.info("Create table processed_record_file_temp if not exists.");
+        jdbcTemplate.execute(CREATE_TEMPORARY_RECORD_FILE_TABLE);
 
-        return getCurrentRecordFileEndTimestamp();
+        final var endTimestamp = jdbcTemplate.queryForObject(SELECT_LAST_CONSENSUS_END_TIMESTAMP, Long.class);
+        log.info("Starting migration with initial timestamp: {}.", endTimestamp);
+        return endTimestamp;
     }
 
     @Nonnull
@@ -190,24 +185,6 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
         return minTimestamp == null && maxTimestamp == null
                 ? Optional.empty()
                 : Optional.of(new RecordFileSlice(minTimestamp, maxTimestamp));
-    }
-
-    private boolean isMigrationTableExists() {
-        try {
-            jdbcTemplate.execute("select 'processed_record_file_temp'::regclass");
-            return true;
-        } catch (DataAccessException ex) {
-            return false;
-        }
-    }
-
-    private Long getCurrentRecordFileEndTimestamp() {
-        try {
-            return jdbcTemplate.queryForObject(SELECT_TEMPORARY_RECORD_FILE_TABLE, Long.class);
-        } catch (Exception e) {
-            // If the table is empty, there will be no record file, thus endTimestamp is null, return 0 instead.
-            return 0L;
-        }
     }
 
     record RecordFileSlice(long minConsensusTimestamp, long maxConsensusTimestamp) {}
