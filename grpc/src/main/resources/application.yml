@@ -86,11 +86,6 @@ spring:
       validation-timeout: 3000
   jpa:
     database: PostgreSQL
-    properties:
-      hibernate.criteria.literal_handling_mode: BIND # Ensure Criteria API queries use bind parameters and not literals
-      hibernate.generate_statistics: true
-      hibernate.hbm2ddl.auto: none
-      hibernate.type.json_format_mapper: org.hiero.mirror.common.converter.CustomJsonFormatMapper
   lifecycle:
     timeout-per-shutdown-phase: 40s
   redis:

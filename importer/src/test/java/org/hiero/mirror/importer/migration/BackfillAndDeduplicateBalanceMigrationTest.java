@@ -599,11 +599,6 @@ class BackfillAndDeduplicateBalanceMigrationTest
                 });
     }
 
-    @SneakyThrows
-    private void runMigration() {
-        migration.doMigrate();
-    }
-
     private void setSentinelTimestamp(long timestamp) {
         jdbcOperations.update(
                 "insert into account_balance_old (account_id, balance, consensus_timestamp) values (?, ?, ?)",

@@ -7,6 +7,10 @@ import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
 import java.util.Objects;
+import lombok.SneakyThrows;
+import org.flywaydb.core.api.callback.Event;
+import org.flywaydb.core.api.configuration.FluentConfiguration;
+import org.flywaydb.core.internal.callback.SimpleContext;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.AfterEach;
 
@@ -30,6 +34,13 @@ abstract class AbstractAsyncJavaMigrationTest<T extends AsyncJavaMigration<?>> e
     @AfterEach
     void resetChecksum() {
         jdbcOperations.update(RESET_CHECKSUM_SQL, getDescription());
+    }
+
+    @SneakyThrows
+    protected void runMigration() {
+        var migration = getMigration();
+        migration.doMigrate();
+        migration.handle(Event.AFTER_MIGRATE_OPERATION_FINISH, new SimpleContext(new FluentConfiguration()));
     }
 
     protected void waitForCompletion() {

@@ -36,6 +36,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.retry:spring-retry")
     implementation("org.springframework.cloud:spring-cloud-starter-bootstrap")
     implementation("org.springframework.cloud:spring-cloud-starter-kubernetes-fabric8-config")
     runtimeOnly("org.postgresql:postgresql")
@@ -74,9 +75,13 @@ sourceSets {
     test { solidity { version = latestSolidityVersion } }
 }
 
-tasks.bootRun { jvmArgs = listOf("--enable-preview") }
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.add("--enable-preview")
+    options.compilerArgs.add("-Xlint:-unchecked") // Web3j generates code with unchecked
+    options.compilerArgs.removeIf { it == "-Werror" }
+}
 
-tasks.withType<JavaCompile>().configureEach { options.compilerArgs.add("--enable-preview") }
+tasks.withType<JavaExec>().configureEach { jvmArgs = listOf("--enable-preview") }
 
 tasks.test { jvmArgs = listOf("--enable-preview") }
 
@@ -135,8 +140,6 @@ val moveTestHistoricalFiles =
         dependsOn(tasks.withType<GenerateContractWrappers>())
     }
 
-tasks.compileTestJava {
-    options.compilerArgs.add("-Xlint:-unchecked") // Web3j generates code with unchecked
-    options.compilerArgs.removeIf { it == "-Werror" }
-    dependsOn(moveTestHistoricalFiles)
-}
+tasks.compileTestJava { dependsOn(moveTestHistoricalFiles) }
+
+tasks.processResources { dependsOn(tasks.named("copyPackageJson")) }

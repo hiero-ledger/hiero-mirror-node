@@ -9,6 +9,9 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
+import org.flywaydb.core.api.callback.Event;
+import org.flywaydb.core.api.configuration.FluentConfiguration;
+import org.flywaydb.core.internal.callback.SimpleContext;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -36,6 +39,16 @@ class AsyncJavaMigrationTest extends AsyncJavaMigrationBaseTest {
         addMigrationHistory(new MigrationHistory(existing, ELAPSED, 1000, SCRIPT));
         var migration = new TestAsyncJavaMigration(false, new MigrationProperties(), 1);
         assertThat(migration.getChecksum()).isEqualTo(expected);
+    }
+
+    @Test
+    void getCallbackName() {
+        var expected =
+                asyncMigrations.stream().map(AsyncJavaMigration::getDescription).toList();
+        assertThat(asyncMigrations.stream()
+                        .map(AsyncJavaMigration::getCallbackName)
+                        .toList())
+                .containsExactlyElementsOf(expected);
     }
 
     @Test
@@ -85,6 +98,7 @@ class AsyncJavaMigrationTest extends AsyncJavaMigrationBaseTest {
 
     private void migrateSync(AsyncJavaMigration<?> migration) throws Exception {
         migration.doMigrate();
+        migration.handle(Event.AFTER_MIGRATE_OPERATION_FINISH, new SimpleContext(new FluentConfiguration()));
 
         while (!migration.isComplete()) {
             Uninterruptibles.sleepUninterruptibly(100L, TimeUnit.MILLISECONDS);
