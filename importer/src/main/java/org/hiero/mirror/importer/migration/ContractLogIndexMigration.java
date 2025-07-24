@@ -67,26 +67,37 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
 
     private static final String SELECT_RECORD_FILES_MAX_TIMESTAMP =
             """
-                        select consensus_end as max_consensus_timestamp
-                        from record_file
-                        where consensus_end > :consensusEndLowerBound
-                                and consensus_end <= :consensusEndUpperBound
-                        order by consensus_end desc limit 1;
+                    select consensus_end as max_consensus_timestamp
+                    from record_file
+                    where consensus_end > :consensusEndLowerBound
+                            and consensus_end <= :consensusEndUpperBound
+                    order by consensus_end desc limit 1;
             """;
     private static final String SELECT_CONTRACT_LOG_INDEXES =
             """
-                    select
-                        cl.consensus_timestamp,
-                        cl.index as old_contract_log_index,
-                        (row_number() over (
-                         partition by rf.consensus_end
-                         order by cl.consensus_timestamp asc, cl.index asc
-                    ) - 1) as new_calculated_index
-                    from contract_log cl
-                    join record_file rf on cl.consensus_timestamp >= rf.consensus_start
-                                      and cl.consensus_timestamp <= rf.consensus_end
-                    where cl.consensus_timestamp >= :consensusStart and cl.consensus_timestamp <= :lastConsensusEnd
-                    order by cl.consensus_timestamp desc, cl.index desc;
+                    with rf as (
+                        select consensus_start, consensus_end
+                        from record_file
+                        where consensus_end >= :consensusStart and consensus_end <= :lastConsensusEnd
+                        order by consensus_end
+                    ), updated_index as (
+                        select
+                            cl.contract_id,
+                            cl.consensus_timestamp,
+                            cl.index as old_contract_log_index,
+                            (row_number() over (
+                             partition by rf.consensus_end
+                             order by cl.consensus_timestamp asc, cl.index asc
+                        ) - 1) as new_calculated_index
+                        from contract_log cl
+                        join rf on cl.consensus_timestamp >= rf.consensus_start
+                                          and cl.consensus_timestamp <= rf.consensus_end
+                        where cl.consensus_timestamp >= :consensusStart and cl.consensus_timestamp <= :lastConsensusEnd
+                        order by cl.consensus_timestamp desc, cl.index desc
+                    )
+                    select *
+                    from updated_index
+                    where old_contract_log_index <> new_calculated_index;
             """;
 
     private static final String UPDATE_CONTRACT_LOG_INDEX =
@@ -151,9 +162,6 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
             final var consensusTimestamp = (long) contractLog.get("consensus_timestamp");
             final var index = (int) contractLog.get("old_contract_log_index");
             final var newIndex = (long) contractLog.get("new_calculated_index");
-            if (index == newIndex) {
-                continue;
-            }
             namedParameterJdbcTemplate.update(
                     UPDATE_CONTRACT_LOG_INDEX,
                     Map.of(
