@@ -32,6 +32,8 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @EnabledIfV1
 @RequiredArgsConstructor
@@ -64,7 +66,12 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
         // Create migration object for each test case due to the cached earliestTimestamp
         var mirrorProperties = new ImporterProperties();
         migration = new FixCryptoAllowanceAmountMigration(
-                dbProperties, entityProperties, mirrorProperties, ownerJdbcTemplate);
+                dbProperties, entityProperties, mirrorProperties, new ObjectProvider<JdbcTemplate>() {
+            @Override
+            public JdbcTemplate getObject() {
+                return ownerJdbcTemplate;
+            }
+        });
     }
 
     @Test
@@ -268,7 +275,12 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
         var entityProps = new EntityProperties(new SystemEntity(CommonProperties.getInstance()));
         entityProps.getPersist().setTrackAllowance(trackAllowance);
         var allowanceAmountMigration = new FixCryptoAllowanceAmountMigration(
-                dbProperties, entityProps, new ImporterProperties(), ownerJdbcTemplate);
+                dbProperties, entityProps, new ImporterProperties(), new ObjectProvider<JdbcTemplate>() {
+            @Override
+            public JdbcTemplate getObject() {
+                return ownerJdbcTemplate;
+            }
+        });
         var configuration = new FluentConfiguration().target(allowanceAmountMigration.getMinimumVersion());
 
         // when, then
