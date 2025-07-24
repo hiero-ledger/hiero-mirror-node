@@ -128,7 +128,6 @@ import com.hedera.hashgraph.sdk.TokenUpdateTransaction;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
-import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
@@ -189,7 +188,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     private String precompileTestContractSolidityAddress;
 
     @Given("I create estimate precompile contract with 0 balance")
-    public void createNewEstimateContract() throws IOException {
+    public void createNewEstimateContract() {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_PRECOMPILE);
         estimatePrecompileContractSolidityAddress =
                 deployedEstimatePrecompileContract.contractId().toEvmAddress();
