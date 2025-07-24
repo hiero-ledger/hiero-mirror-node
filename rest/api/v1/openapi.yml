@@ -2003,7 +2003,7 @@ components:
           example: contract memo
           type: string
         nonce:
-          description: The nonce of the wrapped ethereum transaction
+          description: The nonce of the contract
           nullable: true
           format: int64
           type: integer
