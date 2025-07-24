@@ -12,6 +12,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.migration.ContractLogIndexMigration.RecordFileSlice;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+@EnabledIfV1
 @RequiredArgsConstructor
 @Tag("migration")
 class ContractLogIndexMigrationTest extends AbstractAsyncJavaMigrationTest<ContractLogIndexMigration> {
