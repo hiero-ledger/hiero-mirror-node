@@ -4,6 +4,7 @@ package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.hiero.mirror.rest.model.ContractResponse;
 import org.hiero.mirror.rest.model.ContractResult;
@@ -11,6 +12,8 @@ import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
 
 public abstract class BaseContractFeature extends AbstractFeature {
     protected DeployedContract deployedParentContract;
+    private Long nonceVal = 0L;
+    private final List<String> childContracts = new ArrayList<>();
 
     protected ContractResponse verifyContractFromMirror(boolean isDeleted) {
         var mirrorContract =
@@ -30,6 +33,7 @@ public abstract class BaseContractFeature extends AbstractFeature {
         assertThat(mirrorContract.getTimestamp()).isNotNull();
         assertThat(mirrorContract.getTimestamp().getFrom()).isNotNull();
         assertThat(mirrorContract.getNonce()).isNotNull();
+        nonceVal = mirrorContract.getNonce();
 
         if (contractClient
                 .getSdkClient()
@@ -91,5 +95,24 @@ public abstract class BaseContractFeature extends AbstractFeature {
         assertThat(contractResult.getGasUsed()).isPositive();
         assertThat(contractResult.getTo())
                 .isEqualTo(FeatureInputHandler.evmAddress(deployedParentContract.contractId()));
+    }
+
+    protected void verifyNonceForParentContract() {
+        var mirrorContract = verifyContractFromMirror(false);
+        assertThat(mirrorContract.getNonce()).isEqualTo(nonceVal);
+    }
+
+    protected void verifyNonceForChildContracts() {
+        childContracts.stream().forEach(x -> {
+            var contractInfo = mirrorClient.getContractInfo(x);
+            assertThat(contractInfo).isNotNull();
+            assertThat(contractInfo.getNonce()).isNotNull();
+            assertThat(contractInfo.getNonce()).isEqualTo(1L);
+        });
+    }
+
+    protected void addChildContract(String childContract) {
+        nonceVal = nonceVal + 1;
+        childContracts.add(childContract);
     }
 }
