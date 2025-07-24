@@ -19,13 +19,10 @@ extra.apply {
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.73.0")
     set("jooq.version", "3.20.5") // Must match buildSrc/build.gradle.kts
-    set("prometheus-client.version", "1.3.10") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.17.1")
     set("protobufVersion", "4.31.1")
     set("reactorGrpcVersion", "1.2.4")
-    set("reactor-bom.version", "2024.0.8") // Temporary until next Spring Boot
-    set("tomcat.version", "10.1.43") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
 
