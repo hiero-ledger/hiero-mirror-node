@@ -8,7 +8,6 @@ import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.Getter;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
@@ -16,6 +15,7 @@ import org.hiero.mirror.importer.db.DBProperties;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionOperations;
 
@@ -61,19 +61,22 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                     drop table if exists processed_record_file_temp;
             """;
 
-    private static final String SELECT_RECORD_FILES_MIN_AND_MAX_TIMESTAMP =
+    private static final String SELECT_RECORD_FILES_MIN_TIMESTAMP =
             """
-                    select
-                        (select consensus_start
+                    select consensus_start as min_consensus_timestamp
+                    from record_file
+                    where consensus_end > :consensusEndLowerBound
+                            and consensus_end <= :consensusEndUpperBound
+                    order by consensus_end limit 1;
+            """;
+
+    private static final String SELECT_RECORD_FILES_MAX_TIMESTAMP =
+            """
+                        select consensus_end as max_consensus_timestamp
                         from record_file
                         where consensus_end > :consensusEndLowerBound
                                 and consensus_end <= :consensusEndUpperBound
-                        order by consensus_end limit 1) as min_consensus_timestamp,
-                        (select consensus_end
-                        from record_file
-                        where consensus_end > :consensusEndLowerBound
-                                and consensus_end <= :consensusEndUpperBound
-                        order by consensus_end desc limit 1) as max_consensus_timestamp;
+                        order by consensus_end desc limit 1;
             """;
     private static final String SELECT_CONTRACT_LOG_INDEXES =
             """
@@ -153,6 +156,9 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
             final var consensusTimestamp = (long) contractLog.get("consensus_timestamp");
             final var index = (int) contractLog.get("old_contract_log_index");
             final var newIndex = (long) contractLog.get("new_calculated_index");
+            if (index == newIndex) {
+                continue;
+            }
             namedParameterJdbcTemplate.update(
                     UPDATE_CONTRACT_LOG_INDEX,
                     Map.of(
@@ -175,18 +181,15 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
 
     @VisibleForTesting
     Optional<RecordFileSlice> getRecordFilesMinAndMaxTimestamp(final Long lastConsensusEnd) {
-        var params = Map.of(
-                "consensusEndUpperBound", lastConsensusEnd, "consensusEndLowerBound", lastConsensusEnd - INTERVAL);
-        final var minTimestamp = new AtomicLong();
-        final var maxTimestamp = new AtomicLong();
-        namedParameterJdbcTemplate.query(SELECT_RECORD_FILES_MIN_AND_MAX_TIMESTAMP, params, rs -> {
-            minTimestamp.set(rs.getLong("min_consensus_timestamp"));
-            maxTimestamp.set(rs.getLong("max_consensus_timestamp"));
-        });
+        var params = new MapSqlParameterSource()
+                .addValue("consensusEndUpperBound", lastConsensusEnd)
+                .addValue("consensusEndLowerBound", lastConsensusEnd - INTERVAL);
+        var minTimestamp = queryForObjectOrNull(SELECT_RECORD_FILES_MIN_TIMESTAMP, params, Long.class);
+        var maxTimestamp = queryForObjectOrNull(SELECT_RECORD_FILES_MAX_TIMESTAMP, params, Long.class);
 
-        return (minTimestamp.get() == 0L && maxTimestamp.get() == 0)
+        return minTimestamp == null && maxTimestamp == null
                 ? Optional.empty()
-                : Optional.of(new RecordFileSlice(minTimestamp.get(), maxTimestamp.get()));
+                : Optional.of(new RecordFileSlice(minTimestamp, maxTimestamp));
     }
 
     private boolean isMigrationTableExists() {
