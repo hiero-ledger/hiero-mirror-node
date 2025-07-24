@@ -205,8 +205,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I create erc test contract with 0 balance")
     public void createNewERCContract() {
         deployedErcTestContract = getContract(ERC);
-        ercTestContractSolidityAddress =
-                asAddress(deployedErcTestContract.contractId()).toString();
+        ercTestContractSolidityAddress = deployedErcTestContract.contractId().toEvmAddress();
     }
 
     @Given("I get exchange rates")

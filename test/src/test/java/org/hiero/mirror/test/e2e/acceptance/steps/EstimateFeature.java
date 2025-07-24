@@ -132,7 +132,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Given("I successfully create ERC contract from contract bytes")
     public void createNewERCContract() {
         deployedERCContract = getContract(ERC);
-        ercSolidityAddress = asAddress(deployedERCContract.contractId()).toString();
+        ercSolidityAddress = deployedERCContract.contractId().toEvmAddress();
     }
 
     @Then("the mirror node REST API should return status {int} for the estimate contract creation")

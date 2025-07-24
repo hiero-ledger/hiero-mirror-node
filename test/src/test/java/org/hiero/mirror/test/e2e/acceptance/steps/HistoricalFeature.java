@@ -116,7 +116,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     public void createNewPrecompileContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
         precompileContractSolidityAddress =
-                asAddress(deployedPrecompileContract.contractId()).toString();
+                deployedPrecompileContract.contractId().toEvmAddress();
     }
 
     @Given("I create admin and receiver accounts")

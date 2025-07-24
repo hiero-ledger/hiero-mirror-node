@@ -79,27 +79,27 @@ public class TestUtil {
         return toAddressFromHex(address);
     }
 
-    public static Address asAddress(ExpandedAccountId accountId) {
+    public static Address asAddress(final ExpandedAccountId accountId) {
         return toAddressFromHex(accountId.getAccountId().toEvmAddress());
     }
 
-    public static Address asAddress(TokenId tokenId) {
+    public static Address asAddress(final TokenId tokenId) {
         return toAddressFromHex(tokenId.toEvmAddress());
     }
 
-    public static Address asAddress(ContractId contractId) {
+    public static Address asAddress(final ContractId contractId) {
         return toAddressFromHex(contractId.toEvmAddress());
     }
 
-    public static Address asAddress(AccountId accountId) {
+    public static Address asAddress(final AccountId accountId) {
         return toAddressFromHex(accountId.toEvmAddress());
     }
 
-    public static Address asAddress(ContractClient contractClient) {
+    public static Address asAddress(final ContractClient contractClient) {
         return toAddressFromHex(contractClient.getClientAddress());
     }
 
-    public static Address asAddress(TokenClient tokenClient) {
+    public static Address asAddress(final TokenClient tokenClient) {
         return toAddressFromHex(tokenClient
                 .getSdkClient()
                 .getExpandedOperatorAccountId()
@@ -223,7 +223,7 @@ public class TestUtil {
         return Instant.ofEpochSecond(seconds, nanos);
     }
 
-    private static Address toAddressFromHex(String hex) {
+    private static Address toAddressFromHex(final String hex) {
         final var normalized = hex.startsWith("0x") ? hex : "0x" + hex;
         final var addressBytes = Bytes.fromHexString(normalized);
         final var addressAsInteger = addressBytes.toUnsignedBigInteger();
