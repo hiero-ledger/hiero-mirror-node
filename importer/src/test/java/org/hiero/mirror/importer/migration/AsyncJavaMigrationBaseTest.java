@@ -14,7 +14,9 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.DataClassRowMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionOperations;
@@ -33,6 +35,9 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
 
     @Resource
     protected NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+
+    @Resource
+    protected ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
 
     @Resource
     protected TransactionOperations transactionOperations;
@@ -84,7 +89,7 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
         public TestAsyncJavaMigration(boolean error, MigrationProperties migrationProperties, long sleep) {
             super(
                     Map.of("testAsyncJavaMigration", migrationProperties),
-                    AsyncJavaMigrationBaseTest.this.namedParameterJdbcTemplate,
+                    AsyncJavaMigrationBaseTest.this.jdbcTemplateProvider,
                     dbProperties.getSchema());
             this.error = error;
             this.sleep = sleep;
