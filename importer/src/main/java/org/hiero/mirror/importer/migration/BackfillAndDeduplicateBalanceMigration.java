@@ -16,13 +16,12 @@ import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.db.TimePartitionService;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.convert.DurationStyle;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.EmptySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -128,9 +127,7 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
     private static final String SELECT_LAST_CONSENSUS_TIMESTAMP_SQL =
             "select balance from account_balance_old where consensus_timestamp = -1 and account_id = -1";
 
-    private final JdbcTemplate jdbcTemplate;
-
-    private final TimePartitionService timePartitionService;
+    private final ObjectProvider<TimePartitionService> timePartitionServiceProvider;
 
     @Getter(lazy = true)
     private final TransactionOperations transactionOperations = transactionOperations();
@@ -138,18 +135,16 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
     private Long lastConsensusTimestamp;
     private long minFrequency;
 
-    @Lazy
     public BackfillAndDeduplicateBalanceMigration(
             DBProperties dbProperties,
             ImporterProperties importerProperties,
-            @Owner JdbcTemplate jdbcTemplate,
-            TimePartitionService timePartitionService) {
+            @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
+            ObjectProvider<TimePartitionService> timePartitionServiceProvider) {
         super(
                 importerProperties.getMigration(),
-                new NamedParameterJdbcTemplate(jdbcTemplate),
+                jdbcTemplateProvider,
                 dbProperties.getSchema());
-        this.jdbcTemplate = jdbcTemplate;
-        this.timePartitionService = timePartitionService;
+        this.timePartitionServiceProvider = timePartitionServiceProvider;
     }
 
     @Override
@@ -171,7 +166,7 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
             return NO_BALANCE;
         }
 
-        return jdbcTemplate.queryForObject(SELECT_INITIAL_CONSENSUS_TIMESTAMP_SQL, Long.class, lastConsensusTimestamp);
+        return getJdbcTemplate().queryForObject(SELECT_INITIAL_CONSENSUS_TIMESTAMP_SQL, Long.class, lastConsensusTimestamp);
     }
 
     @Override
@@ -183,17 +178,17 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
     @Override
     protected Optional<Long> migratePartial(Long last) {
         var stopwatch = Stopwatch.createStarted();
-        jdbcTemplate.execute("set local work_mem = '512MB'"); // Use higher work_mem to avoid temp files
+        getJdbcTemplate().execute("set local work_mem = '512MB'"); // Use higher work_mem to avoid temp files
 
         var timestamp = getBalanceTimestamp(last);
         if (timestamp == null) {
             patchSnapshotAtLastConsensusTimestamp(last);
-            jdbcTemplate.execute(CLEANUP_SQL);
+            getJdbcTemplate().execute(CLEANUP_SQL);
             return Optional.empty();
         }
 
         var partitions =
-                timePartitionService.getOverlappingTimePartitions(ACCOUNT_BALANCE_TABLE_NAME, timestamp, timestamp);
+                timePartitionServiceProvider.getObject().getOverlappingTimePartitions(ACCOUNT_BALANCE_TABLE_NAME, timestamp, timestamp);
         if (partitions.isEmpty()) {
             throw new InvalidDatasetException(
                     String.format("No account_balance table partition found for timestamp %d", timestamp));
@@ -203,7 +198,7 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
         var params = new MapSqlParameterSource()
                 .addValue("lowerBound", partitionRange.lowerEndpoint())
                 .addValue("upperBound", Math.min(partitionRange.upperEndpoint(), lastConsensusTimestamp));
-        var isPartitionEmpty = namedParameterJdbcTemplate.queryForObject(
+        var isPartitionEmpty = getNamedParameterJdbcTemplate().queryForObject(
                 IS_ACCOUNT_BALANCE_PARTITION_EMPTY_SQL, params, Boolean.class);
         var createAccountBalanceSnapshotSql = Boolean.TRUE.equals(isPartitionEmpty)
                 ? CREATE_FULL_ACCOUNT_BALANCE_SNAPSHOT_SQL
@@ -216,9 +211,9 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
                 .addValue("balanceTimestamp", timestamp)
                 .addValue("prevBalanceTimestamp", last);
         var accountBalanceCount =
-                namedParameterJdbcTemplate.queryForObject(createAccountBalanceSnapshotSql, params, Integer.class);
+                getNamedParameterJdbcTemplate().queryForObject(createAccountBalanceSnapshotSql, params, Integer.class);
         var tokenBalanceCount =
-                namedParameterJdbcTemplate.queryForObject(createTokenBalanceSnapshotSql, params, Integer.class);
+                getNamedParameterJdbcTemplate().queryForObject(createTokenBalanceSnapshotSql, params, Integer.class);
 
         log.info(
                 "Created a new {} snapshot with {} account balances and {} token balances at timestamp {} in {}",
@@ -253,9 +248,9 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
                 .addValue("balanceTimestamp", lastConsensusTimestamp)
                 .addValue("prevBalanceTimestamp", lastProcessedTimestamp);
         int accountBalanceCount =
-                namedParameterJdbcTemplate.update(PATCH_ORIGINAL_FIRST_ACCOUNT_BALANCE_SNAPSHOT_SQL, params);
+                getNamedParameterJdbcTemplate().update(PATCH_ORIGINAL_FIRST_ACCOUNT_BALANCE_SNAPSHOT_SQL, params);
         int tokenBalanceCount =
-                namedParameterJdbcTemplate.update(PATCH_ORIGINAL_FIRST_TOKEN_BALANCE_SNAPSHOT_SQL, params);
+                getNamedParameterJdbcTemplate().update(PATCH_ORIGINAL_FIRST_TOKEN_BALANCE_SNAPSHOT_SQL, params);
         log.info(
                 "Patched the original first balance snapshot with {} account balances and {} token balances in {}",
                 accountBalanceCount,
@@ -264,7 +259,7 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
     }
 
     private TransactionOperations transactionOperations() {
-        var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(jdbcTemplate.getDataSource()));
+        var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(getJdbcTemplate().getDataSource()));
         return new TransactionTemplate(transactionManager);
     }
 }
