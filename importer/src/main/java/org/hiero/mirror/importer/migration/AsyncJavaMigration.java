@@ -12,7 +12,9 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.lang3.BooleanUtils;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
@@ -60,17 +62,29 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
             where f.installed_rank = last.installed_rank
             """;
 
-    protected final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
+    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final String schema;
     private final AtomicBoolean complete = new AtomicBoolean(false);
 
     protected AsyncJavaMigration(
             Map<String, MigrationProperties> migrationPropertiesMap,
-            NamedParameterJdbcTemplate namedParameterJdbcTemplate,
+            ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
             String schema) {
         super(migrationPropertiesMap);
-        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+        this.jdbcTemplateProvider = jdbcTemplateProvider;
         this.schema = schema;
+    }
+
+    protected final JdbcTemplate getJdbcTemplate() {
+        return jdbcTemplateProvider.getObject();
+    }
+
+    protected final NamedParameterJdbcTemplate getNamedParameterJdbcTemplate() {
+        if (namedParameterJdbcTemplate == null) {
+            namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(getJdbcTemplate());
+        }
+        return namedParameterJdbcTemplate;
     }
 
     /**
@@ -126,7 +140,7 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
 
     public <O> O queryForObjectOrNull(String sql, SqlParameterSource paramSource, Class<O> requiredType) {
         try {
-            return namedParameterJdbcTemplate.queryForObject(sql, paramSource, requiredType);
+            return getNamedParameterJdbcTemplate().queryForObject(sql, paramSource, requiredType);
         } catch (EmptyResultDataAccessException ex) {
             return null;
         }
@@ -201,13 +215,13 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
     }
 
     private boolean hasFlywaySchemaHistoryTable() {
-        var exists = namedParameterJdbcTemplate.queryForObject(
+        var exists = getNamedParameterJdbcTemplate().queryForObject(
                 CHECK_FLYWAY_SCHEMA_HISTORY_EXISTENCE_SQL, Map.of("schema", schema), Boolean.class);
         return BooleanUtils.isTrue(exists);
     }
 
     private boolean isAsyncJavaMigrationHistoryFixed() {
-        var fixed = namedParameterJdbcTemplate
+        var fixed = getNamedParameterJdbcTemplate()
                 .getJdbcTemplate()
                 .queryForObject(ASYNC_JAVA_MIGRATION_HISTORY_FIXED, Boolean.class);
         return BooleanUtils.isTrue(fixed);
@@ -215,7 +229,7 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
 
     private void onSuccess() {
         var paramSource = getSqlParamSource().addValue("checksum", getSuccessChecksum());
-        namedParameterJdbcTemplate.update(UPDATE_CHECKSUM_SQL, paramSource);
+        getNamedParameterJdbcTemplate().update(UPDATE_CHECKSUM_SQL, paramSource);
     }
 
     @VisibleForTesting
