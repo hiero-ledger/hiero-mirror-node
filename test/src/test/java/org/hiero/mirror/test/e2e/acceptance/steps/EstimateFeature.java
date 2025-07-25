@@ -480,7 +480,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 ERC,
                 IERC20_TOKEN_TRANSFER,
                 fungibleTokenAddress,
-                asAddress(accountInfo.getEvmAddress().replace("0x", "")),
+                asAddress(accountInfo.getEvmAddress().replace(HEX_PREFIX, "")),
                 BigInteger.ONE);
         validateGasEstimation(data, IERC20_TOKEN_TRANSFER, ercSolidityAddress);
     }
@@ -492,7 +492,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 ERC,
                 IERC20_TOKEN_APPROVE,
                 fungibleTokenAddress,
-                asAddress(accountInfo.getEvmAddress().replace("0x", "")),
+                asAddress(accountInfo.getEvmAddress().replace(HEX_PREFIX, "")),
                 BigInteger.ONE);
         validateGasEstimation(data, IERC20_TOKEN_APPROVE, ercSolidityAddress);
     }
@@ -800,7 +800,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         try (var in = resource.getInputStream()) {
             CompiledSolidityArtifact compiledSolidityArtifact = readCompiledArtifact(in);
             var fileId =
-                    persistContractBytes(compiledSolidityArtifact.getBytecode().replaceFirst("0x", ""));
+                    persistContractBytes(compiledSolidityArtifact.getBytecode().replaceFirst(HEX_PREFIX, ""));
             try {
                 networkTransactionResponse = contractClient.createContract(fileId, gas, Hbar.fromTinybars(0), null);
                 return networkTransactionResponse.getTransactionIdStringNoCheckSum();

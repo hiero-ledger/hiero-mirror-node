@@ -32,6 +32,7 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeatu
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.GET_TOKEN_DEFAULT_KYC_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.IS_KYC_GRANTED_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.IS_TOKEN_FROZEN_SELECTOR;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
 
 import com.esaulpaugh.headlong.abi.Address;
@@ -74,7 +75,6 @@ import org.hiero.mirror.test.e2e.acceptance.util.ContractCallResponseWrapper;
 @RequiredArgsConstructor
 public class HistoricalFeature extends AbstractEstimateFeature {
     private static final long CUSTOM_FIXED_FEE_AMOUNT = 10L;
-    private static final String RESPONSE_PREFIX = "0x";
 
     private final AccountClient accountClient;
     private final TokenClient tokenClient;
@@ -956,7 +956,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     // updated and the environment is clear
     private String trimTotalSupplyForGetTokenInfo(String response) {
         var responseWithoutPrefix = "";
-        if (response.startsWith(RESPONSE_PREFIX)) {
+        if (response.startsWith(HEX_PREFIX)) {
             responseWithoutPrefix = response.substring(2);
         }
         // TotalSupply value is located between 128 and 192 indexes
@@ -977,7 +977,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     // updated and the environment is clear
     private String trimTotalSupplyForFungibleTokenInfo(String response) {
         var responseWithoutPrefix = "";
-        if (response.startsWith(RESPONSE_PREFIX)) {
+        if (response.startsWith(HEX_PREFIX)) {
             responseWithoutPrefix = response.substring(2);
         }
         // TotalSupply value is located between 258 and 322 indexes

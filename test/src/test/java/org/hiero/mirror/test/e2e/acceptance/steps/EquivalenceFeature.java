@@ -12,6 +12,7 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.EquivalenceFeature.Cont
 import static org.hiero.mirror.test.e2e.acceptance.steps.EquivalenceFeature.ContractMethods.GET_BALANCE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EquivalenceFeature.ContractMethods.GET_CODE_HASH;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EquivalenceFeature.ContractMethods.GET_CODE_SIZE;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
 
 import com.esaulpaugh.headlong.abi.TupleType;
@@ -93,7 +94,7 @@ public class EquivalenceFeature extends AbstractFeature {
         if (num < 751) {
             condition = message.startsWith(BAD_REQUEST) || message.equals(INVALID_SOLIDITY_ADDRESS_EXCEPTION);
         } else {
-            condition = functionResult.getResult().equals("0x") || message.equals(TRANSACTION_SUCCESSFUL_MESSAGE);
+            condition = functionResult.getResult().equals(HEX_PREFIX) || message.equals(TRANSACTION_SUCCESSFUL_MESSAGE);
         }
         assertThat(condition).as("Unexpected error '%s'", message).isTrue();
     }

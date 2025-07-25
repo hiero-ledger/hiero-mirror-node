@@ -4,6 +4,7 @@ package org.hiero.mirror.test.e2e.acceptance.client;
 
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties.HederaNetwork.OTHER;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 
 import com.google.common.base.Stopwatch;
 import com.google.protobuf.ByteString;
@@ -309,7 +310,7 @@ public class SDKClient implements Cleanable {
                             .setShardNum(accountId.shard)
                             .setRealmNum(accountId.realm)
                             .setAccountNum(accountId.num))
-                    .setNodeCertHash(ByteString.copyFromUtf8(Strings.CS.remove(node.getNodeCertHash(), "0x")))
+                    .setNodeCertHash(ByteString.copyFromUtf8(Strings.CS.remove(node.getNodeCertHash(), HEX_PREFIX)))
                     .setRSAPubKey(node.getPublicKey())
                     .setNodeId(node.getNodeId());
 

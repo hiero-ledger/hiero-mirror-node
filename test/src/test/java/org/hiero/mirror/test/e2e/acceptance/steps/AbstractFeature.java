@@ -3,6 +3,7 @@
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.getAbiFunctionAsJsonString;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -106,7 +107,7 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
             try (var in = resource.getInputStream()) {
                 CompiledSolidityArtifact compiledSolidityArtifact = readCompiledArtifact(in);
                 var fileId = persistContractBytes(
-                        compiledSolidityArtifact.getBytecode().replaceFirst("0x", ""));
+                        compiledSolidityArtifact.getBytecode().replaceFirst(HEX_PREFIX, ""));
                 networkTransactionResponse = contractClient.createContract(
                         fileId,
                         contractClient

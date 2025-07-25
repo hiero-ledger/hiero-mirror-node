@@ -26,6 +26,7 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeatu
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.OWNER_OF_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.SYMBOL_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.TOTAL_SUPPLY_SELECTOR;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.ZERO_ADDRESS;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.getAbiFunctionAsJsonString;
@@ -201,8 +202,8 @@ public class PrecompileContractFeature extends AbstractFeature {
         var response = mirrorClient.getContractInfo(precompileTestContractSolidityAddress);
         assertThat(response.getBytecode()).isNotBlank();
         assertThat(response.getRuntimeBytecode()).isNotBlank();
-        assertThat(response.getRuntimeBytecode()).isNotEqualTo("0x");
-        assertThat(response.getBytecode()).isNotEqualTo("0x");
+        assertThat(response.getRuntimeBytecode()).isNotEqualTo(HEX_PREFIX);
+        assertThat(response.getBytecode()).isNotEqualTo(HEX_PREFIX);
     }
 
     @RetryAsserts
@@ -692,7 +693,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat((long) fractionalFee.get(3)).isEqualTo(MAX_FEE_AMOUNT);
         assertFalse((boolean) fractionalFee.get(4));
         assertThat(fractionalFee.get(5).toString().toLowerCase())
-                .isEqualTo("0x" + contractClient.getClientAddress().toLowerCase());
+                .isEqualTo(HEX_PREFIX + contractClient.getClientAddress().toLowerCase());
     }
 
     // ETHCALL-033
@@ -708,7 +709,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat((long) royaltyFee.get(0)).isEqualTo(NUMERATOR_VALUE);
         assertThat((long) royaltyFee.get(1)).isEqualTo(DENOMINATOR_VALUE);
         assertThat(royaltyFee.get(5).toString().toLowerCase())
-                .isEqualTo("0x"
+                .isEqualTo(HEX_PREFIX
                         + tokenClient
                                 .getSdkClient()
                                 .getExpandedOperatorAccountId()
@@ -730,7 +731,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat(royaltyFee.get(3).toString()).hasToString(fungibleTokenCustomFeeAddress.toString());
         assertFalse((boolean) royaltyFee.get(4));
         assertThat(royaltyFee.get(5).toString().toLowerCase())
-                .hasToString("0x"
+                .hasToString(HEX_PREFIX
                         + tokenClient
                                 .getSdkClient()
                                 .getExpandedOperatorAccountId()
@@ -768,7 +769,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         assertThat(fixedFee.get(1).toString()).hasToString(fungibleTokenCustomFeeAddress.toString());
         assertFalse((boolean) fixedFee.get(2));
         assertFalse((boolean) fixedFee.get(3));
-        contractClient.validateAddress(fixedFee.get(4).toString().toLowerCase().replace("0x", ""));
+        contractClient.validateAddress(fixedFee.get(4).toString().toLowerCase().replace(HEX_PREFIX, ""));
     }
 
     private Tuple baseGetInformationForTokenChecks(ContractCallResponseWrapper response) throws Exception {
@@ -806,7 +807,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         try (var in = getResourceAsStream(PRECOMPILE.getPath())) {
             var abiFunctionAsJsonString = getAbiFunctionAsJsonString(readCompiledArtifact(in), functionName);
             return Function.fromJson(abiFunctionAsJsonString)
-                    .decodeReturn(FastHex.decode(response.getResult().replace("0x", "")));
+                    .decodeReturn(FastHex.decode(response.getResult().replace(HEX_PREFIX, "")));
         } catch (Exception e) {
             throw new Exception("Function not found in abi.");
         }
