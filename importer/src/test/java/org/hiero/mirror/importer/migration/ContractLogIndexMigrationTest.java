@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.migration.ContractLogIndexMigration.INTERVAL;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import lombok.Getter;
@@ -13,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.EnabledIfV1;
-import org.hiero.mirror.importer.migration.ContractLogIndexMigration.RecordFileSlice;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -37,18 +35,17 @@ class ContractLogIndexMigrationTest extends AbstractAsyncJavaMigrationTest<Contr
     }
 
     @Test
-    void migrationOnEmptyDB() throws IOException {
+    void migrationOnEmptyDB() {
         // given, when
-        migration.doMigrate();
+        migration.migrateAsync();
 
         // then
-        waitForCompletion();
         assertThat(recordFileRepository.findAll()).isEmpty();
         assertThat(contractLogRepository.findAll()).isEmpty();
     }
 
     @Test
-    void migrateSuccessful() throws IOException {
+    void migrateSuccessful() {
         // given
         // Persist record files
         final var recordFiles = new ArrayList<RecordFile>();
@@ -82,8 +79,7 @@ class ContractLogIndexMigrationTest extends AbstractAsyncJavaMigrationTest<Contr
                 contractLogPersist(0, recordFiles.get(3).getConsensusEnd());
 
         // when
-        migration.doMigrate();
-        waitForCompletion();
+        migration.migrateAsync();
 
         // then
         assertThat(findIndex(contractLogFirstRecordFile0.getConsensusTimestamp()))
@@ -110,35 +106,6 @@ class ContractLogIndexMigrationTest extends AbstractAsyncJavaMigrationTest<Contr
         assertThat(findIndexForData(
                         contractLogFourthRecordFile1.getConsensusTimestamp(), contractLogFourthRecordFile1.getData()))
                 .isEqualTo(2);
-    }
-
-    @Test
-    void testRecordFileSlicing() {
-        // Given
-        // Persist 1 record file before the interval
-        final var timestamp = domainBuilder.timestamp();
-        recordFilePersistAtIndexAndTimestamp(0L, timestamp);
-
-        // Persist 2 record files in the same interval.
-        final var timestampSecondRecordFile = timestamp + INTERVAL / 2;
-        final var secondRecordFile = recordFilePersistAtIndexAndTimestamp(1L, timestampSecondRecordFile);
-
-        final var timestampThirdRecordFile = timestamp + INTERVAL;
-        final var thirdRecordFile = recordFilePersistAtIndexAndTimestamp(2L, timestampThirdRecordFile);
-
-        // Persist 1 record file after the interval
-        final var timestampFourthRecordFile = timestamp + INTERVAL + 1;
-        recordFilePersistAtIndexAndTimestamp(3L, timestampFourthRecordFile);
-
-        // When
-        final var slicedRecordFiles = migration.getRecordFilesMinAndMaxTimestamp(timestampThirdRecordFile);
-
-        // Then
-        assertThat(slicedRecordFiles)
-                .isNotEmpty()
-                .get()
-                .isEqualTo(
-                        new RecordFileSlice(secondRecordFile.getConsensusStart(), thirdRecordFile.getConsensusEnd()));
     }
 
     private RecordFile recordFilePersistAtIndexAndTimestamp(final long index, final long consensusEndTimestamp) {

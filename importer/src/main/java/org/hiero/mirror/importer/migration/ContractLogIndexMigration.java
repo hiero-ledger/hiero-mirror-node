@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.migration;
 
-import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.time.Duration;
@@ -13,7 +12,9 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionOperations;
@@ -21,13 +22,13 @@ import org.springframework.transaction.support.TransactionOperations;
 @Named
 public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
 
-    // 30-day intervals of data to take advantage of the monthly partitioning of record_file and contract_log tables.
-    static final long INTERVAL = Duration.ofDays(30).toNanos();
-
     @Getter
     private final TransactionOperations transactionOperations;
 
     private final JdbcTemplate jdbcTemplate;
+
+    static final long INTERVAL = Duration.ofHours(1).toNanos();
+    private static final RowMapper<RecordFileSlice> ROW_MAPPER = new DataClassRowMapper<>(RecordFileSlice.class);
 
     private static final String CREATE_TEMPORARY_RECORD_FILE_TABLE =
             """
@@ -56,23 +57,22 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                     drop table if exists processed_record_file_temp;
             """;
 
-    private static final String SELECT_RECORD_FILES_MIN_TIMESTAMP =
+    private static final String SELECT_RECORD_FILES_MIN_AND_MAX_TIMESTAMP =
             """
-                    select consensus_start as min_consensus_timestamp
+                    select consensus_start as min_consensus_timestamp, max_consensus_timestamp
                     from record_file
-                    where consensus_end > :consensusEndLowerBound
-                            and consensus_end <= :consensusEndUpperBound
-                    order by consensus_end limit 1;
+                    join (
+                      select rf.consensus_end
+                      from record_file as rf
+                      where rf.consensus_end > :consensusEndLowerBound and rf.consensus_end <= :consensusEndUpperBound
+                      order by rf.consensus_end desc
+                      limit 1
+                    ) as t(max_consensus_timestamp) on true
+                    where consensus_end > :consensusEndLowerBound and consensus_end <= :consensusEndUpperBound
+                    order by consensus_end
+                    limit 1;
             """;
 
-    private static final String SELECT_RECORD_FILES_MAX_TIMESTAMP =
-            """
-                    select consensus_end as max_consensus_timestamp
-                    from record_file
-                    where consensus_end > :consensusEndLowerBound
-                            and consensus_end <= :consensusEndUpperBound
-                    order by consensus_end desc limit 1;
-            """;
     private static final String SELECT_CONTRACT_LOG_INDEXES =
             """
                     with rf as (
@@ -136,8 +136,12 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
     @Override
     protected Optional<Long> migratePartial(Long lastConsensusEnd) {
         // Get record files for an interval of time.
-        final var recordFileSlice = getRecordFilesMinAndMaxTimestamp(lastConsensusEnd);
-        if (recordFileSlice.isEmpty()) {
+        var recordFileSliceParams = new MapSqlParameterSource()
+                .addValue("consensusEndUpperBound", lastConsensusEnd)
+                .addValue("consensusEndLowerBound", lastConsensusEnd - INTERVAL);
+        final var recordFileSlice =
+                queryForObjectOrNull(SELECT_RECORD_FILES_MIN_AND_MAX_TIMESTAMP, recordFileSliceParams, ROW_MAPPER);
+        if (recordFileSlice == null) {
             log.info(
                     "No more record files remaining to process. Last consensus end timestamp: {}. Dropping temporary table processed_record_file_temp.",
                     lastConsensusEnd);
@@ -146,9 +150,8 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
         }
 
         // The record file slice contains only one element.
-        final var recordFileSliceObject = recordFileSlice.get();
-        final long startConsensusTimestamp = recordFileSliceObject.minConsensusTimestamp();
-        final long endConsensusTimestamp = recordFileSliceObject.maxConsensusTimestamp();
+        final long startConsensusTimestamp = recordFileSlice.minConsensusTimestamp();
+        final long endConsensusTimestamp = recordFileSlice.maxConsensusTimestamp();
         final var params = Map.of(
                 "lastConsensusEnd", endConsensusTimestamp,
                 "consensusStart", startConsensusTimestamp);
@@ -180,19 +183,6 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
     @Override
     public String getDescription() {
         return "Recalculate contract log indexes on block level.";
-    }
-
-    @VisibleForTesting
-    Optional<RecordFileSlice> getRecordFilesMinAndMaxTimestamp(final Long lastConsensusEnd) {
-        var params = new MapSqlParameterSource()
-                .addValue("consensusEndUpperBound", lastConsensusEnd)
-                .addValue("consensusEndLowerBound", lastConsensusEnd - INTERVAL);
-        var minTimestamp = queryForObjectOrNull(SELECT_RECORD_FILES_MIN_TIMESTAMP, params, Long.class);
-        var maxTimestamp = queryForObjectOrNull(SELECT_RECORD_FILES_MAX_TIMESTAMP, params, Long.class);
-
-        return minTimestamp == null && maxTimestamp == null
-                ? Optional.empty()
-                : Optional.of(new RecordFileSlice(minTimestamp, maxTimestamp));
     }
 
     record RecordFileSlice(long minConsensusTimestamp, long maxConsensusTimestamp) {}
