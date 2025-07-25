@@ -4,6 +4,7 @@ package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 
 import java.util.List;
 import java.util.Optional;
@@ -175,7 +176,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
         int total = BASE_GAS_FEE;
         byte[] values;
         if (data instanceof String) {
-            values = Hex.decodeHex(((String) data).replaceFirst("0x", ""));
+            values = Hex.decodeHex(((String) data).replaceFirst(HEX_PREFIX, ""));
             total += ADDITIONAL_FEE_FOR_CREATE;
         } else if (data instanceof byte[]) {
             values = (byte[]) data;

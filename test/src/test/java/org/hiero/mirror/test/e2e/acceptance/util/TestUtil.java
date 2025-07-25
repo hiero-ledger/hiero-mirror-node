@@ -40,6 +40,7 @@ import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 
 @UtilityClass
 public class TestUtil {
+    public static final String HEX_PREFIX = "0x";
     public static final String ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
     private static final BaseEncoding BASE32_ENCODER = BaseEncoding.base32().omitPadding();
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -63,7 +64,7 @@ public class TestUtil {
     }
 
     public static String to32BytesString(String data) {
-        return StringUtils.leftPad(data.replace("0x", ""), 64, '0');
+        return StringUtils.leftPad(data.replace(HEX_PREFIX, ""), 64, '0');
     }
 
     public static String hexToAscii(String hexStr) {
@@ -224,7 +225,7 @@ public class TestUtil {
     }
 
     private static Address toAddressFromHex(final String hex) {
-        final var normalized = hex.startsWith("0x") ? hex : "0x" + hex;
+        final var normalized = hex.startsWith(HEX_PREFIX) ? hex : HEX_PREFIX + hex;
         final var addressBytes = Bytes.fromHexString(normalized);
         final var addressAsInteger = addressBytes.toUnsignedBigInteger();
         return Address.wrap(Address.toChecksumAddress(addressAsInteger));

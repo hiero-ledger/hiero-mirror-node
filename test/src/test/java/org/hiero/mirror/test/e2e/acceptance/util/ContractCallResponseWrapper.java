@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.test.e2e.acceptance.util;
 
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.hexToAscii;
 
 import com.google.common.base.Splitter;
@@ -33,7 +34,7 @@ public class ContractCallResponseWrapper {
 
     public BigInteger getResultAsNumber() {
         var result = getResult();
-        if (!Strings.CS.startsWith(result, "0x")) {
+        if (!Strings.CS.startsWith(result, HEX_PREFIX)) {
             return new BigInteger(result);
         } else {
             return getResultAsBytes().toBigInteger();
@@ -49,7 +50,7 @@ public class ContractCallResponseWrapper {
     }
 
     public boolean getResultAsBoolean() {
-        return Long.parseUnsignedLong(response.getResult().replace("0x", ""), 16) > 0;
+        return Long.parseUnsignedLong(response.getResult().replace(HEX_PREFIX, ""), 16) > 0;
     }
 
     public Bytes getResultAsBytes() {
@@ -58,7 +59,7 @@ public class ContractCallResponseWrapper {
             return Bytes.EMPTY;
         }
 
-        if (result.startsWith("0x")) {
+        if (result.startsWith(HEX_PREFIX)) {
             return Bytes.fromHexString(result);
         } else {
             return Bytes.wrap(result.getBytes());
@@ -74,11 +75,12 @@ public class ContractCallResponseWrapper {
         // 1st 32 bytes - string info
         // 2nd 32 bytes - data length in the last 32 bytes
         // 3rd 32 bytes - actual string suffixed with zeroes
-        return hexToAscii(response.getResult().replace("0x", "").substring(128).trim());
+        return hexToAscii(
+                response.getResult().replace(HEX_PREFIX, "").substring(128).trim());
     }
 
     public List<BigInteger> getResultAsListDecimal() {
-        var result = response.getResult().replace("0x", "");
+        var result = response.getResult().replace(HEX_PREFIX, "");
 
         return Splitter.fixedLength(64)
                 .splitToStream(result)
@@ -87,7 +89,7 @@ public class ContractCallResponseWrapper {
     }
 
     public List<String> getResultAsListAddress() {
-        var result = response.getResult().replace("0x", "");
+        var result = response.getResult().replace(HEX_PREFIX, "");
 
         return Splitter.fixedLength(64).splitToStream(result).toList();
     }

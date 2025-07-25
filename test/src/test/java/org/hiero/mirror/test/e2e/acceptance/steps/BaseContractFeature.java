@@ -3,11 +3,11 @@
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 
 import java.util.List;
 import org.hiero.mirror.rest.model.ContractResponse;
 import org.hiero.mirror.rest.model.ContractResult;
-import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
 
 public abstract class BaseContractFeature extends AbstractFeature {
     protected DeployedContract deployedParentContract;
@@ -26,7 +26,10 @@ public abstract class BaseContractFeature extends AbstractFeature {
         assertThat(mirrorContract.getFileId())
                 .isEqualTo(deployedParentContract.fileId().toString());
         String address = mirrorContract.getEvmAddress();
-        assertThat(address).isNotBlank().isNotEqualTo("0x").isNotEqualTo("0x0000000000000000000000000000000000000000");
+        assertThat(address)
+                .isNotBlank()
+                .isNotEqualTo(HEX_PREFIX)
+                .isNotEqualTo("0x0000000000000000000000000000000000000000");
         assertThat(mirrorContract.getTimestamp()).isNotNull();
         assertThat(mirrorContract.getTimestamp().getFrom()).isNotNull();
 
@@ -89,6 +92,6 @@ public abstract class BaseContractFeature extends AbstractFeature {
                         .getMaxContractFunctionGas());
         assertThat(contractResult.getGasUsed()).isPositive();
         assertThat(contractResult.getTo())
-                .isEqualTo(FeatureInputHandler.evmAddress(deployedParentContract.contractId()));
+                .isEqualTo(HEX_PREFIX + deployedParentContract.contractId().toEvmAddress());
     }
 }
