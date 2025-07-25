@@ -67,7 +67,6 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
 
     private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-    private final String schema;
 
     private final AtomicBoolean complete = new AtomicBoolean(false);
     private final String schema;
@@ -92,13 +91,6 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
         }
         return namedParameterJdbcTemplate;
     }
-
-    /**
-     * Perform any synchronous portion of the migration
-     *
-     * @return boolean indicating if async migration should be performed
-     * */
-    protected boolean performSynchronousSteps() {
 
     @Override
     public boolean canHandleInTransaction(Event event, Context context) {
