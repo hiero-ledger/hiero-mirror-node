@@ -7,14 +7,14 @@ import jakarta.inject.Named;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.Getter;
+
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionOperations;
 
 @Named
@@ -37,21 +37,23 @@ public class BackfillBlockMigration extends AsyncJavaMigration<Long> {
             + "from indexed "
             + "where t.consensus_timestamp = indexed.consensus_timestamp";
 
-    private final RecordFileRepository recordFileRepository;
+    private final ObjectProvider<RecordFileRepository> recordFileRepositoryProvider;
 
-    @Getter
-    private final TransactionOperations transactionOperations;
+    private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
 
-    @Lazy
     public BackfillBlockMigration(
             DBProperties dbProperties,
             ImporterProperties importerProperties,
-            NamedParameterJdbcTemplate jdbcTemplate,
-            RecordFileRepository recordFileRepository,
-            TransactionOperations transactionOperations) {
-        super(importerProperties.getMigration(), jdbcTemplate, dbProperties.getSchema());
-        this.recordFileRepository = recordFileRepository;
-        this.transactionOperations = transactionOperations;
+            ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
+            ObjectProvider<RecordFileRepository> recordFileRepositoryProvider,
+            ObjectProvider<TransactionOperations> transactionOperationsProvider) {
+        super(importerProperties.getMigration(), jdbcTemplateProvider, dbProperties.getSchema());
+        this.recordFileRepositoryProvider = recordFileRepositoryProvider;
+        this.transactionOperationsProvider = transactionOperationsProvider;
+    }
+
+    public TransactionOperations getTransactionOperations() {
+        return transactionOperationsProvider.getObject();
     }
 
     @Override
@@ -78,7 +80,7 @@ public class BackfillBlockMigration extends AsyncJavaMigration<Long> {
     @Nonnull
     @Override
     protected Optional<Long> migratePartial(Long lastConsensusEnd) {
-        return recordFileRepository
+        return recordFileRepositoryProvider.getObject()
                 .findLatestMissingGasUsedBefore(lastConsensusEnd)
                 .map(recordFile -> {
                     var queryParams = Map.of(
@@ -89,17 +91,17 @@ public class BackfillBlockMigration extends AsyncJavaMigration<Long> {
 
                     var bloomAggregator = new LogsBloomAggregator();
                     var gasUsedTotal = new AtomicLong(0);
-                    namedParameterJdbcTemplate.query(SELECT_CONTRACT_RESULT, queryParams, rs -> {
+                    getNamedParameterJdbcTemplate().query(SELECT_CONTRACT_RESULT, queryParams, rs -> {
                         bloomAggregator.aggregate(rs.getBytes("bloom"));
                         gasUsedTotal.addAndGet(rs.getLong("gas_used"));
                     });
 
                     recordFile.setGasUsed(gasUsedTotal.get());
                     recordFile.setLogsBloom(bloomAggregator.getBloom());
-                    recordFileRepository.save(recordFile);
+                    recordFileRepositoryProvider.getObject().save(recordFile);
 
                     // set transaction index for the transactions in the record file
-                    namedParameterJdbcTemplate.update(SET_TRANSACTION_INDEX, queryParams);
+                    getNamedParameterJdbcTemplate().update(SET_TRANSACTION_INDEX, queryParams);
 
                     return recordFile.getConsensusEnd();
                 });
