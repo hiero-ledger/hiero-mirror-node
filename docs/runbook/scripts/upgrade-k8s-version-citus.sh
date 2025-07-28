@@ -16,12 +16,14 @@ versionGreater() {
   if [[ "$(printf '%s\n' "$core1" "$core2" | sort -V | head -n1)" != "$core1" ]]; then
     return 0
   elif [[ "$core1" == "$core2" ]]; then
-    local build1,build2
-    build1="$(echo "$raw1" | grep -oP '(?<=gke\.)[0-9]+')"
-    build2="$(echo "$raw2" | grep -oP '(?<=gke\.)[0-9]+')"
+    local build1 build2
+    build1="$(echo "$raw1" | sed -n 's/.*gke\.//p')"
+    build2="$(echo "$raw2" | sed -n 's/.*gke\.//p')"
+
     if [[ -n "$build1" && -n "$build2" ]]; then
-      [[ "$build1" -gt "$build2" ]]
-      return 0
+      if [[ "$build1" -gt "$build2" ]]; then
+        return 0
+      fi
     fi
   fi
 
