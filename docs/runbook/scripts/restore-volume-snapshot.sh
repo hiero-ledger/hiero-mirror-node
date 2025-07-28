@@ -123,7 +123,7 @@ function prepareDiskReplacement() {
   for namespace in "${NAMESPACES[@]}"; do
     unrouteTraffic "${namespace}"
     kubectl delete sgshardedbackups.stackgres.io -n "${namespace}" --all
-    pauseCitus "${namespace}"
+    pauseCitus "${namespace}" "true"
   done
 
   # Spin down existing citus node pools
