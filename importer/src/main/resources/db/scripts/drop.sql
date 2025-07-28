@@ -57,8 +57,7 @@ begin
         select table_schema, table_name
         from information_schema.views
         where table_schema = 'public'
-          and table_name not like 'citus%'
-          and table_name not like 'pg_%'
+          and table_name like 'mirror_%'
     loop
         execute format('drop view if exists %I.%I cascade', obj.table_schema, obj.table_name);
     end loop;
@@ -103,20 +102,6 @@ begin
           )
     loop
         execute format('drop type if exists public.%I cascade', obj.typname);
-    end loop;
-
-    -- drop all sequences
-    for obj in
-        select sequence_name from information_schema.sequences where sequence_schema = 'public'
-    loop
-        execute format('drop sequence if exists public.%I cascade', obj.sequence_name);
-    end loop;
-
-    -- drop all indexes
-    for obj in
-        select indexname from pg_indexes where schemaname = 'public'
-    loop
-        execute format('drop index if exists public.%I cascade', obj.indexname);
     end loop;
 
     -- drop functions
