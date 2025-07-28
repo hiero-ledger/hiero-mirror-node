@@ -104,12 +104,47 @@ begin
         execute format('drop type if exists public.%I cascade', obj.typname);
     end loop;
 
-    -- drop functions
-    drop function if exists f_file_create(_file_name character varying) cascade;
-    drop function if exists f_file_complete(_file_id bigint, _file_hash character varying, _prev_hash character varying) cascade;
-    drop function if exists f_entity_create(_shard bigint, _realm bigint, _num bigint, _type_id integer, _exp_time_sec bigint, _exp_time_nanos bigint, _exp_time_ns bigint, _auto_renew bigint, _admin_key bytea, _key bytea, _proxy_acc_id bigint) cascade;
-    drop function if exists nanos_to_timestamptz(nanos bigint) cascade;
-    drop function if exists timestamptz_to_nanos(ts timestamp with time zone) cascade;
+    -- drop all plpgsql functions from the public schema
+    for obj in
+        select
+            n.nspname as schema_name,
+            p.proname as function_name,
+            pg_get_function_identity_arguments(p.oid) as args
+        from pg_proc p
+        join pg_namespace n on p.pronamespace = n.oid
+        join pg_language l on p.prolang = l.oid
+        where n.nspname = 'public'
+          and l.lanname = 'plpgsql'
+          and p.prokind = 'f'
+    loop
+        execute format(
+            'drop function if exists %I.%I(%s) cascade',
+            obj.schema_name,
+            obj.function_name,
+            obj.args
+        );
+    end loop;
+
+    -- drop all plpgsql procedures from the public schema
+    for obj in
+        select
+            n.nspname as schema_name,
+            p.proname as procedure_name,
+            pg_get_function_identity_arguments(p.oid) as args
+        from pg_proc p
+        join pg_namespace n on p.pronamespace = n.oid
+        join pg_language l on p.prolang = l.oid
+        where n.nspname = 'public'
+          and l.lanname = 'plpgsql'
+          and p.prokind = 'p'
+    loop
+        execute format(
+            'drop procedure if exists %I.%I(%s) cascade',
+            obj.schema_name,
+            obj.procedure_name,
+            obj.args
+        );
+    end loop;
 
 end;
 $$;
