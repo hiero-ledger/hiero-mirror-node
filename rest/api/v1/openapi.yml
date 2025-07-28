@@ -3728,6 +3728,7 @@ components:
           type: boolean
         fee_exempt_key_list:
           description: Keys permitted to submit messages to the topic without paying custom fees
+          nullable: true
           type: array
           items:
             $ref: "#/components/schemas/Key"

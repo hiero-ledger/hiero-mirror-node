@@ -58,6 +58,8 @@ class CommonMapperTest {
         var keyList = innerKeyList.toBuilder().addKeys(innerKeyListKey).build();
         var feeExemptKeyList =
                 FeeExemptKeyList.newBuilder().addAllKeys(keyList.getKeysList()).build();
+        var emptyKeyList = KeyList.newBuilder().build();
+        var emptyFeeExemptyKeyList = FeeExemptKeyList.newBuilder().build();
         var expectedKeyList = List.of(
                 new org.hiero.mirror.rest.model.Key()
                         .key(Hex.encodeHexString(bytesEcdsa))
@@ -70,10 +72,12 @@ class CommonMapperTest {
                         .type(TypeEnum.PROTOBUF_ENCODED));
 
         // Then
-        assertThat(commonMapper.mapKeyList(null)).isEmpty();
-        assertThat(commonMapper.mapKeyList(new byte[0])).isEmpty();
+        assertThat(commonMapper.mapKeyList(null)).isNull();
         assertThat(commonMapper.mapKeyList(keyList.toByteArray())).isEqualTo(expectedKeyList);
         assertThat(commonMapper.mapKeyList(feeExemptKeyList.toByteArray())).isEqualTo(expectedKeyList);
+        assertThat(commonMapper.mapKeyList(emptyKeyList.toByteArray())).isNull();
+        assertThat(commonMapper.mapKeyList(emptyFeeExemptyKeyList.toByteArray()))
+                .isNull();
     }
 
     @SneakyThrows
@@ -98,6 +102,8 @@ class CommonMapperTest {
         var ed25519List = Key.newBuilder()
                 .setKeyList(KeyList.newBuilder().addKeys(ed25519))
                 .build();
+        var emptyKeyListKey =
+                Key.newBuilder().setKeyList(KeyList.getDefaultInstance()).build();
         var protobufEncoded = Key.newBuilder()
                 .setKeyList(KeyList.newBuilder().addKeys(ecdsa).addKeys(ed25519))
                 .build()
@@ -111,6 +117,7 @@ class CommonMapperTest {
         assertThat(commonMapper.mapKey(ed25519.toByteArray())).isEqualTo(toKey(bytesEd25519, TypeEnum.ED25519));
         assertThat(commonMapper.mapKey(ed25519.toByteArray())).isEqualTo(toKey(bytesEd25519, TypeEnum.ED25519));
         assertThat(commonMapper.mapKey(ed25519List.toByteArray())).isEqualTo(toKey(bytesEd25519, TypeEnum.ED25519));
+        assertThat(commonMapper.mapKey(emptyKeyListKey.toByteArray())).isNull();
         assertThat(commonMapper.mapKey(protobufEncoded)).isEqualTo(toKey(protobufEncoded, TypeEnum.PROTOBUF_ENCODED));
     }
 
