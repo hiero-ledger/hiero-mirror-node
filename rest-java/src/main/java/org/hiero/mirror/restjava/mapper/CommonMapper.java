@@ -6,6 +6,7 @@ import com.google.common.collect.Range;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hederahashgraph.api.proto.java.KeyList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.apache.commons.codec.binary.Hex;
@@ -68,7 +69,7 @@ public interface CommonMapper {
 
     default List<Key> mapKeyList(byte[] source) {
         if (ArrayUtils.isEmpty(source)) {
-            return null;
+            return Collections.emptyList();
         }
 
         try {

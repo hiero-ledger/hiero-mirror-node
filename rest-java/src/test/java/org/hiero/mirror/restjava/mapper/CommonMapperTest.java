@@ -59,7 +59,7 @@ class CommonMapperTest {
         var feeExemptKeyList =
                 FeeExemptKeyList.newBuilder().addAllKeys(keyList.getKeysList()).build();
         var emptyKeyList = KeyList.newBuilder().build();
-        var emptyFeeExemptyKeyList = FeeExemptKeyList.newBuilder().build();
+        var emptyFeeExemptKeyList = FeeExemptKeyList.newBuilder().build();
         var expectedKeyList = List.of(
                 new org.hiero.mirror.rest.model.Key()
                         .key(Hex.encodeHexString(bytesEcdsa))
@@ -72,12 +72,12 @@ class CommonMapperTest {
                         .type(TypeEnum.PROTOBUF_ENCODED));
 
         // Then
-        assertThat(commonMapper.mapKeyList(null)).isNull();
+        assertThat(commonMapper.mapKeyList(null)).isEmpty();
+        assertThat(commonMapper.mapKeyList(new byte[0])).isEmpty();
         assertThat(commonMapper.mapKeyList(keyList.toByteArray())).isEqualTo(expectedKeyList);
         assertThat(commonMapper.mapKeyList(feeExemptKeyList.toByteArray())).isEqualTo(expectedKeyList);
-        assertThat(commonMapper.mapKeyList(emptyKeyList.toByteArray())).isNull();
-        assertThat(commonMapper.mapKeyList(emptyFeeExemptyKeyList.toByteArray()))
-                .isNull();
+        assertThat(commonMapper.mapKeyList(emptyKeyList.toByteArray())).isEmpty();
+        assertThat(commonMapper.mapKeyList(emptyFeeExemptKeyList.toByteArray())).isEmpty();
     }
 
     @SneakyThrows
