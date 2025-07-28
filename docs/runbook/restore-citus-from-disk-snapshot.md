@@ -7,7 +7,7 @@ Need to restore Citus cluster from disk snapshots
 ## Prerequisites
 
 - Snapshots of disks were created by following the [create snapshot](create-disk-snapshot-for-citus-cluster.md) runbook
-- Have `jq` and `ksd`(kubernetes secret decrypter) installed
+- Have `jq`, `yq`, and `ksd`(kubernetes secret decrypter) installed
 - The snapshots are from a compatible version of `postgres`
 - The `target cluster` has a running Citus cluster deployed with `hedera-mirror` chart
 - The `target cluster` you are restoring to doesn't have any pvcs with a size larger than the size of the pvc in the

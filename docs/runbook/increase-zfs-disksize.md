@@ -50,7 +50,7 @@ The pvc for a shard is running out of space and needs to be increased beyond cur
    ```bash
    kubectl get pods -n common -l component=openebs-zfs-node  -o json |
    jq -r '.items[].metadata.name' |
-   xargs -I % kubectl exec -c openebs-zfs-plugin -n common % -- zfs list
+   xargs -I % kubectl exec -c openebs-zfs-plugin -n common % -- zfs list -o name,usedbysnapshots,used,avail,refer,mountpoint -r zfspv-pool
    ```
 5. Update the `hedera-mirror` chart's `values.yaml` to reflect the new disk size
    ```yaml

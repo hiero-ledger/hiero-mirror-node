@@ -86,9 +86,33 @@ function patroniFailoverToFirstPod() {
     citusGroup=$(echo "${group}" | jq -r ".[0].citusGroup")
     clusterName=$(echo "${group}" | jq -r ".[0].clusterName")
     expectedPrimaryPod="${clusterName}-0"
+
+    if ! kubectl get pod "${expectedPrimaryPod}" -n "${namespace}" &>/dev/null; then
+      log "Skipping failover for group ${citusGroup} pod '${expectedPrimaryPod}' not found."
+      continue
+    fi
+
     patroniCluster=$(kubectl exec -n "${namespace}" -c patroni "${expectedPrimaryPod}" -- \
     patronictl list --group "${citusGroup}" --format json)
     currentPrimaryPod=$(echo "${patroniCluster}" | jq -r 'map(select(.Role == "Leader")) | .[0].Member'| xargs)
+
+    if kubectl exec -n "${namespace}" "${expectedPrimaryPod}" -c patroni -- patronictl list --format=json |
+         jq --arg cluster "${clusterName}" -e '.[] | select(.Cluster == $cluster and .State == "stopped")' > /dev/null; then
+      log "Primary pod '${expectedPrimaryPod}' is stopped. Skipping failover."
+      continue
+    fi
+
+    if kubectl exec -n "${namespace}" "${expectedPrimaryPod}" -c patroni -- \
+                  patronictl show-config | \
+                  yq eval '.pause' -e | grep -q true; then
+      log "Cluster '${clusterName}' is paused. Skipping failover."
+      continue
+    fi
+
+    if [[ -z "${currentPrimaryPod}" || "${currentPrimaryPod}" == "null" ]]; then
+      log "No current primary found for group ${citusGroup}. Setting '${expectedPrimaryPod}' as primary."
+      currentPrimaryPod="${expectedPrimaryPod}"
+    fi
 
     if [[ "${currentPrimaryPod}" != "${expectedPrimaryPod}" ]]; then
       log "Failover required: '${expectedPrimaryPod}' is not primary"
@@ -254,7 +278,7 @@ function routeTraffic() {
 function pausePatroni() {
   local namespace="${1}"
 
-  log "Stopping PostgreSQL cleanly for all clusters in namespace ${namespace}"
+  log "Pausing patroni for all clusters in namespace ${namespace}"
 
   local clusterNames
   clusterNames=$(kubectl get pods -n "${namespace}" -l 'stackgres.io/cluster=true' \
@@ -279,8 +303,9 @@ function pausePatroni() {
       continue
     fi
 
-    if kubectl exec -n "${namespace}" "${pod}" -c patroni -- patronictl list --format=json |
-        jq --arg cluster "${cluster}" -e '.[] | select(.Cluster == $cluster and .Paused == true)' > /dev/null; then
+    if kubectl exec -n "${namespace}" "${pod}" -c patroni -- \
+           patronictl show-config | \
+           yq eval '.pause' -e | grep -q true; then
       log "Cluster '${cluster}' is already paused. Skipping pause."
     else
       log "Pausing Patroni cluster '${cluster}' via pod ${pod}"
@@ -291,7 +316,6 @@ function pausePatroni() {
 
 function shutdownPostgres() {
   local namespace="${1}"
-
   local podNames
   podNames=$(kubectl get pods -n "${namespace}" -l 'stackgres.io/cluster=true' \
     -o json | jq -r '
@@ -300,10 +324,13 @@ function shutdownPostgres() {
       | .[].metadata.name
     ')
 
+  log "Stopping PostgreSQL cleanly for all clusters in namespace ${namespace}"
+
   for pod in ${podNames}; do
     local dataDir
     dataDir=$(kubectl exec -n "${namespace}" "${pod}" -c patroni -- bash -c 'echo $PATRONI_POSTGRESQL_DATA_DIR')
-    until ! kubectl exec -n "${namespace}" "${pod}" -c patroni -- test -f "${dataDir}/postmaster.pid"; do
+    until ! kubectl exec -n "${namespace}" "${pod}" -c patroni -- test -f "${dataDir}/postmaster.pid" > /dev/null 2>&1;
+    do
       if kubectl exec -n "${namespace}" "${pod}" -c patroni -- pg_isready -q; then
         log "PostgreSQL is ready in pod ${pod}, attempting shutdown"
         if ! kubectl exec -n "${namespace}" "${pod}" -c patroni -- pg_ctl stop -t 600 -m fast -D "${dataDir}"; then
@@ -329,24 +356,24 @@ function cleanShutdown() {
 function checkPauseAnnotation() {
   local namespace="${1}"
 
-    log "Ensuring all sgclusters in namespace '${namespace}' are annotated with reconciliation-pause=true"
+  log "Ensuring all sgclusters in namespace '${namespace}' are annotated with reconciliation-pause=true"
 
-    local clusters
-    mapfile -t clusters < <(kubectl get sgcluster.stackgres.io -n "${namespace}" -o jsonpath='{.items[*].metadata.name}')
+  local clusters
+  mapfile -t clusters < <(kubectl get sgcluster.stackgres.io -n "${namespace}" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
 
-    for clusterName in "${clusters[@]}"; do
-      while true; do
-        local pauseAnnotation
-        pauseAnnotation=$(kubectl get sgcluster.stackgres.io "${clusterName}" -n "${namespace}" -o jsonpath='{.metadata.annotations.stackgres\.io/reconciliation-pause}')
-        if [[ "${pauseAnnotation}" == "true" ]]; then
-          log "sgcluster ${clusterName} is annotated with reconciliation-pause=true"
-          break
-        fi
+  for clusterName in "${clusters[@]}"; do
+    while true; do
+      local pauseAnnotation
+      pauseAnnotation=$(kubectl get sgcluster.stackgres.io "${clusterName}" -n "${namespace}" -o jsonpath='{.metadata.annotations.stackgres\.io/reconciliation-pause}')
+      if [[ "${pauseAnnotation}" == "true" ]]; then
+        log "sgcluster ${clusterName} is annotated with reconciliation-pause=true"
+        break
+      fi
 
-        log "Annotating sgcluster ${clusterName} with reconciliation-pause=true"
-        kubectl annotate sgcluster.stackgres.io "${clusterName}" -n "${namespace}" stackgres.io/reconciliation-pause="true" --overwrite
-        sleep 2
-      done
+      log "Annotating sgcluster ${clusterName} with reconciliation-pause=true"
+      kubectl annotate sgcluster.stackgres.io "${clusterName}" -n "${namespace}" stackgres.io/reconciliation-pause="true" --overwrite
+      sleep 2
+     done
     done
 }
 
@@ -361,11 +388,10 @@ function scaleDownCitusPods() {
     log "Timeout waiting for citus pods to delete"
 
     local remainingPods
-    mapfile -t remainingPods < <(kubectl get pods -n "${namespace}" -l 'stackgres.io/cluster=true' -o jsonpath='{.items[*].metadata.name}')
+    mapfile -t remainingPods < <(kubectl get pods -n "${namespace}" -l 'stackgres.io/cluster=true' \
+    -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
 
     for pod in "${remainingPods[@]}"; do
-      local clusterName
-      clusterName=$(kubectl get pod "${pod}" -n "${namespace}" -o jsonpath='{.metadata.labels.stackgres\.io/cluster-name}')
       log "Force deleting pod ${pod}"
       kubectl delete pod "${pod}" -n "${namespace}" --grace-period=0 --force
     done

@@ -6,7 +6,7 @@ Need to update k8s version for clusters with citus installed
 
 ## Prerequisites
 
-- Have `jq` installed
+- Have `jq` and `yq` installed
 - The kubectl context is set to the cluster you want to upgrade
 - All bash commands assume your working directory is `docs/runbook/scripts`
 

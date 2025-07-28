@@ -6,7 +6,7 @@ Need to Change Machine Type for Citus Node Pool(s)
 
 ## Prerequisites
 
-- Have `jq` installed
+- Have `jq` and `yq` installed
 - kubectl is pointing to the cluster you want to change the machine type for
 - All bash commands assume your working directory is `docs/runbook/scripts`
 
