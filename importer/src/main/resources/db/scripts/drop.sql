@@ -35,19 +35,17 @@ begin
         execute 'alter default privileges for role mirror_node in schema public revoke all on sequences from mirror_api';
         execute 'alter default privileges for role mirror_node in schema public revoke all on functions from mirror_api';
         execute 'alter default privileges for role mirror_node in schema public revoke all on types from mirror_api';
-    end if;
 
-    -- revoke all privileges on mirror_node_time_partitions from mirror_api only if it exists
-    if exists (
-        select 1
-        from pg_class c
-        join pg_namespace n on n.oid = c.relnamespace
-        where c.relname = 'mirror_node_time_partitions'
-          and n.nspname = 'public'
-    ) and exists (
-        select 1 from pg_roles where rolname = 'mirror_api'
-    ) then
-        execute 'revoke all privileges on public.mirror_node_time_partitions from mirror_api';
+        -- revoke privileges on mirror_node_time_partitions only if the table exists
+        if exists (
+            select 1
+            from pg_class c
+            join pg_namespace n on n.oid = c.relnamespace
+            where c.relname = 'mirror_node_time_partitions'
+              and n.nspname = 'public'
+        ) then
+            execute 'revoke all privileges on public.mirror_node_time_partitions from mirror_api';
+        end if;
     end if;
 
     drop role if exists mirror_api;
