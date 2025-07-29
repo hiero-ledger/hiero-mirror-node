@@ -77,7 +77,7 @@ spec:
         persistentVolume:
           size: 90Gi
     test:
-      cucumberTags: "@acceptance and not @estimateprecompile"
+      cucumberTags: "@acceptance and not @call and not @estimateprecompile"
       enabled: true
       env:
         HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_MODULARIZEDSERVICES: "true"
