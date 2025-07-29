@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.mapper;
 import com.google.common.collect.Range;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hederahashgraph.api.proto.java.KeyList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -23,10 +24,14 @@ import org.mapstruct.Named;
 @Mapper(mappingInheritanceStrategy = MappingInheritanceStrategy.AUTO_INHERIT_FROM_CONFIG)
 public interface CommonMapper {
 
-    String QUALIFIER_TIMESTAMP = "timestamp";
+    byte[] IMMUTABILITY_SENTINEL_KEY = com.hederahashgraph.api.proto.java.Key.newBuilder()
+            .setKeyList(KeyList.getDefaultInstance())
+            .build()
+            .toByteArray();
     int NANO_DIGITS = 9;
     Pattern PATTERN_ECDSA = Pattern.compile("^(3a21|32250a233a21|2a29080112250a233a21)([A-Fa-f0-9]{66})$");
     Pattern PATTERN_ED25519 = Pattern.compile("^(1220|32240a221220|2a28080112240a221220)([A-Fa-f0-9]{64})$");
+    String QUALIFIER_TIMESTAMP = "timestamp";
 
     default String mapEntityId(Long source) {
         if (source == null || source == 0) {
@@ -42,7 +47,7 @@ public interface CommonMapper {
     }
 
     default Key mapKey(byte[] source) {
-        if (source == null) {
+        if (source == null || Arrays.equals(source, IMMUTABILITY_SENTINEL_KEY)) {
             return null;
         }
 

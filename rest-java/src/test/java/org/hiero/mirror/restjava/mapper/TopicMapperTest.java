@@ -4,7 +4,10 @@ package org.hiero.mirror.restjava.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
+import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
+import com.hederahashgraph.api.proto.java.KeyList;
 import java.util.Collections;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.DomainBuilder;
@@ -16,7 +19,7 @@ import org.hiero.mirror.rest.model.Topic;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class TopicMapperTest {
 
@@ -73,15 +76,29 @@ class TopicMapperTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void mapEmptyAndNulls(boolean nullFixedFees) {
+    @CsvSource(textBlock = """
+            true, true
+            false, false
+            """)
+    void mapEmptyAndNulls(boolean nullFixedFees, boolean keysCleared) {
         var topicEntity = new Entity();
         var customFee = domainBuilder
                 .customFee()
                 .customize(
                         c -> c.entityId(topicEntity.getId()).fixedFees(nullFixedFees ? null : Collections.emptyList()))
                 .get();
-        var topic = new org.hiero.mirror.common.domain.topic.Topic();
+        var topic = org.hiero.mirror.common.domain.topic.Topic.builder()
+                .id(topicEntity.getId())
+                .feeExemptKeyList(
+                        keysCleared ? FeeExemptKeyList.getDefaultInstance().toByteArray() : null)
+                .feeScheduleKey(
+                        keysCleared
+                                ? Key.newBuilder()
+                                        .setKeyList(KeyList.getDefaultInstance())
+                                        .build()
+                                        .toByteArray()
+                                : null)
+                .build();
         var expectedCustomFees = new ConsensusCustomFees()
                 .createdTimestamp(commonMapper.mapLowerRange(customFee.getTimestampRange()))
                 .fixedFees(Collections.emptyList());
