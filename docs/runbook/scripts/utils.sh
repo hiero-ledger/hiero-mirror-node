@@ -96,22 +96,18 @@ function patroniFailoverToFirstPod() {
     patronictl list --group "${citusGroup}" --format json)
     currentPrimaryPod=$(echo "${patroniCluster}" | jq -r 'map(select(.Role == "Leader")) | .[0].Member'| xargs)
 
-    if kubectl exec -n "${namespace}" "${expectedPrimaryPod}" -c patroni -- patronictl list --format=json |
-         jq --arg cluster "${clusterName}" -e '.[] | select(.Cluster == $cluster and .State == "stopped")' > /dev/null; then
+    if (kubectl exec -n "${namespace}" "${expectedPrimaryPod}" -c patroni -- patronictl list --format=json |
+         jq --arg primary "${expectedPrimaryPod}" -e '
+         .[] | select(.State == "stopped" and .Member == $primary)') &>/dev/null; then
       log "Primary pod '${expectedPrimaryPod}' is stopped. Skipping failover."
       continue
     fi
 
-    if kubectl exec -n "${namespace}" "${expectedPrimaryPod}" -c patroni -- \
+    if (kubectl exec -n "${namespace}" "${expectedPrimaryPod}" -c patroni -- \
                   patronictl show-config | \
-                  yq eval '.pause' -e | grep -q true; then
+                  yq eval '.pause' -e | grep -q true) &>/dev/null; then
       log "Cluster '${clusterName}' is paused. Skipping failover."
       continue
-    fi
-
-    if [[ -z "${currentPrimaryPod}" || "${currentPrimaryPod}" == "null" ]]; then
-      log "No current primary found for group ${citusGroup}. Setting '${expectedPrimaryPod}' as primary."
-      currentPrimaryPod="${expectedPrimaryPod}"
     fi
 
     if [[ "${currentPrimaryPod}" != "${expectedPrimaryPod}" ]]; then
@@ -303,9 +299,9 @@ function pausePatroni() {
       continue
     fi
 
-    if kubectl exec -n "${namespace}" "${pod}" -c patroni -- \
+    if (kubectl exec -n "${namespace}" "${pod}" -c patroni -- \
            patronictl show-config | \
-           yq eval '.pause' -e | grep -q true; then
+           yq eval '.pause' -e | grep -q true) &>/dev/null; then
       log "Cluster '${cluster}' is already paused. Skipping pause."
     else
       log "Pausing Patroni cluster '${cluster}' via pod ${pod}"
@@ -329,7 +325,7 @@ function shutdownPostgres() {
   for pod in ${podNames}; do
     local dataDir
     dataDir=$(kubectl exec -n "${namespace}" "${pod}" -c patroni -- bash -c 'echo $PATRONI_POSTGRESQL_DATA_DIR')
-    until ! kubectl exec -n "${namespace}" "${pod}" -c patroni -- test -f "${dataDir}/postmaster.pid" > /dev/null 2>&1;
+    until ! kubectl exec -n "${namespace}" "${pod}" -c patroni -- test -f "${dataDir}/postmaster.pid" &>/dev/null;
     do
       if kubectl exec -n "${namespace}" "${pod}" -c patroni -- pg_isready -q; then
         log "PostgreSQL is ready in pod ${pod}, attempting shutdown"
