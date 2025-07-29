@@ -448,10 +448,23 @@ function resumePatroni() {
 
   log "Resuming Patroni cluster '${cluster}' via pod ${pod}"
 
-  until kubectl exec -n "${namespace}" "${pod}" -c patroni -- patronictl resume --wait >/dev/null 2>&1; do
-    log "Resume failed in pod ${pod}. Retrying..."
+  until kubectl exec -n "${namespace}" "${pod}" -c patroni -- pg_isready &>/dev/null; do
+    log "PostgreSQL is not yet ready in pod ${pod}"
+
+    if (kubectl exec -n "${namespace}" "${pod}" -c patroni -- \
+         patronictl show-config | yq eval '.pause' -e | grep -q true) &>/dev/null; then
+      log "Cluster is paused in pod ${pod}. Attempting to resume..."
+      if kubectl exec -n "${namespace}" "${pod}" -c patroni -- \
+           patronictl resume --wait &>/dev/null; then
+        log "Successfully resumed cluster in pod ${pod}"
+      else
+        log "Resume failed in pod ${pod}. Retrying"
+      fi
+    fi
     sleep 2
   done
+
+  log "Successfully resumed cluster in pod ${pod}"
 }
 
 function waitForStatefulSetPodsStarted() {
