@@ -80,15 +80,11 @@ spring:
   graphql:
     graphiql:
       enabled: false
-    path: /graphql/alpha
+    http:
+      path: /graphql/alpha
   jpa:
     database: PostgreSQL
     open-in-view: false
-    properties:
-      hibernate.criteria.literal_handling_mode: BIND # Ensure Criteria API queries use bind parameters and not literals
-      hibernate.generate_statistics: true
-      hibernate.hbm2ddl.auto: none
-      hibernate.type.json_format_mapper: org.hiero.mirror.common.converter.CustomJsonFormatMapper
   lifecycle:
     timeout-per-shutdown-phase: 20s
   threads:

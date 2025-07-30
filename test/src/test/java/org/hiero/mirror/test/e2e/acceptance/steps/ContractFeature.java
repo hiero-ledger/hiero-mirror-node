@@ -8,7 +8,7 @@ import static org.hiero.mirror.rest.model.TransactionTypes.CONTRACTCALL;
 import static org.hiero.mirror.rest.model.TransactionTypes.CONTRACTCREATEINSTANCE;
 import static org.hiero.mirror.rest.model.TransactionTypes.CRYPTOCREATEACCOUNT;
 import static org.hiero.mirror.rest.model.TransactionTypes.CRYPTOTRANSFER;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -34,7 +34,6 @@ import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.ExecuteContractResult;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
-import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -140,7 +139,7 @@ public class ContractFeature extends BaseContractFeature {
         }
 
         var from = contractClient.getClientAddress();
-        var to = asHexAddress(deployedParentContract.contractId());
+        var to = deployedParentContract.contractId().toEvmAddress();
 
         var contractCallRequestGetAccountBalance = ModelBuilder.contractCallRequest()
                 .data(GET_ACCOUNT_BALANCE_SELECTOR)
@@ -270,10 +269,10 @@ public class ContractFeature extends BaseContractFeature {
         String childContractBytecodeFromParentHex = HexFormat.of().formatHex(childContractBytecodeFromParent);
         assertEquals(
                 childContractBytecodeFromParentHex,
-                mirrorContractResponse.getBytecode().replaceFirst("0x", ""));
+                mirrorContractResponse.getBytecode().replaceFirst(HEX_PREFIX, ""));
         assertEquals(
                 create2ChildContractEvmAddress,
-                mirrorContractResponse.getEvmAddress().replaceFirst("0x", ""));
+                mirrorContractResponse.getEvmAddress().replaceFirst(HEX_PREFIX, ""));
     }
 
     @And("the mirror node REST API should verify the account is no longer hollow")
@@ -303,7 +302,7 @@ public class ContractFeature extends BaseContractFeature {
     }
 
     private boolean isEmptyHex(String hexString) {
-        return !StringUtils.hasLength(hexString) || hexString.equals("0x");
+        return !StringUtils.hasLength(hexString) || hexString.equals(HEX_PREFIX);
     }
 
     @Override
@@ -315,10 +314,12 @@ public class ContractFeature extends BaseContractFeature {
                 : ContractExecutionStage.CALL;
 
         assertThat(contractResult.getFrom())
-                .isEqualTo(FeatureInputHandler.evmAddress(contractClient
-                        .getSdkClient()
-                        .getExpandedOperatorAccountId()
-                        .getAccountId()));
+                .isEqualTo(HEX_PREFIX
+                        + contractClient
+                                .getSdkClient()
+                                .getExpandedOperatorAccountId()
+                                .getAccountId()
+                                .toEvmAddress());
 
         var createdIds = contractResult.getCreatedContractIds();
         assertThat(createdIds).isNotEmpty();

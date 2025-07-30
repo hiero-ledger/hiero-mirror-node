@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.PARENT_CONTRACT;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.CREATE_CHILD;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.GET_BYTE_CODE;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 import static org.web3j.crypto.transaction.type.TransactionType.EIP1559;
 import static org.web3j.crypto.transaction.type.TransactionType.EIP2930;
 
@@ -31,7 +31,6 @@ import org.hiero.mirror.test.e2e.acceptance.client.ContractClient;
 import org.hiero.mirror.test.e2e.acceptance.client.EthereumClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
-import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
 import org.springframework.http.HttpStatus;
 import org.web3j.crypto.transaction.type.TransactionType;
 
@@ -69,7 +68,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
         deployedParentContract = ethereumContractCreate(PARENT_CONTRACT);
 
         gasConsumedSelector = Objects.requireNonNull(mirrorClient
-                .getContractInfo(asHexAddress(deployedParentContract.contractId()))
+                .getContractInfo(deployedParentContract.contractId().toEvmAddress())
                 .getBytecode());
     }
 
@@ -125,7 +124,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
         var resource = resourceLoader.getResource(contractResource.getPath());
         try (var in = resource.getInputStream()) {
             CompiledSolidityArtifact compiledSolidityArtifact = readCompiledArtifact(in);
-            var fileContent = compiledSolidityArtifact.getBytecode().replaceFirst("0x", "");
+            var fileContent = compiledSolidityArtifact.getBytecode().replaceFirst(HEX_PREFIX, "");
             var fileId = persistContractBytes(fileContent);
 
             networkTransactionResponse = ethereumClient.createContract(
@@ -155,7 +154,8 @@ public class EthereumFeature extends AbstractEstimateFeature {
     @Override
     protected void verifyContractExecutionResults(ContractResult contractResult) {
         super.verifyContractExecutionResults(contractResult);
-        assertThat(contractResult.getFrom()).isEqualTo(FeatureInputHandler.evmAddress(AccountId.fromString(account)));
+        assertThat(contractResult.getFrom())
+                .isEqualTo(HEX_PREFIX + AccountId.fromString(account).toEvmAddress());
     }
 
     protected TransactionDetail verifyEthereumContractCreate(

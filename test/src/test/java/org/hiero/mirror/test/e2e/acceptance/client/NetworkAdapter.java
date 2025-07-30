@@ -3,7 +3,6 @@
 package org.hiero.mirror.test.e2e.acceptance.client;
 
 import static org.apache.commons.lang3.ObjectUtils.isNotEmpty;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 
 import com.esaulpaugh.headlong.abi.TupleType;
 import com.esaulpaugh.headlong.util.Strings;
@@ -19,6 +18,7 @@ import org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterf
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 
+@SuppressWarnings("rawtypes")
 @Named
 public class NetworkAdapter extends EncoderDecoderFacade {
 
@@ -49,7 +49,7 @@ public class NetworkAdapter extends EncoderDecoderFacade {
                         .data(data)
                         .estimate(isEstimate)
                         .from(from.isEmpty() ? contractClient.getClientAddress() : from)
-                        .to(asHexAddress(deployedContract.contractId()));
+                        .to(deployedContract.contractId().toEvmAddress());
 
                 return mirrorClient.contractsCall(contractCallRequestBody);
             } catch (Exception e) {
@@ -85,6 +85,7 @@ public class NetworkAdapter extends EncoderDecoderFacade {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private ContractCallResponse convertConsensusResponse(
             final ContractFunctionResult result, final TupleType returnTupleType) {
         final var tupleResult = result.getResult(returnTupleType.getCanonicalType());

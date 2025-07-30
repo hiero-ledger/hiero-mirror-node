@@ -25,7 +25,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.util.EndpointContext;
+import org.hiero.mirror.common.tableusage.EndpointContext;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
@@ -47,9 +47,7 @@ import org.web3j.tx.Contract;
 
 abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContractCallServiceHistoricalTest {
 
-    protected static void setOpcodeEndpoint() {
-        EndpointContext.setCurrentEndpoint(OPCODES_URI);
-    }
+    private static final String CALL_OPCODE_NAME = "CALL";
 
     @Resource
     protected ContractDebugService contractDebugService;
@@ -72,7 +70,9 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     @Resource
     private EntityDatabaseAccessor entityDatabaseAccessor;
 
-    private static final String CALL_OPCODE_NAME = "CALL";
+    protected static void setOpcodeEndpoint() {
+        EndpointContext.setCurrentEndpoint(OPCODES_URI);
+    }
 
     @BeforeEach
     void setUpArgumentCaptors() {

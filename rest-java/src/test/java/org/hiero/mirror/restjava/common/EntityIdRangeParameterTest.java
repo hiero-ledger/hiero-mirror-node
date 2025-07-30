@@ -6,14 +6,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.restjava.common.RangeOperator.EQ;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.function.ThrowingConsumer;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -33,13 +38,18 @@ class EntityIdRangeParameterTest {
                 .isEqualTo(EntityIdRangeParameter.valueOf(null));
     }
 
-    @ParameterizedTest
-    @CsvSource({"0.0.1000,1000", "0.1000,1000", "1000,1000"})
-    @DisplayName("EntityIdRangeParameter parse from string tests, valid cases")
-    void testValidParam(String input, long num) {
-        var entityId = domainBuilder.entityNum(num);
+    @TestFactory
+    Stream<DynamicTest> testValidParam() {
+        final var entityId = domainBuilder.entityNum(1000);
+        final var inputs = List.of(
+                entityId.toString(),
+                String.format("%d.%d", entityId.getRealm(), entityId.getNum()),
+                Long.toString(entityId.getNum()));
+        final ThrowingConsumer<String> executor = input -> {
+            assertThat(EntityIdRangeParameter.valueOf(input)).isEqualTo(new EntityIdRangeParameter(EQ, entityId));
+        };
 
-        assertThat(new EntityIdRangeParameter(EQ, entityId)).isEqualTo(EntityIdRangeParameter.valueOf(input));
+        return DynamicTest.stream(inputs.iterator(), Function.identity(), executor);
     }
 
     @ParameterizedTest

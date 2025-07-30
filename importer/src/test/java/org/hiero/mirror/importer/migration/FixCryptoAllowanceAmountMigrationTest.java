@@ -12,7 +12,6 @@ import java.util.Collections;
 import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -274,10 +273,5 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
 
         // when, then
         assertThat(allowanceAmountMigration.skipMigration(configuration)).isEqualTo(!trackAllowance);
-    }
-
-    @SneakyThrows
-    private void runMigration() {
-        migration.doMigrate();
     }
 }

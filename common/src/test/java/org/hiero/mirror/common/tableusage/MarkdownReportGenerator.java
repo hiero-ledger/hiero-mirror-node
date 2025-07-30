@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common.util;
+package org.hiero.mirror.common.tableusage;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -23,12 +23,16 @@ public class MarkdownReportGenerator {
     private static final String NEWLINE = System.lineSeparator();
     private static final String LINE_BREAK = "<br>";
 
-    public static void generateTableUsageReport() {
+    public static void generateReport() {
         final var apiTableQueries = RepositoryUsageInterceptor.getApiTableQueries();
-        final var path = Paths.get("build/table-usage-report.md");
+        final var path = Paths.get("build", "reports", "tableusage", "table-usage.md");
+        path.getParent().toFile().mkdirs();
 
         try (final var writer = Files.newBufferedWriter(path)) {
-            writeHeader(writer);
+            writer.write("# Table Usage Report" + NEWLINE + NEWLINE);
+            writer.write("## By Endpoint" + NEWLINE + NEWLINE);
+            writer.write("| Endpoint | Tables | Sources |" + NEWLINE);
+            writer.write("|----------|--------|---------|" + NEWLINE);
 
             final var sortedEndpoints =
                     apiTableQueries.keySet().stream().sorted(String::compareTo).toList();
@@ -40,8 +44,9 @@ public class MarkdownReportGenerator {
             writer.newLine();
             writer.newLine();
 
-            // Second table header
-            writeTableGroupedByTableHeader(writer);
+            writer.write("## By Table" + NEWLINE + NEWLINE);
+            writer.write("| Table | Endpoints | Sources |" + NEWLINE);
+            writer.write("|-------|-----------|---------|" + NEWLINE);
 
             // Invert map: table -> (endpoint -> sources)
             final var tableToEndpointSources = invertMap(apiTableQueries);
@@ -56,12 +61,6 @@ public class MarkdownReportGenerator {
         } catch (final IOException e) {
             log.warn("Unexpected error occurred: {}", e.getMessage());
         }
-    }
-
-    private static void writeHeader(final BufferedWriter writer) throws IOException {
-        writer.write("# Table Usage Report - Grouped by Endpoint" + NEWLINE + NEWLINE);
-        writer.write("| Endpoint | Table | Source |" + NEWLINE);
-        writer.write("|----------|-------|--------|" + NEWLINE);
     }
 
     private static void writeEndpointTables(
@@ -111,15 +110,8 @@ public class MarkdownReportGenerator {
         return input == null ? "" : input.replace("|", "\\|");
     }
 
-    private static void writeTableGroupedByTableHeader(final BufferedWriter writer) throws IOException {
-        writer.write("# Table Usage Report - Grouped by Table" + NEWLINE + NEWLINE);
-        writer.write("| Table | Endpoints | Source |" + NEWLINE);
-        writer.write("|-------|-----------|--------|" + NEWLINE);
-    }
-
     /**
-     * Inverts the Map of endpoint -> Map<table, sources> into
-     * table -> Map<endpoint, sources>
+     * Inverts the Map of endpoint -> Map<table, sources> into table -> Map<endpoint, sources>
      */
     private static Map<String, Map<String, Set<String>>> invertMap(
             final Map<String, Map<String, Set<String>>> endpointTableSources) {

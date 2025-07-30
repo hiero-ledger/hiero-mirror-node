@@ -3,6 +3,7 @@
 package com.hedera.services.store.contracts.precompile;
 
 import static com.hedera.services.store.contracts.precompile.impl.ApprovePrecompile.decodeTokenApprove;
+import static com.hedera.services.store.contracts.precompile.utils.NonZeroShardAndRealmUtils.getDefaultTokenIDInstance;
 import static java.util.function.UnaryOperator.identity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -53,7 +54,7 @@ class ApprovePrecompileTest {
     void decodeApproveForNFTHAPI() {
         UnaryOperator<byte[]> identity = identity();
         final var decodedInput =
-                decodeTokenApprove(APPROVE_NFT_INPUT_HAPI, TokenID.getDefaultInstance(), false, identity);
+                decodeTokenApprove(APPROVE_NFT_INPUT_HAPI, getDefaultTokenIDInstance(), false, identity);
 
         assertEquals(ACCOUNT_NUM_SPENDER_NFT, decodedInput.spender().getAccountNum());
         assertEquals(TOKEN_NUM_HAPI_TOKEN, decodedInput.tokenId().getTokenNum());
@@ -65,7 +66,7 @@ class ApprovePrecompileTest {
         UnaryOperator<byte[]> identity = identity();
 
         final var decodedInput =
-                decodeTokenApprove(APPROVE_TOKEN_INPUT_HAPI, TokenID.getDefaultInstance(), true, identity);
+                decodeTokenApprove(APPROVE_TOKEN_INPUT_HAPI, getDefaultTokenIDInstance(), true, identity);
 
         assertEquals(ACCOUNT_NUM_SPENDER, decodedInput.spender().getAccountNum());
         assertEquals(TOKEN_NUM_HAPI_TOKEN, decodedInput.tokenId().getTokenNum());

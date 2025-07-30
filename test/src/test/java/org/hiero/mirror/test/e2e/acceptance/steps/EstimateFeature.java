@@ -105,7 +105,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Given("I successfully create EstimateGas contract from contract bytes")
     public void createNewEstimateContract() {
         deployedContract = getContract(ESTIMATE_GAS);
-        contractSolidityAddress = asHexAddress(deployedContract.contractId());
+        contractSolidityAddress = deployedContract.contractId().toEvmAddress();
         newAccountEvmAddress =
                 PrivateKey.generateECDSA().getPublicKey().toEvmAddress().toString();
         receiverAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
@@ -126,13 +126,13 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Given("I successfully create Precompile contract from contract bytes")
     public void createNewPrecompileContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileSolidityAddress = asHexAddress(deployedPrecompileContract.contractId());
+        precompileSolidityAddress = deployedPrecompileContract.contractId().toEvmAddress();
     }
 
     @Given("I successfully create ERC contract from contract bytes")
     public void createNewERCContract() {
         deployedERCContract = getContract(ERC);
-        ercSolidityAddress = asAddress(deployedERCContract.contractId()).toString();
+        ercSolidityAddress = deployedERCContract.contractId().toEvmAddress();
     }
 
     @Then("the mirror node REST API should return status {int} for the estimate contract creation")
@@ -480,7 +480,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 ERC,
                 IERC20_TOKEN_TRANSFER,
                 fungibleTokenAddress,
-                asAddress(accountInfo.getEvmAddress().replace("0x", "")),
+                asAddress(accountInfo.getEvmAddress().replace(HEX_PREFIX, "")),
                 BigInteger.ONE);
         validateGasEstimation(data, IERC20_TOKEN_TRANSFER, ercSolidityAddress);
     }
@@ -492,7 +492,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 ERC,
                 IERC20_TOKEN_APPROVE,
                 fungibleTokenAddress,
-                asAddress(accountInfo.getEvmAddress().replace("0x", "")),
+                asAddress(accountInfo.getEvmAddress().replace(HEX_PREFIX, "")),
                 BigInteger.ONE);
         validateGasEstimation(data, IERC20_TOKEN_APPROVE, ercSolidityAddress);
     }
@@ -800,7 +800,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         try (var in = resource.getInputStream()) {
             CompiledSolidityArtifact compiledSolidityArtifact = readCompiledArtifact(in);
             var fileId =
-                    persistContractBytes(compiledSolidityArtifact.getBytecode().replaceFirst("0x", ""));
+                    persistContractBytes(compiledSolidityArtifact.getBytecode().replaceFirst(HEX_PREFIX, ""));
             try {
                 networkTransactionResponse = contractClient.createContract(fileId, gas, Hbar.fromTinybars(0), null);
                 return networkTransactionResponse.getTransactionIdStringNoCheckSum();

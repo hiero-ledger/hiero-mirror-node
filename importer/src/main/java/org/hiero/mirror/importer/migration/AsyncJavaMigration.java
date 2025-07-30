@@ -12,6 +12,9 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.lang3.BooleanUtils;
+import org.flywaydb.core.api.callback.Callback;
+import org.flywaydb.core.api.callback.Context;
+import org.flywaydb.core.api.callback.Event;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -20,7 +23,7 @@ import org.springframework.transaction.support.TransactionOperations;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-abstract class AsyncJavaMigration<T> extends RepeatableMigration {
+abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Callback {
 
     private static final String ASYNC_JAVA_MIGRATION_HISTORY_FIXED =
             """
@@ -61,8 +64,10 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
             """;
 
     protected final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-    private final String schema;
+
     private final AtomicBoolean complete = new AtomicBoolean(false);
+    private final String schema;
+    private final AtomicBoolean shouldMigrate = new AtomicBoolean(false);
 
     protected AsyncJavaMigration(
             Map<String, MigrationProperties> migrationPropertiesMap,
@@ -73,13 +78,14 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
         this.schema = schema;
     }
 
-    /**
-     * Perform any synchronous portion of the migration
-     *
-     * @return boolean indicating if async migration should be performed
-     * */
-    protected boolean performSynchronousSteps() {
+    @Override
+    public boolean canHandleInTransaction(Event event, Context context) {
         return true;
+    }
+
+    @Override
+    public String getCallbackName() {
+        return getDescription();
     }
 
     @Override
@@ -118,10 +124,20 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
         return lastChecksum;
     }
 
-    protected abstract TransactionOperations getTransactionOperations();
+    @Override
+    public void handle(Event event, Context context) {
+        if (event != Event.AFTER_MIGRATE_OPERATION_FINISH || !shouldMigrate.get()) {
+            // Checking event type as a safeguard even though flyway should only call handle() with
+            // AFTER_MIGRATE_OPERATION_FINISH event since it's the only event this callback supports.
+            return;
+        }
 
-    boolean isComplete() {
-        return complete.get();
+        if (!performSynchronousSteps()) {
+            onSuccess();
+            return;
+        }
+
+        runMigrateAsync();
     }
 
     public <O> O queryForObjectOrNull(String sql, SqlParameterSource paramSource, Class<O> requiredType) {
@@ -133,24 +149,37 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
     }
 
     @Override
+    public boolean supports(Event event, Context context) {
+        return event == Event.AFTER_MIGRATE_OPERATION_FINISH;
+    }
+
+    boolean isComplete() {
+        return complete.get();
+    }
+
+    @Override
     protected void doMigrate() throws IOException {
         int checksum = getSuccessChecksum();
         if (checksum <= 0) {
             throw new IllegalArgumentException(String.format("Invalid non-positive success checksum %d", checksum));
         }
 
-        var shouldMigrate = performSynchronousSteps();
-        if (!shouldMigrate) {
-            onSuccess();
-            return;
-        }
-        Mono.fromRunnable(this::migrateAsync)
-                .subscribeOn(Schedulers.single())
-                .doOnSuccess(t -> onSuccess())
-                .doOnError(t -> log.error("Asynchronous migration failed:", t))
-                .doFinally(s -> complete.set(true))
-                .subscribe();
+        shouldMigrate.set(true);
     }
+
+    protected abstract T getInitial();
+
+    /**
+     * Gets the success checksum to set for the migration in flyway schema history table. Note the checksum is required
+     * to be positive.
+     *
+     * @return The success checksum for the migration
+     */
+    protected final int getSuccessChecksum() {
+        return migrationProperties.getChecksum();
+    }
+
+    protected abstract TransactionOperations getTransactionOperations();
 
     protected void migrateAsync() {
         log.info("Starting asynchronous migration");
@@ -181,20 +210,26 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration {
         }
     }
 
-    protected abstract T getInitial();
-
-    /**
-     * Gets the success checksum to set for the migration in flyway schema history table. Note the checksum is required
-     * to be positive.
-     *
-     * @return The success checksum for the migration
-     */
-    protected final int getSuccessChecksum() {
-        return migrationProperties.getChecksum();
-    }
-
     @Nonnull
     protected abstract Optional<T> migratePartial(T last);
+
+    /**
+     * Perform any synchronous portion of the migration
+     *
+     * @return boolean indicating if async migration should be performed
+     */
+    protected boolean performSynchronousSteps() {
+        return true;
+    }
+
+    protected final void runMigrateAsync() {
+        Mono.fromRunnable(this::migrateAsync)
+                .subscribeOn(Schedulers.single())
+                .doOnSuccess(t -> onSuccess())
+                .doOnError(t -> log.error("Asynchronous migration failed:", t))
+                .doFinally(s -> complete.set(true))
+                .subscribe();
+    }
 
     private MapSqlParameterSource getSqlParamSource() {
         return new MapSqlParameterSource().addValue("description", getDescription());

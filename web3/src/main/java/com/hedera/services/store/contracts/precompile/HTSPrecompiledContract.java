@@ -7,6 +7,7 @@ import static com.hedera.node.app.service.evm.store.contracts.HederaEvmWorldStat
 import static com.hedera.node.app.service.evm.store.contracts.utils.DescriptorUtils.isTokenProxyRedirect;
 import static com.hedera.node.app.service.evm.store.contracts.utils.DescriptorUtils.isViewFunction;
 import static com.hedera.node.app.service.evm.utils.ValidationUtils.validateTrue;
+import static com.hedera.services.store.contracts.precompile.utils.NonZeroShardAndRealmUtils.getDefaultTokenIDInstance;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_GAS;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
@@ -38,7 +39,6 @@ import com.hedera.services.store.models.Id;
 import com.hedera.services.store.models.NftId;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.NoSuchElementException;
@@ -64,9 +64,14 @@ import org.hyperledger.besu.evm.frame.MessageFrame;
 /**
  * This class is a modified thread-safe copy of HTSPrecompiledContract from hedera-services repo.
  * <p>
- * Differences with the original class: 1. Use abstraction for the state by introducing {@link Store} interface. 2. Use
- * workaround to execute read only precompiles via calling ViewExecutor and RedirectViewExecutors, thus removing the
- * need of having separate precompile classes. 3. All stateful fields are extracted into {@link ContractCallContext} and the class is converted to a singleton bean
+ * Differences with the original class:
+ * 1. Use abstraction for the state by introducing {@link Store} interface.
+ * 2. Use workaround to execute read only precompiles via calling ViewExecutor and RedirectViewExecutors,
+ *    thus removing the need of having separate precompile classes.
+ * 3. All stateful fields are extracted into {@link ContractCallContext} and the class is converted to a singleton bean
+ * 4. Substitute {@link TokenID.getDefaultInstance()} with
+ *    {@link com.hedera.services.store.contracts.precompile.utils.NonZeroShardAndRealmUtils.getDefaultTokenIDInstance()},
+ *    so that non-zero shard and realm numbers are respected
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class HTSPrecompiledContract extends EvmHTSPrecompiledContract {
@@ -380,7 +385,7 @@ public class HTSPrecompiledContract extends EvmHTSPrecompiledContract {
             }
             case AbiConstants.ABI_ID_APPROVE_NFT -> {
                 final var approveDecodedNftInfo =
-                        ApprovePrecompile.decodeTokenIdAndSerialNum(input, TokenID.getDefaultInstance());
+                        ApprovePrecompile.decodeTokenIdAndSerialNum(input, getDefaultTokenIDInstance());
                 final var tokenID = approveDecodedNftInfo.tokenId();
                 final var serialNumber = approveDecodedNftInfo.serialNumber();
                 final var ownerId = store.getUniqueToken(

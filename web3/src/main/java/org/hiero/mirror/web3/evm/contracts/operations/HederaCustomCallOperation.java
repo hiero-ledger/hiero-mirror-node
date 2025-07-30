@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package com.hedera.node.app.service.contract.impl.exec.operations;
+package org.hiero.mirror.web3.evm.contracts.operations;
 
 import jakarta.annotation.Nonnull;
 import org.hyperledger.besu.evm.EVM;

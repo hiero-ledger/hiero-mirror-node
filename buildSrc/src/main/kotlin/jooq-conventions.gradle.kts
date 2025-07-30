@@ -4,6 +4,7 @@ import io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension
 import org.flywaydb.core.Flyway
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.images.builder.Transferable
+import org.testcontainers.utility.DockerImageName
 
 plugins {
     id("java-conventions")
@@ -68,8 +69,11 @@ val postgresqlContainer =
         val initSh = "${dbDir}/scripts/init.sh"
         doLast {
             val initScript = Transferable.of(File(initSh).readBytes())
+            var image =
+                DockerImageName.parse("docker.io/library/postgres:16.9-alpine")
+                    .asCompatibleSubstituteFor("postgres")
             val container =
-                PostgreSQLContainer<Nothing>("postgres:16-alpine").apply {
+                PostgreSQLContainer<Nothing>(image).apply {
                     withCopyToContainer(initScript, "/docker-entrypoint-initdb.d/init.sh")
                     withUsername("postgres")
                     start()

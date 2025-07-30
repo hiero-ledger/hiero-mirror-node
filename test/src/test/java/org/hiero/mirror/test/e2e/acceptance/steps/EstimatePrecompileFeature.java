@@ -128,7 +128,6 @@ import com.hedera.hashgraph.sdk.TokenUpdateTransaction;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
-import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
@@ -189,9 +188,10 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     private String precompileTestContractSolidityAddress;
 
     @Given("I create estimate precompile contract with 0 balance")
-    public void createNewEstimateContract() throws IOException {
+    public void createNewEstimateContract() {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_PRECOMPILE);
-        estimatePrecompileContractSolidityAddress = asHexAddress(deployedEstimatePrecompileContract.contractId());
+        estimatePrecompileContractSolidityAddress =
+                deployedEstimatePrecompileContract.contractId().toEvmAddress();
         admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
         adminAddress = asAddress(admin);
         receiverAccount = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
@@ -204,8 +204,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I create erc test contract with 0 balance")
     public void createNewERCContract() {
         deployedErcTestContract = getContract(ERC);
-        ercTestContractSolidityAddress =
-                asAddress(deployedErcTestContract.contractId()).toString();
+        ercTestContractSolidityAddress = deployedErcTestContract.contractId().toEvmAddress();
     }
 
     @Given("I get exchange rates")
@@ -216,7 +215,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I successfully create Precompile contract with 0 balance")
     public void createNewPrecompileTestContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileTestContractSolidityAddress = asHexAddress(deployedPrecompileContract.contractId());
+        precompileTestContractSolidityAddress =
+                deployedPrecompileContract.contractId().toEvmAddress();
     }
 
     @Given("I successfully create fungible tokens")
@@ -656,7 +656,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void cryptoTransferHbarEstimateGas() {
         var senderTransfer = accountAmount(adminAddress.toString(), -10L, false);
         var receiverTransfer = accountAmount(receiverAccountAliasAddress.toString(), 10L, false);
-        var args = Tuple.of((Object) new Tuple[] {senderTransfer, receiverTransfer});
+        var args = Tuple.from((Object) new Tuple[] {senderTransfer, receiverTransfer});
         var data = encodeData(ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER_HBARS, args, EMPTY_TUPLE_ARRAY);
         validateGasEstimation(data, CRYPTO_TRANSFER_HBARS, estimatePrecompileContractSolidityAddress);
     }
@@ -676,7 +676,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                     .build()
         };
         var data = encodeData(
-                ESTIMATE_PRECOMPILE, methodInterface, Tuple.of((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
+                ESTIMATE_PRECOMPILE, methodInterface, Tuple.from((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
         validateGasEstimation(data, methodInterface, estimatePrecompileContractSolidityAddress);
     }
 
@@ -691,7 +691,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                     .build()
         };
         var data = encodeData(
-                ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER, Tuple.of((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
+                ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER, Tuple.from((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
         validateGasEstimation(data, CRYPTO_TRANSFER, estimatePrecompileContractSolidityAddress);
     }
 

@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.graphql.interceptor;
 
-import static org.hiero.mirror.common.util.EndpointContext.ENDPOINT;
+import static org.hiero.mirror.common.tableusage.EndpointContext.ENDPOINT;
 
 import graphql.language.Field;
 import graphql.language.OperationDefinition;

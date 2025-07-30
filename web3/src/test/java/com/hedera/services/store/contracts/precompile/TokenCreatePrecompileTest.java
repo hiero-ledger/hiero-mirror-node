@@ -25,6 +25,7 @@ import static com.hedera.services.store.contracts.precompile.impl.TokenCreatePre
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.TokenCreate;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 import static java.util.function.UnaryOperator.identity;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.common.PrecompileContext.PRECOMPILE_CONTEXT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -298,7 +299,7 @@ class TokenCreatePrecompileTest {
         assertEquals(USE_CURRENTLY_CREATED_TOKEN, fixedFeeWrapper.getFixedFeePayment());
         final var customFee = fixedFeeWrapper.asGrpc();
         assertEquals(4, customFee.getFixedFee().getAmount());
-        final var expectedDenominatingTokenId = domainBuilder.entityNum(0).toTokenID();
+        final var expectedDenominatingTokenId = domainBuilder.entityNum(0L).toTokenID();
 
         assertEquals(expectedDenominatingTokenId, customFee.getFixedFee().getDenominatingTokenId());
         assertEquals(domainBuilder.entityNum(1).toAccountID(), customFee.getFeeCollectorAccountId());
@@ -381,7 +382,7 @@ class TokenCreatePrecompileTest {
                 decodeNonFungibleCreateWithFees(CREATE_NON_FUNGIBLE_WITH_EMPTY_ROYALTY_FEE, identity());
 
         final var royaltyFee = decodedInput.getRoyaltyFees().get(0).asGrpc();
-        assertFalse(royaltyFee.hasFeeCollectorAccountId());
+        assertThat(royaltyFee.getFeeCollectorAccountId().getAccountNum()).isZero();
         assertFalse(royaltyFee.getRoyaltyFee().hasFallbackFee());
     }
 
