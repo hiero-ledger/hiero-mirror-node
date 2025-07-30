@@ -11,14 +11,12 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.importer.EnabledIfV1;
+import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-@EnabledIfV1
 @RequiredArgsConstructor
 @Tag("migration")
 class ContractLogIndexMigrationTest extends AbstractAsyncJavaMigrationTest<ContractLogIndexMigration> {
@@ -28,20 +26,18 @@ class ContractLogIndexMigrationTest extends AbstractAsyncJavaMigrationTest<Contr
 
     private final RecordFileRepository recordFileRepository;
     private final ContractLogRepository contractLogRepository;
-
-    @AfterEach
-    void temporaryTableCleanedUp() {
-        assertThat(tableExists("processed_record_file_temp")).isFalse();
-    }
+    private final EntityProperties entityProperties;
 
     @Test
     void migrationOnEmptyDB() {
         // given, when
-        migration.migrateAsync();
+        runMigration();
+        waitForCompletion();
 
         // then
         assertThat(recordFileRepository.findAll()).isEmpty();
         assertThat(contractLogRepository.findAll()).isEmpty();
+        assertThat(tableExists("processed_record_file_temp")).isFalse();
     }
 
     @Test
@@ -79,7 +75,8 @@ class ContractLogIndexMigrationTest extends AbstractAsyncJavaMigrationTest<Contr
                 contractLogPersist(0, recordFiles.get(3).getConsensusEnd());
 
         // when
-        migration.migrateAsync();
+        runMigration();
+        waitForCompletion();
 
         // then
         assertThat(findIndex(contractLogFirstRecordFile0.getConsensusTimestamp()))
@@ -106,16 +103,7 @@ class ContractLogIndexMigrationTest extends AbstractAsyncJavaMigrationTest<Contr
         assertThat(findIndexForData(
                         contractLogFourthRecordFile1.getConsensusTimestamp(), contractLogFourthRecordFile1.getData()))
                 .isEqualTo(2);
-    }
-
-    private RecordFile recordFilePersistAtIndexAndTimestamp(final long index, final long consensusEndTimestamp) {
-        return domainBuilder
-                .recordFile()
-                .customize(r -> r.index(index)
-                        .consensusStart(
-                                consensusEndTimestamp - Duration.ofMinutes(2).toNanos())
-                        .consensusEnd(consensusEndTimestamp))
-                .persist();
+        assertThat(tableExists("processed_record_file_temp")).isFalse();
     }
 
     private Integer findIndex(final long consensusTimestamp) {
@@ -144,7 +132,7 @@ class ContractLogIndexMigrationTest extends AbstractAsyncJavaMigrationTest<Contr
         return domainBuilder
                 .recordFile()
                 .customize(r -> r.index(index)
-                        .consensusStart(timestamp - Duration.ofMinutes(2).toNanos())
+                        .consensusStart(timestamp - Duration.ofSeconds(2).toNanos())
                         .consensusEnd(timestamp))
                 .persist();
     }
