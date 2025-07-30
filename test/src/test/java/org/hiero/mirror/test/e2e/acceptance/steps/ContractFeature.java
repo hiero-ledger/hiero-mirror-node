@@ -288,7 +288,7 @@ public class ContractFeature extends BaseContractFeature {
     @And("the mirror node Rest API should verify the parent contract has correct nonce")
     public void verifyContractNonce() {
         verifyNonceForParentContract();
-        verifyNonceForParentContract();
+        verifyNonceForChildContracts();
     }
 
     @When("I successfully delete the child contract by calling it and causing it to self destruct")
@@ -299,7 +299,6 @@ public class ContractFeature extends BaseContractFeature {
     @Override
     protected ContractResponse verifyContractFromMirror(boolean isDeleted) {
         var mirrorContract = super.verifyContractFromMirror(isDeleted);
-        // initial nonce value for the parent contract
         assertThat(mirrorContract.getAdminKey()).isNotNull();
         assertThat(mirrorContract.getAdminKey().getKey())
                 .isEqualTo(contractClient

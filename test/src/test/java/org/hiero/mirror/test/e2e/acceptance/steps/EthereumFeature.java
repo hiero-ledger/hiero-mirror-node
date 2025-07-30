@@ -96,7 +96,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
         verifyContractExecutionResultsByTransactionId();
     }
 
-    @And("the mirror node Rest API should verify the ethereum parent contract has correct nonce")
+    @And("the mirror node Rest API should verify the contracts have correct nonce")
     public void verifyContractNonce() {
         verifyNonceForParentContract();
         verifyNonceForChildContracts();

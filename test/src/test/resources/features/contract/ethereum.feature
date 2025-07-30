@@ -13,7 +13,7 @@ Feature: Ethereum transactions Coverage Feature
   Then the mirror node REST API should return status <httpStatusCode> for the ethereum transaction
   And the mirror node contract results API should return an accurate gas consumed
   And the mirror node REST API should verify the ethereum called contract function
-  And the mirror node Rest API should verify the ethereum parent contract has correct nonce
+  And the mirror node Rest API should verify the contracts have correct nonce
 
   Given I successfully call function using EIP-2930 ethereum transaction
   Then the mirror node REST API should return status <httpStatusCode> for the ethereum transaction
