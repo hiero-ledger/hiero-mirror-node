@@ -4,13 +4,16 @@
 
 ### Overview
 
-This document explains the methodology used to identify foreign key relationships in the Hiero Mirror Node database by analyzing Spring Boot repository objects and JPA entities. Since the database lacks foreign key constraints for performance reasons, these relationships are implicit in the application code.
+This document explains the methodology used to identify foreign key relationships in the Hiero Mirror Node database by
+analyzing Spring Boot repository objects and JPA entities. Since the database lacks foreign key constraints for
+performance reasons, these relationships are implicit in the application code.
 
 ### Analysis Approach
 
 #### 1. Repository Pattern Analysis
 
-The analysis focused on Spring Data JPA repositories in the importer module, which contain the business logic that implies database relationships through:
+The analysis focused on Spring Data JPA repositories in the importer module, which contain the business logic that
+implies database relationships through:
 
 - **@Query annotations** - Custom JPQL/SQL queries that join tables
 - **Method signatures** - Repository methods that accept entity IDs as parameters
@@ -110,9 +113,9 @@ Analyzed complex repository queries that span multiple tables:
 // From NftRepository.updateTreasury()
 @Modifying
 @Query("""
-    UPDATE nft SET account_id = :newTreasuryId
-    WHERE token_id = :tokenId AND account_id = :oldTreasuryId
-""")
+            UPDATE nft SET account_id = :newTreasuryId
+            WHERE token_id = :tokenId AND account_id = :oldTreasuryId
+        """)
 ```
 
 **Relationships Identified:**
@@ -213,21 +216,21 @@ private EntityId entityId;
 - `StakingRewardTransferRepository.java`
 - `AssessedCustomFeeRepository.java`
 
-#### Allowance System:
+#### Allowance:
 
 - `TokenAllowanceRepository.java`
 - `CryptoAllowanceRepository.java`
 - `NftAllowanceRepository.java`
 - `*AllowanceHistoryRepository.java` (historical tables)
 
-#### Contract System:
+#### Contract:
 
 - `ContractResultRepository.java`
 - `ContractLogRepository.java`
 - `ContractActionRepository.java`
 - `ContractStateChangeRepository.java`
 
-#### Supporting Systems:
+#### Other:
 
 - `TopicMessageRepository.java`
 - `ScheduleRepository.java`
@@ -241,8 +244,8 @@ private EntityId entityId;
 Almost all tables reference the `entity` table as their primary foreign key target:
 
 ```sql
-ALTER TABLE [table] ADD CONSTRAINT fk_[table]_[field]
-FOREIGN KEY ([field]) REFERENCES entity(id);
+ALTER TABLE [table] ADD CONSTRAINT fk_[table] _[field]
+    FOREIGN KEY ([field]) REFERENCES entity(id);
 ```
 
 #### 2. Payer Account Pattern
@@ -250,8 +253,8 @@ FOREIGN KEY ([field]) REFERENCES entity(id);
 Transaction-related tables consistently have payer_account_id:
 
 ```sql
-ALTER TABLE [transaction_table] ADD CONSTRAINT fk_[table]_payer_account
-FOREIGN KEY (payer_account_id) REFERENCES entity(id);
+ALTER TABLE [transaction_table] ADD CONSTRAINT fk_[table] _payer_account
+    FOREIGN KEY (payer_account_id) REFERENCES entity(id);
 ```
 
 #### 3. Owner/Spender Pattern
@@ -259,10 +262,10 @@ FOREIGN KEY (payer_account_id) REFERENCES entity(id);
 Allowance tables follow consistent ownership patterns:
 
 ```sql
-ALTER TABLE [allowance_table] ADD CONSTRAINT fk_[table]_owner
-FOREIGN KEY (owner) REFERENCES entity(id);
-ALTER TABLE [allowance_table] ADD CONSTRAINT fk_[table]_spender
-FOREIGN KEY (spender) REFERENCES entity(id);
+ALTER TABLE [allowance_table] ADD CONSTRAINT fk_[table] _owner
+    FOREIGN KEY (owner) REFERENCES entity(id);
+ALTER TABLE [allowance_table] ADD CONSTRAINT fk_[table] _spender
+    FOREIGN KEY (spender) REFERENCES entity(id);
 ```
 
 #### 4. Historical Table Pattern
@@ -271,12 +274,14 @@ History tables mirror their primary table relationships:
 
 ```sql
 -- Primary table
-ALTER TABLE token_account ADD CONSTRAINT fk_token_account_account
-FOREIGN KEY (account_id) REFERENCES entity(id);
+ALTER TABLE token_account
+    ADD CONSTRAINT fk_token_account_account
+        FOREIGN KEY (account_id) REFERENCES entity (id);
 
 -- History table
-ALTER TABLE token_account_history ADD CONSTRAINT fk_token_account_history_account
-FOREIGN KEY (account_id) REFERENCES entity(id);
+ALTER TABLE token_account_history
+    ADD CONSTRAINT fk_token_account_history_account
+        FOREIGN KEY (account_id) REFERENCES entity (id);
 ```
 
 ### Limitations and Considerations
@@ -341,6 +346,11 @@ FOREIGN KEY (account_id) REFERENCES entity(id);
 
 ### Conclusion
 
-This methodology successfully identified comprehensive foreign key relationships by analyzing the implicit constraints embedded in Spring Boot repository code. The systematic approach of examining repositories, domain objects, and query patterns provided a complete view of the data relationships that exist in the application logic but are missing from the database schema.
+This methodology successfully identified comprehensive foreign key relationships by analyzing the implicit constraints
+embedded in Spring Boot repository code. The systematic approach of examining repositories, domain objects, and query
+patterns provided a complete view of the data relationships that exist in the application logic but are missing from the
+database schema.
 
-The analysis demonstrates that while the Hiero Mirror Node database lacks foreign key constraints for performance reasons, the application code maintains strict referential integrity through well-structured repository patterns and entity relationships.
+The analysis demonstrates that while the Hiero Mirror Node database lacks foreign key constraints for performance
+reasons, the application code maintains strict referential integrity through well-structured repository patterns and
+entity relationships.
