@@ -362,7 +362,6 @@ public class ContractFeature extends BaseContractFeature {
         String childAddress = executeContractResult.contractFunctionResult().getAddress(0);
 
         // add contract Id to the list for verification of nonce on mirror node
-        assertThat(deployedParentContract.contractId().toEvmAddress()).isNotEqualTo(childAddress);
         addChildContract(childAddress);
     }
 

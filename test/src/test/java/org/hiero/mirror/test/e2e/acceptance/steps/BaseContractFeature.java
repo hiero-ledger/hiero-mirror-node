@@ -103,12 +103,11 @@ public abstract class BaseContractFeature extends AbstractFeature {
     }
 
     protected void verifyNonceForChildContracts() {
-        childContracts.stream().forEach(x -> {
-            var contractInfo = mirrorClient.getContractInfo(x);
-            assertThat(contractInfo).isNotNull();
-            assertThat(contractInfo.getNonce()).isNotNull();
-            assertThat(contractInfo.getNonce()).isEqualTo(1L);
-        });
+        var nonces = childContracts.stream()
+                .map(mirrorClient::getContractInfo)
+                .map(ContractResponse::getNonce)
+                .toList();
+        assertThat(nonces).containsOnly(1L);
     }
 
     protected void addChildContract(String childContract) {
