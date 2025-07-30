@@ -6,6 +6,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -21,15 +22,17 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Named
 public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
 
     static final long INTERVAL = Duration.ofDays(7).toNanos();
 
-    @Getter
-    private final TransactionOperations transactionOperations;
+    @Getter(lazy = true)
+    private final TransactionOperations transactionOperations = transactionOperations();
 
     private final JdbcTemplate jdbcTemplate;
     private final EntityProperties entityProperties;
@@ -49,12 +52,6 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                        (select consensus_end from record_file order by consensus_end desc limit 1),
                        0
                     );
-            """;
-
-    private static final String INSERT_LAST_PROCESSED_TIMESTAMP =
-            """
-                    insert into processed_record_file_temp(consensus_end)
-                    values(:lastProcessedRecordFileEndTimestamp);
             """;
 
     private static final String DROP_TEMPORARY_RECORD_FILE_TABLE =
@@ -168,6 +165,9 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                     insert into contract_log
                     select * from contract_log_migration;
 
+                    insert into processed_record_file_temp(consensus_end)
+                    values(:lastConsensusEnd);
+
                     commit;
             """;
 
@@ -181,13 +181,11 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
             final DBProperties dbProperties,
             final ImporterProperties importerProperties,
             final @Owner JdbcTemplate jdbcTemplate,
-            final TransactionOperations transactionOperations,
             final EntityProperties entityProperties) {
         super(
                 importerProperties.getMigration(),
                 new NamedParameterJdbcTemplate(jdbcTemplate),
                 dbProperties.getSchema());
-        this.transactionOperations = transactionOperations;
         this.jdbcTemplate = jdbcTemplate;
         this.entityProperties = entityProperties;
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
@@ -240,9 +238,6 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                 "consensusStart", sliceStartTimestamp);
         namedParameterJdbcTemplate.update(getVersionedContractUpdateQuery(), params);
 
-        namedParameterJdbcTemplate.update(
-                INSERT_LAST_PROCESSED_TIMESTAMP, Map.of("lastProcessedRecordFileEndTimestamp", sliceEndTimestamp));
-
         return Optional.of(consensusStartTimestamp);
     }
 
@@ -255,6 +250,11 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
     private String getVersionedContractUpdateQuery() {
         return String.format(
                 UPDATE_CONTRACT_LOG_INDEXES, v2 ? V2_PROPERTY_MAX_INTERMEDIATE_RESULTS : StringUtils.EMPTY);
+    }
+
+    private TransactionOperations transactionOperations() {
+        var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(jdbcTemplate.getDataSource()));
+        return new TransactionTemplate(transactionManager);
     }
 
     private record RecordFileSlice(long minConsensusTimestamp, long maxConsensusTimestamp) {}
