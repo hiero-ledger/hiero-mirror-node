@@ -10416,19 +10416,19 @@ private EntityId entityId;
 - `StakingRewardTransferRepository.java`
 - `AssessedCustomFeeRepository.java`
 
-#### Allowance System:
+#### Allowance:
 - `TokenAllowanceRepository.java`
 - `CryptoAllowanceRepository.java`
 - `NftAllowanceRepository.java`
 - `*AllowanceHistoryRepository.java` (historical tables)
 
-#### Contract System:
+#### Contract:
 - `ContractResultRepository.java`
 - `ContractLogRepository.java`
 - `ContractActionRepository.java`
 - `ContractStateChangeRepository.java`
 
-#### Supporting Systems:
+#### Other:
 - `TopicMessageRepository.java`
 - `ScheduleRepository.java`
 - `FileDataRepository.java`
