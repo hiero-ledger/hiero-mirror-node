@@ -7,10 +7,10 @@ import jakarta.inject.Named;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.springframework.beans.factory.ObjectProvider;
@@ -44,7 +44,7 @@ public class BackfillBlockMigration extends AsyncJavaMigration<Long> {
     public BackfillBlockMigration(
             DBProperties dbProperties,
             ImporterProperties importerProperties,
-            ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
+            @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
             ObjectProvider<RecordFileRepository> recordFileRepositoryProvider,
             ObjectProvider<TransactionOperations> transactionOperationsProvider) {
         super(importerProperties.getMigration(), jdbcTemplateProvider, dbProperties.getSchema());
@@ -80,7 +80,8 @@ public class BackfillBlockMigration extends AsyncJavaMigration<Long> {
     @Nonnull
     @Override
     protected Optional<Long> migratePartial(Long lastConsensusEnd) {
-        return recordFileRepositoryProvider.getObject()
+        return recordFileRepositoryProvider
+                .getObject()
                 .findLatestMissingGasUsedBefore(lastConsensusEnd)
                 .map(recordFile -> {
                     var queryParams = Map.of(

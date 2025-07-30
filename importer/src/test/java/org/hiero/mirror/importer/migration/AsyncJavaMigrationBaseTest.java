@@ -37,9 +37,6 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
     protected NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     @Resource
-    protected ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
-
-    @Resource
     protected TransactionOperations transactionOperations;
 
     @AfterEach
@@ -89,7 +86,12 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
         public TestAsyncJavaMigration(boolean error, MigrationProperties migrationProperties, long sleep) {
             super(
                     Map.of("testAsyncJavaMigration", migrationProperties),
-                    AsyncJavaMigrationBaseTest.this.jdbcTemplateProvider,
+                    new ObjectProvider<JdbcTemplate>() {
+                        @Override
+                        public JdbcTemplate getObject() {
+                            return ownerJdbcTemplate;
+                        }
+                    },
                     dbProperties.getSchema());
             this.error = error;
             this.sleep = sleep;
