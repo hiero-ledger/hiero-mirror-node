@@ -84,7 +84,7 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
 
                     %s
                     set local temp_buffers = '64MB';
-                    create temp table if not exists contract_log_migration(like contract_log);
+                    create temp table if not exists contract_log_migration(like contract_log) on commit drop;
 
                     with rf as (
                       select consensus_start, consensus_end
