@@ -17,12 +17,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class NetworkController {
 
-    private final NetworkService networkNodeService;
+    private final NetworkService networkService;
     private final NetworkStakeMapper networkStakeMapper;
 
     @GetMapping("/stake")
     NetworkStakeResponse getNetworkStake() {
-        final var networkStake = networkNodeService.getLatestNetworkStake();
+        final var networkStake = networkService.getLatestNetworkStake();
         return networkStakeMapper.map(networkStake);
     }
 }
