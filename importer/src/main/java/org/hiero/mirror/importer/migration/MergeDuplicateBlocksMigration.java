@@ -7,7 +7,7 @@ import jakarta.inject.Named;
 import java.io.IOException;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @Named
@@ -40,13 +40,13 @@ class MergeDuplicateBlocksMigration extends RepeatableMigration {
                     where consensus_timestamp > 1675962000231859003 and consensus_timestamp <= 1675962001984524003;
                     """;
 
-    private final JdbcTemplate jdbcTemplate;
+    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
     private final ImporterProperties importerProperties;
 
-    @Lazy
-    protected MergeDuplicateBlocksMigration(@Owner JdbcTemplate jdbcTemplate, ImporterProperties importerProperties) {
+    protected MergeDuplicateBlocksMigration(
+            @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider, ImporterProperties importerProperties) {
         super(importerProperties.getMigration());
-        this.jdbcTemplate = jdbcTemplate;
+        this.jdbcTemplateProvider = jdbcTemplateProvider;
         this.importerProperties = importerProperties;
     }
 
@@ -57,7 +57,7 @@ class MergeDuplicateBlocksMigration extends RepeatableMigration {
         }
 
         var stopwatch = Stopwatch.createStarted();
-        int count = jdbcTemplate.update(SQL);
+        int count = jdbcTemplateProvider.getObject().update(SQL);
         log.info("Successfully merged the blocks and fixed {} transaction indexes in {}", count, stopwatch);
     }
 

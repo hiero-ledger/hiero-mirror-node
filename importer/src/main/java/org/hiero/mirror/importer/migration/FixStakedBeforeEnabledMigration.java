@@ -8,12 +8,12 @@ import lombok.RequiredArgsConstructor;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.util.Utility;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 
 @Named
-@RequiredArgsConstructor(onConstructor_ = {@Lazy})
+@RequiredArgsConstructor()
 public class FixStakedBeforeEnabledMigration extends AbstractJavaMigration {
 
     static final Long LAST_HAPI_26_RECORD_FILE_CONSENSUS_END_MAINNET = 1658419200981687000L;
@@ -62,7 +62,7 @@ public class FixStakedBeforeEnabledMigration extends AbstractJavaMigration {
                     """;
     private static final MigrationVersion VERSION = MigrationVersion.fromVersion("1.68.3");
 
-    private final NamedParameterJdbcOperations jdbcOperations;
+    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final ImporterProperties importerProperties;
 
     @Override
@@ -87,7 +87,7 @@ public class FixStakedBeforeEnabledMigration extends AbstractJavaMigration {
         var params = new MapSqlParameterSource()
                 .addValue("consensusEnd", LAST_HAPI_26_RECORD_FILE_CONSENSUS_END_MAINNET)
                 .addValue("epochDay", epochDay);
-        int count = jdbcOperations.update(MIGRATION_SQL, params);
+        int count = jdbcOperationsProvider.getObject().update(MIGRATION_SQL, params);
         log.info("Fixed staking information for {} {} accounts in {}", count, hederaNetwork, stopwatch);
     }
 }

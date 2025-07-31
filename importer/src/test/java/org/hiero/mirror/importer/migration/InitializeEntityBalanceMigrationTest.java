@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,12 +68,40 @@ class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest {
     @BeforeEach
     void beforeEach() {
         timestamp = new AtomicLong(0L);
+
+        ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider =
+                new ObjectProvider<AccountBalanceFileRepository>() {
+                    @Override
+                    public AccountBalanceFileRepository getObject() {
+                        return accountBalanceFileRepository;
+                    }
+                };
+        ObjectProvider<NamedParameterJdbcTemplate> namedParameterJdbcTemplateProvider =
+                new ObjectProvider<NamedParameterJdbcTemplate>() {
+                    @Override
+                    public NamedParameterJdbcTemplate getObject() {
+                        return namedParameterJdbcTemplate;
+                    }
+                };
+        ObjectProvider<RecordFileRepository> recordFileRepositoryProvider = new ObjectProvider<RecordFileRepository>() {
+            @Override
+            public RecordFileRepository getObject() {
+                return recordFileRepository;
+            }
+        };
+        ObjectProvider<TransactionTemplate> transactionTemplateProvider = new ObjectProvider<TransactionTemplate>() {
+            @Override
+            public TransactionTemplate getObject() {
+                return transactionTemplate;
+            }
+        };
+
         migration = new InitializeEntityBalanceMigration(
-                accountBalanceFileRepository,
+                accountBalanceFileRepositoryProvider,
                 importerProperties,
-                namedParameterJdbcTemplate,
-                recordFileRepository,
-                transactionTemplate);
+                namedParameterJdbcTemplateProvider,
+                recordFileRepositoryProvider,
+                transactionTemplateProvider);
     }
 
     @Test

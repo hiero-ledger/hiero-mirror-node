@@ -12,7 +12,7 @@ import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.exception.ImporterException;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.util.Version;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -21,7 +21,6 @@ public class SyntheticNftAllowanceOwnerMigration extends RepeatableMigration imp
 
     static final Version HAPI_VERSION_0_37_0 = new Version(0, 37, 0);
     private final AtomicBoolean executed = new AtomicBoolean(false);
-    private final RecordFileRepository recordFileRepository;
 
     private static final String UPDATE_NFT_ALLOWANCE_OWNER_SQL =
             """
@@ -100,16 +99,16 @@ public class SyntheticNftAllowanceOwnerMigration extends RepeatableMigration imp
             commit;
             """;
 
-    private final JdbcTemplate jdbcTemplate;
+    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
+    private final ObjectProvider<RecordFileRepository> recordFileRepositoryProvider;
 
-    @Lazy
     public SyntheticNftAllowanceOwnerMigration(
-            @Owner JdbcTemplate jdbcTemplate,
+            @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
             ImporterProperties importerProperties,
-            RecordFileRepository recordFileRepository) {
+            ObjectProvider<RecordFileRepository> recordFileRepositoryProvider) {
         super(importerProperties.getMigration());
-        this.jdbcTemplate = jdbcTemplate;
-        this.recordFileRepository = recordFileRepository;
+        this.jdbcTemplateProvider = jdbcTemplateProvider;
+        this.recordFileRepositoryProvider = recordFileRepositoryProvider;
     }
 
     @Override
@@ -126,7 +125,7 @@ public class SyntheticNftAllowanceOwnerMigration extends RepeatableMigration imp
     @Override
     protected void doMigrate() {
         var stopwatch = Stopwatch.createStarted();
-        jdbcTemplate.execute(UPDATE_NFT_ALLOWANCE_OWNER_SQL);
+        jdbcTemplateProvider.getObject().execute(UPDATE_NFT_ALLOWANCE_OWNER_SQL);
         log.info("Updated nft allowance owners in {}", stopwatch);
     }
 
@@ -139,7 +138,7 @@ public class SyntheticNftAllowanceOwnerMigration extends RepeatableMigration imp
         // The services version 0.37.0 has the fixes this migration solves.
         if (streamFile.getHapiVersion().isGreaterThanOrEqualTo(HAPI_VERSION_0_37_0)
                 && executed.compareAndSet(false, true)) {
-            var latestFile = recordFileRepository.findLatestBefore(streamFile.getConsensusStart());
+            var latestFile = recordFileRepositoryProvider.getObject().findLatestBefore(streamFile.getConsensusStart());
             if (latestFile
                     .filter(f -> f.getHapiVersion().isLessThan(HAPI_VERSION_0_37_0))
                     .isPresent()) {

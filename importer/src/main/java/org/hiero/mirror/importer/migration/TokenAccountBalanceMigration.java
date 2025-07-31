@@ -8,7 +8,7 @@ import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -48,19 +48,18 @@ public class TokenAccountBalanceMigration extends AbstractTimestampInfoMigration
               balance_timestamp = excluded.balance_timestamp;
             """;
 
-    @Lazy
     public TokenAccountBalanceMigration(
-            AccountBalanceFileRepository accountBalanceFileRepository,
+            ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider,
             ImporterProperties importerProperties,
-            NamedParameterJdbcTemplate jdbcTemplate,
-            RecordFileRepository recordFileRepository,
-            TransactionTemplate transactionTemplate) {
+            ObjectProvider<NamedParameterJdbcTemplate> jdbcTemplateProvider,
+            ObjectProvider<RecordFileRepository> recordFileRepositoryProvider,
+            ObjectProvider<TransactionTemplate> transactionTemplateProvider) {
         super(
-                accountBalanceFileRepository,
+                accountBalanceFileRepositoryProvider,
                 importerProperties.getMigration(),
-                jdbcTemplate,
-                recordFileRepository,
-                transactionTemplate);
+                jdbcTemplateProvider,
+                recordFileRepositoryProvider,
+                transactionTemplateProvider);
     }
 
     @Override
