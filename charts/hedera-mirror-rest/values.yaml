@@ -72,9 +72,126 @@ gateway:
           name: "{{ include \"hedera-mirror-rest.fullname\" $ }}"
           port: 80
       matches:
+        # Account Endpoints
+        - path:
+            type: RegularExpression
+            value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/outstanding$'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/pending'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/crypto'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/tokens'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/nfts'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/nfts'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/rewards'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/tokens'
+        # Balances Endpoint
         - path:
             type: PathPrefix
-            value: /api/v1
+            value: /api/v1/balances
+        # Block Endpoints
+        - path:
+            type: RegularExpression
+            value: '/api/v1/blocks/((0x)?[0-9a-fA-F]+|\d+)$'
+        - path:
+            type: PathPrefix
+            value: /api/v1/blocks
+        # Contract Endpoints
+        - path:
+            type: RegularExpression
+            value: '/api/v1/contracts/results/[0-9a-zA-Z.-]+/actions$'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/results/logs$'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/results/\d{10}\.\d{9}$'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/results$'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/state$'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))$'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/contracts/results/[0-9a-zA-Z.-]+$'
+        - path:
+            type: PathPrefix
+            value: /api/v1/contracts/results/logs
+        - path:
+            type: PathPrefix
+            value: /api/v1/contracts/results
+        - path:
+            type: PathPrefix
+            value: /api/v1/contracts
+        # Message Endpoints
+        - path:
+            type: RegularExpression
+            value: '/api/v1/messages/\d{10}\.\d{9}$'
+        # Network Endpoints
+        - path:
+            type: PathPrefix
+            value: /api/v1/network/exchangerate
+        - path:
+            type: PathPrefix
+            value: /api/v1/network/fees
+        - path:
+            type: PathPrefix
+            value: /api/v1/network/nodes
+        - path:
+            type: PathPrefix
+            value: /api/v1/network/stake
+        - path:
+            type: PathPrefix
+            value: /api/v1/network/supply
+        # Schedule Endpoints
+        - path:
+            type: RegularExpression
+            value: '/api/v1/schedules/\d+\.\d+\.\d+$'
+        - path:
+            type: PathPrefix
+            value: /api/v1/schedules
+        # Token Endpoints
+        - path:
+            type: RegularExpression
+            value: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/nfts/\d+/transactions$'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/nfts/\d+$'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/nfts$'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/balances$'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})$'
+        - path:
+            type: PathPrefix
+            value: /api/v1/tokens
+        # Topic Message Endpoints
+        - path:
+            type: RegularExpression
+            value: '/api/v1/topics/\d+\.\d+\.\d+/messages/\d+$'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/topics/\d+\.\d+\.\d+/messages$'
   target:
     group: ""
     kind: Service
@@ -117,7 +234,90 @@ ingress:
   enabled: true
   hosts:
     - host: ""
-      paths: ["/api/v1"]
+      paths:
+        # Account Endpoints
+        - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/outstanding$'
+          enabled: true
+        - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/pending'
+          enabled: true
+        - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/crypto'
+          enabled: true
+        - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/nfts'
+          enabled: true
+        - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/tokens'
+          enabled: true
+        - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/nfts'
+          enabled: true
+        - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/rewards'
+          enabled: true
+        - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/tokens'
+          enabled: true
+        # Balances Endpoint
+        - path: /api/v1/balances
+          enabled: true
+        # Block Endpoints
+        - path: '/api/v1/blocks/((0x)?[0-9a-fA-F]+|\d+)$'
+          enabled: true
+        - path: /api/v1/blocks
+          enabled: true
+        # Contract Endpoints
+        - path: '/api/v1/contracts/results/[0-9a-zA-Z.-]+/actions$'
+          enabled: true
+        - path: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/results/logs$'
+          enabled: true
+        - path: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/results/\d{10}\.\d{9}$'
+          enabled: true
+        - path: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/results$'
+          enabled: true
+        - path: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/state$'
+          enabled: true
+        - path: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))$'
+          enabled: true
+        - path: '/api/v1/contracts/results/[0-9a-zA-Z.-]+$'
+          enabled: true
+        - path: /api/v1/contracts/results/logs
+          enabled: true
+        - path: /api/v1/contracts/results
+          enabled: true
+        - path: /api/v1/contracts
+          enabled: true
+        # Message Endpoints
+        - path: '/api/v1/messages/\d{10}\.\d{9}$'
+          enabled: true
+        # Network Endpoints
+        - path: /api/v1/network/exchangerate
+          enabled: true
+        - path: /api/v1/network/fees
+          enabled: true
+        - path: /api/v1/network/nodes
+          enabled: true
+        - path: /api/v1/network/stake
+          enabled: true
+        - path: /api/v1/network/supply
+          enabled: true
+        # Schedule Endpoints
+        - path: '/api/v1/schedules/\d+\.\d+\.\d+$'
+          enabled: true
+        - path: /api/v1/schedules
+          enabled: true
+        # Token Endpoints
+        - path: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/nfts/\d+/transactions$'
+          enabled: true
+        - path: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/nfts/\d+$'
+          enabled: true
+        - path: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/nfts$'
+          enabled: true
+        - path: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/balances$'
+          enabled: true
+        - path: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})$'
+          enabled: true
+        - path: /api/v1/tokens
+          enabled: true
+        # Topic Message Endpoints
+        - path: '/api/v1/topics/\d+\.\d+\.\d+/messages/\d+$'
+          enabled: true
+        - path: '/api/v1/topics/\d+\.\d+\.\d+/messages$'
+          enabled: true
   tls:
     enabled: false
     secretName: ""

@@ -23,13 +23,15 @@ spec:
       http:
         paths:
         {{- range .paths }}
-          - path: {{ .path }}
-            pathType: {{ .type | default "ImplementationSpecific" }}
-            backend:
-              service:
-                name: {{ $fullName }}
-                port:
-                  number: {{ $servicePort }}
+          {{- if .enabled }}
+            - path: {{ .path }}
+              pathType: {{ .type | default "ImplementationSpecific" }}
+              backend:
+                service:
+                  name: {{ $fullName }}
+                  port:
+                    number: {{ $servicePort }}
+          {{- end }}
         {{- end }}
   {{- end }}
   {{- if .Values.ingress.tls.enabled }}
