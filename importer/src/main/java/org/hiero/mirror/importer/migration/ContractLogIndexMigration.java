@@ -31,13 +31,6 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
 
     static final long INTERVAL = Duration.ofDays(7).toNanos();
 
-    @Getter(lazy = true)
-    private final TransactionOperations transactionOperations = transactionOperations();
-
-    private final JdbcTemplate jdbcTemplate;
-    private final EntityProperties entityProperties;
-    private final boolean v2;
-
     private static final String CREATE_TEMPORARY_PROCESSED_RECORD_FILE_TABLE =
             """
                     create table if not exists processed_record_file_temp(
@@ -176,6 +169,13 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
     private static final String V2_PROPERTY_MAX_INTERMEDIATE_RESULTS = "set citus.max_intermediate_result_size = -1;";
 
     private static final RowMapper<RecordFileSlice> ROW_MAPPER = new DataClassRowMapper<>(RecordFileSlice.class);
+
+    @Getter(lazy = true)
+    private final TransactionOperations transactionOperations = transactionOperations();
+
+    private final JdbcTemplate jdbcTemplate;
+    private final EntityProperties entityProperties;
+    private final boolean v2;
 
     @Lazy
     protected ContractLogIndexMigration(
