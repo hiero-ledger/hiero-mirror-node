@@ -9,7 +9,7 @@ import lombok.CustomLog;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @CustomLog
@@ -59,21 +59,24 @@ public class FixFungibleTokenTotalSupplyMigration extends RepeatableMigration {
             where t.token_id = f.token_id
             """;
 
-    private final JdbcTemplate jdbcTemplate;
+    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
     private final SystemEntity systemEntity;
 
-    @Lazy
     public FixFungibleTokenTotalSupplyMigration(
-            JdbcTemplate jdbcTemplate, ImporterProperties importerProperties, SystemEntity systemEntity) {
+            ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
+            ImporterProperties importerProperties,
+            SystemEntity systemEntity) {
         super(importerProperties.getMigration());
-        this.jdbcTemplate = jdbcTemplate;
+        this.jdbcTemplateProvider = jdbcTemplateProvider;
         this.systemEntity = systemEntity;
     }
 
     @Override
     protected void doMigrate() throws IOException {
         var stopwatch = Stopwatch.createStarted();
-        int count = jdbcTemplate.update(SQL, systemEntity.treasuryAccount().getId());
+        int count = jdbcTemplateProvider
+                .getObject()
+                .update(SQL, systemEntity.treasuryAccount().getId());
         log.info("Fixed {} fungible tokens' total supply in {}", count, stopwatch);
     }
 

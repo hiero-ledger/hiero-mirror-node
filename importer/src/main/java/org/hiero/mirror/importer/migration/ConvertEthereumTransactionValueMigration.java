@@ -9,11 +9,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.converter.WeiBarTinyBarConverter;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 @Named
-@RequiredArgsConstructor(onConstructor_ = {@Lazy})
+@RequiredArgsConstructor()
 public class ConvertEthereumTransactionValueMigration extends AbstractJavaMigration {
 
     private static final String SELECT_NON_NULL_VALUE_SQL =
@@ -24,7 +24,7 @@ public class ConvertEthereumTransactionValueMigration extends AbstractJavaMigrat
     private static final String SET_TINYBAR_VALUE_SQL =
             "update ethereum_transaction " + "set value = :value " + "where consensus_timestamp = :consensusTimestamp";
 
-    private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final ObjectProvider<NamedParameterJdbcTemplate> jdbcTemplateProvider;
 
     @Override
     public String getDescription() {
@@ -42,12 +42,13 @@ public class ConvertEthereumTransactionValueMigration extends AbstractJavaMigrat
         var count = new AtomicLong(0);
         var stopwatch = Stopwatch.createStarted();
 
-        jdbcTemplate.query(SELECT_NON_NULL_VALUE_SQL, rs -> {
+        jdbcTemplateProvider.getObject().query(SELECT_NON_NULL_VALUE_SQL, rs -> {
             var consensusTimestamp = rs.getLong(1);
             var weibar = rs.getBytes(2);
             var tinybar = converter.convert(weibar, true);
-            jdbcTemplate.update(
-                    SET_TINYBAR_VALUE_SQL, Map.of("consensusTimestamp", consensusTimestamp, "value", tinybar));
+            jdbcTemplateProvider
+                    .getObject()
+                    .update(SET_TINYBAR_VALUE_SQL, Map.of("consensusTimestamp", consensusTimestamp, "value", tinybar));
             count.incrementAndGet();
         });
 
