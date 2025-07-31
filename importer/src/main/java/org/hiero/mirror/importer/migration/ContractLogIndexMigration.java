@@ -79,6 +79,7 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
             """
                     begin;
 
+                    -- set v2 specific property conditionally on the environment
                     %s
                     set local temp_buffers = '64MB';
                     create temp table if not exists contract_log_migration(like contract_log) on commit drop;
@@ -165,8 +166,9 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                     insert into contract_log
                     select * from contract_log_migration;
 
+                    -- Save the timestamp from where to resume the migration if necessary.
                     insert into processed_record_file_temp(consensus_end)
-                    values(:lastConsensusEnd);
+                    values(:consensusStart);
 
                     commit;
             """;
@@ -208,11 +210,11 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
 
     @Nonnull
     @Override
-    protected Optional<Long> migratePartial(Long lastConsensusEndTimestamp) {
+    protected Optional<Long> migratePartial(Long consensusEndTimestamp) {
         // Get record files for an interval of time.
-        var consensusStartTimestamp = lastConsensusEndTimestamp - INTERVAL;
+        var consensusStartTimestamp = consensusEndTimestamp - INTERVAL;
         var recordFileSliceParams = new MapSqlParameterSource()
-                .addValue("consensusEndUpperBound", lastConsensusEndTimestamp)
+                .addValue("consensusEndUpperBound", consensusEndTimestamp)
                 .addValue("consensusEndLowerBound", consensusStartTimestamp);
         final var recordFileSlice =
                 queryForObjectOrNull(SELECT_RECORD_FILES_MIN_AND_MAX_TIMESTAMP, recordFileSliceParams, ROW_MAPPER);
@@ -220,7 +222,7 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
             log.info(
                     "No more record files remaining to process. Last consensus end timestamp: {}."
                             + "Dropping temporary table processed_record_file_temp.",
-                    lastConsensusEndTimestamp);
+                    consensusEndTimestamp);
             jdbcTemplate.execute(DROP_TEMPORARY_RECORD_FILE_TABLE);
             return Optional.empty();
         }
@@ -233,6 +235,7 @@ public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                 sliceStartTimestamp,
                 sliceEndTimestamp);
 
+        // Update the contract log entries for the given timestamp range.
         final var params = Map.of(
                 "lastConsensusEnd", sliceEndTimestamp,
                 "consensusStart", sliceStartTimestamp);
