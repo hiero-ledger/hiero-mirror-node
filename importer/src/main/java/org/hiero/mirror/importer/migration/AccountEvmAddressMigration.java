@@ -8,19 +8,19 @@ import java.util.Map;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.util.Utility;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 
 @Named
 public class AccountEvmAddressMigration extends RepeatableMigration {
 
-    private final NamedParameterJdbcOperations jdbcOperations;
+    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
 
-    @Lazy
     public AccountEvmAddressMigration(
-            NamedParameterJdbcOperations jdbcOperations, ImporterProperties importerProperties) {
+            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
+            ImporterProperties importerProperties) {
         super(importerProperties.getMigration());
-        this.jdbcOperations = jdbcOperations;
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
     }
 
     @Override
@@ -36,13 +36,13 @@ public class AccountEvmAddressMigration extends RepeatableMigration {
                 "select id, alias from entity%s where evm_address is null and length(alias) = 35", suffix);
         var update = String.format("update entity%s set evm_address = :evmAddress where id = :id", suffix);
 
-        jdbcOperations.query(query, rs -> {
+        jdbcOperationsProvider.getObject().query(query, rs -> {
             long id = rs.getLong(1);
             byte[] alias = rs.getBytes(2);
             byte[] evmAddress = Utility.aliasToEvmAddress(alias);
 
             if (evmAddress != null) {
-                jdbcOperations.update(update, Map.of("evmAddress", evmAddress, "id", id));
+                jdbcOperationsProvider.getObject().update(update, Map.of("evmAddress", evmAddress, "id", id));
             }
         });
     }

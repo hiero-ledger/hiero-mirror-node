@@ -29,7 +29,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
@@ -41,11 +40,12 @@ import org.springframework.jdbc.core.JdbcOperations;
 @CustomLog
 @Configuration
 class MetricsConfiguration {
-    /** We use string formatting on these statements to be compatible with both v2 and v1.
-     *  Running commands on all shards requires use of dollar quoted strings which are excluded from prepared statement
-     *  variable replacement.
-     *
-     *  All inputs come from our config or current db values.
+    /**
+     * We use string formatting on these statements to be compatible with both v2 and v1.
+     * Running commands on all shards requires use of dollar quoted strings which are excluded from prepared statement
+     * variable replacement.
+     * <p>
+     * All inputs come from our config or current db values.
      */
     private static final String METRIC_SQL =
             """
@@ -85,7 +85,7 @@ class MetricsConfiguration {
 
     private final DataSource dataSource;
     private final DBProperties dbProperties;
-    private final @Lazy JdbcOperations jdbcOperations;
+    private final JdbcOperations jdbcOperations;
     private final LoadingCache<String, TableMetrics> activeMetrics;
     private final Map<String, TableAttributes> tables = new ConcurrentHashMap<>();
 
