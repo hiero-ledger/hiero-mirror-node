@@ -245,7 +245,8 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
             // The services version 0.38.0 has the fixes this migration solves.
             if (streamFile.getHapiVersion().isGreaterThanOrEqualTo(HAPI_VERSION_0_38_0)
                     && executed.compareAndSet(false, true)) {
-                var previousFile = recordFileRepositoryProvider.getObject().findLatestBefore(streamFile.getConsensusStart());
+                var previousFile =
+                        recordFileRepositoryProvider.getObject().findLatestBefore(streamFile.getConsensusStart());
                 if (previousFile
                         .filter(f -> f.getHapiVersion().isLessThan(HAPI_VERSION_0_38_0))
                         .isPresent()) {

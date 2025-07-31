@@ -250,8 +250,8 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
     }
 
     private boolean hasFlywaySchemaHistoryTable() {
-        var exists = getNamedParameterJdbcTemplate().queryForObject(
-                CHECK_FLYWAY_SCHEMA_HISTORY_EXISTENCE_SQL, Map.of("schema", schema), Boolean.class);
+        var exists = getNamedParameterJdbcTemplate()
+                .queryForObject(CHECK_FLYWAY_SCHEMA_HISTORY_EXISTENCE_SQL, Map.of("schema", schema), Boolean.class);
         return BooleanUtils.isTrue(exists);
     }
 

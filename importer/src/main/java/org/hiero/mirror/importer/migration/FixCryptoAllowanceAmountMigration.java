@@ -124,10 +124,7 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
             EntityProperties entityProperties,
             ImporterProperties importerProperties,
             @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider) {
-        super(
-                importerProperties.getMigration(),
-                jdbcTemplateProvider,
-                dbProperties.getSchema());
+        super(importerProperties.getMigration(), jdbcTemplateProvider, dbProperties.getSchema());
         this.entityProperties = entityProperties;
     }
 
@@ -202,8 +199,8 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
         try {
             // It's safe to use the earliest timestamp as the exclusive min timestamp, because it's impossible to grant
             // and spend the allowance at the same time
-            Long timestamp = getJdbcTemplate().queryForObject(
-                    "select min(lower(timestamp_range)) from crypto_allowance_migration", Long.class);
+            Long timestamp = getJdbcTemplate()
+                    .queryForObject("select min(lower(timestamp_range)) from crypto_allowance_migration", Long.class);
             if (timestamp == null) {
                 log.warn("The table crypto_allowance_migration is empty, use Long.MAX_VALUE as the earliest timestamp");
                 timestamp = Long.MAX_VALUE;
@@ -228,7 +225,8 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
     }
 
     private TransactionOperations transactionOperations() {
-        var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(getJdbcTemplate().getDataSource()));
+        var transactionManager = new DataSourceTransactionManager(
+                Objects.requireNonNull(getJdbcTemplate().getDataSource()));
         return new TransactionTemplate(transactionManager);
     }
 }

@@ -140,10 +140,7 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
             ImporterProperties importerProperties,
             @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
             ObjectProvider<TimePartitionService> timePartitionServiceProvider) {
-        super(
-                importerProperties.getMigration(),
-                jdbcTemplateProvider,
-                dbProperties.getSchema());
+        super(importerProperties.getMigration(), jdbcTemplateProvider, dbProperties.getSchema());
         this.timePartitionServiceProvider = timePartitionServiceProvider;
     }
 
@@ -166,7 +163,8 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
             return NO_BALANCE;
         }
 
-        return getJdbcTemplate().queryForObject(SELECT_INITIAL_CONSENSUS_TIMESTAMP_SQL, Long.class, lastConsensusTimestamp);
+        return getJdbcTemplate()
+                .queryForObject(SELECT_INITIAL_CONSENSUS_TIMESTAMP_SQL, Long.class, lastConsensusTimestamp);
     }
 
     @Override
@@ -187,8 +185,9 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
             return Optional.empty();
         }
 
-        var partitions =
-                timePartitionServiceProvider.getObject().getOverlappingTimePartitions(ACCOUNT_BALANCE_TABLE_NAME, timestamp, timestamp);
+        var partitions = timePartitionServiceProvider
+                .getObject()
+                .getOverlappingTimePartitions(ACCOUNT_BALANCE_TABLE_NAME, timestamp, timestamp);
         if (partitions.isEmpty()) {
             throw new InvalidDatasetException(
                     String.format("No account_balance table partition found for timestamp %d", timestamp));
@@ -198,8 +197,8 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
         var params = new MapSqlParameterSource()
                 .addValue("lowerBound", partitionRange.lowerEndpoint())
                 .addValue("upperBound", Math.min(partitionRange.upperEndpoint(), lastConsensusTimestamp));
-        var isPartitionEmpty = getNamedParameterJdbcTemplate().queryForObject(
-                IS_ACCOUNT_BALANCE_PARTITION_EMPTY_SQL, params, Boolean.class);
+        var isPartitionEmpty = getNamedParameterJdbcTemplate()
+                .queryForObject(IS_ACCOUNT_BALANCE_PARTITION_EMPTY_SQL, params, Boolean.class);
         var createAccountBalanceSnapshotSql = Boolean.TRUE.equals(isPartitionEmpty)
                 ? CREATE_FULL_ACCOUNT_BALANCE_SNAPSHOT_SQL
                 : CREATE_DEDUPED_ACCOUNT_BALANCE_SNAPSHOT_SQL;
@@ -259,7 +258,8 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
     }
 
     private TransactionOperations transactionOperations() {
-        var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(getJdbcTemplate().getDataSource()));
+        var transactionManager = new DataSourceTransactionManager(
+                Objects.requireNonNull(getJdbcTemplate().getDataSource()));
         return new TransactionTemplate(transactionManager);
     }
 }

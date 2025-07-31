@@ -67,11 +67,11 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
         var mirrorProperties = new ImporterProperties();
         migration = new FixCryptoAllowanceAmountMigration(
                 dbProperties, entityProperties, mirrorProperties, new ObjectProvider<JdbcTemplate>() {
-            @Override
-            public JdbcTemplate getObject() {
-                return ownerJdbcTemplate;
-            }
-        });
+                    @Override
+                    public JdbcTemplate getObject() {
+                        return ownerJdbcTemplate;
+                    }
+                });
     }
 
     @Test
@@ -276,11 +276,11 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
         entityProps.getPersist().setTrackAllowance(trackAllowance);
         var allowanceAmountMigration = new FixCryptoAllowanceAmountMigration(
                 dbProperties, entityProps, new ImporterProperties(), new ObjectProvider<JdbcTemplate>() {
-            @Override
-            public JdbcTemplate getObject() {
-                return ownerJdbcTemplate;
-            }
-        });
+                    @Override
+                    public JdbcTemplate getObject() {
+                        return ownerJdbcTemplate;
+                    }
+                });
         var configuration = new FluentConfiguration().target(allowanceAmountMigration.getMinimumVersion());
 
         // when, then
