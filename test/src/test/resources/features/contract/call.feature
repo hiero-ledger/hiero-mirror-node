@@ -1,4 +1,4 @@
-@contractbase @fullsuite @acceptance @web3 @call
+@contractbase @fullsuite @acceptance @web3 @call @ethcall
 Feature: eth_call Contract Base Coverage Feature
 
   Scenario Outline: Validate eth_call
