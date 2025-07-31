@@ -13,7 +13,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -26,18 +26,17 @@ public class BlockNumberMigration extends RepeatableMigration {
             MAINNET, Pair.of(1656461547557609267L, 34305852L));
 
     private final ImporterProperties importerProperties;
-    private final NamedParameterJdbcTemplate jdbcTemplate;
-    private final RecordFileRepository recordFileRepository;
+    private final ObjectProvider<NamedParameterJdbcTemplate> jdbcTemplateProvider;
+    private final ObjectProvider<RecordFileRepository> recordFileRepositoryProvider;
 
-    @Lazy
     public BlockNumberMigration(
             ImporterProperties importerProperties,
-            NamedParameterJdbcTemplate jdbcTemplate,
-            RecordFileRepository recordFileRepository) {
+            ObjectProvider<NamedParameterJdbcTemplate> jdbcTemplateProvider,
+            ObjectProvider<RecordFileRepository> recordFileRepositoryProvider) {
         super(importerProperties.getMigration());
         this.importerProperties = importerProperties;
-        this.jdbcTemplate = jdbcTemplate;
-        this.recordFileRepository = recordFileRepository;
+        this.jdbcTemplateProvider = jdbcTemplateProvider;
+        this.recordFileRepositoryProvider = recordFileRepositoryProvider;
     }
 
     @Override
@@ -71,15 +70,19 @@ public class BlockNumberMigration extends RepeatableMigration {
     private void updateIndex(long correctBlockNumber, long incorrectBlockNumber) {
         long offset = correctBlockNumber - incorrectBlockNumber;
         Stopwatch stopwatch = Stopwatch.createStarted();
-        int count = recordFileRepository.updateIndex(offset);
+        int count = recordFileRepositoryProvider.getObject().updateIndex(offset);
         log.info("Updated {} blocks with offset {} in {}", count, offset, stopwatch);
     }
 
     private Optional<Long> findBlockNumberByConsensusEnd(long consensusEnd) {
         var params = new MapSqlParameterSource().addValue("consensusEnd", consensusEnd);
         try {
-            return Optional.ofNullable(jdbcTemplate.queryForObject(
-                    "select index from record_file where consensus_end = :consensusEnd limit 1", params, Long.class));
+            return Optional.ofNullable(jdbcTemplateProvider
+                    .getObject()
+                    .queryForObject(
+                            "select index from record_file where consensus_end = :consensusEnd limit 1",
+                            params,
+                            Long.class));
         } catch (IncorrectResultSizeDataAccessException ex) {
             return Optional.empty();
         }
