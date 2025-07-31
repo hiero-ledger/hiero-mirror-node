@@ -84,6 +84,9 @@ gateway:
         - path:
             type: RegularExpression
             value: '/api/v1/topics/(\d+\.){0,2}\d+$'
+        # - path:
+        #     type: PathPrefix
+        #     value: /api/v1/network/stake
   target:
     group: ""
     kind: Service
@@ -132,6 +135,7 @@ ingress:
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/outstanding'
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/pending'
         - path: '/api/v1/topics/(\d+\.){0,2}\d+$'
+        # - path: '/api/v1/network/stake'
   tls:
     enabled: false
     secretName: ""
