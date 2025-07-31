@@ -45,10 +45,7 @@ class NetworkControllerTest extends ControllerTest {
 
             // then
             assertThat(actual).isNotNull();
-            assertThat(actual)
-                    .returns(expected.getMaxStakeRewarded(), NetworkStakeResponse::getMaxStakeRewarded)
-                    .returns(expected.getStakingRewardRate(), NetworkStakeResponse::getStakingRewardRate)
-                    .returns(expected.getNodeRewardFeeFraction(), NetworkStakeResponse::getNodeRewardFeeFraction);
+            assertThat(actual).isEqualTo(expected);
         }
 
         @Test

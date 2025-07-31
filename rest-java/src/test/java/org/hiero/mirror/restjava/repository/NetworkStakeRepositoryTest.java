@@ -23,8 +23,8 @@ class NetworkStakeRepositoryTest extends RestJavaIntegrationTest {
         final var result = networkStakeRepository.findLatest();
 
         // then
-        assertThat(result).isPresent();
-        assertThat(result.get())
+        assertThat(result)
+                .get()
                 .usingRecursiveComparison()
                 .ignoringFields("consensusTimestamp", "epochDay")
                 .isEqualTo(stake);
@@ -47,8 +47,8 @@ class NetworkStakeRepositoryTest extends RestJavaIntegrationTest {
         final var result = networkStakeRepository.findLatest();
 
         // then
-        assertThat(result).isPresent();
-        assertThat(result.get())
+        assertThat(result)
+                .get()
                 .usingRecursiveComparison()
                 .ignoringFields("consensusTimestamp", "epochDay")
                 .isEqualTo(latest);

@@ -4,12 +4,14 @@ package org.hiero.mirror.restjava.util;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import lombok.experimental.UtilityClass;
 import org.hiero.mirror.rest.model.TimestampRange;
 
 /**
  * Utility methods for transforming and calculating values related to network stake.
  */
-public final class NetworkStakeUtils {
+@UtilityClass
+public class NetworkStakeUtils {
 
     private static final long SECONDS_PER_DAY = 86400L;
     private static final long NANOS_PER_SECOND = 1_000_000_000L;
@@ -20,12 +22,10 @@ public final class NetworkStakeUtils {
     /** Format string for nanosecond timestamps in "seconds.nanoseconds" format */
     private static final String TIMESTAMP_FORMAT = "%d.%0" + TIMESTAMP_SCALE + "d";
 
-    private NetworkStakeUtils() {
-        // utility class
-    }
+    private static final int FRACTION_SCALE = 9;
 
     /**
-     * Calculates the fractional value of a numerator and denominator as a float with up to {@value #TIMESTAMP_SCALE} decimal places.
+     * Calculates the fractional value of a numerator and denominator as a float with up to {@value #FRACTION_SCALE} decimal places.
      *
      * @param numerator   the numerator of the fraction
      * @param denominator the denominator of the fraction
@@ -37,7 +37,7 @@ public final class NetworkStakeUtils {
         }
 
         return BigDecimal.valueOf(numerator)
-                .divide(BigDecimal.valueOf(denominator), TIMESTAMP_SCALE, RoundingMode.HALF_UP)
+                .divide(BigDecimal.valueOf(denominator), FRACTION_SCALE, RoundingMode.HALF_UP)
                 .floatValue();
     }
 
@@ -49,16 +49,14 @@ public final class NetworkStakeUtils {
      */
     public static TimestampRange toTimestampRange(long stakingPeriod) {
         long fromNs = stakingPeriod + 1;
-        long fromSec = fromNs / NANOS_PER_SECOND;
-        long fromNano = fromNs % NANOS_PER_SECOND;
-
         long toNs = fromNs + (SECONDS_PER_DAY * NANOS_PER_SECOND);
-        long toSec = toNs / NANOS_PER_SECOND;
-        long toNano = toNs % NANOS_PER_SECOND;
 
-        String from = String.format(TIMESTAMP_FORMAT, fromSec, fromNano);
-        String to = String.format(TIMESTAMP_FORMAT, toSec, toNano);
+        return new TimestampRange().from(formatTimestamp(fromNs)).to(formatTimestamp(toNs));
+    }
 
-        return new TimestampRange().from(from).to(to);
+    private static String formatTimestamp(long nanos) {
+        long seconds = nanos / NANOS_PER_SECOND;
+        long nanoPart = nanos % NANOS_PER_SECOND;
+        return String.format(TIMESTAMP_FORMAT, seconds, nanoPart);
     }
 }

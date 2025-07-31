@@ -4,10 +4,11 @@ package org.hiero.mirror.restjava.mapper;
 
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
+import org.hiero.mirror.restjava.util.NetworkStakeUtils;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(config = MapperConfiguration.class, imports = org.hiero.mirror.restjava.util.NetworkStakeUtils.class)
+@Mapper(config = MapperConfiguration.class, imports = NetworkStakeUtils.class)
 public interface NetworkStakeMapper {
 
     @Mapping(
