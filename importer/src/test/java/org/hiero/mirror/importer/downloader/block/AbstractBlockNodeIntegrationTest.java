@@ -55,11 +55,4 @@ class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest {
                 channelBuilderProvider,
                 blockProperties);
     }
-
-    protected BlockNodeProperties node(String host, int port) {
-        var properties = new BlockNodeProperties();
-        properties.setHost(host);
-        properties.setPort(port);
-        return properties;
-    }
 }
