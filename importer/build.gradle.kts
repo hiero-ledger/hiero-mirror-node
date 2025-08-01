@@ -56,6 +56,7 @@ dependencies {
     testImplementation("com.github.vertical-blank:sql-formatter")
     testImplementation("commons-beanutils:commons-beanutils")
     testImplementation("io.grpc:grpc-inprocess")
+    testImplementation("io.grpc:grpc-netty")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.apache.commons:commons-math3")
     testImplementation("org.awaitility:awaitility")
