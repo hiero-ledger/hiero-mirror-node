@@ -20,7 +20,7 @@ import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.reader.block.BlockRootHashDigest;
 
 public final class BlockGenerator {
-    private static final byte[] START_OF_BLOCK_STATE_HASH = new byte[48];
+    private static final byte[] ALL_ZERO_HASH = new byte[48];
 
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
 
@@ -30,7 +30,7 @@ public final class BlockGenerator {
     public BlockGenerator(int startBlockNumber) {
         blockNumber = startBlockNumber;
         if (blockNumber == 0) {
-            previousBlockRootHash = new byte[48];
+            previousBlockRootHash = ALL_ZERO_HASH;
         } else {
             previousBlockRootHash = recordItemBuilder.randomBytes(48);
         }
@@ -48,7 +48,7 @@ public final class BlockGenerator {
     private void calculateBlockRootHash(BlockItemSet block) {
         var blockRootHashDigest = new BlockRootHashDigest();
         blockRootHashDigest.setPreviousHash(previousBlockRootHash);
-        blockRootHashDigest.setStartOfBlockStateHash(START_OF_BLOCK_STATE_HASH);
+        blockRootHashDigest.setStartOfBlockStateHash(ALL_ZERO_HASH);
 
         for (var blockItem : block.getBlockItemsList()) {
             switch (blockItem.getItemCase()) {
@@ -89,7 +89,7 @@ public final class BlockGenerator {
                 .setBlockProof(BlockProof.newBuilder()
                         .setBlock(blockNumber)
                         .setPreviousBlockRootHash(DomainUtils.fromBytes(previousBlockRootHash))
-                        .setStartOfBlockStateRootHash(DomainUtils.fromBytes(START_OF_BLOCK_STATE_HASH))));
+                        .setStartOfBlockStateRootHash(DomainUtils.fromBytes(ALL_ZERO_HASH))));
         var block = builder.build();
         calculateBlockRootHash(block);
         blockNumber++;

@@ -40,7 +40,7 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
             new InProcessManagedChannelBuilderProvider();
     private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
-    protected BlockNodeSubscriber getBlockNodeSubscriber(List<BlockNodeProperties> nodes) {
+    protected final BlockNodeSubscriber getBlockNodeSubscriber(List<BlockNodeProperties> nodes) {
         var blockProperties = new BlockProperties();
         blockProperties.setNodes(nodes);
         boolean isInProcess = nodes.getFirst().getPort() == -1;
