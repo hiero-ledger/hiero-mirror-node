@@ -21,7 +21,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.hiero.block.api.protoc.BlockItemSet;
@@ -38,12 +38,22 @@ import org.hiero.mirror.importer.reader.block.BlockStream;
 @CustomLog
 final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
-    private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(blockNode -> blockNode.properties);
+    private static final Comparator<BlockNode> PRIORITY_COMPARATOR =
+            Comparator.comparing(b -> b.properties.getPriority());
+    private static final Comparator<BlockNode> COMPARATOR = PRIORITY_COMPARATOR
+            .thenComparing(b -> b.latency.getAverage())
+            .thenComparing(blockNode -> blockNode.properties.getHost())
+            .thenComparing(blockNode -> blockNode.properties.getPort());
+
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
     private static final long UNKNOWN_NODE_ID = -1;
     private final ManagedChannel channel;
     private final AtomicInteger errors = new AtomicInteger();
+    private final Latency latency = new Latency();
+
+    @Getter
     private final BlockNodeProperties properties;
+
     private final AtomicReference<Instant> readmitTime = new AtomicReference<>(Instant.now());
     private final StreamProperties streamProperties;
 
@@ -87,7 +97,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     public void streamBlocks(
             long blockNumber,
             CommonDownloaderProperties commonDownloaderProperties,
-            Consumer<BlockStream> onBlockStream) {
+            Function<BlockStream, Boolean> onBlockStream) {
         var grpcCall = new AtomicReference<BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse>>();
 
         try {
@@ -105,14 +115,17 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                     request));
             SubscribeStreamResponse response;
 
-            boolean serverSuccess = false;
-            while (!serverSuccess
+            boolean shouldStop = false;
+            while (!shouldStop
                     && (response = grpcCall.get().read(assembler.timeout(), TimeUnit.MILLISECONDS)) != null) {
                 switch (response.getResponseCase()) {
                     case BLOCK_ITEMS -> {
                         var blockStream = assembler.assemble(response.getBlockItems());
                         if (blockStream != null) {
-                            onBlockStream.accept(blockStream);
+                            shouldStop = Boolean.TRUE.equals(onBlockStream.apply(blockStream));
+                            if (shouldStop) {
+                                log.info("Cancel the subscription");
+                            }
                         }
                     }
                     case STATUS -> {
@@ -121,7 +134,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                             // The server may end the stream gracefully for various reasons, and this shouldn't be
                             // treated as an error.
                             log.info("Block server ended the subscription with {}", status);
-                            serverSuccess = true;
+                            shouldStop = true;
                             break;
                         }
 
@@ -148,6 +161,10 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     @Override
     public int compareTo(BlockNode other) {
         return COMPARATOR.compare(this, other);
+    }
+
+    public void recordLatency(long latency) {
+        this.latency.record(latency);
     }
 
     @Override
