@@ -71,127 +71,196 @@ gateway:
           kind: "{{ .Values.gateway.target.kind }}"
           name: "{{ include \"hedera-mirror-rest.fullname\" $ }}"
           port: 80
-      matches:
-        # Account Endpoints
+      matches: |
+        # Airdrops
+        {{- if false }}
         - path:
             type: RegularExpression
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/outstanding$'
+        {{- end }}
+        {{- if false }}
         - path:
             type: RegularExpression
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/pending'
+        {{- end }}
+        {{- if true }}
+        # Accounts
         - path:
             type: RegularExpression
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/crypto'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/tokens'
+        {{- end }}
+        {{- if false }}
         - path:
             type: RegularExpression
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/nfts'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/nfts'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/rewards'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/tokens'
-        # Balances Endpoint
+        {{- end }}
+        # Balances
+        {{- if true }}
         - path:
             type: PathPrefix
             value: /api/v1/balances
-        # Block Endpoints
+        {{- end }}
+        # Blocks
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/blocks/((0x)?[0-9a-fA-F]+|\d+)$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: PathPrefix
             value: /api/v1/blocks
-        # Contract Endpoints
+        {{- end }}
+        # Contracts
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/contracts/results/[0-9a-zA-Z.-]+/actions$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/results/logs$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/results/\d{10}\.\d{9}$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/results$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/state$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/contracts/results/[0-9a-zA-Z.-]+$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: PathPrefix
             value: /api/v1/contracts/results/logs
+        {{- end }}
+        {{- if true }}
         - path:
             type: PathPrefix
             value: /api/v1/contracts/results
+        {{- end }}
+        {{- if true }}
         - path:
             type: PathPrefix
             value: /api/v1/contracts
-        # Message Endpoints
-        - path:
-            type: RegularExpression
-            value: '/api/v1/messages/\d{10}\.\d{9}$'
-        # Network Endpoints
+        {{- end }}
+        # Network
+        {{- if true }}
         - path:
             type: PathPrefix
             value: /api/v1/network/exchangerate
+        {{- end }}
+        {{- if true }}
         - path:
             type: PathPrefix
             value: /api/v1/network/fees
+        {{- end }}
+        {{- if true }}
         - path:
             type: PathPrefix
             value: /api/v1/network/nodes
+        {{- end }}
+        {{- if true }}
         - path:
             type: PathPrefix
             value: /api/v1/network/stake
+        {{- end }}
+        {{- if true }}
         - path:
             type: PathPrefix
             value: /api/v1/network/supply
-        # Schedule Endpoints
+        {{- end }}
+        # Schedules
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/schedules/\d+\.\d+\.\d+$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: PathPrefix
             value: /api/v1/schedules
-        # Token Endpoints
+        {{- end }}
+        # Tokens
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/nfts/\d+/transactions$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/nfts/\d+$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/nfts$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/balances$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: PathPrefix
             value: /api/v1/tokens
-        # Topic Message Endpoints
+        {{- end }}
+        # Topics
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/topics/\d+\.\d+\.\d+/messages/\d+$'
+        {{- end }}
+        {{- if true }}
         - path:
             type: RegularExpression
             value: '/api/v1/topics/\d+\.\d+\.\d+/messages$'
+        {{- end }}
   target:
     group: ""
     kind: Service
@@ -235,15 +304,16 @@ ingress:
   hosts:
     - host: ""
       paths:
-        # Account Endpoints
+        # Airdrops
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/outstanding$'
-          enabled: true
+          enabled: false
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/pending'
-          enabled: true
+          enabled: false
+        # Accounts
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/crypto'
           enabled: true
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/nfts'
-          enabled: true
+          enabled: false
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/tokens'
           enabled: true
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/nfts'
@@ -252,15 +322,15 @@ ingress:
           enabled: true
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/tokens'
           enabled: true
-        # Balances Endpoint
+        # Balances
         - path: /api/v1/balances
           enabled: true
-        # Block Endpoints
+        # Blocks
         - path: '/api/v1/blocks/((0x)?[0-9a-fA-F]+|\d+)$'
           enabled: true
         - path: /api/v1/blocks
           enabled: true
-        # Contract Endpoints
+        # Contracts
         - path: '/api/v1/contracts/results/[0-9a-zA-Z.-]+/actions$'
           enabled: true
         - path: '/api/v1/contracts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/results/logs$'
@@ -281,10 +351,7 @@ ingress:
           enabled: true
         - path: /api/v1/contracts
           enabled: true
-        # Message Endpoints
-        - path: '/api/v1/messages/\d{10}\.\d{9}$'
-          enabled: true
-        # Network Endpoints
+        # Network
         - path: /api/v1/network/exchangerate
           enabled: true
         - path: /api/v1/network/fees
@@ -295,12 +362,12 @@ ingress:
           enabled: true
         - path: /api/v1/network/supply
           enabled: true
-        # Schedule Endpoints
+        # Schedules
         - path: '/api/v1/schedules/\d+\.\d+\.\d+$'
           enabled: true
         - path: /api/v1/schedules
           enabled: true
-        # Token Endpoints
+        # Tokens
         - path: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/nfts/\d+/transactions$'
           enabled: true
         - path: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/nfts/\d+$'
@@ -313,7 +380,7 @@ ingress:
           enabled: true
         - path: /api/v1/tokens
           enabled: true
-        # Topic Message Endpoints
+        # Topics
         - path: '/api/v1/topics/\d+\.\d+\.\d+/messages/\d+$'
           enabled: true
         - path: '/api/v1/topics/\d+\.\d+\.\d+/messages$'
