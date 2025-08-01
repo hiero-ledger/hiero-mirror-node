@@ -33,10 +33,10 @@ public final class BlockNodeSimulator implements AutoCloseable {
     private String host;
     private boolean inProcessChannel = true;
     private long lastBlockNumber;
-    private boolean outOfOrder = false;
+    private boolean outOfOrder;
     private int port;
     private Server server;
-    private boolean started = false;
+    private boolean started;
 
     @Override
     @SneakyThrows
@@ -50,41 +50,10 @@ public final class BlockNodeSimulator implements AutoCloseable {
         started = false;
     }
 
-    public String getHost() {
-        validateState(started, "BlockNodeSimulator has not been started");
-        return host;
-    }
-
-    public int getPort() {
-        validateState(started, "BlockNodeSimulator has not been started");
-        return port;
-    }
-
     @SneakyThrows
     public BlockNodeSimulator start() {
         validateState(!started, "BlockNodeSimulator has already been started");
         validateState(!blocks.isEmpty(), "BlockNodeSimulator can't start with empty blocks");
-
-        var statusService = new BlockNodeServiceGrpc.BlockNodeServiceImplBase() {
-            @Override
-            public void serverStatus(
-                    ServerStatusRequest request, StreamObserver<ServerStatusResponse> responseObserver) {
-                var response = ServerStatusResponse.newBuilder()
-                        .setFirstAvailableBlock(firstBlockNumber)
-                        .setLastAvailableBlock(lastBlockNumber)
-                        .build();
-                responseObserver.onNext(response);
-                responseObserver.onCompleted();
-            }
-        };
-
-        var streamSubscribeService = new BlockStreamSubscribeServiceGrpc.BlockStreamSubscribeServiceImplBase() {
-            @Override
-            public void subscribeBlockStream(
-                    SubscribeStreamRequest request, StreamObserver<SubscribeStreamResponse> responseObserver) {
-                new SubscribeStreamContext(request, responseObserver).stream();
-            }
-        };
 
         if (outOfOrder) {
             Collections.shuffle(blocks);
@@ -100,8 +69,8 @@ public final class BlockNodeSimulator implements AutoCloseable {
         }
         // only support InProcess channel now, will expand to http channel
         server = serverBuilder
-                .addService(statusService)
-                .addService(streamSubscribeService)
+                .addService(new StatusService())
+                .addService(new StreamSubscribeService())
                 .build()
                 .start();
         port = server.getPort();
@@ -153,8 +122,31 @@ public final class BlockNodeSimulator implements AutoCloseable {
         }
     }
 
+    private final class StatusService extends BlockNodeServiceGrpc.BlockNodeServiceImplBase {
+
+        @Override
+        public void serverStatus(ServerStatusRequest request, StreamObserver<ServerStatusResponse> responseObserver) {
+            var response = ServerStatusResponse.newBuilder()
+                    .setFirstAvailableBlock(firstBlockNumber)
+                    .setLastAvailableBlock(lastBlockNumber)
+                    .build();
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        }
+    }
+
+    private final class StreamSubscribeService
+            extends BlockStreamSubscribeServiceGrpc.BlockStreamSubscribeServiceImplBase {
+
+        @Override
+        public void subscribeBlockStream(
+                SubscribeStreamRequest request, StreamObserver<SubscribeStreamResponse> responseObserver) {
+            new SubscribeStreamContext(request, responseObserver).stream();
+        }
+    }
+
     @RequiredArgsConstructor
-    private class SubscribeStreamContext {
+    private final class SubscribeStreamContext {
 
         private static final SubscribeStreamResponse SUCCESS = SubscribeStreamResponse.newBuilder()
                 .setStatus(SubscribeStreamResponse.Code.SUCCESS)

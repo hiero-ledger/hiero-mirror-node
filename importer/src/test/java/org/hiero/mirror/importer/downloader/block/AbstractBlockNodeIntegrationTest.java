@@ -16,7 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest {
+abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest {
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     protected StreamFileNotifier streamFileNotifier;
