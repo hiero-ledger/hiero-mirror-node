@@ -15,7 +15,7 @@ import org.springframework.web.client.RestClient.RequestHeadersSpec;
 import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 
 @RequiredArgsConstructor
-class NetworkControllerTest extends ControllerTest {
+final class NetworkControllerTest extends ControllerTest {
 
     private final NetworkStakeMapper networkStakeMapper;
 
@@ -44,8 +44,7 @@ class NetworkControllerTest extends ControllerTest {
             final var actual = restClient.get().uri("").retrieve().body(NetworkStakeResponse.class);
 
             // then
-            assertThat(actual).isNotNull();
-            assertThat(actual).isEqualTo(expected);
+            assertThat(actual).isNotNull().isEqualTo(expected);
         }
 
         @Test

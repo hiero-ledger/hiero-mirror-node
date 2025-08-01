@@ -11,7 +11,7 @@ import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-class NetworkServiceTest extends RestJavaIntegrationTest {
+final class NetworkServiceTest extends RestJavaIntegrationTest {
 
     private final NetworkService networkService;
 

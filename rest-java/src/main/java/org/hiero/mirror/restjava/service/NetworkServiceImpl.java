@@ -10,7 +10,7 @@ import org.hiero.mirror.restjava.repository.NetworkStakeRepository;
 
 @Named
 @RequiredArgsConstructor
-class NetworkServiceImpl implements NetworkService {
+final class NetworkServiceImpl implements NetworkService {
 
     private final NetworkStakeRepository networkStakeRepository;
 

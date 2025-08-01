@@ -10,7 +10,7 @@ import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-class NetworkStakeRepositoryTest extends RestJavaIntegrationTest {
+final class NetworkStakeRepositoryTest extends RestJavaIntegrationTest {
 
     private final NetworkStakeRepository networkStakeRepository;
 

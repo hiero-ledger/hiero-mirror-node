@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.restjava.controller;
 
-import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.restjava.mapper.NetworkStakeMapper;
@@ -11,7 +10,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@CustomLog
 @RequestMapping("/api/v1/network")
 @RequiredArgsConstructor
 @RestController

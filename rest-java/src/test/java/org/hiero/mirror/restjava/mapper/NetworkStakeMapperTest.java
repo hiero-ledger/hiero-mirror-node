@@ -11,15 +11,16 @@ import org.hiero.mirror.restjava.util.NetworkStakeUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class NetworkStakeMapperTest {
+final class NetworkStakeMapperTest {
 
-    private DomainBuilder domainBuilder;
+    private final DomainBuilder domainBuilder = new DomainBuilder();
+    private CommonMapper commonMapper;
     private NetworkStakeMapper mapper;
 
     @BeforeEach
     void setup() {
-        domainBuilder = new DomainBuilder();
-        mapper = new NetworkStakeMapperImpl();
+        commonMapper = new CommonMapperImpl();
+        mapper = new NetworkStakeMapperImpl(commonMapper);
     }
 
     @Test
@@ -32,10 +33,10 @@ class NetworkStakeMapperTest {
         stake.setStakingRewardFeeDenominator(100L);
 
         final float expectedNodeRewardFeeFraction =
-                NetworkStakeUtils.toFraction(stake.getNodeRewardFeeNumerator(), stake.getNodeRewardFeeDenominator());
-        final float expectedStakingRewardFeeFraction = NetworkStakeUtils.toFraction(
+                NetworkStakeUtils.mapFraction(stake.getNodeRewardFeeNumerator(), stake.getNodeRewardFeeDenominator());
+        final float expectedStakingRewardFeeFraction = NetworkStakeUtils.mapFraction(
                 stake.getStakingRewardFeeNumerator(), stake.getStakingRewardFeeDenominator());
-        final var expectedRange = NetworkStakeUtils.toTimestampRange(stake.getStakingPeriod());
+        final var expectedRange = commonMapper.mapTimestampRange(stake.getStakingPeriod());
 
         // when
         final var response = mapper.map(stake);
@@ -80,7 +81,7 @@ class NetworkStakeMapperTest {
                 .returns(0L, NetworkStakeResponse::getStakingStartThreshold)
                 .returns(0L, NetworkStakeResponse::getUnreservedStakingRewardBalance);
 
-        var expectedStakingPeriod = NetworkStakeUtils.toTimestampRange(stake.getStakingPeriod());
+        var expectedStakingPeriod = commonMapper.mapTimestampRange(stake.getStakingPeriod());
         assertThat(response.getStakingPeriod()).isEqualTo(expectedStakingPeriod);
     }
 }
