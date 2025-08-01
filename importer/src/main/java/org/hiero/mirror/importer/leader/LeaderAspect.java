@@ -28,11 +28,6 @@ public class LeaderAspect implements LeaderService {
         log.info("Starting as follower");
     }
 
-    @Override
-    public boolean isLeader() {
-        return leader.get();
-    }
-
     @Around("execution(@org.hiero.mirror.importer.leader.Leader * *(..)) && @annotation(leaderAnnotation)")
     public Object leader(ProceedingJoinPoint joinPoint, Leader leaderAnnotation) throws Throwable {
         String targetClass = joinPoint.getTarget().getClass().getSimpleName();

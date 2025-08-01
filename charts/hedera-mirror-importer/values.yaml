@@ -439,7 +439,7 @@ prometheusRules:
       area: downloader
 
 rbac:
-  enabled: true
+  enabled: false
 
 readinessProbe:
   httpGet:

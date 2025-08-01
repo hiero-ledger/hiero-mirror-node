@@ -292,7 +292,7 @@ prometheusRules:
       severity: warning
 
 rbac:
-  enabled: true
+  enabled: false
 
 readinessProbe:
   httpGet:

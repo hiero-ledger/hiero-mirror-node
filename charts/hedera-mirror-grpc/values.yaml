@@ -296,7 +296,7 @@ prometheusRules:
       application: grpc
 
 rbac:
-  enabled: true
+  enabled: false
 
 readinessProbe:
   httpGet:

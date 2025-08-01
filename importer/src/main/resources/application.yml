@@ -46,8 +46,6 @@ logging:
     root: warn
     org.hiero.mirror.importer: info
     org.flywaydb.core.internal.command.DbMigrate: info
-    org.springframework.cloud.kubernetes.commons.config.ConfigUtils: error
-    org.springframework.cloud.kubernetes.fabric8.config: error
     #org.hibernate.type.descriptor.sql.BasicBinder: trace
   pattern:
     console: "%clr(%date{${LOG_DATEFORMAT_PATTERN:yyyy-MM-dd'T'HH:mm:ss.SSS}, UTC}Z){faint} %clr(${LOG_LEVEL_PATTERN:%5level}) %clr(%thread){magenta} %clr(%logger{20}){cyan} %m %exception%n"

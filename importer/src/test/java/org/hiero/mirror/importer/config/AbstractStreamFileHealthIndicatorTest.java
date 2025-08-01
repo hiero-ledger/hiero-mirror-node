@@ -16,9 +16,7 @@ import io.micrometer.core.instrument.search.Search;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.leader.LeaderService;
 import org.hiero.mirror.importer.parser.AbstractParserProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,9 +30,6 @@ import org.springframework.boot.actuate.health.Status;
 abstract class AbstractStreamFileHealthIndicatorTest {
 
     private static final String REASON_KEY = "reason";
-
-    @Mock(strictness = LENIENT)
-    private LeaderService leaderService;
 
     @Mock(strictness = LENIENT)
     private Timer streamFileParseDurationTimer;
@@ -61,7 +56,6 @@ abstract class AbstractStreamFileHealthIndicatorTest {
 
     @BeforeEach
     void setup() {
-        doReturn(true).when(leaderService).isLeader();
         doReturn(0.0).when(streamCloseLatencyDurationTimer).mean(any());
         doReturn(0L).when(streamFileParseDurationTimer).count();
 
@@ -78,8 +72,7 @@ abstract class AbstractStreamFileHealthIndicatorTest {
         importerProperties.setEndDate(Instant.MAX);
         parserProperties = getParserProperties();
 
-        streamFileHealthIndicator =
-                new StreamFileHealthIndicator(leaderService, meterRegistry, importerProperties, parserProperties);
+        streamFileHealthIndicator = new StreamFileHealthIndicator(meterRegistry, importerProperties, parserProperties);
     }
 
     @Test
@@ -89,17 +82,6 @@ abstract class AbstractStreamFileHealthIndicatorTest {
         Health health = streamFileHealthIndicator.health();
         assertThat(health.getStatus()).isEqualTo(Status.UNKNOWN);
         assertThat((String) health.getDetails().get(REASON_KEY)).contains("Parsing is disabled");
-    }
-
-    @Test
-    void notLeader() {
-        doReturn(false).when(leaderService).isLeader();
-
-        Health health = streamFileHealthIndicator.health();
-        assertThat(health)
-                .isNotNull()
-                .returns(Status.UNKNOWN, Health::getStatus)
-                .returns(Map.of(REASON_KEY, "Not currently leader"), Health::getDetails);
     }
 
     @Test

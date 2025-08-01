@@ -26,8 +26,6 @@ logging:
     com.hedera.hashgraph.sdk.Executable: error
     com.hedera.hashgraph.sdk.TransactionReceiptQuery: error
     org.hiero.mirror.monitor: info
-    org.springframework.cloud.kubernetes.commons.config.ConfigUtils: error
-    org.springframework.cloud.kubernetes.fabric8.config: error
   pattern:
     console: "%clr(%date{${LOG_DATEFORMAT_PATTERN:yyyy-MM-dd'T'HH:mm:ss.SSS}, UTC}Z){faint} %clr(${LOG_LEVEL_PATTERN:%5level}) %clr(%thread){magenta} %clr(%logger{20}){cyan} %m %exception%n"
 management:
