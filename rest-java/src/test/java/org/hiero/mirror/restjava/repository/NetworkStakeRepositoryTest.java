@@ -15,22 +15,6 @@ final class NetworkStakeRepositoryTest extends RestJavaIntegrationTest {
     private final NetworkStakeRepository networkStakeRepository;
 
     @Test
-    void findLatest() {
-        // given
-        final var stake = domainBuilder.networkStake().persist();
-
-        // when
-        final var result = networkStakeRepository.findLatest();
-
-        // then
-        assertThat(result)
-                .get()
-                .usingRecursiveComparison()
-                .ignoringFields("consensusTimestamp", "epochDay")
-                .isEqualTo(stake);
-    }
-
-    @Test
     void findLatestMultipleEntries() {
         // given
         final var consensusTimestamp = Instant.now().toEpochMilli();
@@ -47,11 +31,7 @@ final class NetworkStakeRepositoryTest extends RestJavaIntegrationTest {
         final var result = networkStakeRepository.findLatest();
 
         // then
-        assertThat(result)
-                .get()
-                .usingRecursiveComparison()
-                .ignoringFields("consensusTimestamp", "epochDay")
-                .isEqualTo(latest);
+        assertThat(result).get().isEqualTo(latest);
     }
 
     @Test

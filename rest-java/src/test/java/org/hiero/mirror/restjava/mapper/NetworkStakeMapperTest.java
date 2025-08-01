@@ -26,11 +26,13 @@ final class NetworkStakeMapperTest {
     @Test
     void map() {
         // given
-        final var stake = domainBuilder.networkStake().get();
-        stake.setNodeRewardFeeDenominator(0L);
-        stake.setNodeRewardFeeNumerator(100L);
-        stake.setStakingRewardFeeNumerator(10L);
-        stake.setStakingRewardFeeDenominator(100L);
+        final var stake = domainBuilder
+                .networkStake()
+                .customize(n -> n.nodeRewardFeeDenominator(0L)
+                        .nodeRewardFeeNumerator(100L)
+                        .stakingRewardFeeNumerator(10L)
+                        .stakingRewardFeeDenominator(100L))
+                .get();
 
         final float expectedNodeRewardFeeFraction =
                 NetworkStakeUtils.mapFraction(stake.getNodeRewardFeeNumerator(), stake.getNodeRewardFeeDenominator());
