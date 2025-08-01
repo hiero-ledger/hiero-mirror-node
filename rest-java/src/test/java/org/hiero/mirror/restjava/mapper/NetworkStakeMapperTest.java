@@ -28,10 +28,7 @@ final class NetworkStakeMapperTest {
         // given
         final var stake = domainBuilder
                 .networkStake()
-                .customize(n -> n.nodeRewardFeeDenominator(0L)
-                        .nodeRewardFeeNumerator(100L)
-                        .stakingRewardFeeNumerator(10L)
-                        .stakingRewardFeeDenominator(100L))
+                .customize(n -> n.stakingRewardFeeNumerator(10L))
                 .get();
 
         final float expectedNodeRewardFeeFraction =
