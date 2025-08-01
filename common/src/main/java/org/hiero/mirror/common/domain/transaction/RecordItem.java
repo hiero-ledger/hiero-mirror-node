@@ -72,8 +72,10 @@ public class RecordItem implements StreamItem {
     private final TransactionRecord transactionRecord;
     private final int transactionType;
 
+    @Setter
     @EqualsAndHashCode.Exclude
-    private final AtomicInteger logIndex = new AtomicInteger(0);
+    @NonFinal
+    private AtomicInteger logIndex;
 
     @NonFinal
     @Setter
@@ -139,15 +141,10 @@ public class RecordItem implements StreamItem {
     }
 
     public int getAndIncrementLogIndex() {
+        if (logIndex == null) {
+            logIndex = new AtomicInteger(0);
+        }
         return logIndex.getAndIncrement();
-    }
-
-    public int getLogIndex() {
-        return logIndex.get();
-    }
-
-    public void setLogIndex(int index) {
-        logIndex.set(index);
     }
 
     public int getTransactionStatus() {

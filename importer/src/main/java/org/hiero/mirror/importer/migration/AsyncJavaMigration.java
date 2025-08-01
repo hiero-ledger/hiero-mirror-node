@@ -141,7 +141,7 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
         runMigrateAsync();
     }
 
-    public <O> O queryForObjectOrNull(String sql, SqlParameterSource paramSource, Class<O> requiredType) {
+    protected final <O> O queryForObjectOrNull(String sql, SqlParameterSource paramSource, Class<O> requiredType) {
         try {
             return namedParameterJdbcTemplate.queryForObject(sql, paramSource, requiredType);
         } catch (EmptyResultDataAccessException ex) {
@@ -149,7 +149,7 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
         }
     }
 
-    public <O> O queryForObjectOrNull(String sql, SqlParameterSource paramSource, RowMapper<O> rowMapper) {
+    protected final <O> O queryForObjectOrNull(String sql, SqlParameterSource paramSource, RowMapper<O> rowMapper) {
         try {
             return namedParameterJdbcTemplate.queryForObject(sql, paramSource, rowMapper);
         } catch (EmptyResultDataAccessException ex) {

@@ -27,7 +27,7 @@ import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Named
-public class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
+final class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
 
     static final long INTERVAL = Duration.ofDays(7).toNanos();
 
