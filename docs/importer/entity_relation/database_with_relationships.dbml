@@ -1,0 +1,1226 @@
+Enum "airdrop_state" {
+  "CANCELLED"
+  "CLAIMED"
+  "PENDING"
+}
+
+Enum "entity_type" {
+  "UNKNOWN"
+  "ACCOUNT"
+  "CONTRACT"
+  "FILE"
+  "TOPIC"
+  "TOKEN"
+  "SCHEDULE"
+}
+
+Enum "errata_type" {
+  "INSERT"
+  "DELETE"
+}
+
+Enum "token_pause_status" {
+  "NOT_APPLICABLE"
+  "PAUSED"
+  "UNPAUSED"
+}
+
+Enum "token_supply_type" {
+  "INFINITE"
+  "FINITE"
+}
+
+Enum "token_type" {
+  "FUNGIBLE_COMMON"
+  "NON_FUNGIBLE_UNIQUE"
+}
+
+
+Table "record_file" {
+  "name" varchar(250) [not null]
+  "load_start" int8 [not null]
+  "load_end" int8 [not null]
+  "hash" varchar(96) [not null]
+  "prev_hash" varchar(96) [not null]
+  "consensus_start" int8 [not null]
+  "consensus_end" int8 [pk, not null]
+  "count" int8 [not null]
+  "digest_algorithm" int4 [not null]
+  "hapi_version_major" int4
+  "hapi_version_minor" int4
+  "hapi_version_patch" int4
+  "version" int4 [not null]
+  "file_hash" varchar(96) [not null]
+  "bytes" bytea
+  "index" int8 [not null]
+  "gas_used" int8 [default: '-1']
+  "logs_bloom" bytea
+  "size" int4
+  "sidecar_count" int4 [not null, default: 0]
+  "node_id" int8 [not null]
+  "software_version_major" int4
+  "software_version_minor" int4
+  "software_version_patch" int4
+  "round_start" int8
+  "round_end" int8
+
+  Indexes {
+    hash [type: btree, name: "record_file__hash"]
+    index [type: btree, name: "record_file__index"]
+  }
+}
+
+Table "file_data" {
+  "file_data" bytea
+  "consensus_timestamp" int8 [pk, not null]
+  "entity_id" int8 [not null]
+  "transaction_type" int2 [not null]
+
+  Indexes {
+    (entity_id, consensus_timestamp) [type: btree, name: "file_data__id_timestamp"]
+  }
+}
+
+Table "contract_result" {
+  "function_parameters" bytea [not null]
+  "gas_limit" int8 [not null]
+  "function_result" bytea
+  "gas_used" int8
+  "consensus_timestamp" int8 [pk, not null]
+  "amount" int8
+  "bloom" bytea
+  "call_result" bytea
+  "contract_id" int8 [not null]
+  "created_contract_ids" "int8[]"
+  "error_message" text
+  "payer_account_id" int8 [not null]
+  "sender_id" int8
+  "failed_initcode" bytea
+  "transaction_hash" bytea
+  "transaction_index" int4
+  "transaction_result" int2 [not null]
+  "transaction_nonce" int4 [not null, default: 0]
+  "gas_consumed" int8
+
+  Indexes {
+    (contract_id, sender_id, consensus_timestamp) [type: btree, name: "contract_result__id_sender_timestamp"]
+    (contract_id, consensus_timestamp) [type: btree, name: "contract_result__id_timestamp"]
+    (sender_id, consensus_timestamp) [type: btree, name: "contract_result__sender_timestamp"]
+  }
+}
+
+Table "live_hash" {
+  "livehash" bytea
+  "consensus_timestamp" int8 [pk, not null]
+  "entity_id" int8
+}
+
+Table "topic_message" {
+  "consensus_timestamp" int8 [not null]
+  "message" bytea [not null]
+  "running_hash" bytea [not null]
+  "sequence_number" int8 [not null]
+  "running_hash_version" int2
+  "chunk_num" int4
+  "chunk_total" int4
+  "payer_account_id" int8
+  "valid_start_timestamp" int8
+  "topic_id" int8 [not null]
+  "initial_transaction_id" bytea
+
+  Indexes {
+    (topic_id, sequence_number) [type: btree, name: "topic_message__topic_id_seqnum"]
+    (topic_id, consensus_timestamp) [type: btree, name: "topic_message__topic_id_timestamp"]
+  }
+}
+
+Table "transaction" {
+  "consensus_timestamp" int8 [pk, not null]
+  "type" int2 [not null]
+  "result" int2 [not null]
+  "payer_account_id" int8 [not null]
+  "valid_start_ns" int8 [not null]
+  "valid_duration_seconds" int8
+  "node_account_id" int8
+  "entity_id" int8
+  "initial_balance" int8 [default: 0]
+  "max_fee" int8
+  "charged_tx_fee" int8
+  "memo" bytea
+  "transaction_hash" bytea
+  "transaction_bytes" bytea
+  "scheduled" bool [not null, default: false]
+  "nonce" int4 [not null, default: 0]
+  "parent_consensus_timestamp" int8
+  "errata" errata_type
+  "index" int4
+  "nft_transfer" jsonb
+  "itemized_transfer" jsonb
+  "transaction_record_bytes" bytea
+  "max_custom_fees" "bytea[]"
+  "batch_key" bytea
+  "inner_transactions" "int8[]"
+
+  Indexes {
+    (payer_account_id, consensus_timestamp) [type: btree, name: "transaction__payer_account_id_consensus_ns"]
+    (valid_start_ns, payer_account_id) [type: btree, name: "transaction__transaction_id"]
+    (type, consensus_timestamp) [type: btree, name: "transaction__type_consensus_timestamp"]
+  }
+}
+
+Table "crypto_transfer" {
+  "entity_id" int8 [not null]
+  "consensus_timestamp" int8 [not null]
+  "amount" int8 [not null]
+  "payer_account_id" int8 [not null]
+  "is_approval" bool
+  "errata" errata_type
+
+  Indexes {
+    consensus_timestamp [type: btree, name: "crypto_transfer__consensus_timestamp"]
+    (entity_id, consensus_timestamp) [type: btree, name: "crypto_transfer__entity_id_consensus_timestamp"]
+  }
+}
+
+Table "non_fee_transfer" {
+  "entity_id" int8
+  "consensus_timestamp" int8 [not null]
+  "amount" int8 [not null]
+  "payer_account_id" int8 [not null]
+  "is_approval" bool
+
+  Indexes {
+    consensus_timestamp [type: btree, name: "non_fee_transfer__consensus_timestamp"]
+  }
+}
+
+Table "address_book" {
+  "start_consensus_timestamp" int8 [pk, not null]
+  "end_consensus_timestamp" int8
+  "file_id" int8 [not null]
+  "node_count" int4
+  "file_data" bytea [not null]
+}
+
+Table "address_book_entry" {
+  "consensus_timestamp" int8 [not null]
+  "memo" varchar(128)
+  "public_key" varchar(1024)
+  "node_id" int8 [not null]
+  "node_account_id" int8 [not null]
+  "node_cert_hash" bytea
+  "description" varchar(100)
+  "stake" int8
+
+  Indexes {
+    (consensus_timestamp, node_id) [type: btree, name: "address_book_entry_pkey"]
+    consensus_timestamp [type: btree, name: "address_book_entry__timestamp"]
+  }
+}
+
+Table "account_balance_file" {
+  "consensus_timestamp" int8 [pk, not null]
+  "count" int8 [not null]
+  "load_start" int8 [not null]
+  "load_end" int8 [not null]
+  "file_hash" varchar(96)
+  "name" varchar(250) [not null]
+  "bytes" bytea
+  "time_offset" int4 [not null, default: 0]
+  "node_id" int8 [not null]
+  "synthetic" bool [not null, default: false]
+
+  Indexes {
+    name [type: btree, name: "account_balance_file__name"]
+  }
+}
+
+Table "token" {
+  "token_id" int8 [pk, not null]
+  "created_timestamp" int8 [not null]
+  "decimals" int8 [not null]
+  "freeze_default" bool [not null, default: false]
+  "freeze_key" bytea
+  "initial_supply" int8 [not null]
+  "kyc_key" bytea
+  "name" varchar(100) [not null]
+  "supply_key" bytea
+  "symbol" varchar(100) [not null]
+  "total_supply" int8 [not null, default: 0]
+  "treasury_account_id" int8 [not null]
+  "wipe_key" bytea
+  "max_supply" int8 [not null, default: '9223372036854775807']
+  "supply_type" token_supply_type [not null, default: 'INFINITE']
+  "type" token_type [not null, default: 'FUNGIBLE_COMMON']
+  "fee_schedule_key" bytea
+  "pause_key" bytea
+  "pause_status" token_pause_status [not null, default: 'NOT_APPLICABLE']
+  "timestamp_range" int8range [not null]
+  "freeze_status" int2 [not null]
+  "kyc_status" int2 [not null]
+  "metadata" bytea
+  "metadata_key" bytea
+
+  Indexes {
+    name [type: gin, name: "token__name"]
+  }
+}
+
+Table "token_transfer" {
+  "token_id" int8 [not null]
+  "account_id" int8 [not null]
+  "consensus_timestamp" int8 [not null]
+  "amount" int8 [not null]
+  "payer_account_id" int8 [not null]
+  "is_approval" bool
+
+  Indexes {
+    (account_id, consensus_timestamp) [type: btree, name: "token_transfer__account_timestamp"]
+    (consensus_timestamp, token_id, account_id) [type: btree, name: "token_transfer__token_account_timestamp"]
+  }
+}
+
+Table "schedule" {
+  "consensus_timestamp" int8 [not null]
+  "creator_account_id" int8 [not null]
+  "executed_timestamp" int8
+  "payer_account_id" int8 [not null]
+  "schedule_id" int8 [pk, not null]
+  "transaction_body" bytea [not null]
+  "expiration_time" int8
+  "wait_for_expiry" bool [not null, default: false]
+
+  Indexes {
+    creator_account_id [type: btree, name: "schedule__creator_account_id"]
+  }
+  Note: 'Schedule transaction signatories'
+}
+
+Table "transaction_signature" {
+  "consensus_timestamp" int8 [not null]
+  "public_key_prefix" bytea [not null]
+  "entity_id" int8
+  "signature" bytea [not null]
+  "type" int2
+
+  Indexes {
+    (entity_id, consensus_timestamp) [type: btree, name: "transaction_signature__entity_id"]
+  }
+}
+
+Table "entity" {
+  "auto_renew_account_id" int8
+  "auto_renew_period" int8
+  "created_timestamp" int8
+  "deleted" bool
+  "expiration_timestamp" int8
+  "id" int8 [pk, not null]
+  "key" bytea
+  "memo" text [not null, default: '']
+  "num" int8 [not null]
+  "public_key" varchar
+  "proxy_account_id" int8
+  "realm" int8 [not null]
+  "shard" int8 [not null]
+  "receiver_sig_required" bool
+  "max_automatic_token_associations" int4
+  "timestamp_range" int8range [not null]
+  "type" entity_type [not null, default: 'UNKNOWN']
+  "alias" bytea
+  "ethereum_nonce" int8 [default: 0]
+  "evm_address" bytea
+  "decline_reward" bool [not null, default: false]
+  "staked_account_id" int8
+  "staked_node_id" int8 [default: '-1']
+  "stake_period_start" int8 [default: '-1']
+  "obtainer_id" int8
+  "permanent_removal" bool
+  "balance" int8
+  "balance_timestamp" int8
+
+  Indexes {
+    alias [type: btree, name: "entity__alias"]
+    evm_address [type: btree, name: "entity__evm_address"]
+    (public_key, type) [type: btree, name: "entity__public_key_type"]
+    (type, id) [type: btree, name: "entity__type_id"]
+  }
+  Note: 'Network entity with state'
+}
+
+Table "address_book_service_endpoint" {
+  "consensus_timestamp" int8 [not null]
+  "ip_address_v4" varchar(15) [not null, default: '']
+  "node_id" int8 [not null]
+  "port" int4 [not null]
+  "domain_name" varchar(253) [not null, default: '']
+
+  Indexes {
+    (consensus_timestamp, node_id) [type: btree, name: "address_book_service_endpoint__timestamp_node_id"]
+  }
+  Note: 'Network address book node service endpoints'
+}
+
+Table "nft" {
+  "account_id" int8
+  "created_timestamp" int8
+  "deleted" bool [default: false]
+  "metadata" bytea
+  "serial_number" int8 [not null]
+  "token_id" int8 [not null]
+  "delegating_spender" int8
+  "spender" int8
+  "timestamp_range" int8range [not null]
+
+  Indexes {
+    (token_id, serial_number) [type: btree, name: "nft_pkey"]
+    (account_id, token_id, serial_number) [type: btree, name: "nft__account_token_serialnumber"]
+    (account_id, spender, token_id, serial_number) [type: btree, name: "nft__allowance"]
+  }
+  Note: 'Non-Fungible Tokens (NFTs) minted on network'
+}
+
+Table "assessed_custom_fee" {
+  "amount" int8 [not null]
+  "collector_account_id" int8 [not null]
+  "consensus_timestamp" int8 [not null]
+  "token_id" int8
+  "effective_payer_account_ids" "int8[]" [not null]
+  "payer_account_id" int8 [not null]
+
+  Indexes {
+    consensus_timestamp [type: btree, name: "assessed_custom_fee__consensus_timestamp"]
+  }
+  Note: 'Assessed custom fees for HTS transactions'
+}
+
+Table "entity_history" {
+  "auto_renew_account_id" int8
+  "auto_renew_period" int8
+  "created_timestamp" int8
+  "deleted" bool
+  "expiration_timestamp" int8
+  "id" int8 [not null]
+  "key" bytea
+  "memo" text [not null, default: '']
+  "num" int8 [not null]
+  "public_key" varchar
+  "proxy_account_id" int8
+  "realm" int8 [not null]
+  "shard" int8 [not null]
+  "receiver_sig_required" bool
+  "max_automatic_token_associations" int4
+  "timestamp_range" int8range [not null]
+  "type" entity_type [not null, default: 'UNKNOWN']
+  "alias" bytea
+  "ethereum_nonce" int8 [default: 0]
+  "evm_address" bytea
+  "decline_reward" bool [not null, default: false]
+  "staked_account_id" int8
+  "staked_node_id" int8 [default: '-1']
+  "stake_period_start" int8 [default: '-1']
+  "obtainer_id" int8
+  "permanent_removal" bool
+  "balance" int8
+  "balance_timestamp" int8
+
+  Indexes {
+    alias [type: btree, name: "entity_history__alias"]
+    evm_address [type: btree, name: "entity_history__evm_address"]
+    (id, `lower(timestamp_range)`) [type: btree, name: "entity_history__id_lower_timestamp"]
+    timestamp_range [type: gist, name: "entity_history__timestamp_range"]
+  }
+}
+
+Table "contract" {
+  "id" int8 [pk, not null]
+  "file_id" int8
+  "initcode" bytea
+  "runtime_bytecode" bytea
+}
+
+Table "contract_log" {
+  "bloom" bytea [not null]
+  "consensus_timestamp" int8 [not null]
+  "contract_id" int8 [not null]
+  "data" bytea [not null]
+  "index" int4 [not null]
+  "topic0" bytea
+  "topic1" bytea
+  "topic2" bytea
+  "topic3" bytea
+  "payer_account_id" int8 [not null]
+  "root_contract_id" int8
+  "transaction_hash" bytea
+  "transaction_index" int4
+
+  Indexes {
+    (consensus_timestamp, index) [type: btree, name: "contract_log_pkey"]
+    (contract_id, consensus_timestamp, index) [type: btree, name: "contract_log__contract_id_timestamp_index"]
+  }
+}
+
+Table "contract_state_change" {
+  "consensus_timestamp" int8 [not null]
+  "contract_id" int8 [not null]
+  "payer_account_id" int8 [not null]
+  "slot" bytea [not null]
+  "value_read" bytea [not null]
+  "value_written" bytea
+  "migration" bool [not null, default: false]
+
+  Indexes {
+    (consensus_timestamp, contract_id, slot) [type: btree, name: "contract_state_change_pkey"]
+    (contract_id, slot, consensus_timestamp) [type: btree, name: "contract_state_change__id_slot_timestamp"]
+  }
+}
+
+Table "crypto_allowance" {
+  "amount_granted" int8 [not null]
+  "owner" int8 [not null]
+  "payer_account_id" int8 [not null]
+  "spender" int8 [not null]
+  "timestamp_range" int8range [not null]
+  "amount" int8 [not null, default: 0]
+
+  Indexes {
+    (owner, spender) [type: btree, name: "crypto_allowance_pkey"]
+  }
+  Note: 'Hbar allowances delegated by payer to spender'
+}
+
+Table "crypto_allowance_history" {
+  "amount_granted" int8 [not null]
+  "owner" int8 [not null]
+  "payer_account_id" int8 [not null]
+  "spender" int8 [not null]
+  "timestamp_range" int8range [not null]
+  "amount" int8 [not null, default: 0]
+
+  Indexes {
+    timestamp_range [type: gist, name: "crypto_allowance_history__timestamp_range"]
+    (owner, spender, `lower(timestamp_range)`) [type: btree, name: "crypto_allowance_history_owner_spender_lower_timestamp"]
+  }
+  Note: 'History of hbar allowances delegated by payer to spender'
+}
+
+Table "nft_allowance" {
+  "approved_for_all" bool [not null]
+  "owner" int8 [not null]
+  "payer_account_id" int8 [not null]
+  "spender" int8 [not null]
+  "timestamp_range" int8range [not null]
+  "token_id" int8 [not null]
+
+  Indexes {
+    (owner, spender, token_id) [type: btree, name: "nft_allowance_pkey"]
+    (spender, owner, token_id) [type: btree, name: "nft_allowance__spender_owner_token"]
+  }
+  Note: 'NFT allowances delegated by payer to spender'
+}
+
+Table "nft_allowance_history" {
+  "approved_for_all" bool [not null]
+  "owner" int8 [not null]
+  "payer_account_id" int8 [not null]
+  "spender" int8 [not null]
+  "timestamp_range" int8range [not null]
+  "token_id" int8 [not null]
+
+  Indexes {
+    (owner, spender, token_id, `lower(timestamp_range)`) [type: btree, name: "nft_allowance_history__owner_spender_token_lower_timestamp"]
+    timestamp_range [type: gist, name: "nft_allowance_history__timestamp_range"]
+  }
+  Note: 'History of NFT allowances delegated by payer to spender'
+}
+
+Table "token_allowance" {
+  "amount_granted" int8 [not null]
+  "owner" int8 [not null]
+  "payer_account_id" int8 [not null]
+  "spender" int8 [not null]
+  "timestamp_range" int8range [not null]
+  "token_id" int8 [not null]
+  "amount" int8 [not null, default: 0]
+
+  Indexes {
+    (owner, spender, token_id) [type: btree, name: "token_allowance_pkey"]
+  }
+  Note: 'Token allowances delegated by payer to spender'
+}
+
+Table "token_allowance_history" {
+  "amount_granted" int8 [not null]
+  "owner" int8 [not null]
+  "payer_account_id" int8 [not null]
+  "spender" int8 [not null]
+  "timestamp_range" int8range [not null]
+  "token_id" int8 [not null]
+  "amount" int8 [not null, default: 0]
+
+  Indexes {
+    (owner, spender, token_id, `lower(timestamp_range)`) [type: btree, name: "token_allowance_history__owner_spender_token_lower_timestamp"]
+    timestamp_range [type: gist, name: "token_allowance_history__timestamp_range"]
+  }
+  Note: 'History of token allowances delegated by payer to spender'
+}
+
+Table "ethereum_transaction" {
+  "access_list" bytea
+  "call_data_id" int8
+  "call_data" bytea
+  "chain_id" bytea
+  "consensus_timestamp" int8 [pk, not null]
+  "data" bytea [not null]
+  "gas_limit" int8 [not null]
+  "gas_price" bytea
+  "hash" bytea [not null]
+  "max_fee_per_gas" bytea
+  "max_gas_allowance" int8 [not null]
+  "max_priority_fee_per_gas" bytea
+  "nonce" int8 [not null]
+  "payer_account_id" int8 [not null]
+  "recovery_id" int2
+  "signature_r" bytea [not null]
+  "signature_s" bytea [not null]
+  "signature_v" bytea
+  "to_address" bytea
+  "type" int2 [not null]
+  "value" bytea
+}
+
+Table "node_stake" {
+  "consensus_timestamp" int8 [not null]
+  "epoch_day" int8 [not null]
+  "node_id" int8 [not null]
+  "reward_rate" int8 [not null]
+  "stake" int8 [not null]
+  "stake_rewarded" int8 [not null]
+  "staking_period" int8 [not null]
+  "max_stake" int8 [not null]
+  "min_stake" int8 [not null]
+  "stake_not_rewarded" int8 [not null]
+
+  Indexes {
+    (consensus_timestamp, node_id) [type: btree, name: "node_stake_pkey"]
+    epoch_day [type: btree, name: "node_stake__epoch_day"]
+  }
+}
+
+Table "staking_reward_transfer" {
+  "account_id" int8 [not null]
+  "amount" int8 [not null]
+  "consensus_timestamp" int8 [not null]
+  "payer_account_id" int8 [not null]
+
+  Indexes {
+    (consensus_timestamp, account_id) [type: btree, name: "staking_reward_transfer_pkey"]
+    (account_id, consensus_timestamp) [type: btree, name: "staking_reward_transfer__account_timestamp"]
+  }
+}
+
+Table "prng" {
+  "consensus_timestamp" int8 [pk, not null]
+  "range" int4 [not null]
+  "prng_bytes" bytea
+  "prng_number" int4
+  "payer_account_id" int8 [not null]
+}
+
+Table "sidecar_file" {
+  "bytes" bytea
+  "count" int4
+  "consensus_end" int8 [not null]
+  "hash_algorithm" int4 [not null]
+  "hash" bytea [not null]
+  "id" int4 [not null]
+  "name" varchar(250) [not null]
+  "size" int4
+  "types" "int4[]" [not null]
+
+  Indexes {
+    (consensus_end, id) [type: btree, name: "sidecar_file_pkey"]
+  }
+}
+
+Table "contract_action" {
+  "call_depth" int4 [not null]
+  "call_type" int4
+  "caller" int8
+  "caller_type" entity_type [default: 'CONTRACT']
+  "consensus_timestamp" int8 [not null]
+  "gas" int8 [not null]
+  "gas_used" int8 [not null]
+  "index" int4 [not null]
+  "input" bytea
+  "recipient_account" int8
+  "recipient_address" bytea
+  "recipient_contract" int8
+  "result_data" bytea
+  "result_data_type" int4 [not null]
+  "value" int8 [not null]
+  "call_operation_type" int4
+  "payer_account_id" int8 [not null]
+
+  Indexes {
+    (consensus_timestamp, index) [type: btree, name: "contract_action_pkey"]
+  }
+}
+
+Table "network_stake" {
+  "consensus_timestamp" int8 [pk, not null]
+  "epoch_day" int8 [not null]
+  "max_staking_reward_rate_per_hbar" int8 [not null]
+  "node_reward_fee_denominator" int8 [not null]
+  "node_reward_fee_numerator" int8 [not null]
+  "stake_total" int8 [not null]
+  "staking_period" int8 [not null]
+  "staking_period_duration" int8 [not null]
+  "staking_periods_stored" int8 [not null]
+  "staking_reward_fee_denominator" int8 [not null]
+  "staking_reward_fee_numerator" int8 [not null]
+  "staking_reward_rate" int8 [not null]
+  "staking_start_threshold" int8 [not null]
+  "max_stake_rewarded" int8 [not null, default: 0]
+  "max_total_reward" int8 [not null, default: 0]
+  "reserved_staking_rewards" int8 [not null, default: 0]
+  "reward_balance_threshold" int8 [not null, default: 0]
+  "unreserved_staking_reward_balance" int8 [not null, default: 0]
+}
+
+Table "entity_stake" {
+  "end_stake_period" int8 [not null]
+  "id" int8 [pk, not null]
+  "pending_reward" int8 [not null]
+  "staked_node_id_start" int8 [not null]
+  "staked_to_me" int8 [not null]
+  "stake_total_start" int8 [not null]
+  "timestamp_range" int8range [not null]
+}
+
+Table "reconciliation_job" {
+  "consensus_timestamp" int8 [not null]
+  "count" int8 [not null]
+  "error" text [not null, default: '']
+  "timestamp_end" timestamptz
+  "timestamp_start" timestamptz [pk, not null]
+  "status" int2 [not null]
+}
+
+Table "token_account" {
+  "account_id" int8 [not null]
+  "associated" bool [not null, default: false]
+  "automatic_association" bool
+  "created_timestamp" int8
+  "freeze_status" int2
+  "kyc_status" int2
+  "timestamp_range" int8range [not null]
+  "token_id" int8 [not null]
+  "balance" int8 [not null, default: 0]
+  "balance_timestamp" int8
+
+  Indexes {
+    (account_id, token_id) [type: btree, name: "token_account_pkey"]
+  }
+}
+
+Table "token_account_history" {
+  "account_id" int8 [not null]
+  "associated" bool [not null, default: false]
+  "automatic_association" bool
+  "created_timestamp" int8
+  "freeze_status" int2
+  "kyc_status" int2
+  "timestamp_range" int8range [not null]
+  "token_id" int8 [not null]
+  "balance" int8 [not null, default: 0]
+  "balance_timestamp" int8
+
+  Indexes {
+    (account_id, token_id, `lower(timestamp_range)`) [type: btree, name: "token_account_history__account_token_lower_timestamp"]
+    timestamp_range [type: gist, name: "token_account_history__timestamp_range"]
+  }
+}
+
+Table "contract_state" {
+  "contract_id" int8 [not null]
+  "created_timestamp" int8 [not null]
+  "modified_timestamp" int8 [not null]
+  "slot" bytea [not null]
+  "value" bytea
+
+  Indexes {
+    (contract_id, slot) [type: btree, name: "contract_state_pkey"]
+  }
+}
+
+Table "transaction_hash" {
+  "consensus_timestamp" int8 [not null]
+  "hash" bytea [not null]
+  "payer_account_id" int8
+  "distribution_id" int2
+}
+
+Table "topic_message_lookup" {
+  "partition" text [not null]
+  "sequence_number_range" int8range [not null]
+  "timestamp_range" int8range [not null]
+  "topic_id" int8 [not null]
+
+  Indexes {
+    (topic_id, partition) [type: btree, name: "topic_message_lookup_pkey"]
+  }
+}
+
+Table "nft_history" {
+  "account_id" int8
+  "created_timestamp" int8
+  "deleted" bool [default: false]
+  "metadata" bytea
+  "serial_number" int8 [not null]
+  "token_id" int8 [not null]
+  "delegating_spender" int8
+  "spender" int8
+  "timestamp_range" int8range [not null]
+
+  Indexes {
+    (account_id, timestamp_range) [type: gist, name: "nft_history__account_timestamp_range"]
+    (token_id, serial_number, `lower(timestamp_range)`) [type: btree, name: "nft_history__token_serial_lower_timestamp"]
+  }
+}
+
+Table "token_history" {
+  "token_id" int8 [not null]
+  "created_timestamp" int8 [not null]
+  "decimals" int8 [not null]
+  "freeze_default" bool [not null, default: false]
+  "freeze_key" bytea
+  "initial_supply" int8 [not null]
+  "kyc_key" bytea
+  "name" varchar(100) [not null]
+  "supply_key" bytea
+  "symbol" varchar(100) [not null]
+  "total_supply" int8 [not null, default: 0]
+  "treasury_account_id" int8 [not null]
+  "wipe_key" bytea
+  "max_supply" int8 [not null, default: '9223372036854775807']
+  "supply_type" token_supply_type [not null, default: 'INFINITE']
+  "type" token_type [not null, default: 'FUNGIBLE_COMMON']
+  "fee_schedule_key" bytea
+  "pause_key" bytea
+  "pause_status" token_pause_status [not null, default: 'NOT_APPLICABLE']
+  "timestamp_range" int8range [not null]
+  "freeze_status" int2 [not null]
+  "kyc_status" int2 [not null]
+  "metadata" bytea
+  "metadata_key" bytea
+
+  Indexes {
+    timestamp_range [type: gist, name: "token_history__timestamp_range"]
+    (token_id, `lower(timestamp_range)`) [type: btree, name: "token_history__token_id_timestamp_range"]
+  }
+}
+
+Table "entity_stake_history" {
+  "end_stake_period" int8 [not null]
+  "id" int8 [not null]
+  "pending_reward" int8 [not null]
+  "staked_node_id_start" int8 [not null]
+  "staked_to_me" int8 [not null]
+  "stake_total_start" int8 [not null]
+  "timestamp_range" int8range [not null]
+
+  Indexes {
+    (id, `lower(timestamp_range)`) [type: btree, name: "entity_stake_history__id_lower_timestamp"]
+    timestamp_range [type: gist, name: "entity_stake_history__timestamp_range"]
+  }
+}
+
+Table "entity_transaction" {
+  "consensus_timestamp" int8 [not null]
+  "entity_id" int8 [not null]
+  "payer_account_id" int8 [not null]
+  "result" int2 [not null]
+  "type" int2 [not null]
+
+  Indexes {
+    (entity_id, consensus_timestamp) [type: btree, name: "entity_transaction_pkey"]
+  }
+}
+
+Table "network_freeze" {
+  "consensus_timestamp" int8 [pk, not null]
+  "end_time" int8
+  "file_hash" bytea [not null]
+  "file_id" int8
+  "payer_account_id" int8 [not null]
+  "start_time" int8 [not null]
+  "type" int2 [not null]
+  Note: 'System transaction to freeze the network'
+}
+
+Table "custom_fee" {
+  "fixed_fees" jsonb
+  "fractional_fees" jsonb
+  "royalty_fees" jsonb
+  "timestamp_range" int8range [not null]
+  "entity_id" int8 [pk, not null]
+}
+
+Table "custom_fee_history" {
+  "fixed_fees" jsonb
+  "fractional_fees" jsonb
+  "royalty_fees" jsonb
+  "timestamp_range" int8range [not null]
+  "entity_id" int8 [not null]
+
+  Indexes {
+    timestamp_range [type: gist, name: "custom_fee_history__timestamp_range"]
+    (entity_id, `lower(timestamp_range)`) [type: btree, name: "custom_fee_history__token_id_timestamp_range"]
+  }
+}
+
+Table "contract_transaction_hash" {
+  "consensus_timestamp" int8 [not null]
+  "hash" bytea [not null]
+  "payer_account_id" int8 [not null]
+  "entity_id" int8 [not null]
+  "transaction_result" int2 [not null]
+
+  Indexes {
+    hash [type: hash, name: "contract_transaction_hash__hash"]
+  }
+  Note: 'First 32 bytes of network transaction hash (or ethereum hash) to transaction details mapping'
+}
+
+Table "contract_transaction" {
+  "consensus_timestamp" int8 [not null]
+  "entity_id" int8 [not null]
+  "contract_ids" "int8[]" [not null]
+  "payer_account_id" int8 [not null]
+
+  Indexes {
+    (consensus_timestamp, entity_id) [type: btree, name: "contract_transaction__pk"]
+  }
+  Note: 'Maps contract parties to contract transaction details for a given timestamp'
+}
+
+Table "account_balance" {
+  "consensus_timestamp" int8 [not null]
+  "balance" int8 [not null]
+  "account_id" int8 [not null]
+
+  Indexes {
+    (account_id, consensus_timestamp) [type: btree, name: "account_balance"]
+  }
+}
+
+Table "token_balance" {
+  "consensus_timestamp" int8 [not null]
+  "account_id" int8 [not null]
+  "balance" int8 [not null]
+  "token_id" int8 [not null]
+
+  Indexes {
+    (account_id, token_id, consensus_timestamp) [type: btree, name: "token_balance_pkey"]
+    (token_id, account_id, consensus_timestamp) [type: btree, name: "token_balance_token_id_account_id_consensus_timest_idx"]
+  }
+}
+
+Table "node" {
+  "admin_key" bytea
+  "created_timestamp" int8
+  "deleted" bool [not null, default: false]
+  "node_id" int8 [pk, not null]
+  "timestamp_range" int8range [not null]
+  "decline_reward" bool [not null, default: false]
+  "grpc_proxy_endpoint" jsonb
+}
+
+Table "node_history" {
+  "admin_key" bytea
+  "created_timestamp" int8
+  "deleted" bool [not null, default: false]
+  "node_id" int8 [not null]
+  "timestamp_range" int8range [not null]
+  "decline_reward" bool [not null, default: false]
+  "grpc_proxy_endpoint" jsonb
+
+  Indexes {
+    (node_id, `lower(timestamp_range)`) [type: btree, name: "node_history__node_id_lower_timestamp"]
+  }
+}
+
+Table "token_airdrop" {
+  "amount" int8
+  "receiver_account_id" int8 [not null]
+  "sender_account_id" int8 [not null]
+  "serial_number" int8 [not null]
+  "state" airdrop_state [not null, default: 'PENDING']
+  "timestamp_range" int8range [not null]
+  "token_id" int8 [not null]
+
+  Indexes {
+    (sender_account_id, receiver_account_id, token_id, serial_number) [type: btree, name: "token_airdrop__sender_id"]
+    (receiver_account_id, sender_account_id, token_id, serial_number) [type: btree, name: "token_airdrop__receiver_id"]
+  }
+}
+
+Table "token_airdrop_history" {
+  "amount" int8
+  "receiver_account_id" int8 [not null]
+  "sender_account_id" int8 [not null]
+  "serial_number" int8 [not null]
+  "state" airdrop_state [not null, default: 'PENDING']
+  "timestamp_range" int8range [not null]
+  "token_id" int8 [not null]
+
+  Indexes {
+    timestamp_range [type: gist, name: "token_airdrop_history__timestamp_range"]
+  }
+}
+
+Table "topic" {
+  "admin_key" bytea
+  "created_timestamp" int8
+  "id" int8 [pk, not null]
+  "fee_exempt_key_list" bytea
+  "fee_schedule_key" bytea
+  "submit_key" bytea
+  "timestamp_range" int8range [not null]
+}
+
+Table "topic_history" {
+  "admin_key" bytea
+  "created_timestamp" int8
+  "id" int8 [not null]
+  "fee_exempt_key_list" bytea
+  "fee_schedule_key" bytea
+  "submit_key" bytea
+  "timestamp_range" int8range [not null]
+
+  Indexes {
+    (id, `lower(timestamp_range)`) [type: btree, name: "topic_history__id_lower_timestamp_range"]
+    timestamp_range [type: gist, name: "topic_history__timestamp_range"]
+  }
+}
+
+// Foreign Key Relationships
+// Based on analysis of Spring Boot repository objects
+
+// Transaction relationships
+Ref: transaction.payer_account_id > entity.id
+Ref: transaction.node_account_id > entity.id
+Ref: transaction.entity_id > entity.id
+
+// Crypto Transfer relationships  
+Ref: crypto_transfer.entity_id > entity.id
+Ref: crypto_transfer.payer_account_id > entity.id
+
+// Non-fee Transfer relationships
+Ref: non_fee_transfer.entity_id > entity.id
+Ref: non_fee_transfer.payer_account_id > entity.id
+
+// Token Transfer relationships
+Ref: token_transfer.token_id > entity.id
+Ref: token_transfer.account_id > entity.id
+Ref: token_transfer.payer_account_id > entity.id
+
+// Token relationships
+Ref: token.treasury_account_id > entity.id
+Ref: token.token_id - entity.id // Token is also an entity
+
+// Token Account relationships
+Ref: token_account.account_id > entity.id
+Ref: token_account.token_id > entity.id
+
+// Token Account History relationships
+Ref: token_account_history.account_id > entity.id
+Ref: token_account_history.token_id > entity.id
+
+// NFT relationships
+Ref: nft.account_id > entity.id
+Ref: nft.token_id > entity.id
+Ref: nft.spender > entity.id
+Ref: nft.delegating_spender > entity.id
+
+// NFT History relationships  
+Ref: nft_history.account_id > entity.id
+Ref: nft_history.token_id > entity.id
+Ref: nft_history.spender > entity.id
+Ref: nft_history.delegating_spender > entity.id
+
+// Contract relationships
+Ref: contract.id - entity.id // Contract is an entity
+Ref: contract.file_id > entity.id
+
+// Contract Result relationships
+Ref: contract_result.contract_id > entity.id
+Ref: contract_result.payer_account_id > entity.id
+Ref: contract_result.sender_id > entity.id
+
+// Contract Log relationships
+Ref: contract_log.contract_id > entity.id
+Ref: contract_log.root_contract_id > entity.id
+Ref: contract_log.payer_account_id > entity.id
+
+// Contract State Change relationships
+Ref: contract_state_change.contract_id > entity.id
+Ref: contract_state_change.payer_account_id > entity.id
+
+// Contract State relationships
+Ref: contract_state.contract_id > entity.id
+
+// Token Allowance relationships
+Ref: token_allowance.owner > entity.id
+Ref: token_allowance.spender > entity.id
+Ref: token_allowance.token_id > entity.id
+Ref: token_allowance.payer_account_id > entity.id
+
+// Token Allowance History relationships
+Ref: token_allowance_history.owner > entity.id
+Ref: token_allowance_history.spender > entity.id
+Ref: token_allowance_history.token_id > entity.id
+Ref: token_allowance_history.payer_account_id > entity.id
+
+// Crypto Allowance relationships
+Ref: crypto_allowance.owner > entity.id
+Ref: crypto_allowance.spender > entity.id
+Ref: crypto_allowance.payer_account_id > entity.id
+
+// Crypto Allowance History relationships
+Ref: crypto_allowance_history.owner > entity.id
+Ref: crypto_allowance_history.spender > entity.id
+Ref: crypto_allowance_history.payer_account_id > entity.id
+
+// NFT Allowance relationships
+Ref: nft_allowance.owner > entity.id
+Ref: nft_allowance.spender > entity.id
+Ref: nft_allowance.token_id > entity.id
+Ref: nft_allowance.payer_account_id > entity.id
+
+// NFT Allowance History relationships
+Ref: nft_allowance_history.owner > entity.id
+Ref: nft_allowance_history.spender > entity.id
+Ref: nft_allowance_history.token_id > entity.id
+Ref: nft_allowance_history.payer_account_id > entity.id
+
+// Assessed Custom Fee relationships
+Ref: assessed_custom_fee.collector_account_id > entity.id
+Ref: assessed_custom_fee.payer_account_id > entity.id
+Ref: assessed_custom_fee.token_id > entity.id
+
+// Custom Fee relationships
+Ref: custom_fee.entity_id > entity.id
+
+// Custom Fee History relationships
+Ref: custom_fee_history.entity_id > entity.id
+
+// Entity Transaction relationships
+Ref: entity_transaction.entity_id > entity.id
+Ref: entity_transaction.payer_account_id > entity.id
+
+// Topic Message relationships
+Ref: topic_message.topic_id > entity.id
+Ref: topic_message.payer_account_id > entity.id
+
+// Topic Message Lookup relationships
+Ref: topic_message_lookup.topic_id > entity.id
+
+// Schedule relationships
+Ref: schedule.schedule_id - entity.id // Schedule is an entity
+Ref: schedule.creator_account_id > entity.id
+Ref: schedule.payer_account_id > entity.id
+
+// File Data relationships
+Ref: file_data.entity_id > entity.id
+
+// Live Hash relationships  
+Ref: live_hash.entity_id > entity.id
+
+// Token Balance relationships
+Ref: token_balance.account_id > entity.id
+Ref: token_balance.token_id > entity.id
+
+// Account Balance relationships
+Ref: account_balance.account_id > entity.id
+
+// Entity self-referential relationships
+Ref: entity.auto_renew_account_id > entity.id
+Ref: entity.obtainer_id > entity.id
+Ref: entity.proxy_account_id > entity.id
+Ref: entity.staked_account_id > entity.id
+
+// Entity History self-referential relationships
+Ref: entity_history.auto_renew_account_id > entity.id
+Ref: entity_history.obtainer_id > entity.id
+Ref: entity_history.proxy_account_id > entity.id
+Ref: entity_history.staked_account_id > entity.id
+
+// Address Book relationships
+Ref: address_book_entry.node_id > entity.id
+Ref: address_book_service_endpoint.node_id > entity.id
+
+// Ethereum Transaction relationships
+Ref: ethereum_transaction.payer_account_id > entity.id
+
+// Staking Reward Transfer relationships
+Ref: staking_reward_transfer.account_id > entity.id
+Ref: staking_reward_transfer.payer_account_id > entity.id
+
+// Contract Action relationships
+Ref: contract_action.caller > entity.id
+Ref: contract_action.recipient_account > entity.id
+Ref: contract_action.recipient_contract > entity.id
+Ref: contract_action.payer_account_id > entity.id
+
+// Entity Stake relationships
+Ref: entity_stake.id - entity.id // Entity Stake references entity directly
+
+// Entity Stake History relationships
+Ref: entity_stake_history.id > entity.id
+
+// Contract Transaction Hash relationships
+Ref: contract_transaction_hash.entity_id > entity.id
+Ref: contract_transaction_hash.payer_account_id > entity.id
+
+// Contract Transaction relationships
+Ref: contract_transaction.entity_id > entity.id
+Ref: contract_transaction.payer_account_id > entity.id
+
+// Transaction Hash relationships
+Ref: transaction_hash.payer_account_id > entity.id
+
+// Transaction Signature relationships
+Ref: transaction_signature.entity_id > entity.id
+
+// Token Airdrop relationships
+Ref: token_airdrop.receiver_account_id > entity.id
+Ref: token_airdrop.sender_account_id > entity.id
+Ref: token_airdrop.token_id > entity.id
+
+// Token Airdrop History relationships
+Ref: token_airdrop_history.receiver_account_id > entity.id
+Ref: token_airdrop_history.sender_account_id > entity.id
+Ref: token_airdrop_history.token_id > entity.id
+
+// Token History relationships
+Ref: token_history.treasury_account_id > entity.id
+
+// Node relationships
+Ref: node.node_id - entity.id // Node is an entity
+
+// Node History relationships  
+Ref: node_history.node_id > entity.id
+
+// Topic relationships
+Ref: topic.id - entity.id // Topic is an entity
+
+// Topic History relationships
+Ref: topic_history.id > entity.id
+
+// Network Freeze relationships
+Ref: network_freeze.file_id > entity.id
+Ref: network_freeze.payer_account_id > entity.id
+
+// PRNG relationships
+Ref: prng.payer_account_id > entity.id
