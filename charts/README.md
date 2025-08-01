@@ -124,6 +124,30 @@ a [Standalone NEG](https://cloud.google.com/kubernetes-engine/docs/how-to/standa
 4. Create an [External HTTPS load balancer](https://cloud.google.com/load-balancing/docs/https/ext-https-lb-simple) and
    create a Backend Service(s) that utilizes the automatically created NEGs pointing to the traffic pods.
 
+### Removed Spring Cloud Dependencies
+
+This chart no longer uses Spring Cloud features (e.g., dynamic properties, leader election). All dependencies from `org.springframework.cloud` have been removed. Configuration is now static and driven via Kubernetes ConfigMaps and Secrets.
+
+- `application.yml` no longer supports `spring.cloud.*` properties.
+- Leader election logic in the importer has been removed.
+- Logger configurations referencing Spring Cloud packages should be removed from `application.yml`.
+
+### Kubernetes API Access for Monitor
+
+The monitor component now uses the Fabric8 Kubernetes client to access the Kubernetes API directly, enabling it to watch `pods` and `configmaps`. Ensure that the appropriate role-based permissions are granted.
+
+Minimal RBAC permissions needed:
+
+```yaml
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get"]
+```
+
 ## Testing
 
 To verify the chart installation is successful, you can run the helm tests. These tests are not automatically executed

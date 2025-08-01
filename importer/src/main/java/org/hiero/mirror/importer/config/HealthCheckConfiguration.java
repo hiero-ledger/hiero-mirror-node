@@ -10,8 +10,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.leader.LeaderService;
-import org.hiero.mirror.importer.parser.ParserProperties;
 import org.springframework.boot.actuate.health.CompositeHealthContributor;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.context.annotation.Bean;
@@ -20,8 +18,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @RequiredArgsConstructor
 class HealthCheckConfiguration {
-
-    private final LeaderService leaderService;
     private final ImporterProperties importerProperties;
     private final Collection<ParserProperties> parserProperties;
 
@@ -31,7 +27,7 @@ class HealthCheckConfiguration {
         Map<String, HealthIndicator> healthIndicators = parserProperties.stream()
                 .collect(Collectors.toMap(
                         k -> k.getStreamType().toString(),
-                        v -> new StreamFileHealthIndicator(leaderService, registry, importerProperties, v)));
+                        v -> new StreamFileHealthIndicator(registry, importerProperties, v)));
 
         return CompositeHealthContributor.fromMap(healthIndicators);
     }

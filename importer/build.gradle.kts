@@ -12,7 +12,6 @@ plugins {
 dependencies {
     val blockNodeVersion: String by rootProject.extra
 
-    implementation(platform("org.springframework.cloud:spring-cloud-dependencies"))
     implementation(platform("software.amazon.awssdk:bom"))
     implementation(project(":common"))
     implementation("com.esaulpaugh:headlong")
@@ -38,9 +37,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.retry:spring-retry")
-    implementation("org.springframework.cloud:spring-cloud-kubernetes-fabric8-leader")
-    implementation("org.springframework.cloud:spring-cloud-starter-bootstrap")
-    implementation("org.springframework.cloud:spring-cloud-starter-kubernetes-fabric8-config")
     implementation("software.amazon.awssdk:netty-nio-client")
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:sts")
