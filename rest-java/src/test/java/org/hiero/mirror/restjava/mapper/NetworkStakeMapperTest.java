@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
-import org.hiero.mirror.restjava.util.NetworkStakeUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -32,9 +31,9 @@ final class NetworkStakeMapperTest {
                 .get();
 
         final float expectedNodeRewardFeeFraction =
-                NetworkStakeUtils.mapFraction(stake.getNodeRewardFeeNumerator(), stake.getNodeRewardFeeDenominator());
-        final float expectedStakingRewardFeeFraction = NetworkStakeUtils.mapFraction(
-                stake.getStakingRewardFeeNumerator(), stake.getStakingRewardFeeDenominator());
+                commonMapper.mapFraction(stake.getNodeRewardFeeNumerator(), stake.getNodeRewardFeeDenominator());
+        final float expectedStakingRewardFeeFraction =
+                commonMapper.mapFraction(stake.getStakingRewardFeeNumerator(), stake.getStakingRewardFeeDenominator());
         final var expectedRange = commonMapper.mapTimestampRange(stake.getStakingPeriod());
 
         // when

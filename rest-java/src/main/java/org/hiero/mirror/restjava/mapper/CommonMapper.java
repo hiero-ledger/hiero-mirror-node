@@ -5,6 +5,8 @@ package org.hiero.mirror.restjava.mapper;
 import com.google.common.collect.Range;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hederahashgraph.api.proto.java.KeyList;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -26,6 +28,7 @@ public interface CommonMapper {
     String QUALIFIER_TIMESTAMP = "timestamp";
     String QUALIFIER_TIMESTAMP_RANGE = "timestampRange";
     int NANO_DIGITS = 9;
+    int FRACTION_SCALE = 9;
     Pattern PATTERN_ECDSA = Pattern.compile("^(3a21|32250a233a21|2a29080112250a233a21)([A-Fa-f0-9]{66})$");
     Pattern PATTERN_ED25519 = Pattern.compile("^(1220|32240a221220|2a28080112240a221220)([A-Fa-f0-9]{64})$");
     long SECONDS_PER_DAY = 86400L;
@@ -123,5 +126,22 @@ public interface CommonMapper {
         final long toNs = fromNs + (SECONDS_PER_DAY * NANOS_PER_SECOND);
 
         return new TimestampRange().from(mapTimestamp(fromNs)).to(mapTimestamp(toNs));
+    }
+
+    /**
+     * Calculates the fractional value of a numerator and denominator as a float with up to {@value #FRACTION_SCALE} decimal places.
+     *
+     * @param numerator   the numerator of the fraction
+     * @param denominator the denominator of the fraction
+     * @return the result of numerator / denominator as a float, or 0.0f if denominator is 0
+     */
+    default float mapFraction(long numerator, long denominator) {
+        if (denominator == 0L) {
+            return 0f;
+        }
+
+        return BigDecimal.valueOf(numerator)
+                .divide(BigDecimal.valueOf(denominator), FRACTION_SCALE, RoundingMode.HALF_UP)
+                .floatValue();
     }
 }

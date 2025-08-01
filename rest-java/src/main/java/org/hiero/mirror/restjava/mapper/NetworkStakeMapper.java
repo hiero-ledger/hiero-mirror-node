@@ -6,21 +6,20 @@ import static org.hiero.mirror.restjava.mapper.CommonMapper.QUALIFIER_TIMESTAMP_
 
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
-import org.hiero.mirror.restjava.util.NetworkStakeUtils;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(config = MapperConfiguration.class, imports = NetworkStakeUtils.class)
+@Mapper(config = MapperConfiguration.class, uses = CommonMapper.class)
 public interface NetworkStakeMapper {
 
     @Mapping(source = "stakingPeriod", target = "stakingPeriod", qualifiedByName = QUALIFIER_TIMESTAMP_RANGE)
     @Mapping(
             target = "nodeRewardFeeFraction",
             expression =
-                    "java(NetworkStakeUtils.mapFraction(source.getNodeRewardFeeNumerator(), source.getNodeRewardFeeDenominator()))")
+                    "java(commonMapper.mapFraction(source.getNodeRewardFeeNumerator(), source.getNodeRewardFeeDenominator()))")
     @Mapping(
             target = "stakingRewardFeeFraction",
             expression =
-                    "java(NetworkStakeUtils.mapFraction(source.getStakingRewardFeeNumerator(), source.getStakingRewardFeeDenominator()))")
+                    "java(commonMapper.mapFraction(source.getStakingRewardFeeNumerator(), source.getStakingRewardFeeDenominator()))")
     NetworkStakeResponse map(NetworkStake source);
 }
