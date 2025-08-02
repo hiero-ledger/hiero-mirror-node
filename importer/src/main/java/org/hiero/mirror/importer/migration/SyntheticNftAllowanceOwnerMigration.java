@@ -14,7 +14,7 @@ import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.util.Version;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 
 @Named
 public class SyntheticNftAllowanceOwnerMigration extends RepeatableMigration implements RecordStreamFileListener {
@@ -99,15 +99,15 @@ public class SyntheticNftAllowanceOwnerMigration extends RepeatableMigration imp
             commit;
             """;
 
-    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
+    private final ObjectProvider<JdbcOperations> jdbcOperationsProvider;
     private final ObjectProvider<RecordFileRepository> recordFileRepositoryProvider;
 
     public SyntheticNftAllowanceOwnerMigration(
-            @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
+            @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties,
             ObjectProvider<RecordFileRepository> recordFileRepositoryProvider) {
         super(importerProperties.getMigration());
-        this.jdbcTemplateProvider = jdbcTemplateProvider;
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.recordFileRepositoryProvider = recordFileRepositoryProvider;
     }
 
@@ -125,7 +125,7 @@ public class SyntheticNftAllowanceOwnerMigration extends RepeatableMigration imp
     @Override
     protected void doMigrate() {
         var stopwatch = Stopwatch.createStarted();
-        jdbcTemplateProvider.getObject().execute(UPDATE_NFT_ALLOWANCE_OWNER_SQL);
+        jdbcOperationsProvider.getObject().execute(UPDATE_NFT_ALLOWANCE_OWNER_SQL);
         log.info("Updated nft allowance owners in {}", stopwatch);
     }
 

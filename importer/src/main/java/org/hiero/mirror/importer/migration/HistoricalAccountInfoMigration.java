@@ -50,11 +50,11 @@ public class HistoricalAccountInfoMigration extends RepeatableMigration {
 
     public HistoricalAccountInfoMigration(
             ObjectProvider<EntityRepository> entityRepositoryProvider,
-            ObjectProvider<NamedParameterJdbcOperations> jdbcTemplateProvider,
+            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties) {
         super(importerProperties.getMigration());
         this.entityRepositoryProvider = entityRepositoryProvider;
-        this.jdbcOperationsProvider = jdbcTemplateProvider;
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.importerProperties = importerProperties;
     }
 

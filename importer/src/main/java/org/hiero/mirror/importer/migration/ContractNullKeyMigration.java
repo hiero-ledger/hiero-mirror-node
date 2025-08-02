@@ -12,17 +12,17 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 
 @Named
 final class ContractNullKeyMigration extends ConfigurableJavaMigration {
 
-    private final ObjectProvider<NamedParameterJdbcTemplate> jdbcOperationsProvider;
+    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final boolean v2;
 
     public ContractNullKeyMigration(
             Environment environment,
-            ObjectProvider<NamedParameterJdbcTemplate> jdbcOperationsProvider,
+            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties) {
         super(importerProperties.getMigration());
         this.jdbcOperationsProvider = jdbcOperationsProvider;
@@ -52,11 +52,12 @@ final class ContractNullKeyMigration extends ConfigurableJavaMigration {
                 suffix);
         var update = String.format("update entity%s set key = :key where id = :id", suffix);
 
-        jdbcOperationsProvider.getObject().query(query, rs -> {
+        final var jdbcOperations = jdbcOperationsProvider.getObject();
+        jdbcOperations.query(query, rs -> {
             var id = EntityId.of(rs.getLong(1));
             byte[] key =
                     Key.newBuilder().setContractID(id.toContractID()).build().toByteArray();
-            jdbcOperationsProvider.getObject().update(update, Map.of("key", key, "id", id.getId()));
+            jdbcOperations.update(update, Map.of("key", key, "id", id.getId()));
         });
     }
 }

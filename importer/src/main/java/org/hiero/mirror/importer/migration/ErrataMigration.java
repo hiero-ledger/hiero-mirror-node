@@ -33,7 +33,6 @@ import org.hiero.mirror.importer.repository.TokenTransferRepository;
 import org.hiero.mirror.importer.repository.TransactionRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
@@ -55,7 +54,7 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
     private static final long LAST_ACCOUNT_BALANCE_FILE_TIMESTAMP = 1666368000880378770L;
 
     @Value("classpath:errata/mainnet/balance-offsets.txt")
-    private final Resource balanceOffsets;
+    private Resource balanceOffsets;
 
     private final ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider;
     private final ObjectProvider<EntityRecordItemListener> entityRecordItemListenerProvider;
@@ -70,7 +69,6 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
 
     @SuppressWarnings("java:S107")
     public ErrataMigration(
-            @Lazy Resource balanceOffsets,
             ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider,
             ObjectProvider<EntityRecordItemListener> entityRecordItemListenerProvider,
             EntityProperties entityProperties,
@@ -81,7 +79,6 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
             ObjectProvider<TransactionOperations> transactionOperationsProvider,
             ObjectProvider<TransactionRepository> transactionRepositoryProvider) {
         super(importerProperties.getMigration());
-        this.balanceOffsets = balanceOffsets;
         this.accountBalanceFileRepositoryProvider = accountBalanceFileRepositoryProvider;
         this.entityRecordItemListenerProvider = entityRecordItemListenerProvider;
         this.entityProperties = entityProperties;
@@ -135,15 +132,14 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
     }
 
     private void balanceFileAdjustment() {
+        final var jdbcOperations = jdbcOperationsProvider.getObject();
         // Adjusts the balance file's consensus timestamp by -1 for use when querying transfers.
         String sql =
                 """
                         update account_balance_file set time_offset = -1
                         where consensus_timestamp in (:timestamps) and time_offset <> -1
                         """;
-        int count = jdbcOperationsProvider
-                .getObject()
-                .update(sql, new MapSqlParameterSource("timestamps", getTimestamps()));
+        int count = jdbcOperations.update(sql, new MapSqlParameterSource("timestamps", getTimestamps()));
 
         // Set the fixed time offset for account balance files in the applicable range
         sql =
@@ -154,7 +150,7 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
         var paramSource = new MapSqlParameterSource("fixedTimeOffset", ACCOUNT_BALANCE_FILE_FIXED_TIME_OFFSET)
                 .addValue("firstTimestamp", FIRST_ACCOUNT_BALANCE_FILE_TIMESTAMP)
                 .addValue("lastTimestamp", LAST_ACCOUNT_BALANCE_FILE_TIMESTAMP);
-        count += jdbcOperationsProvider.getObject().update(sql, paramSource);
+        count += jdbcOperations.update(sql, paramSource);
         log.info("Updated {} account balance files", count);
     }
 
@@ -243,12 +239,9 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
 
         recordStreamFileListenerProvider.getObject().onEnd(null);
         var ids = new MapSqlParameterSource("ids", consensusTimestamps);
-        jdbcOperationsProvider
-                .getObject()
-                .update("update crypto_transfer set errata = 'INSERT' where consensus_timestamp in (:ids)", ids);
-        jdbcOperationsProvider
-                .getObject()
-                .update("update transaction set errata = 'INSERT' where consensus_timestamp in (:ids)", ids);
+        final var jdbcOperations = jdbcOperationsProvider.getObject();
+        jdbcOperations.update("update crypto_transfer set errata = 'INSERT' where consensus_timestamp in (:ids)", ids);
+        jdbcOperations.update("update transaction set errata = 'INSERT' where consensus_timestamp in (:ids)", ids);
 
         Long min = consensusTimestamps.stream().min(Long::compareTo).orElse(null);
         Long max = consensusTimestamps.stream().max(Long::compareTo).orElse(null);

@@ -30,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,13 +76,12 @@ class TokenAccountBalanceMigrationTest extends ImporterIntegrationTest {
                         return accountBalanceFileRepository;
                     }
                 };
-        ObjectProvider<NamedParameterJdbcTemplate> namedParameterJdbcTemplateProvider =
-                new ObjectProvider<NamedParameterJdbcTemplate>() {
-                    @Override
-                    public NamedParameterJdbcTemplate getObject() {
-                        return namedParameterJdbcTemplate;
-                    }
-                };
+        ObjectProvider<NamedParameterJdbcOperations> namedParameterJdbcTemplateProvider = new ObjectProvider<>() {
+            @Override
+            public NamedParameterJdbcOperations getObject() {
+                return namedParameterJdbcTemplate;
+            }
+        };
         ObjectProvider<RecordFileRepository> recordFileRepositoryProvider = new ObjectProvider<RecordFileRepository>() {
             @Override
             public RecordFileRepository getObject() {

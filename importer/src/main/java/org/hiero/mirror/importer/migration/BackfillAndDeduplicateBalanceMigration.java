@@ -260,8 +260,7 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
 
     private TransactionOperations transactionOperations() {
         var jdbcTemplate = (JdbcTemplate) getJdbcOperations();
-        var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(
-                jdbcTemplate.getDataSource())); // setDataSource was not called (see JdbcAccessor)
+        var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(jdbcTemplate.getDataSource()));
         return new TransactionTemplate(transactionManager);
     }
 }

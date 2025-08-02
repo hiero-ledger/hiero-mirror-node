@@ -16,7 +16,7 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 
 @Named
 public class BlockNumberMigration extends RepeatableMigration {
@@ -26,16 +26,16 @@ public class BlockNumberMigration extends RepeatableMigration {
             MAINNET, Pair.of(1656461547557609267L, 34305852L));
 
     private final ImporterProperties importerProperties;
-    private final ObjectProvider<NamedParameterJdbcTemplate> jdbcTemplateProvider;
+    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final ObjectProvider<RecordFileRepository> recordFileRepositoryProvider;
 
     public BlockNumberMigration(
             ImporterProperties importerProperties,
-            ObjectProvider<NamedParameterJdbcTemplate> jdbcTemplateProvider,
+            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ObjectProvider<RecordFileRepository> recordFileRepositoryProvider) {
         super(importerProperties.getMigration());
         this.importerProperties = importerProperties;
-        this.jdbcTemplateProvider = jdbcTemplateProvider;
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.recordFileRepositoryProvider = recordFileRepositoryProvider;
     }
 
@@ -77,7 +77,7 @@ public class BlockNumberMigration extends RepeatableMigration {
     private Optional<Long> findBlockNumberByConsensusEnd(long consensusEnd) {
         var params = new MapSqlParameterSource().addValue("consensusEnd", consensusEnd);
         try {
-            return Optional.ofNullable(jdbcTemplateProvider
+            return Optional.ofNullable(jdbcOperationsProvider
                     .getObject()
                     .queryForObject(
                             "select index from record_file where consensus_end = :consensusEnd limit 1",

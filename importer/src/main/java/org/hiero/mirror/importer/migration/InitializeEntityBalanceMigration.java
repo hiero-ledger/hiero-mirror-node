@@ -9,7 +9,7 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Named
@@ -48,13 +48,13 @@ public class InitializeEntityBalanceMigration extends AbstractTimestampInfoMigra
     public InitializeEntityBalanceMigration(
             ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider,
             ImporterProperties importerProperties,
-            ObjectProvider<NamedParameterJdbcTemplate> jdbcTemplateProvider,
+            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ObjectProvider<RecordFileRepository> recordFileRepositoryProvider,
             ObjectProvider<TransactionTemplate> transactionTemplateProvider) {
         super(
                 accountBalanceFileRepositoryProvider,
                 importerProperties.getMigration(),
-                jdbcTemplateProvider,
+                jdbcOperationsProvider,
                 recordFileRepositoryProvider,
                 transactionTemplateProvider);
     }

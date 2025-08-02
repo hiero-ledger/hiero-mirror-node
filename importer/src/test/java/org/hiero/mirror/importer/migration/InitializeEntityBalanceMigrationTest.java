@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -50,7 +50,7 @@ class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest {
     private final CryptoTransferRepository cryptoTransferRepository;
     private final EntityRepository entityRepository;
     private final ImporterProperties importerProperties;
-    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final NamedParameterJdbcOperations namedParameterJdbcOperations;
     private final RecordFileRepository recordFileRepository;
     private final TransactionTemplate transactionTemplate;
 
@@ -76,13 +76,12 @@ class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest {
                         return accountBalanceFileRepository;
                     }
                 };
-        ObjectProvider<NamedParameterJdbcTemplate> namedParameterJdbcTemplateProvider =
-                new ObjectProvider<NamedParameterJdbcTemplate>() {
-                    @Override
-                    public NamedParameterJdbcTemplate getObject() {
-                        return namedParameterJdbcTemplate;
-                    }
-                };
+        ObjectProvider<NamedParameterJdbcOperations> namedParameterJdbcOperationsProvider = new ObjectProvider<>() {
+            @Override
+            public NamedParameterJdbcOperations getObject() {
+                return namedParameterJdbcOperations;
+            }
+        };
         ObjectProvider<RecordFileRepository> recordFileRepositoryProvider = new ObjectProvider<RecordFileRepository>() {
             @Override
             public RecordFileRepository getObject() {
@@ -99,7 +98,7 @@ class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest {
         migration = new InitializeEntityBalanceMigration(
                 accountBalanceFileRepositoryProvider,
                 importerProperties,
-                namedParameterJdbcTemplateProvider,
+                namedParameterJdbcOperationsProvider,
                 recordFileRepositoryProvider,
                 transactionTemplateProvider);
     }

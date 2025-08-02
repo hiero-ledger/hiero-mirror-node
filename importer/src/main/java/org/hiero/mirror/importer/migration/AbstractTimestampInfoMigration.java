@@ -11,7 +11,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 abstract class AbstractTimestampInfoMigration extends TimeSensitiveBalanceMigration {
@@ -34,17 +34,17 @@ abstract class AbstractTimestampInfoMigration extends TimeSensitiveBalanceMigrat
             limit 1
             """;
 
-    private final ObjectProvider<NamedParameterJdbcTemplate> jdbcTemplateProvider;
+    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final ObjectProvider<TransactionTemplate> transactionTemplateProvider;
 
     protected AbstractTimestampInfoMigration(
             ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider,
             Map<String, MigrationProperties> migrationPropertiesMap,
-            ObjectProvider<NamedParameterJdbcTemplate> jdbcTemplateProvider,
+            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ObjectProvider<RecordFileRepository> recordFileRepositoryProvider,
             ObjectProvider<TransactionTemplate> transactionTemplateProvider) {
         super(migrationPropertiesMap, accountBalanceFileRepositoryProvider, recordFileRepositoryProvider);
-        this.jdbcTemplateProvider = jdbcTemplateProvider;
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.transactionTemplateProvider = transactionTemplateProvider;
     }
 
@@ -52,7 +52,7 @@ abstract class AbstractTimestampInfoMigration extends TimeSensitiveBalanceMigrat
         var count = new AtomicInteger();
         transactionTemplateProvider.getObject().executeWithoutResult(s -> {
             try {
-                var timestampInfo = jdbcTemplateProvider
+                var timestampInfo = jdbcOperationsProvider
                         .getObject()
                         .queryForObject(
                                 GET_TIMESTAMP_INFO_SQL,
@@ -62,7 +62,7 @@ abstract class AbstractTimestampInfoMigration extends TimeSensitiveBalanceMigrat
                         .addValue("snapshotTimestamp", timestampInfo.snapshotTimestamp())
                         .addValue("fromTimestamp", timestampInfo.fromTimestamp())
                         .addValue("toTimestamp", timestampInfo.toTimestamp());
-                count.set(jdbcTemplateProvider.getObject().update(sql, params));
+                count.set(jdbcOperationsProvider.getObject().update(sql, params));
             } catch (EmptyResultDataAccessException e) {
                 // GET_TIMESTAMP_INFO_SQL returns empty result
             }

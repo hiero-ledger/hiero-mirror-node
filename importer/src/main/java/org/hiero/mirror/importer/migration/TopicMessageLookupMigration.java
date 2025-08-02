@@ -46,88 +46,88 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
     private static final int BATCH_SIZE = 10_000;
     private static final String GET_SHARD_COUNT_SQL =
             """
-                    select shardid as shard_id, result as count
-                    from run_command_on_shards(
-                      '%s',
-                      $cmd$
-                      select reltuples::bigint
-                      from pg_class
-                      where relname::text = '%%s'
-                      $cmd$)
-                    """;
+            select shardid as shard_id, result as count
+            from run_command_on_shards(
+              '%s',
+              $cmd$
+              select reltuples::bigint
+              from pg_class
+              where relname::text = '%%s'
+              $cmd$)
+            """;
     private static final String GET_TOPIC_SHARD_SQL =
             """
-                    select id as topic_id, get_shard_id_for_distribution_column('topic_message', id) as shard_id
-                    from entity
-                    where type = 'TOPIC'
-                    """;
+            select id as topic_id, get_shard_id_for_distribution_column('topic_message', id) as shard_id
+            from entity
+            where type = 'TOPIC'
+            """;
     private static final String GET_TOPIC_STAT_SQL =
             """
-                    select jsonb_object_agg(shardid, result::jsonb)
-                    from run_command_on_shards(
-                      '%s',
-                      $cmd$
-                      with most_common_topic as (
-                        select
-                          unnest(most_common_vals::text::bigint[]) as topic_id,
-                          unnest(most_common_freqs) as freq
-                        from pg_stats
-                        where tablename::text = '%%s' and attname = 'topic_id'
-                      )
-                      select coalesce(jsonb_agg(jsonb_build_object('topicId', topic_id, 'freq', freq)), '[]'::jsonb)
-                      from most_common_topic
-                      $cmd$)
-                    """;
+            select jsonb_object_agg(shardid, result::jsonb)
+            from run_command_on_shards(
+              '%s',
+              $cmd$
+              with most_common_topic as (
+                select
+                  unnest(most_common_vals::text::bigint[]) as topic_id,
+                  unnest(most_common_freqs) as freq
+                from pg_stats
+                where tablename::text = '%%s' and attname = 'topic_id'
+              )
+              select coalesce(jsonb_agg(jsonb_build_object('topicId', topic_id, 'freq', freq)), '[]'::jsonb)
+              from most_common_topic
+              $cmd$)
+            """;
     private static final String INSERT_BATCH_TOPIC_MESSAGE_LOOKUP_SQL =
             """
-                    with sequence_number as (
-                      select
-                        int8range(min(sequence_number), max(sequence_number), '[]') as sequence_number_range,
-                        topic_id
-                      from %1$s
-                      where topic_id = any(?)
-                      group by topic_id
-                    ), timestamp as (
-                      select
-                        int8range(min(consensus_timestamp), max(consensus_timestamp), '[]') as timestamp_range,
-                        topic_id
-                      from %1$s
-                      where topic_id = any(?)
-                      group by topic_id
-                    )
-                    insert into topic_message_lookup (partition, sequence_number_range, timestamp_range, topic_id)
-                    select
-                      '%1$s',
-                      sn.sequence_number_range,
-                      ts.timestamp_range,
-                      sn.topic_id
-                    from sequence_number as sn
-                    join timestamp as ts using (topic_id)
-                    """;
+            with sequence_number as (
+              select
+                int8range(min(sequence_number), max(sequence_number), '[]') as sequence_number_range,
+                topic_id
+              from %1$s
+              where topic_id = any(?)
+              group by topic_id
+            ), timestamp as (
+              select
+                int8range(min(consensus_timestamp), max(consensus_timestamp), '[]') as timestamp_range,
+                topic_id
+              from %1$s
+              where topic_id = any(?)
+              group by topic_id
+            )
+            insert into topic_message_lookup (partition, sequence_number_range, timestamp_range, topic_id)
+            select
+              '%1$s',
+              sn.sequence_number_range,
+              ts.timestamp_range,
+              sn.topic_id
+            from sequence_number as sn
+            join timestamp as ts using (topic_id)
+            """;
     private static final String INSERT_SINGLE_TOPIC_MESSAGE_LOOKUP_SQL =
             """
-                    with lookup as (
-                      select
-                        int8range(min(sequence_number), max(sequence_number), '[]') as sequence_number_range,
-                        int8range(min(consensus_timestamp), max(consensus_timestamp), '[]') as timestamp_range
-                      from %1$s
-                      where topic_id = :id
-                    )
-                    insert into topic_message_lookup (partition, sequence_number_range, timestamp_range, topic_id)
-                    select
-                      '%1$s',
-                      sequence_number_range,
-                      timestamp_range,
-                      :id
-                    from lookup
-                    where sequence_number_range <> '(,)'::int8range
-                    """;
+            with lookup as (
+              select
+                int8range(min(sequence_number), max(sequence_number), '[]') as sequence_number_range,
+                int8range(min(consensus_timestamp), max(consensus_timestamp), '[]') as timestamp_range
+              from %1$s
+              where topic_id = :id
+            )
+            insert into topic_message_lookup (partition, sequence_number_range, timestamp_range, topic_id)
+            select
+              '%1$s',
+              sequence_number_range,
+              timestamp_range,
+              :id
+            from lookup
+            where sequence_number_range <> '(,)'::int8range
+            """;
     private static final String PARTITION_NEEDS_MIGRATION_SQL =
             """
-                    select
-                      not exists(select 1 from topic_message_lookup where partition = ? limit 1) and
-                      exists(select 1 from %s limit 1)
-                    """;
+            select
+              not exists(select 1 from topic_message_lookup where partition = ? limit 1) and
+              exists(select 1 from %s limit 1)
+            """;
     private static final RowMapper<ShardCount> SHARD_COUNT_ROW_MAPPER = new DataClassRowMapper<>(ShardCount.class);
     private static final String TOPIC_MESSAGE_TABLE_NAME = "topic_message";
     private static final long TOPIC_MESSAGE_THRESHOLD = 1_000_000L;

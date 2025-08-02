@@ -24,7 +24,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.jdbc.core.DataClassRowMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.ParameterizedPreparedStatementSetter;
 
 @Named
@@ -51,7 +51,7 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
             values (?, ?, ?, ?, ?::int8range);
             """;
 
-    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
+    private final ObjectProvider<JdbcOperations> jdbcOperationsProvider;
     private final ObjectProvider<AbstractNodeTransactionHandler> nodeTransactionHandlers;
     private final Map<TransactionType, AbstractNodeTransactionHandler> nodeTransactionHandlerMap =
             new EnumMap<>(TransactionType.class);
@@ -61,11 +61,11 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
             Environment environment,
             ObjectProvider<AbstractNodeTransactionHandler> nodeTransactionHandlers,
             ImporterProperties importerProperties,
-            @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider) {
+            @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider) {
         super(importerProperties.getMigration());
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
         this.nodeTransactionHandlers = nodeTransactionHandlers;
-        this.jdbcTemplateProvider = jdbcTemplateProvider;
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
     }
 
     @Override
@@ -106,14 +106,11 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
             ps.setString(5, PostgreSQLGuavaRangeType.INSTANCE.asString(node.getTimestampRange()));
         };
 
-        jdbcTemplateProvider.getObject().execute(DROP_DATA_SQL);
-        jdbcTemplateProvider
-                .getObject()
-                .batchUpdate(INSERT_SQL.formatted("node"), nodeState.values(), nodeState.size(), statementSetter);
-        jdbcTemplateProvider
-                .getObject()
-                .batchUpdate(
-                        INSERT_SQL.formatted("node_history"), historicalNodes, historicalNodes.size(), statementSetter);
+        final var jdbcOperations = jdbcOperationsProvider.getObject();
+        jdbcOperations.execute(DROP_DATA_SQL);
+        jdbcOperations.batchUpdate(INSERT_SQL.formatted("node"), nodeState.values(), nodeState.size(), statementSetter);
+        jdbcOperations.batchUpdate(
+                INSERT_SQL.formatted("node_history"), historicalNodes, historicalNodes.size(), statementSetter);
 
         log.info(
                 "Successfully processed {} node transactions producing {} rows and {} history rows",
@@ -154,7 +151,7 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
     }
 
     private List<RecordItem> getRecordItems() {
-        return jdbcTemplateProvider
+        return jdbcOperationsProvider
                 .getObject()
                 .query(NODE_TRANSACTIONS_SQL, new DataClassRowMapper<>(Transaction.class), LOWER_TIMESTAMP)
                 .stream()

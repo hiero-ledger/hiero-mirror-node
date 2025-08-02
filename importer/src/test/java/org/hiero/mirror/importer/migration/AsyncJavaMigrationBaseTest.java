@@ -16,7 +16,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.DataClassRowMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionOperations;
@@ -86,9 +86,9 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
         public TestAsyncJavaMigration(boolean error, MigrationProperties migrationProperties, long sleep) {
             super(
                     Map.of("testAsyncJavaMigration", migrationProperties),
-                    new ObjectProvider<JdbcTemplate>() {
+                    new ObjectProvider<>() {
                         @Override
-                        public JdbcTemplate getObject() {
+                        public JdbcOperations getObject() {
                             return ownerJdbcTemplate;
                         }
                     },

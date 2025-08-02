@@ -8,7 +8,7 @@ import java.io.IOException;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 
 @Named
 class MergeDuplicateBlocksMigration extends RepeatableMigration {
@@ -40,13 +40,13 @@ class MergeDuplicateBlocksMigration extends RepeatableMigration {
                     where consensus_timestamp > 1675962000231859003 and consensus_timestamp <= 1675962001984524003;
                     """;
 
-    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
+    private final ObjectProvider<JdbcOperations> jdbcOperationsProvider;
     private final ImporterProperties importerProperties;
 
     protected MergeDuplicateBlocksMigration(
-            @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider, ImporterProperties importerProperties) {
+            @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider, ImporterProperties importerProperties) {
         super(importerProperties.getMigration());
-        this.jdbcTemplateProvider = jdbcTemplateProvider;
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.importerProperties = importerProperties;
     }
 
@@ -57,7 +57,7 @@ class MergeDuplicateBlocksMigration extends RepeatableMigration {
         }
 
         var stopwatch = Stopwatch.createStarted();
-        int count = jdbcTemplateProvider.getObject().update(SQL);
+        int count = jdbcOperationsProvider.getObject().update(SQL);
         log.info("Successfully merged the blocks and fixed {} transaction indexes in {}", count, stopwatch);
     }
 

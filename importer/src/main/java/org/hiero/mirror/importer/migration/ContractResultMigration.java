@@ -20,6 +20,7 @@ import org.postgresql.jdbc.PgArray;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.jdbc.core.DataClassRowMapper;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @Named
@@ -36,7 +37,7 @@ public class ContractResultMigration extends AbstractJavaMigration {
         resultRowMapper.setConversionService(defaultConversionService);
     }
 
-    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
+    private final ObjectProvider<JdbcOperations> jdbcOperationsProvider;
 
     @SneakyThrows
     private static Long[] convert(PgArray pgArray) {
@@ -57,19 +58,18 @@ public class ContractResultMigration extends AbstractJavaMigration {
     protected void doMigrate() throws IOException {
         AtomicLong count = new AtomicLong(0L);
         Stopwatch stopwatch = Stopwatch.createStarted();
+        final var jdbcTemplate = (JdbcTemplate) jdbcOperationsProvider.getObject();
 
-        jdbcTemplateProvider.getObject().setFetchSize(100);
-        jdbcTemplateProvider
-                .getObject()
-                .query(
-                        "select consensus_timestamp, function_result from contract_result "
-                                + "order by consensus_timestamp asc",
-                        rs -> {
-                            MigrationContractResult contractResult = resultRowMapper.mapRow(rs, rs.getRow());
-                            if (process(contractResult)) {
-                                count.incrementAndGet();
-                            }
-                        });
+        jdbcTemplate.setFetchSize(100);
+        jdbcTemplate.query(
+                "select consensus_timestamp, function_result from contract_result "
+                        + "order by consensus_timestamp asc",
+                rs -> {
+                    MigrationContractResult contractResult = resultRowMapper.mapRow(rs, rs.getRow());
+                    if (process(contractResult)) {
+                        count.incrementAndGet();
+                    }
+                });
 
         log.info("Updated {} contract results in {}", count, stopwatch);
     }
@@ -130,7 +130,7 @@ public class ContractResultMigration extends AbstractJavaMigration {
     }
 
     private void update(MigrationContractResult contractResult) {
-        jdbcTemplateProvider
+        jdbcOperationsProvider
                 .getObject()
                 .update(
                         "update contract_result set bloom = ?, call_result = ?, contract_id = ?, "
@@ -144,7 +144,7 @@ public class ContractResultMigration extends AbstractJavaMigration {
     }
 
     private void insert(MigrationContractLog contractLog) {
-        jdbcTemplateProvider
+        jdbcOperationsProvider
                 .getObject()
                 .update(
                         "insert into contract_log (bloom, consensus_timestamp, contract_id, data, index, topic0, "
