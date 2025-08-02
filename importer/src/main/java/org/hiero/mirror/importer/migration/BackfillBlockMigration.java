@@ -10,11 +10,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.transaction.support.TransactionOperations;
 
 @Named
@@ -44,10 +43,10 @@ public class BackfillBlockMigration extends AsyncJavaMigration<Long> {
     public BackfillBlockMigration(
             DBProperties dbProperties,
             ImporterProperties importerProperties,
-            @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
+            ObjectProvider<JdbcOperations> jdbcOperationsProvider,
             ObjectProvider<RecordFileRepository> recordFileRepositoryProvider,
             ObjectProvider<TransactionOperations> transactionOperationsProvider) {
-        super(importerProperties.getMigration(), jdbcTemplateProvider, dbProperties.getSchema());
+        super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
         this.recordFileRepositoryProvider = recordFileRepositoryProvider;
         this.transactionOperationsProvider = transactionOperationsProvider;
     }
@@ -92,7 +91,7 @@ public class BackfillBlockMigration extends AsyncJavaMigration<Long> {
 
                     var bloomAggregator = new LogsBloomAggregator();
                     var gasUsedTotal = new AtomicLong(0);
-                    getNamedParameterJdbcTemplate().query(SELECT_CONTRACT_RESULT, queryParams, rs -> {
+                    getNamedParameterJdbcOperations().query(SELECT_CONTRACT_RESULT, queryParams, rs -> {
                         bloomAggregator.aggregate(rs.getBytes("bloom"));
                         gasUsedTotal.addAndGet(rs.getLong("gas_used"));
                     });
@@ -102,7 +101,7 @@ public class BackfillBlockMigration extends AsyncJavaMigration<Long> {
                     recordFileRepositoryProvider.getObject().save(recordFile);
 
                     // set transaction index for the transactions in the record file
-                    getNamedParameterJdbcTemplate().update(SET_TRANSACTION_INDEX, queryParams);
+                    getNamedParameterJdbcOperations().update(SET_TRANSACTION_INDEX, queryParams);
 
                     return recordFile.getConsensusEnd();
                 });

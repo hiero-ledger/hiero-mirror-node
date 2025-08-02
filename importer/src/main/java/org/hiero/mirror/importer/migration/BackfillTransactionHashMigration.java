@@ -20,8 +20,10 @@ import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
@@ -82,20 +84,24 @@ public class BackfillTransactionHashMigration extends RepeatableMigration {
     private static final String TRUNCATE_TEMP_TABLE_SQL = "truncate table transaction_hash_backfill_temp;";
 
     private final EntityProperties entityProperties;
-    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
-    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final ObjectProvider<NamedParameterJdbcOperations> namedParameterJdbcOperationsProvider;
     private final ObjectProvider<TimePartitionService> timePartitionServiceProvider;
     private final boolean v2;
 
     public BackfillTransactionHashMigration(
             EntityProperties entityProperties,
             Environment environment,
-            @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
+            @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties,
             ObjectProvider<TimePartitionService> timePartitionServiceProvider) {
         super(importerProperties.getMigration());
         this.entityProperties = entityProperties;
-        this.jdbcTemplateProvider = jdbcTemplateProvider;
+        this.namedParameterJdbcOperationsProvider = new ObjectProvider<>() {
+            @Override
+            public NamedParameterJdbcOperations getObject() {
+                return new NamedParameterJdbcTemplate(jdbcOperationsProvider.getObject());
+            }
+        };
         this.timePartitionServiceProvider = timePartitionServiceProvider;
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
     }
@@ -124,11 +130,11 @@ public class BackfillTransactionHashMigration extends RepeatableMigration {
         var transactionTemplate = getTransactionTemplate();
         var count = transactionTemplate.execute(s -> {
             if (context.truncate) {
-                getJdbcTemplate().execute(TRUNCATE_SQL);
+                getJdbcOperations().execute(TRUNCATE_SQL);
             }
 
             if (context.tempTable) {
-                getJdbcTemplate().execute(CREATE_TEMP_TABLE_SQL);
+                getJdbcOperations().execute(CREATE_TEMP_TABLE_SQL);
             }
 
             return backfillFromTable(
@@ -192,14 +198,14 @@ public class BackfillTransactionHashMigration extends RepeatableMigration {
         var stopwatch = Stopwatch.createStarted();
 
         if (tempTable) {
-            getJdbcTemplate().execute(TRUNCATE_TEMP_TABLE_SQL);
+            getJdbcOperations().execute(TRUNCATE_TEMP_TABLE_SQL);
         }
 
         String sql = String.format(sqlTemplate, tableName);
-        int count = getNamedParameterJdbcTemplate().update(sql, params);
+        int count = getNamedParameterJdbcOperations().update(sql, params);
 
         if (tempTable) {
-            getJdbcTemplate().update(INSERT_INTO_FINAL_TABLE_SQL);
+            getJdbcOperations().update(INSERT_INTO_FINAL_TABLE_SQL);
         }
 
         log.info("Backfilled transaction hash for {} transactions of {} in {}", count, tableName, stopwatch);
@@ -209,7 +215,7 @@ public class BackfillTransactionHashMigration extends RepeatableMigration {
     private MigrationContext getMigrationContext(long startTimestamp) {
         String destinationTableName = v2 ? TEMP_TABLE_NAME : TRANSACTION_HASH_TABLE_NAME;
         long endTimestamp =
-                Objects.requireNonNull(getJdbcTemplate().queryForObject(GET_END_CONSENSUS_TIMESTAMP_SQL, Long.class));
+                Objects.requireNonNull(getJdbcOperations().queryForObject(GET_END_CONSENSUS_TIMESTAMP_SQL, Long.class));
         var transactionHashTypes = entityProperties.getPersist().getTransactionHashTypes();
         boolean ethereumTransactionIncluded = transactionHashTypes.contains(ETHEREUMTRANSACTION);
         String transactionTypesCondition = transactionHashTypes.isEmpty()
@@ -250,26 +256,22 @@ public class BackfillTransactionHashMigration extends RepeatableMigration {
     }
 
     private TransactionTemplate getTransactionTemplate() {
-        var transactionManager = new DataSourceTransactionManager(
-                Objects.requireNonNull(getJdbcTemplate().getDataSource()));
+        var jdbcTemplate = (JdbcTemplate) getJdbcOperations();
+        var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(jdbcTemplate.getDataSource()));
         return new TransactionTemplate(transactionManager);
     }
 
-    private JdbcTemplate getJdbcTemplate() {
-        return jdbcTemplateProvider.getObject();
+    private JdbcOperations getJdbcOperations() {
+        return namedParameterJdbcOperationsProvider.getObject().getJdbcOperations();
     }
 
-    private NamedParameterJdbcTemplate getNamedParameterJdbcTemplate() {
-        if (namedParameterJdbcTemplate != null) {
-            return namedParameterJdbcTemplate;
-        }
-        namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(getJdbcTemplate());
-        return namedParameterJdbcTemplate;
+    private NamedParameterJdbcOperations getNamedParameterJdbcOperations() {
+        return namedParameterJdbcOperationsProvider.getObject();
     }
 
     private boolean tableHasData(String tableName) {
         String sql = String.format(TABLE_HAS_DATA_SQL, tableName);
-        return Boolean.TRUE.equals(getJdbcTemplate().queryForObject(sql, Boolean.class));
+        return Boolean.TRUE.equals(getJdbcOperations().queryForObject(sql, Boolean.class));
     }
 
     private record MigrationContext(

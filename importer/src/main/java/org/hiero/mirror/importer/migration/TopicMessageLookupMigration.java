@@ -12,13 +12,19 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import jakarta.inject.Named;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.BooleanUtils;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.db.TimePartition;
 import org.hiero.mirror.importer.db.TimePartitionService;
@@ -28,7 +34,7 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.DataClassRowMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.transaction.support.TransactionOperations;
@@ -140,14 +146,14 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
     @SuppressWarnings("java:S107")
     protected TopicMessageLookupMigration(
             EntityProperties entityProperties,
-            @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
+            ObjectProvider<JdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties,
             ObjectMapper objectMapper,
             RecordFileRepository recordFileRepository,
             DBProperties dbProperties,
             TimePartitionService timePartitionService,
             ObjectProvider<TransactionOperations> transactionOperationsProvider) {
-        super(importerProperties.getMigration(), jdbcTemplateProvider, dbProperties.getSchema());
+        super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
         this.entityProperties = entityProperties;
         this.objectMapper = objectMapper;
         this.recordFileRepository = recordFileRepository;
@@ -194,7 +200,7 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
                 .map(TimePartition::getName)
                 .toList());
 
-        topicByShard = getJdbcTemplate().query(GET_TOPIC_SHARD_SQL, TOPIC_SHARD_ROW_MAPPER).stream()
+        topicByShard = getJdbcOperations().query(GET_TOPIC_SHARD_SQL, TOPIC_SHARD_ROW_MAPPER).stream()
                 .collect(Collectors.groupingBy(TopicShard::shardId, mapping(TopicShard::topicId, toSet())))
                 .values();
 
@@ -228,11 +234,11 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
 
     private Set<Long> getTopTopics(String partitionName) {
         var sql = String.format(GET_SHARD_COUNT_SQL, partitionName);
-        var shardCount = getJdbcTemplate().query(sql, SHARD_COUNT_ROW_MAPPER).stream()
+        var shardCount = getJdbcOperations().query(sql, SHARD_COUNT_ROW_MAPPER).stream()
                 .collect(Collectors.toMap(ShardCount::shardId, ShardCount::count));
 
         sql = String.format(GET_TOPIC_STAT_SQL, partitionName);
-        var topicStats = Objects.requireNonNull(getJdbcTemplate().query(sql, rs -> {
+        var topicStats = Objects.requireNonNull(getJdbcOperations().query(sql, rs -> {
             try {
                 rs.next();
                 return objectMapper.readValue(rs.getString(1), TOPIC_STAT_MAP_TYPE);
@@ -262,7 +268,7 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
         var stopwatch = Stopwatch.createStarted();
 
         var sql = String.format(PARTITION_NEEDS_MIGRATION_SQL, partitionName);
-        var needsMigration = getJdbcTemplate().queryForObject(sql, Boolean.class, partitionName);
+        var needsMigration = getJdbcOperations().queryForObject(sql, Boolean.class, partitionName);
         if (BooleanUtils.isFalse(needsMigration)) {
             log.info("Partition {} doesn't need migration", partitionName);
             return;
@@ -285,7 +291,7 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
 
             var batches = Lists.partition(Lists.newArrayList(Sets.difference(topicShard, topTopics)), BATCH_SIZE);
             for (var batch : batches) {
-                count += getJdbcTemplate().update(sql, ps -> {
+                count += getJdbcOperations().update(sql, ps -> {
                     var topicArray = ps.getConnection().createArrayOf("BIGINT", batch.toArray());
                     ps.setArray(1, topicArray);
                     ps.setArray(2, topicArray);
@@ -302,7 +308,7 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
 
         for (var topicId : topTopics) {
             var paramSource = new MapSqlParameterSource("id", topicId);
-            count += getNamedParameterJdbcTemplate().update(sql, paramSource);
+            count += getNamedParameterJdbcOperations().update(sql, paramSource);
         }
 
         return count;

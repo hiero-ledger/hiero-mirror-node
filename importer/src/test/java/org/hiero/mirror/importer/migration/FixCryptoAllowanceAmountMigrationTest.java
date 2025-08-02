@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 
 @EnabledIfV1
 @RequiredArgsConstructor
@@ -64,11 +64,14 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
     @BeforeEach
     void setup() {
         // Create migration object for each test case due to the cached earliestTimestamp
-        var mirrorProperties = new ImporterProperties();
-        migration = new FixCryptoAllowanceAmountMigration(
-                dbProperties, entityProperties, mirrorProperties, new ObjectProvider<JdbcTemplate>() {
+        migration = createMigration(dbProperties, entityProperties);
+    }
+
+    private FixCryptoAllowanceAmountMigration createMigration(DBProperties dbProps, EntityProperties entityProps) {
+        return new FixCryptoAllowanceAmountMigration(
+                dbProps, entityProps, new ImporterProperties(), new ObjectProvider<>() {
                     @Override
-                    public JdbcTemplate getObject() {
+                    public JdbcOperations getObject() {
                         return ownerJdbcTemplate;
                     }
                 });
@@ -274,13 +277,7 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
         // given
         var entityProps = new EntityProperties(new SystemEntity(CommonProperties.getInstance()));
         entityProps.getPersist().setTrackAllowance(trackAllowance);
-        var allowanceAmountMigration = new FixCryptoAllowanceAmountMigration(
-                dbProperties, entityProps, new ImporterProperties(), new ObjectProvider<JdbcTemplate>() {
-                    @Override
-                    public JdbcTemplate getObject() {
-                        return ownerJdbcTemplate;
-                    }
-                });
+        var allowanceAmountMigration = createMigration(dbProperties, entityProps);
         var configuration = new FluentConfiguration().target(allowanceAmountMigration.getMinimumVersion());
 
         // when, then

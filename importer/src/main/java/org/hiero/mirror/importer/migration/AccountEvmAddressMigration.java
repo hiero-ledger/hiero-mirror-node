@@ -35,14 +35,15 @@ public class AccountEvmAddressMigration extends RepeatableMigration {
         var query = String.format(
                 "select id, alias from entity%s where evm_address is null and length(alias) = 35", suffix);
         var update = String.format("update entity%s set evm_address = :evmAddress where id = :id", suffix);
+        final var jdbcOperations = jdbcOperationsProvider.getObject();
 
-        jdbcOperationsProvider.getObject().query(query, rs -> {
+        jdbcOperations.query(query, rs -> {
             long id = rs.getLong(1);
             byte[] alias = rs.getBytes(2);
             byte[] evmAddress = Utility.aliasToEvmAddress(alias);
 
             if (evmAddress != null) {
-                jdbcOperationsProvider.getObject().update(update, Map.of("evmAddress", evmAddress, "id", id));
+                jdbcOperations.update(update, Map.of("evmAddress", evmAddress, "id", id));
             }
         });
     }

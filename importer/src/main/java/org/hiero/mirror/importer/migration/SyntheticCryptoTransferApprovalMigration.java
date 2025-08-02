@@ -15,7 +15,6 @@ import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.exception.ImporterException;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
@@ -23,7 +22,7 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.util.Version;
 import org.springframework.jdbc.core.DataClassRowMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.transaction.support.TransactionOperations;
@@ -158,9 +157,9 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
             DBProperties dbProperties,
             ObjectProvider<RecordFileRepository> recordFileRepositoryProvider,
             ImporterProperties importerProperties,
-            @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
+            ObjectProvider<JdbcOperations> jdbcOperationsProvider,
             ObjectProvider<TransactionOperations> transactionOperationsProvider) {
-        super(importerProperties.getMigration(), jdbcTemplateProvider, dbProperties.getSchema());
+        super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
         this.recordFileRepositoryProvider = recordFileRepositoryProvider;
         this.importerProperties = importerProperties;
         this.transactionOperationsProvider = transactionOperationsProvider;
@@ -202,7 +201,7 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
                 .addValue("upper_bound", upperBound)
                 .addValue("grandfathered_id", GRANDFATHERED_ID);
         try {
-            var transfers = getNamedParameterJdbcTemplate().query(TRANSFER_SQL, params, ROW_MAPPER);
+            var transfers = getNamedParameterJdbcOperations().query(TRANSFER_SQL, params, ROW_MAPPER);
             for (var transfer : transfers) {
                 if (!isAuthorizedByContractKey(transfer, migrationErrors)) {
                     // set is_approval to true
@@ -221,7 +220,7 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
                         updateParams.addValue("sender", transfer.sender).addValue("token_id", transfer.tokenId);
                     }
 
-                    getNamedParameterJdbcTemplate().update(updateSql, updateParams);
+                    getNamedParameterJdbcOperations().update(updateSql, updateParams);
                     count++;
                 }
             }

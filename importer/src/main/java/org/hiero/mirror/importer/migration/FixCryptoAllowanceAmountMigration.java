@@ -19,6 +19,7 @@ import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
@@ -123,8 +124,8 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
             DBProperties dbProperties,
             EntityProperties entityProperties,
             ImporterProperties importerProperties,
-            @Owner ObjectProvider<JdbcTemplate> jdbcTemplateProvider) {
-        super(importerProperties.getMigration(), jdbcTemplateProvider, dbProperties.getSchema());
+            @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider) {
+        super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
         this.entityProperties = entityProperties;
     }
 
@@ -132,10 +133,10 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
     protected Long getInitial() {
         if (!isMigrationTableExists()) {
             log.info("Create and initialize table crypto_allowance_migration");
-            getJdbcTemplate().execute(INIT_MIGRATION_TABLE_SQL);
+            getJdbcOperations().execute(INIT_MIGRATION_TABLE_SQL);
         }
 
-        var endTimestamp = getJdbcTemplate().queryForObject(GET_END_TIMESTAMP_SQL, Long.class);
+        var endTimestamp = getJdbcOperations().queryForObject(GET_END_TIMESTAMP_SQL, Long.class);
         // If db is empty, the migration table won't have a sentinel row, thus endTimestamp is null, return 0 instead
         return endTimestamp != null ? endTimestamp : 0L;
     }
@@ -157,7 +158,7 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
         if (last == 0 || last < minTimestamp) {
             log.info("Nothing to backfill with last timestamp {} and earliest timestamp {}", last, minTimestamp);
 
-            getJdbcTemplate().execute(DROP_MIGRATION_TABLE_SQL);
+            getJdbcOperations().execute(DROP_MIGRATION_TABLE_SQL);
             return Optional.empty();
         }
 
@@ -167,17 +168,17 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
                 "Aggregate approved crypto transfer amounts in consensus timestamp range ({}, {}]",
                 fromExclusive,
                 last);
-        getNamedParameterJdbcTemplate().update(UPDATE_MIGRATION_AMOUNT_SQL, parameters);
+        getNamedParameterJdbcOperations().update(UPDATE_MIGRATION_AMOUNT_SQL, parameters);
 
         if (fromExclusive == minTimestamp) {
             log.info("Aggregated all crypto transfers using allowance, now persist the changes");
-            getJdbcTemplate().update(MERGE_AMOUNT_SQL);
-            getJdbcTemplate().execute(DROP_MIGRATION_TABLE_SQL);
+            getJdbcOperations().update(MERGE_AMOUNT_SQL);
+            getJdbcOperations().execute(DROP_MIGRATION_TABLE_SQL);
             return Optional.empty();
         }
 
         // Update the sentinel timestamp so the migration can resume if it's cancelled before completion
-        getNamedParameterJdbcTemplate().update(UPDATE_SENTINEL_TIMESTAMP_SQL, Map.of("timestamp", fromExclusive));
+        getNamedParameterJdbcOperations().update(UPDATE_SENTINEL_TIMESTAMP_SQL, Map.of("timestamp", fromExclusive));
         return Optional.of(fromExclusive);
     }
 
@@ -199,7 +200,7 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
         try {
             // It's safe to use the earliest timestamp as the exclusive min timestamp, because it's impossible to grant
             // and spend the allowance at the same time
-            Long timestamp = getJdbcTemplate()
+            Long timestamp = getJdbcOperations()
                     .queryForObject("select min(lower(timestamp_range)) from crypto_allowance_migration", Long.class);
             if (timestamp == null) {
                 log.warn("The table crypto_allowance_migration is empty, use Long.MAX_VALUE as the earliest timestamp");
@@ -216,7 +217,7 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
 
     private boolean isMigrationTableExists() {
         try {
-            getJdbcTemplate().execute("select 'crypto_allowance_migration'::regclass");
+            getJdbcOperations().execute("select 'crypto_allowance_migration'::regclass");
             return true;
         } catch (DataAccessException ex) {
             log.warn("Table crypto_allowance_migration doesn't exist");
@@ -225,8 +226,8 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
     }
 
     private TransactionOperations transactionOperations() {
-        var transactionManager = new DataSourceTransactionManager(
-                Objects.requireNonNull(getJdbcTemplate().getDataSource()));
+        var jdbcTemplate = (JdbcTemplate) getJdbcOperations();
+        var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(jdbcTemplate.getDataSource()));
         return new TransactionTemplate(transactionManager);
     }
 }
