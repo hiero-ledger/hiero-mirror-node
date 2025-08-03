@@ -195,6 +195,8 @@ public class ContractFeature extends BaseContractFeature {
         var executeContractResult = executeGetEvmAddressTransaction(EVM_ADDRESS_SALT);
         create2ChildContractEvmAddress =
                 executeContractResult.contractFunctionResult().getAddress(0);
+        // Add child contract to verify nonce later
+        addChildContract(create2ChildContractEvmAddress);
         create2ChildContractAccountId = AccountId.fromEvmAddress(
                 create2ChildContractEvmAddress, commonProperties.getShard(), commonProperties.getRealm());
         create2ChildContractContractId = ContractId.fromEvmAddress(
@@ -282,6 +284,12 @@ public class ContractFeature extends BaseContractFeature {
         assertNotEquals(ACCOUNT_EMPTY_KEYLIST, mirrorAccountResponse.getKey().getKey());
     }
 
+    @And("the mirror node Rest API should verify the parent contract has correct nonce")
+    public void verifyContractNonce() {
+        verifyNonceForParentContract();
+        verifyNonceForChildContracts();
+    }
+
     @When("I successfully delete the child contract by calling it and causing it to self destruct")
     public void deleteChildContractUsingSelfDestruct() {
         executeSelfDestructTransaction();
@@ -290,7 +298,6 @@ public class ContractFeature extends BaseContractFeature {
     @Override
     protected ContractResponse verifyContractFromMirror(boolean isDeleted) {
         var mirrorContract = super.verifyContractFromMirror(isDeleted);
-
         assertThat(mirrorContract.getAdminKey()).isNotNull();
         assertThat(mirrorContract.getAdminKey().getKey())
                 .isEqualTo(contractClient
@@ -351,7 +358,12 @@ public class ContractFeature extends BaseContractFeature {
         ContractFunctionParameters parameters =
                 new ContractFunctionParameters().addUint256(BigInteger.valueOf(transferAmount));
 
-        executeContractCallTransaction(deployedParentContract.contractId(), "createChild", parameters, null);
+        ExecuteContractResult executeContractResult =
+                executeContractCallTransaction(deployedParentContract.contractId(), "createChild", parameters, null);
+        String childAddress = executeContractResult.contractFunctionResult().getAddress(0);
+
+        // add contract Id to the list for verification of nonce on mirror node
+        addChildContract(childAddress);
     }
 
     private ExecuteContractResult executeGetChildContractBytecodeTransaction() {

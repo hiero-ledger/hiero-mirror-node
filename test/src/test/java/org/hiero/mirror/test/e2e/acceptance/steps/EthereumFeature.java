@@ -15,6 +15,7 @@ import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
+import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.io.IOException;
@@ -28,6 +29,7 @@ import org.hiero.mirror.rest.model.TransactionDetail;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient;
+import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.ExecuteContractResult;
 import org.hiero.mirror.test.e2e.acceptance.client.EthereumClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
@@ -93,12 +95,24 @@ public class EthereumFeature extends AbstractEstimateFeature {
         verifyContractExecutionResultsByTransactionId();
     }
 
+    @And("the mirror node Rest API should verify the contracts have correct nonce")
+    public void verifyContractNonce() {
+        verifyNonceForParentContract();
+        verifyNonceForChildContracts();
+    }
+
     @Given("I successfully call function using EIP-1559 ethereum transaction")
     public void callContract() {
         ContractFunctionParameters parameters = new ContractFunctionParameters().addUint256(BigInteger.valueOf(1000));
 
-        executeEthereumTransaction(deployedParentContract.contractId(), "createChild", parameters, EIP1559);
+        ExecuteContractResult executeContractResult =
+                executeEthereumTransaction(deployedParentContract.contractId(), "createChild", parameters, EIP1559);
 
+        String childAddress = executeContractResult.contractFunctionResult().getAddress(0);
+
+        // add contract Id to the list for verification of nonce on mirror node
+        assertThat(deployedParentContract.contractId().toEvmAddress()).isNotEqualTo(childAddress);
+        addChildContract(childAddress);
         gasConsumedSelector = encodeDataToByteArray(PARENT_CONTRACT, CREATE_CHILD, BigInteger.valueOf(1000));
     }
 

@@ -18,6 +18,7 @@ import org.flywaydb.core.api.callback.Event;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -156,9 +157,17 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
         runMigrateAsync();
     }
 
-    public <O> O queryForObjectOrNull(String sql, SqlParameterSource paramSource, Class<O> requiredType) {
+    protected final <O> O queryForObjectOrNull(String sql, SqlParameterSource paramSource, Class<O> requiredType) {
         try {
             return getNamedParameterJdbcOperations().queryForObject(sql, paramSource, requiredType);
+        } catch (EmptyResultDataAccessException ex) {
+            return null;
+        }
+    }
+
+    protected final <O> O queryForObjectOrNull(String sql, SqlParameterSource paramSource, RowMapper<O> rowMapper) {
+        try {
+            return getNamedParameterJdbcOperations().queryForObject(sql, paramSource, rowMapper);
         } catch (EmptyResultDataAccessException ex) {
             return null;
         }
