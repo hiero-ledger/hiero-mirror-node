@@ -117,8 +117,8 @@ gateway:
         # Balances
         {{- if true }}
         - path:
-            type: PathPrefix
-            value: /api/v1/balances
+            type: RegularExpression
+            value: '/api/v1/balances$'
         {{- end }}
         # Blocks
         {{- if true }}
@@ -128,8 +128,8 @@ gateway:
         {{- end }}
         {{- if true }}
         - path:
-            type: PathPrefix
-            value: /api/v1/blocks
+            type: RegularExpression
+            value: '/api/v1/blocks$'
         {{- end }}
         # Contracts
         {{- if true }}
@@ -169,44 +169,44 @@ gateway:
         {{- end }}
         {{- if true }}
         - path:
-            type: PathPrefix
-            value: /api/v1/contracts/results/logs
+            type: RegularExpression
+            value: '/api/v1/contracts/results/logs$'
         {{- end }}
         {{- if true }}
         - path:
-            type: PathPrefix
-            value: /api/v1/contracts/results
+            type: RegularExpression
+            value: '/api/v1/contracts/results$'
         {{- end }}
         {{- if true }}
         - path:
-            type: PathPrefix
-            value: /api/v1/contracts
+            type: RegularExpression
+            value: '/api/v1/contracts$'
         {{- end }}
         # Network
         {{- if true }}
         - path:
-            type: PathPrefix
-            value: /api/v1/network/exchangerate
+            type: RegularExpression
+            value: '/api/v1/network/exchangerate$'
         {{- end }}
         {{- if true }}
         - path:
-            type: PathPrefix
-            value: /api/v1/network/fees
+            type: RegularExpression
+            value: '/api/v1/network/fees$'
         {{- end }}
         {{- if true }}
         - path:
-            type: PathPrefix
-            value: /api/v1/network/nodes
+            type: RegularExpression
+            value: '/api/v1/network/nodes$'
         {{- end }}
         {{- if true }}
         - path:
-            type: PathPrefix
-            value: /api/v1/network/stake
+            type: RegularExpression
+            value: '/api/v1/network/stake$'
         {{- end }}
         {{- if true }}
         - path:
-            type: PathPrefix
-            value: /api/v1/network/supply
+            type: RegularExpression
+            value: '/api/v1/network/supply$'
         {{- end }}
         # Schedules
         {{- if true }}
@@ -216,8 +216,8 @@ gateway:
         {{- end }}
         {{- if true }}
         - path:
-            type: PathPrefix
-            value: /api/v1/schedules
+            type: RegularExpression
+            value: '/api/v1/schedules$'
         {{- end }}
         # Tokens
         {{- if true }}
@@ -247,8 +247,8 @@ gateway:
         {{- end }}
         {{- if true }}
         - path:
-            type: PathPrefix
-            value: /api/v1/tokens
+            type: RegularExpression
+            value: '/api/v1/tokens$'
         {{- end }}
         # Topics
         {{- if true }}
@@ -323,12 +323,12 @@ ingress:
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/tokens'
           enabled: true
         # Balances
-        - path: /api/v1/balances
+        - path: '/api/v1/balances$'
           enabled: true
         # Blocks
         - path: '/api/v1/blocks/((0x)?[0-9a-fA-F]+|\d+)$'
           enabled: true
-        - path: /api/v1/blocks
+        - path: '/api/v1/blocks$'
           enabled: true
         # Contracts
         - path: '/api/v1/contracts/results/[0-9a-zA-Z.-]+/actions$'
@@ -345,27 +345,27 @@ ingress:
           enabled: true
         - path: '/api/v1/contracts/results/[0-9a-zA-Z.-]+$'
           enabled: true
-        - path: /api/v1/contracts/results/logs
+        - path: '/api/v1/contracts/results/logs$'
           enabled: true
-        - path: /api/v1/contracts/results
+        - path: '/api/v1/contracts/results$'
           enabled: true
-        - path: /api/v1/contracts
+        - path: '/api/v1/contracts$'
           enabled: true
         # Network
-        - path: /api/v1/network/exchangerate
+        - path: '/api/v1/network/exchangerate$'
           enabled: true
-        - path: /api/v1/network/fees
+        - path: '/api/v1/network/fees$'
           enabled: true
-        - path: /api/v1/network/nodes
+        - path: '/api/v1/network/nodes$'
           enabled: true
-        - path: /api/v1/network/stake
+        - path: '/api/v1/network/stake$'
           enabled: true
-        - path: /api/v1/network/supply
+        - path: '/api/v1/network/supply$'
           enabled: true
         # Schedules
         - path: '/api/v1/schedules/\d+\.\d+\.\d+$'
           enabled: true
-        - path: /api/v1/schedules
+        - path: '/api/v1/schedules$'
           enabled: true
         # Tokens
         - path: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})/nfts/\d+/transactions$'
@@ -378,7 +378,7 @@ ingress:
           enabled: true
         - path: '/api/v1/tokens/(\d+\.\d+\.\d+|(0x)?[A-Fa-f0-9]{40})$'
           enabled: true
-        - path: /api/v1/tokens
+        - path: '/api/v1/tokens$'
           enabled: true
         # Topics
         - path: '/api/v1/topics/\d+\.\d+\.\d+/messages/\d+$'
