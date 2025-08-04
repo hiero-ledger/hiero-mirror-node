@@ -24,10 +24,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         final var actual = networkService.getLatestNetworkStake();
 
         // then
-        assertThat(actual)
-                .usingRecursiveComparison()
-                .ignoringFields("consensusTimestamp", "epochDay")
-                .isEqualTo(expected);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
