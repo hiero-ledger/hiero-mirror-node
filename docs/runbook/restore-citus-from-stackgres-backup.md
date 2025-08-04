@@ -6,7 +6,7 @@ Need to restore Citus cluster from a StackGres sharded backup
 
 ## Prerequisites
 
-- Have `jq` and `ksd`(kubernetes secret decrypter) installed
+- Have `jq`, `yq`, and `ksd`(kubernetes secret decrypter) installed
 - The cluster has a running Citus cluster deployed with `hedera-mirror` chart
 - StackGresShardedCluster backup is enabled
 - All bash commands assume your working directory is `docs/runbook/scripts`

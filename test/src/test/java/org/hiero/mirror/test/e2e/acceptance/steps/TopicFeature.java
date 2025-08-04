@@ -187,11 +187,10 @@ public class TopicFeature extends AbstractFeature {
         assertNotNull(networkTransactionResponse.getReceipt());
         verifyMirrorTransactionsResponse(mirrorClient, 200);
         var getTopicResponse = mirrorClient.getTopic(consensusTopicId.toString());
-        assertThat(getTopicResponse).isNotNull();
-        assertThat(getTopicResponse.getFeeScheduleKey().getType()).isEqualTo(TypeEnum.PROTOBUF_ENCODED);
-        assertThat(getTopicResponse.getFeeScheduleKey().getKey()).isEqualTo("3200");
-        assertThat(getTopicResponse.getCustomFees().getFixedFees()).isEmpty();
-        assertThat(getTopicResponse.getFeeExemptKeyList()).isEmpty();
+        assertThat(getTopicResponse)
+                .satisfies(r -> assertThat(r.getCustomFees().getFixedFees()).isEmpty())
+                .satisfies(r -> assertThat(r.getFeeExemptKeyList()).isEmpty())
+                .returns(null, Topic::getFeeScheduleKey);
     }
 
     @When("I successfully delete the topic")

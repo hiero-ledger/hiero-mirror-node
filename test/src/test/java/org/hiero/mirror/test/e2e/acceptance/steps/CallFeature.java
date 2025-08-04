@@ -657,7 +657,7 @@ public class CallFeature extends AbstractFeature {
                 asAddress(thirdReceiver),
                 new BigInteger("1"),
                 new BigInteger("0"));
-        var response = callContract(data, precompileContractAddress);
+        var response = callContract(data, precompileContractAddress, 2_000_000);
         var resultList = response.getResultAsListDecimal();
         var statusAfterAssociate = resultList.get(0);
         var statusAfterDissociate = resultList.get(1);
@@ -680,7 +680,7 @@ public class CallFeature extends AbstractFeature {
                 asAddress(secondReceiverAlias),
                 new BigInteger("0"),
                 new BigInteger("1"));
-        var response = callContract(data, precompileContractAddress);
+        var response = callContract(data, precompileContractAddress, 2_000_000);
         var resultList = response.getResultAsListDecimal();
         var statusAfterAssociate = resultList.get(0);
         var statusAfterDissociate = resultList.get(1);

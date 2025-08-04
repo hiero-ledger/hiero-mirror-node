@@ -7,6 +7,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.hederahashgraph.api.proto.java.KeyList;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -26,6 +27,10 @@ import org.mapstruct.Named;
 @Mapper(mappingInheritanceStrategy = MappingInheritanceStrategy.AUTO_INHERIT_FROM_CONFIG)
 public interface CommonMapper {
 
+    byte[] IMMUTABILITY_SENTINEL_KEY = com.hederahashgraph.api.proto.java.Key.newBuilder()
+            .setKeyList(KeyList.getDefaultInstance())
+            .build()
+            .toByteArray();
     String QUALIFIER_TIMESTAMP = "timestamp";
     String QUALIFIER_TIMESTAMP_RANGE = "timestampRange";
     int NANO_DIGITS = 9;
@@ -48,7 +53,7 @@ public interface CommonMapper {
     }
 
     default Key mapKey(byte[] source) {
-        if (source == null) {
+        if (source == null || Arrays.equals(source, IMMUTABILITY_SENTINEL_KEY)) {
             return null;
         }
 

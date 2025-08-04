@@ -6,6 +6,30 @@ set -euo pipefail
 
 source ./utils.sh
 
+versionGreater() {
+  local raw1="$1"
+  local raw2="$2"
+
+  local core1="${raw1%%-*}"
+  local core2="${raw2%%-*}"
+
+  if [[ "$(printf '%s\n' "$core1" "$core2" | sort -V | head -n1)" != "$core1" ]]; then
+    return 0
+  elif [[ "$core1" == "$core2" ]]; then
+    local build1 build2
+    build1="$(echo "$raw1" | sed -n 's/.*gke\.//p')"
+    build2="$(echo "$raw2" | sed -n 's/.*gke\.//p')"
+
+    if [[ -n "$build1" && -n "$build2" ]]; then
+      if [[ "$build1" -gt "$build2" ]]; then
+        return 0
+      fi
+    fi
+  fi
+
+  return 1
+}
+
 NAMESPACES=($(kubectl get sgshardedclusters.stackgres.io -A -o jsonpath='{.items[*].metadata.namespace}'))
 
 GCP_PROJECT="$(readUserInput "Enter GCP Project for target: ")"
@@ -38,7 +62,12 @@ VERSION="$(readUserInput "Enter the new Kubernetes version: ")"
 if [[ -z "${VERSION}" ]]; then
   log "VERSION is not set and is required. Exiting"
   exit 1
-else
+fi
+
+UPGRADE_MASTER="$(readUserInput "Do you want to upgrade the master to ${VERSION}? (y/n): ")"
+UPGRADE_MASTER=$(echo "${UPGRADE_MASTER}" | tr '[:upper:]' '[:lower:]')
+
+if [[ "${UPGRADE_MASTER}" == "yes" || "${UPGRADE_MASTER}" == "y" ]]; then
   log "Checking if version ${VERSION} is valid for the cluster master"
   MASTER_SUPPORTED=$(gcloud container get-server-config \
     --location="${GCP_K8S_CLUSTER_REGION}" \
@@ -51,17 +80,27 @@ else
     exit 1
   fi
 
-  log "Checking if version ${VERSION} is valid for node pools..."
-  POOLS_SUPPORTED=$(gcloud container get-server-config \
-    --location="${GCP_K8S_CLUSTER_REGION}" \
+  CURRENT_MASTER_VERSION=$(gcloud container clusters describe "${GCP_K8S_CLUSTER_NAME}" \
+    --region="${GCP_K8S_CLUSTER_REGION}" \
     --project="${GCP_PROJECT}" \
-    --format="json(validNodeVersions)" |
-    jq -r --arg VERSION "${VERSION}" 'any(.validNodeVersions[]; . == $VERSION)')
+    --format="value(currentMasterVersion)")
 
-  if [[ "${POOLS_SUPPORTED}" != "true" ]]; then
-    log "Node pool '${pool}' does not support version ${VERSION}. Exiting."
+  if ! versionGreater "${VERSION}" "${CURRENT_MASTER_VERSION}"; then
+    log "Version ${VERSION} must be greater than the current master version ${CURRENT_MASTER_VERSION}. Exiting."
     exit 1
   fi
+fi
+
+log "Checking if version ${VERSION} is valid for node pools..."
+POOLS_SUPPORTED=$(gcloud container get-server-config \
+  --location="${GCP_K8S_CLUSTER_REGION}" \
+  --project="${GCP_PROJECT}" \
+  --format="json(validNodeVersions)" |
+  jq -r --arg VERSION "${VERSION}" 'any(.validNodeVersions[]; . == $VERSION)')
+
+if [[ "${POOLS_SUPPORTED}" != "true" ]]; then
+  log "Version ${VERSION} is not supported by node pools. Exiting."
+  exit 1
 fi
 
 AVAILABLE_POOLS="$(gcloud container node-pools list --project="${GCP_PROJECT}" --cluster="${GCP_K8S_CLUSTER_NAME}" --region="${GCP_K8S_CLUSTER_REGION}" --format="json(name)" | jq -r '.[].name' | tr '\n' ' ')"
@@ -76,22 +115,20 @@ else
   done
 fi
 
-while true; do
-  SYSTEM_CONFIG_FILE="$(readUserInput 'Enter path to Linux config file (leave blank to skip): ')"
-
-  if [[ -z "${SYSTEM_CONFIG_FILE}" ]]; then
-    break
-  elif [[ -f "${SYSTEM_CONFIG_FILE}" ]]; then
-    break
-  else
-    log "File '${SYSTEM_CONFIG_FILE}' does not exist. Please enter a valid path or leave blank to skip."
-  fi
-done
-
 POOLS_WITH_CITUS_ROLE=()
 POOLS_WITHOUT_CITUS_ROLE=()
 
 for pool in "${POOLS_TO_UPDATE[@]}"; do
+  CURRENT_POOL_VERSION=$(gcloud container node-pools describe "${pool}" \
+      --project="${GCP_PROJECT}" \
+      --cluster="${GCP_K8S_CLUSTER_NAME}" \
+      --region="${GCP_K8S_CLUSTER_REGION}" \
+      --format="value(version)")
+
+  if ! versionGreater "${VERSION}" "${CURRENT_POOL_VERSION}"; then
+    log "Version ${VERSION} must be greater than current version ${CURRENT_POOL_VERSION} for pool ${pool}. Skipping."
+    exit 1
+  fi
   LABELS_JSON=$(gcloud container node-pools describe "${pool}" \
     --project="${GCP_PROJECT}" \
     --cluster="${GCP_K8S_CLUSTER_NAME}" \
@@ -102,6 +139,18 @@ for pool in "${POOLS_TO_UPDATE[@]}"; do
     POOLS_WITH_CITUS_ROLE+=("${pool}")
   else
     POOLS_WITHOUT_CITUS_ROLE+=("${pool}")
+  fi
+done
+
+while true; do
+  SYSTEM_CONFIG_FILE="$(readUserInput 'Enter path to Linux config file (leave blank to skip): ')"
+
+  if [[ -z "${SYSTEM_CONFIG_FILE}" ]]; then
+    break
+  elif [[ -f "${SYSTEM_CONFIG_FILE}" ]]; then
+    break
+  else
+    log "File '${SYSTEM_CONFIG_FILE}' does not exist. Please enter a valid path or leave blank to skip."
   fi
 done
 
@@ -139,12 +188,16 @@ function upgradeCitusPools() {
   done
 }
 
-log "Upgrading master to Kubernetes version ${VERSION}"
-gcloud container clusters upgrade "${GCP_K8S_CLUSTER_NAME}" \
-  --master \
-  --cluster-version="${VERSION}" \
-  --location="${GCP_K8S_CLUSTER_REGION}" \
-  --project="${GCP_PROJECT}"
+if [[ "${UPGRADE_MASTER}" == "yes" || "${UPGRADE_MASTER}" == "y" ]]; then
+  log "Upgrading master to Kubernetes version ${VERSION}"
+  gcloud container clusters upgrade "${GCP_K8S_CLUSTER_NAME}" \
+    --master \
+    --cluster-version="${VERSION}" \
+    --location="${GCP_K8S_CLUSTER_REGION}" \
+    --project="${GCP_PROJECT}"
+else
+  log "Skipping master upgrade as requested."
+fi
 
 for pool in "${POOLS_WITHOUT_CITUS_ROLE[@]}"; do
   upgradePool "${pool}"
