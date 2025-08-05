@@ -25,6 +25,7 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.db.DBProperties;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
@@ -85,14 +86,15 @@ class MetricsConfiguration {
 
     private final DataSource dataSource;
     private final DBProperties dbProperties;
-    private final JdbcOperations jdbcOperations;
+    private final ObjectProvider<JdbcOperations> jdbcOperationsProvider;
     private final LoadingCache<String, TableMetrics> activeMetrics;
     private final Map<String, TableAttributes> tables = new ConcurrentHashMap<>();
 
-    public MetricsConfiguration(DataSource dataSource, DBProperties dbProperties, JdbcOperations jdbcOperations) {
+    public MetricsConfiguration(
+            DataSource dataSource, DBProperties dbProperties, ObjectProvider<JdbcOperations> jdbcOperationsProvider) {
         this.dataSource = dataSource;
         this.dbProperties = dbProperties;
-        this.jdbcOperations = jdbcOperations;
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.activeMetrics = Caffeine.newBuilder()
                 .refreshAfterWrite(dbProperties.getMetricRefreshInterval())
                 .executor(Executors.newSingleThreadExecutor())
@@ -137,8 +139,9 @@ class MetricsConfiguration {
             var table = tables.get(tableName);
             if (table != null) {
                 var sql = getMetricSql(table);
-                return jdbcOperations.queryForObject(
-                        sql, DataClassRowMapper.newInstance(TableMetrics.class), table.tableName());
+                return jdbcOperationsProvider
+                        .getObject()
+                        .queryForObject(sql, DataClassRowMapper.newInstance(TableMetrics.class), table.tableName());
             }
         } catch (BadSqlGrammarException | EmptyResultDataAccessException e) {
             // No longer need to query metrics for this table
@@ -153,7 +156,7 @@ class MetricsConfiguration {
 
     private Map<String, Boolean> getDistributedTables() {
         String sql = "SELECT table_name from citus_tables";
-        return jdbcOperations.queryForList(sql, String.class).stream()
+        return jdbcOperationsProvider.getObject().queryForList(sql, String.class).stream()
                 .collect(Collectors.toMap(Function.identity(), t -> true));
     }
 

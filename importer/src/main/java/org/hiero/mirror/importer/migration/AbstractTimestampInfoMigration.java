@@ -50,19 +50,16 @@ abstract class AbstractTimestampInfoMigration extends TimeSensitiveBalanceMigrat
 
     protected AtomicInteger doMigrate(String sql) {
         var count = new AtomicInteger();
+        var jdbcOperations = jdbcOperationsProvider.getObject();
         transactionTemplateProvider.getObject().executeWithoutResult(s -> {
             try {
-                var timestampInfo = jdbcOperationsProvider
-                        .getObject()
-                        .queryForObject(
-                                GET_TIMESTAMP_INFO_SQL,
-                                Collections.emptyMap(),
-                                new DataClassRowMapper<>(TimestampInfo.class));
+                var timestampInfo = jdbcOperations.queryForObject(
+                        GET_TIMESTAMP_INFO_SQL, Collections.emptyMap(), new DataClassRowMapper<>(TimestampInfo.class));
                 var params = new MapSqlParameterSource()
                         .addValue("snapshotTimestamp", timestampInfo.snapshotTimestamp())
                         .addValue("fromTimestamp", timestampInfo.fromTimestamp())
                         .addValue("toTimestamp", timestampInfo.toTimestamp());
-                count.set(jdbcOperationsProvider.getObject().update(sql, params));
+                count.set(jdbcOperations.update(sql, params));
             } catch (EmptyResultDataAccessException e) {
                 // GET_TIMESTAMP_INFO_SQL returns empty result
             }
