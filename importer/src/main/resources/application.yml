@@ -75,16 +75,6 @@ server:
 spring:
   application:
     name: importer
-  cloud:
-    kubernetes:
-      leader:
-        enabled: false
-      reload:
-        enabled: true
-      secrets:
-        paths: /usr/etc/${spring.application.name}
-    discovery:
-      enabled: false
   datasource:
     name: ${hiero.mirror.importer.db.name}
     password: ${hiero.mirror.importer.db.password}

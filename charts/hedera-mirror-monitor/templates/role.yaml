@@ -9,7 +9,6 @@ metadata:
   namespace: {{ include "hedera-mirror-monitor.namespace" . }}
 rules:
   - apiGroups: [""]
-    resources: ["configmaps"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["helm.toolkit.fluxcd.io"]
     resources: ["helmreleases"]

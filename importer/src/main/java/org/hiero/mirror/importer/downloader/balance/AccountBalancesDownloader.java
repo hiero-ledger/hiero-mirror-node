@@ -16,11 +16,9 @@ import org.hiero.mirror.importer.downloader.Downloader;
 import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
-import org.hiero.mirror.importer.leader.Leader;
 import org.hiero.mirror.importer.reader.balance.BalanceFileReader;
 import org.hiero.mirror.importer.reader.signature.SignatureFileReader;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
-import org.springframework.scheduling.annotation.Scheduled;
 
 @Named
 public class AccountBalancesDownloader extends Downloader<AccountBalanceFile, AccountBalance> {
@@ -53,13 +51,6 @@ public class AccountBalancesDownloader extends Downloader<AccountBalanceFile, Ac
                 streamFileProvider,
                 streamFileReader);
         this.accountBalanceFileRepository = accountBalanceFileRepository;
-    }
-
-    @Override
-    @Leader
-    @Scheduled(fixedDelayString = "#{@balanceDownloaderProperties.getFrequency().toMillis()}")
-    public void download() {
-        downloadNextBatch();
     }
 
     @Override

@@ -25,7 +25,6 @@ import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
 import org.hiero.mirror.importer.exception.HashMismatchException;
-import org.hiero.mirror.importer.leader.Leader;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 import org.hiero.mirror.importer.reader.record.ProtoRecordFileReader;
 import org.hiero.mirror.importer.reader.record.RecordFileReader;
@@ -33,7 +32,6 @@ import org.hiero.mirror.importer.reader.record.sidecar.SidecarFileReader;
 import org.hiero.mirror.importer.reader.signature.SignatureFileReader;
 import org.hiero.mirror.importer.util.Utility;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Scheduled;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -76,13 +74,6 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
                 streamFileReader);
         this.sidecarFileReader = sidecarFileReader;
         this.sidecarProperties = sidecarProperties;
-    }
-
-    @Override
-    @Leader
-    @Scheduled(fixedDelayString = "#{@recordDownloaderProperties.getFrequency().toMillis()}")
-    public void download() {
-        downloadNextBatch();
     }
 
     @Override

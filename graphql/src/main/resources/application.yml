@@ -54,12 +54,6 @@ server:
 spring:
   application:
     name: graphql
-  cloud:
-    kubernetes:
-      reload:
-        enabled: true
-      secrets:
-        paths: /usr/etc/${spring.application.name}
   datasource:
     name: ${hiero.mirror.graphql.db.name}
     password: ${hiero.mirror.graphql.db.password}

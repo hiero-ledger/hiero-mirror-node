@@ -59,14 +59,6 @@ server:
 spring:
   application:
     name: grpc
-  cloud:
-    kubernetes:
-      reload:
-        enabled: true
-      secrets:
-        paths: /usr/etc/${spring.application.name}
-    discovery:
-      enabled: false
   datasource:
     name: ${hiero.mirror.grpc.db.name}
     password: ${hiero.mirror.grpc.db.password}

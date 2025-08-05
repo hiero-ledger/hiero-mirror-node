@@ -124,30 +124,6 @@ a [Standalone NEG](https://cloud.google.com/kubernetes-engine/docs/how-to/standa
 4. Create an [External HTTPS load balancer](https://cloud.google.com/load-balancing/docs/https/ext-https-lb-simple) and
    create a Backend Service(s) that utilizes the automatically created NEGs pointing to the traffic pods.
 
-### Removed Spring Cloud Dependencies
-
-This chart no longer uses Spring Cloud features (e.g., dynamic properties, leader election). All dependencies from `org.springframework.cloud` have been removed. Configuration is now static and driven via Kubernetes ConfigMaps and Secrets.
-
-- `application.yml` no longer supports `spring.cloud.*` properties.
-- Leader election logic in the importer has been removed.
-- Logger configurations referencing Spring Cloud packages should be removed from `application.yml`.
-
-### Kubernetes API Access for Monitor
-
-The monitor component now uses the Fabric8 Kubernetes client to access the Kubernetes API directly, enabling it to watch `pods` and `configmaps`. Ensure that the appropriate role-based permissions are granted.
-
-Minimal RBAC permissions needed:
-
-```yaml
-rules:
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["get"]
-```
-
 ## Testing
 
 To verify the chart installation is successful, you can run the helm tests. These tests are not automatically executed
@@ -264,12 +240,29 @@ kubectl logs -f --prefix --tail=10 -l app.kubernetes.io/name=importer
 
 To change application properties without restarting, you can create a
 [ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#create-configmaps-from-files)
-named `grpc` or `importer` and supply an `application.yaml` or `application.properties`.
-Note that some properties that are used on startup will still require a restart.
+named `grpc` or `importer`, and mount it into the container by specifying `volumes` and `volumeMounts` in your custom values.yaml.
+
+Create the ConfigMap from a properties file:
 
 ```shell script
 echo "logging.level.org.hiero.mirror.grpc=TRACE" > application.properties
 kubectl create configmap grpc --from-file=application.properties
+```
+
+Add the following to your values.yaml to mount it:
+
+```
+volumeMounts:
+  grpc-config:
+    mountPath: /usr/etc/hiero/application.properties
+    subPath: application.properties
+    readOnly: true
+
+volumes:
+  grpc-config:
+    configMap:
+      name: grpc
+      defaultMode: 420
 ```
 
 Dashboard, metrics and alerts can be viewed via [Grafana](https://grafana.com). See the [Using](#using) section for how

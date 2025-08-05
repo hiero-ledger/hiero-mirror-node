@@ -230,8 +230,6 @@ redis:
   pdb:
     create: true
   port: 6379
-  rbac:
-    create: true
   replica:
     podAntiAffinityPreset: soft
     podSecurityContext:

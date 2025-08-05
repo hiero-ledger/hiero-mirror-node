@@ -29,8 +29,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("io.fabric8:kubernetes-client")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
+    implementation("io.fabric8:kubernetes-client:4.20.0")
     runtimeOnly(
         group = "io.netty",
         name = "netty-resolver-dns-native-macos",

@@ -14,7 +14,6 @@ import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -24,16 +23,12 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
-import org.hiero.mirror.importer.leader.Leader;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.hiero.mirror.importer.util.Utility;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
-import org.springframework.transaction.annotation.Transactional;
 
 @Named
 public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
@@ -90,51 +85,6 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         sizeMetrics = sizeMetricsBuilder.build();
         unknownLatencyMetric = latencyMetrics.get(TransactionType.UNKNOWN.getProtoId());
         unknownSizeMetric = sizeMetrics.get(TransactionType.UNKNOWN.getProtoId());
-    }
-
-    /**
-     * Given a stream file data representing an rcd file from the service parse record items and persist changes
-     *
-     * @param recordFile containing information about file to be processed
-     */
-    @Override
-    @Leader
-    @Retryable(
-            backoff =
-                    @Backoff(
-                            delayExpression = "#{@recordParserProperties.getRetry().getMinBackoff().toMillis()}",
-                            maxDelayExpression = "#{@recordParserProperties.getRetry().getMaxBackoff().toMillis()}",
-                            multiplierExpression = "#{@recordParserProperties.getRetry().getMultiplier()}"),
-            retryFor = Throwable.class,
-            noRetryFor = OutOfMemoryError.class,
-            maxAttemptsExpression = "#{@recordParserProperties.getRetry().getMaxAttempts()}")
-    @Transactional(timeoutString = "#{@recordParserProperties.getTransactionTimeout().toSeconds()}")
-    public synchronized void parse(RecordFile recordFile) {
-        try {
-            super.parse(recordFile);
-        } finally {
-            parserContext.clear();
-        }
-    }
-
-    @Leader
-    @Override
-    @Retryable(
-            backoff =
-                    @Backoff(
-                            delayExpression = "#{@recordParserProperties.getRetry().getMinBackoff().toMillis()}",
-                            maxDelayExpression = "#{@recordParserProperties.getRetry().getMaxBackoff().toMillis()}",
-                            multiplierExpression = "#{@recordParserProperties.getRetry().getMultiplier()}"),
-            retryFor = Throwable.class,
-            noRetryFor = OutOfMemoryError.class,
-            maxAttemptsExpression = "#{@recordParserProperties.getRetry().getMaxAttempts()}")
-    @Transactional(timeoutString = "#{@recordParserProperties.getTransactionTimeout().toSeconds()}")
-    public synchronized void parse(List<RecordFile> recordFiles) {
-        try {
-            super.parse(recordFiles);
-        } finally {
-            parserContext.clear();
-        }
     }
 
     @Override

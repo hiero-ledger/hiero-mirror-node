@@ -295,9 +295,6 @@ prometheusRules:
       severity: warning
       application: grpc
 
-rbac:
-  enabled: false
-
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness

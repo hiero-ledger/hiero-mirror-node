@@ -85,15 +85,6 @@ management:
         cluster:
           include: cluster, release
 spring:
-  cloud:
-    kubernetes:
-      discovery:
-        catalog-services-watch:
-          enabled: false
-      reload:
-        enabled: true
-      secrets:
-        paths: /usr/etc/${spring.application.name}
   config:
     activate:
       on-profile: kubernetes

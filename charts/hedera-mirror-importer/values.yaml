@@ -438,9 +438,6 @@ prometheusRules:
       type: RECORD
       area: downloader
 
-rbac:
-  enabled: false
-
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness
