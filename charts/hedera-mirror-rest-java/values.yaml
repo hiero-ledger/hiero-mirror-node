@@ -47,6 +47,19 @@ envFrom: []
 fullnameOverride: ""
 
 gateway:
+  endpoints:
+    accounts:
+      allowances:
+        nfts:
+          enabled: true
+      airdrops:
+        outstanding:
+          enabled: true
+        pending:
+          enabled: true
+    topics:
+      enabled: true
+
   gcp:
     backendPolicy:
       connectionDraining:
@@ -72,22 +85,22 @@ gateway:
           name: "{{ include \"hedera-mirror-rest-java.fullname\" $ }}"
           port: 80
       matches: |
-        {{- if true }}
+        {{- if .Values.gateway.endpoints.accounts.allowances.nfts.enabled }}
         - path:
             type: RegularExpression  # GKE does not yet support RegularExpression type
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/nfts'
         {{- end }}
-        {{- if true }}
+        {{- if .Values.gateway.endpoints.accounts.airdrops.outstanding.enabled }}
         - path:
             type: RegularExpression
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/outstanding'
         {{- end }}
-        {{- if true }}
+        {{- if .Values.gateway.endpoints.accounts.airdrops.pending.enabled }}
         - path:
             type: RegularExpression
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/pending'
         {{- end }}
-        {{- if true }}
+        {{- if .Values.gateway.endpoints.topics.enabled }}
         - path:
             type: RegularExpression
             value: '/api/v1/topics/(\d+\.){0,2}\d+$'
@@ -137,13 +150,9 @@ ingress:
       paths:
         # the rest of /api/v1/* is still handled by the Node.js based REST API logic, except for these paths
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/nfts'
-          enabled: true
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/outstanding'
-          enabled: true
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/pending'
-          enabled: true
         - path: '/api/v1/topics/(\d+\.){0,2}\d+$'
-          enabled: true
   tls:
     enabled: false
     secretName: ""

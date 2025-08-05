@@ -19,11 +19,21 @@ metadata:
 spec:
   rules:
   {{- range .Values.ingress.hosts }}
-    - host: {{ $hostname | default .host | quote }}
-      http:
-        paths:
-        {{- range .paths }}
-          {{- if .enabled }}
+  - host: {{ $hostname | default .host | quote }}
+    http:
+      paths:
+      {{- range .paths }}
+        {{- $pathEnabled := false -}}
+          {{- if eq .path "/api/v1/accounts/(\\d+\\.){0,2}(\\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/nfts" }}
+            {{- $pathEnabled = $.Values.gateway.endpoints.accounts.allowances.nfts.enabled -}}
+            {{- else if eq .path "/api/v1/accounts/(\\d+\\.){0,2}(\\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/outstanding" }}
+            {{- $pathEnabled = $.Values.gateway.endpoints.accounts.airdrops.outstanding.enabled -}}
+            {{- else if eq .path "/api/v1/accounts/(\\d+\\.){0,2}(\\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/pending" }}
+            {{- $pathEnabled = $.Values.gateway.endpoints.accounts.airdrops.pending.enabled -}}
+            {{- else if eq .path "/api/v1/topics/(\\d+\\.){0,2}\\d+$" }}
+            {{- $pathEnabled = $.Values.gateway.endpoints.topics.enabled -}}
+          {{- end }}
+          {{- if $pathEnabled }}
             - path: {{ .path }}
               pathType: {{ .type | default "ImplementationSpecific" }}
               backend:
