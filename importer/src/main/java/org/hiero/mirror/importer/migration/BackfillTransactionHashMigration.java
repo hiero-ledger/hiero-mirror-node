@@ -262,7 +262,7 @@ public class BackfillTransactionHashMigration extends RepeatableMigration {
     }
 
     private JdbcOperations getJdbcOperations() {
-        return namedParameterJdbcOperationsProvider.getObject().getJdbcOperations();
+        return getNamedParameterJdbcOperations().getJdbcOperations();
     }
 
     private NamedParameterJdbcOperations getNamedParameterJdbcOperations() {

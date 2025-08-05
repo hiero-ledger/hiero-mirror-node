@@ -29,7 +29,6 @@ import org.hiero.mirror.importer.repository.TokenTransferRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
@@ -46,7 +45,7 @@ class TokenAccountBalanceMigrationTest extends ImporterIntegrationTest {
     private final AccountBalanceFileRepository accountBalanceFileRepository;
     private final RecordFileRepository recordFileRepository;
 
-    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final NamedParameterJdbcOperations namedParameterJdbcOperations;
     private final TransactionTemplate transactionTemplate;
 
     private final TokenAccountRepository tokenAccountRepository;
@@ -69,32 +68,10 @@ class TokenAccountBalanceMigrationTest extends ImporterIntegrationTest {
     void beforeEach() {
         timestamp = new AtomicLong(domainBuilder.timestamp());
 
-        ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider =
-                new ObjectProvider<AccountBalanceFileRepository>() {
-                    @Override
-                    public AccountBalanceFileRepository getObject() {
-                        return accountBalanceFileRepository;
-                    }
-                };
-        ObjectProvider<NamedParameterJdbcOperations> namedParameterJdbcTemplateProvider = new ObjectProvider<>() {
-            @Override
-            public NamedParameterJdbcOperations getObject() {
-                return namedParameterJdbcTemplate;
-            }
-        };
-        ObjectProvider<RecordFileRepository> recordFileRepositoryProvider = new ObjectProvider<RecordFileRepository>() {
-            @Override
-            public RecordFileRepository getObject() {
-                return recordFileRepository;
-            }
-        };
-        ObjectProvider<TransactionTemplate> transactionTemplateProvider = new ObjectProvider<TransactionTemplate>() {
-            @Override
-            public TransactionTemplate getObject() {
-                return transactionTemplate;
-            }
-        };
-
+        var accountBalanceFileRepositoryProvider = objectProvider(accountBalanceFileRepository);
+        var namedParameterJdbcTemplateProvider = objectProvider(namedParameterJdbcOperations);
+        var recordFileRepositoryProvider = objectProvider(recordFileRepository);
+        var transactionTemplateProvider = objectProvider(transactionTemplate);
         tokenAccountBalanceMigration = new TokenAccountBalanceMigration(
                 accountBalanceFileRepositoryProvider,
                 importerProperties,
@@ -231,7 +208,7 @@ class TokenAccountBalanceMigrationTest extends ImporterIntegrationTest {
     void migrateWhenNoTokenBalance() {
         // given
         setup();
-        namedParameterJdbcTemplate.update(
+        namedParameterJdbcOperations.update(
                 DELETE_TOKEN_BALANCE_SQL, Map.of("consensusTimestamp", accountBalanceFile2.getConsensusTimestamp()));
 
         // when
@@ -329,8 +306,10 @@ class TokenAccountBalanceMigrationTest extends ImporterIntegrationTest {
     @Transactional
     void onEndEarlyReturn() {
         // given
-        var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(
-                namedParameterJdbcTemplate.getJdbcTemplate().getDataSource()));
+        var transactionManager = new DataSourceTransactionManager(
+                Objects.requireNonNull(((NamedParameterJdbcTemplate) namedParameterJdbcOperations)
+                        .getJdbcTemplate()
+                        .getDataSource()));
         var txnTemplate = new TransactionTemplate(transactionManager);
         setup();
         accountBalanceFileRepository.deleteById(accountBalanceFile2.getConsensusTimestamp());

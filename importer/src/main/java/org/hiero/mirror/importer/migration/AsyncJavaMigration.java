@@ -88,7 +88,7 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
     }
 
     protected final JdbcOperations getJdbcOperations() {
-        return namedParameterJdbcOperationsProvider.getObject().getJdbcOperations();
+        return getNamedParameterJdbcOperations().getJdbcOperations();
     }
 
     protected final NamedParameterJdbcOperations getNamedParameterJdbcOperations() {

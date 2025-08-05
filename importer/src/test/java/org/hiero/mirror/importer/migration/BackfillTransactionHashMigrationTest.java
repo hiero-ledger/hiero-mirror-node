@@ -61,19 +61,8 @@ class BackfillTransactionHashMigrationTest extends ImporterIntegrationTest {
         migrationProperties.getParams().put("startTimestamp", String.valueOf(DEFAULT_START_TIMESTAMP));
         importerProperties.getMigration().put(MIGRATION_NAME, migrationProperties);
 
-        ObjectProvider<JdbcOperations> jdbcOperationsProvider = new ObjectProvider<>() {
-            @Override
-            public JdbcOperations getObject() {
-                return ownerJdbcTemplate;
-            }
-        };
-        ObjectProvider<TimePartitionService> timePartitionServiceProvider = new ObjectProvider<>() {
-            @Override
-            public TimePartitionService getObject() {
-                return timePartitionService;
-            }
-        };
-
+        ObjectProvider<JdbcOperations> jdbcOperationsProvider = objectProvider(ownerJdbcTemplate);
+        var timePartitionServiceProvider = objectProvider(timePartitionService);
         migration = new BackfillTransactionHashMigration(
                 entityProperties,
                 environment,

@@ -14,11 +14,9 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.DataClassRowMapper;
-import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.transaction.support.TransactionOperations;
 
 class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
@@ -34,7 +32,7 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
     protected DBProperties dbProperties;
 
     @Resource
-    protected NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    protected NamedParameterJdbcOperations namedParameterJdbcOperations;
 
     @Resource
     protected TransactionOperations transactionOperations;
@@ -61,11 +59,11 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
                 installed_by, execution_time, success) values (:installedRank, :description, 'JDBC', :script,
                 :checksum, 20, 100, true)
                 """;
-        namedParameterJdbcTemplate.update(sql, paramSource);
+        namedParameterJdbcOperations.update(sql, paramSource);
     }
 
     protected List<AsyncJavaMigrationBaseTest.MigrationHistory> getAllMigrationHistory() {
-        return namedParameterJdbcTemplate.query(
+        return namedParameterJdbcOperations.query(
                 """
                         select installed_rank, checksum, execution_time, script
                         from flyway_schema_history
@@ -86,12 +84,7 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
         public TestAsyncJavaMigration(boolean error, MigrationProperties migrationProperties, long sleep) {
             super(
                     Map.of("testAsyncJavaMigration", migrationProperties),
-                    new ObjectProvider<>() {
-                        @Override
-                        public JdbcOperations getObject() {
-                            return ownerJdbcTemplate;
-                        }
-                    },
+                    objectProvider(ownerJdbcTemplate),
                     dbProperties.getSchema());
             this.error = error;
             this.sleep = sleep;

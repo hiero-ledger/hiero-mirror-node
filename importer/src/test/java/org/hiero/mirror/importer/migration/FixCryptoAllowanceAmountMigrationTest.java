@@ -32,8 +32,6 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcOperations;
 
 @EnabledIfV1
 @RequiredArgsConstructor
@@ -69,12 +67,7 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
 
     private FixCryptoAllowanceAmountMigration createMigration(DBProperties dbProps, EntityProperties entityProps) {
         return new FixCryptoAllowanceAmountMigration(
-                dbProps, entityProps, new ImporterProperties(), new ObjectProvider<>() {
-                    @Override
-                    public JdbcOperations getObject() {
-                        return ownerJdbcTemplate;
-                    }
-                });
+                dbProps, entityProps, new ImporterProperties(), objectProvider(ownerJdbcTemplate));
     }
 
     @Test
