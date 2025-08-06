@@ -33,7 +33,7 @@
     "@hashgraph/proto": "^2.20.0",
     "abort-controller": "^3.0.0",
     "boxen": "^8.0.1",
-    "chalk": "^5.4.1",
+    "chalk": "^5.5.0",
     "extensionless": "^1.9.9",
     "glob": "^11.0.3",
     "lodash": "^4.17.21",

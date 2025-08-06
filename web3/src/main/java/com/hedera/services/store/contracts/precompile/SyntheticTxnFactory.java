@@ -2,8 +2,10 @@
 
 package com.hedera.services.store.contracts.precompile;
 
+import static com.hedera.node.app.service.evm.utils.ValidationUtils.validateFalseOrRevert;
 import static com.hedera.services.store.contracts.precompile.utils.PrecompilePricingUtils.EMPTY_KEY;
 import static com.hedera.services.utils.MiscUtils.asKeyUnchecked;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
 
 import com.google.protobuf.BoolValue;
@@ -61,6 +63,7 @@ import com.hederahashgraph.api.proto.java.TokenUpdateTransactionBody;
 import com.hederahashgraph.api.proto.java.TokenWipeAccountTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.annotation.Nullable;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -158,6 +161,7 @@ public class SyntheticTxnFactory {
     public TransactionBody.Builder createNonfungibleApproval(
             final ApproveWrapper approveWrapper, @Nullable final Id ownerId, @Nullable final Id operatorId) {
         final var builder = CryptoApproveAllowanceTransactionBody.newBuilder();
+        validateApproveAmount(approveWrapper.amount());
         if (approveWrapper.isFungible()) {
             var tokenAllowance = TokenAllowance.newBuilder()
                     .setTokenId(approveWrapper.tokenId())
@@ -577,5 +581,9 @@ public class SyntheticTxnFactory {
         }
 
         return TransactionBody.newBuilder().setTokenUpdate(builder);
+    }
+
+    private void validateApproveAmount(final BigInteger amount) {
+        validateFalseOrRevert(amount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0, CONTRACT_REVERT_EXECUTED);
     }
 }

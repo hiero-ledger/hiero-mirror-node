@@ -17,7 +17,7 @@ plugins {
 extra.apply {
     set("blockNodeVersion", "0.14.0")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
-    set("grpcVersion", "1.73.0")
+    set("grpcVersion", "1.74.0")
     set("jooq.version", "3.20.5") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.17.1")
@@ -87,7 +87,7 @@ dependencies {
         api("org.springframework.cloud:spring-cloud-dependencies:2025.0.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:4.12.2")
-        api("software.amazon.awssdk:bom:2.32.9")
+        api("software.amazon.awssdk:bom:2.32.14")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

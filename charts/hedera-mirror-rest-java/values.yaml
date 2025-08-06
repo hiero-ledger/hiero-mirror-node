@@ -46,6 +46,9 @@ envFrom: []
 
 fullnameOverride: ""
 
+routes:
+  networkStake: false
+
 gateway:
   gcp:
     backendPolicy:
@@ -71,7 +74,7 @@ gateway:
           kind: "{{ .Values.gateway.target.kind }}"
           name: "{{ include \"hedera-mirror-rest-java.fullname\" $ }}"
           port: 80
-      matches:
+      matches: |
         - path:
             type: RegularExpression  # GKE does not yet support RegularExpression type
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/allowances/nfts'
@@ -84,9 +87,11 @@ gateway:
         - path:
             type: RegularExpression
             value: '/api/v1/topics/(\d+\.){0,2}\d+$'
-        # - path:
-        #     type: PathPrefix
-        #     value: /api/v1/network/stake
+        {{- if .Values.routes.networkStake }}
+        - path:
+            type: RegularExpression
+            value: '/api/v1/network/stake$'
+        {{- end }}
   target:
     group: ""
     kind: Service
@@ -135,7 +140,8 @@ ingress:
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/outstanding'
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/airdrops/pending'
         - path: '/api/v1/topics/(\d+\.){0,2}\d+$'
-        # - path: '/api/v1/network/stake'
+        - path: '/api/v1/network/stake$'
+          condition: "{{ .Values.routes.networkStake }}"
   tls:
     enabled: false
     secretName: ""
