@@ -902,7 +902,7 @@ paths:
         400:
           $ref: "#/components/responses/InvalidParameterError"
         404:
-          $ref: "#/components/responses/NotFoundError"
+          $ref: "#/components/responses/NetworkStakeNotFound"
         500:
           $ref: "#/components/responses/ServiceUnavailableError"
       tags:
@@ -4096,6 +4096,17 @@ components:
             _status:
               messages:
                 - message: Not found
+    NetworkStakeNotFound:
+      description: No network stake data found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            _status:
+              messages:
+                - detail: No network stake data found
+                  message: Not Found
     TopicNotFound:
       description: Topic Not Found
       content:

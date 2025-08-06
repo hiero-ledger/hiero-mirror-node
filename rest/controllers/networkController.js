@@ -271,7 +271,19 @@ class NetworkController extends BaseController {
     utils.validateReq(_req);
     const networkStake = await NetworkNodeService.getNetworkStake();
     if (networkStake === null) {
-      throw new NotFoundError();
+      // Return custom error format to match Java implementation
+      res.status(404).json({
+        _status: {
+          messages: [
+            {
+              data: null,
+              detail: 'No network stake data found',
+              message: 'Not Found',
+            },
+          ],
+        },
+      });
+      return;
     }
 
     res.locals[responseDataLabel] = new NetworkStakeViewModel(networkStake);
