@@ -32,6 +32,7 @@ import org.hiero.mirror.importer.reader.record.sidecar.SidecarFileReader;
 import org.hiero.mirror.importer.reader.signature.SignatureFileReader;
 import org.hiero.mirror.importer.util.Utility;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.scheduling.annotation.Scheduled;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -74,6 +75,12 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
                 streamFileReader);
         this.sidecarFileReader = sidecarFileReader;
         this.sidecarProperties = sidecarProperties;
+    }
+
+    @Override
+    @Scheduled(fixedDelayString = "#{@recordDownloaderProperties.getFrequency().toMillis()}")
+    public void download() {
+        downloadNextBatch();
     }
 
     @Override

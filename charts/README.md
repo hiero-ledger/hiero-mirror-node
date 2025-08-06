@@ -238,9 +238,7 @@ kubectl logs -f --tail=100 "${POD_NAME}"
 kubectl logs -f --prefix --tail=10 -l app.kubernetes.io/name=importer
 ```
 
-To change application properties without restarting, you can create a
-[ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#create-configmaps-from-files)
-named `grpc` or `importer`, and mount it into the container by specifying `volumes` and `volumeMounts` in your custom values.yaml.
+To change an application's properties, create a [ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#create-configmaps-from-files) and mount it into the container by specifying `volumes` and `volumeMounts` in your custom values.yaml.
 
 Create the ConfigMap from a properties file:
 

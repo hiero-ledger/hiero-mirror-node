@@ -73,11 +73,6 @@ tasks.withType<Test>().configureEach {
     }
 }
 
-tasks.register("javascriptClean") { // Rename from 'clean'
-    // Task logic for cleaning JavaScript-related files
-    doLast { delete(fileTree("build") { include("**/*.js") }) }
-}
-
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
     reports {

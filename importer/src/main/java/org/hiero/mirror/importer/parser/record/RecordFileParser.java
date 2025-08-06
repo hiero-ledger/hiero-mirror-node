@@ -14,7 +14,9 @@ import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
@@ -29,6 +31,9 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.hiero.mirror.importer.util.Utility;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
+import org.springframework.transaction.annotation.Transactional;
 
 @Named
 public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
@@ -87,6 +92,49 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         unknownSizeMetric = sizeMetrics.get(TransactionType.UNKNOWN.getProtoId());
     }
 
+    /**
+     * Given a stream file data representing an rcd file from the service parse record items and persist changes
+     *
+     * @param recordFile containing information about file to be processed
+     */
+    @Override
+    @Retryable(
+            backoff =
+                    @Backoff(
+                            delayExpression = "#{@recordParserProperties.getRetry().getMinBackoff().toMillis()}",
+                            maxDelayExpression = "#{@recordParserProperties.getRetry().getMaxBackoff().toMillis()}",
+                            multiplierExpression = "#{@recordParserProperties.getRetry().getMultiplier()}"),
+            retryFor = Throwable.class,
+            noRetryFor = OutOfMemoryError.class,
+            maxAttemptsExpression = "#{@recordParserProperties.getRetry().getMaxAttempts()}")
+    @Transactional(timeoutString = "#{@recordParserProperties.getTransactionTimeout().toSeconds()}")
+    public synchronized void parse(RecordFile recordFile) {
+        try {
+            super.parse(recordFile);
+        } finally {
+            parserContext.clear();
+        }
+    }
+
+    @Override
+    @Retryable(
+            backoff =
+                    @Backoff(
+                            delayExpression = "#{@recordParserProperties.getRetry().getMinBackoff().toMillis()}",
+                            maxDelayExpression = "#{@recordParserProperties.getRetry().getMaxBackoff().toMillis()}",
+                            multiplierExpression = "#{@recordParserProperties.getRetry().getMultiplier()}"),
+            retryFor = Throwable.class,
+            noRetryFor = OutOfMemoryError.class,
+            maxAttemptsExpression = "#{@recordParserProperties.getRetry().getMaxAttempts()}")
+    @Transactional(timeoutString = "#{@recordParserProperties.getTransactionTimeout().toSeconds()}")
+    public synchronized void parse(List<RecordFile> recordFiles) {
+        try {
+            super.parse(recordFiles);
+        } finally {
+            parserContext.clear();
+        }
+    }
+
     @Override
     protected void doFlush(RecordFile streamFile) {
         super.doFlush(streamFile);
@@ -99,7 +147,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         var aggregator = new RecordItemAggregator();
         var count = new AtomicLong(0L);
         boolean shouldLog = log.isDebugEnabled() || log.isTraceEnabled();
-
+        final var logIndex = new AtomicInteger(0);
         recordFile.getItems().forEach(recordItem -> {
             if (shouldLog) {
                 logItem(recordItem);
@@ -108,6 +156,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             aggregator.accept(recordItem);
 
             if (dateRangeFilter.filter(recordItem.getConsensusTimestamp())) {
+                recordItem.setLogIndex(logIndex);
                 recordItemListener.onItem(recordItem);
                 recordMetrics(recordItem);
                 count.incrementAndGet();
