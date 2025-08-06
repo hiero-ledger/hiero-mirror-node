@@ -62,9 +62,6 @@ server:
 spring:
   application:
     name: monitor
-  cloud:
-    discovery:
-      enabled: false
   lifecycle:
     timeout-per-shutdown-phase: 20s
   task:
