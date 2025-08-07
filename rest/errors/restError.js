@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Wrapper for all non-terminal errors we wish to not exit the node process for
-class RestError extends Error {}
+class RestError extends Error {
+  constructor(message, data = null, detail = null) {
+    super(message);
+    this.data = data;
+    this.detail = detail;
+  }
+}
 
 export default RestError;

@@ -5,8 +5,8 @@ import RestError from './restError';
 const NotFoundErrorMessage = 'Not found';
 
 class NotFoundError extends RestError {
-  constructor(errorMessage) {
-    super(errorMessage === undefined ? NotFoundErrorMessage : errorMessage);
+  constructor(errorMessage, data = null, detail = null) {
+    super(errorMessage === undefined ? NotFoundErrorMessage : errorMessage, data, detail);
   }
 }
 
