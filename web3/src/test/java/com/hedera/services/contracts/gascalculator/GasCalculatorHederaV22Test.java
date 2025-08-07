@@ -2,6 +2,7 @@
 
 package com.hedera.services.contracts.gascalculator;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.hedera.services.fees.HbarCentExchange;
@@ -34,7 +35,7 @@ class GasCalculatorHederaV22Test {
 
     @Test
     void gasDepositCost() {
-        assertEquals(0L, subject.codeDepositGasCost(37));
+        assertThat(subject.codeDepositGasCost(37)).isGreaterThan(0L);
     }
 
     @Test

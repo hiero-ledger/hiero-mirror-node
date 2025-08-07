@@ -37,11 +37,6 @@ public class GasCalculatorHederaV19 extends LondonGasCalculator {
     }
 
     @Override
-    public long codeDepositGasCost(final int codeSize) {
-        return 0L;
-    }
-
-    @Override
     public long logOperationGasCost(
             final MessageFrame frame, final long dataOffset, final long dataLength, final int numTopics) {
         final var gasCost = GasCalculatorHederaUtil.logOperationGasCost(
