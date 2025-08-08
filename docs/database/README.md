@@ -355,4 +355,4 @@ in ERD tools since foreign key constraints cannot reference partitioned tables i
 The following ERD diagrams were generated using the above process:
 
 - [Entity Relationship Diagram](erd.png) - Complete database schema with relationships
-- [Column-level ERD](erd_column.png) - Detailed view showing column information
+- [Column-level ERD](erd-column.png) - Detailed view showing column information
