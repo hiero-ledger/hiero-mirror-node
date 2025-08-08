@@ -10,7 +10,6 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import lombok.Data;
 import org.hiero.mirror.common.util.DomainUtils;
 
 /**
@@ -18,8 +17,7 @@ import org.hiero.mirror.common.util.DomainUtils;
  * merkle tree are padded with SHA2-384 hash of an empty bytearray to be perfect binary trees. Note none of the methods
  * are reentrant.
  */
-@Data
-class BlockRootHashDigest {
+public final class BlockRootHashDigest {
 
     private static final byte[] EMPTY_HASH = createSha384Digest().digest(new byte[0]);
 
