@@ -308,3 +308,51 @@ Please refer to this [document](/docs/database/citus.md) for the steps.
 ## Bootstrap a DB from exported data
 
 Please refer to this [document](/docs/database/bootstrap.md) for instructions.
+
+## Entity Relationship Diagram (ERD)
+
+To generate an ERD of the mirror node database schema:
+
+1. Set up a local PostgreSQL database using Docker:
+
+   ```bash
+   docker run --name postgres-erd -e POSTGRES_DB=mirror_node -e POSTGRES_USER=mirror_node -e POSTGRES_PASSWORD=mirror_node_pass -p 5432:5432 -d postgres:16
+   ```
+
+2. Run the importer to populate the schema:
+
+   ```bash
+   ./gradlew :importer:bootRun
+   ```
+
+3. Clean up test data to ensure foreign key constraints work properly:
+
+   ```bash
+   psql -h localhost -d mirror_node -U mirror_node -f docs/database/truncate_data.sql
+   ```
+
+4. Remove all partitions to ensure foreign key constraints work with regular tables:
+
+   ```bash
+   psql -h localhost -d mirror_node -U mirror_node -f drop_all_partitions.sql
+   ```
+
+5. Use IntelliJ IDEA's built-in database diagram feature:
+   - Connect to the database using the Database tool window
+   - Right-click on the `public` schema
+   - Select "Diagrams" → "Show Visualization..."
+   - Choose the tables you want to include in the diagram
+   - Export the diagram as PNG or other formats as needed
+
+This approach automatically reads the actual database schema including all foreign key constraints, ensuring the ERD
+stays synchronized with the codebase without requiring separate maintenance files. The truncate script ensures that any
+test data inserted by the importer doesn't interfere with foreign key constraint visualization. The partition removal
+script converts partitioned tables to regular tables, which is necessary for proper foreign key constraint visualization
+in ERD tools since foreign key constraints cannot reference partitioned tables in PostgreSQL.
+
+## Current ERD Diagrams
+
+The following ERD diagrams were generated using the above process:
+
+- [Entity Relationship Diagram](erd.png) - Complete database schema with relationships
+- [Column-level ERD](erd_column.png) - Detailed view showing column information
