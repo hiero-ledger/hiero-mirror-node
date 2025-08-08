@@ -137,8 +137,8 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
     private final EntityProperties entityProperties;
     private final List<String> partitions = new LinkedList<>();
     private final ObjectMapper objectMapper;
-    private final RecordFileRepository recordFileRepository;
-    private final TimePartitionService timePartitionService;
+    private final ObjectProvider<RecordFileRepository> recordFileRepositoryProvider;
+    private final ObjectProvider<TimePartitionService> timePartitionServiceProvider;
     private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
 
     private Collection<Set<Long>> topicByShard;
@@ -149,15 +149,15 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
             ObjectProvider<JdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties,
             ObjectMapper objectMapper,
-            RecordFileRepository recordFileRepository,
+            ObjectProvider<RecordFileRepository> recordFileRepositoryProvider,
             DBProperties dbProperties,
-            TimePartitionService timePartitionService,
+            ObjectProvider<TimePartitionService> timePartitionServiceProvider,
             ObjectProvider<TransactionOperations> transactionOperationsProvider) {
         super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
         this.entityProperties = entityProperties;
         this.objectMapper = objectMapper;
-        this.recordFileRepository = recordFileRepository;
-        this.timePartitionService = timePartitionService;
+        this.recordFileRepositoryProvider = recordFileRepositoryProvider;
+        this.timePartitionServiceProvider = timePartitionServiceProvider;
         this.transactionOperationsProvider = transactionOperationsProvider;
     }
 
@@ -175,13 +175,14 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
             return false;
         }
 
-        var lastRecordFile = recordFileRepository.findLatest().map(RecordFile::getConsensusEnd);
+        var lastRecordFile =
+                recordFileRepositoryProvider.getObject().findLatest().map(RecordFile::getConsensusEnd);
         if (lastRecordFile.isEmpty()) {
             log.info("Skip the migration since there's no record file parsed");
             return false;
         }
 
-        var timePartitions = timePartitionService.getTimePartitions(TOPIC_MESSAGE_TABLE_NAME);
+        var timePartitions = timePartitionServiceProvider.getObject().getTimePartitions(TOPIC_MESSAGE_TABLE_NAME);
 
         if (timePartitions.isEmpty()) {
             log.info("Skip the migration since topic_message doesn't contain any partitions");
