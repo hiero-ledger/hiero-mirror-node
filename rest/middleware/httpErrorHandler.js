@@ -41,7 +41,7 @@ const handleError = async (err, req, res, next) => {
     logger.error(`${req.ip} ${req.method} ${req.originalUrl} in ${elapsed} ms: ${statusCode}`, detailedMessage);
   }
 
-  res.status(statusCode.code).json(errorMessageFormat({data: err.data, detail: err.detail, message: errorMessage}));
+  res.status(statusCode.code).json(errorMessageFormat(errorMessage));
 };
 
 const handleRejection = (reason, promise) => {
@@ -82,7 +82,11 @@ const errorMessageFormat = (errorMessages) => {
   return {
     _status: {
       messages: errorMessages.map((m) => {
-        return m.detail ? {data: m.data, detail: m.detail, message: m.message} : {message: m};
+        const response = m.detail ? {message: m.message, detail: m.detail} : {message: m};
+        if (typeof m === 'object' && 'data' in m) {
+          response['data'] = m.data;
+        }
+        return response;
       }),
     },
   };
