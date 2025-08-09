@@ -7,7 +7,6 @@ import jakarta.inject.Named;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.config.Owner;
-import org.hiero.mirror.importer.leader.Leader;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -27,7 +26,6 @@ public class PartitionMaintenance {
     private final PartitionProperties partitionProperties;
 
     @EventListener(ApplicationReadyEvent.class)
-    @Leader
     @Retryable
     @Scheduled(cron = "${hiero.mirror.importer.db.partition.cron:0 0 0 * * ?}")
     public synchronized void runMaintenance() {

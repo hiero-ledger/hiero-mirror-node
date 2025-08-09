@@ -5,16 +5,11 @@ package org.hiero.mirror.importer.config;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.leader.LeaderAspect;
-import org.hiero.mirror.importer.leader.LeaderService;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnCloudPlatform;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
 import org.springframework.boot.autoconfigure.flyway.FlywayConfigurationCustomizer;
-import org.springframework.boot.cloud.CloudPlatform;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.annotation.EnableRetry;
@@ -30,19 +25,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 class ImporterConfiguration {
 
     private final ImporterProperties importerProperties;
-
-    @Bean
-    @ConditionalOnCloudPlatform(CloudPlatform.KUBERNETES)
-    @ConditionalOnProperty(value = "spring.cloud.kubernetes.leader.enabled")
-    LeaderAspect leaderAspect() {
-        return new LeaderAspect();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    LeaderService leaderService() {
-        return Boolean.TRUE::booleanValue; // Leader election not available outside Kubernetes
-    }
 
     @Bean
     FlywayConfigurationCustomizer flywayConfigurationCustomizer() {

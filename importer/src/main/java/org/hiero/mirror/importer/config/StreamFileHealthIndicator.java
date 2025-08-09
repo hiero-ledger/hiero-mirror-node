@@ -14,7 +14,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.leader.LeaderService;
 import org.hiero.mirror.importer.parser.ParserProperties;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
@@ -36,15 +35,12 @@ public class StreamFileHealthIndicator implements HealthIndicator {
             getHealthWithReason(Status.UNKNOWN, STREAM_CLOSE_LATENCY_METRIC_NAME + MISSING_TIMER_REASON);
     private static final Health endDateInPastHealth =
             getHealthWithReason(Status.UP, "EndDate has passed, stream files are no longer expected");
-    private static final Health notLeaderHealth =
-            Health.unknown().withDetail(REASON_KEY, "Not currently leader").build();
     private final AtomicReference<Health> lastHealthStatus = new AtomicReference<>(Health.unknown()
             .withDetail(COUNT_KEY, 0L)
             .withDetail(LAST_CHECK_KEY, Instant.now())
             .withDetail(REASON_KEY, "Starting up, no files parsed yet")
             .build()); // unknown until at least 1 stream file is parsed
 
-    private final LeaderService leaderService;
     private final MeterRegistry meterRegistry;
     private final ImporterProperties importerProperties;
     private final ParserProperties parserProperty;
@@ -61,10 +57,6 @@ public class StreamFileHealthIndicator implements HealthIndicator {
         // consider case where endTime has been passed
         if (importerProperties.getEndDate().isBefore(currentInstant)) {
             return endDateInPastHealth;
-        }
-
-        if (!leaderService.isLeader()) {
-            return notLeaderHealth;
         }
 
         Timer streamParseDurationTimer = meterRegistry

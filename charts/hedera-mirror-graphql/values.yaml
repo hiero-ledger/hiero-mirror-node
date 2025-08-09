@@ -293,9 +293,6 @@ prometheusRules:
       application: graphql
       severity: warning
 
-rbac:
-  enabled: true
-
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness

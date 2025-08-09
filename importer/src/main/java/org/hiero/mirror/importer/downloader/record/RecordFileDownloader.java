@@ -25,7 +25,6 @@ import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
 import org.hiero.mirror.importer.exception.HashMismatchException;
-import org.hiero.mirror.importer.leader.Leader;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 import org.hiero.mirror.importer.reader.record.ProtoRecordFileReader;
 import org.hiero.mirror.importer.reader.record.RecordFileReader;
@@ -79,7 +78,6 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
     }
 
     @Override
-    @Leader
     @Scheduled(fixedDelayString = "#{@recordDownloaderProperties.getFrequency().toMillis()}")
     public void download() {
         downloadNextBatch();

@@ -25,7 +25,6 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
-import org.hiero.mirror.importer.leader.Leader;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -99,7 +98,6 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
      * @param recordFile containing information about file to be processed
      */
     @Override
-    @Leader
     @Retryable(
             backoff =
                     @Backoff(
@@ -118,7 +116,6 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         }
     }
 
-    @Leader
     @Override
     @Retryable(
             backoff =
