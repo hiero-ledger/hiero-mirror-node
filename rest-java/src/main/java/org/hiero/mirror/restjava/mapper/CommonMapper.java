@@ -5,6 +5,8 @@ package org.hiero.mirror.restjava.mapper;
 import com.google.common.collect.Range;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hederahashgraph.api.proto.java.KeyList;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -13,6 +15,7 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.Key;
 import org.hiero.mirror.rest.model.Key.TypeEnum;
 import org.hiero.mirror.rest.model.TimestampRange;
@@ -28,10 +31,13 @@ public interface CommonMapper {
             .setKeyList(KeyList.getDefaultInstance())
             .build()
             .toByteArray();
+    String QUALIFIER_TIMESTAMP = "timestamp";
+    String QUALIFIER_TIMESTAMP_RANGE = "timestampRange";
     int NANO_DIGITS = 9;
+    int FRACTION_SCALE = 9;
     Pattern PATTERN_ECDSA = Pattern.compile("^(3a21|32250a233a21|2a29080112250a233a21)([A-Fa-f0-9]{66})$");
     Pattern PATTERN_ED25519 = Pattern.compile("^(1220|32240a221220|2a28080112240a221220)([A-Fa-f0-9]{64})$");
-    String QUALIFIER_TIMESTAMP = "timestamp";
+    long SECONDS_PER_DAY = 86400L;
 
     default String mapEntityId(Long source) {
         if (source == null || source == 0) {
@@ -117,5 +123,30 @@ public interface CommonMapper {
         return new StringBuilder(timestampString)
                 .insert(timestampString.length() - NANO_DIGITS, '.')
                 .toString();
+    }
+
+    @Named(QUALIFIER_TIMESTAMP_RANGE)
+    default TimestampRange mapTimestampRange(long stakingPeriod) {
+        final long fromNs = stakingPeriod + 1;
+        final long toNs = fromNs + (SECONDS_PER_DAY * DomainUtils.NANOS_PER_SECOND);
+
+        return new TimestampRange().from(mapTimestamp(fromNs)).to(mapTimestamp(toNs));
+    }
+
+    /**
+     * Calculates the fractional value of a numerator and denominator as a float with up to {@value #FRACTION_SCALE} decimal places.
+     *
+     * @param numerator   the numerator of the fraction
+     * @param denominator the denominator of the fraction
+     * @return the result of numerator / denominator as a float, or 0.0f if denominator is 0
+     */
+    default float mapFraction(long numerator, long denominator) {
+        if (denominator == 0L) {
+            return 0f;
+        }
+
+        return BigDecimal.valueOf(numerator)
+                .divide(BigDecimal.valueOf(denominator), FRACTION_SCALE, RoundingMode.HALF_UP)
+                .floatValue();
     }
 }

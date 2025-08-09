@@ -32,7 +32,9 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
+import org.springframework.jdbc.core.JdbcOperations;
 
 @RequiredArgsConstructor
 @Tag("migration")
@@ -58,8 +60,15 @@ class BackfillTransactionHashMigrationTest extends ImporterIntegrationTest {
         migrationProperties = importerProperties.getMigration().get(MIGRATION_NAME);
         migrationProperties.getParams().put("startTimestamp", String.valueOf(DEFAULT_START_TIMESTAMP));
         importerProperties.getMigration().put(MIGRATION_NAME, migrationProperties);
+
+        ObjectProvider<JdbcOperations> jdbcOperationsProvider = objectProvider(ownerJdbcTemplate);
+        var timePartitionServiceProvider = objectProvider(timePartitionService);
         migration = new BackfillTransactionHashMigration(
-                entityProperties, environment, ownerJdbcTemplate, importerProperties, timePartitionService);
+                entityProperties,
+                environment,
+                jdbcOperationsProvider,
+                importerProperties,
+                timePartitionServiceProvider);
     }
 
     @AfterEach

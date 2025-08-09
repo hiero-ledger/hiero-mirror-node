@@ -25,14 +25,14 @@ import org.hiero.mirror.common.domain.token.AbstractTokenAccount;
 import org.hiero.mirror.common.domain.token.TokenAccount;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.db.TimePartitionService;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -291,29 +291,28 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
     private static final RowMapper<TokenBalanceChange> TOKEN_BALANCE_CHANGE_ROW_MAPPER =
             new DataClassRowMapper<>(TokenBalanceChange.class);
 
-    private final NamedParameterJdbcTemplate jdbcTemplate;
-    private final TimePartitionService timePartitionService;
-    private final TransactionTemplate transactionTemplate;
+    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
+    private final ObjectProvider<TimePartitionService> timePartitionServiceProvider;
+    private final ObjectProvider<TransactionTemplate> transactionTemplateProvider;
     private final boolean v2;
 
-    @Lazy
     FixAirdropTokenAssociationMigration(
             Environment environment,
             ImporterProperties importerProperties,
-            NamedParameterJdbcTemplate jdbcTemplate,
-            TimePartitionService timePartitionService,
-            TransactionTemplate transactionTemplate) {
+            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
+            ObjectProvider<TimePartitionService> timePartitionServiceProvider,
+            ObjectProvider<TransactionTemplate> transactionTemplateProvider) {
         super(importerProperties.getMigration());
-        this.jdbcTemplate = jdbcTemplate;
-        this.timePartitionService = timePartitionService;
-        this.transactionTemplate = transactionTemplate;
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
+        this.timePartitionServiceProvider = timePartitionServiceProvider;
+        this.transactionTemplateProvider = transactionTemplateProvider;
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
     }
 
     @Override
     @SuppressWarnings("java:S3776")
     protected void doMigrate() throws IOException {
-        transactionTemplate.executeWithoutResult(status -> {
+        transactionTemplateProvider.getObject().executeWithoutResult(status -> {
             var stopwatch = Stopwatch.createStarted();
             var claimedAirdrops = getClaimedAirdrops();
             if (claimedAirdrops.isEmpty()) {
@@ -331,8 +330,9 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
                     missingTokenAccounts.getFirst().getTokenAccount().getCreatedTimestamp();
             var params = new MapSqlParameterSource(
                     TIMESTAMP, claimedAirdrops.getFirst().getConsensusTimestamp());
-            var balanceSnapshotTimestamps =
-                    jdbcTemplate.queryForList(GET_BALANCE_SNAPSHOT_TIMESTAMPS_SQL, params, Long.class);
+            var balanceSnapshotTimestamps = jdbcOperationsProvider
+                    .getObject()
+                    .queryForList(GET_BALANCE_SNAPSHOT_TIMESTAMPS_SQL, params, Long.class);
             // Add max long as a sentinel value so the iterating logic can also work for partial mirrornode where
             // account 2 may be missing thus no balance snapshot timestamp at all
             balanceSnapshotTimestamps.add(Long.MAX_VALUE);
@@ -405,7 +405,8 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
     }
 
     private boolean isCurrentSnapshotFull(long previousTimestamp, long currentTimestamp) {
-        return timePartitionService
+        return timePartitionServiceProvider
+                        .getObject()
                         .getOverlappingTimePartitions("account_balance", previousTimestamp, currentTimestamp)
                         .size()
                 > 1;
@@ -434,16 +435,18 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
      * @return Claimed airdrops with missing token account association, ordered by when it's claimed
      */
     private List<ClaimedAirdrop> getClaimedAirdrops() {
-        return jdbcTemplate
-                .getJdbcTemplate()
+        return jdbcOperationsProvider
+                .getObject()
+                .getJdbcOperations()
                 .queryForStream(GET_CLAIMED_AIRDROPS_SQL, CLAIMED_AIRDROP_ROW_MAPPER)
                 .filter(claimedAirdrop -> {
                     var params = new MapSqlParameterSource()
                             .addValue(ACCOUNT_ID, claimedAirdrop.getAccountId())
                             .addValue(TOKEN_ID, claimedAirdrop.getTokenId())
                             .addValue(TIMESTAMP, claimedAirdrop.getConsensusTimestamp());
-                    return BooleanUtils.isTrue(
-                            jdbcTemplate.queryForObject(IS_TOKEN_ACCOUNT_MISSING_SQL, params, Boolean.class));
+                    return BooleanUtils.isTrue(jdbcOperationsProvider
+                            .getObject()
+                            .queryForObject(IS_TOKEN_ACCOUNT_MISSING_SQL, params, Boolean.class));
                 })
                 .toList();
     }
@@ -461,8 +464,9 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
                 .addValue(TO, toTimestamp);
 
         try {
-            return Objects.requireNonNull(jdbcTemplate.queryForObject(
-                    GET_FUNGIBLE_TOKEN_BALANCE_CHANGE_SQL, params, TOKEN_BALANCE_CHANGE_ROW_MAPPER));
+            return Objects.requireNonNull(jdbcOperationsProvider
+                    .getObject()
+                    .queryForObject(GET_FUNGIBLE_TOKEN_BALANCE_CHANGE_SQL, params, TOKEN_BALANCE_CHANGE_ROW_MAPPER));
         } catch (IncorrectResultSizeDataAccessException ex) {
             // ignore
             return null;
@@ -508,8 +512,9 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
                         .addValue(ACCOUNT_ID, id.getAccountId())
                         .addValue(TOKEN_ID, id.getTokenId())
                         .addValue(TIMESTAMP, createdTimestamp);
-                validToTimestamp = Objects.requireNonNull(
-                        jdbcTemplate.queryForObject(GET_TOKEN_ACCOUNT_VALID_TO_TIMESTAMP_SQL, params, Long.class));
+                validToTimestamp = Objects.requireNonNull(jdbcOperationsProvider
+                        .getObject()
+                        .queryForObject(GET_TOKEN_ACCOUNT_VALID_TO_TIMESTAMP_SQL, params, Long.class));
             } catch (IncorrectResultSizeDataAccessException ex) {
                 // ignore
             }
@@ -564,7 +569,7 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
 
     private List<NftTransfer> getNftTransfers(long fromTimestamp, long toTimestamp) {
         var params = new MapSqlParameterSource().addValue(FROM, fromTimestamp).addValue(TO, toTimestamp);
-        return jdbcTemplate.query(GET_NFT_TRANSFERS_SQL, params, NFT_TRANSFER_ROW_MAPPER);
+        return jdbcOperationsProvider.getObject().query(GET_NFT_TRANSFERS_SQL, params, NFT_TRANSFER_ROW_MAPPER);
     }
 
     private void persistTokenAccounts(List<TokenAccountMeta> tokenAccountMetas) {
@@ -579,12 +584,13 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
                         .addValue(TIMESTAMP, ta.getTimestampLower())
                         .addValue(TOKEN_ID, ta.getTokenId()))
                 .toArray(SqlParameterSource[]::new);
-        jdbcTemplate.batchUpdate(PATCH_TOKEN_ACCOUNT_SQL, batchParams);
+        jdbcOperationsProvider.getObject().batchUpdate(PATCH_TOKEN_ACCOUNT_SQL, batchParams);
     }
 
     private void persistTokenBalanceSnapshot(Collection<TokenBalance> tokeBalances) {
-        jdbcTemplate
-                .getJdbcTemplate()
+        jdbcOperationsProvider
+                .getObject()
+                .getJdbcOperations()
                 .batchUpdate(INSERT_TOKEN_BALANCE_SQL, tokeBalances, tokeBalances.size(), (ps, tokenBalance) -> {
                     var id = Objects.requireNonNull(tokenBalance.getId());
                     ps.setLong(1, id.getAccountId().getId());

@@ -7,7 +7,9 @@
     "_status": {
       "messages": [
         {
-          "message": "Not found"
+          "data": null,
+          "detail": "No network stake data found",
+          "message": "Not Found"
         }
       ]
     }

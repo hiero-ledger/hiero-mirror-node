@@ -15,9 +15,13 @@ tasks.dockerBuild { dependsOn(":rest:monitoring:dockerBuild") }
 
 tasks.register<NpmTask>("testRestJava") {
     dependsOn(":rest-java:dockerBuild")
-    // Configure regex to match the parent folder of specs
-    environment.put("REST_JAVA_INCLUDE", "^.*(none)$")
 
     // Configure spec test(s) to run
-    args = listOf("test", "--testNamePattern", "^.*(none.spec.test.js)$")
+    val specPaths = listOf("network/stake")
+    val includeRegex = specPaths.joinToString("|")
+    environment.put("REST_JAVA_INCLUDE", includeRegex)
+
+    val testFiles = listOf("network.spec.test.js")
+    val testPathPattern = testFiles.joinToString("|")
+    args = listOf("test", "--testPathPattern", testPathPattern)
 }
