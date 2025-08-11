@@ -16,7 +16,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Value;
-import org.apache.commons.compress.compressors.CompressorException;
 import org.apache.commons.compress.compressors.CompressorStreamFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -112,7 +111,7 @@ public class StreamFileData {
                 var compressorInputStream =
                         compressorStreamFactory.createCompressorInputStream(compressor, inputStream)) {
             return compressorInputStream.readAllBytes();
-        } catch (CompressorException | IOException e) {
+        } catch (IOException e) {
             var filename = streamFilename.getFilename();
             log.error("Failed to decompress stream file {}", filename);
             throw new InvalidStreamFileException(filename, e);

@@ -17,13 +17,14 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.util.Utility;
 import org.postgresql.jdbc.PgArray;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.jdbc.core.DataClassRowMapper;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @Named
-@RequiredArgsConstructor(onConstructor_ = {@Lazy})
+@RequiredArgsConstructor()
 public class ContractResultMigration extends AbstractJavaMigration {
 
     static final DataClassRowMapper<MigrationContractResult> resultRowMapper;
@@ -36,7 +37,7 @@ public class ContractResultMigration extends AbstractJavaMigration {
         resultRowMapper.setConversionService(defaultConversionService);
     }
 
-    private final JdbcTemplate jdbcTemplate;
+    private final ObjectProvider<JdbcOperations> jdbcOperationsProvider;
 
     @SneakyThrows
     private static Long[] convert(PgArray pgArray) {
@@ -57,6 +58,7 @@ public class ContractResultMigration extends AbstractJavaMigration {
     protected void doMigrate() throws IOException {
         AtomicLong count = new AtomicLong(0L);
         Stopwatch stopwatch = Stopwatch.createStarted();
+        final var jdbcTemplate = (JdbcTemplate) jdbcOperationsProvider.getObject();
 
         jdbcTemplate.setFetchSize(100);
         jdbcTemplate.query(
@@ -128,30 +130,34 @@ public class ContractResultMigration extends AbstractJavaMigration {
     }
 
     private void update(MigrationContractResult contractResult) {
-        jdbcTemplate.update(
-                "update contract_result set bloom = ?, call_result = ?, contract_id = ?, "
-                        + "created_contract_ids = ?, error_message = ? where consensus_timestamp = ?",
-                contractResult.getBloom(),
-                contractResult.getCallResult(),
-                contractResult.getContractId(),
-                contractResult.getCreatedContractIds(),
-                contractResult.getErrorMessage(),
-                contractResult.getConsensusTimestamp());
+        jdbcOperationsProvider
+                .getObject()
+                .update(
+                        "update contract_result set bloom = ?, call_result = ?, contract_id = ?, "
+                                + "created_contract_ids = ?, error_message = ? where consensus_timestamp = ?",
+                        contractResult.getBloom(),
+                        contractResult.getCallResult(),
+                        contractResult.getContractId(),
+                        contractResult.getCreatedContractIds(),
+                        contractResult.getErrorMessage(),
+                        contractResult.getConsensusTimestamp());
     }
 
     private void insert(MigrationContractLog contractLog) {
-        jdbcTemplate.update(
-                "insert into contract_log (bloom, consensus_timestamp, contract_id, data, index, topic0, "
-                        + "topic1, topic2, topic3) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                contractLog.getBloom(),
-                contractLog.getConsensusTimestamp(),
-                contractLog.getContractId(),
-                contractLog.getData(),
-                contractLog.getIndex(),
-                contractLog.getTopic0(),
-                contractLog.getTopic1(),
-                contractLog.getTopic2(),
-                contractLog.getTopic3());
+        jdbcOperationsProvider
+                .getObject()
+                .update(
+                        "insert into contract_log (bloom, consensus_timestamp, contract_id, data, index, topic0, "
+                                + "topic1, topic2, topic3) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        contractLog.getBloom(),
+                        contractLog.getConsensusTimestamp(),
+                        contractLog.getContractId(),
+                        contractLog.getData(),
+                        contractLog.getIndex(),
+                        contractLog.getTopic0(),
+                        contractLog.getTopic1(),
+                        contractLog.getTopic2(),
+                        contractLog.getTopic3());
     }
 
     @Data

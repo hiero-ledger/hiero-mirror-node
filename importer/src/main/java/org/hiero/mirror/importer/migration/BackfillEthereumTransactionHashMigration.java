@@ -19,8 +19,9 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionParser;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.DataClassRowMapper;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ParameterizedPreparedStatementSetter;
 import org.springframework.jdbc.core.RowMapper;
@@ -76,19 +77,18 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
             """;
 
     private final EntityProperties entityProperties;
-    private final EthereumTransactionParser ethereumTransactionParser;
-    private final JdbcTemplate jdbcTemplate;
+    private final ObjectProvider<EthereumTransactionParser> ethereumTransactionParserProvider;
+    private final ObjectProvider<JdbcOperations> jdbcOperationsProvider;
 
-    @Lazy
     public BackfillEthereumTransactionHashMigration(
             EntityProperties entityProperties,
-            EthereumTransactionParser ethereumTransactionParser,
+            ObjectProvider<EthereumTransactionParser> ethereumTransactionParserProvider,
             ImporterProperties importerProperties,
-            @Owner JdbcTemplate jdbcTemplate) {
+            @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider) {
         super(importerProperties.getMigration());
         this.entityProperties = entityProperties;
-        this.ethereumTransactionParser = ethereumTransactionParser;
-        this.jdbcTemplate = jdbcTemplate;
+        this.ethereumTransactionParserProvider = ethereumTransactionParserProvider;
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
     }
 
     @Override
@@ -105,7 +105,9 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
         getTransactionOperations().executeWithoutResult(s -> {
             long consensusTimestamp = -1;
             for (; ; ) {
-                var transactions = jdbcTemplate.query(SELECT_ETHEREUM_TRANSACTION_SQL, ROW_MAPPER, consensusTimestamp);
+                var transactions = jdbcOperationsProvider
+                        .getObject()
+                        .query(SELECT_ETHEREUM_TRANSACTION_SQL, ROW_MAPPER, consensusTimestamp);
                 if (transactions.isEmpty()) {
                     break;
                 }
@@ -115,8 +117,9 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
                 var patchedTransactions = transactions.stream()
                         .map(t -> {
                             var callDataId = t.getCallDataId() == null ? null : EntityId.of(t.getCallDataId());
-                            t.setHash(ethereumTransactionParser.getHash(
-                                    t.getCallData(), callDataId, t.getConsensusTimestamp(), t.getData()));
+                            t.setHash(ethereumTransactionParserProvider
+                                    .getObject()
+                                    .getHash(t.getCallData(), callDataId, t.getConsensusTimestamp(), t.getData()));
                             return t;
                         })
                         .filter(t -> ArrayUtils.isNotEmpty(t.getHash()))
@@ -139,10 +142,11 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
         if (patchedTransactions.isEmpty()) {
             return;
         }
+        final var jdbcOperations = jdbcOperationsProvider.getObject();
 
-        jdbcTemplate.batchUpdate(UPDATE_CONTRACT_RESULT_SQL, patchedTransactions, patchedTransactions.size(), PSS);
+        jdbcOperations.batchUpdate(UPDATE_CONTRACT_RESULT_SQL, patchedTransactions, patchedTransactions.size(), PSS);
 
-        jdbcTemplate.batchUpdate(
+        jdbcOperations.batchUpdate(
                 UPDATE_CONTRACT_TRANSACTION_HASH_SQL,
                 patchedTransactions,
                 patchedTransactions.size(),
@@ -151,7 +155,7 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
                     ps.setBytes(2, transaction.getHash());
                 });
 
-        jdbcTemplate.batchUpdate(UPDATE_ETHEREUM_HASH_SQL, patchedTransactions, patchedTransactions.size(), PSS);
+        jdbcOperations.batchUpdate(UPDATE_ETHEREUM_HASH_SQL, patchedTransactions, patchedTransactions.size(), PSS);
 
         if (entityProperties.getPersist().shouldPersistTransactionHash(ETHEREUMTRANSACTION)) {
             var transactionHashes = patchedTransactions.stream()
@@ -161,7 +165,7 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
                             .payerAccountId(t.getPayerAccountId())
                             .build())
                     .toList();
-            jdbcTemplate.batchUpdate(
+            jdbcOperations.batchUpdate(
                     INSERT_TRANSACTION_HASH_SQL, transactionHashes, transactionHashes.size(), (ps, transactionHash) -> {
                         ps.setLong(1, transactionHash.getConsensusTimestamp());
                         ps.setShort(2, transactionHash.getDistributionId());
@@ -172,6 +176,7 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
     }
 
     private TransactionOperations getTransactionOperations() {
+        var jdbcTemplate = (JdbcTemplate) jdbcOperationsProvider.getObject();
         var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(jdbcTemplate.getDataSource()));
         return new TransactionTemplate(transactionManager);
     }

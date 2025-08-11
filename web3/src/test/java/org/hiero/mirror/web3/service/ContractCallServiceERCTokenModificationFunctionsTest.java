@@ -2,10 +2,12 @@
 
 package org.hiero.mirror.web3.service;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.utils.Constants.CALL_URI;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -20,6 +22,7 @@ import org.hiero.mirror.common.domain.token.FallbackFee;
 import org.hiero.mirror.common.domain.token.FixedFee;
 import org.hiero.mirror.common.domain.token.FractionalFee;
 import org.hiero.mirror.common.domain.token.RoyaltyFee;
+import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
@@ -69,6 +72,28 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
     }
 
     @Test
+    void approveFungibleTokenWithInvalidAmount() {
+        // Given
+        final var spender = accountEntityPersist();
+        final var token = fungibleTokenPersist();
+        final var tokenId = token.getTokenId();
+        final var tokenAddress = toAddress(tokenId).toHexString();
+        final var spenderAddress = getAddressFromEntity(spender);
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var contractAddress = Address.fromHexString(contract.getContractAddress());
+        final var contractEntityId = entityIdFromEvmAddress(contractAddress);
+        tokenAccountPersist(tokenId, contractEntityId.getId());
+
+        final var invalidAmount = BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.valueOf(DEFAULT_AMOUNT_GRANTED));
+
+        // When
+        final var functionCall = contract.send_approve(tokenAddress, spenderAddress, invalidAmount);
+        // Then
+        final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
+    }
+
+    @Test
     void approveNFT() {
         // Given
         final var spender = accountEntityPersist();
@@ -84,6 +109,29 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         final var functionCall = contract.send_approveNFT(tokenAddress, spenderAddress, DEFAULT_SERIAL_NUMBER);
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @Test
+    void approveNFTInvalidAmount() {
+        // Given
+        final var spender = accountEntityPersist();
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var contractAddress = Address.fromHexString(contract.getContractAddress());
+        final var contractEntityId = entityIdFromEvmAddress(contractAddress);
+        final var token = nftPersist(contractEntityId, contractEntityId, contractEntityId);
+        final var tokenId = token.getTokenId();
+        final var tokenAddress = toAddress(tokenId).toHexString();
+        final var spenderAddress = getAddressFromEntity(spender);
+        tokenAccountPersist(tokenId, contractEntityId.getId());
+
+        final var invalidSerialNumber =
+                BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.valueOf(DEFAULT_AMOUNT_GRANTED));
+
+        // When
+        final var functionCall = contract.send_approveNFT(tokenAddress, spenderAddress, invalidSerialNumber);
+        // Then
+        final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @Test

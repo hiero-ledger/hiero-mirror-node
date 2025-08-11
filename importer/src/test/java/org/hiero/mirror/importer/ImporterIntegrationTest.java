@@ -52,6 +52,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.postgresql.jdbc.PgArray;
 import org.postgresql.util.PGobject;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.AnnotationUtils;
@@ -98,6 +100,15 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
     @Getter
     @Value("#{environment.matchesProfiles('!v2')}")
     private boolean v1;
+
+    public static final <T> ObjectProvider<T> objectProvider(T t) {
+        return new ObjectProvider<T>() {
+            @Override
+            public T getObject() throws BeansException {
+                return t;
+            }
+        };
+    }
 
     protected static <T> RowMapper<T> rowMapper(Class<T> entityClass) {
         DefaultConversionService defaultConversionService = new DefaultConversionService();

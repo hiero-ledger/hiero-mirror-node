@@ -23,6 +23,7 @@ spec:
       http:
         paths:
         {{- range .paths }}
+          {{- if or (empty .condition) (eq (tpl .condition $) "true") }}
           - path: {{ .path }}
             pathType: {{ .type | default "ImplementationSpecific" }}
             backend:
@@ -30,6 +31,7 @@ spec:
                 name: {{ $fullName }}
                 port:
                   number: {{ $servicePort }}
+          {{- end }}
         {{- end }}
   {{- end }}
   {{- if .Values.ingress.tls.enabled }}

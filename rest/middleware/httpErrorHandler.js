@@ -82,7 +82,11 @@ const errorMessageFormat = (errorMessages) => {
   return {
     _status: {
       messages: errorMessages.map((m) => {
-        return m.detail ? {message: m.message, detail: m.detail} : {message: m};
+        const response = m.detail ? {message: m.message, detail: m.detail} : {message: m};
+        if (typeof m === 'object' && 'data' in m) {
+          response['data'] = m.data;
+        }
+        return response;
       }),
     },
   };

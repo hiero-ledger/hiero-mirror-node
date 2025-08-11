@@ -902,7 +902,7 @@ paths:
         400:
           $ref: "#/components/responses/InvalidParameterError"
         404:
-          $ref: "#/components/responses/NotFoundError"
+          $ref: "#/components/responses/NetworkStakeNotFound"
         500:
           $ref: "#/components/responses/ServiceUnavailableError"
       tags:
@@ -1400,7 +1400,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Mirror Node REST API
-  version: 0.136.0-SNAPSHOT
+  version: 0.137.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -2002,6 +2002,12 @@ components:
         memo:
           example: contract memo
           type: string
+        nonce:
+          description: The nonce of the contract
+          nullable: true
+          format: int64
+          type: integer
+          example: 1
         obtainer_id:
           $ref: "#/components/schemas/EntityId"
         permanent_removal:
@@ -4090,6 +4096,17 @@ components:
             _status:
               messages:
                 - message: Not found
+    NetworkStakeNotFound:
+      description: No network stake data found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            _status:
+              messages:
+                - detail: No network stake data found
+                  message: Not Found
     TopicNotFound:
       description: Topic Not Found
       content:

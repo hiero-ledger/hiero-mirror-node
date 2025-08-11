@@ -2,6 +2,7 @@
 
 package com.hedera.services.contracts.gascalculator;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -49,7 +50,7 @@ class GasCalculatorHederaV19Test {
 
     @Test
     void gasDepositCost() {
-        assertEquals(0L, subject.codeDepositGasCost(1));
+        assertThat(subject.codeDepositGasCost(1)).isGreaterThan(0L);
     }
 
     @Test

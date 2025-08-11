@@ -7,10 +7,11 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 abstract class AbstractTimestampInfoMigration extends TimeSensitiveBalanceMigration {
@@ -33,31 +34,32 @@ abstract class AbstractTimestampInfoMigration extends TimeSensitiveBalanceMigrat
             limit 1
             """;
 
-    private final NamedParameterJdbcTemplate jdbcTemplate;
-    private final TransactionTemplate transactionTemplate;
+    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
+    private final ObjectProvider<TransactionTemplate> transactionTemplateProvider;
 
     protected AbstractTimestampInfoMigration(
-            AccountBalanceFileRepository accountBalanceFileRepository,
+            ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider,
             Map<String, MigrationProperties> migrationPropertiesMap,
-            NamedParameterJdbcTemplate jdbcTemplate,
-            RecordFileRepository recordFileRepository,
-            TransactionTemplate transactionTemplate) {
-        super(migrationPropertiesMap, accountBalanceFileRepository, recordFileRepository);
-        this.jdbcTemplate = jdbcTemplate;
-        this.transactionTemplate = transactionTemplate;
+            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
+            ObjectProvider<RecordFileRepository> recordFileRepositoryProvider,
+            ObjectProvider<TransactionTemplate> transactionTemplateProvider) {
+        super(migrationPropertiesMap, accountBalanceFileRepositoryProvider, recordFileRepositoryProvider);
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
+        this.transactionTemplateProvider = transactionTemplateProvider;
     }
 
     protected AtomicInteger doMigrate(String sql) {
         var count = new AtomicInteger();
-        transactionTemplate.executeWithoutResult(s -> {
+        var jdbcOperations = jdbcOperationsProvider.getObject();
+        transactionTemplateProvider.getObject().executeWithoutResult(s -> {
             try {
-                var timestampInfo = jdbcTemplate.queryForObject(
+                var timestampInfo = jdbcOperations.queryForObject(
                         GET_TIMESTAMP_INFO_SQL, Collections.emptyMap(), new DataClassRowMapper<>(TimestampInfo.class));
                 var params = new MapSqlParameterSource()
                         .addValue("snapshotTimestamp", timestampInfo.snapshotTimestamp())
                         .addValue("fromTimestamp", timestampInfo.fromTimestamp())
                         .addValue("toTimestamp", timestampInfo.toTimestamp());
-                count.set(jdbcTemplate.update(sql, params));
+                count.set(jdbcOperations.update(sql, params));
             } catch (EmptyResultDataAccessException e) {
                 // GET_TIMESTAMP_INFO_SQL returns empty result
             }
