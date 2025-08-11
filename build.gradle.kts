@@ -62,9 +62,9 @@ dependencies {
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.10.3")
         api("io.projectreactor:reactor-core-micrometer:1.2.8")
         api("io.swagger:swagger-annotations:1.6.16")
-        api("io.vertx:vertx-core:4.5.16") // Temporary until next Spring Boot
-        api("io.vertx:vertx-web:4.5.16") // Temporary until next Spring Boot
-        api("io.vertx:vertx-web-client:4.5.16") // Temporary until next Spring Boot
+        api("io.vertx:vertx-core:5.0.2") // Temporary until next Spring Boot
+        api("io.vertx:vertx-web:5.0.2") // Temporary until next Spring Boot
+        api("io.vertx:vertx-web-client:5.0.2") // Temporary until next Spring Boot
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("javax.inject:javax.inject:1")
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
