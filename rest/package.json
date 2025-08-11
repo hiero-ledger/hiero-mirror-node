@@ -62,7 +62,7 @@
     "node-flywaydb": "^3.0.7",
     "nodemon": "^3.1.10",
     "pg-format": "^1.0.4",
-    "pgsql-parser": "^17.7.10",
+    "pgsql-parser": "^17.8.2",
     "rewire": "^9.0.0",
     "sinon": "^21.0.0",
     "supertest": "^7.1.4"
