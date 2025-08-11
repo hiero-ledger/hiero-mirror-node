@@ -5,10 +5,8 @@ name: Acceptance
 on:
   pull_request:
     branches: [main, release/**]
-    paths: [charts/**]
   push:
     branches: [main, release/**]
-    tags: [v*]
 
 permissions:
   contents: read
