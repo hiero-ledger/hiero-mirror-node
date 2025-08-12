@@ -9,7 +9,7 @@ import java.util.Map;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
@@ -17,16 +17,15 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 @Named
 final class ContractNullKeyMigration extends ConfigurableJavaMigration {
 
-    private final NamedParameterJdbcOperations jdbcOperations;
+    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final boolean v2;
 
-    @Lazy
     public ContractNullKeyMigration(
             Environment environment,
-            NamedParameterJdbcOperations jdbcOperations,
+            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties) {
         super(importerProperties.getMigration());
-        this.jdbcOperations = jdbcOperations;
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
     }
 
@@ -53,6 +52,7 @@ final class ContractNullKeyMigration extends ConfigurableJavaMigration {
                 suffix);
         var update = String.format("update entity%s set key = :key where id = :id", suffix);
 
+        final var jdbcOperations = jdbcOperationsProvider.getObject();
         jdbcOperations.query(query, rs -> {
             var id = EntityId.of(rs.getLong(1));
             byte[] key =

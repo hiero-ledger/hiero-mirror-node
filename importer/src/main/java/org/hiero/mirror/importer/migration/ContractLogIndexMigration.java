@@ -14,14 +14,14 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.jdbc.core.DataClassRowMapper;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -173,22 +173,16 @@ final class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
     @Getter(lazy = true)
     private final TransactionOperations transactionOperations = transactionOperations();
 
-    private final JdbcTemplate jdbcTemplate;
     private final EntityProperties entityProperties;
     private final boolean v2;
 
-    @Lazy
     protected ContractLogIndexMigration(
             final Environment environment,
             final DBProperties dbProperties,
             final ImporterProperties importerProperties,
-            final @Owner JdbcTemplate jdbcTemplate,
+            final @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider,
             final EntityProperties entityProperties) {
-        super(
-                importerProperties.getMigration(),
-                new NamedParameterJdbcTemplate(jdbcTemplate),
-                dbProperties.getSchema());
-        this.jdbcTemplate = jdbcTemplate;
+        super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
         this.entityProperties = entityProperties;
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
     }
@@ -201,9 +195,9 @@ final class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
     @Override
     protected Long getInitial() {
         log.info("Create table processed_record_file_temp if not exists.");
-        jdbcTemplate.execute(CREATE_TEMPORARY_PROCESSED_RECORD_FILE_TABLE);
+        getJdbcOperations().execute(CREATE_TEMPORARY_PROCESSED_RECORD_FILE_TABLE);
 
-        final var endTimestamp = jdbcTemplate.queryForObject(SELECT_LAST_PROCESSED_TIMESTAMP, Long.class);
+        final var endTimestamp = getJdbcOperations().queryForObject(SELECT_LAST_PROCESSED_TIMESTAMP, Long.class);
         log.info("Starting migration with initial timestamp: {}.", endTimestamp);
         return endTimestamp;
     }
@@ -223,7 +217,7 @@ final class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                     "No more record files remaining to process. Last consensus end timestamp: {}."
                             + "Dropping temporary table processed_record_file_temp.",
                     consensusEndTimestamp);
-            jdbcTemplate.execute(DROP_TEMPORARY_RECORD_FILE_TABLE);
+            getJdbcOperations().execute(DROP_TEMPORARY_RECORD_FILE_TABLE);
             return Optional.empty();
         }
 
@@ -239,7 +233,7 @@ final class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
         final var params = Map.of(
                 "lastConsensusEnd", sliceEndTimestamp,
                 "consensusStart", sliceStartTimestamp);
-        namedParameterJdbcTemplate.update(getVersionedContractUpdateQuery(), params);
+        getNamedParameterJdbcOperations().update(getVersionedContractUpdateQuery(), params);
 
         return Optional.of(consensusStartTimestamp);
     }
@@ -256,6 +250,7 @@ final class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
     }
 
     private TransactionOperations transactionOperations() {
+        final var jdbcTemplate = (JdbcTemplate) getJdbcOperations();
         var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(jdbcTemplate.getDataSource()));
         return new TransactionTemplate(transactionManager);
     }

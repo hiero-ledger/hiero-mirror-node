@@ -9,12 +9,12 @@ import lombok.RequiredArgsConstructor;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.ImporterProperties.HederaNetwork;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 
 @Named
-@RequiredArgsConstructor(onConstructor_ = {@Lazy})
+@RequiredArgsConstructor()
 public class RecalculatePendingRewardMigration extends AbstractJavaMigration {
 
     static final Map<String, Long> FIRST_NONZERO_REWARD_RATE_TIMESTAMP = Map.of(
@@ -72,7 +72,7 @@ public class RecalculatePendingRewardMigration extends AbstractJavaMigration {
                     """;
     private static final MigrationVersion VERSION = MigrationVersion.fromVersion("1.68.4");
 
-    private final NamedParameterJdbcOperations jdbcOperations;
+    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final ImporterProperties importerProperties;
 
     @Override
@@ -95,7 +95,7 @@ public class RecalculatePendingRewardMigration extends AbstractJavaMigration {
 
         var stopwatch = Stopwatch.createStarted();
         var params = new MapSqlParameterSource("firstRewardTimestamp", consensusTimestamp);
-        int count = jdbcOperations.update(MIGRATION_SQL, params);
+        int count = jdbcOperationsProvider.getObject().update(MIGRATION_SQL, params);
         log.info("Recalculated pending reward for {} {} entities in {}", count, hederaNetwork, stopwatch);
     }
 }

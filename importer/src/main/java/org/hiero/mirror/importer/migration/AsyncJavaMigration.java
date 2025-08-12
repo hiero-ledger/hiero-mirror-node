@@ -15,9 +15,12 @@ import org.apache.commons.lang3.BooleanUtils;
 import org.flywaydb.core.api.callback.Callback;
 import org.flywaydb.core.api.callback.Context;
 import org.flywaydb.core.api.callback.Event;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.transaction.support.TransactionOperations;
@@ -64,19 +67,32 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
             where f.installed_rank = last.installed_rank
             """;
 
-    protected final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final ObjectProvider<NamedParameterJdbcOperations> namedParameterJdbcOperationsProvider;
+    private final String schema;
 
     private final AtomicBoolean complete = new AtomicBoolean(false);
-    private final String schema;
     private final AtomicBoolean shouldMigrate = new AtomicBoolean(false);
 
     protected AsyncJavaMigration(
             Map<String, MigrationProperties> migrationPropertiesMap,
-            NamedParameterJdbcTemplate namedParameterJdbcTemplate,
+            ObjectProvider<JdbcOperations> jdbcOperationsProvider,
             String schema) {
         super(migrationPropertiesMap);
-        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+        this.namedParameterJdbcOperationsProvider = new ObjectProvider<>() {
+            @Override
+            public NamedParameterJdbcOperations getObject() {
+                return new NamedParameterJdbcTemplate(jdbcOperationsProvider.getObject());
+            }
+        };
         this.schema = schema;
+    }
+
+    protected final JdbcOperations getJdbcOperations() {
+        return getNamedParameterJdbcOperations().getJdbcOperations();
+    }
+
+    protected final NamedParameterJdbcOperations getNamedParameterJdbcOperations() {
+        return namedParameterJdbcOperationsProvider.getObject();
     }
 
     @Override
@@ -143,7 +159,7 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
 
     protected final <O> O queryForObjectOrNull(String sql, SqlParameterSource paramSource, Class<O> requiredType) {
         try {
-            return namedParameterJdbcTemplate.queryForObject(sql, paramSource, requiredType);
+            return getNamedParameterJdbcOperations().queryForObject(sql, paramSource, requiredType);
         } catch (EmptyResultDataAccessException ex) {
             return null;
         }
@@ -151,7 +167,7 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
 
     protected final <O> O queryForObjectOrNull(String sql, SqlParameterSource paramSource, RowMapper<O> rowMapper) {
         try {
-            return namedParameterJdbcTemplate.queryForObject(sql, paramSource, rowMapper);
+            return getNamedParameterJdbcOperations().queryForObject(sql, paramSource, rowMapper);
         } catch (EmptyResultDataAccessException ex) {
             return null;
         }
@@ -245,21 +261,19 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
     }
 
     private boolean hasFlywaySchemaHistoryTable() {
-        var exists = namedParameterJdbcTemplate.queryForObject(
-                CHECK_FLYWAY_SCHEMA_HISTORY_EXISTENCE_SQL, Map.of("schema", schema), Boolean.class);
+        var exists = getNamedParameterJdbcOperations()
+                .queryForObject(CHECK_FLYWAY_SCHEMA_HISTORY_EXISTENCE_SQL, Map.of("schema", schema), Boolean.class);
         return BooleanUtils.isTrue(exists);
     }
 
     private boolean isAsyncJavaMigrationHistoryFixed() {
-        var fixed = namedParameterJdbcTemplate
-                .getJdbcTemplate()
-                .queryForObject(ASYNC_JAVA_MIGRATION_HISTORY_FIXED, Boolean.class);
+        var fixed = getJdbcOperations().queryForObject(ASYNC_JAVA_MIGRATION_HISTORY_FIXED, Boolean.class);
         return BooleanUtils.isTrue(fixed);
     }
 
     private void onSuccess() {
         var paramSource = getSqlParamSource().addValue("checksum", getSuccessChecksum());
-        namedParameterJdbcTemplate.update(UPDATE_CHECKSUM_SQL, paramSource);
+        getNamedParameterJdbcOperations().update(UPDATE_CHECKSUM_SQL, paramSource);
     }
 
     @VisibleForTesting

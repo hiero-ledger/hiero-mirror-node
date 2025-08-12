@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import lombok.CustomLog;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.data.redis.connection.ReactiveSubscription.Message;
 import org.springframework.data.redis.listener.ChannelTopic;
@@ -24,7 +23,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
-@Lazy
 @CustomLog
 @Named
 public class RedisTopicListener extends SharedTopicListener {

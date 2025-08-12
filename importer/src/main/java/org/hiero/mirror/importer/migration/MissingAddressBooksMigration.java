@@ -7,22 +7,21 @@ import org.flywaydb.core.api.configuration.Configuration;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.addressbook.AddressBookService;
 import org.hiero.mirror.importer.repository.AddressBookServiceEndpointRepository;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 
 @Named
 public class MissingAddressBooksMigration extends RepeatableMigration {
 
-    private final AddressBookService addressBookService;
-    private final AddressBookServiceEndpointRepository addressBookServiceEndpointRepository;
+    private final ObjectProvider<AddressBookService> addressBookServiceProvider;
+    private final ObjectProvider<AddressBookServiceEndpointRepository> addressBookServiceEndpointRepositoryProvider;
 
-    @Lazy
     public MissingAddressBooksMigration(
-            AddressBookService addressBookService,
-            AddressBookServiceEndpointRepository addressBookServiceEndpointRepository,
+            ObjectProvider<AddressBookService> addressBookServiceProvider,
+            ObjectProvider<AddressBookServiceEndpointRepository> addressBookServiceEndpointRepositoryProvider,
             ImporterProperties importerProperties) {
         super(importerProperties.getMigration());
-        this.addressBookService = addressBookService;
-        this.addressBookServiceEndpointRepository = addressBookServiceEndpointRepository;
+        this.addressBookServiceProvider = addressBookServiceProvider;
+        this.addressBookServiceEndpointRepositoryProvider = addressBookServiceEndpointRepositoryProvider;
     }
 
     @Override
@@ -40,7 +39,8 @@ public class MissingAddressBooksMigration extends RepeatableMigration {
         // skip when no address books with service endpoint exist. Allow normal flow migration to do initial population
         long serviceEndpointCount = 0;
         try {
-            serviceEndpointCount = addressBookServiceEndpointRepository.count();
+            serviceEndpointCount =
+                    addressBookServiceEndpointRepositoryProvider.getObject().count();
         } catch (Exception ex) {
             // catch ERROR: relation "address_book_service_endpoint" does not exist
             // this will occur in migration version before v1.37.1 where service endpoints were not supported by proto
@@ -51,6 +51,6 @@ public class MissingAddressBooksMigration extends RepeatableMigration {
 
     @Override
     protected void doMigrate() {
-        addressBookService.migrate();
+        addressBookServiceProvider.getObject().migrate();
     }
 }

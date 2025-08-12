@@ -15,7 +15,7 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("blockNodeVersion", "0.14.0")
+    set("blockNodeVersion", "0.15.0")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.74.0")
     set("jooq.version", "3.20.5") // Must match buildSrc/build.gradle.kts
@@ -48,10 +48,10 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:2.9")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.hashgraph:app:0.64.1")
+        api("com.hedera.hashgraph:app:0.64.2")
         api("com.hedera.evm:hedera-evm:0.54.2")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:0.63.5")
-        api("com.hedera.hashgraph:sdk:2.61.0")
+        api("com.hedera.hashgraph:sdk:2.62.0")
         api("com.ongres.scram:client:2.1")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.11.0")
@@ -70,7 +70,7 @@ dependencies {
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
         api("net.java.dev.jna:jna:5.17.0")
         api("org.apache.commons:commons-collections4:4.5.0")
-        api("org.apache.commons:commons-compress:1.27.1")
+        api("org.apache.commons:commons-compress:1.28.0")
         api("org.apache.commons:commons-math3:3.6.1")
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")

@@ -11,7 +11,6 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataAccessException;
 
 @RequiredArgsConstructor
@@ -43,7 +42,6 @@ class DummyMigrationTest extends ImporterIntegrationTest {
         @Getter
         private boolean migrated = false;
 
-        @Lazy
         public DummyMigration(ImporterProperties importerProperties) {
             super(importerProperties.getMigration());
         }
