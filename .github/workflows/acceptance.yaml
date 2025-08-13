@@ -7,6 +7,18 @@ on:
     branches: [main, release/**]
   push:
     branches: [main, release/**]
+    tags:
+      - 'v*'
+    paths:
+      - '**/*.java'
+      - '**/*.js'
+      - '**/*.ts'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -24,7 +36,6 @@ jobs:
       SOLO_NAMESPACE: solo
       SOLO_CLUSTER_SETUP_NAMESPACE: solo-mirror-acceptance-setup
       SOLO_DEPLOYMENT: solo-deployment
-      MIRROR_NODE_VERSION: v0.136.0-rc1
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
@@ -66,6 +77,10 @@ jobs:
         run: |
           # Create temp-values.yaml with override properties
           cat <<EOF > temp-values.yaml
+          global:
+            image:
+              tag: "${{ github.base_ref }}"
+              pullPolicy: IfNotPresent
           test:
             config:
               hiero:
@@ -75,8 +90,9 @@ jobs:
                       network: OTHER
             enabled: true
             image:
-              pullPolicy: Always
+              pullPolicy: IfNotPresent
           EOF
+
 
           kind create cluster -n "${SOLO_CLUSTER_NAME}" || { echo "Failed to create Kind cluster"; exit 1; }
           solo init || { echo "Failed to initialize Solo"; exit 1; }
@@ -88,7 +104,7 @@ jobs:
           solo network deploy --deployment "${SOLO_DEPLOYMENT}" || { echo "Failed to deploy network"; exit 1; }
           solo node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 || { echo "Failed to setup node"; exit 1; }
           solo node start --deployment "${SOLO_DEPLOYMENT}" -i node1 || { echo "Failed to start node"; exit 1; }
-          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" --mirror-node-version "${MIRROR_NODE_VERSION}" -f=temp-values.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --pinger || { echo "Failed to deploy mirror node"; exit 1; }
+          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f=temp-values.yaml --pinger || { echo "Failed to deploy mirror node"; exit 1; }
 
           echo "Solo cluster setup completed successfully!"
 
