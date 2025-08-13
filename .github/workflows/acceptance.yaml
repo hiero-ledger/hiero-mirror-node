@@ -8,11 +8,11 @@ on:
   push:
     branches: [main, release/**]
     tags:
-      - 'v*'
+      - "v*"
     paths:
-      - '**/*.java'
-      - '**/*.js'
-      - '**/*.ts'
+      - "**/*.java"
+      - "**/*.js"
+      - "**/*.ts"
   workflow_dispatch:
     inputs:
       branch:
@@ -92,7 +92,6 @@ jobs:
             image:
               pullPolicy: IfNotPresent
           EOF
-
 
           kind create cluster -n "${SOLO_CLUSTER_NAME}" || { echo "Failed to create Kind cluster"; exit 1; }
           solo init || { echo "Failed to initialize Solo"; exit 1; }
