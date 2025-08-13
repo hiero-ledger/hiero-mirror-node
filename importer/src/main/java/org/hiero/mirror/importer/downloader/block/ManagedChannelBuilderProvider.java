@@ -4,7 +4,7 @@ package org.hiero.mirror.importer.downloader.block;
 
 import io.grpc.ManagedChannelBuilder;
 
-interface ManagedChannelBuilderProvider {
+public interface ManagedChannelBuilderProvider {
 
     ManagedChannelBuilder<?> get(BlockNodeProperties blockNodeProperties);
 }

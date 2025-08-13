@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import java.util.stream.LongStream;
+import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
@@ -24,6 +25,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     private BlockNodeSubscriber subscriber;
 
     @AfterEach
+    @SneakyThrows
     void cleanup() {
         if (subscriber != null) {
             subscriber.close();

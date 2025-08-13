@@ -17,7 +17,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -31,12 +30,15 @@ import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
-import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 
 @CustomLog
-final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
+public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
+
+    public static final Comparator<BlockNode> LATENCY_COMPARATOR = Comparator.comparing(BlockNode::getLatency)
+            .thenComparing(b -> b.getProperties().getHost())
+            .thenComparing(b -> b.getProperties().getPort());
 
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(BlockNode::getPriority)
             .thenComparing(BlockNode::getLatency)
@@ -58,7 +60,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     @Getter
     private boolean active = true;
 
-    BlockNode(
+    public BlockNode(
             ManagedChannelBuilderProvider channelBuilderProvider,
             BlockNodeProperties properties,
             StreamProperties streamProperties) {
@@ -101,15 +103,12 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     }
 
     public void streamBlocks(
-            long blockNumber,
-            CommonDownloaderProperties commonDownloaderProperties,
-            Function<BlockStream, Boolean> onBlockStream) {
+            long blockNumber, Long endBlockNumber, Function<BlockStream, Boolean> onBlockStream, Duration timeout) {
         var grpcCall = new AtomicReference<BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse>>();
 
         try {
-            long endBlockNumber = Objects.requireNonNullElse(
-                    commonDownloaderProperties.getImporterProperties().getEndBlockNumber(), -1L);
-            var assembler = new BlockAssembler(commonDownloaderProperties.getTimeout());
+            endBlockNumber = endBlockNumber != null ? endBlockNumber : -1;
+            var assembler = new BlockAssembler(timeout);
             var request = SubscribeStreamRequest.newBuilder()
                     .setEndBlockNumber(endBlockNumber)
                     .setStartBlockNumber(blockNumber)
@@ -169,7 +168,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         return COMPARATOR.compare(this, other);
     }
 
-    public void recordLatency(long latency) {
+    public synchronized void recordLatency(long latency) {
         this.latency.record(latency);
     }
 
@@ -229,6 +228,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                 return null;
             }
 
+            long blockCompleteTime = System.currentTimeMillis();
             List<BlockItem> block;
             if (pending.size() == 1) {
                 block = pending.getFirst();
@@ -247,7 +247,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             var filename = firstItemCase != RECORD_FILE
                     ? BlockFile.getFilename(block.getFirst().getBlockHeader().getNumber(), false)
                     : null;
-            return new BlockStream(block, null, filename, loadStart, UNKNOWN_NODE_ID);
+            return new BlockStream(block, blockCompleteTime, null, filename, loadStart, UNKNOWN_NODE_ID);
         }
 
         long timeout() {

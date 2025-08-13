@@ -14,7 +14,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-final class StreamProperties {
+public final class StreamProperties {
 
     @Min(1000)
     private int maxBlockItems = 800_000;

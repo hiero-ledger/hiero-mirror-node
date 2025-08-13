@@ -6,11 +6,12 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Data;
 import org.hibernate.validator.constraints.time.DurationMin;
+import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerType;
 import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-final class SchedulingProperties {
+public final class SchedulingProperties {
 
     private boolean latencySchedulingEnabled = true;
 
@@ -25,4 +26,7 @@ final class SchedulingProperties {
     @DurationMin(millis = 10)
     @NotNull
     private Duration rescheduleLatencyThreshold = Duration.ofMillis(50);
+
+    @NotNull
+    private SchedulerType type = SchedulerType.PRIORITY;
 }

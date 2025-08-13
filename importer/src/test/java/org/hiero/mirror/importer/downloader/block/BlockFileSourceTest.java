@@ -152,7 +152,11 @@ class BlockFileSourceTest {
                 .when(blockFileTransformer)
                 .transform(any(BlockFile.class));
         blockStreamVerifier = spy(new BlockStreamVerifier(
-                blockFileTransformer, recordFileRepository, mock(StreamFileNotifier.class), meterRegistry));
+                blockFileTransformer,
+                commonDownloaderProperties,
+                recordFileRepository,
+                mock(StreamFileNotifier.class),
+                meterRegistry));
         blockFileSource = new BlockFileSource(
                 new BlockStreamReaderImpl(),
                 blockStreamVerifier,

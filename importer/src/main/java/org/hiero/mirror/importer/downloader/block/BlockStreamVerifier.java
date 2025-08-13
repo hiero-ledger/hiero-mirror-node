@@ -14,6 +14,7 @@ import lombok.NonNull;
 import org.apache.commons.io.FilenameUtils;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
@@ -23,8 +24,10 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 public class BlockStreamVerifier {
 
     static final BlockFile EMPTY = BlockFile.builder().build();
+    private static final long GENESIS_BLOCK_NUMBER = 0;
 
     private final BlockFileTransformer blockFileTransformer;
+    private final CommonDownloaderProperties commonDownloaderProperties;
     private final RecordFileRepository recordFileRepository;
     private final StreamFileNotifier streamFileNotifier;
 
@@ -37,10 +40,12 @@ public class BlockStreamVerifier {
 
     public BlockStreamVerifier(
             BlockFileTransformer blockFileTransformer,
+            CommonDownloaderProperties commonDownloaderProperties,
             RecordFileRepository recordFileRepository,
             StreamFileNotifier streamFileNotifier,
             MeterRegistry meterRegistry) {
         this.blockFileTransformer = blockFileTransformer;
+        this.commonDownloaderProperties = commonDownloaderProperties;
         this.recordFileRepository = recordFileRepository;
         this.streamFileNotifier = streamFileNotifier;
         this.meterRegistry = meterRegistry;
@@ -69,6 +74,15 @@ public class BlockStreamVerifier {
             lastBlockFile.compareAndSet(Optional.empty(), last);
             return last;
         });
+    }
+
+    public long getNextBlockNumber() {
+        return getLastBlockFile()
+                .map(BlockFile::getIndex)
+                .map(v -> v + 1)
+                .or(() -> Optional.ofNullable(
+                        commonDownloaderProperties.getImporterProperties().getStartBlockNumber()))
+                .orElse(GENESIS_BLOCK_NUMBER);
     }
 
     public void verify(@NonNull BlockFile blockFile) {

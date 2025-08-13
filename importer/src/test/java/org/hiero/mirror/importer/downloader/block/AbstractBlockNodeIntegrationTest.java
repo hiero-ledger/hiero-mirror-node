@@ -9,6 +9,8 @@ import java.util.List;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
+import org.hiero.mirror.importer.downloader.block.scheduler.LatencyService;
+import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerFactory;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +33,9 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
     private CommonDownloaderProperties commonDownloaderProperties;
 
     @Resource
+    private LatencyService latencyService;
+
+    @Resource
     private ManagedChannelBuilderProvider managedChannelBuilderProvider;
 
     @Resource
@@ -44,15 +49,16 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         var blockProperties = new BlockProperties();
         blockProperties.setNodes(nodes);
         boolean isInProcess = nodes.getFirst().getPort() == -1;
-        var blockStreamVerifier =
-                new BlockStreamVerifier(blockFileTransformer, recordFileRepository, streamFileNotifier, meterRegistry);
+        var blockStreamVerifier = new BlockStreamVerifier(
+                blockFileTransformer,
+                commonDownloaderProperties,
+                recordFileRepository,
+                streamFileNotifier,
+                meterRegistry);
         var channelBuilderProvider =
                 isInProcess ? inProcessManagedChannelBuilderProvider : managedChannelBuilderProvider;
+        var schedulerFactory = new SchedulerFactory(blockProperties, latencyService, channelBuilderProvider);
         return new BlockNodeSubscriber(
-                blockStreamReader,
-                blockStreamVerifier,
-                commonDownloaderProperties,
-                channelBuilderProvider,
-                blockProperties);
+                blockStreamReader, blockStreamVerifier, commonDownloaderProperties, blockProperties, schedulerFactory);
     }
 }
