@@ -3,25 +3,13 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.hedera.hapi.block.stream.protoc.BlockItem;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.LongStream;
-import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
-import org.hiero.mirror.importer.exception.BlockStreamException;
-import org.hiero.mirror.importer.exception.HashMismatchException;
-import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -53,20 +41,20 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     @Test
     void missingStartBlockInHighPriorityNode() {
         // given:
-        // simA (higher priority) has only blocks 5..7 → does NOT have start block 0
-        // simB (lower priority) has blocks 0..2 → should be picked
-        var genA = new BlockGenerator(5);
+        // firstGenerator (higher priority) has only blocks 56,7 → does NOT have start block 0
+        var firstGenerator = new BlockGenerator(5);
         firstSimulator = new BlockNodeSimulator()
-                .withBlocks(genA.next(3))   // 5,6,7
+                .withBlocks(firstGenerator.next(3))
                 .withHttpChannel()
                 .start();
-
-        var genB = new BlockGenerator(0);
+        // secondGenerator (lower priority) has blocks 0,1,2 → should be picked
+        var secondGenerator = new BlockGenerator(0);
         secondSimulator = new BlockNodeSimulator()
-                .withBlocks(genB.next(3))   // 0,1,2
+                .withBlocks(secondGenerator.next(3))
                 .withHttpChannel()
                 .start();
 
+        // Set priorities
         var firstSimulatorProperties = firstSimulator.toClientProperties();
         firstSimulatorProperties.setPriority(0);
 
@@ -74,14 +62,15 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         secondSimulatorProperties.setPriority(1);
 
         subscriber = getBlockNodeSubscriber(List.of(firstSimulatorProperties, secondSimulatorProperties));
+        // when
         subscriber.get();
 
-        // then: we should have streamed exactly 0,1,2 (from simB)
+        // then
+        // should have streamed exactly 0,1,2 (from secondSimulator)
         var captor = ArgumentCaptor.forClass(RecordFile.class);
         verify(streamFileNotifier, times(3)).verified(captor.capture());
 
         var indices = captor.getAllValues().stream().map(RecordFile::getIndex).toList();
-        org.assertj.core.api.Assertions.assertThat(indices).containsExactly(0L, 1L, 2L);
-
+        assertThat(indices).containsExactly(0L, 1L, 2L);
     }
 }
