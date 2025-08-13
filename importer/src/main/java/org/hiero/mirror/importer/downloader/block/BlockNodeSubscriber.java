@@ -44,6 +44,7 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
 
         var node = getNode(blockNumber);
         log.info("Start streaming block {} from {}", blockNumber, node);
+        log.info("STREAMING BLOCKS....");
         node.streamBlocks(blockNumber, commonDownloaderProperties, this::onBlockStream);
     }
 

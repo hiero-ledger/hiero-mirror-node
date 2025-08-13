@@ -37,6 +37,9 @@ public final class BlockNodeSimulator implements AutoCloseable {
     private int port;
     private Server server;
     private boolean started;
+    private boolean withMissingBlock;
+    private boolean withHashMismatch;
+    private boolean withMissingBlockProof;
 
     @Override
     @SneakyThrows
@@ -57,6 +60,22 @@ public final class BlockNodeSimulator implements AutoCloseable {
 
         if (outOfOrder) {
             Collections.shuffle(blocks);
+        }
+
+        if (withMissingBlock){
+            blocks.remove(blocks.size()-2);
+        }
+
+        if (withHashMismatch){
+            blocks.remove(blocks.size()-2);
+        }
+
+        if (withMissingBlockProof){
+            System.out.println(blocks.get(1).getBlockItems(23).getBlockProof().getPreviousBlockRootHash().substring(3));
+            System.out.println(blocks.get(1).getBlockItems(23).getBlockProof().getPreviousBlockRootHash().substring(3).size());
+            blocks.get(1).getBlockItems(23).getBlockProof().getPreviousBlockRootHash();
+            System.out.println(blocks.get(1).getBlockItems(23).getBlockProof().getPreviousBlockRootHash().substring(3));
+            System.out.println(blocks.get(1).getBlockItems(23).getBlockProof().getPreviousBlockRootHash().substring(3).size());
         }
 
         ForwardingServerBuilder<?> serverBuilder;
@@ -107,6 +126,21 @@ public final class BlockNodeSimulator implements AutoCloseable {
 
     public BlockNodeSimulator withOutOrder() {
         this.outOfOrder = true;
+        return this;
+    }
+
+    public BlockNodeSimulator withMissingBlock() {
+        this.withMissingBlock = true;
+        return this;
+    }
+
+    public BlockNodeSimulator withMissingBlockProof() {
+        this.withMissingBlockProof = true;
+        return this;
+    }
+
+    public BlockNodeSimulator withHashMismatch() {
+        this.withHashMismatch = true;
         return this;
     }
 
