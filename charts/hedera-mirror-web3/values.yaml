@@ -370,4 +370,4 @@ volumes:
   temp:
     emptyDir:
       medium: Memory
-      sizeLimit: 500Mi
+      sizeLimit: 100Mi
