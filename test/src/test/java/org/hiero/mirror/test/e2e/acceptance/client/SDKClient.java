@@ -121,7 +121,9 @@ public class SDKClient implements Cleanable {
         }
 
         try {
-            client.close();
+            if (client != null) {
+                client.close();
+            }
         } catch (TimeoutException e) {
             throw new RuntimeException(e);
         }
