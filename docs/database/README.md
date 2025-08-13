@@ -348,7 +348,7 @@ in ERD tools since foreign key constraints cannot reference partitioned tables i
 
 ## Current ERD Diagram
 
-The Entity Relationship Diagram is maintained as an IntelliJ UML file:
+The Entity Relationship Diagram is maintained as an IDEA UML file:
 
 - [Entity Relationship Diagram](erd.uml) - Complete database schema with relationships in IntelliJ UML format
 
