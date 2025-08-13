@@ -47,6 +47,7 @@ $$;
 create or replace procedure create_mirror_node_time_partitions() language plpgsql as
 $$
 begin
+  set timezone to 'UTC';
   call create_time_partition_for_table('account_balance');
   call create_time_partition_for_table('token_balance');
 end;
