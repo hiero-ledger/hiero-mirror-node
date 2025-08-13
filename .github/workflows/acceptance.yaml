@@ -104,7 +104,7 @@ jobs:
           solo network deploy --deployment "${SOLO_DEPLOYMENT}" || { echo "Failed to deploy network"; exit 1; }
           solo node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 || { echo "Failed to setup node"; exit 1; }
           solo node start --deployment "${SOLO_DEPLOYMENT}" -i node1 || { echo "Failed to start node"; exit 1; }
-          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f=temp-values.yaml --pinger || { echo "Failed to deploy mirror node"; exit 1; }
+          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f=temp-values.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --pinger || { echo "Failed to deploy mirror node"; exit 1; }
 
           echo "Solo cluster setup completed successfully!"
 
