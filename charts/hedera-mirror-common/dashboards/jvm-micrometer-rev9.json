@@ -15,7 +15,7 @@
       {
         "datasource": "${prometheus}",
         "enable": true,
-        "expr": "resets(process_uptime_seconds{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}[1m]) > 0",
+        "expr": "resets(process_uptime_seconds{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[1m]) > 0",
         "iconColor": "rgba(255, 96, 96, 1)",
         "name": "Restart Detection",
         "showIn": 0,
@@ -120,7 +120,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(process_uptime_seconds{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(process_uptime_seconds{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -206,7 +206,7 @@
       "pluginVersion": "7.2.1",
       "targets": [
         {
-          "expr": "sum(process_start_time_seconds{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"} * 1000)",
+          "expr": "sum(process_start_time_seconds{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"} * 1000)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -289,7 +289,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", area=\"heap\"})*100/sum(jvm_memory_max_bytes{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", area=\"heap\"})",
+          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", area=\"heap\"})*100/sum(jvm_memory_max_bytes{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", area=\"heap\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -386,7 +386,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", area=\"nonheap\"})*100/sum(jvm_memory_max_bytes{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", area=\"nonheap\"})",
+          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", area=\"nonheap\"})*100/sum(jvm_memory_max_bytes{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", area=\"nonheap\"})",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "",
@@ -477,7 +477,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}[1m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[1m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "HTTP",
@@ -579,7 +579,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", status=~\"5..\"}[1m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", status=~\"5..\"}[1m]))",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -679,7 +679,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_sum{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", status!~\"5..\"}[1m]))/sum(rate(http_server_requests_seconds_count{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", status!~\"5..\"}[1m]))",
+          "expr": "sum(rate(http_server_requests_seconds_sum{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", status!~\"5..\"}[1m]))/sum(rate(http_server_requests_seconds_count{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", status!~\"5..\"}[1m]))",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -687,7 +687,7 @@
           "refId": "A"
         },
         {
-          "expr": "max(http_server_requests_seconds_max{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", status!~\"5..\"})",
+          "expr": "max(http_server_requests_seconds_max{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", status!~\"5..\"})",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -788,7 +788,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "tomcat_threads_busy_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}",
+          "expr": "tomcat_threads_busy_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 2,
@@ -796,7 +796,7 @@
           "refId": "A"
         },
         {
-          "expr": "tomcat_threads_current_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}",
+          "expr": "tomcat_threads_current_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 2,
@@ -804,7 +804,7 @@
           "refId": "B"
         },
         {
-          "expr": "tomcat_threads_config_max_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}",
+          "expr": "tomcat_threads_config_max_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 2,
@@ -812,7 +812,7 @@
           "refId": "C"
         },
         {
-          "expr": "jetty_threads_busy{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}",
+          "expr": "jetty_threads_busy{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 2,
@@ -820,7 +820,7 @@
           "refId": "D"
         },
         {
-          "expr": "jetty_threads_current{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}",
+          "expr": "jetty_threads_current{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 2,
@@ -828,7 +828,7 @@
           "refId": "E"
         },
         {
-          "expr": "jetty_threads_config_max{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}",
+          "expr": "jetty_threads_config_max{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 2,
@@ -952,7 +952,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", area=\"heap\"})",
+          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", area=\"heap\"})",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "used",
@@ -961,7 +961,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", area=\"heap\"})",
+          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", area=\"heap\"})",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "committed",
@@ -969,7 +969,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", area=\"heap\"})",
+          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", area=\"heap\"})",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "max",
@@ -1085,7 +1085,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", area=\"nonheap\"})",
+          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", area=\"nonheap\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -1095,7 +1095,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", area=\"nonheap\"})",
+          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", area=\"nonheap\"})",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "committed",
@@ -1103,7 +1103,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", area=\"nonheap\"})",
+          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", area=\"nonheap\"})",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "max",
@@ -1220,7 +1220,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "used",
@@ -1229,7 +1229,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "committed",
@@ -1237,7 +1237,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "max",
@@ -1354,7 +1354,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(process_memory_vss_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(process_memory_vss_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -1365,7 +1365,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(process_memory_rss_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(process_memory_rss_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -1373,7 +1373,7 @@
           "refId": "B"
         },
         {
-          "expr": "sum(process_memory_swap_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(process_memory_swap_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -1381,7 +1381,7 @@
           "refId": "C"
         },
         {
-          "expr": "sum(process_memory_rss_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"} + process_memory_swap_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(process_memory_rss_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"} + process_memory_swap_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -1512,7 +1512,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(system_cpu_usage{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(system_cpu_usage{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -1523,7 +1523,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(process_cpu_usage{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(process_cpu_usage{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -1532,7 +1532,7 @@
           "refId": "B"
         },
         {
-          "expr": "sum(avg_over_time(process_cpu_usage{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}[1h]))",
+          "expr": "sum(avg_over_time(process_cpu_usage{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[1h]))",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -1650,7 +1650,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(system_load_average_1m{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(system_load_average_1m{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -1660,7 +1660,7 @@
           "step": 2400
         },
         {
-          "expr": "avg(system_cpu_count{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "avg(system_cpu_count{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -1777,7 +1777,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_threads_live_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(jvm_threads_live_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -1787,7 +1787,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(jvm_threads_daemon_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(jvm_threads_daemon_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -1797,7 +1797,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(jvm_threads_peak_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(jvm_threads_peak_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -1806,7 +1806,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(process_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(process_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -1923,7 +1923,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_threads_states_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}) by (state)",
+          "expr": "sum(jvm_threads_states_threads{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}) by (state)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -2052,7 +2052,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(logback_events_total{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}[5m])) by (level)",
+          "expr": "sum(rate(logback_events_total{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[5m])) by (level)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -2171,7 +2171,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(process_files_open_files{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(process_files_open_files{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2182,7 +2182,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(process_files_max_files{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(process_files_max_files{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2327,7 +2327,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
+          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2338,7 +2338,7 @@
           "step": 1800
         },
         {
-          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
+          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2349,7 +2349,7 @@
           "step": 1800
         },
         {
-          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
+          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2479,7 +2479,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
+          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2490,7 +2490,7 @@
           "step": 1800
         },
         {
-          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
+          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2501,7 +2501,7 @@
           "step": 1800
         },
         {
-          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
+          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2631,7 +2631,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
+          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2642,7 +2642,7 @@
           "step": 1800
         },
         {
-          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
+          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2653,7 +2653,7 @@
           "step": 1800
         },
         {
-          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
+          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_heap\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2797,7 +2797,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"})",
+          "expr": "sum(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2808,7 +2808,7 @@
           "step": 1800
         },
         {
-          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"})",
+          "expr": "sum(jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2819,7 +2819,7 @@
           "step": 1800
         },
         {
-          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"})",
+          "expr": "sum(jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2949,7 +2949,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
+          "expr": "jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2960,7 +2960,7 @@
           "step": 1800
         },
         {
-          "expr": "jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
+          "expr": "jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -2971,7 +2971,7 @@
           "step": 1800
         },
         {
-          "expr": "jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
+          "expr": "jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -3101,7 +3101,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
+          "expr": "jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -3112,7 +3112,7 @@
           "step": 1800
         },
         {
-          "expr": "jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
+          "expr": "jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -3123,7 +3123,7 @@
           "step": 1800
         },
         {
-          "expr": "jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
+          "expr": "jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -3253,7 +3253,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
+          "expr": "jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -3264,7 +3264,7 @@
           "step": 1800
         },
         {
-          "expr": "jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
+          "expr": "jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -3275,7 +3275,7 @@
           "step": 1800
         },
         {
-          "expr": "jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
+          "expr": "jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -3405,7 +3405,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
+          "expr": "jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -3416,7 +3416,7 @@
           "step": 1800
         },
         {
-          "expr": "jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
+          "expr": "jvm_memory_committed_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -3427,7 +3427,7 @@
           "step": 1800
         },
         {
-          "expr": "jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
+          "expr": "jvm_memory_max_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=~\"$jvm_memory_pool_nonheap\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -3550,7 +3550,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(jvm_gc_pause_seconds_count{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}[1m])) by (action, cause)",
+          "expr": "sum(rate(jvm_gc_pause_seconds_count{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[1m])) by (action, cause)",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -3649,7 +3649,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(jvm_gc_pause_seconds_sum{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}[1m])/rate(jvm_gc_pause_seconds_count{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}[1m])) by (action, cause)",
+          "expr": "sum(rate(jvm_gc_pause_seconds_sum{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[1m])/rate(jvm_gc_pause_seconds_count{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[1m])) by (action, cause)",
           "format": "time_series",
           "hide": false,
           "instant": false,
@@ -3659,7 +3659,7 @@
           "refId": "A"
         },
         {
-          "expr": "sum(jvm_gc_pause_seconds_max{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}) by (action, cause)",
+          "expr": "sum(jvm_gc_pause_seconds_max{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}) by (action, cause)",
           "format": "time_series",
           "hide": false,
           "instant": false,
@@ -3759,7 +3759,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(jvm_gc_memory_allocated_bytes_total{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}[1m]))",
+          "expr": "sum(rate(jvm_gc_memory_allocated_bytes_total{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[1m]))",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -3767,7 +3767,7 @@
           "refId": "A"
         },
         {
-          "expr": "sum(rate(jvm_gc_memory_promoted_bytes_total{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}[1m]))",
+          "expr": "sum(rate(jvm_gc_memory_promoted_bytes_total{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[1m]))",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -3891,7 +3891,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_classes_loaded_classes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "sum(jvm_classes_loaded_classes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -4008,7 +4008,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(delta(jvm_classes_loaded_classes{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"}[1m]))",
+          "expr": "sum(delta(jvm_classes_loaded_classes{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[1m]))",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -4142,7 +4142,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_buffer_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=\"direct\"})",
+          "expr": "sum(jvm_buffer_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=\"direct\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -4152,7 +4152,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(jvm_buffer_total_capacity_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=\"direct\"})",
+          "expr": "sum(jvm_buffer_total_capacity_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=\"direct\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -4269,7 +4269,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_buffer_count_buffers{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=\"direct\"})",
+          "expr": "sum(jvm_buffer_count_buffers{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=\"direct\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -4387,7 +4387,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_buffer_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=\"mapped\"})",
+          "expr": "sum(jvm_buffer_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=\"mapped\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -4397,7 +4397,7 @@
           "step": 2400
         },
         {
-          "expr": "sum(jvm_buffer_total_capacity_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=\"mapped\"})",
+          "expr": "sum(jvm_buffer_total_capacity_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=\"mapped\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -4514,7 +4514,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(jvm_buffer_count_buffers{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", id=\"mapped\"})",
+          "expr": "sum(jvm_buffer_count_buffers{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", id=\"mapped\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -4728,7 +4728,7 @@
         "multiFormat": "glob",
         "name": "jvm_memory_pool_heap",
         "options": [],
-        "query": "label_values(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", area=\"heap\"},id)",
+        "query": "label_values(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", area=\"heap\"},id)",
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
@@ -4756,7 +4756,7 @@
         "multiFormat": "glob",
         "name": "jvm_memory_pool_nonheap",
         "options": [],
-        "query": "label_values(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\", area=\"nonheap\"},id)",
+        "query": "label_values(jvm_memory_used_bytes{application=\"$application\", cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\", area=\"nonheap\"},id)",
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
@@ -4802,5 +4802,5 @@
   "timezone": "browser",
   "title": "JVM (Micrometer)",
   "uid": "3BL3ZCXWk",
-  "version": 2
+  "version": 3
 }

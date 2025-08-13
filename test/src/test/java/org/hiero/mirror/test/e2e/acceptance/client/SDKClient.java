@@ -17,6 +17,8 @@ import com.hedera.hashgraph.sdk.TopicId;
 import com.hedera.hashgraph.sdk.TopicMessageSubmitTransaction;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
 import com.hedera.hashgraph.sdk.TransactionReceiptQuery;
+import com.hedera.hashgraph.sdk.logger.LogLevel;
+import com.hedera.hashgraph.sdk.logger.Logger;
 import com.hedera.hashgraph.sdk.proto.AccountID;
 import com.hedera.hashgraph.sdk.proto.NodeAddress;
 import com.hedera.hashgraph.sdk.proto.NodeAddressBook;
@@ -269,15 +271,14 @@ public class SDKClient implements Cleanable {
         var stopwatch = Stopwatch.createStarted();
 
         try {
-            // client.setNetwork(Map.of(endpoint, nodeAccountId)); Enable after SDK #2317 is fixed
+            client.setNetwork(Map.of(endpoint, nodeAccountId));
             new TopicMessageSubmitTransaction()
                     .setMessage("Mirror Acceptance node " + nodeAccountId + " validation")
                     .setTopicId(topicId)
                     .setMaxAttempts(3)
                     .setMaxBackoff(Duration.ofSeconds(2))
-                    .setNodeAccountIds(List.of(nodeAccountId))
-                    .execute(client, Duration.ofSeconds(10L))
-                    .getReceipt(client, Duration.ofSeconds(10L));
+                    .execute(client, Duration.ofSeconds(20L))
+                    .getReceipt(client, Duration.ofSeconds(20L));
             log.info("Validated node {} {} in {}", nodeAccountId, endpoint, stopwatch);
             return true;
         } catch (Exception e) {
@@ -291,9 +292,13 @@ public class SDKClient implements Cleanable {
         var maxTransactionFee = Hbar.fromTinybars(acceptanceTestProperties.getMaxTinyBarTransactionFee());
         return client.setDefaultMaxTransactionFee(maxTransactionFee)
                 .setGrpcDeadline(sdkProperties.getGrpcDeadline())
+                .setLogger(new Logger(log.isDebugEnabled() ? LogLevel.DEBUG : LogLevel.ERROR))
                 .setMaxAttempts(sdkProperties.getMaxAttempts())
                 .setMaxNodeReadmitTime(Duration.ofSeconds(60L))
                 .setMaxNodesPerTransaction(sdkProperties.getMaxNodesPerTransaction())
+                .setMinNodeReadmitTime(Duration.ofSeconds(1L))
+                .setNodeMaxBackoff(Duration.ofSeconds(4L))
+                .setNodeMinBackoff(Duration.ofMillis(500L))
                 .setOperator(defaultOperator.getAccountId(), defaultOperator.getPrivateKey());
     }
 
