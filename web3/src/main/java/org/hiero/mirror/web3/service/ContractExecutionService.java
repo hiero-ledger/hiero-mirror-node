@@ -6,6 +6,7 @@ import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
+import jakarta.transaction.Transactional;
 import java.util.Objects;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
@@ -46,7 +47,10 @@ public class ContractExecutionService extends ContractCallService {
                 transactionExecutionService);
         this.binaryGasEstimator = binaryGasEstimator;
     }
-
+    /**
+     * Specififed as transactional to enforce timeouts across the entire call processing and to require all jpa calls to use the same connection
+     * */
+    @Transactional
     public String processCall(final ContractExecutionParameters params) {
         return ContractCallContext.run(ctx -> {
             var stopwatch = Stopwatch.createStarted();

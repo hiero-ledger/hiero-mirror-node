@@ -84,8 +84,13 @@ spring:
   jpa:
     database: PostgreSQL
     open-in-view: false
+    properties:
+      hibernate:
+        flushMode: MANUAL
   lifecycle:
     timeout-per-shutdown-phase: 20s
   threads:
     virtual:
       enabled: true
+  transaction:
+    default-timeout: 10s
