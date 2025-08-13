@@ -325,24 +325,20 @@ To generate an ERD of the mirror node database schema:
    ./gradlew :importer:bootRun
    ```
 
-3. Clean up test data to ensure foreign key constraints work properly:
+3. Prepare the database for ERD generation by running the combined script that truncates data, drops partitions, and
+   adds foreign keys:
 
    ```bash
-   psql -h localhost -d mirror_node -U mirror_node -f docs/database/truncate_data.sql
+   psql -h localhost -d mirror_node -U mirror_node -f docs/database/erd.sql
    ```
 
-4. Remove all partitions to ensure foreign key constraints work with regular tables:
-
-   ```bash
-   psql -h localhost -d mirror_node -U mirror_node -f drop_all_partitions.sql
-   ```
-
-5. Use IntelliJ IDEA's built-in database diagram feature:
+4. Use IntelliJ IDEA's built-in database diagram feature:
    - Connect to the database using the Database tool window
    - Right-click on the `public` schema
    - Select "Diagrams" → "Show Visualization..."
    - Choose the tables you want to include in the diagram
-   - Export the diagram as PNG or other formats as needed
+   - For cleaner visualization, disable "Show Comments" and "Show Columns" in the diagram options
+   - Export the diagram as Intellij UML or other formats as needed
 
 This approach automatically reads the actual database schema including all foreign key constraints, ensuring the ERD
 stays synchronized with the codebase without requiring separate maintenance files. The truncate script ensures that any
@@ -350,9 +346,18 @@ test data inserted by the importer doesn't interfere with foreign key constraint
 script converts partitioned tables to regular tables, which is necessary for proper foreign key constraint visualization
 in ERD tools since foreign key constraints cannot reference partitioned tables in PostgreSQL.
 
-## Current ERD Diagrams
+## Current ERD Diagram
 
-The following ERD diagrams were generated using the above process:
+The Entity Relationship Diagram is maintained as an IntelliJ UML file:
 
-- [Entity Relationship Diagram](erd.png) - Complete database schema with relationships
-- [Column-level ERD](erd-column.png) - Detailed view showing column information
+- [Entity Relationship Diagram](erd.uml) - Complete database schema with relationships in IntelliJ UML format
+
+### Updating the ERD
+
+To update the ERD diagram after schema changes:
+
+1. Follow steps 1-3 above to prepare the database with the latest schema
+2. Generate a new ERD using IntelliJ IDEA's database diagram feature
+3. Export the diagram as UML from IntelliJ IDEA
+4. Update the `erd.uml` file with the new relationships and table structures
+5. Commit the updated UML file to maintain the ERD in version control
