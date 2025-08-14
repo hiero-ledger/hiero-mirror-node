@@ -71,9 +71,11 @@ jobs:
         run: |
           npm install -g @hashgraph/solo
 
+      - name: Build Mirror Node Test
+        run: docker build -t hiero-mirror-node/pr-test -f test/Dockerfile ./test
+
       - name: Setup Solo Cluster
         run: |
-          # Create temp-values.yaml with override properties
           cat <<EOF > temp-values.yaml
           global:
             image:
@@ -86,12 +88,10 @@ jobs:
                   test:
                     acceptance:
                       network: OTHER
-            enabled: true
-            image:
-              pullPolicy: IfNotPresent
           EOF
 
           kind create cluster -n "${SOLO_CLUSTER_NAME}" || { echo "Failed to create Kind cluster"; exit 1; }
+          kind load docker-image hiero-mirror-node:pr-test -n "${SOLO_CLUSTER_NAME}" || { echo "Failed to load Docker image into Kind"; exit 1; }
           solo init || { echo "Failed to initialize Solo"; exit 1; }
           solo cluster-ref connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --context kind-"${SOLO_CLUSTER_NAME}" || { echo "Failed to connect to cluster"; exit 1; }
           solo deployment create --deployment "${SOLO_DEPLOYMENT}" --namespace "${SOLO_NAMESPACE}" || { echo "Failed to create deployment"; exit 1; }
@@ -112,8 +112,21 @@ jobs:
 
       - name: Run acceptance tests
         run: |
-          echo "Running acceptance tests..."
-          helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m || { echo "Acceptance tests failed"; exit 1; }
+          echo "Running acceptance tests directly with Gradle inside a pod"
+
+          cat <<EOF | kubectl apply -n "${SOLO_NAMESPACE}" -f -
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: acceptance-test-runner
+          spec:
+            containers:
+              - name: runner
+                image: hiero-mirror-node:pr-test
+                imagePullPolicy: IfNotPresent
+                command: ["./gradlew", "test:acceptance", "--info"]
+            restartPolicy: Never
+          EOF
 
       - name: Show Pod Logs on Failure
         if: ${{ failure() }}
