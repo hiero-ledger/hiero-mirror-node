@@ -120,8 +120,8 @@ jobs:
             --rm -i \
             --image=hiero-mirror-node:pr-test \
             --restart=Never \
-            --command -- ./gradlew test:acceptance --info \
-            --timeout=20m
+            --timeout=20m \
+            -- cucumber.filter.tags="@acceptance"
 
       - name: Show Pod Logs on Failure
         if: ${{ failure() }}
