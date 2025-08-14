@@ -121,10 +121,9 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         // when, then
         assertThatCode(subscriber::get).doesNotThrowAnyException();
 
-        var captor = ArgumentCaptor.forClass(RecordFile.class);
-        verify(streamFileNotifier, times(1)).verified(captor.capture());
-
-        // explicitly check that index 1 was NOT verified
+        // explicitly check that record file with index 0 was called once and with index 1 is never called
+        verify(streamFileNotifier, times(1))
+                .verified(argThat(rf -> rf.getIndex() == 0)); // explicitly check that index 1 was NOT verified
         verify(streamFileNotifier, never()).verified(argThat(rf -> rf.getIndex() == 1));
     }
 
