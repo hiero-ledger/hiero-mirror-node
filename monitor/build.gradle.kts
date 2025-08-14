@@ -8,7 +8,6 @@ plugins {
 }
 
 dependencies {
-    implementation(platform("org.springframework.cloud:spring-cloud-dependencies"))
     implementation(project(":common")) {
         exclude("com.google.protobuf", "protobuf-java")
         exclude("org.springframework.boot", "spring-boot-starter-data-jpa")
@@ -31,9 +30,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-configuration-processor")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
-    implementation("org.springframework.cloud:spring-cloud-starter-bootstrap")
-    implementation("org.springframework.cloud:spring-cloud-kubernetes-fabric8-autoconfig")
-    implementation("org.springframework.cloud:spring-cloud-starter-kubernetes-fabric8-config")
+    implementation("io.fabric8:kubernetes-client:4.20.0")
     runtimeOnly(
         group = "io.netty",
         name = "netty-resolver-dns-native-macos",

@@ -30,8 +30,6 @@ grpc:
     enabled: false
   ingress:
     enabled: false
-  rbac:
-    enabled: false
   service:
     type: LoadBalancer
   serviceAccount:
@@ -55,8 +53,6 @@ importer:
           group:
             readiness:
               exclude: redis
-  rbac:
-    enabled: false
   replicas: 1
   resources:
     requests:
@@ -91,8 +87,6 @@ rest:
   ingress:
     enabled: false
   monitor:
-    enabled: false
-  rbac:
     enabled: false
   serviceAccount:
     create: false
