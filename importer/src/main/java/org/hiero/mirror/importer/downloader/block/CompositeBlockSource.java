@@ -10,7 +10,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
-import org.hiero.mirror.importer.leader.Leader;
 import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.annotation.Scheduled;
 
@@ -38,7 +37,6 @@ final class CompositeBlockSource implements BlockSource {
     }
 
     @Override
-    @Leader
     @Scheduled(fixedDelayString = "#{@blockProperties.getFrequency().toMillis()}")
     public void get() {
         if (!properties.isEnabled()) {

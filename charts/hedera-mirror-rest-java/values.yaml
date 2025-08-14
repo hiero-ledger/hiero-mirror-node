@@ -301,8 +301,6 @@ prometheusRules:
       application: rest-java
       severity: warning
 
-rbac:
-  enabled: true
 
 readinessProbe:
   httpGet:

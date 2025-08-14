@@ -16,7 +16,6 @@ import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
-import org.hiero.mirror.importer.leader.Leader;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
 import org.hiero.mirror.importer.parser.batch.BatchPersister;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
@@ -49,7 +48,6 @@ public class AccountBalanceFileParser extends AbstractStreamFileParser<AccountBa
      * Process the file and load all the data into the database.
      */
     @Override
-    @Leader
     @Retryable(
             backoff =
                     @Backoff(
@@ -63,7 +61,6 @@ public class AccountBalanceFileParser extends AbstractStreamFileParser<AccountBa
     }
 
     @Override
-    @Leader
     @Retryable(
             backoff =
                     @Backoff(

@@ -7,14 +7,6 @@
         <cpe>cpe:/a:www-sql_project:www-sql</cpe>
     </suppress>
     <suppress>
-        <notes>Conflates spring-cloud-kubernetes-fabric8-config (client) with spring-cloud-config-server</notes>
-        <packageUrl regex="true">
-            ^pkg:maven/org\.springframework\.cloud/spring\-cloud(\-starter)?\-kubernetes\-fabric8\-.*$
-        </packageUrl>
-        <cpe>cpe:/a:kubernetes:kubernetes</cpe>
-        <cpe>cpe:/a:vmware:spring_cloud_config</cpe>
-    </suppress>
-    <suppress>
         <notes>Conflates grpc version with reactive-grpc version</notes>
         <packageUrl regex="true">^pkg:maven/com\.salesforce\.servicelibs/react(ive|or)\-grpc\-.*$</packageUrl>
         <cpe>cpe:/a:grpc:grpc</cpe>
