@@ -78,6 +78,7 @@ tasks.build { dependsOn("shadowJar") }
 
 tasks.shadowJar {
     dependsOn(tasks.compileTestJava)
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
     from(sourceSets.main.get().output)
     from(sourceSets.test.get().output)
     configurations =
