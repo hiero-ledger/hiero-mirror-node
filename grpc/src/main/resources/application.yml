@@ -24,8 +24,6 @@ logging:
     org.hiero.mirror.grpc: info
     io.grpc.netty.shaded.io.grpc.netty.NettyServerHandler: error
     org.hibernate.orm.deprecation: error # Suppress hibernate.dialect warnings
-    org.springframework.cloud.kubernetes.commons.config.ConfigUtils: error
-    org.springframework.cloud.kubernetes.fabric8.config: error
     # io.grpc: debug
     # org.hibernate.SQL: debug
     # org.hibernate.type.descriptor.sql.BasicBinder: trace
@@ -61,14 +59,6 @@ server:
 spring:
   application:
     name: grpc
-  cloud:
-    kubernetes:
-      reload:
-        enabled: true
-      secrets:
-        paths: /usr/etc/${spring.application.name}
-    discovery:
-      enabled: false
   datasource:
     name: ${hiero.mirror.grpc.db.name}
     password: ${hiero.mirror.grpc.db.password}
