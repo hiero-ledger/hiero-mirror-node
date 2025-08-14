@@ -102,7 +102,7 @@ jobs:
                     acceptance:
                       network: OTHER
                       operatorId: "${OPERATOR_ID}"
-                      operatorKey: "${{ env.OPERATOR_KEY }}"
+                      operatorKey: "${OPERATOR_KEY}"
           EOF
 
           solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f=temp-values.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --pinger || { echo "Failed to deploy mirror node"; exit 1; }
