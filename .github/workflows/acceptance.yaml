@@ -116,10 +116,12 @@ jobs:
       - name: Run acceptance tests
         run: |
           kubectl run acceptance-test-runner \
+            -n "${SOLO_NAMESPACE}" \
             --rm -i \
             --image=hiero-mirror-node:pr-test \
             --restart=Never \
-            --command -- ./gradlew test:acceptance --info
+            --command -- ./gradlew test:acceptance --info \
+            --timeout=20m
 
       - name: Show Pod Logs on Failure
         if: ${{ failure() }}
