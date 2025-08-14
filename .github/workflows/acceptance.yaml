@@ -34,6 +34,7 @@ jobs:
       SOLO_NAMESPACE: solo
       SOLO_CLUSTER_SETUP_NAMESPACE: solo-mirror-acceptance-setup
       SOLO_DEPLOYMENT: solo-deployment
+      OPERATOR_ID: 0.0.2
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
@@ -71,16 +72,9 @@ jobs:
         run: |
           npm install -g @hashgraph/solo
 
-      - name: Build Mirror Node Test JAR
-        run: ./gradlew test:build -x test
-
-      - name: Build Mirror Node Test Docker image
-        run: docker build -t hiero-mirror-node:pr-test -f test/Dockerfile ./test
-
       - name: Setup Solo Cluster
         run: |
           kind create cluster -n "${SOLO_CLUSTER_NAME}" || { echo "Failed to create Kind cluster"; exit 1; }
-          kind load docker-image hiero-mirror-node:pr-test -n "${SOLO_CLUSTER_NAME}" || { echo "Failed to load Docker image into Kind"; exit 1; }
           solo init || { echo "Failed to initialize Solo"; exit 1; }
           solo cluster-ref connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --context kind-"${SOLO_CLUSTER_NAME}" || { echo "Failed to connect to cluster"; exit 1; }
           solo deployment create --deployment "${SOLO_DEPLOYMENT}" --namespace "${SOLO_NAMESPACE}" || { echo "Failed to create deployment"; exit 1; }
@@ -90,10 +84,6 @@ jobs:
           solo network deploy --deployment "${SOLO_DEPLOYMENT}" || { echo "Failed to deploy network"; exit 1; }
           solo node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 || { echo "Failed to setup node"; exit 1; }
           solo node start --deployment "${SOLO_DEPLOYMENT}" -i node1 || { echo "Failed to start node"; exit 1; }
-
-          solo account create --deployment "${SOLO_DEPLOYMENT}" --hbar-amount 1000000 --generate-ecdsa-key --set-alias > account_create.log || { echo "Failed to create account"; exit 1; }
-          OPERATOR_ID=$(grep "accountId" account_create.log | awk '{print $2}' | sed 's/"//g'| sed 's/,//g')
-          rm account_create.log
 
           solo account get --deployment "${SOLO_DEPLOYMENT}" --account-id "${OPERATOR_ID}" --private-key > account_get.log || { echo "Failed to get account"; exit 1; }
           OPERATOR_KEY=$(grep "privateKey" account_get.log | awk '{print $2}' | sed 's/"//g'| sed 's/,//g')  || { echo "Failed to get account"; exit 1; }
@@ -111,7 +101,7 @@ jobs:
                   test:
                     acceptance:
                       network: OTHER
-                      operatorId: "${{ env.OPERATOR_ID }}"
+                      operatorId: "${OPERATOR_ID}"
                       operatorKey: "${{ env.OPERATOR_KEY }}"
           EOF
 
@@ -125,14 +115,7 @@ jobs:
           kubectl wait --for=condition=ready pod -l app=mirror -n "${SOLO_NAMESPACE}" --timeout=10m || echo "Some pods may not be ready, continuing with tests"
 
       - name: Run acceptance tests
-        run: |
-          kubectl run acceptance-test-runner \
-            -n "${SOLO_NAMESPACE}" \
-            --rm -i \
-            --image=hiero-mirror-node:pr-test \
-            --restart=Never \
-            --timeout=20m \
-            -- cucumber.filter.tags="@acceptance"
+        run: ./gradlew :test:acceptance --info -Dcucumber.filter.tags=@acceptance
 
       - name: Show Pod Logs on Failure
         if: ${{ failure() }}
