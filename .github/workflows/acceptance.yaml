@@ -71,8 +71,11 @@ jobs:
         run: |
           npm install -g @hashgraph/solo
 
-      - name: Build Mirror Node Test
-        run: docker build -t hiero-mirror-node:pr-test -f test/Dockerfile .
+      - name: Build Mirror Node Test JAR
+        run: ./gradlew test:build -x test
+
+      - name: Build Mirror Node Test Docker image
+        run: docker build -t hiero-mirror-node:pr-test -f test/Dockerfile ./test
 
       - name: Setup Solo Cluster
         run: |
