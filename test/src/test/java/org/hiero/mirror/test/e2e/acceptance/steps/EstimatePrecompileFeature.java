@@ -2049,7 +2049,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         APPROVE_NFT_GET_ALLOWANCE("approveTokenGetAllowance", 733127),
         DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER("associateTokenDissociateFailTransfer", 1482987),
         DISSOCIATE_NFT_AND_TRANSFER("associateTokenDissociateFailTransfer", 1525177),
-        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 785631),
+        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 889073),
         APPROVE_NFT_TOKEN_AND_TRANSFER_FROM("approveNftAndTransfer", 797670);
 
         private final String selector;
