@@ -115,21 +115,11 @@ jobs:
 
       - name: Run acceptance tests
         run: |
-          echo "Running acceptance tests directly with Gradle inside a pod"
-
-          cat <<EOF | kubectl apply -n "${SOLO_NAMESPACE}" -f -
-          apiVersion: v1
-          kind: Pod
-          metadata:
-            name: acceptance-test-runner
-          spec:
-            containers:
-              - name: runner
-                image: hiero-mirror-node:pr-test
-                imagePullPolicy: IfNotPresent
-                command: ["./gradlew", "test:acceptance", "--info"]
-            restartPolicy: Never
-          EOF
+          kubectl run acceptance-test-runner \
+            --rm -i \
+            --image=hiero-mirror-node:pr-test \
+            --restart=Never \
+            --command -- ./gradlew test:acceptance --info
 
       - name: Show Pod Logs on Failure
         if: ${{ failure() }}
