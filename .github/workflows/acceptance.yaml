@@ -5,14 +5,12 @@ name: Acceptance
 on:
   pull_request:
     branches: [main, release/**]
+  #    paths:
+  #      - "test/**"
   push:
     branches: [main, release/**]
     tags:
       - "v*"
-    paths:
-      - "**/*.java"
-      - "**/*.js"
-      - "**/*.ts"
   workflow_dispatch:
     inputs:
       branch:

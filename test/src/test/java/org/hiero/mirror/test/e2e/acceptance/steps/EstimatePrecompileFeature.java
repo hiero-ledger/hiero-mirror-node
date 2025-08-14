@@ -2093,7 +2093,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         TRANSFER_FROM_NFT("transferFromNFTExternal", 42745),
         BALANCE_OF("balanceOf", 30277),
         ALLOWANCE("allowanceExternal", 28778),
-        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 800603);
+        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 904053);
 
         private final String selector;
         private final int actualGas;
