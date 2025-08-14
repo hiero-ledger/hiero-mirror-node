@@ -94,7 +94,6 @@ spring:
     username: ${hiero.mirror.importer.db.username}
     hikari:
       connection-init-sql: ${hiero.mirror.importer.db.connectionInitSql}
-      # Note: Flyway does not use Hikari so these properties are ignored. Use URL properties for Flyway instead.
       data-source-properties:
         #loggerLevel: TRACE
         logUnclosedConnections: true
@@ -104,6 +103,14 @@ spring:
   flyway:
     baselineOnMigrate: true
     connectRetries: 20
+    hikari:
+      connection-init-sql: ${hiero.mirror.importer.db.connectionInitSql}
+      data-source-properties: ${spring.datasource.hikari.data-source-properties}
+      jdbc-url: ${spring.datasource.url}
+      maximum-pool-size: 10
+      password: ${hiero.mirror.importer.db.ownerPassword}
+      pool-name: hikari-owner-pool
+      username: ${hiero.mirror.importer.db.owner}
     ignoreMigrationPatterns: ["*:missing", "*:ignored"]
     password: ${hiero.mirror.importer.db.ownerPassword}
     placeholders:

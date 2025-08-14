@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.config;
 
+import com.zaxxer.hikari.HikariDataSource;
+import javax.sql.DataSource;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.ImporterProperties;
@@ -14,7 +16,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
 import org.springframework.boot.autoconfigure.flyway.FlywayConfigurationCustomizer;
+import org.springframework.boot.autoconfigure.flyway.FlywayDataSource;
 import org.springframework.boot.cloud.CloudPlatform;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.annotation.EnableRetry;
@@ -57,6 +61,13 @@ class ImporterConfiguration {
             }
             configuration.getPlaceholders().put("topicRunningHashV2AddedTimestamp", timestamp.toString());
         };
+    }
+
+    @Bean
+    @FlywayDataSource
+    @ConfigurationProperties(prefix = "spring.flyway.hikari")
+    DataSource flywayOwnerDataSource() {
+        return new HikariDataSource();
     }
 
     @Configuration
