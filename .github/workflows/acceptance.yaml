@@ -110,6 +110,7 @@ jobs:
           kubectl port-forward -n "${SOLO_NAMESPACE}" service/"${SOLO_DEPLOYMENT}-rest" 5551:80 &
           kubectl port-forward -n "${SOLO_NAMESPACE}" service/"${SOLO_DEPLOYMENT}-restjava" 8084:80 &
           kubectl port-forward -n "${SOLO_NAMESPACE}" service/"${SOLO_DEPLOYMENT}-web3" 8545:80 &
+          kubectl port-forward -n "${SOLO_NAMESPACE}" service/"${SOLO_DEPLOYMENT}-postgres-postgresql" 5432:5432 &
           kubectl port-forward -n "${SOLO_NAMESPACE}" service/network-node1-svc 50211:50211 &
 
           # Wait for port forwarding to be established
