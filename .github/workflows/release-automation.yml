@@ -113,7 +113,7 @@ jobs:
 
       - name: Create Release Notes
         if: ${{ steps.version_parser.outputs.prerelease == '' }}
-        uses: spring-io/github-changelog-generator@925ed0a45f3ede77449f704b628fbb77b4178a90 # v0.0.13-SNAPSHOT
+        uses: steven-sheehy/github-changelog-generator@587a63ffdd931b656ca33566d55fe76179e2046b
         with:
           config-file: .github/release-notes.yml
           milestone: ${{ steps.version_parser.outputs.release }}
