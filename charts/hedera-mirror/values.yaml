@@ -327,12 +327,14 @@ stackgres:
     instances: 1
     pgbouncer:
       pgbouncer:
+        connect_query: "set timezone to 'UTC'"
         default_pool_size: "800"
         ignore_startup_parameters: extra_float_digits,options,statement_timeout
         max_client_conn: "1600"
         max_prepared_statements: "512"
         pool_mode: transaction
         server_lifetime: "1200"
+        server_reset_query: "discard all; set time zone to 'UTC'"
       users:
         mirror_node:
           pool_mode: session
