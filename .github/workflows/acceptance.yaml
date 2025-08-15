@@ -5,8 +5,8 @@ name: Acceptance
 on:
   pull_request:
     branches: [main, release/**]
-  #    paths:
-  #      - "test/**"
+    paths:
+      - "test/**"
   push:
     branches: [main, release/**]
     tags:
@@ -114,8 +114,53 @@ jobs:
           echo "Waiting for services to be ready..."
           kubectl wait --for=condition=ready pod -l app=mirror -n "${SOLO_NAMESPACE}" --timeout=10m || echo "Some pods may not be ready, continuing with tests"
 
+      - name: Get dynamic node information
+        run: |
+          echo "Getting dynamic node information from Solo network..."
+
+          # Get the account ID from the network node pod
+          SOLO_NODE_ACCOUNT_ID=$(kubectl get pod network-node1-0 -n "${SOLO_NAMESPACE}" -o jsonpath='{.metadata.labels.solo\.hedera\.com/account-id}' 2>/dev/null || echo "")
+
+          if [ -z "$SOLO_NODE_ACCOUNT_ID" ]; then
+            echo "Error: Could not retrieve account ID from network node"
+            kubectl get pods -n "${SOLO_NAMESPACE}" | grep node
+            exit 1
+          fi
+
+          echo "SOLO_NODE_ACCOUNT_ID=${SOLO_NODE_ACCOUNT_ID}" >> $GITHUB_ENV
+
+      - name: Get service URLs
+        run: |
+          echo "Getting Kubernetes service URLs..."
+
+          # Get service URLs using Kubernetes DNS names
+          GRPC_URL="${SOLO_DEPLOYMENT}-grpc.${SOLO_NAMESPACE}.svc.cluster.local:5600"
+          REST_URL="http://${SOLO_DEPLOYMENT}-rest.${SOLO_NAMESPACE}.svc.cluster.local"
+          REST_JAVA_URL="http://${SOLO_DEPLOYMENT}-restjava.${SOLO_NAMESPACE}.svc.cluster.local"
+          WEB3_URL="http://${SOLO_DEPLOYMENT}-web3.${SOLO_NAMESPACE}.svc.cluster.local"
+          NETWORK_URL="network-node1-svc.${SOLO_NAMESPACE}.svc.cluster.local:50211"
+
+          # Export for use in next steps
+          echo "GRPC_URL=${GRPC_URL}" >> $GITHUB_ENV
+          echo "REST_URL=${REST_URL}" >> $GITHUB_ENV
+          echo "REST_JAVA_URL=${REST_JAVA_URL}" >> $GITHUB_ENV
+          echo "WEB3_URL=${WEB3_URL}" >> $GITHUB_ENV
+          echo "NETWORK_URL=${NETWORK_URL}" >> $GITHUB_ENV
+
       - name: Run acceptance tests
-        run: ./gradlew :test:acceptance --info -Dcucumber.filter.tags=@acceptance
+        run: |
+          ./gradlew :test:acceptance --info \
+            -Dcucumber.filter.tags=@acceptance \
+            -Dhiero.mirror.test.acceptance.mirrorNodeAddress=${GRPC_URL} \
+            -Dhiero.mirror.test.acceptance.network=OTHER \
+            -Dhiero.mirror.test.acceptance.nodes[0].accountId=${SOLO_NODE_ACCOUNT_ID} \
+            -Dhiero.mirror.test.acceptance.nodes[0].host=network-node1-svc.${SOLO_NAMESPACE}.svc.cluster.local \
+            -Dhiero.mirror.test.acceptance.nodes[0].port=50211 \
+            -Dhiero.mirror.test.acceptance.operatorId=${OPERATOR_ID} \
+            -Dhiero.mirror.test.acceptance.operatorKey=${OPERATOR_KEY} \
+            -Dhiero.mirror.test.acceptance.rest.baseUrl=${REST_URL} \
+            -Dhiero.mirror.test.acceptance.rest-java.baseUrl=${REST_JAVA_URL} \
+            -Dhiero.mirror.test.acceptance.web3.baseUrl=${WEB3_URL} \
 
       - name: Show Pod Logs on Failure
         if: ${{ failure() }}
