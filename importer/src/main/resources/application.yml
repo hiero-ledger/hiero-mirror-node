@@ -106,7 +106,6 @@ spring:
     hikari:
       connection-init-sql: ${hiero.mirror.importer.db.connectionInitSql}
       data-source-properties: ${spring.datasource.hikari.data-source-properties}
-      jdbc-url: ${spring.datasource.url}
       maximum-pool-size: 10
       password: ${hiero.mirror.importer.db.ownerPassword}
       pool-name: hikari-owner-pool
