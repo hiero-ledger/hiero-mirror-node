@@ -69,7 +69,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     }
 
     @Test
-    void exceptionIsThrownWhenEventHeaderItemIsPreceededByEventTxnItem() {
+    void exceptionIsThrownWhenEventTxnItemIsBeforeEventHeaderItem() {
         // given
         var generator = new BlockGenerator(0);
 
@@ -80,16 +80,16 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .filter(it -> it.getItemCase() == ItemCase.EVENT_HEADER)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("The block is missing event header item"));
-        var blockOneEventTransactionItem = blockOneItems.stream()
+        var blockOneEventTxnItem = blockOneItems.stream()
                 .filter(it -> it.getItemCase() == ItemCase.EVENT_TRANSACTION)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("The block is missing event transaction item"));
         int blockOneEventHeaderItemIndex = blockOneItems.indexOf(blockOneEventHeaderItem);
-        int blockOneEventTransactionItemIndex = blockOneItems.indexOf(blockOneEventTransactionItem);
+        int blockOneEventTxnItemIndex = blockOneItems.indexOf(blockOneEventTxnItem);
 
         var builder = BlockItemSet.newBuilder();
         var wrongOrderBlockItems = new ArrayList<>(blockOneItems);
-        Collections.swap(wrongOrderBlockItems, blockOneEventHeaderItemIndex, blockOneEventTransactionItemIndex);
+        Collections.swap(wrongOrderBlockItems, blockOneEventHeaderItemIndex, blockOneEventTxnItemIndex);
         builder.addAllBlockItems(wrongOrderBlockItems);
         blocks.remove(1);
         blocks.add(builder.build());
@@ -103,7 +103,8 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         // when, then
         assertThatThrownBy(subscriber::get)
                 .isInstanceOf(BlockStreamException.class)
-                .hasCauseInstanceOf(InvalidStreamFileException.class);
+                .hasCauseInstanceOf(InvalidStreamFileException.class)
+                .hasMessageContaining("Missing block proof in block");
     }
 
     @Test
@@ -112,22 +113,22 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         var generator = new BlockGenerator(0);
 
         var blocks = new ArrayList<>(generator.next(2));
-        var blOne = blocks.get(1);
-        var blOneItems = blOne.getBlockItemsList();
-        var blOneLastEventTxn = blOneItems.stream()
+        var blockOne = blocks.get(1);
+        var blockOneItems = blockOne.getBlockItemsList();
+        var blockOneLastEventTxn = blockOneItems.stream()
                 .filter(it -> it.getItemCase() == ItemCase.EVENT_TRANSACTION)
                 .reduce((first, second) -> second)
                 .orElseThrow(() -> new IllegalStateException("The block is missing event transaction item"));
-        var blOneTxnResult = blOneItems.stream()
+        var blockOneTxnResult = blockOneItems.stream()
                 .filter(it -> it.getItemCase() == ItemCase.TRANSACTION_RESULT)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("The block is missing transaction result item"));
-        int blOneEventTxnIndex = blOneItems.indexOf(blOneLastEventTxn);
-        int blOneTxnResultIndex = blOneItems.indexOf(blOneTxnResult);
+        int blockOneEventTxnIndex = blockOneItems.indexOf(blockOneLastEventTxn);
+        int blockOneTxnResultIndex = blockOneItems.indexOf(blockOneTxnResult);
 
         var builder = BlockItemSet.newBuilder();
-        var wrongOrderBlockItems = new ArrayList<>(blOneItems);
-        Collections.swap(wrongOrderBlockItems, blOneTxnResultIndex, blOneEventTxnIndex);
+        var wrongOrderBlockItems = new ArrayList<>(blockOneItems);
+        Collections.swap(wrongOrderBlockItems, blockOneTxnResultIndex, blockOneEventTxnIndex);
         builder.addAllBlockItems(wrongOrderBlockItems);
         blocks.remove(1);
         blocks.add(builder.build());
@@ -141,6 +142,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         // when, then
         assertThatThrownBy(subscriber::get)
                 .isInstanceOf(BlockStreamException.class)
-                .hasCauseInstanceOf(InvalidStreamFileException.class);
+                .hasCauseInstanceOf(InvalidStreamFileException.class)
+                .hasMessageContaining("Missing transaction result in block");
     }
 }
