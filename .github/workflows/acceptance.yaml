@@ -34,7 +34,6 @@ jobs:
       SOLO_NAMESPACE: solo
       SOLO_CLUSTER_SETUP_NAMESPACE: solo-mirror-acceptance-setup
       SOLO_DEPLOYMENT: solo-deployment
-      OPERATOR_ID: 0.0.2
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
@@ -85,7 +84,7 @@ jobs:
           solo node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 || { echo "Failed to setup node"; exit 1; }
           solo node start --deployment "${SOLO_DEPLOYMENT}" -i node1 || { echo "Failed to start node"; exit 1; }
 
-          solo account get --deployment "${SOLO_DEPLOYMENT}" --account-id "${OPERATOR_ID}" --private-key > account_get.log || { echo "Failed to get account"; exit 1; }
+          solo account get --deployment "${SOLO_DEPLOYMENT}" --account-id 0.0.2 --private-key > account_get.log || { echo "Failed to get account"; exit 1; }
           OPERATOR_KEY=$(grep "privateKey" account_get.log | awk '{print $2}' | sed 's/"//g'| sed 's/,//g')  || { echo "Failed to get account"; exit 1; }
           rm account_get.log
 
@@ -94,15 +93,6 @@ jobs:
             image:
               tag: "${{ github.base_ref }}"
               pullPolicy: IfNotPresent
-          test:
-            config:
-              hiero:
-                mirror:
-                  test:
-                    acceptance:
-                      network: OTHER
-                      operatorId: "${OPERATOR_ID}"
-                      operatorKey: "${OPERATOR_KEY}"
           EOF
 
           solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f=temp-values.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --pinger || { echo "Failed to deploy mirror node"; exit 1; }
@@ -114,53 +104,29 @@ jobs:
           echo "Waiting for services to be ready..."
           kubectl wait --for=condition=ready pod -l app=mirror -n "${SOLO_NAMESPACE}" --timeout=10m || echo "Some pods may not be ready, continuing with tests"
 
-      - name: Get dynamic node information
+      - name: Setup port forwarding for localhost access
         run: |
-          echo "Getting dynamic node information from Solo network..."
+          kubectl port-forward -n "${SOLO_NAMESPACE}" service/"${SOLO_DEPLOYMENT}-grpc" 5600:5600 &
+          kubectl port-forward -n "${SOLO_NAMESPACE}" service/"${SOLO_DEPLOYMENT}-rest" 5551:80 &
+          kubectl port-forward -n "${SOLO_NAMESPACE}" service/"${SOLO_DEPLOYMENT}-restjava" 8084:80 &
+          kubectl port-forward -n "${SOLO_NAMESPACE}" service/"${SOLO_DEPLOYMENT}-web3" 8545:80 &
+          kubectl port-forward -n "${SOLO_NAMESPACE}" service/network-node1-svc 50211:50211 &
 
-          # Get the account ID from the network node pod
-          SOLO_NODE_ACCOUNT_ID=$(kubectl get pod network-node1-0 -n "${SOLO_NAMESPACE}" -o jsonpath='{.metadata.labels.solo\.hedera\.com/account-id}' 2>/dev/null || echo "")
-
-          if [ -z "$SOLO_NODE_ACCOUNT_ID" ]; then
-            echo "Error: Could not retrieve account ID from network node"
-            kubectl get pods -n "${SOLO_NAMESPACE}" | grep node
-            exit 1
-          fi
-
-          echo "SOLO_NODE_ACCOUNT_ID=${SOLO_NODE_ACCOUNT_ID}" >> $GITHUB_ENV
-
-      - name: Get service URLs
-        run: |
-          echo "Getting Kubernetes service URLs..."
-
-          # Get service URLs using Kubernetes DNS names
-          GRPC_URL="${SOLO_DEPLOYMENT}-grpc.${SOLO_NAMESPACE}.svc.cluster.local:5600"
-          REST_URL="http://${SOLO_DEPLOYMENT}-rest.${SOLO_NAMESPACE}.svc.cluster.local"
-          REST_JAVA_URL="http://${SOLO_DEPLOYMENT}-restjava.${SOLO_NAMESPACE}.svc.cluster.local"
-          WEB3_URL="http://${SOLO_DEPLOYMENT}-web3.${SOLO_NAMESPACE}.svc.cluster.local"
-          NETWORK_URL="network-node1-svc.${SOLO_NAMESPACE}.svc.cluster.local:50211"
-
-          # Export for use in next steps
-          echo "GRPC_URL=${GRPC_URL}" >> $GITHUB_ENV
-          echo "REST_URL=${REST_URL}" >> $GITHUB_ENV
-          echo "REST_JAVA_URL=${REST_JAVA_URL}" >> $GITHUB_ENV
-          echo "WEB3_URL=${WEB3_URL}" >> $GITHUB_ENV
-          echo "NETWORK_URL=${NETWORK_URL}" >> $GITHUB_ENV
+          # Wait for port forwarding to be established
+          sleep 5
 
       - name: Run acceptance tests
         run: |
           ./gradlew :test:acceptance --info \
             -Dcucumber.filter.tags=@acceptance \
-            -Dhiero.mirror.test.acceptance.mirrorNodeAddress=${GRPC_URL} \
+            -Dhiero.mirror.test.acceptance.mirrorNodeAddress=localhost:5600 \
             -Dhiero.mirror.test.acceptance.network=OTHER \
-            -Dhiero.mirror.test.acceptance.nodes[0].accountId=${SOLO_NODE_ACCOUNT_ID} \
-            -Dhiero.mirror.test.acceptance.nodes[0].host=network-node1-svc.${SOLO_NAMESPACE}.svc.cluster.local \
+            -Dhiero.mirror.test.acceptance.nodes[0].host=localhost \
             -Dhiero.mirror.test.acceptance.nodes[0].port=50211 \
-            -Dhiero.mirror.test.acceptance.operatorId=${OPERATOR_ID} \
             -Dhiero.mirror.test.acceptance.operatorKey=${OPERATOR_KEY} \
-            -Dhiero.mirror.test.acceptance.rest.baseUrl=${REST_URL} \
-            -Dhiero.mirror.test.acceptance.rest-java.baseUrl=${REST_JAVA_URL} \
-            -Dhiero.mirror.test.acceptance.web3.baseUrl=${WEB3_URL} \
+            -Dhiero.mirror.test.acceptance.rest.baseUrl=http://localhost:5551 \
+            -Dhiero.mirror.test.acceptance.rest-java.baseUrl=http://localhost:8084 \
+            -Dhiero.mirror.test.acceptance.web3.baseUrl=http://localhost:8545
 
       - name: Show Pod Logs on Failure
         if: ${{ failure() }}
