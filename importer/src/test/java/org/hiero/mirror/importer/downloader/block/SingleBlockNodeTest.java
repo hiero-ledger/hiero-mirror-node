@@ -23,27 +23,17 @@ import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
+    @AutoClose
     private BlockNodeSimulator simulator;
+
+    @AutoClose
     private BlockNodeSubscriber subscriber;
-
-    @AfterEach
-    void cleanup() {
-        if (subscriber != null) {
-            subscriber.close();
-            subscriber = null;
-        }
-
-        if (simulator != null) {
-            simulator.close();
-            simulator = null;
-        }
-    }
 
     @Test
     void multipleBlocks() {
@@ -99,7 +89,6 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Non-consecutive block number");
-        ;
     }
 
     // BlockNode hands a block to the reader after there is a proof. If proof is missing the partially buffered block is
@@ -122,8 +111,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         assertThatCode(subscriber::get).doesNotThrowAnyException();
 
         // explicitly check that record file with index 0 was called once and with index 1 is never called
-        verify(streamFileNotifier, times(1))
-                .verified(argThat(rf -> rf.getIndex() == 0)); // explicitly check that index 1 was NOT verified
+        verify(streamFileNotifier, times(1)).verified(argThat(rf -> rf.getIndex() == 0));
         verify(streamFileNotifier, never()).verified(argThat(rf -> rf.getIndex() == 1));
     }
 

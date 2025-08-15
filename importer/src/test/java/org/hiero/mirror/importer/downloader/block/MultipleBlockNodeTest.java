@@ -10,33 +10,20 @@ import java.util.List;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
+    @AutoClose
     private BlockNodeSimulator firstSimulator;
+
+    @AutoClose
     private BlockNodeSimulator secondSimulator;
+
+    @AutoClose
     private BlockNodeSubscriber subscriber;
-
-    @AfterEach
-    void cleanup() {
-        if (subscriber != null) {
-            subscriber.close();
-            subscriber = null;
-        }
-
-        if (firstSimulator != null) {
-            firstSimulator.close();
-            firstSimulator = null;
-        }
-
-        if (secondSimulator != null) {
-            secondSimulator.close();
-            secondSimulator = null;
-        }
-    }
 
     @Test
     void missingStartBlockInHighPriorityNode() {
