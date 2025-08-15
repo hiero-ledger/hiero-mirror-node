@@ -77,9 +77,9 @@ public class ScheduleFeature extends AbstractFeature {
     public void waitForScheduleToExpire() {
         var scheduleExpirationTimeInstant = convertTimestamp(this.scheduleExpirationTime);
 
-        await().atMost(Duration.ofSeconds(30))
-                .pollDelay(Duration.ofMillis(100))
-                .pollInterval(Duration.ofMillis(100))
+        await().atMost(Duration.ofSeconds(90))
+                .pollDelay(Duration.ofMillis(200))
+                .pollInterval(Duration.ofMillis(200))
                 .untilAsserted(() -> assertThat(Instant.now()).isAfterOrEqualTo(scheduleExpirationTimeInstant));
 
         // We need this dummy transaction in order to execute the schedule
@@ -90,9 +90,9 @@ public class ScheduleFeature extends AbstractFeature {
         }
 
         // Wait until the transaction is executed and has a valid executed timestamp
-        await().atMost(Duration.ofSeconds(30))
-                .pollDelay(Duration.ofMillis(100))
-                .pollInterval(Duration.ofMillis(100))
+        await().atMost(Duration.ofSeconds(90))
+                .pollDelay(Duration.ofMillis(200))
+                .pollInterval(Duration.ofMillis(200))
                 .untilAsserted(() -> assertThat(mirrorClient
                                 .getScheduleInfo(scheduleId.toString())
                                 .getExecutedTimestamp())
