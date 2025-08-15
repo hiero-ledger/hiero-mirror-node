@@ -144,19 +144,53 @@ create type extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 
 create table if not exists hook
 (
-    id                bigserial primary key,
-    owner_id          bigint not null,
-    hook_id           bigint not null,
-    admin_key         bytea,
-    contract_id       bigint,
-    created_timestamp bigint not null,
-    deleted           boolean not null default false,
-    extension_point   extension_point not null,
-    type              hook_type not null,
-    timestamp_range   int8range not null,
+    id
+    bigserial
+    primary
+    key,
+    owner_id
+    bigint
+    not
+    null,
+    hook_id
+    bigint
+    not
+    null,
+    admin_key
+    bytea,
+    contract_id
+    bigint,
+    created_timestamp
+    bigint
+    not
+    null,
+    deleted
+    boolean
+    not
+    null
+    default
+    false,
+    extension_point
+    extension_point
+    not
+    null,
+    type
+    hook_type
+    not
+    null,
+    timestamp_range
+    int8range
+    not
+    null,
 
-    constraint hook__owner_hook_id unique (owner_id, hook_id)
-);
+    constraint
+    hook__owner_hook_id
+    unique
+(
+    owner_id,
+    hook_id
+)
+    );
 
 -- Indexes to support the required query patterns
 create index if not exists hook__owner_id_timestamp on hook using gist (owner_id, timestamp_range);
@@ -840,20 +874,18 @@ public class HookStorageResponse {
 
 ## Open Questions
 
-1. **Historical Storage Queries**: Do we need to support querying historical states of hook storage, or only the current
-   state? This impacts the storage table design.
-
-2. **Storage Size Limits**: What are the practical limits for hook storage per account? Should we enforce quotas?
-
-3. **Indexing Strategy**: Which additional indexes might be needed for complex hook queries that we haven't identified
+1. **Indexing Strategy**: Which additional indexes might be needed for complex hook queries that we haven't identified
    yet?
 
-4. **Protobuf Changes and Record Stream Timeline**: Check with Michael Tinker on the availability timeline for protobuf
+2. **Protobuf Changes and Record Stream Timeline**: Check with Michael Tinker on the availability timeline for protobuf
    changes and record stream implementation for hook support.
 
-5. **API Naming Convention - Hook Storage vs State**: Should the API endpoints use "storage" or "state" terminology?
+3. **API Naming Convention - Hook Storage vs State**: Should the API endpoints use "storage" or "state" terminology?
    This should be aligned with what Michael Tinker is using in their consensus node APIs to maintain consistency across
    the platform.
+
+4. **Historical Storage Queries**: Do we need to support querying historical states of hook storage, or only the current
+   state? This impacts the storage table design.
 
 ## Future Enhancements
 
