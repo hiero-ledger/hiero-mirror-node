@@ -88,6 +88,9 @@ jobs:
           OPERATOR_KEY=$(grep "privateKey" account_get.log | awk '{print $2}' | sed 's/"//g'| sed 's/,//g')  || { echo "Failed to get account"; exit 1; }
           rm account_get.log
 
+          # Export OPERATOR_KEY for use in later steps
+          echo "OPERATOR_KEY=${OPERATOR_KEY}" >> $GITHUB_ENV
+
           cat <<EOF > temp-values.yaml
           global:
             image:
