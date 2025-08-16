@@ -95,7 +95,7 @@ jobs:
               pullPolicy: IfNotPresent
           EOF
 
-          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f=temp-values.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --pinger || { echo "Failed to deploy mirror node"; exit 1; }
+          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f=temp-values.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --pinger --enable-ingress || { echo "Failed to deploy mirror node"; exit 1; }
 
           echo "Solo cluster setup completed successfully!"
 
@@ -104,30 +104,17 @@ jobs:
           echo "Waiting for services to be ready..."
           kubectl wait --for=condition=ready pod -l app=mirror -n "${SOLO_NAMESPACE}" --timeout=10m || echo "Some pods may not be ready, continuing with tests"
 
-      - name: Setup port forwarding for localhost access
-        run: |
-          kubectl port-forward -n "${SOLO_NAMESPACE}" service/"${SOLO_DEPLOYMENT}-grpc" 5600:5600 &
-          kubectl port-forward -n "${SOLO_NAMESPACE}" service/"${SOLO_DEPLOYMENT}-rest" 5551:80 &
-          kubectl port-forward -n "${SOLO_NAMESPACE}" service/"${SOLO_DEPLOYMENT}-restjava" 8084:80 &
-          kubectl port-forward -n "${SOLO_NAMESPACE}" service/"${SOLO_DEPLOYMENT}-web3" 8545:80 &
-          kubectl port-forward -n "${SOLO_NAMESPACE}" service/"${SOLO_DEPLOYMENT}-postgres-postgresql" 5432:5432 &
-          kubectl port-forward -n "${SOLO_NAMESPACE}" service/network-node1-svc 50211:50211 &
-
-          # Wait for port forwarding to be established
-          sleep 5
-
       - name: Run acceptance tests
         run: |
           ./gradlew :test:acceptance --info \
             -Dcucumber.filter.tags=@acceptance \
-            -Dhiero.mirror.test.acceptance.mirrorNodeAddress=localhost:5600 \
+            -Dhiero.mirror.test.acceptance.mirrorNodeAddress=localhost:8081 \
             -Dhiero.mirror.test.acceptance.network=OTHER \
-            -Dhiero.mirror.test.acceptance.nodes[0].host=localhost \
-            -Dhiero.mirror.test.acceptance.nodes[0].port=50211 \
+            "-Dhiero.mirror.test.acceptance.nodes[0].accountId=0.0.3" \
+            "-Dhiero.mirror.test.acceptance.nodes[0].host=localhost" \
+            "-Dhiero.mirror.test.acceptance.nodes[0].port=50211" \
             -Dhiero.mirror.test.acceptance.operatorKey=${OPERATOR_KEY} \
-            -Dhiero.mirror.test.acceptance.rest.baseUrl=http://localhost:5551 \
-            -Dhiero.mirror.test.acceptance.rest-java.baseUrl=http://localhost:8084 \
-            -Dhiero.mirror.test.acceptance.web3.baseUrl=http://localhost:8545
+            -Dhiero.mirror.test.acceptance.rest.baseUrl=http://localhost:8081 \
 
       - name: Show Pod Logs on Failure
         if: ${{ failure() }}
