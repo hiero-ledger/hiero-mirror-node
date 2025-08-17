@@ -162,7 +162,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         previousHash[0] ^= 0x01;
 
         var incorrectProof = blockProof.toBuilder()
-                .setPreviousBlockRootHash(org.hiero.mirror.common.util.DomainUtils.fromBytes(previousHash))
+                .setPreviousBlockRootHash(DomainUtils.fromBytes(previousHash))
                 .build();
 
         var incorrectProofItem =
@@ -180,6 +180,5 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(HashMismatchException.class)
                 .hasMessageContaining("Previous hash mismatch");
-        ;
     }
 }
