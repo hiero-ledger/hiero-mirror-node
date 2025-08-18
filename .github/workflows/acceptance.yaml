@@ -84,13 +84,6 @@ jobs:
           solo node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 || { echo "Failed to setup node"; exit 1; }
           solo node start --deployment "${SOLO_DEPLOYMENT}" -i node1 || { echo "Failed to start node"; exit 1; }
 
-          solo account get --deployment "${SOLO_DEPLOYMENT}" --account-id 0.0.2 --private-key > account_get.log || { echo "Failed to get account"; exit 1; }
-          OPERATOR_KEY=$(grep -w "privateKey" account_get.log | awk '{print $2}' | sed 's/"//g'| sed 's/,//g')  || { echo "Failed to get account"; exit 1; }
-          rm account_get.log
-
-          # Export OPERATOR_KEY for use in later steps
-          echo "OPERATOR_KEY=${OPERATOR_KEY}" >> $GITHUB_ENV
-
           cat <<EOF > temp-values.yaml
           global:
             image:
@@ -116,7 +109,6 @@ jobs:
             "-Dhiero.mirror.test.acceptance.nodes[0].accountId=0.0.3" \
             "-Dhiero.mirror.test.acceptance.nodes[0].host=localhost" \
             "-Dhiero.mirror.test.acceptance.nodes[0].port=50211" \
-            -Dhiero.mirror.test.acceptance.operatorKey=${OPERATOR_KEY} \
             -Dhiero.mirror.test.acceptance.rest.baseUrl=http://localhost:8081 \
             -Dhiero.mirror.test.acceptance.web3.modularizedServices=true
 
