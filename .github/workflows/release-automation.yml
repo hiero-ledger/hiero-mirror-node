@@ -38,7 +38,7 @@ jobs:
 
       - name: Parse Version
         id: version_parser
-        uses: step-security/semver-utils@a24a84bec134bf99b85937a44b58cc9a1d268edd # v4.3.0
+        uses: step-security/semver-utils@b6c771610a344202ca367c085698ff554fe8f124 # v4.3.1
         with:
           lenient: false
           version: ${{ github.event.inputs.version }}
