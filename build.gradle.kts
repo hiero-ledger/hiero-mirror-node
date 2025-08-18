@@ -18,12 +18,13 @@ extra.apply {
     set("blockNodeVersion", "0.16.1")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.74.0")
-    set("jooq.version", "3.20.5") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.20.6") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("netty.version", "4.1.124.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "22.17.1")
     set("protobufVersion", "4.32.0")
     set("reactorGrpcVersion", "1.2.4")
+    set("spring-framework.version", "6.2.10") // Temporary until next Spring Boot
     set("tomcat.version", "10.1.44") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
