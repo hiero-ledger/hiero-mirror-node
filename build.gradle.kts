@@ -22,7 +22,7 @@ extra.apply {
     set("mapStructVersion", "1.6.3")
     set("netty.version", "4.1.124.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "22.17.1")
-    set("protobufVersion", "4.31.1")
+    set("protobufVersion", "4.32.0")
     set("reactorGrpcVersion", "1.2.4")
     set("tomcat.version", "10.1.44") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
