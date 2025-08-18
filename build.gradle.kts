@@ -24,6 +24,7 @@ extra.apply {
     set("nodeJsVersion", "22.17.1")
     set("protobufVersion", "4.32.0")
     set("reactorGrpcVersion", "1.2.4")
+    set("spring-framework.version", "6.2.10") // Temporary until next Spring Boot
     set("tomcat.version", "10.1.44") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
