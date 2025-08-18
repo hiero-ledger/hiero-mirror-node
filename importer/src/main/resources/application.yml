@@ -91,8 +91,10 @@ spring:
       maximumPoolSize: 20
   flyway:
     baselineOnMigrate: true
+    baselineVersion: 0
     connectRetries: 20
     ignoreMigrationPatterns: ["*:missing", "*:ignored"]
+    locations: "classpath:db/migration/common, classpath:db/migration/v1"
     password: ${hiero.mirror.importer.db.ownerPassword}
     placeholders:
       api-password: ${hiero.mirror.importer.db.restPassword}
@@ -105,6 +107,7 @@ spring:
       schema: ${hiero.mirror.importer.db.schema}
       shardCount: 16
       tempSchema: ${hiero.mirror.importer.db.tempSchema}
+    target: latest
     user: ${hiero.mirror.importer.db.owner}
   jpa:
     properties:
@@ -124,3 +127,12 @@ spring:
     scheduling:
       pool:
         size: 6
+
+---
+spring:
+  config:
+    activate:
+      on-profile: v2
+  flyway:
+    baselineVersion: 1.999.999
+    locations: "classpath:db/migration/common, classpath:db/migration/v2"
