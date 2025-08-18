@@ -118,6 +118,7 @@ jobs:
             "-Dhiero.mirror.test.acceptance.nodes[0].port=50211" \
             -Dhiero.mirror.test.acceptance.operatorKey=${OPERATOR_KEY} \
             -Dhiero.mirror.test.acceptance.rest.baseUrl=http://localhost:8081 \
+            -Dhiero.mirror.test.acceptance.web3.modularizedServices=true
 
       - name: Show Pod Logs on Failure
         if: ${{ failure() }}
