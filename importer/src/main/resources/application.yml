@@ -103,17 +103,7 @@ spring:
   flyway:
     baselineOnMigrate: true
     connectRetries: 20
-    hikari:
-      connection-init-sql: ${hiero.mirror.importer.db.connectionInitSql}
-      data-source-properties: ${spring.datasource.hikari.data-source-properties}
-      idle-timeout: 60000
-      maximum-pool-size: 10
-      minimumIdle: 0
-      password: ${hiero.mirror.importer.db.ownerPassword}
-      pool-name: hikari-owner-pool
-      username: ${hiero.mirror.importer.db.owner}
     ignoreMigrationPatterns: ["*:missing", "*:ignored"]
-    password: ${hiero.mirror.importer.db.ownerPassword}
     placeholders:
       api-password: ${hiero.mirror.importer.db.restPassword}
       api-user: ${hiero.mirror.importer.db.restUsername}
@@ -125,7 +115,6 @@ spring:
       schema: ${hiero.mirror.importer.db.schema}
       shardCount: 16
       tempSchema: ${hiero.mirror.importer.db.tempSchema}
-    user: ${hiero.mirror.importer.db.owner}
   jpa:
     properties:
       hibernate:

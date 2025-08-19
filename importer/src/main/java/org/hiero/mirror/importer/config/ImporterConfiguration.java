@@ -4,12 +4,13 @@ package org.hiero.mirror.importer.config;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import javax.sql.DataSource;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.leader.LeaderAspect;
 import org.hiero.mirror.importer.leader.LeaderService;
-import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnCloudPlatform;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -17,10 +18,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
 import org.springframework.boot.autoconfigure.flyway.FlywayConfigurationCustomizer;
+import org.springframework.boot.autoconfigure.flyway.FlywayDataSource;
 import org.springframework.boot.autoconfigure.jdbc.JdbcConnectionDetails;
 import org.springframework.boot.cloud.CloudPlatform;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.annotation.EnableRetry;
@@ -50,18 +50,25 @@ class ImporterConfiguration {
         return Boolean.TRUE::booleanValue; // Leader election not available outside Kubernetes
     }
 
-    @Bean
-    @ConfigurationProperties(prefix = "spring.flyway.hikari")
-    @Owner
-    HikariConfig flywayHikariConfig(JdbcConnectionDetails connectionDetails) {
-        var config = new HikariConfig();
-        config.setJdbcUrl(connectionDetails.getJdbcUrl());
-        return config;
+    @Bean(defaultCandidate = false)
+    @FlywayDataSource
+    DataSource flywayDataSource(
+            JdbcConnectionDetails connectionDetails, DBProperties dbProperties, HikariConfig hikariConfig) {
+        var flywayHikariConfig = new HikariConfig();
+        hikariConfig.copyStateTo(flywayHikariConfig);
+
+        flywayHikariConfig.setJdbcUrl(connectionDetails.getJdbcUrl());
+        flywayHikariConfig.setUsername(dbProperties.getOwner());
+        flywayHikariConfig.setPassword(dbProperties.getOwnerPassword());
+        flywayHikariConfig.setMinimumIdle(0);
+        flywayHikariConfig.setIdleTimeout(60000);
+        flywayHikariConfig.setMaximumPoolSize(10);
+        flywayHikariConfig.setPoolName(hikariConfig.getPoolName() + "_flyway");
+        return new HikariDataSource(flywayHikariConfig);
     }
 
     @Bean
-    FlywayConfigurationCustomizer flywayConfigurationCustomizer(
-            @Owner HikariConfig hikariConfig, ApplicationContext context) {
+    FlywayConfigurationCustomizer flywayConfigurationCustomizer() {
         return configuration -> {
             Long timestamp = importerProperties.getTopicRunningHashV2AddedTimestamp();
             if (timestamp == null) {
@@ -71,12 +78,8 @@ class ImporterConfiguration {
                     timestamp = 1588706343553042000L;
                 }
             }
-            var flywayDatasource = new HikariDataSource(hikariConfig);
-            var beanFactory = (DefaultListableBeanFactory) context.getAutowireCapableBeanFactory();
-            beanFactory.registerDisposableBean("flywayDataSource", flywayDatasource::close);
 
             configuration.getPlaceholders().put("topicRunningHashV2AddedTimestamp", timestamp.toString());
-            configuration.dataSource(flywayDatasource);
         };
     }
 
