@@ -252,6 +252,8 @@ alter table non_fee_transfer add constraint fk_non_fee_transfer_payer_account_id
 alter table prng add constraint fk_prng_consensus_timestamp foreign key (consensus_timestamp) references transaction (consensus_timestamp);
 alter table prng add constraint fk_prng_payer_account_id foreign key (payer_account_id) references entity (id);
 alter table reconciliation_job add constraint fk_reconciliation_job_consensus_timestamp foreign key (consensus_timestamp) references transaction (consensus_timestamp);
+alter table record_file add constraint fk_record_file_consensus_start foreign key (consensus_start) references transaction (consensus_timestamp);
+alter table record_file add constraint fk_record_file_node_id foreign key (node_id) references node (node_id);
 alter table schedule add constraint fk_schedule_consensus_timestamp foreign key (consensus_timestamp) references transaction (consensus_timestamp);
 alter table schedule add constraint fk_schedule_creator_account_id foreign key (creator_account_id) references entity (id);
 alter table schedule add constraint fk_schedule_executed_timestamp foreign key (executed_timestamp) references transaction (consensus_timestamp);
