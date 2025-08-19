@@ -201,11 +201,13 @@ alter table entity_history add constraint fk_entity_history_staked_node_id forei
 alter table entity_history add constraint fk_entity_history_timestamp_range foreign key (timestamp_range) references transaction (consensus_timestamp);
 alter table entity_stake add constraint fk_entity_stake_id foreign key (id) references entity (id);
 alter table entity_stake add constraint fk_entity_stake_timestamp_range foreign key (timestamp_range) references transaction (consensus_timestamp);
+alter table entity_stake add constraint fk_entity_stake_staked_node_id foreign key (staked_node_id_start) references node (node_id);
 alter table entity_stake_history add constraint fk_entity_stake_history_id foreign key (id) references entity (id);
 alter table entity_stake_history add constraint fk_entity_stake_history_timestamp_range foreign key (timestamp_range) references transaction (consensus_timestamp);
 alter table entity_transaction add constraint fk_entity_transaction_consensus_timestamp foreign key (consensus_timestamp) references transaction (consensus_timestamp);
 alter table entity_transaction add constraint fk_entity_transaction_entity_id foreign key (entity_id) references entity (id);
 alter table entity_transaction add constraint fk_entity_transaction_payer_account_id foreign key (payer_account_id) references entity (id);
+alter table ethereum_transaction add constraint fk_ethereum_transaction_call_data_id foreign key (call_data_id) references entity (id);
 alter table ethereum_transaction add constraint fk_ethereum_transaction_consensus_timestamp foreign key (consensus_timestamp) references transaction (consensus_timestamp);
 alter table ethereum_transaction add constraint fk_ethereum_transaction_payer_account_id foreign key (payer_account_id) references entity (id);
 alter table file_data add constraint fk_file_data_consensus_timestamp foreign key (consensus_timestamp) references transaction (consensus_timestamp);
@@ -251,6 +253,7 @@ alter table prng add constraint fk_prng_payer_account_id foreign key (payer_acco
 alter table reconciliation_job add constraint fk_reconciliation_job_consensus_timestamp foreign key (consensus_timestamp) references transaction (consensus_timestamp);
 alter table schedule add constraint fk_schedule_consensus_timestamp foreign key (consensus_timestamp) references transaction (consensus_timestamp);
 alter table schedule add constraint fk_schedule_creator_account_id foreign key (creator_account_id) references entity (id);
+alter table schedule add constraint fk_schedule_executed_timestamp foreign key (executed_timestamp) references transaction (consensus_timestamp);
 alter table schedule add constraint fk_schedule_payer_account_id foreign key (payer_account_id) references entity (id);
 alter table schedule add constraint fk_schedule_schedule_id foreign key (schedule_id) references entity (id);
 alter table sidecar_file add constraint fk_sidecar_file_consensus_end foreign key (consensus_end) references record_file (consensus_end);
