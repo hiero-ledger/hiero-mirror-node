@@ -89,7 +89,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -169,7 +169,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -251,7 +251,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -335,7 +335,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -406,7 +406,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -478,7 +478,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -601,7 +601,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -733,7 +733,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -842,7 +842,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -976,7 +976,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -1110,7 +1110,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -1244,7 +1244,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -1353,7 +1353,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -1463,7 +1463,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -1572,7 +1572,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -1681,7 +1681,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -1790,7 +1790,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -1911,7 +1911,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -2036,7 +2036,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -2199,7 +2199,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -2360,7 +2360,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -2491,7 +2491,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -2525,10 +2525,12 @@
           "datasource": {
             "uid": "${prometheus}"
           },
-          "expr": "avg(hikaricp_connections_pending{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "editorMode": "code",
+          "expr": "avg(hikaricp_connections_pending{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "hide": false,
           "interval": "1m",
           "legendFormat": "pending",
+          "range": true,
           "refId": "E"
         }
       ],
@@ -2642,7 +2644,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -2676,7 +2678,7 @@
           "datasource": {
             "uid": "${prometheus}"
           },
-          "expr": "avg(jdbc_connections_min{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "avg(jdbc_connections_min{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "hide": false,
           "interval": "1m",
           "legendFormat": "min",
@@ -2775,7 +2777,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -2791,6 +2793,113 @@
         }
       ],
       "title": "Query Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "The maximum amount of time it takes to invoke the Spring Data repository method to execute a query.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": 3600000,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 250
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 153
+      },
+      "id": 101,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.2.0-16677249643",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "max(spring_data_repository_invocations_seconds_max{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}) by (repository, method)",
+          "interval": "",
+          "legendFormat": "{{repository}}.{{method}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Max Query Latency",
       "type": "timeseries"
     },
     {
@@ -2860,7 +2969,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 153
+        "y": 162
       },
       "id": 98,
       "options": {
@@ -2882,7 +2991,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -2935,7 +3044,7 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -2967,7 +3076,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 162
+        "y": 171
       },
       "id": 84,
       "options": {
@@ -2983,7 +3092,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -3002,12 +3111,124 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "The the number of pods running.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": 3600000,
+            "lineInterpolation": "smooth",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 12
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 179
+      },
+      "id": 100,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.2.0-16677249643",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "count(process_uptime_seconds{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
+          "interval": "",
+          "legendFormat": "Replicas",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Replicas",
+      "type": "timeseries"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 170
+        "y": 187
       },
       "id": 88,
       "panels": [],
@@ -3087,7 +3308,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 171
+        "y": 188
       },
       "id": 89,
       "options": {
@@ -3105,7 +3326,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -3196,7 +3417,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 171
+        "y": 188
       },
       "id": 90,
       "options": {
@@ -3214,7 +3435,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -3305,7 +3526,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 179
+        "y": 196
       },
       "id": 91,
       "options": {
@@ -3323,7 +3544,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -3414,7 +3635,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 179
+        "y": 196
       },
       "id": 92,
       "options": {
@@ -3432,7 +3653,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -3456,7 +3677,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 187
+        "y": 204
       },
       "id": 35,
       "panels": [],
@@ -3623,7 +3844,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 188
+        "y": 205
       },
       "id": 5,
       "options": {
@@ -3639,7 +3860,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16677249643",
       "targets": [
         {
           "datasource": {
@@ -3669,7 +3890,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 196
+        "y": 213
       },
       "id": 54,
       "options": {
@@ -3683,7 +3904,7 @@
         "sortOrder": "Ascending",
         "wrapLogMessage": false
       },
-      "pluginVersion": "12.1.0-89256.patch1-89350",
+      "pluginVersion": "12.2.0-16606054638",
       "targets": [
         {
           "datasource": {
@@ -3847,5 +4068,5 @@
   "timezone": "",
   "title": "Mirror Web3 API",
   "uid": "Si3C9zAnk",
-  "version": 6
+  "version": 7
 }

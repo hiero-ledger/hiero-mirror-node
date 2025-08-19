@@ -71,11 +71,11 @@ public class StartupProbe {
         callRestEndpoint(stopwatch, transactionId);
         long startTime;
 
-        // Submit a topic message and ensure it's seen by mirror node within 30s to ensure the importer is caught up
+        // Submit a topic message and ensure it's seen by mirror node to ensure the importer is caught up
         do {
             startTime = System.currentTimeMillis();
             submitMessage(client, stopwatch, topicId);
-        } while (System.currentTimeMillis() - startTime > 10_000);
+        } while (System.currentTimeMillis() - startTime > 15_000);
 
         client.setNodeMaxBackoff(maxNodeBackoff);
         client.setMaxNodeReadmitTime(maxNodeBackoff);

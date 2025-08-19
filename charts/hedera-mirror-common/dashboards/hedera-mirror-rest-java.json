@@ -1630,7 +1630,7 @@
           "datasource": {
             "uid": "${prometheus}"
           },
-          "expr": "avg(hikaricp_connections_pending{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "avg(hikaricp_connections_pending{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "hide": false,
           "interval": "1m",
           "legendFormat": "pending",
@@ -1781,7 +1781,7 @@
           "datasource": {
             "uid": "${prometheus}"
           },
-          "expr": "avg(jdbc_connections_min{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
+          "expr": "avg(jdbc_connections_min{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
           "hide": false,
           "interval": "1m",
           "legendFormat": "min",
@@ -2950,5 +2950,5 @@
   "timezone": "",
   "title": "Mirror REST Java API",
   "uid": "Fi3C9zAnk",
-  "version": 3
+  "version": 4
 }

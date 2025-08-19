@@ -19,6 +19,7 @@ import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
 import com.hederahashgraph.api.proto.java.Transaction;
+import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -40,7 +41,7 @@ import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 public class BlockStreamReaderImpl implements BlockStreamReader {
 
     @Override
-    public BlockFile read(@NotNull BlockStream blockStream) {
+    public BlockFile read(@Nonnull BlockStream blockStream) {
         var context = new ReaderContext(blockStream.blockItems(), blockStream.filename());
         byte[] bytes = blockStream.bytes();
         Integer size = bytes != null ? bytes.length : null;
