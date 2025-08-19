@@ -2,92 +2,92 @@
 -- STEP 1: TRUNCATE ALL DATA
 -- Clean up test data to ensure foreign key constraints work properly
 -- ====================================================================================
-DO
+do
 $$
-    DECLARE
+    declare
         tbl text;
-    BEGIN
+    begin
         -- Loop through all tables in the public schema
-        FOR tbl IN
-            SELECT tablename
-            FROM pg_tables
-            WHERE schemaname = 'public'
-            LOOP
-                EXECUTE format('TRUNCATE TABLE %I CASCADE;', tbl);
-            END LOOP;
-    END;
+        for tbl in
+            select tablename
+            from pg_tables
+            where schemaname = 'public'
+            loop
+                execute format('truncate table %I cascade;', tbl);
+            end loop;
+    end;
 $$;
 -- ====================================================================================
 -- STEP 2: DROP ALL PARTITIONS
 -- WARNING: This removes all partition data. Backup before running!
 -- ====================================================================================
-DO
+do
 $$
-    DECLARE
-        r                  RECORD;
-        drop_count         INTEGER := 0;
-        converted_count    INTEGER := 0;
-        partitioned_tables TEXT[];
-    BEGIN
-        RAISE NOTICE 'Starting partition removal...';
+    declare
+        r                  record;
+        drop_count         integer := 0;
+        converted_count    integer := 0;
+        partitioned_tables text[];
+    begin
+        raise notice 'Starting partition removal...';
         -- Get partitioned parent tables
-        SELECT ARRAY(SELECT DISTINCT parent FROM mirror_node_time_partitions ORDER BY parent) INTO partitioned_tables;
+        select array(select distinct parent from mirror_node_time_partitions order by parent) into partitioned_tables;
         -- Drop ALL partition tables in one combined loop
-        FOR r IN (
+        for r in (
             -- Time-based partitions from view
-            SELECT name AS table_name, 'time' AS type
-            FROM mirror_node_time_partitions
-            UNION ALL
+            select name as table_name, 'time' as type
+            from mirror_node_time_partitions
+            union all
             -- Transaction hash sharded partitions
-            SELECT tablename, 'hash'
-            FROM pg_tables
-            WHERE schemaname = 'public'
-              AND (tablename ~ '^transaction_hash_sharded_[0-9]{2}$' OR tablename ~ '^transaction_hash_[0-9]{2}$')
-            UNION ALL
+            select tablename, 'hash'
+            from pg_tables
+            where schemaname = 'public'
+              and (tablename ~ '^transaction_hash_sharded_[0-9]{2}$' or tablename ~ '^transaction_hash_[0-9]{2}$')
+            union all
             -- Orphaned time partitions not in view
-            SELECT tablename, 'orphan'
-            FROM pg_tables
-            WHERE schemaname = 'public'
-              AND tablename ~ '_p[0-9]{4}_[0-9]{2}$'
-              AND NOT EXISTS (SELECT 1 FROM mirror_node_time_partitions WHERE name = tablename))
-            LOOP
-                BEGIN
-                    EXECUTE format('DROP TABLE IF EXISTS %I CASCADE', r.table_name);
+            select tablename, 'orphan'
+            from pg_tables
+            where schemaname = 'public'
+              and tablename ~ '_p[0-9]{4}_[0-9]{2}$'
+              and not exists (select 1 from mirror_node_time_partitions where name = tablename))
+            loop
+                begin
+                    execute format('drop table if exists %I cascade', r.table_name);
                     drop_count := drop_count + 1;
-                    RAISE NOTICE 'Dropped % partition: %', r.type, r.table_name;
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        RAISE WARNING 'Failed to drop %: %', r.table_name, SQLERRM;
-                END;
-            END LOOP;
+                    raise notice 'Dropped % partition: %', r.type, r.table_name;
+                exception
+                    when others then
+                        raise warning 'Failed to drop %: %', r.table_name, sqlerrm;
+                end;
+            end loop;
         -- Convert ALL partitioned tables to regular tables
-        FOR r IN (SELECT c.relname AS table_name
-                  FROM pg_partitioned_table pt
-                           JOIN pg_class c ON pt.partrelid = c.oid
-                           JOIN pg_namespace n ON c.relnamespace = n.oid
-                  WHERE n.nspname = 'public')
-            LOOP
-                BEGIN
-                    EXECUTE format('CREATE TABLE %I_temp (LIKE %I INCLUDING ALL)', r.table_name, r.table_name);
-                    EXECUTE format('DROP TABLE %I CASCADE', r.table_name);
-                    EXECUTE format('alter table %I_temp RENAME TO %I', r.table_name, r.table_name);
+        for r in (select c.relname as table_name
+                  from pg_partitioned_table pt
+                           join pg_class c on pt.partrelid = c.oid
+                           join pg_namespace n on c.relnamespace = n.oid
+                  where n.nspname = 'public')
+            loop
+                begin
+                    execute format('create table %I_temp (like %I including all)', r.table_name, r.table_name);
+                    execute format('drop table %I cascade', r.table_name);
+                    execute format('alter table %I_temp rename to %I', r.table_name, r.table_name);
                     converted_count := converted_count + 1;
-                    RAISE NOTICE 'Converted to regular table: %', r.table_name;
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        RAISE WARNING 'Failed to convert %: %', r.table_name, SQLERRM;
-                        EXECUTE format('DROP TABLE IF EXISTS %I_temp', r.table_name);
-                END;
-            END LOOP;
+                    raise notice 'Converted to regular table: %', r.table_name;
+                exception
+                    when others then
+                        raise warning 'Failed to convert %: %', r.table_name, sqlerrm;
+                        execute format('drop table if exists %I_temp', r.table_name);
+                end;
+            end loop;
         -- Summary and verification
-        RAISE NOTICE 'Complete! Dropped: % partitions, Converted: % tables', drop_count, converted_count;
-        PERFORM 1 FROM mirror_node_time_partitions LIMIT 1;
-        IF NOT FOUND THEN
-            RAISE NOTICE 'SUCCESS: All partitions removed, tables converted to regular tables';
-        ELSE
-            RAISE WARNING 'WARNING: Some partitions may still exist';
-        END IF;
-    END
+        raise notice 'Complete! Dropped: % partitions, Converted: % tables', drop_count, converted_count;
+        perform 1 from mirror_node_time_partitions limit 1;
+        if not found then
+            raise notice 'SUCCESS: All partitions removed, tables converted to regular tables';
+        else
+            raise warning 'WARNING: Some partitions may still exist';
+        end if;
+    end
 $$;
 -- ====================================================================================
 -- STEP 3: RECREATE COLUMN TIMESTAMP_RANGE AS BIGINT FOR ERD VISUALIZATION
@@ -341,32 +341,32 @@ alter table transaction_signature add constraint fk_transaction_signature_entity
 -- ====================================================================================
 -- COMPLETION MESSAGE AND VERIFICATION
 -- ====================================================================================
-DO
+do
 $$
-    DECLARE
-        fk_count    INTEGER;
-        table_count INTEGER;
-    BEGIN
+    declare
+        fk_count    integer;
+        table_count integer;
+    begin
         -- Count foreign key constraints
-        SELECT COUNT(*)
-        INTO fk_count
-        FROM information_schema.table_constraints
-        WHERE constraint_type = 'FOREIGN KEY'
-          AND table_schema = 'public';
+        select count(*)
+        into fk_count
+        from information_schema.table_constraints
+        where constraint_type = 'FOREIGN KEY'
+          and table_schema = 'public';
         -- Count tables
-        SELECT COUNT(*)
-        INTO table_count
-        FROM information_schema.tables
-        WHERE table_schema = 'public'
-          AND table_type = 'BASE TABLE';
-        RAISE NOTICE 'ERD preparation complete! Database is ready for ERD generation.';
-        RAISE NOTICE '1. Data truncated from all tables';
-        RAISE NOTICE '2. All partitions dropped and converted to regular tables';
-        RAISE NOTICE '3. All foreign key constraints added';
-        RAISE NOTICE 'Database contains % tables and % foreign key constraints', table_count, fk_count;
-        RAISE NOTICE 'You can now generate the ERD using IntelliJ IDEA or other ERD tools.';
-        IF fk_count = 0 THEN
-            RAISE WARNING 'No foreign key constraints found! Check for errors in constraint creation.';
-        END IF;
-    END
-$$;
+        select count(*)
+        into table_count
+        from information_schema.tables
+        where table_schema = 'public'
+          and table_type = 'BASE TABLE';
+        raise notice 'ERD preparation complete! Database is ready for ERD generation.';
+        raise notice '1. Data truncated from all tables';
+        raise notice '2. All partitions dropped and converted to regular tables';
+        raise notice '3. All foreign key constraints added';
+        raise notice 'Database contains % tables and % foreign key constraints', table_count, fk_count;
+        raise notice 'You can now generate the ERD using IntelliJ IDEA or other ERD tools.';
+        if fk_count = 0 then
+            raise warning 'No foreign key constraints found! Check for errors in constraint creation.';
+        end if;
+    end
+$$;	
