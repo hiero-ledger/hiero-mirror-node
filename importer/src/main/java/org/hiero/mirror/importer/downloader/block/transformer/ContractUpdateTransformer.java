@@ -10,8 +10,8 @@ final class ContractUpdateTransformer extends AbstractContractTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        if (!blockItem.isSuccessful()) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
@@ -23,7 +23,7 @@ final class ContractUpdateTransformer extends AbstractContractTransformer {
                 .getTransactionBody()
                 .getContractUpdateInstance()
                 .getContractID();
-        resolveEvmAddress(contractId, receiptBuilder, blockItem.getStateChangeContext());
+        resolveEvmAddress(contractId, receiptBuilder, blockTransaction.getStateChangeContext());
     }
 
     @Override

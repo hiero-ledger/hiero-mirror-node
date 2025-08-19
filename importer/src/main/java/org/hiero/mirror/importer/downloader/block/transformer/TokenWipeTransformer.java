@@ -10,8 +10,8 @@ final class TokenWipeTransformer extends AbstractTokenTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        if (!blockItem.isSuccessful()) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
@@ -19,7 +19,10 @@ final class TokenWipeTransformer extends AbstractTokenTransformer {
         var tokenId = body.getToken();
         long amount = body.getAmount() + body.getSerialNumbersCount();
         updateTotalSupply(
-                blockTransactionTransformation.recordItemBuilder(), blockItem.getStateChangeContext(), tokenId, amount);
+                blockTransactionTransformation.recordItemBuilder(),
+                blockTransaction.getStateChangeContext(),
+                tokenId,
+                amount);
     }
 
     @Override

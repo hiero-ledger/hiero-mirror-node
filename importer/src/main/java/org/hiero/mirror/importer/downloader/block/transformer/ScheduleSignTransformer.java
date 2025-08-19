@@ -12,12 +12,12 @@ final class ScheduleSignTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        if (!blockItem.isSuccessful()) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
-        blockItem
+        blockTransaction
                 .getTransactionOutput(TransactionCase.SIGN_SCHEDULE)
                 .map(TransactionOutput::getSignSchedule)
                 .ifPresent(signSchedule -> {

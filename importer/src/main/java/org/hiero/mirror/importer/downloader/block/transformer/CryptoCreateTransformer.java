@@ -13,8 +13,8 @@ final class CryptoCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        if (!blockItem.isSuccessful()) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
@@ -27,7 +27,7 @@ final class CryptoCreateTransformer extends AbstractBlockItemTransformer {
             recordBuilder.setEvmAddress(alias);
         }
 
-        var accountCreate = blockItem
+        var accountCreate = blockTransaction
                 .getTransactionOutput(TransactionCase.ACCOUNT_CREATE)
                 .map(TransactionOutput::getAccountCreate)
                 .orElseThrow();

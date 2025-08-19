@@ -14,13 +14,13 @@ final class UtilPrngTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        if (!blockItem.isSuccessful()) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
         var recordBuilder = blockTransactionTransformation.recordItemBuilder().transactionRecordBuilder();
-        var utilPrng = blockItem
+        var utilPrng = blockTransaction
                 .getTransactionOutput(TransactionCase.UTIL_PRNG)
                 .map(TransactionOutput::getUtilPrng)
                 .orElseThrow();
@@ -31,7 +31,7 @@ final class UtilPrngTransformer extends AbstractBlockItemTransformer {
                 log.warn(
                         "Unhandled entropy case {} for transaction at {}",
                         utilPrng.getEntropyCase(),
-                        blockItem.getConsensusTimestamp());
+                        blockTransaction.getConsensusTimestamp());
         }
     }
 

@@ -14,9 +14,9 @@ final class ScheduleCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        if (!blockItem.isSuccessful()
-                && blockItem.getTransactionResult().getStatus() != IDENTICAL_SCHEDULE_ALREADY_CREATED) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()
+                && blockTransaction.getTransactionResult().getStatus() != IDENTICAL_SCHEDULE_ALREADY_CREATED) {
             return;
         }
 
@@ -24,7 +24,7 @@ final class ScheduleCreateTransformer extends AbstractBlockItemTransformer {
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        var createSchedule = blockItem
+        var createSchedule = blockTransaction
                 .getTransactionOutput(TransactionCase.CREATE_SCHEDULE)
                 .map(TransactionOutput::getCreateSchedule)
                 .orElseThrow();

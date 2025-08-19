@@ -10,8 +10,8 @@ final class NodeCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        if (!blockItem.isSuccessful()) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
@@ -20,7 +20,7 @@ final class NodeCreateTransformer extends AbstractBlockItemTransformer {
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
         receiptBuilder.setNodeId(
-                blockItem.getStateChangeContext().getNewNodeId().orElseThrow());
+                blockTransaction.getStateChangeContext().getNewNodeId().orElseThrow());
     }
 
     @Override

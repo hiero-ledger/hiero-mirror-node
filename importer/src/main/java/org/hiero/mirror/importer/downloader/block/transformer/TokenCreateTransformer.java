@@ -10,8 +10,8 @@ final class TokenCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        if (!blockItem.isSuccessful()) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
@@ -23,7 +23,7 @@ final class TokenCreateTransformer extends AbstractBlockItemTransformer {
                 .getTransactionBody()
                 .getTokenCreation()
                 .getInitialSupply());
-        blockItem
+        blockTransaction
                 .getStateChangeContext()
                 .getNewTokenId()
                 .map(receiptBuilder::setTokenID)

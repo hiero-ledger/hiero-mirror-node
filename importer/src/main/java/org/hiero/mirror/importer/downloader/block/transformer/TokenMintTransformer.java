@@ -12,12 +12,12 @@ final class TokenMintTransformer extends AbstractTokenTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        if (!blockItem.isSuccessful()) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
-        var tokenTransferLists = blockItem.getTransactionResult().getTokenTransferListsList();
+        var tokenTransferLists = blockTransaction.getTransactionResult().getTokenTransferListsList();
         var serialNumbers = new ArrayList<Long>();
         for (var tokenTransferList : tokenTransferLists) {
             for (var nftTransfer : tokenTransferList.getNftTransfersList()) {
@@ -32,7 +32,7 @@ final class TokenMintTransformer extends AbstractTokenTransformer {
         var body = blockTransactionTransformation.getTransactionBody().getTokenMint();
         var tokenId = body.getToken();
         long amount = body.getAmount() + body.getMetadataCount();
-        updateTotalSupply(recordItemBuilder, blockItem.getStateChangeContext(), tokenId, -amount);
+        updateTotalSupply(recordItemBuilder, blockTransaction.getStateChangeContext(), tokenId, -amount);
     }
 
     @Override

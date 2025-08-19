@@ -14,8 +14,8 @@ final class EthereumTransactionTransformer extends AbstractBlockItemTransformer 
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        blockItem
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        blockTransaction
                 .getTransactionOutput(TransactionCase.ETHEREUM_CALL)
                 .map(TransactionOutput::getEthereumCall)
                 .ifPresent(ethereumCall -> {
@@ -40,7 +40,7 @@ final class EthereumTransactionTransformer extends AbstractBlockItemTransformer 
                     //                            log.warn(
                     //                                    "Unhandled eth_result case {} for transaction at {}",
                     //                                    ethereumCall.getEthResultCase(),
-                    //                                    blockItem.getConsensusTimestamp());
+                    //                                    blockTransaction.getConsensusTimestamp());
                     //                    }
                 });
     }

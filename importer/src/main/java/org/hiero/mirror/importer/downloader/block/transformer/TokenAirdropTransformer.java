@@ -23,19 +23,19 @@ final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        if (!blockItem.isSuccessful()) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
         var recordBuilder = blockTransactionTransformation.recordItemBuilder().transactionRecordBuilder();
         var pendingAirdrops = getPendingAirdrops(
                 blockTransactionTransformation.getTransactionBody().getTokenAirdrop(),
-                blockItem.getTransactionResult());
+                blockTransaction.getTransactionResult());
         for (var pendingAirdrop : pendingAirdrops) {
             var pendingAirdropId = pendingAirdrop.id();
             if (pendingAirdropId.hasFungibleTokenType()) {
-                blockItem
+                blockTransaction
                         .getStateChangeContext()
                         .trackPendingFungibleAirdrop(pendingAirdropId, pendingAirdrop.amount())
                         .ifPresentOrElse(
@@ -46,7 +46,7 @@ final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
                                 () -> {
                                     log.warn(
                                             "Fungible pending airdrop not found in state at {}",
-                                            blockItem.getConsensusTimestamp());
+                                            blockTransaction.getConsensusTimestamp());
                                     recordBuilder.addNewPendingAirdrops(PendingAirdropRecord.newBuilder()
                                             .setPendingAirdropId(pendingAirdropId)
                                             .setPendingAirdropValue(PendingAirdropValue.newBuilder()

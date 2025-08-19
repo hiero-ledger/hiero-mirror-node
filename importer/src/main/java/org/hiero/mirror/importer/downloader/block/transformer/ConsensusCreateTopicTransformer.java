@@ -10,8 +10,8 @@ final class ConsensusCreateTopicTransformer extends AbstractBlockItemTransformer
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        if (!blockItem.isSuccessful()) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
@@ -20,7 +20,7 @@ final class ConsensusCreateTopicTransformer extends AbstractBlockItemTransformer
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
         receiptBuilder.setTopicID(
-                blockItem.getStateChangeContext().getNewTopicId().orElseThrow());
+                blockTransaction.getStateChangeContext().getNewTopicId().orElseThrow());
     }
 
     @Override

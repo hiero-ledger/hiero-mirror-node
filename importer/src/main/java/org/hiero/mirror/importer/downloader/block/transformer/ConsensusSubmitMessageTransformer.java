@@ -13,13 +13,13 @@ final class ConsensusSubmitMessageTransformer extends AbstractBlockItemTransform
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        if (!blockItem.isSuccessful()) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
         var recordBuilder = blockTransactionTransformation.recordItemBuilder().transactionRecordBuilder();
-        var topicMessage = blockItem
+        var topicMessage = blockTransaction
                 .getStateChangeContext()
                 .getTopicMessage(blockTransactionTransformation
                         .getTransactionBody()

@@ -10,8 +10,8 @@ final class FileCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockItem = blockTransactionTransformation.blockTransaction();
-        if (!blockItem.isSuccessful()) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
@@ -20,7 +20,7 @@ final class FileCreateTransformer extends AbstractBlockItemTransformer {
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
         receiptBuilder.setFileID(
-                blockItem.getStateChangeContext().getNewFileId().orElseThrow());
+                blockTransaction.getStateChangeContext().getNewFileId().orElseThrow());
     }
 
     @Override
