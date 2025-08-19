@@ -4,6 +4,7 @@ name: "Gradle"
 on:
   pull_request:
     branches:
+      - "hip-1056-latest-spec-0.65"
       - "main"
       - "release/**"
   push:
