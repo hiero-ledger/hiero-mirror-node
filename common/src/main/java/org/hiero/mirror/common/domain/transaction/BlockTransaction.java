@@ -24,7 +24,6 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Value;
-import lombok.experimental.NonFinal;
 import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.util.CollectionUtils;
@@ -40,12 +39,9 @@ public class BlockTransaction implements StreamItem {
     private final Long parentConsensusTimestamp;
     private final BlockTransaction previous;
     private final List<StateChanges> stateChanges;
-    private final boolean successful;
     private final SignedTransaction signedTransaction;
-
-    @NonFinal
-    private byte[] signedTransactionBytes;
-
+    private final byte[] signedTransactionBytes;
+    private final boolean successful;
     private final TransactionBody transactionBody;
 
     @Getter(lazy = true)
