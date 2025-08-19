@@ -60,14 +60,13 @@ dependencies {
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.20.0")
         api("io.cucumber:cucumber-bom:7.23.0")
+        api("io.fabric8:kubernetes-client-bom:7.3.1")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.10.3")
         api("io.projectreactor:reactor-core-micrometer:1.2.9")
         api("io.swagger:swagger-annotations:1.6.16")
-        api("io.vertx:vertx-core:4.5.16") // Temporary until next Spring Boot
-        api("io.vertx:vertx-web:4.5.16") // Temporary until next Spring Boot
-        api("io.vertx:vertx-web-client:4.5.16") // Temporary until next Spring Boot
+        api("io.vertx:vertx-web:4.5.16") // Temporary until next Fabric8 version
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("javax.inject:javax.inject:1")
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
@@ -87,7 +86,6 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.10")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
-        api("org.springframework.cloud:spring-cloud-dependencies:2025.0.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:4.12.2")
         api("software.amazon.awssdk:bom:2.32.24")
