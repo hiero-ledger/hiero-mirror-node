@@ -106,7 +106,9 @@ spring:
     hikari:
       connection-init-sql: ${hiero.mirror.importer.db.connectionInitSql}
       data-source-properties: ${spring.datasource.hikari.data-source-properties}
+      idle-timeout: 60000
       maximum-pool-size: 10
+      minimumIdle: 0
       password: ${hiero.mirror.importer.db.ownerPassword}
       pool-name: hikari-owner-pool
       username: ${hiero.mirror.importer.db.owner}
