@@ -10,30 +10,45 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import lombok.CustomLog;
 import org.hiero.mirror.common.util.DomainUtils;
 
 /**
- * Calculates a block's root hash per the algorithm defined in HIP-1056. Note both the input merkle tree and the output
- * merkle tree are padded with SHA2-384 hash of an empty bytearray to be perfect binary trees. Note none of the methods
- * are reentrant.
+ * Calculates a block's root hash per the algorithm defined in HIP-1056. Note all merkle subtrees are padded with
+ * SHA2-384 hash of an empty bytearray to be perfect binary trees. Note none of the methods are reentrant.
  */
+@CustomLog
 public final class BlockRootHashDigest {
 
-    private static final byte[] EMPTY_HASH = createSha384Digest().digest(new byte[0]);
+    public static final byte[] EMPTY_HASH = createSha384Digest().digest(new byte[0]);
 
+    private static final byte[] NULL_HASH = new byte[SHA_384.getSize()];
+
+    private final List<byte[]> consensusHeaderHashes = new ArrayList<>();
     private final MessageDigest digest = createSha384Digest();
     private boolean finalized;
     private final List<byte[]> inputHashes = new ArrayList<>();
     private final List<byte[]> outputHashes = new ArrayList<>();
     private byte[] previousHash;
     private byte[] startOfBlockStateHash;
+    private final List<byte[]> stateChangeHashes = new ArrayList<>();
+    private final List<byte[]> traceDataHashes = new ArrayList<>();
 
-    public void addInputBlockItem(BlockItem blockItem) {
-        inputHashes.add(digest.digest(blockItem.toByteArray()));
-    }
+    public void addBlockItem(BlockItem blockItem) {
+        var itemCase = blockItem.getItemCase();
+        var subTree =
+                switch (itemCase) {
+                    case BLOCK_HEADER, TRANSACTION_OUTPUT, TRANSACTION_RESULT -> outputHashes;
+                    case EVENT_HEADER, ROUND_HEADER -> consensusHeaderHashes;
+                    case SIGNED_TRANSACTION -> inputHashes;
+                    case STATE_CHANGES -> stateChangeHashes;
+                    case TRACE_DATA -> traceDataHashes;
+                    default -> null;
+                };
 
-    public void addOutputBlockItem(BlockItem blockItem) {
-        outputHashes.add(digest.digest(blockItem.toByteArray()));
+        if (subTree != null) {
+            subTree.add(digest.digest(blockItem.toByteArray()));
+        }
     }
 
     public String digest() {
@@ -44,11 +59,15 @@ public final class BlockRootHashDigest {
         validateHash(previousHash, "previousHash");
         validateHash(startOfBlockStateHash, "startOfBlockStateHash");
 
-        List<byte[]> leaves = new ArrayList<>();
+        List<byte[]> leaves = new ArrayList<>(8);
         leaves.add(previousHash);
+        leaves.add(startOfBlockStateHash);
+        leaves.add(getRootHash(consensusHeaderHashes));
         leaves.add(getRootHash(inputHashes));
         leaves.add(getRootHash(outputHashes));
-        leaves.add(startOfBlockStateHash);
+        leaves.add(getRootHash(stateChangeHashes));
+        leaves.add(getRootHash(traceDataHashes));
+        leaves.add(NULL_HASH); // root hash of extensions, there's no extension defined yet so it's just NULL_HASH
 
         byte[] rootHash = getRootHash(leaves);
         finalized = true;

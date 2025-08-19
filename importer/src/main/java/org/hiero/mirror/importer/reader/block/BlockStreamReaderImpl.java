@@ -259,14 +259,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             }
 
             index++;
-            switch (itemCase) {
-                case EVENT_HEADER, ROUND_HEADER, SIGNED_TRANSACTION -> blockRootHashDigest.addInputBlockItem(blockItem);
-                case BLOCK_HEADER, STATE_CHANGES, TRANSACTION_OUTPUT, TRANSACTION_RESULT ->
-                    blockRootHashDigest.addOutputBlockItem(blockItem);
-                default -> {
-                    // other block items aren't considered input / output
-                }
-            }
+            blockRootHashDigest.addBlockItem(blockItem);
 
             return blockItem;
         }
