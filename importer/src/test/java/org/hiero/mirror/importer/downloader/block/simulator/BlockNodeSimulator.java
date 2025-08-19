@@ -37,6 +37,7 @@ public final class BlockNodeSimulator implements AutoCloseable {
     private int port;
     private Server server;
     private boolean started;
+    private boolean missingBlock;
 
     @Override
     @SneakyThrows
@@ -57,6 +58,10 @@ public final class BlockNodeSimulator implements AutoCloseable {
 
         if (outOfOrder) {
             Collections.shuffle(blocks);
+        }
+
+        if (missingBlock) {
+            blocks.remove(blocks.size() - 2);
         }
 
         ForwardingServerBuilder<?> serverBuilder;
@@ -107,6 +112,11 @@ public final class BlockNodeSimulator implements AutoCloseable {
 
     public BlockNodeSimulator withOutOrder() {
         this.outOfOrder = true;
+        return this;
+    }
+
+    public BlockNodeSimulator withMissingBlock() {
+        this.missingBlock = true;
         return this;
     }
 
