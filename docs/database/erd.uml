@@ -1109,8 +1109,10 @@
       <point x="-16.34482758620689" y="14.0" />
     </edge>
   </edges>
-  <settings layout="Hierarchic Compact" zoom="0.7794807155664062" showDependencies="false" x="1602.8311239322588" y="87.06383828740286" />
-  <SelectedNodes />
+  <settings layout="Hierarchic Compact" zoom="0.7794807155664062" showDependencies="false" x="-194.0441759150163" y="763.0" />
+  <SelectedNodes>
+    <node>0db569c3-de7f-4b94-a11a-5aa7e55451d5.TABLE:mirror_node.public.entity_stake</node>
+  </SelectedNodes>
   <Categories />
 </Diagram>
 
