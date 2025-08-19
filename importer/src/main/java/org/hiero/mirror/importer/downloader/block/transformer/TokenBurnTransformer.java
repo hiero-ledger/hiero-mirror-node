@@ -9,17 +9,17 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 final class TokenBurnTransformer extends AbstractTokenTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockItem = blockTransactionTransformation.blockTransaction();
         if (!blockItem.isSuccessful()) {
             return;
         }
 
-        var body = blockItemTransformation.transactionBody().getTokenBurn();
+        var body = blockTransactionTransformation.getTransactionBody().getTokenBurn();
         var tokenId = body.getToken();
         long amount = body.getAmount() + body.getSerialNumbersCount();
         updateTotalSupply(
-                blockItemTransformation.recordItemBuilder(), blockItem.getStateChangeContext(), tokenId, amount);
+                blockTransactionTransformation.recordItemBuilder(), blockItem.getStateChangeContext(), tokenId, amount);
     }
 
     @Override

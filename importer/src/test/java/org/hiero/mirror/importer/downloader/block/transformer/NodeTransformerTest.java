@@ -15,8 +15,9 @@ class NodeTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem =
                 recordItemBuilder.nodeCreate().customize(this::finalize).build();
-        var blockItem = blockItemBuilder.nodeCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.nodeCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -33,8 +34,9 @@ class NodeTransformerTest extends AbstractTransformerTest {
                 .receipt(r -> r.clearNodeId().setStatus(ResponseCodeEnum.INVALID_NODE_ID))
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.nodeCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.nodeCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);

@@ -44,11 +44,13 @@ import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Schedule;
+import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.Topic;
 import com.hederahashgraph.api.proto.java.Transaction;
+import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
@@ -61,7 +63,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.transaction.BlockItem;
+import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -75,7 +78,7 @@ import org.springframework.context.annotation.Scope;
 @Named
 @RequiredArgsConstructor
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-public class BlockItemBuilder {
+public class BlockTransactionBuilder {
 
     private final RecordItemBuilder recordItemBuilder;
 
@@ -137,15 +140,15 @@ public class BlockItemBuilder {
         return StateChanges.newBuilder().addAllStateChanges(changes).build();
     }
 
-    public BlockItemBuilder.Builder contractCall(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder contractCall(RecordItem recordItem) {
         var contractCallResult = recordItem.getTransactionRecord().getContractCallResult();
         var transactionOutput = TransactionOutput.newBuilder()
-                .setContractCall(CallContractOutput.newBuilder()
-                        .addAllSidecars(recordItem.getSidecarRecords())
-                        .setContractCallResult(contractCallResult))
+                .setContractCall(CallContractOutput.newBuilder().build())
+                //                        .addAllSidecars(recordItem.getSidecarRecords())
+                //                        .setContractCallResult(contractCallResult))
                 .build();
         if (!contractCallResult.hasContractID()) {
-            return new BlockItemBuilder.Builder(
+            return new BlockTransactionBuilder.Builder(
                     recordItem.getTransaction(),
                     transactionResult(recordItem),
                     Map.of(CONTRACT_CALL, transactionOutput),
@@ -164,23 +167,24 @@ public class BlockItemBuilder {
                                                 .setAccountId(accountId)
                                                 .setSmartContract(true)))))
                 .build();
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Map.of(CONTRACT_CALL, transactionOutput),
                 List.of(stateChanges));
     }
 
-    public BlockItemBuilder.Builder contractCreate(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder contractCreate(RecordItem recordItem) {
         var transactionRecord = recordItem.getTransactionRecord();
-        var createContract = CreateContractOutput.newBuilder().addAllSidecars(recordItem.getSidecarRecords());
-        if (transactionRecord.hasContractCreateResult()) {
-            createContract.setContractCreateResult(transactionRecord.getContractCreateResult());
-        }
+        //        var createContract = CreateContractOutput.newBuilder().addAllSidecars(recordItem.getSidecarRecords());
+        var createContract = CreateContractOutput.newBuilder().build();
+        //        if (transactionRecord.hasContractCreateResult()) {
+        //            createContract.setContractCreateResult(transactionRecord.getContractCreateResult());
+        //        }
         var transactionOutput =
                 TransactionOutput.newBuilder().setContractCreate(createContract).build();
         if (!transactionRecord.getContractCreateResult().hasContractID()) {
-            return new BlockItemBuilder.Builder(
+            return new BlockTransactionBuilder.Builder(
                     recordItem.getTransaction(),
                     transactionResult(recordItem),
                     Map.of(CONTRACT_CREATE, transactionOutput),
@@ -204,14 +208,14 @@ public class BlockItemBuilder {
                                                 .setAlias(evmAddress)
                                                 .setSmartContract(true)))))
                 .build();
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Map.of(CONTRACT_CREATE, transactionOutput),
                 List.of(stateChanges));
     }
 
-    public BlockItemBuilder.Builder contractDeleteOrUpdate(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder contractDeleteOrUpdate(RecordItem recordItem) {
         if (!recordItem.isSuccessful()) {
             return unsuccessfulTransaction(recordItem);
         }
@@ -242,27 +246,27 @@ public class BlockItemBuilder {
                                                 .setDeleted(deleted)
                                                 .setSmartContract(true)))))
                 .build();
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Collections.emptyMap(),
                 List.of(stateChanges));
     }
 
-    public BlockItemBuilder.Builder ethereum(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder ethereum(RecordItem recordItem) {
         var transactionRecord = recordItem.getTransactionRecord();
-        var ethereumOutput = EthereumOutput.newBuilder()
-                .addAllSidecars(recordItem.getSidecarRecords())
-                .setEthereumHash(transactionRecord.getEthereumHash());
+        var ethereumOutput = EthereumOutput.newBuilder();
+        //                .addAllSidecars(recordItem.getSidecarRecords())
+        //                .setEthereumHash(transactionRecord.getEthereumHash());
         var stateChangesList = new ArrayList<StateChanges>();
 
         if (transactionRecord.hasContractCallResult() || transactionRecord.hasContractCreateResult()) {
             ContractID contractId;
             if (transactionRecord.hasContractCreateResult()) {
-                ethereumOutput.setEthereumCreateResult(transactionRecord.getContractCreateResult());
+                //                ethereumOutput.setEthereumCreateResult(transactionRecord.getContractCreateResult());
                 contractId = transactionRecord.getContractCreateResult().getContractID();
             } else {
-                ethereumOutput.setEthereumCallResult(transactionRecord.getContractCallResult());
+                //                ethereumOutput.setEthereumCallResult(transactionRecord.getContractCallResult());
                 contractId = transactionRecord.getContractCallResult().getContractID();
             }
 
@@ -282,27 +286,27 @@ public class BlockItemBuilder {
 
         var transactionOutput =
                 TransactionOutput.newBuilder().setEthereumCall(ethereumOutput).build();
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Map.of(ETHEREUM_CALL, transactionOutput),
                 stateChangesList);
     }
 
-    public BlockItemBuilder.Builder cryptoTransfer() {
+    public BlockTransactionBuilder.Builder cryptoTransfer() {
         var recordItem = recordItemBuilder.cryptoTransfer().build();
         return cryptoTransfer(recordItem);
     }
 
-    public BlockItemBuilder.Builder cryptoTransfer(RecordItem recordItem) {
-        return new BlockItemBuilder.Builder(
+    public BlockTransactionBuilder.Builder cryptoTransfer(RecordItem recordItem) {
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Collections.emptyMap(),
                 Collections.emptyList());
     }
 
-    public BlockItemBuilder.Builder scheduleCreate(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder scheduleCreate(RecordItem recordItem) {
         if (!recordItem.isSuccessful()
                 && recordItem.getTransactionStatus()
                         != ResponseCodeEnum.IDENTICAL_SCHEDULE_ALREADY_CREATED.getNumber()) {
@@ -326,14 +330,14 @@ public class BlockItemBuilder {
         var stateChanges =
                 StateChanges.newBuilder().addStateChanges(stateChange).build();
 
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Map.of(CREATE_SCHEDULE, transactionOutput),
                 List.of(stateChanges));
     }
 
-    public BlockItemBuilder.Builder scheduleDelete(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder scheduleDelete(RecordItem recordItem) {
         var scheduleId = recordItem.getTransactionBody().getScheduleDelete().getScheduleID();
         var stateChangeDelete = StateChange.newBuilder()
                 .setMapDelete(MapDeleteChange.newBuilder()
@@ -354,14 +358,14 @@ public class BlockItemBuilder {
                 .addStateChanges(stateChangeUpdate)
                 .build();
 
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Collections.emptyMap(),
                 List.of(stateChanges));
     }
 
-    public BlockItemBuilder.Builder scheduleSign(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder scheduleSign(RecordItem recordItem) {
         var receipt = recordItem.getTransactionRecord().getReceipt();
         var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
         if (receipt.hasScheduledTransactionID()) {
@@ -372,14 +376,14 @@ public class BlockItemBuilder {
                                     .setScheduledTransactionId(receipt.getScheduledTransactionID()))
                             .build());
         }
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 transactionOutputs,
                 Collections.emptyList());
     }
 
-    public BlockItemBuilder.Builder utilPrng(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder utilPrng(RecordItem recordItem) {
         var transactionRecord = recordItem.getTransactionRecord();
         var utilPrngOutputBuilder = UtilPrngOutput.newBuilder();
         if (transactionRecord.hasPrngNumber()) {
@@ -390,34 +394,34 @@ public class BlockItemBuilder {
         var transactionOutput = TransactionOutput.newBuilder()
                 .setUtilPrng(utilPrngOutputBuilder)
                 .build();
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Map.of(UTIL_PRNG, transactionOutput),
                 Collections.emptyList());
     }
 
-    public BlockItemBuilder.Builder nodeCreate(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder nodeCreate(RecordItem recordItem) {
         var stateChanges = buildNodeIdStateChanges(recordItem);
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(), transactionResult(recordItem), Map.of(), List.of(stateChanges));
     }
 
-    public BlockItemBuilder.Builder unknown() {
+    public BlockTransactionBuilder.Builder unknown() {
         var recordItem = recordItemBuilder.unknown().build();
         return unknown(recordItem);
     }
 
-    public BlockItemBuilder.Builder unknown(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder unknown(RecordItem recordItem) {
         return defaultBlockItem(recordItem);
     }
 
-    public BlockItemBuilder.Builder defaultBlockItem(RecordItem recordItem) {
-        return new BlockItemBuilder.Builder(
+    public BlockTransactionBuilder.Builder defaultBlockItem(RecordItem recordItem) {
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(), transactionResult(recordItem), Map.of(), Collections.emptyList());
     }
 
-    public BlockItemBuilder.Builder cryptoCreate(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder cryptoCreate(RecordItem recordItem) {
         var transactionRecord = recordItem.getTransactionRecord();
         var accountId = transactionRecord.getReceipt().getAccountID();
         var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
@@ -431,7 +435,7 @@ public class BlockItemBuilder {
                             .build());
         }
 
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 transactionOutputs,
@@ -441,7 +445,7 @@ public class BlockItemBuilder {
     public Builder fileCreate(RecordItem recordItem) {
         var stateChanges = buildFileIdStateChanges(recordItem);
 
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(), transactionResult(recordItem), Map.of(), List.of(stateChanges));
     }
 
@@ -456,13 +460,13 @@ public class BlockItemBuilder {
                         .setStateId(StateIdentifier.STATE_ID_TOPICS_VALUE)
                         .setMapUpdate(MapUpdateChange.newBuilder().setKey(key).setValue(value)))
                 .build();
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(), transactionResult(recordItem), Map.of(), List.of(stateChanges));
     }
 
     public Builder consensusSubmitMessage(RecordItem recordItem) {
         if (!recordItem.isSuccessful()) {
-            return new BlockItemBuilder.Builder(
+            return new BlockTransactionBuilder.Builder(
                     recordItem.getTransaction(),
                     transactionResult(recordItem),
                     Collections.emptyMap(),
@@ -487,7 +491,7 @@ public class BlockItemBuilder {
                 .setMapUpdate(mapUpdate)
                 .build();
         var stateChanges = StateChanges.newBuilder().addStateChanges(change).build();
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(), transactionResult(recordItem), transactionOutputs, List.of(stateChanges));
     }
 
@@ -546,7 +550,7 @@ public class BlockItemBuilder {
 
         var stateChanges = StateChanges.newBuilder().addAllStateChanges(changes).build();
 
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Collections.emptyMap(),
@@ -579,7 +583,7 @@ public class BlockItemBuilder {
                                         .setTotalSupply(receipt.getNewTotalSupply())))
                         .build())
                 .build();
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Collections.emptyMap(),
@@ -605,7 +609,7 @@ public class BlockItemBuilder {
     }
 
     public Builder unsuccessfulTransaction(RecordItem recordItem) {
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Collections.emptyMap(),
@@ -617,7 +621,7 @@ public class BlockItemBuilder {
         var stateChangesBuilder =
                 StateChanges.newBuilder().addStateChanges(getNewSupplyState(tokenId, receipt.getNewTotalSupply()));
         stateChangesBuilder.addAllStateChanges(getSerialNumbersStateChanges(receipt.getSerialNumbersList(), tokenId));
-        return new BlockItemBuilder.Builder(
+        return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Collections.emptyMap(),
@@ -702,36 +706,54 @@ public class BlockItemBuilder {
                 .setStatus(transactionRecord.getReceipt().getStatus());
     }
 
-    public class Builder {
-        private final Transaction transaction;
+    public static class Builder {
+        private final SignedTransaction signedTransaction;
+        private final byte[] signedTransactionBytes;
         private final Map<TransactionCase, TransactionOutput> transactionOutputs;
         private final TransactionResult.Builder transactionResultBuilder;
         private final List<StateChanges> stateChanges;
-        private BlockItem previous;
+        private BlockTransaction previous;
 
-        @SuppressWarnings("java:S1640")
+        @SneakyThrows
+        @SuppressWarnings({"java:S1640", "deprecation"})
         private Builder(
                 Transaction transaction,
                 TransactionResult transactionResult,
                 @Nonnull Map<TransactionCase, TransactionOutput> transactionOutputs,
                 @Nonnull List<StateChanges> stateChanges) {
+            if (transaction.hasSigMap()) {
+                // legacy format
+                this.signedTransaction = SignedTransaction.newBuilder()
+                        .setBodyBytes(transaction.getBodyBytes())
+                        .setSigMap(transaction.getSigMap())
+                        .setUseSerializedTxMessageHashAlgorithm(true)
+                        .build();
+                this.signedTransactionBytes = signedTransaction.toByteArray();
+            } else {
+                var signedTransactionBytes = transaction.getSignedTransactionBytes();
+                this.signedTransaction = SignedTransaction.parseFrom(signedTransactionBytes);
+                this.signedTransactionBytes = DomainUtils.toBytes(signedTransactionBytes);
+            }
+
             this.stateChanges = new ArrayList<>(stateChanges); // make it modifiable
-            this.transaction = transaction;
             this.transactionOutputs = new HashMap<>(transactionOutputs); // make it modifiable
             this.transactionResultBuilder = transactionResult.toBuilder();
         }
 
-        public BlockItem build() {
-            return BlockItem.builder()
+        @SneakyThrows
+        public BlockTransaction build() {
+            return BlockTransaction.builder()
                     .previous(previous)
-                    .transaction(transaction)
+                    .signedTransaction(signedTransaction)
+                    .signedTransactionBytes(signedTransactionBytes)
+                    .stateChanges(stateChanges)
+                    .transactionBody(TransactionBody.parseFrom(signedTransaction.getBodyBytes()))
                     .transactionResult(transactionResultBuilder.build())
                     .transactionOutputs(transactionOutputs)
-                    .stateChanges(stateChanges)
                     .build();
         }
 
-        public Builder previous(BlockItem previous) {
+        public Builder previous(BlockTransaction previous) {
             this.previous = previous;
             return this;
         }

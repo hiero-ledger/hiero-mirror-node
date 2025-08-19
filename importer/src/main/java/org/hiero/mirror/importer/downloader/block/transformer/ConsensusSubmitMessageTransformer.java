@@ -12,17 +12,17 @@ import org.hiero.mirror.common.util.DomainUtils;
 final class ConsensusSubmitMessageTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockItem = blockTransactionTransformation.blockTransaction();
         if (!blockItem.isSuccessful()) {
             return;
         }
 
-        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
+        var recordBuilder = blockTransactionTransformation.recordItemBuilder().transactionRecordBuilder();
         var topicMessage = blockItem
                 .getStateChangeContext()
-                .getTopicMessage(blockItemTransformation
-                        .transactionBody()
+                .getTopicMessage(blockTransactionTransformation
+                        .getTransactionBody()
                         .getConsensusSubmitMessage()
                         .getTopicID())
                 .orElseThrow();

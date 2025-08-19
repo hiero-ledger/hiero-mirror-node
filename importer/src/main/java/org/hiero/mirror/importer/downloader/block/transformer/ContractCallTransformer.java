@@ -9,8 +9,8 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 final class ContractCallTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var recordBuilder = blockTransactionTransformation.recordItemBuilder().transactionRecordBuilder();
         if (recordBuilder.getContractCallResult().hasContractID()) {
             recordBuilder
                     .getReceiptBuilder()

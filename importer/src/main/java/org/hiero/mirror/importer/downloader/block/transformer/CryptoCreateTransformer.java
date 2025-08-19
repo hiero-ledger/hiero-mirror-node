@@ -12,15 +12,15 @@ import org.hiero.mirror.common.util.DomainUtils;
 final class CryptoCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockItem = blockTransactionTransformation.blockTransaction();
         if (!blockItem.isSuccessful()) {
             return;
         }
 
-        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
-        var alias = blockItemTransformation
-                .transactionBody()
+        var recordBuilder = blockTransactionTransformation.recordItemBuilder().transactionRecordBuilder();
+        var alias = blockTransactionTransformation
+                .getTransactionBody()
                 .getCryptoCreateAccount()
                 .getAlias();
         if (alias.size() == DomainUtils.EVM_ADDRESS_LENGTH) {

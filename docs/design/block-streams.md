@@ -28,20 +28,21 @@ transform record streams into block streams to allow the mirror node to continue
 
 ### Interfaces and Classes
 
-#### BlockItem
+#### BlockTransaction
 
 ```java
 package org.hiero.mirror.common.domain.transaction;
 
-// Multiple protobuf BlockItems will be combined into a single BlockItem
-public class BlockItem implements StreamItem {
+// Multiple protobuf BlockItems will be combined into a single BlockTransaction
+public class BlockTransaction implements StreamItem {
     private final long consensusTimestamp;
     private final BlockItem parent;
-    private final BlockItem previous;
     private final Long parentConsensusTimestamp;
+    private final BlockItem previous;
     private final List<StateChanges> stateChanges;
     private final boolean successful;
-    private final Transaction transaction;
+    private final SignedTransaction signedTransaction;
+    private final TransactionBody transactionBody;
     private final Map<TransactionCase, TransactionOutput> transactionOutputs;
     private final TransactionResult transactionResult;
 }

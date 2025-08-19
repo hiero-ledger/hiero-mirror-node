@@ -11,8 +11,8 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 final class TokenMintTransformer extends AbstractTokenTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockItem = blockTransactionTransformation.blockTransaction();
         if (!blockItem.isSuccessful()) {
             return;
         }
@@ -26,10 +26,10 @@ final class TokenMintTransformer extends AbstractTokenTransformer {
         }
         Collections.sort(serialNumbers);
 
-        var recordItemBuilder = blockItemTransformation.recordItemBuilder();
+        var recordItemBuilder = blockTransactionTransformation.recordItemBuilder();
         recordItemBuilder.transactionRecordBuilder().getReceiptBuilder().addAllSerialNumbers(serialNumbers);
 
-        var body = blockItemTransformation.transactionBody().getTokenMint();
+        var body = blockTransactionTransformation.getTransactionBody().getTokenMint();
         var tokenId = body.getToken();
         long amount = body.getAmount() + body.getMetadataCount();
         updateTotalSupply(recordItemBuilder, blockItem.getStateChangeContext(), tokenId, -amount);

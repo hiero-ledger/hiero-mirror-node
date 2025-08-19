@@ -9,7 +9,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
-import org.hiero.mirror.common.domain.transaction.BlockItem;
+import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.downloader.StreamFileTransformer;
@@ -59,8 +59,8 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
                 .build();
     }
 
-    private List<RecordItem> getRecordItems(List<BlockItem> blockItems, Version hapiVersion) {
-        if (blockItems.isEmpty()) {
+    private List<RecordItem> getRecordItems(List<BlockTransaction> blockTransactions, Version hapiVersion) {
+        if (blockTransactions.isEmpty()) {
             return Collections.emptyList();
         }
 
@@ -80,22 +80,22 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
         //   transaction reaching consensus later should always get a larger topic id, when processing child consensus
         //   create topic transactions in reverse order, the topic created by such a transaction is always the largest
         //   unclaimed one
-        var builders = new ArrayList<RecordItem.RecordItemBuilder>(blockItems.size());
-        for (int index = blockItems.size() - 1; index >= 0; index--) {
-            var blockItem = blockItems.get(index);
+        var builders = new ArrayList<RecordItem.RecordItemBuilder>(blockTransactions.size());
+        for (int index = blockTransactions.size() - 1; index >= 0; index--) {
+            var blockTransaction = blockTransactions.get(index);
             var builder = RecordItem.builder()
                     .hapiVersion(hapiVersion)
-                    .signatureMap(blockItem.getSignatureMap())
-                    .transaction(blockItem.getTransaction())
-                    .transactionBody(blockItem.getTransactionBody())
+                    .signatureMap(blockTransaction.getSignedTransaction().getSigMap())
+                    .transaction(blockTransaction.getTransaction())
+                    .transactionBody(blockTransaction.getTransactionBody())
                     .transactionIndex(index);
-            blockItemTransformerFactory.transform(blockItem, builder);
+            blockItemTransformerFactory.transform(blockTransaction, builder);
             builders.add(builder);
         }
 
         // An unpleasant performance degradation of reverse order is the second pass to build the record items, just to
         // set the previous link
-        var recordItems = new ArrayList<RecordItem>(blockItems.size());
+        var recordItems = new ArrayList<RecordItem>(blockTransactions.size());
         RecordItem previousItem = null;
         for (int index = builders.size() - 1; index >= 0; index--) {
             var builder = builders.get(index);

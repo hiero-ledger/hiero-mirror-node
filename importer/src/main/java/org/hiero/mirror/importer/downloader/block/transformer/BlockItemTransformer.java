@@ -6,7 +6,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 interface BlockItemTransformer {
 
-    void transform(BlockItemTransformation blockItemTransformation);
+    void transform(BlockTransactionTransformation blockTransactionTransformation);
 
     TransactionType getType();
 }

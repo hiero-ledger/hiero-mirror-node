@@ -2,18 +2,21 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
-import com.google.protobuf.InvalidProtocolBufferException;
+import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
+
+import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -21,24 +24,32 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Value;
+import lombok.experimental.NonFinal;
 import org.hiero.mirror.common.domain.StreamItem;
-import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.util.CollectionUtils;
 
 @AllArgsConstructor(access = AccessLevel.NONE)
 @Value
-public class BlockItem implements StreamItem {
+public class BlockTransaction implements StreamItem {
+
+    private static final MessageDigest DIGEST = createSha384Digest();
 
     private final long consensusTimestamp;
-    private final BlockItem parent;
+    private final BlockTransaction parent;
     private final Long parentConsensusTimestamp;
-    private final BlockItem previous;
+    private final BlockTransaction previous;
     private final List<StateChanges> stateChanges;
     private final boolean successful;
-    private final Transaction transaction;
+    private final SignedTransaction signedTransaction;
+
+    @NonFinal
+    private byte[] signedTransactionBytes;
+
     private final TransactionBody transactionBody;
-    private final SignatureMap signatureMap;
+
+    @Getter(lazy = true)
+    private final ByteString transactionHash = calculateTransactionHash();
 
     @Getter(value = AccessLevel.NONE)
     private final Map<TransactionCase, TransactionOutput> transactionOutputs;
@@ -50,19 +61,21 @@ public class BlockItem implements StreamItem {
     private final StateChangeContext stateChangeContext = createStateChangeContext();
 
     @Builder(toBuilder = true)
-    public BlockItem(
-            Transaction transaction,
-            TransactionResult transactionResult,
-            Map<TransactionCase, TransactionOutput> transactionOutputs,
+    public BlockTransaction(
+            BlockTransaction previous,
+            SignedTransaction signedTransaction,
+            byte[] signedTransactionBytes,
             List<StateChanges> stateChanges,
-            BlockItem previous,
             TransactionBody transactionBody,
-            SignatureMap signatureMap) {
-        this.transaction = transaction;
+            TransactionResult transactionResult,
+            Map<TransactionCase, TransactionOutput> transactionOutputs) {
+        this.previous = previous;
+        this.signedTransaction = signedTransaction;
+        this.signedTransactionBytes = signedTransactionBytes;
+        this.stateChanges = stateChanges;
+        this.transactionBody = transactionBody;
         this.transactionResult = transactionResult;
         this.transactionOutputs = transactionOutputs;
-        this.stateChanges = stateChanges;
-        this.previous = previous;
 
         consensusTimestamp = DomainUtils.timestampInNanosMax(transactionResult.getConsensusTimestamp());
         parentConsensusTimestamp = transactionResult.hasParentConsensusTimestamp()
@@ -70,12 +83,38 @@ public class BlockItem implements StreamItem {
                 : null;
         parent = parseParent();
         successful = parseSuccess();
-        this.transactionBody = transactionBody;
-        this.signatureMap = signatureMap;
+    }
+
+    @SuppressWarnings("deprecation")
+    public Transaction getTransaction() {
+        var builder = Transaction.newBuilder();
+        if (signedTransaction.getUseSerializedTxMessageHashAlgorithm()) {
+            return builder.setBodyBytes(signedTransaction.getBodyBytes())
+                    .setSigMap(signedTransaction.getSigMap())
+                    .build();
+        }
+
+        return builder.setSignedTransactionBytes(DomainUtils.fromBytes(signedTransactionBytes))
+                .build();
     }
 
     public Optional<TransactionOutput> getTransactionOutput(TransactionCase transactionCase) {
         return Optional.ofNullable(transactionOutputs.get(transactionCase));
+    }
+
+    @SuppressWarnings("deprecation")
+    private ByteString calculateTransactionHash() {
+        if (!Objects.requireNonNull(signedTransaction).getUseSerializedTxMessageHashAlgorithm()) {
+            return digest(signedTransactionBytes);
+        }
+
+        // handle SignedTransaction unified by consensus nodes from a Transaction proto message with
+        // Transaction.bodyBytes and Transaction.sigMap set
+        var transaction = Transaction.newBuilder()
+                .setBodyBytes(signedTransaction.getBodyBytes())
+                .setSigMap(signedTransaction.getSigMap())
+                .build();
+        return digest(transaction.toByteArray());
     }
 
     private StateChangeContext createStateChangeContext() {
@@ -88,7 +127,7 @@ public class BlockItem implements StreamItem {
                 : StateChangeContext.EMPTY_CONTEXT;
     }
 
-    private BlockItem parseParent() {
+    private BlockTransaction parseParent() {
         if (parentConsensusTimestamp != null && previous != null) {
             if (parentConsensusTimestamp == previous.consensusTimestamp) {
                 return previous;
@@ -117,35 +156,7 @@ public class BlockItem implements StreamItem {
                 || status == ResponseCodeEnum.SUCCESS_BUT_MISSING_EXPECTED_OPERATION;
     }
 
-    public static class BlockItemBuilder {
-        public BlockItem build() {
-            parseBody();
-            return new BlockItem(
-                    transaction,
-                    transactionResult,
-                    transactionOutputs,
-                    stateChanges,
-                    previous,
-                    transactionBody,
-                    signatureMap);
-        }
-
-        @SuppressWarnings("deprecation")
-        private void parseBody() {
-            if (transactionBody == null || signatureMap == null) {
-                try {
-                    if (transaction.getSignedTransactionBytes().isEmpty()) {
-                        this.transactionBody(TransactionBody.parseFrom(transaction.getBodyBytes()))
-                                .signatureMap(transaction.getSigMap());
-                    } else {
-                        var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
-                        this.transactionBody(TransactionBody.parseFrom(signedTransaction.getBodyBytes()))
-                                .signatureMap(signedTransaction.getSigMap());
-                    }
-                } catch (InvalidProtocolBufferException e) {
-                    throw new ProtobufException("Error parsing transaction body from transaction", e);
-                }
-            }
-        }
+    private static ByteString digest(byte[] data) {
+        return DomainUtils.fromBytes(DIGEST.digest(data));
     }
 }

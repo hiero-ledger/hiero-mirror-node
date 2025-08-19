@@ -14,7 +14,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-class CommonTransformerTest extends AbstractTransformerTest {
+final class CommonTransformerTest extends AbstractTransformerTest {
 
     private static Stream<Arguments> provideDefaultTransforms() {
         return Stream.of(
@@ -60,8 +60,9 @@ class CommonTransformerTest extends AbstractTransformerTest {
     void defaultTransforms(TransactionType type, RecordItemBuilder.Builder<?> recordItem) {
         // given
         var expectedRecordItem = recordItem.customize(this::finalize).build();
-        var blockItem = blockItemBuilder.defaultBlockItem(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.defaultBlockItem(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);

@@ -5,9 +5,9 @@ package org.hiero.mirror.importer.reader.block;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_HEADER;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_PROOF;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.EVENT_HEADER;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.EVENT_TRANSACTION;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.RECORD_FILE;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.ROUND_HEADER;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.SIGNED_TRANSACTION;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.STATE_CHANGES;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_OUTPUT;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_RESULT;
@@ -18,7 +18,8 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
-import com.hederahashgraph.api.proto.java.Transaction;
+import com.hederahashgraph.api.proto.java.SignedTransaction;
+import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -32,12 +33,13 @@ import lombok.Value;
 import lombok.experimental.NonFinal;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 
 @CustomLog
 @Named
-public class BlockStreamReaderImpl implements BlockStreamReader {
+public final class BlockStreamReaderImpl implements BlockStreamReader {
 
     @Override
     public BlockFile read(@NotNull BlockStream blockStream) {
@@ -116,15 +118,17 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
 
     private void readEvents(ReaderContext context) {
         while (context.readBlockItemFor(EVENT_HEADER) != null) {
-            readEventTransactions(context);
+            readSignedTransactions(context);
         }
     }
 
-    private void readEventTransactions(ReaderContext context) {
+    private void readSignedTransactions(ReaderContext context) {
         BlockItem protoBlockItem;
-        Transaction transaction;
+        byte[] signedTransactionBytes;
         try {
-            while ((transaction = context.getApplicationTransaction()) != null) {
+            while ((signedTransactionBytes = context.getSignedTransaction()) != null) {
+                var signedTransaction = SignedTransaction.parseFrom(signedTransactionBytes);
+                var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
                 var transactionResultProtoBlockItem = context.readBlockItemFor(TRANSACTION_RESULT);
                 if (transactionResultProtoBlockItem == null) {
                     throw new InvalidStreamFileException(
@@ -152,15 +156,17 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
                     stateChangesList.add(stateChanges);
                 }
 
-                var blockItem = org.hiero.mirror.common.domain.transaction.BlockItem.builder()
-                        .previous(context.getLastBlockItem())
+                var blockTransaction = BlockTransaction.builder()
+                        .previous(context.getLastBlockTransaction())
                         .stateChanges(Collections.unmodifiableList(stateChangesList))
-                        .transaction(transaction)
+                        .transactionBody(transactionBody)
                         .transactionResult(transactionResult)
                         .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
+                        .signedTransaction(signedTransaction)
+                        .signedTransactionBytes(signedTransactionBytes)
                         .build();
-                context.getBlockFile().item(blockItem);
-                context.setLastBlockItem(blockItem);
+                context.getBlockFile().item(blockTransaction);
+                context.setLastBlockTransaction(blockTransaction);
             }
         } catch (InvalidProtocolBufferException e) {
             throw new InvalidStreamFileException(
@@ -210,7 +216,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
         private int index;
 
         @NonFinal
-        private org.hiero.mirror.common.domain.transaction.BlockItem lastBlockItem;
+        private BlockTransaction lastBlockTransaction;
 
         @NonFinal
         @Setter
@@ -223,29 +229,14 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
             this.filename = filename;
         }
 
-        public void setLastBlockItem(org.hiero.mirror.common.domain.transaction.BlockItem lastBlockItem) {
-            this.lastBlockItem = lastBlockItem;
-            if (lastBlockItem != null && lastBlockItem.getTransactionBody().hasAtomicBatch()) {
-                this.batchIndex = 0;
-                this.batchBody = lastBlockItem.getTransactionBody().getAtomicBatch();
-            }
-        }
-
-        public Transaction getApplicationTransaction() throws InvalidProtocolBufferException {
-            var blockItemProto = readBlockItemFor(EVENT_TRANSACTION);
-
-            if (blockItemProto != null && blockItemProto.hasEventTransaction()) {
-                return Transaction.parseFrom(
-                        blockItemProto.getEventTransaction().getApplicationTransaction());
+        public byte[] getSignedTransaction() {
+            var blockItemProto = readBlockItemFor(SIGNED_TRANSACTION);
+            if (blockItemProto != null) {
+                return DomainUtils.toBytes(blockItemProto.getSignedTransaction());
             }
 
             if (batchBody != null && batchIndex < batchBody.getTransactionsCount()) {
-                var innerTransaction = Transaction.parseFrom(batchBody.getTransactions(batchIndex++));
-                if (innerTransaction == null || Transaction.getDefaultInstance().equals(innerTransaction)) {
-                    throw new InvalidStreamFileException(
-                            "Failed to parse inner transaction from atomic batch in block " + filename);
-                }
-                return innerTransaction;
+                return DomainUtils.toBytes(batchBody.getTransactions(batchIndex++));
             }
 
             return null;
@@ -269,7 +260,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
 
             index++;
             switch (itemCase) {
-                case EVENT_HEADER, EVENT_TRANSACTION, ROUND_HEADER -> blockRootHashDigest.addInputBlockItem(blockItem);
+                case EVENT_HEADER, ROUND_HEADER, SIGNED_TRANSACTION -> blockRootHashDigest.addInputBlockItem(blockItem);
                 case BLOCK_HEADER, STATE_CHANGES, TRANSACTION_OUTPUT, TRANSACTION_RESULT ->
                     blockRootHashDigest.addOutputBlockItem(blockItem);
                 default -> {
@@ -278,6 +269,15 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
             }
 
             return blockItem;
+        }
+
+        public void setLastBlockTransaction(BlockTransaction lastBlockTransaction) {
+            this.lastBlockTransaction = lastBlockTransaction;
+            if (lastBlockTransaction != null
+                    && lastBlockTransaction.getTransactionBody().hasAtomicBatch()) {
+                this.batchIndex = 0;
+                this.batchBody = lastBlockTransaction.getTransactionBody().getAtomicBatch();
+            }
         }
     }
 }
