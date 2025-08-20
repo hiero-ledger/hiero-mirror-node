@@ -2,10 +2,10 @@
 pragma solidity ^0.8.22;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { Ownable } from "openzeppelin4/access/Ownable.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @dev WARNING: Transferring tokens, when the token address is wrong, will fail silently.
-contract Transfer is Ownable {
+abstract contract Transfer is Ownable {
     error Transfer_TransferFailed();
     error Transfer_ApproveFailed();
 

@@ -3,15 +3,15 @@ pragma solidity ^0.8.22;
 
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import { StargateType } from "./interfaces/IStargate.sol";
-import { IERC20Minter } from "./interfaces/IERC20Minter.sol";
+import { StargateType } from "./IStargate.sol";
+import { IERC20Minter } from "./IERC20Minter.sol";
 import { StargateBase, FeeParams } from "./StargateBase.sol";
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title A Stargate contract representing an OFT. This contract will burn OFTs when sending tokens
 /// @title to other chains and mint tokens when receiving them from other chains.
-contract StargateOFT is StargateBase {
+abstract contract StargateOFT is StargateBase {
     /// @notice Create a StargateOFT contract administering an OFT.
     /// @param _token The OFT to administer
     /// @param _sharedDecimals The minimum number of decimals used to represent value in this OFT

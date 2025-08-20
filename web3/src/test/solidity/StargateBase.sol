@@ -10,13 +10,13 @@ import { Origin } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
 import { OFTLimit, OFTFeeDetail, OFTReceipt, SendParam, MessagingReceipt, MessagingFee, IOFT } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/interfaces/IOFT.sol";
 import { OFTComposeMsgCodec } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/libs/OFTComposeMsgCodec.sol";
 
-import { IStargate, Ticket } from "./interfaces/IStargate.sol";
-import { IStargateFeeLib, FeeParams } from "./interfaces/IStargateFeeLib.sol";
-import { ITokenMessaging, RideBusParams, TaxiParams } from "./interfaces/ITokenMessaging.sol";
-import { ITokenMessagingHandler } from "./interfaces/ITokenMessagingHandler.sol";
-import { ICreditMessagingHandler, Credit, TargetCredit } from "./interfaces/ICreditMessagingHandler.sol";
-import { Path } from "./libs/Path.sol";
-import { Transfer } from "./libs/Transfer.sol";
+import { IStargate, Ticket } from "./IStargate.sol";
+import { IStargateFeeLib, FeeParams } from "./IStargateFeeLib.sol";
+import { ITokenMessaging, RideBusParams, TaxiParams } from "./ITokenMessaging.sol";
+import { ITokenMessagingHandler } from "./ITokenMessagingHandler.sol";
+import { ICreditMessagingHandler, Credit, TargetCredit } from "./ICreditMessagingHandler.sol";
+import { Path } from "./Path.sol";
+import { Transfer } from "./Transfer.sol";
 
 /// @title The base contract for StargateOFT, StargatePool, StargatePoolMigratable, and StargatePoolNative.
 abstract contract StargateBase is Transfer, IStargate, ITokenMessagingHandler, ICreditMessagingHandler {
