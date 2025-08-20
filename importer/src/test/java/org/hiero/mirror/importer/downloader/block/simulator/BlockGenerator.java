@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.importer.downloader.block.simulator;
 
-import static org.hiero.mirror.importer.reader.block.BlockRootHashDigest.EMPTY_HASH;
-
 import com.hedera.hapi.block.stream.input.protoc.EventHeader;
 import com.hedera.hapi.block.stream.input.protoc.RoundHeader;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
@@ -23,6 +21,8 @@ import org.hiero.mirror.importer.reader.block.BlockRootHashDigest;
 
 public final class BlockGenerator {
 
+    private static final byte[] ALL_ZERO_HASH = new byte[48];
+
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
 
     private long blockNumber;
@@ -31,7 +31,7 @@ public final class BlockGenerator {
     public BlockGenerator(long startBlockNumber) {
         blockNumber = startBlockNumber;
         if (blockNumber == 0) {
-            previousBlockRootHash = EMPTY_HASH;
+            previousBlockRootHash = ALL_ZERO_HASH;
         } else {
             previousBlockRootHash = recordItemBuilder.randomBytes(48);
         }
@@ -49,7 +49,7 @@ public final class BlockGenerator {
     private void calculateBlockRootHash(BlockItemSet block) {
         var blockRootHashDigest = new BlockRootHashDigest();
         blockRootHashDigest.setPreviousHash(previousBlockRootHash);
-        blockRootHashDigest.setStartOfBlockStateHash(EMPTY_HASH);
+        blockRootHashDigest.setStartOfBlockStateHash(ALL_ZERO_HASH);
         block.getBlockItemsList().forEach(blockRootHashDigest::addBlockItem);
         previousBlockRootHash = Hex.decodeHex(blockRootHashDigest.digest());
     }
@@ -79,7 +79,7 @@ public final class BlockGenerator {
                 .setBlockProof(BlockProof.newBuilder()
                         .setBlock(blockNumber)
                         .setPreviousBlockRootHash(DomainUtils.fromBytes(previousBlockRootHash))
-                        .setStartOfBlockStateRootHash(DomainUtils.fromBytes(EMPTY_HASH))));
+                        .setStartOfBlockStateRootHash(DomainUtils.fromBytes(ALL_ZERO_HASH))));
         var block = builder.build();
         calculateBlockRootHash(block);
         blockNumber++;

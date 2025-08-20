@@ -10,17 +10,15 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import lombok.CustomLog;
 import org.hiero.mirror.common.util.DomainUtils;
 
 /**
  * Calculates a block's root hash per the algorithm defined in HIP-1056. Note all merkle subtrees are padded with
  * SHA2-384 hash of an empty bytearray to be perfect binary trees. Note none of the methods are reentrant.
  */
-@CustomLog
 public final class BlockRootHashDigest {
 
-    public static final byte[] EMPTY_HASH = createSha384Digest().digest(new byte[0]);
+    static final byte[] EMPTY_HASH = createSha384Digest().digest(new byte[0]);
 
     private static final byte[] NULL_HASH = new byte[SHA_384.getSize()];
 
@@ -35,9 +33,8 @@ public final class BlockRootHashDigest {
     private final List<byte[]> traceDataHashes = new ArrayList<>();
 
     public void addBlockItem(BlockItem blockItem) {
-        var itemCase = blockItem.getItemCase();
         var subTree =
-                switch (itemCase) {
+                switch (blockItem.getItemCase()) {
                     case BLOCK_HEADER, TRANSACTION_OUTPUT, TRANSACTION_RESULT -> outputHashes;
                     case EVENT_HEADER, ROUND_HEADER -> consensusHeaderHashes;
                     case SIGNED_TRANSACTION -> inputHashes;
