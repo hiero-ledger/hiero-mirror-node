@@ -350,7 +350,29 @@ in ERD tools since foreign key constraints cannot reference partitioned tables i
 
 The Entity Relationship Diagram is maintained as an IDEA UML file:
 
-- [Entity Relationship Diagram](erd.uml) - Complete database schema with relationships in IntelliJ UML format
+- [Entity Relationship Diagram](erd.drawio) - Complete database schema with relationships in DrawIO format for use with
+  diagrams.net
+
+### Viewing the ERD
+
+You can view the ERD diagram in several ways:
+
+#### Online (diagrams.net)
+
+1. Go to [diagrams.net](https://app.diagrams.net/)
+2. Choose "Open Existing Diagram"
+3. Select "From Device" and upload the `erd.drawio` file
+
+#### Offline (Draw.io Desktop)
+
+1. Download and install the Draw.io Desktop app from [GitHub releases](https://github.com/jgraph/drawio-desktop/releases)
+2. Open the application
+3. File → Open and select the `erd.drawio` file
+
+#### VS Code Extension
+
+1. Install the "Draw.io Integration" extension in VS Code
+2. Open the `erd.drawio` file directly in VS Code - it will render the diagram inline
 
 ### Updating the ERD
 
@@ -358,6 +380,6 @@ To update the ERD diagram after schema changes:
 
 1. Follow steps 1-3 above to prepare the database with the latest schema
 2. Generate a new ERD using IntelliJ IDEA's database diagram feature
-3. Export the diagram as UML from IntelliJ IDEA
-4. Update the `erd.uml` file with the new relationships and table structures
-5. Commit the updated UML file to maintain the ERD in version control
+3. Export the diagram in a format compatible with diagrams.net
+4. Update the `erd.drawio` file with the new relationships and table structures
+5. Commit the updated DrawIO file to maintain the ERD in version control
