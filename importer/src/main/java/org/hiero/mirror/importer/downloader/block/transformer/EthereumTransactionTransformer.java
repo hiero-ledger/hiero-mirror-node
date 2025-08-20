@@ -13,35 +13,35 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 final class EthereumTransactionTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
-        blockItem
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        blockTransaction
                 .getTransactionOutput(TransactionCase.ETHEREUM_CALL)
                 .map(TransactionOutput::getEthereumCall)
                 .ifPresent(ethereumCall -> {
-                    var recordItemBuilder = blockItemTransformation.recordItemBuilder();
-                    var recordBuilder = recordItemBuilder.transactionRecordBuilder();
-                    recordBuilder.setEthereumHash(ethereumCall.getEthereumHash());
-                    recordItemBuilder.sidecarRecords(ethereumCall.getSidecarsList());
-
-                    var receiptBuilder = recordBuilder.getReceiptBuilder();
-                    switch (ethereumCall.getEthResultCase()) {
-                        case ETHEREUM_CALL_RESULT -> {
-                            var result = ethereumCall.getEthereumCallResult();
-                            recordBuilder.setContractCallResult(result);
-                            setReceipt(result, receiptBuilder);
-                        }
-                        case ETHEREUM_CREATE_RESULT -> {
-                            var result = ethereumCall.getEthereumCreateResult();
-                            recordBuilder.setContractCreateResult(result);
-                            setReceipt(result, receiptBuilder);
-                        }
-                        default ->
-                            log.warn(
-                                    "Unhandled eth_result case {} for transaction at {}",
-                                    ethereumCall.getEthResultCase(),
-                                    blockItem.getConsensusTimestamp());
-                    }
+                    //                    var recordItemBuilder = blockTransactionTransformation.recordItemBuilder();
+                    //                    var recordBuilder = recordItemBuilder.transactionRecordBuilder();
+                    //                    recordBuilder.setEthereumHash(ethereumCall.getEthereumHash());
+                    //                    recordItemBuilder.sidecarRecords(ethereumCall.getSidecarsList());
+                    //
+                    //                    var receiptBuilder = recordBuilder.getReceiptBuilder();
+                    //                    switch (ethereumCall.getEthResultCase()) {
+                    //                        case ETHEREUM_CALL_RESULT -> {
+                    //                            var result = ethereumCall.getEthereumCallResult();
+                    //                            recordBuilder.setContractCallResult(result);
+                    //                            setReceipt(result, receiptBuilder);
+                    //                        }
+                    //                        case ETHEREUM_CREATE_RESULT -> {
+                    //                            var result = ethereumCall.getEthereumCreateResult();
+                    //                            recordBuilder.setContractCreateResult(result);
+                    //                            setReceipt(result, receiptBuilder);
+                    //                        }
+                    //                        default ->
+                    //                            log.warn(
+                    //                                    "Unhandled eth_result case {} for transaction at {}",
+                    //                                    ethereumCall.getEthResultCase(),
+                    //                                    blockTransaction.getConsensusTimestamp());
+                    //                    }
                 });
     }
 

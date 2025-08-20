@@ -26,7 +26,7 @@ import org.hiero.mirror.common.domain.StreamType;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class BlockFile implements StreamFile<BlockItem> {
+public class BlockFile implements StreamFile<BlockTransaction> {
 
     private static final int BASENAME_LENGTH = 36;
     private static final char BASENAME_PADDING = '0';
@@ -58,7 +58,7 @@ public class BlockFile implements StreamFile<BlockItem> {
     @EqualsAndHashCode.Exclude
     @Singular
     @ToString.Exclude
-    private List<BlockItem> items;
+    private List<BlockTransaction> items;
 
     private Long loadEnd;
 
@@ -91,7 +91,7 @@ public class BlockFile implements StreamFile<BlockItem> {
     }
 
     @Override
-    public StreamFile<BlockItem> copy() {
+    public StreamFile<BlockTransaction> copy() {
         return this.toBuilder().build();
     }
 

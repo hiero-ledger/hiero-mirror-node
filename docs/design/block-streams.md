@@ -28,20 +28,21 @@ transform record streams into block streams to allow the mirror node to continue
 
 ### Interfaces and Classes
 
-#### BlockItem
+#### BlockTransaction
 
 ```java
 package org.hiero.mirror.common.domain.transaction;
 
-// Multiple protobuf BlockItems will be combined into a single BlockItem
-public class BlockItem implements StreamItem {
+// Multiple protobuf BlockItems will be combined into a single BlockTransaction
+public class BlockTransaction implements StreamItem {
     private final long consensusTimestamp;
-    private final BlockItem parent;
-    private final BlockItem previous;
+    private final BlockTransaction parent;
     private final Long parentConsensusTimestamp;
+    private final BlockTransaction previous;
     private final List<StateChanges> stateChanges;
     private final boolean successful;
-    private final Transaction transaction;
+    private final SignedTransaction signedTransaction;
+    private final TransactionBody transactionBody;
     private final Map<TransactionCase, TransactionOutput> transactionOutputs;
     private final TransactionResult transactionResult;
 }
@@ -53,7 +54,7 @@ public class BlockItem implements StreamItem {
 ```java
 package org.hiero.mirror.common.domain.transaction;
 
-public class BlockFile implements StreamFile<BlockItem> {
+public class BlockFile implements StreamFile<BlockTransaction> {
 }
 ```
 
@@ -74,7 +75,7 @@ Update the handling of the topic message `runningHashVersion`:
 ```java
 package org.hiero.mirror.importer.reader.block;
 
-public interface BlockFileReader extends StreamFileReader<BlockFile, BlockItem> {
+public interface BlockFileReader extends StreamFileReader<BlockFile, BlockTransaction> {
 }
 ```
 
@@ -551,4 +552,3 @@ Beginning from an `EventTransaction` block item, a record item is composed of on
 
 - [ ] Details about TSS Signature block verification are a work in progress.
 - [ ] Q: Shall we gather the Token Transfer Lists from State Changes? TokenAirdropOutput and CryptoTransferOutput have Token Transfer Lists, but Token Transfer Lists may also be represented in State Changes. We may need to gather the transfers from State Changes if the Token Transfer Lists are removed from the transaction outputs and the TransactionResult.
-- [ ] `EventTransaction` is slated to be removed in favor of using `Transaction`. This will require changes to the `BlockFileTransformer`.

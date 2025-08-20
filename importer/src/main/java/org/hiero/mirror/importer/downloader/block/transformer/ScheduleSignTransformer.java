@@ -11,18 +11,18 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 final class ScheduleSignTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
-        if (!blockItem.isSuccessful()) {
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
-        blockItem
+        blockTransaction
                 .getTransactionOutput(TransactionCase.SIGN_SCHEDULE)
                 .map(TransactionOutput::getSignSchedule)
                 .ifPresent(signSchedule -> {
                     if (signSchedule.hasScheduledTransactionId()) {
-                        blockItemTransformation
+                        blockTransactionTransformation
                                 .recordItemBuilder()
                                 .transactionRecordBuilder()
                                 .getReceiptBuilder()

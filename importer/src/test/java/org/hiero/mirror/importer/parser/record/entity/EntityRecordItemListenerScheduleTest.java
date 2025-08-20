@@ -31,14 +31,14 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.schedule.Schedule;
-import org.hiero.mirror.common.domain.transaction.BlockItem;
+import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.downloader.block.BlockFileTransformer;
 import org.hiero.mirror.importer.parser.domain.BlockFileBuilder;
-import org.hiero.mirror.importer.parser.domain.BlockItemBuilder;
+import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
 import org.hiero.mirror.importer.repository.ScheduleRepository;
 import org.hiero.mirror.importer.repository.TransactionRepository;
 import org.hiero.mirror.importer.repository.TransactionSignatureRepository;
@@ -71,7 +71,7 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
     private BlockFileTransformer blockFileTransformer;
 
     @Resource
-    private BlockItemBuilder blockItemBuilder;
+    private BlockTransactionBuilder blockTransactionBuilder;
 
     @Resource
     protected ScheduleRepository scheduleRepository;
@@ -526,7 +526,7 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
                 .build();
 
         if (useBlockTransformer) {
-            var blockItem = blockItemBuilder.scheduleCreate(recordItem).build();
+            var blockItem = blockTransactionBuilder.scheduleCreate(recordItem).build();
             recordItem = transformBlockItemToRecordItem(blockItem);
         }
 
@@ -544,7 +544,7 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
                 .build();
 
         if (useBlockTransformer) {
-            var blockItem = blockItemBuilder.scheduleDelete(recordItem).build();
+            var blockItem = blockTransactionBuilder.scheduleDelete(recordItem).build();
             recordItem = transformBlockItemToRecordItem(blockItem);
         }
 
@@ -564,7 +564,7 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
                 .build();
 
         if (useBlockTransformer) {
-            var blockItem = blockItemBuilder.scheduleSign(recordItem).build();
+            var blockItem = blockTransactionBuilder.scheduleSign(recordItem).build();
             recordItem = transformBlockItemToRecordItem(blockItem);
         }
 
@@ -610,8 +610,8 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
                         from(org.hiero.mirror.common.domain.transaction.Transaction::getResult));
     }
 
-    public RecordItem transformBlockItemToRecordItem(BlockItem blockItem) {
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+    public RecordItem transformBlockItemToRecordItem(BlockTransaction blockTransaction) {
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
         var blockRecordFile = blockFileTransformer.transform(blockFile);
         return blockRecordFile.getItems().iterator().next();
     }

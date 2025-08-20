@@ -8,8 +8,8 @@ import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
-import com.hedera.hapi.platform.event.legacy.EventTransaction;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.SignedTransaction;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.SneakyThrows;
@@ -52,7 +52,7 @@ public final class BlockGenerator {
 
         for (var blockItem : block.getBlockItemsList()) {
             switch (blockItem.getItemCase()) {
-                case EVENT_HEADER, EVENT_TRANSACTION, ROUND_HEADER -> blockRootHashDigest.addInputBlockItem(blockItem);
+                case EVENT_HEADER, ROUND_HEADER, SIGNED_TRANSACTION -> blockRootHashDigest.addInputBlockItem(blockItem);
                 case BLOCK_HEADER, STATE_CHANGES, TRANSACTION_OUTPUT, TRANSACTION_RESULT ->
                     blockRootHashDigest.addOutputBlockItem(blockItem);
                 default -> {
@@ -98,10 +98,12 @@ public final class BlockGenerator {
 
     private List<BlockItem> transactionUnit() {
         var recordItem = recordItemBuilder.cryptoTransfer().build();
+        var signedTransaction = SignedTransaction.newBuilder()
+                .setBodyBytes(recordItem.getTransaction().getSignedTransactionBytes())
+                .setSigMap(recordItem.getSignatureMap())
+                .build();
         var eventTransaction = BlockItem.newBuilder()
-                .setEventTransaction(EventTransaction.newBuilder()
-                        .setApplicationTransaction(recordItem.getTransaction().toByteString())
-                        .build())
+                .setSignedTransaction(signedTransaction.toByteString())
                 .build();
         var transactionResult = BlockItem.newBuilder()
                 .setTransactionResult(TransactionResult.newBuilder()

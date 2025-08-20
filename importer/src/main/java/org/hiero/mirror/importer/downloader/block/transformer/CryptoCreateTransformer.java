@@ -12,22 +12,22 @@ import org.hiero.mirror.common.util.DomainUtils;
 final class CryptoCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
-        if (!blockItem.isSuccessful()) {
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
-        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
-        var alias = blockItemTransformation
-                .transactionBody()
+        var recordBuilder = blockTransactionTransformation.recordItemBuilder().transactionRecordBuilder();
+        var alias = blockTransactionTransformation
+                .getTransactionBody()
                 .getCryptoCreateAccount()
                 .getAlias();
         if (alias.size() == DomainUtils.EVM_ADDRESS_LENGTH) {
             recordBuilder.setEvmAddress(alias);
         }
 
-        var accountCreate = blockItem
+        var accountCreate = blockTransaction
                 .getTransactionOutput(TransactionCase.ACCOUNT_CREATE)
                 .map(TransactionOutput::getAccountCreate)
                 .orElseThrow();

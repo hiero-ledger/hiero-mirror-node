@@ -38,7 +38,7 @@ jobs:
 
       - name: Parse Version
         id: version_parser
-        uses: step-security/semver-utils@a24a84bec134bf99b85937a44b58cc9a1d268edd # v4.3.0
+        uses: step-security/semver-utils@b6c771610a344202ca367c085698ff554fe8f124 # v4.3.1
         with:
           lenient: false
           version: ${{ github.event.inputs.version }}
@@ -61,7 +61,7 @@ jobs:
           EOF
 
       - name: Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
           ref: main
@@ -162,7 +162,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: main
 

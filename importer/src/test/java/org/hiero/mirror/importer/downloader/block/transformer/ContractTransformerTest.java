@@ -6,7 +6,6 @@ import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_I
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
@@ -35,7 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.commons.collections4.ListUtils;
-import org.hiero.mirror.common.domain.transaction.BlockItem;
+import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
@@ -54,8 +53,9 @@ class ContractTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem =
                 recordItemBuilder.contractCall().customize(this::finalize).build();
-        var blockItem = blockItemBuilder.contractCall(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.contractCall(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -72,8 +72,9 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 .status(ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION)
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.contractCall(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.contractCall(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -94,8 +95,9 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 .sidecarRecords(List::clear)
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.contractCall(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.contractCall(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -109,8 +111,9 @@ class ContractTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem =
                 recordItemBuilder.contractCreate().customize(this::finalize).build();
-        var blockItem = blockItemBuilder.contractCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.contractCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -130,8 +133,9 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 .status(ResponseCodeEnum.INSUFFICIENT_TX_FEE)
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.contractCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.contractCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -150,9 +154,10 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 .receipt(r -> r.setContractID(contractIdInReceipt))
                 .customize(this::finalize)
                 .build();
-        var blockItem =
-                blockItemBuilder.contractDeleteOrUpdate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction = blockTransactionBuilder
+                .contractDeleteOrUpdate(expectedRecordItem)
+                .build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -170,9 +175,10 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 .status(ResponseCodeEnum.INSUFFICIENT_TX_FEE)
                 .customize(this::finalize)
                 .build();
-        var blockItem =
-                blockItemBuilder.contractDeleteOrUpdate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction = blockTransactionBuilder
+                .contractDeleteOrUpdate(expectedRecordItem)
+                .build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -191,9 +197,10 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 .receipt(r -> r.setContractID(contractIdInReceipt))
                 .customize(this::finalize)
                 .build();
-        var blockItem =
-                blockItemBuilder.contractDeleteOrUpdate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction = blockTransactionBuilder
+                .contractDeleteOrUpdate(expectedRecordItem)
+                .build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -211,9 +218,10 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 .status(ResponseCodeEnum.INSUFFICIENT_TX_FEE)
                 .customize(this::finalize)
                 .build();
-        var blockItem =
-                blockItemBuilder.contractDeleteOrUpdate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction = blockTransactionBuilder
+                .contractDeleteOrUpdate(expectedRecordItem)
+                .build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -230,8 +238,9 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 .ethereumTransaction(create)
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.ethereum(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.ethereum(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -258,8 +267,9 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 .receipt(Builder::clearContractID)
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.ethereum(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.ethereum(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -279,8 +289,9 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 .status(ResponseCodeEnum.INSUFFICIENT_TX_FEE)
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.ethereum(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.ethereum(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -383,11 +394,11 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 .customize(this::finalize)
                 .build();
         var builders = List.of(
-                blockItemBuilder.contractCall(contractCallRecordItem),
-                blockItemBuilder.tokenAirdrop(tokenAirdrop1RecordItem),
-                blockItemBuilder.defaultBlockItem(tokenCancelAirdropRecordItem),
-                blockItemBuilder.tokenAirdrop(tokenAirdrop2RecordItem));
-        var blockItems = new ArrayList<BlockItem>();
+                blockTransactionBuilder.contractCall(contractCallRecordItem),
+                blockTransactionBuilder.tokenAirdrop(tokenAirdrop1RecordItem),
+                blockTransactionBuilder.defaultBlockItem(tokenCancelAirdropRecordItem),
+                blockTransactionBuilder.tokenAirdrop(tokenAirdrop2RecordItem));
+        var blockItems = new ArrayList<BlockTransaction>();
         var childTransactionOutput = callContractOutput(childPrecompileContractCallResult);
         for (var builder : builders) {
             if (blockItems.isEmpty()) {
@@ -492,14 +503,14 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 .customize(this::finalize)
                 .build();
         var builders = List.of(
-                blockItemBuilder.contractCall(contractCallRecordItem),
-                blockItemBuilder.tokenCreate(token2CreateRecordItem),
-                blockItemBuilder.tokenCreate(token3CreateRecordItem),
-                blockItemBuilder.tokenMint(token2MintRecordItem),
-                blockItemBuilder.tokenBurn(token2BurnRecordItem),
-                blockItemBuilder.tokenWipe(token2WipeRecordItem),
-                blockItemBuilder.defaultBlockItem(token1DeleteRecordItem));
-        var blockItems = new ArrayList<BlockItem>();
+                blockTransactionBuilder.contractCall(contractCallRecordItem),
+                blockTransactionBuilder.tokenCreate(token2CreateRecordItem),
+                blockTransactionBuilder.tokenCreate(token3CreateRecordItem),
+                blockTransactionBuilder.tokenMint(token2MintRecordItem),
+                blockTransactionBuilder.tokenBurn(token2BurnRecordItem),
+                blockTransactionBuilder.tokenWipe(token2WipeRecordItem),
+                blockTransactionBuilder.defaultBlockItem(token1DeleteRecordItem));
+        var blockItems = new ArrayList<BlockTransaction>();
         var otherStateChanges = List.of(
                 tokenMapUpdate(true, tokenId1, 1555), // total supply for token1 isn't used
                 tokenMapUpdate(false, tokenId2, 500), // total supply after all changes
@@ -568,7 +579,8 @@ class ContractTransformerTest extends AbstractTransformerTest {
 
     private Map<TransactionCase, TransactionOutput> callContractOutput(ContractFunctionResult contractFunctionResult) {
         var output = TransactionOutput.newBuilder()
-                .setContractCall(CallContractOutput.newBuilder().setContractCallResult(contractFunctionResult))
+                //
+                // .setContractCall(CallContractOutput.newBuilder().setContractCallResult(contractFunctionResult))
                 .build();
         return Map.of(TransactionCase.CONTRACT_CALL, output);
     }

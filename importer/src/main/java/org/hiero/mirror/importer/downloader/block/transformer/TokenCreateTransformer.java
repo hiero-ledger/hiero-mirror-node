@@ -9,19 +9,21 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 final class TokenCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
-        if (!blockItem.isSuccessful()) {
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
-        var receiptBuilder = blockItemTransformation
+        var receiptBuilder = blockTransactionTransformation
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        receiptBuilder.setNewTotalSupply(
-                blockItemTransformation.transactionBody().getTokenCreation().getInitialSupply());
-        blockItem
+        receiptBuilder.setNewTotalSupply(blockTransactionTransformation
+                .getTransactionBody()
+                .getTokenCreation()
+                .getInitialSupply());
+        blockTransaction
                 .getStateChangeContext()
                 .getNewTokenId()
                 .map(receiptBuilder::setTokenID)

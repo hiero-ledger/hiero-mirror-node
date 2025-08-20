@@ -9,18 +9,18 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 final class NodeCreateTransformer extends AbstractBlockItemTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
-        if (!blockItem.isSuccessful()) {
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
-        var receiptBuilder = blockItemTransformation
+        var receiptBuilder = blockTransactionTransformation
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
         receiptBuilder.setNodeId(
-                blockItem.getStateChangeContext().getNewNodeId().orElseThrow());
+                blockTransaction.getStateChangeContext().getNewNodeId().orElseThrow());
     }
 
     @Override
