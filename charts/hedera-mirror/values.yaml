@@ -191,8 +191,6 @@ postgresql:
         memory: 256Mi
   postgresql:
     existingSecret: mirror-passwords
-    extendedConfiguration: |
-      timezone = 'UTC'
     extraEnvVarsSecret: mirror-passwords
     image:
       debug: true

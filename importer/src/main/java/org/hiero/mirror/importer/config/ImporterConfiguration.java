@@ -15,7 +15,6 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
 import org.springframework.boot.autoconfigure.flyway.FlywayConfigurationCustomizer;
 import org.springframework.boot.autoconfigure.flyway.FlywayDataSource;
-import org.springframework.boot.autoconfigure.jdbc.JdbcConnectionDetails;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.annotation.EnableRetry;
@@ -34,18 +33,16 @@ class ImporterConfiguration {
 
     @Bean(defaultCandidate = false)
     @FlywayDataSource
-    DataSource flywayDataSource(
-            JdbcConnectionDetails connectionDetails, DBProperties dbProperties, HikariConfig hikariConfig) {
+    DataSource flywayDataSource(DBProperties dbProperties, HikariConfig hikariConfig) {
         var flywayHikariConfig = new HikariConfig();
         hikariConfig.copyStateTo(flywayHikariConfig);
 
-        flywayHikariConfig.setJdbcUrl(connectionDetails.getJdbcUrl());
-        flywayHikariConfig.setUsername(dbProperties.getOwner());
-        flywayHikariConfig.setPassword(dbProperties.getOwnerPassword());
-        flywayHikariConfig.setMinimumIdle(0);
         flywayHikariConfig.setIdleTimeout(60000);
+        flywayHikariConfig.setMinimumIdle(0);
         flywayHikariConfig.setMaximumPoolSize(10);
+        flywayHikariConfig.setPassword(dbProperties.getOwnerPassword());
         flywayHikariConfig.setPoolName(hikariConfig.getPoolName() + "_flyway");
+        flywayHikariConfig.setUsername(dbProperties.getOwner());
         return new HikariDataSource(flywayHikariConfig);
     }
 
