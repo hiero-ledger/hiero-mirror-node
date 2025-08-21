@@ -97,24 +97,26 @@ hpa:
   behavior: {}
   enabled: false
   maxReplicas: 12
-  metrics:
+  metrics: |
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
           averageUtilization: 80
+    {{- if and .Values.prometheusRecordRules.enabled .Values.prometheusRecordRules.evm_gas_used_per_second_by_deployment.enabled }}
     - type: Object
       object:
         describedObject:
           apiVersion: apps/v1
           kind: Deployment
-          name: mirror-web3
+          name: {{ include "hedera-mirror-web3.fullname" . }}
         metric:
           name: evm_gas_used_per_second
         target:
           averageValue: 2750k
           type: AverageValue
+    {{- end }}
   minReplicas: 1
 
 image:
