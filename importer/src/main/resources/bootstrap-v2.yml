@@ -1,6 +1,0 @@
-# SPDX-License-Identifier: Apache-2.0
-
-spring:
-  flyway:
-    baselineVersion: 1.999.999
-    locations: "classpath:db/migration/common, classpath:db/migration/v2"

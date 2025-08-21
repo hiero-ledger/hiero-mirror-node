@@ -46,8 +46,6 @@ logging:
     root: warn
     org.hiero.mirror.importer: info
     org.flywaydb.core.internal.command.DbMigrate: info
-    org.springframework.cloud.kubernetes.commons.config.ConfigUtils: error
-    org.springframework.cloud.kubernetes.fabric8.config: error
     #org.hibernate.type.descriptor.sql.BasicBinder: trace
   pattern:
     console: "%clr(%date{${LOG_DATEFORMAT_PATTERN:yyyy-MM-dd'T'HH:mm:ss.SSS}, UTC}Z){faint} %clr(${LOG_LEVEL_PATTERN:%5level}) %clr(%thread){magenta} %clr(%logger{20}){cyan} %m %exception%n"
@@ -77,16 +75,6 @@ server:
 spring:
   application:
     name: importer
-  cloud:
-    kubernetes:
-      leader:
-        enabled: false
-      reload:
-        enabled: true
-      secrets:
-        paths: /usr/etc/${spring.application.name}
-    discovery:
-      enabled: false
   datasource:
     name: ${hiero.mirror.importer.db.name}
     password: ${hiero.mirror.importer.db.password}
@@ -94,7 +82,6 @@ spring:
     username: ${hiero.mirror.importer.db.username}
     hikari:
       connection-init-sql: ${hiero.mirror.importer.db.connectionInitSql}
-      # Note: Flyway does not use Hikari so these properties are ignored. Use URL properties for Flyway instead.
       data-source-properties:
         #loggerLevel: TRACE
         logUnclosedConnections: true
@@ -103,9 +90,10 @@ spring:
       maximumPoolSize: 20
   flyway:
     baselineOnMigrate: true
+    baselineVersion: 0
     connectRetries: 20
     ignoreMigrationPatterns: ["*:missing", "*:ignored"]
-    password: ${hiero.mirror.importer.db.ownerPassword}
+    locations: "classpath:db/migration/common, classpath:db/migration/v1"
     placeholders:
       api-password: ${hiero.mirror.importer.db.restPassword}
       api-user: ${hiero.mirror.importer.db.restUsername}
@@ -117,7 +105,7 @@ spring:
       schema: ${hiero.mirror.importer.db.schema}
       shardCount: 16
       tempSchema: ${hiero.mirror.importer.db.tempSchema}
-    user: ${hiero.mirror.importer.db.owner}
+    target: latest
   jpa:
     properties:
       hibernate:
@@ -136,3 +124,12 @@ spring:
     scheduling:
       pool:
         size: 6
+
+---
+spring:
+  config:
+    activate:
+      on-profile: v2
+  flyway:
+    baselineVersion: 1.999.999
+    locations: "classpath:db/migration/common, classpath:db/migration/v2"

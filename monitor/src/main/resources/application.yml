@@ -26,8 +26,6 @@ logging:
     com.hedera.hashgraph.sdk.Executable: error
     com.hedera.hashgraph.sdk.TransactionReceiptQuery: error
     org.hiero.mirror.monitor: info
-    org.springframework.cloud.kubernetes.commons.config.ConfigUtils: error
-    org.springframework.cloud.kubernetes.fabric8.config: error
   pattern:
     console: "%clr(%date{${LOG_DATEFORMAT_PATTERN:yyyy-MM-dd'T'HH:mm:ss.SSS}, UTC}Z){faint} %clr(${LOG_LEVEL_PATTERN:%5level}) %clr(%thread){magenta} %clr(%logger{20}){cyan} %m %exception%n"
 management:
@@ -64,9 +62,6 @@ server:
 spring:
   application:
     name: monitor
-  cloud:
-    discovery:
-      enabled: false
   lifecycle:
     timeout-per-shutdown-phase: 20s
   task:
@@ -87,15 +82,6 @@ management:
         cluster:
           include: cluster, release
 spring:
-  cloud:
-    kubernetes:
-      discovery:
-        catalog-services-watch:
-          enabled: false
-      reload:
-        enabled: true
-      secrets:
-        paths: /usr/etc/${spring.application.name}
   config:
     activate:
       on-profile: kubernetes

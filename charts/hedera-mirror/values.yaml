@@ -319,6 +319,7 @@ stackgres:
       password_encryption: "scram-sha-256"
       random_page_cost: "1.1"
       shared_buffers: "7GB"
+      timezone: "UTC"
       wal_init_zero: "off"  # Not needed with ZFS
       wal_recycle: "off"  # Not needed with ZFS
       work_mem: "12MB"
@@ -382,6 +383,7 @@ stackgres:
       password_encryption: "scram-sha-256"
       random_page_cost: "1.1"
       shared_buffers: "12GB"
+      timezone: "UTC"
       wal_init_zero: "off"  # Not needed with ZFS
       wal_recycle: "off"  # Not needed with ZFS
       work_mem: "12MB"

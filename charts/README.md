@@ -238,14 +238,26 @@ kubectl logs -f --tail=100 "${POD_NAME}"
 kubectl logs -f --prefix --tail=10 -l app.kubernetes.io/name=importer
 ```
 
-To change application properties without restarting, you can create a
-[ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#create-configmaps-from-files)
-named `grpc` or `importer` and supply an `application.yaml` or `application.properties`.
-Note that some properties that are used on startup will still require a restart.
+To change an application's properties, create a [ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#create-configmaps-from-files) and mount it into the container by specifying `volumes`
+and `volumeMounts` in your custom values.yaml. Create the ConfigMap from a properties file:
 
 ```shell script
 echo "logging.level.org.hiero.mirror.grpc=TRACE" > application.properties
 kubectl create configmap grpc --from-file=application.properties
+```
+
+Add the following to your values.yaml to mount it:
+
+```yaml
+volumes:
+  custom:
+    configMap:
+      name: grpc
+      defaultMode: 420
+volumeMounts:
+  custom:
+    mountPath: /custom
+    readOnly: true
 ```
 
 Dashboard, metrics and alerts can be viewed via [Grafana](https://grafana.com). See the [Using](#using) section for how
