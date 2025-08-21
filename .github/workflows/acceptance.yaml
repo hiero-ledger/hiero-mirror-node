@@ -89,9 +89,20 @@ jobs:
             image:
               tag: "${{ github.base_ref }}"
               pullPolicy: IfNotPresent
+
+          restjava:
+            ingress:
+              annotations:
+                haproxy-ingress.github.io/path-type: regex
           EOF
 
-          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f=temp-values.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --pinger --enable-ingress || { echo "Failed to deploy mirror node"; exit 1; }
+          cat <<EOF > temp-ingress-controller-values.yaml
+            controller:
+              config:
+                path-type-order: exact,regex,prefix,begin
+          EOF
+
+          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f=temp-values.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --ingress-controller-value-file=temp-ingress-controller-values.yaml --pinger --enable-ingress || { echo "Failed to deploy mirror node"; exit 1; }
 
           echo "Solo cluster setup completed successfully!"
 
