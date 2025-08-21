@@ -20,14 +20,15 @@ import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.reader.block.BlockRootHashDigest;
 
 public final class BlockGenerator {
+
     private static final byte[] ALL_ZERO_HASH = new byte[48];
 
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
 
-    private int blockNumber;
+    private long blockNumber;
     private byte[] previousBlockRootHash;
 
-    public BlockGenerator(int startBlockNumber) {
+    public BlockGenerator(long startBlockNumber) {
         blockNumber = startBlockNumber;
         if (blockNumber == 0) {
             previousBlockRootHash = ALL_ZERO_HASH;
@@ -49,18 +50,7 @@ public final class BlockGenerator {
         var blockRootHashDigest = new BlockRootHashDigest();
         blockRootHashDigest.setPreviousHash(previousBlockRootHash);
         blockRootHashDigest.setStartOfBlockStateHash(ALL_ZERO_HASH);
-
-        for (var blockItem : block.getBlockItemsList()) {
-            switch (blockItem.getItemCase()) {
-                case EVENT_HEADER, ROUND_HEADER, SIGNED_TRANSACTION -> blockRootHashDigest.addInputBlockItem(blockItem);
-                case BLOCK_HEADER, STATE_CHANGES, TRANSACTION_OUTPUT, TRANSACTION_RESULT ->
-                    blockRootHashDigest.addOutputBlockItem(blockItem);
-                default -> {
-                    // other block items aren't considered input / output
-                }
-            }
-        }
-
+        block.getBlockItemsList().forEach(blockRootHashDigest::addBlockItem);
         previousBlockRootHash = Hex.decodeHex(blockRootHashDigest.digest());
     }
 
@@ -112,7 +102,7 @@ public final class BlockGenerator {
                         .setTransferList(recordItem.getTransactionRecord().getTransferList())
                         .build())
                 .build();
-        // for simplicity, no state changes
+        // for simplicity, no state changes / trace data
         return List.of(eventTransaction, transactionResult);
     }
 }
