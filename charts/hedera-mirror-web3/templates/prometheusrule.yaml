@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-{{ if .Values.prometheusRules.enabled -}}
+{{ if or .Values.prometheusRules.enabled .Values.prometheusRecordRules.enabled -}}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -11,16 +11,20 @@ spec:
   groups:
     - name: {{ include "hedera-mirror-web3.fullname" . }}
       rules:
+    {{ if .Values.prometheusRules.enabled  -}}
       {{- range $name, $rule := omit .Values.prometheusRules "enabled" }}
         {{- if $rule.enabled }}
         - alert: {{ $name }}
           {{- omit $rule "enabled" | toYaml | nindent 10 }}
         {{- end }}
       {{- end }}
+    {{- end }}
+    {{ if .Values.prometheusRecordRules.enabled  -}}
       {{- range $name, $rule := omit .Values.prometheusRecordRules "enabled" }}
         {{- if $rule.enabled }}
         - record: {{ $name }}
           {{- omit $rule "enabled" | toYaml | nindent 10 }}
         {{- end }}
       {{- end }}
+    {{- end }}
 {{- end -}}
