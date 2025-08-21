@@ -104,13 +104,17 @@ hpa:
         target:
           type: Utilization
           averageUtilization: 80
-    - type: Pods
-      pods:
+    - type: Object
+      object:
+        describedObject:
+          apiVersion: apps/v1
+          kind: Deployment
+          name: mirror-web3
         metric:
           name: evm_gas_used_per_second
         target:
+          averageValue: 2750k
           type: AverageValue
-          averageValue: 6750k
   minReplicas: 1
 
 image:
@@ -287,6 +291,24 @@ prometheusRules:
     labels:
       application: web3
       severity: warning
+prometheusRecordRules:
+  enabled: false
+  evm_gas_used_per_second_by_deployment:
+    enabled: true
+    expr: |
+        sum by (namespace, deployment) (
+          rate(hiero_mirror_web3_evm_gas_used_total{application="web3",namespace!="",pod!=""}[3m])
+          * on (namespace, pod) group_left(replicaset)
+            label_replace(
+              kube_pod_owner{owner_kind="ReplicaSet"},
+              "replicaset", "$1", "owner_name", "(.*)"
+            )
+          * on (namespace, replicaset) group_left(deployment)
+            label_replace(
+              kube_replicaset_owner{owner_kind="Deployment"},
+              "deployment", "$1", "owner_name", "(.*)"
+            )
+        )
 
 readinessProbe:
   httpGet:

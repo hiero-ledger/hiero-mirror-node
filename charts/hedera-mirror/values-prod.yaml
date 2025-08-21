@@ -215,6 +215,8 @@ web3:
   priorityClassName: medium
   prometheusRules:
     enabled: true
+  prometheusRecordRules:
+    enabled: true
   serviceMonitor:
     enabled: true
   test:

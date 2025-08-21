@@ -17,4 +17,10 @@ spec:
           {{- omit $rule "enabled" | toYaml | nindent 10 }}
         {{- end }}
       {{- end }}
+      {{- range $name, $rule := omit .Values.prometheusRecordRules "enabled" }}
+        {{- if $rule.enabled }}
+        - record: {{ $name }}
+          {{- omit $rule "enabled" | toYaml | nindent 10 }}
+        {{- end }}
+      {{- end }}
 {{- end -}}
