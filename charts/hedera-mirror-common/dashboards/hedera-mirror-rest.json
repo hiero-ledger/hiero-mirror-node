@@ -1,1 +1,1908 @@
-{"annotations":{"list":[{"builtIn":1,"datasource":{"type":"datasource","uid":"grafana"},"enable":true,"hide":true,"iconColor":"rgba(0, 211, 255, 1)","name":"Annotations & Alerts","type":"dashboard"}]},"editable":false,"fiscalYearStartMonth":0,"graphTooltip":0,"id":11,"links":[],"panels":[{"datasource":{"type":"prometheus","uid":"${prometheus}"},"description":"The number of pods that are up and ready for processing","fieldConfig":{"defaults":{"mappings":[{"options":{"match":"null","result":{"color":"red","text":"0"}},"type":"special"}],"max":100,"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"red"},{"color":"green","value":1}]},"unit":"none"},"overrides":[]},"gridPos":{"h":4,"w":3,"x":0,"y":0},"id":6,"maxDataPoints":100,"options":{"colorMode":"background","graphMode":"area","justifyMode":"auto","orientation":"auto","percentChangeColorMode":"standard","reduceOptions":{"calcs":["last"],"fields":"","values":false},"showPercentChange":false,"text":{},"textMode":"auto","wideLayout":true},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"editorMode":"code","exemplar":true,"expr":"count(api_all_request_total{container=\"rest\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})","format":"time_series","interval":"1m","intervalFactor":2,"legendFormat":"","range":true,"refId":"A","step":20}],"title":"Ready Pods","type":"stat"},{"datasource":{"uid":"${prometheus}"},"description":"The rate of incoming requests","fieldConfig":{"defaults":{"mappings":[{"options":{"match":"null","result":{"text":"N/A"}},"type":"special"}],"thresholds":{"mode":"absolute","steps":[{"color":"red"},{"color":"green","value":1}]},"unit":"none"},"overrides":[]},"gridPos":{"h":4,"w":3,"x":3,"y":0},"id":1,"maxDataPoints":100,"options":{"colorMode":"background","graphMode":"area","justifyMode":"auto","orientation":"horizontal","percentChangeColorMode":"standard","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"showPercentChange":false,"text":{},"textMode":"auto","wideLayout":true},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"expr":"sum(rate(api_all_request_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))  ","format":"time_series","interval":"1m","intervalFactor":2,"legendFormat":"","refId":"A","step":20}],"title":"Request Rate","type":"stat"},{"datasource":{"uid":"${prometheus}"},"description":"The total number of all API requests currently in processing (no response yet)","fieldConfig":{"defaults":{"mappings":[{"options":{"match":"null","result":{"text":"N/A"}},"type":"special"}],"thresholds":{"mode":"absolute","steps":[{"color":"green"},{"color":"red","value":50}]},"unit":"none"},"overrides":[]},"gridPos":{"h":4,"w":3,"x":6,"y":0},"id":4,"maxDataPoints":100,"options":{"colorMode":"background","graphMode":"area","justifyMode":"auto","orientation":"auto","percentChangeColorMode":"standard","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"showPercentChange":false,"text":{},"textMode":"auto","wideLayout":true},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"expr":"sum(api_all_request_in_processing_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})","format":"time_series","interval":"1m","intervalFactor":2,"legendFormat":"","refId":"A","step":20}],"title":"Requests Processing","type":"stat"},{"datasource":{"uid":"${prometheus}"},"description":"The average response size","fieldConfig":{"defaults":{"mappings":[{"options":{"match":"null","result":{"color":"green","text":"0B"}},"type":"special"}],"noValue":"0B","thresholds":{"mode":"absolute","steps":[{"color":"green"}]},"unit":"bytes"},"overrides":[]},"gridPos":{"h":4,"w":3,"x":9,"y":0},"id":21,"maxDataPoints":100,"options":{"colorMode":"background","graphMode":"area","justifyMode":"auto","orientation":"auto","percentChangeColorMode":"standard","reduceOptions":{"calcs":["mean"],"fields":"","values":false},"showPercentChange":false,"text":{},"textMode":"auto","wideLayout":true},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"expr":"sum(rate(api_response_size_bytes_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",code=~\"^2..\"}[$__rate_interval])) / \nsum(rate(api_response_size_bytes_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",code=~\"^2..\"}[$__rate_interval]))","format":"time_series","interval":"1m","intervalFactor":2,"legendFormat":"","refId":"B","step":20}],"title":"Response Size","type":"stat"},{"datasource":{"uid":"${prometheus}"},"description":"The total number of all API requests with server error response","fieldConfig":{"defaults":{"decimals":1,"mappings":[{"options":{"match":"null","result":{"color":"green","text":"0%"}},"type":"special"}],"max":100,"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green"},{"color":"orange","value":1},{"color":"red","value":2}]},"unit":"percent"},"overrides":[]},"gridPos":{"h":4,"w":3,"x":12,"y":0},"id":3,"maxDataPoints":100,"options":{"colorMode":"background","graphMode":"area","justifyMode":"auto","orientation":"auto","percentChangeColorMode":"standard","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"showPercentChange":false,"text":{},"textMode":"auto","wideLayout":true},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"expr":"sum(rate(api_all_errors_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) / \nsum(rate(api_all_request_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))","format":"time_series","interval":"1m","intervalFactor":2,"legendFormat":"","refId":"A","step":20}],"title":"Errors","type":"stat"},{"datasource":{"uid":"${prometheus}"},"fieldConfig":{"defaults":{"mappings":[{"options":{"match":"null","result":{"color":"green","text":"0"}},"type":"special"}],"thresholds":{"mode":"absolute","steps":[{"color":"green"},{"color":"red","value":80}]},"unit":"none"},"overrides":[]},"gridPos":{"h":4,"w":3,"x":15,"y":0},"id":2,"maxDataPoints":100,"options":{"colorMode":"background","graphMode":"area","justifyMode":"auto","orientation":"auto","percentChangeColorMode":"standard","reduceOptions":{"calcs":["mean"],"fields":"","values":false},"showPercentChange":false,"text":{},"textMode":"auto","wideLayout":true},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"expr":"(sum(rate(api_request_duration_milliseconds_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",le=\"100\",code=~\"^2..$\"}[$__rate_interval])) +\nsum(rate(api_request_duration_milliseconds_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",le=\"250\",code=~\"^2..$\"}[$__rate_interval])))\n/ 2 / sum(rate(api_request_duration_milliseconds_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))","format":"time_series","interval":"1m","intervalFactor":2,"legendFormat":"","refId":"A","step":20}],"title":"Apdex Score","type":"stat"},{"collapsed":false,"gridPos":{"h":1,"w":24,"x":0,"y":4},"id":16,"panels":[],"title":"HTTP","type":"row"},{"datasource":{"type":"prometheus","uid":"${prometheus}"},"description":"The rate of all API requests received","fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisBorderShow":false,"axisCenteredZero":false,"axisColorMode":"text","axisGridShow":false,"axisLabel":"","axisPlacement":"auto","barAlignment":0,"barWidthFactor":0.6,"drawStyle":"line","fillOpacity":10,"gradientMode":"hue","hideFrom":{"legend":false,"tooltip":false,"viz":false},"insertNulls":false,"lineInterpolation":"smooth","lineWidth":1,"pointSize":5,"scaleDistribution":{"type":"linear"},"showPoints":"never","spanNulls":false,"stacking":{"group":"A","mode":"none"},"thresholdsStyle":{"mode":"off"}},"mappings":[],"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green"},{"color":"red","value":80}]},"unit":"short"},"overrides":[]},"gridPos":{"h":7,"w":24,"x":0,"y":5},"id":8,"options":{"legend":{"calcs":["min","max","mean"],"displayMode":"table","placement":"right","showLegend":true,"sortBy":"Mean","sortDesc":true},"tooltip":{"hideZeros":false,"mode":"multi","sort":"none"}},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"editorMode":"code","expr":"sum(rate(api_request_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (path) > 0","format":"time_series","interval":"1m","intervalFactor":10,"legendFormat":"{{ path }}","range":true,"refId":"A","step":10},{"datasource":{"uid":"${prometheus}"},"editorMode":"code","expr":"sum(rate(api_request_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))","format":"time_series","hide":false,"interval":"1m","intervalFactor":10,"legendFormat":"Total","range":true,"refId":"B","step":10}],"title":"Request Rate by Path","type":"timeseries"},{"datasource":{"type":"prometheus","uid":"${prometheus}"},"description":"The total number of all API requests by code","fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisBorderShow":false,"axisCenteredZero":false,"axisColorMode":"text","axisGridShow":false,"axisLabel":"","axisPlacement":"auto","barAlignment":0,"barWidthFactor":0.6,"drawStyle":"line","fillOpacity":10,"gradientMode":"hue","hideFrom":{"legend":false,"tooltip":false,"viz":false},"insertNulls":false,"lineInterpolation":"smooth","lineWidth":1,"pointSize":5,"scaleDistribution":{"type":"linear"},"showPoints":"never","spanNulls":false,"stacking":{"group":"A","mode":"none"},"thresholdsStyle":{"mode":"off"}},"mappings":[],"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green"},{"color":"red","value":80}]},"unit":"short"},"overrides":[]},"gridPos":{"h":7,"w":24,"x":0,"y":12},"id":13,"options":{"legend":{"calcs":["min","max","mean"],"displayMode":"table","placement":"right","showLegend":true,"sortBy":"Mean","sortDesc":true},"tooltip":{"hideZeros":false,"mode":"multi","sort":"none"}},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"editorMode":"code","expr":"sum(rate(api_request_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (code) > 0","format":"time_series","hide":false,"interval":"1m","intervalFactor":2,"legendFormat":"{{code}}","range":true,"refId":"C","step":2}],"title":"Request Rate by Code","type":"timeseries"},{"datasource":{"type":"prometheus","uid":"${prometheus}"},"description":"How long a request took to process and return a response","fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisBorderShow":false,"axisCenteredZero":false,"axisColorMode":"text","axisGridShow":false,"axisLabel":"","axisPlacement":"auto","barAlignment":0,"barWidthFactor":0.6,"drawStyle":"line","fillOpacity":10,"gradientMode":"hue","hideFrom":{"legend":false,"tooltip":false,"viz":false},"insertNulls":false,"lineInterpolation":"smooth","lineWidth":1,"pointSize":5,"scaleDistribution":{"type":"linear"},"showPoints":"never","spanNulls":36e5,"stacking":{"group":"A","mode":"none"},"thresholdsStyle":{"mode":"off"}},"mappings":[],"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green"},{"color":"orange","value":1e3},{"color":"red","value":3e3}]},"unit":"ms"},"overrides":[]},"gridPos":{"h":7,"w":24,"x":0,"y":19},"id":9,"options":{"legend":{"calcs":["min","max","mean"],"displayMode":"table","placement":"right","showLegend":true,"sortBy":"Mean","sortDesc":true},"tooltip":{"hideZeros":false,"mode":"multi","sort":"desc"}},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"expr":"sum(rate(api_request_duration_milliseconds_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (path) /  sum(rate(api_request_duration_milliseconds_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (path) > 0","format":"time_series","hide":false,"interval":"1m","intervalFactor":2,"legendFormat":"{{ path }}","refId":"D","step":2}],"title":"Request Latency","type":"timeseries"},{"datasource":{"uid":"${prometheus}"},"description":"API request duration distributed into buckets","fieldConfig":{"defaults":{"decimals":0,"mappings":[],"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green"}]},"unit":"ms"},"overrides":[]},"gridPos":{"h":7,"w":24,"x":0,"y":26},"id":28,"maxDataPoints":50,"options":{"displayMode":"gradient","legend":{"calcs":[],"displayMode":"list","placement":"bottom","showLegend":false},"maxVizHeight":300,"minVizHeight":10,"minVizWidth":0,"namePlacement":"auto","orientation":"vertical","reduceOptions":{"calcs":["mean"],"fields":"","values":false},"showUnfilled":true,"sizing":"auto","text":{},"valueMode":"color"},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"expr":"sum(increase(api_request_duration_milliseconds_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",code=~\"^2..$\"}[$__rate_interval])) by (le)","format":"heatmap","hide":false,"instant":false,"interval":"5m","intervalFactor":2,"legendFormat":"{{ le }}","refId":"C","step":2}],"title":"Request Duration Distribution","type":"bargauge"},{"datasource":{"type":"prometheus","uid":"${prometheus}"},"description":"The total number of all API requests with error response","fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisBorderShow":false,"axisCenteredZero":false,"axisColorMode":"text","axisGridShow":false,"axisLabel":"","axisPlacement":"auto","barAlignment":0,"barWidthFactor":0.6,"drawStyle":"line","fillOpacity":10,"gradientMode":"hue","hideFrom":{"legend":false,"tooltip":false,"viz":false},"insertNulls":false,"lineInterpolation":"smooth","lineWidth":1,"pointSize":1,"scaleDistribution":{"type":"linear"},"showPoints":"auto","spanNulls":false,"stacking":{"group":"A","mode":"none"},"thresholdsStyle":{"mode":"off"}},"mappings":[],"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green"},{"color":"red","value":80}]},"unit":"short"},"overrides":[]},"gridPos":{"h":7,"w":24,"x":0,"y":33},"id":7,"options":{"legend":{"calcs":["min","max","mean"],"displayMode":"table","placement":"right","showLegend":true,"sortBy":"Name","sortDesc":false},"tooltip":{"hideZeros":false,"mode":"multi","sort":"none"}},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"editorMode":"code","expr":"sum(rate(api_request_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",code!~\"^2..$\"}[$__rate_interval])) by (code) > 0","format":"time_series","hide":false,"interval":"1m","intervalFactor":2,"legendFormat":"{{ code }}","range":true,"refId":"C","step":2}],"title":"Error Rate by Code","type":"timeseries"},{"datasource":{"type":"prometheus","uid":"${prometheus}"},"description":"API response size in bytes by path","fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisBorderShow":false,"axisCenteredZero":false,"axisColorMode":"text","axisGridShow":false,"axisLabel":"","axisPlacement":"auto","barAlignment":0,"barWidthFactor":0.6,"drawStyle":"line","fillOpacity":10,"gradientMode":"hue","hideFrom":{"legend":false,"tooltip":false,"viz":false},"insertNulls":false,"lineInterpolation":"smooth","lineWidth":1,"pointSize":1,"scaleDistribution":{"type":"linear"},"showPoints":"auto","spanNulls":36e5,"stacking":{"group":"A","mode":"none"},"thresholdsStyle":{"mode":"off"}},"mappings":[],"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green"},{"color":"red","value":80}]},"unit":"bytes"},"overrides":[]},"gridPos":{"h":7,"w":24,"x":0,"y":40},"id":20,"options":{"legend":{"calcs":["min","max","mean"],"displayMode":"table","placement":"right","showLegend":true,"sortBy":"Mean","sortDesc":true},"tooltip":{"hideZeros":false,"mode":"multi","sort":"desc"}},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"editorMode":"code","expr":"sum(rate(api_response_size_bytes_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",code=~\"^2..\"}[$__rate_interval])) by (path) / \nsum(rate(api_response_size_bytes_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",code=~\"^2..\"}[$__rate_interval])) by (path) > 0","format":"time_series","hide":false,"interval":"1m","intervalFactor":2,"legendFormat":"{{ path }}","range":true,"refId":"C","step":2}],"title":"Response Size by Path","type":"timeseries"},{"datasource":{"type":"prometheus","uid":"${prometheus}"},"description":"API response size distributed into buckets","fieldConfig":{"defaults":{"mappings":[],"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green"}]},"unit":"bytes"},"overrides":[]},"gridPos":{"h":7,"w":24,"x":0,"y":47},"id":23,"maxDataPoints":25,"options":{"displayMode":"gradient","legend":{"calcs":[],"displayMode":"list","placement":"bottom","showLegend":false},"maxVizHeight":300,"minVizHeight":10,"minVizWidth":0,"namePlacement":"auto","orientation":"vertical","reduceOptions":{"calcs":["mean"],"fields":"","values":false},"showUnfilled":true,"sizing":"auto","text":{},"valueMode":"color"},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"editorMode":"code","expr":"sum(increase(api_response_size_bytes_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (le) > 0","format":"heatmap","hide":false,"instant":false,"interval":"1m","intervalFactor":2,"legendFormat":"{{ le }}","refId":"C","step":2}],"title":"Response Size Distribution","type":"bargauge"},{"collapsed":false,"gridPos":{"h":1,"w":24,"x":0,"y":54},"id":18,"panels":[],"title":"Resources","type":"row"},{"datasource":{"uid":"${prometheus}"},"description":"The average Node.js process memory","fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisBorderShow":false,"axisCenteredZero":false,"axisColorMode":"text","axisGridShow":false,"axisLabel":"","axisPlacement":"auto","barAlignment":0,"barWidthFactor":0.6,"drawStyle":"line","fillOpacity":10,"gradientMode":"hue","hideFrom":{"legend":false,"tooltip":false,"viz":false},"insertNulls":false,"lineInterpolation":"smooth","lineWidth":1,"pointSize":1,"scaleDistribution":{"type":"linear"},"showPoints":"auto","spanNulls":false,"stacking":{"group":"A","mode":"none"},"thresholdsStyle":{"mode":"off"}},"mappings":[],"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green"},{"color":"red","value":80}]},"unit":"bytes"},"overrides":[]},"gridPos":{"h":7,"w":24,"x":0,"y":55},"id":14,"options":{"legend":{"calcs":["min","max","mean"],"displayMode":"table","placement":"right","showLegend":true,"sortBy":"Mean","sortDesc":true},"tooltip":{"hideZeros":false,"mode":"multi","sort":"desc"}},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"expr":"avg(nodejs_process_memory_external_bytes{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})","format":"time_series","hide":false,"interval":"1m","intervalFactor":2,"legendFormat":"External","refId":"C","step":2},{"datasource":{"uid":"${prometheus}"},"expr":"avg(nodejs_process_memory_rss_bytes{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})","format":"time_series","hide":false,"interval":"1m","intervalFactor":2,"legendFormat":"RSS","refId":"A","step":2},{"datasource":{"uid":"${prometheus}"},"expr":"avg(nodejs_process_memory_heap_used_bytes{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})","format":"time_series","hide":false,"interval":"1m","intervalFactor":2,"legendFormat":"Heap used","refId":"B","step":2},{"datasource":{"uid":"${prometheus}"},"expr":"avg(nodejs_process_memory_heap_total_bytes{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})","format":"time_series","hide":false,"interval":"1m","intervalFactor":2,"legendFormat":"Heap total","refId":"D","step":2}],"title":"Memory","type":"timeseries"},{"datasource":{"uid":"${prometheus}"},"description":"The average Node.js process CPU utilization","fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisBorderShow":false,"axisCenteredZero":false,"axisColorMode":"text","axisGridShow":false,"axisLabel":"","axisPlacement":"auto","barAlignment":0,"barWidthFactor":0.6,"drawStyle":"line","fillOpacity":10,"gradientMode":"hue","hideFrom":{"legend":false,"tooltip":false,"viz":false},"insertNulls":false,"lineInterpolation":"smooth","lineWidth":1,"pointSize":1,"scaleDistribution":{"type":"linear"},"showPoints":"auto","spanNulls":36e5,"stacking":{"group":"A","mode":"none"},"thresholdsStyle":{"mode":"off"}},"mappings":[],"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green"},{"color":"red","value":80}]},"unit":"percent"},"overrides":[]},"gridPos":{"h":7,"w":24,"x":0,"y":62},"id":22,"options":{"legend":{"calcs":["min","max","mean"],"displayMode":"list","placement":"bottom","showLegend":true},"tooltip":{"hideZeros":false,"mode":"single","sort":"none"}},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"expr":"avg(nodejs_process_cpu_usage_percentage{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})","format":"time_series","hide":false,"interval":"1m","intervalFactor":2,"legendFormat":"Usage","refId":"D","step":2}],"title":"CPU Utilization","type":"timeseries"},{"datasource":{"uid":"${prometheus}"},"description":"The number of pods active at a given time","fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisBorderShow":false,"axisCenteredZero":false,"axisColorMode":"text","axisGridShow":false,"axisLabel":"","axisPlacement":"auto","barAlignment":0,"barWidthFactor":0.6,"drawStyle":"line","fillOpacity":7,"gradientMode":"hue","hideFrom":{"legend":false,"tooltip":false,"viz":false},"insertNulls":false,"lineInterpolation":"smooth","lineWidth":1,"pointSize":1,"scaleDistribution":{"type":"linear"},"showPoints":"auto","spanNulls":36e5,"stacking":{"group":"A","mode":"none"},"thresholdsStyle":{"mode":"off"}},"mappings":[],"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green"},{"color":"red","value":80}]},"unit":"short"},"overrides":[]},"gridPos":{"h":8,"w":24,"x":0,"y":69},"id":33,"options":{"legend":{"calcs":["min","max","mean"],"displayMode":"list","placement":"bottom","showLegend":true},"tooltip":{"hideZeros":false,"mode":"none","sort":"none"}},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${prometheus}"},"editorMode":"code","expr":"sum(up{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",service!~\".*internal\"})","format":"time_series","hide":false,"interval":"1m","intervalFactor":2,"legendFormat":" Pods","range":true,"refId":"D","step":2}],"title":"Replicas","type":"timeseries"},{"collapsed":false,"gridPos":{"h":1,"w":24,"x":0,"y":77},"id":25,"panels":[],"title":"Logs","type":"row"},{"datasource":{"type":"loki","uid":"${loki}"},"description":"The rate of log events written by the application","fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"custom":{"axisBorderShow":false,"axisCenteredZero":false,"axisColorMode":"text","axisGridShow":false,"axisLabel":"","axisPlacement":"auto","barAlignment":0,"barWidthFactor":0.6,"drawStyle":"bars","fillOpacity":10,"gradientMode":"hue","hideFrom":{"legend":false,"tooltip":false,"viz":false},"insertNulls":false,"lineInterpolation":"linear","lineWidth":1,"pointSize":1,"scaleDistribution":{"type":"linear"},"showPoints":"auto","spanNulls":false,"stacking":{"group":"A","mode":"normal"},"thresholdsStyle":{"mode":"off"}},"mappings":[],"thresholds":{"mode":"absolute","steps":[{"color":"green"},{"color":"red","value":80}]},"unit":"short"},"overrides":[]},"gridPos":{"h":8,"w":24,"x":0,"y":78},"id":32,"options":{"legend":{"calcs":[],"displayMode":"list","placement":"bottom","showLegend":true},"tooltip":{"hideZeros":false,"mode":"multi","sort":"none"}},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${loki}"},"editorMode":"code","expr":"sum(rate({app=\"rest\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"} | regexp `(?P<timestamp>\\S+) (?P<level>\\S+) .+`[$__auto])) by (level) > 0","instant":false,"legendFormat":"{{level}}","queryType":"range","range":true,"refId":"A"}],"title":"Rate","type":"timeseries"},{"datasource":{"uid":"${loki}"},"description":"The log events","fieldConfig":{"defaults":{},"overrides":[]},"gridPos":{"h":8,"w":24,"x":0,"y":86},"id":27,"links":[{"targetBlank":true,"title":"Explore Logs","url":"/explore?panes={\"rl3\":{\"datasource\":\"${loki}\",\"queries\":[{\"refId\":\"A\",\"expr\":\"{component=\\\"rest\\\", cluster=\\\"${cluster:text}\\\", namespace=\\\"${namespace:text}\\\"} |= ``\",\"queryType\":\"range\",\"datasource\":{\"type\":\"loki\",\"uid\":\"${loki}\"},\"editorMode\":\"builder\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}}&schemaVersion=1&orgId=1"}],"options":{"dedupStrategy":"none","enableInfiniteScrolling":false,"enableLogDetails":false,"prettifyLogMessage":false,"showCommonLabels":false,"showLabels":false,"showTime":false,"sortOrder":"Ascending","wrapLogMessage":false},"pluginVersion":"11.6.0","targets":[{"datasource":{"uid":"${loki}"},"expr":"{component=\"rest\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}","legendFormat":"","refId":"A"}],"title":"Messages","type":"logs"}],"preload":false,"refresh":"1m","schemaVersion":41,"tags":["api","application","hiero","mirror","rest"],"templating":{"list":[{"current":{"text":"rest","value":"rest"},"hide":2,"name":"application","query":"rest","skipUrlSync":true,"type":"constant"},{"current":{"text":"","value":""},"description":"Name of the Loki datasource to use","hide":2,"includeAll":false,"label":"Loki","name":"loki","options":[],"query":"loki","refresh":1,"regex":".*(Loki|logs)$","type":"datasource"},{"current":{"text":"default","value":"default"},"description":"Name of the Prometheus datasource to use","includeAll":false,"label":"Prometheus","name":"prometheus","options":[],"query":"prometheus","refresh":1,"regex":".*(?<!usage)","type":"datasource"},{"current":{"text":["All"],"value":["$__all"]},"datasource":{"type":"prometheus","uid":"${prometheus}"},"definition":"label_values(nodejs_process_cpu_usage_percentage{container=\"$application\"}, cluster)","description":"Kubernetes cluster","includeAll":true,"label":"Cluster","multi":true,"name":"cluster","options":[],"query":{"query":"label_values(nodejs_process_cpu_usage_percentage{container=\"$application\"}, cluster)","refId":"StandardVariableQuery"},"refresh":2,"regex":"","sort":5,"type":"query"},{"current":{"text":"All","value":"$__all"},"datasource":{"type":"prometheus","uid":"${prometheus}"},"definition":"label_values(nodejs_process_cpu_usage_percentage{container=\"$application\",cluster=~\"$cluster\"}, namespace)","includeAll":true,"label":"Namespace","name":"namespace","options":[],"query":{"query":"label_values(nodejs_process_cpu_usage_percentage{container=\"$application\",cluster=~\"$cluster\"}, namespace)","refId":"Prometheus-namespace-Variable-Query"},"refresh":2,"regex":"","sort":5,"type":"query"},{"current":{"text":"All","value":"$__all"},"datasource":{"type":"prometheus","uid":"${prometheus}"},"definition":"label_values(nodejs_process_cpu_usage_percentage{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\"}, pod)","includeAll":true,"label":"Pod","name":"pod","options":[],"query":{"query":"label_values(nodejs_process_cpu_usage_percentage{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\"}, pod)","refId":"Prometheus-pod-Variable-Query"},"refresh":2,"regex":"","sort":5,"type":"query"}]},"time":{"from":"now-3h","to":"now"},"timepicker":{},"timezone":"","title":"Mirror REST API","uid":"0vnSftR7z","version":3}
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 11,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "The number of pods that are up and ready for processing",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "match": "null",
+                "result": {
+                  "color": "red",
+                  "text": "0"
+                }
+              },
+              "type": "special"
+            }
+          ],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red"
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 0,
+        "y": 0
+      },
+      "id": 6,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "count(api_all_request_total{container=\"rest\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
+          "format": "time_series",
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "",
+          "range": true,
+          "refId": "A",
+          "step": 20
+        }
+      ],
+      "title": "Ready Pods",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheus}"
+      },
+      "description": "The rate of incoming requests",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "N/A"
+                }
+              },
+              "type": "special"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red"
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 3,
+        "y": 0
+      },
+      "id": 1,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "expr": "sum(rate(api_all_request_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))  ",
+          "format": "time_series",
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "",
+          "refId": "A",
+          "step": 20
+        }
+      ],
+      "title": "Request Rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheus}"
+      },
+      "description": "The total number of all API requests currently in processing (no response yet)",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "N/A"
+                }
+              },
+              "type": "special"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 6,
+        "y": 0
+      },
+      "id": 4,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "expr": "sum(api_all_request_in_processing_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
+          "format": "time_series",
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "",
+          "refId": "A",
+          "step": 20
+        }
+      ],
+      "title": "Requests Processing",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheus}"
+      },
+      "description": "The average response size",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "match": "null",
+                "result": {
+                  "color": "green",
+                  "text": "0B"
+                }
+              },
+              "type": "special"
+            }
+          ],
+          "noValue": "0B",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 9,
+        "y": 0
+      },
+      "id": 21,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "expr": "sum(rate(api_response_size_bytes_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",code=~\"^2..\"}[$__rate_interval])) / \nsum(rate(api_response_size_bytes_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",code=~\"^2..\"}[$__rate_interval]))",
+          "format": "time_series",
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "",
+          "refId": "B",
+          "step": 20
+        }
+      ],
+      "title": "Response Size",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheus}"
+      },
+      "description": "The total number of all API requests with server error response",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "mappings": [
+            {
+              "options": {
+                "match": "null",
+                "result": {
+                  "color": "green",
+                  "text": "0%"
+                }
+              },
+              "type": "special"
+            }
+          ],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 12,
+        "y": 0
+      },
+      "id": 3,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "expr": "sum(rate(api_all_errors_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) / \nsum(rate(api_all_request_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
+          "format": "time_series",
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "",
+          "refId": "A",
+          "step": 20
+        }
+      ],
+      "title": "Errors",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheus}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "match": "null",
+                "result": {
+                  "color": "green",
+                  "text": "0"
+                }
+              },
+              "type": "special"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 15,
+        "y": 0
+      },
+      "id": 2,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "expr": "(sum(rate(api_request_duration_milliseconds_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",le=\"100\",code=~\"^2..$\"}[$__rate_interval])) +\nsum(rate(api_request_duration_milliseconds_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",le=\"250\",code=~\"^2..$\"}[$__rate_interval])))\n/ 2 / sum(rate(api_request_duration_milliseconds_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
+          "format": "time_series",
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "",
+          "refId": "A",
+          "step": 20
+        }
+      ],
+      "title": "Apdex Score",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
+      "id": 16,
+      "panels": [],
+      "title": "HTTP",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "The rate of all API requests received",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(api_request_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (path) > 0",
+          "format": "time_series",
+          "interval": "1m",
+          "intervalFactor": 10,
+          "legendFormat": "{{ path }}",
+          "range": true,
+          "refId": "A",
+          "step": 10
+        },
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(api_request_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
+          "format": "time_series",
+          "hide": false,
+          "interval": "1m",
+          "intervalFactor": 10,
+          "legendFormat": "Total",
+          "range": true,
+          "refId": "B",
+          "step": 10
+        }
+      ],
+      "title": "Request Rate by Path",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "The total number of all API requests by code",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "id": 13,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(api_request_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (code) > 0",
+          "format": "time_series",
+          "hide": false,
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "{{code}}",
+          "range": true,
+          "refId": "C",
+          "step": 2
+        }
+      ],
+      "title": "Request Rate by Code",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "How long a request took to process and return a response",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": 3600000,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 3000
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "expr": "sum(rate(api_request_duration_milliseconds_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (path) /  sum(rate(api_request_duration_milliseconds_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (path) > 0",
+          "format": "time_series",
+          "hide": false,
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "{{ path }}",
+          "refId": "D",
+          "step": 2
+        }
+      ],
+      "title": "Request Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheus}"
+      },
+      "description": "API request duration distributed into buckets",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "id": 28,
+      "maxDataPoints": 50,
+      "options": {
+        "displayMode": "gradient",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "namePlacement": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "text": {},
+        "valueMode": "color"
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "expr": "sum(increase(api_request_duration_milliseconds_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",code=~\"^2..$\"}[$__rate_interval])) by (le)",
+          "format": "heatmap",
+          "hide": false,
+          "instant": false,
+          "interval": "5m",
+          "intervalFactor": 2,
+          "legendFormat": "{{ le }}",
+          "refId": "C",
+          "step": 2
+        }
+      ],
+      "title": "Request Duration Distribution",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "The total number of all API requests with error response",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Name",
+          "sortDesc": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(api_request_total{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",code!~\"^2..$\"}[$__rate_interval])) by (code) > 0",
+          "format": "time_series",
+          "hide": false,
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "{{ code }}",
+          "range": true,
+          "refId": "C",
+          "step": 2
+        }
+      ],
+      "title": "Error Rate by Code",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "API response size in bytes by path",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": 3600000,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "id": 20,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(api_response_size_bytes_sum{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",code=~\"^2..\"}[$__rate_interval])) by (path) / \nsum(rate(api_response_size_bytes_count{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",code=~\"^2..\"}[$__rate_interval])) by (path) > 0",
+          "format": "time_series",
+          "hide": false,
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "{{ path }}",
+          "range": true,
+          "refId": "C",
+          "step": 2
+        }
+      ],
+      "title": "Response Size by Path",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "description": "API response size distributed into buckets",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 47
+      },
+      "id": 23,
+      "maxDataPoints": 25,
+      "options": {
+        "displayMode": "gradient",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "namePlacement": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "text": {},
+        "valueMode": "color"
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(api_response_size_bytes_bucket{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (le) > 0",
+          "format": "heatmap",
+          "hide": false,
+          "instant": false,
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "{{ le }}",
+          "refId": "C",
+          "step": 2
+        }
+      ],
+      "title": "Response Size Distribution",
+      "type": "bargauge"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 54
+      },
+      "id": 18,
+      "panels": [],
+      "title": "Resources",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheus}"
+      },
+      "description": "The average Node.js process memory",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 55
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "expr": "avg(nodejs_process_memory_external_bytes{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
+          "format": "time_series",
+          "hide": false,
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "External",
+          "refId": "C",
+          "step": 2
+        },
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "expr": "avg(nodejs_process_memory_rss_bytes{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
+          "format": "time_series",
+          "hide": false,
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "RSS",
+          "refId": "A",
+          "step": 2
+        },
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "expr": "avg(nodejs_process_memory_heap_used_bytes{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
+          "format": "time_series",
+          "hide": false,
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "Heap used",
+          "refId": "B",
+          "step": 2
+        },
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "expr": "avg(nodejs_process_memory_heap_total_bytes{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
+          "format": "time_series",
+          "hide": false,
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "Heap total",
+          "refId": "D",
+          "step": 2
+        }
+      ],
+      "title": "Memory",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheus}"
+      },
+      "description": "The average Node.js process CPU utilization",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": 3600000,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 62
+      },
+      "id": 22,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "expr": "avg(nodejs_process_cpu_usage_percentage{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
+          "format": "time_series",
+          "hide": false,
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": "Usage",
+          "refId": "D",
+          "step": 2
+        }
+      ],
+      "title": "CPU Utilization",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheus}"
+      },
+      "description": "The number of pods active at a given time",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 7,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": 3600000,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 69
+      },
+      "id": 33,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "mean"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "none",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "sum(up{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",service!~\".*internal\"})",
+          "format": "time_series",
+          "hide": false,
+          "interval": "1m",
+          "intervalFactor": 2,
+          "legendFormat": " Pods",
+          "range": true,
+          "refId": "D",
+          "step": 2
+        }
+      ],
+      "title": "Replicas",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 77
+      },
+      "id": 25,
+      "panels": [],
+      "title": "Logs",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${loki}"
+      },
+      "description": "The rate of log events written by the application",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "bars",
+            "fillOpacity": 10,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 78
+      },
+      "id": 32,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${loki}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate({app=\"rest\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"} | regexp `(?P<timestamp>\\S+) (?P<level>\\S+) .+`[$__auto])) by (level) > 0",
+          "instant": false,
+          "legendFormat": "{{level}}",
+          "queryType": "range",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "uid": "${loki}"
+      },
+      "description": "The log events",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 86
+      },
+      "id": 27,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "Explore Logs",
+          "url": "/explore?panes={\"rl3\":{\"datasource\":\"${loki}\",\"queries\":[{\"refId\":\"A\",\"expr\":\"{component=\\\"rest\\\", cluster=\\\"${cluster:text}\\\", namespace=\\\"${namespace:text}\\\"} |= ``\",\"queryType\":\"range\",\"datasource\":{\"type\":\"loki\",\"uid\":\"${loki}\"},\"editorMode\":\"builder\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}}&schemaVersion=1&orgId=1"
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "enableInfiniteScrolling": false,
+        "enableLogDetails": false,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": false,
+        "sortOrder": "Ascending",
+        "wrapLogMessage": false
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${loki}"
+          },
+          "expr": "{component=\"rest\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Messages",
+      "type": "logs"
+    }
+  ],
+  "preload": false,
+  "refresh": "1m",
+  "schemaVersion": 41,
+  "tags": [
+    "api",
+    "application",
+    "hiero",
+    "mirror",
+    "rest"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "text": "rest",
+          "value": "rest"
+        },
+        "hide": 2,
+        "name": "application",
+        "query": "rest",
+        "skipUrlSync": true,
+        "type": "constant"
+      },
+      {
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "description": "Name of the Loki datasource to use",
+        "hide": 2,
+        "includeAll": false,
+        "label": "Loki",
+        "name": "loki",
+        "options": [],
+        "query": "loki",
+        "refresh": 1,
+        "regex": ".*(Loki|logs)$",
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "text": "default",
+          "value": "default"
+        },
+        "description": "Name of the Prometheus datasource to use",
+        "includeAll": false,
+        "label": "Prometheus",
+        "name": "prometheus",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": ".*(?<!usage)",
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${prometheus}"
+        },
+        "definition": "label_values(nodejs_process_cpu_usage_percentage{container=\"$application\"}, cluster)",
+        "description": "Kubernetes cluster",
+        "includeAll": true,
+        "label": "Cluster",
+        "multi": true,
+        "name": "cluster",
+        "options": [],
+        "query": {
+          "query": "label_values(nodejs_process_cpu_usage_percentage{container=\"$application\"}, cluster)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${prometheus}"
+        },
+        "definition": "label_values(nodejs_process_cpu_usage_percentage{container=\"$application\",cluster=~\"$cluster\"}, namespace)",
+        "includeAll": true,
+        "label": "Namespace",
+        "name": "namespace",
+        "options": [],
+        "query": {
+          "query": "label_values(nodejs_process_cpu_usage_percentage{container=\"$application\",cluster=~\"$cluster\"}, namespace)",
+          "refId": "Prometheus-namespace-Variable-Query"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${prometheus}"
+        },
+        "definition": "label_values(nodejs_process_cpu_usage_percentage{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\"}, pod)",
+        "includeAll": true,
+        "label": "Pod",
+        "name": "pod",
+        "options": [],
+        "query": {
+          "query": "label_values(nodejs_process_cpu_usage_percentage{container=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\"}, pod)",
+          "refId": "Prometheus-pod-Variable-Query"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 5,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Mirror REST API",
+  "uid": "0vnSftR7z",
+  "version": 3
+}
