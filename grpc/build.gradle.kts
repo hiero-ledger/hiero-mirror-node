@@ -7,7 +7,6 @@ plugins { id("spring-conventions") }
 dependencies {
     implementation(project(":common"))
     implementation(project(":protobuf"))
-    implementation(platform("org.springframework.cloud:spring-cloud-dependencies"))
     implementation("com.fasterxml.jackson.core:jackson-core")
     implementation("com.ongres.scram:client")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
@@ -25,8 +24,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
-    implementation("org.springframework.cloud:spring-cloud-starter-bootstrap")
-    implementation("org.springframework.cloud:spring-cloud-starter-kubernetes-fabric8-config")
     runtimeOnly(
         group = "io.netty",
         name = "netty-resolver-dns-native-macos",

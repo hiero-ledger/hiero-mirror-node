@@ -12,7 +12,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.hedera.hapi.block.stream.protoc.BlockItem;
+import com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.LongStream;
 import org.hiero.block.api.protoc.BlockItemSet;
@@ -180,5 +182,83 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(HashMismatchException.class)
                 .hasMessageContaining("Previous hash mismatch");
+    }
+
+    @Test
+    void exceptionIsThrownWhenSignedTxnItemIsBeforeEventHeaderItem() {
+        // given
+        var generator = new BlockGenerator(0);
+
+        var blocks = new ArrayList<>(generator.next(2));
+        var blockOne = blocks.get(1);
+        var blockOneItems = blockOne.getBlockItemsList();
+        var blockOneEventHeaderItem = blockOneItems.stream()
+                .filter(it -> it.getItemCase() == ItemCase.EVENT_HEADER)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("The block is missing event header item"));
+        var blockOneSignedTxnItem = blockOneItems.stream()
+                .filter(it -> it.getItemCase() == ItemCase.SIGNED_TRANSACTION)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("The block is missing signed transaction item"));
+        int blockOneEventHeaderItemIndex = blockOneItems.indexOf(blockOneEventHeaderItem);
+        int blockOneSignedTxnItemIndex = blockOneItems.indexOf(blockOneSignedTxnItem);
+
+        var builder = BlockItemSet.newBuilder();
+        var wrongOrderBlockItems = new ArrayList<>(blockOneItems);
+        Collections.swap(wrongOrderBlockItems, blockOneEventHeaderItemIndex, blockOneSignedTxnItemIndex);
+        builder.addAllBlockItems(wrongOrderBlockItems);
+        blocks.remove(1);
+        blocks.add(builder.build());
+
+        simulator = new BlockNodeSimulator()
+                .withChunksPerBlock(2)
+                .withBlocks(blocks)
+                .start();
+        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+
+        // when, then
+        assertThatThrownBy(subscriber::get)
+                .isInstanceOf(BlockStreamException.class)
+                .hasCauseInstanceOf(InvalidStreamFileException.class)
+                .hasMessageContaining("Missing block proof in block");
+    }
+
+    @Test
+    void exceptionIsThrownWhenTheLastSignedTxnItemIsNotFollowedByTxnResultItem() {
+        // given
+        var generator = new BlockGenerator(0);
+
+        var blocks = new ArrayList<>(generator.next(2));
+        var blockOne = blocks.get(1);
+        var blockOneItems = blockOne.getBlockItemsList();
+        var blockOneLastSignedTxn = blockOneItems.stream()
+                .filter(it -> it.getItemCase() == ItemCase.SIGNED_TRANSACTION)
+                .reduce((first, second) -> second)
+                .orElseThrow(() -> new IllegalStateException("The block is missing signed transaction item"));
+        var blockOneTxnResult = blockOneItems.stream()
+                .filter(it -> it.getItemCase() == ItemCase.TRANSACTION_RESULT)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("The block is missing transaction result item"));
+        int blockOneSignedTxnIndex = blockOneItems.indexOf(blockOneLastSignedTxn);
+        int blockOneTxnResultIndex = blockOneItems.indexOf(blockOneTxnResult);
+
+        var builder = BlockItemSet.newBuilder();
+        var wrongOrderBlockItems = new ArrayList<>(blockOneItems);
+        Collections.swap(wrongOrderBlockItems, blockOneTxnResultIndex, blockOneSignedTxnIndex);
+        builder.addAllBlockItems(wrongOrderBlockItems);
+        blocks.remove(1);
+        blocks.add(builder.build());
+
+        simulator = new BlockNodeSimulator()
+                .withChunksPerBlock(2)
+                .withBlocks(blocks)
+                .start();
+        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+
+        // when, then
+        assertThatThrownBy(subscriber::get)
+                .isInstanceOf(BlockStreamException.class)
+                .hasCauseInstanceOf(InvalidStreamFileException.class)
+                .hasMessageContaining("Missing transaction result in block");
     }
 }
