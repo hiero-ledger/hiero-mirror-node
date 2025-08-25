@@ -71,11 +71,18 @@ jobs:
         run: |
           npm install -g @hashgraph/solo
 
+      - name: Build Mirror Node Test JAR
+        run: ./gradlew test:build -x test
+
+      - name: Build Mirror Node Test Docker image
+        run: docker build -t gcr.io/mirrornode/hedera-mirror-test:"${{ github.base_ref }}" -f test/Dockerfile ./test
+
       - name: Setup Solo Cluster
         run: |
           kind create cluster -n "${SOLO_CLUSTER_NAME}" || { echo "Failed to create Kind cluster"; exit 1; }
           solo init || { echo "Failed to initialize Solo"; exit 1; }
           solo cluster-ref connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --context kind-"${SOLO_CLUSTER_NAME}" || { echo "Failed to connect to cluster"; exit 1; }
+          kind load docker-image gcr.io/mirrornode/hedera-mirror-test:"${{ github.base_ref }}" -n "${SOLO_CLUSTER_NAME}" || { echo "Failed to load docker image"; exit 1; }
           solo deployment create --deployment "${SOLO_DEPLOYMENT}" --namespace "${SOLO_NAMESPACE}" || { echo "Failed to create deployment"; exit 1; }
           solo deployment add-cluster --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --num-consensus-nodes 1 || { echo "Failed to add cluster to deployment"; exit 1; }
           solo cluster-ref setup --cluster-ref kind-"${SOLO_CLUSTER_NAME}" || { echo "Failed to setup cluster"; exit 1; }
@@ -90,19 +97,20 @@ jobs:
               tag: "${{ github.base_ref }}"
               pullPolicy: IfNotPresent
 
-          restjava:
-            ingress:
-              annotations:
-                haproxy-ingress.github.io/path-type: regex
+          test:
+            config:
+              hiero:
+                mirror:
+                  test:
+                    acceptance:
+                      network: OTHER
+                    web3:
+                      modularizedServices: true
+            cucumberTags: "@acceptance and not @schedulebase"
+            enabled: true
           EOF
 
-          cat <<EOF > temp-ingress-controller-values.yaml
-            controller:
-              config:
-                path-type-order: exact,regex,prefix,begin
-          EOF
-
-          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f=temp-values.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --ingress-controller-value-file=temp-ingress-controller-values.yaml --pinger --enable-ingress || { echo "Failed to deploy mirror node"; exit 1; }
+          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f=temp-values.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --pinger || { echo "Failed to deploy mirror node"; exit 1; }
 
           echo "Solo cluster setup completed successfully!"
 
@@ -113,15 +121,7 @@ jobs:
 
       - name: Run acceptance tests
         run: |
-          ./gradlew :test:acceptance --info \
-            -Dcucumber.filter.tags=@acceptance \
-            -Dhiero.mirror.test.acceptance.mirrorNodeAddress=localhost:8081 \
-            -Dhiero.mirror.test.acceptance.network=OTHER \
-            "-Dhiero.mirror.test.acceptance.nodes[0].accountId=0.0.3" \
-            "-Dhiero.mirror.test.acceptance.nodes[0].host=localhost" \
-            "-Dhiero.mirror.test.acceptance.nodes[0].port=50211" \
-            -Dhiero.mirror.test.acceptance.rest.baseUrl=http://localhost:8081 \
-            -Dhiero.mirror.test.acceptance.web3.modularizedServices=true
+          helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
 
       - name: Show Pod Logs on Failure
         if: ${{ failure() }}
