@@ -56,9 +56,9 @@ public class NetworkFeature {
     public void verifyNetworkFee() {
         final var networkFees = mirrorClient.getNetworkFees();
         assertThat(networkFees).isNotNull();
-        assertThat(networkFees.getFees()).isNotEmpty();
 
         final var fees = networkFees.getFees();
+        assertThat(fees).isNotEmpty();
         assertThat(fees.size()).isEqualTo(3);
 
         final var expectedTypes = Set.of("ContractCall", "ContractCreate", "EthereumTransaction");
