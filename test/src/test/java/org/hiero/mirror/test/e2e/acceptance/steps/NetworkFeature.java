@@ -54,15 +54,16 @@ public class NetworkFeature {
 
     @When("I verify the network fees")
     public void verifyNetworkFee() {
-        var networkFees = mirrorClient.getNetworkFees();
+        final var networkFees = mirrorClient.getNetworkFees();
         assertThat(networkFees).isNotNull();
         assertThat(networkFees.getFees()).isNotEmpty();
 
         final var fees = networkFees.getFees();
         assertThat(fees.size()).isEqualTo(3);
 
-        var expectedTypes = Set.of("ContractCall", "ContractCreate", "EthereumTransaction");
-        var actualTypes = fees.stream().map(NetworkFee::getTransactionType).collect(Collectors.toSet());
+        final var expectedTypes = Set.of("ContractCall", "ContractCreate", "EthereumTransaction");
+        final var actualTypes =
+                fees.stream().map(NetworkFee::getTransactionType).collect(Collectors.toSet());
         assertThat(actualTypes).containsAll(expectedTypes);
 
         fees.forEach(fee -> {
@@ -74,11 +75,11 @@ public class NetworkFeature {
 
     @When("I verify the network supply")
     public void verifyNetworkSupply() {
-        var networkSupply = mirrorClient.getNetworkSupply();
+        final var networkSupply = mirrorClient.getNetworkSupply();
         assertThat(networkSupply).isNotNull();
 
-        var totalSupply = mustParseToBigDecimal(networkSupply.getTotalSupply());
-        var releasedSupply = mustParseToBigDecimal(networkSupply.getReleasedSupply());
+        final var totalSupply = mustParseToBigDecimal(networkSupply.getTotalSupply());
+        final var releasedSupply = mustParseToBigDecimal(networkSupply.getReleasedSupply());
 
         assertThat(totalSupply).isGreaterThan(BigDecimal.ZERO);
         assertThat(releasedSupply).isGreaterThanOrEqualTo(BigDecimal.ZERO);
