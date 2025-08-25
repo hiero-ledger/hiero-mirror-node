@@ -47,7 +47,7 @@ jobs:
         run: mkdir -p "${{ github.workspace }}/.git/info" && touch "${{ github.workspace }}/.git/info/exclude"
 
       - name: Authenticate to Google Cloud
-        uses: step-security/google-github-auth@40f6deebd366f16c782d7a0ad0844e3b96a032a6 # v2.1.10
+        uses: step-security/google-github-auth@190f7ef9b7a34cc0dfd0c11f0e327365f70071d6 # v2.1.12
         with:
           service_account: "mirrornode-gh-actions-sa@mirrornode.iam.gserviceaccount.com"
           workload_identity_provider: "projects/521285740332/locations/global/workloadIdentityPools/mirrornode-gh-actions/providers/mirrornode-gh-actions"
