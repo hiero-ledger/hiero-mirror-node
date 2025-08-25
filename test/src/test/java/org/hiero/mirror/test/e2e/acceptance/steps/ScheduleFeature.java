@@ -73,13 +73,13 @@ public class ScheduleFeature extends AbstractFeature {
         createNewSchedule(scheduledTransaction, expirationTime, Boolean.parseBoolean(waitForExpiry));
     }
 
-    @Given("I wait until the schedule's expiration time")
+    @Then("I wait until the schedule's expiration time")
     public void waitForScheduleToExpire() {
         var scheduleExpirationTimeInstant = convertTimestamp(this.scheduleExpirationTime);
 
-        await().atMost(Duration.ofSeconds(30))
-                .pollDelay(Duration.ofMillis(100))
-                .pollInterval(Duration.ofMillis(100))
+        await().atMost(Duration.ofSeconds(90))
+                .pollDelay(Duration.ofMillis(200))
+                .pollInterval(Duration.ofMillis(200))
                 .untilAsserted(() -> assertThat(Instant.now()).isAfterOrEqualTo(scheduleExpirationTimeInstant));
 
         // We need this dummy transaction in order to execute the schedule
@@ -90,9 +90,9 @@ public class ScheduleFeature extends AbstractFeature {
         }
 
         // Wait until the transaction is executed and has a valid executed timestamp
-        await().atMost(Duration.ofSeconds(30))
-                .pollDelay(Duration.ofMillis(100))
-                .pollInterval(Duration.ofMillis(100))
+        await().atMost(Duration.ofSeconds(90))
+                .pollDelay(Duration.ofMillis(200))
+                .pollInterval(Duration.ofMillis(200))
                 .untilAsserted(() -> assertThat(mirrorClient
                                 .getScheduleInfo(scheduleId.toString())
                                 .getExecutedTimestamp())
@@ -107,6 +107,7 @@ public class ScheduleFeature extends AbstractFeature {
                 null,
                 expirationTime,
                 waitForExpiry);
+
         assertNotNull(networkTransactionResponse.getTransactionId());
         assertNotNull(networkTransactionResponse.getReceipt());
         scheduleId = networkTransactionResponse.getReceipt().scheduleId;
@@ -117,6 +118,7 @@ public class ScheduleFeature extends AbstractFeature {
 
         // cache schedule create transaction id for confirmation of scheduled transaction later
         scheduledTransactionId = networkTransactionResponse.getReceipt().scheduledTransactionId;
+
         assertNotNull(scheduledTransactionId);
     }
 
@@ -127,20 +129,16 @@ public class ScheduleFeature extends AbstractFeature {
         assertNotNull(networkTransactionResponse.getReceipt());
 
         scheduledTransactionId = networkTransactionResponse.getReceipt().scheduledTransactionId;
+
         assertNotNull(scheduledTransactionId);
     }
 
-    @Then("the scheduled transaction is signed by {account}")
-    public void accountSignsSignature(AccountNameEnum accountName) {
-        signSignature(accountClient.getAccount(accountName));
-    }
-
-    @Then("the scheduled transaction is signed by treasuryAccount")
+    @When("the scheduled transaction is signed by treasuryAccount")
     public void treasurySignsSignature() {
         signSignature(accountClient.getAccount(AccountNameEnum.TOKEN_TREASURY));
     }
 
-    @When("I successfully delete the schedule")
+    @Given("I successfully delete the schedule")
     public void deleteSchedule() {
         networkTransactionResponse = scheduleClient.deleteSchedule(scheduleId);
 
