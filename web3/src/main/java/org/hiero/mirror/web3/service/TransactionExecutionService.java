@@ -45,6 +45,7 @@ import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
+import org.springframework.transaction.annotation.Transactional;
 
 @Named
 @CustomLog
@@ -65,6 +66,7 @@ public class TransactionExecutionService {
     private final SystemEntity systemEntity;
     private final TransactionExecutorFactory transactionExecutorFactory;
 
+    @Transactional(readOnly = true)
     public HederaEvmTransactionProcessingResult execute(final CallServiceParameters params, final long estimatedGas) {
         final var isContractCreate = params.getReceiver().isZero();
         final var configuration = mirrorNodeEvmProperties.getVersionedConfiguration();

@@ -34,9 +34,11 @@ import org.hiero.mirror.rest.model.ContractResult;
 import org.hiero.mirror.rest.model.ContractResultsResponse;
 import org.hiero.mirror.rest.model.CryptoAllowancesResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
+import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkNode;
 import org.hiero.mirror.rest.model.NetworkNodesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
+import org.hiero.mirror.rest.model.NetworkSupplyResponse;
 import org.hiero.mirror.rest.model.Nft;
 import org.hiero.mirror.rest.model.NftAllowancesResponse;
 import org.hiero.mirror.rest.model.NftTransactionHistory;
@@ -294,6 +296,16 @@ public class MirrorNodeClient {
     public NetworkStakeResponse getNetworkStake() {
         String stakeEndpoint = "/network/stake";
         return callRestEndpoint(stakeEndpoint, NetworkStakeResponse.class);
+    }
+
+    public NetworkFeesResponse getNetworkFees() {
+        String feesEndpoint = "/network/fees";
+        return callRestEndpoint(feesEndpoint, NetworkFeesResponse.class);
+    }
+
+    public NetworkSupplyResponse getNetworkSupply() {
+        String supplyEndpoint = "/network/supply";
+        return callRestEndpoint(supplyEndpoint, NetworkSupplyResponse.class);
     }
 
     public Nft getNftInfo(String tokenId, long serialNumber) {
