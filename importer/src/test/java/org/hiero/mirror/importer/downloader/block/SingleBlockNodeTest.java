@@ -65,7 +65,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         simulator = new BlockNodeSimulator()
                 .withBlocks(generator.next(10))
                 .withHttpChannel()
-                .withOutOrder()
+                .withOutOfOrder()
                 .start();
         subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
 
