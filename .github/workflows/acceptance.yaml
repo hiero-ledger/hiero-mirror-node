@@ -114,11 +114,6 @@ jobs:
 
           echo "Solo cluster setup completed successfully!"
 
-      - name: Wait for services to be ready
-        run: |
-          echo "Waiting for services to be ready..."
-          kubectl wait --for=condition=ready pod -l app=mirror -n "${SOLO_NAMESPACE}" --timeout=10m || echo "Some pods may not be ready, continuing with tests"
-
       - name: Run acceptance tests
         run: |
           helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
