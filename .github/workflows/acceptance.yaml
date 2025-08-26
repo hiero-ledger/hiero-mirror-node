@@ -102,7 +102,7 @@ jobs:
           global:
             image:
               pullPolicy: IfNotPresent
-              tag: ${{ github.base_ref }}
+              tag: "${{ github.base_ref }}"
 
           web3:
             config:
