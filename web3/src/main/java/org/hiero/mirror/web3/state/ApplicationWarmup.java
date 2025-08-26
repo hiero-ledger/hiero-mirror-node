@@ -46,8 +46,12 @@ final class ApplicationWarmup {
         initializeResources(BlockType.LATEST);
         final var evmVersions = evmProperties.getEvmVersions();
         evmVersions.descendingMap().entrySet().stream().forEach(entry -> {
-            final var blockType = new BlockType(String.valueOf(entry.getValue().minor()), entry.getKey());
-            initializeResources(blockType);
+            var blockNumber = entry.getKey();
+            if (blockNumber == 0) { // account used in contract call may not exist at block 0
+                long evm34StartingBlock = 44029066L;
+                blockNumber = evm34StartingBlock - 1;
+            }
+            initializeResources(new BlockType(String.valueOf(entry.getValue().minor()), blockNumber));
         });
     }
 
@@ -58,6 +62,7 @@ final class ApplicationWarmup {
     private void initializeResources(BlockType blockType) {
         try {
             final var contractExecutionParameters = getContractExecutionParameters(blockType);
+            log.info("Executing warmup call for block " + blockType);
             contractCallService.callContract(contractExecutionParameters);
         } catch (RuntimeException e) {
             log.error("Warmup call for block {} failed:", blockType, e);
