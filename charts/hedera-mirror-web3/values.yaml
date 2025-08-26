@@ -104,6 +104,13 @@ hpa:
         target:
           type: Utilization
           averageUtilization: 80
+    - type: Pods
+      pods:
+        metric:
+          name: hikaricp_connections_pending
+        target:
+          type: AverageValue
+          averageValue: 10
   minReplicas: 1
 
 image:

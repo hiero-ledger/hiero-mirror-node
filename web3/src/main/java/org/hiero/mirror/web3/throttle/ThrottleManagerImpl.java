@@ -6,6 +6,7 @@ import static org.hiero.mirror.web3.config.ThrottleConfiguration.GAS_LIMIT_BUCKE
 import static org.hiero.mirror.web3.config.ThrottleConfiguration.RATE_LIMIT_BUCKET;
 
 import io.github.bucket4j.Bucket;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,8 @@ final class ThrottleManagerImpl implements ThrottleManager {
     @Qualifier(RATE_LIMIT_BUCKET)
     private final Bucket rateLimitBucket;
 
+    private final MeterRegistry meterRegistry;
+
     private final ThrottleProperties throttleProperties;
 
     @Override
@@ -35,6 +38,9 @@ final class ThrottleManagerImpl implements ThrottleManager {
             throw new ThrottleException(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
         } else if (!gasLimitBucket.tryConsume(throttleProperties.scaleGas(request.getGas()))) {
             throw new ThrottleException(GAS_PER_SECOND_LIMIT_EXCEEDED);
+        } else if (meterRegistry.find("hikaricp.connections.pending").gauge().value()
+                > throttleProperties.getPendingConnections()) {
+            throw new ThrottleException("Connections per second limit exceeded.");
         }
 
         for (var requestFilter : throttleProperties.getRequest()) {
