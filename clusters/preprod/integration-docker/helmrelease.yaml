@@ -33,10 +33,6 @@ spec:
     - kind: Secret
       name: mirror
   values:
-    global:
-      env:
-        HIERO_MIRROR_COMMON_REALM: "1"
-        HIERO_MIRROR_COMMON_SHARD: "1"
     importer:
       env:
         HIERO_MIRROR_IMPORTER_NETWORK: "OTHER"
@@ -74,4 +70,3 @@ spec:
         HIERO_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1.0"
         HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
         HIERO_MIRROR_WEB3_EVM_NETWORK: OTHER
-
