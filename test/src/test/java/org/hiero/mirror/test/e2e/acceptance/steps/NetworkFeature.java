@@ -78,8 +78,8 @@ public class NetworkFeature {
         final var networkSupply = mirrorClient.getNetworkSupply();
         assertThat(networkSupply).isNotNull();
 
-        final var totalSupply = mustParseToBigDecimal(networkSupply.getTotalSupply());
-        final var releasedSupply = mustParseToBigDecimal(networkSupply.getReleasedSupply());
+        final var totalSupply = parseToBigDecimal(networkSupply.getTotalSupply());
+        final var releasedSupply = parseToBigDecimal(networkSupply.getReleasedSupply());
 
         assertThat(totalSupply).isGreaterThan(BigDecimal.ZERO);
         assertThat(releasedSupply).isGreaterThanOrEqualTo(BigDecimal.ZERO);
@@ -104,7 +104,7 @@ public class NetworkFeature {
         return timestamp.lowerEndpoint().isBefore(midnight);
     }
 
-    private BigDecimal mustParseToBigDecimal(final String number) {
+    private BigDecimal parseToBigDecimal(final String number) {
         assertThat(number).isNotNull();
         assertThatCode(() -> new BigDecimal(number)).doesNotThrowAnyException();
         return new BigDecimal(number);
