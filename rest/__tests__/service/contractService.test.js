@@ -1431,24 +1431,28 @@ describe('ContractService.getContractTransactionDetailsByHash tests', () => {
       entityId: entityId0.getEncodedId(),
       hash: ethereumTxHashBuffer,
       payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(successTransactionResult),
     },
     {
       consensusTimestamp: 2,
       entityId: entityId0.getEncodedId(),
       hash: ethereumTxHashBuffer,
       payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(duplicateTransactionResult),
     },
     {
       consensusTimestamp: 3,
       entityId: entityId0.getEncodedId(),
       hash: ethereumTxHashBuffer,
       payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(wrongNonceTransactionResult),
     },
     {
       consensusTimestamp: 4,
       entityId: entityId0.getEncodedId(),
       hash: ethereumTxHashBuffer,
       payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(successTransactionResult),
     },
   ];
 

@@ -197,7 +197,8 @@ class ContractService extends BaseService {
   static transactionHashDetailsQuery = `select ${ContractTransactionHash.HASH}, 
                                               ${ContractTransactionHash.PAYER_ACCOUNT_ID}, 
                                               ${ContractTransactionHash.CONSENSUS_TIMESTAMP}, 
-                                              ${ContractTransactionHash.ENTITY_ID}
+                                              ${ContractTransactionHash.ENTITY_ID},
+                                              ${ContractTransactionHash.TRANSACTION_RESULT}
                                               from ${ContractTransactionHash.tableName} 
                                        where ${ContractTransactionHash.HASH} = $1 
                                        `;
