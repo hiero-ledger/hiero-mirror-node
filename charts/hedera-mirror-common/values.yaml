@@ -234,16 +234,6 @@ prometheus-adapter:
         name:
           as: "requests_per_second"
         metricsQuery: "sum(rate(<<.Series>>{<<.LabelMatchers>>}[3m])) by (<<.GroupBy>>)"
-      - seriesQuery: 'hiero_mirror_web3_evm_gas_used_total{application="web3",namespace!="",pod!=""}'
-        resources:
-          overrides:
-            namespace:
-              resource: "namespace"
-            pod:
-              resource: "pod"
-        name:
-          as: "evm_gas_used_per_second"
-        metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>}[3m])) by (<<.GroupBy>>)'
 
 prometheus:
   alertmanager:

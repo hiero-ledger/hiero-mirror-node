@@ -15,6 +15,7 @@ import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
 import java.util.stream.Stream;
@@ -238,6 +239,33 @@ class EntityRecordItemListenerEthereumTest extends AbstractEntityRecordItemListe
                 .build();
 
         assertDoesNotThrow(() -> parseRecordItemAndCommit(recordItem));
+    }
+
+    // Issue #11819 Invalid entity ID in failed create EthereumTransaction
+    @Test
+    void ethereumTransactionInvalidId() throws Exception {
+        var transactionBytes = Hex.decodeHex(LegacyEthereumTransactionParserTest.EIP155_RAW_TX);
+        var invalidId =
+                ContractID.newBuilder().setContractNum(1514739994982350848L).build();
+        var recordItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .transactionBody(x -> x.setEthereumData(ByteString.copyFrom(transactionBytes)))
+                .record(x -> x.setEthereumHash(ByteString.copyFrom(domainBuilder.bytes(32)))
+                        .getContractCreateResultBuilder()
+                        .setContractID(invalidId))
+                .build();
+
+        parseRecordItemAndCommit(recordItem);
+
+        assertAll(
+                () -> assertEquals(1, transactionRepository.count()),
+                () -> assertEquals(0, contractRepository.count()),
+                () -> assertEquals(0, entityRepository.count()),
+                () -> assertEquals(1, contractResultRepository.count()),
+                () -> assertEquals(4, cryptoTransferRepository.count()),
+                () -> assertEquals(1, ethereumTransactionRepository.count()),
+                () -> assertThat(contractResultRepository.findAll()).hasSize(1),
+                () -> assertEthereumTransaction(recordItem, null, SIGNER_NONCE));
     }
 
     @SneakyThrows

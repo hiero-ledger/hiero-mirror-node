@@ -17,7 +17,6 @@ dependencies {
         exclude(group = "org.springframework.security")
     }
     implementation(project(":common"))
-    implementation(platform("org.springframework.cloud:spring-cloud-dependencies"))
     implementation("com.graphql-java:graphql-java-extended-scalars")
     implementation("com.graphql-java:graphql-java-extended-validation")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
@@ -26,8 +25,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     implementation("org.springframework.boot:spring-boot-starter-graphql")
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.cloud:spring-cloud-starter-bootstrap")
-    implementation("org.springframework.cloud:spring-cloud-starter-kubernetes-fabric8-config")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation(project(path = ":common", configuration = "testClasses"))
