@@ -1832,11 +1832,6 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimate gas that approves a FUNGIBLE token and transfers it")
     public void estimateGasApproveFungibleTokenTransferFromGetAllowanceGetBalance() {
-        if (web3Properties.isModularizedServices()) {
-            // Needs a fix in the implementation that is not merged yet - the EntityId singleton.
-            return;
-        }
-
         var data = encodeData(
                 PRECOMPILE,
                 APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER,
@@ -1849,11 +1844,6 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimate gas that approves a NFT token and transfers it")
     public void approveNftTokenTransferFromGetAllowanceGetBalance() {
-        if (web3Properties.isModularizedServices()) {
-            // Needs a fix in the implementation that is not merged yet - the EntityId singleton.
-            return;
-        }
-
         var data = encodeData(
                 PRECOMPILE,
                 APPROVE_NFT_TOKEN_AND_TRANSFER_FROM,
