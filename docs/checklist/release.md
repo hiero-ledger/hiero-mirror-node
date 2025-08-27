@@ -38,7 +38,7 @@ Deployed automatically on every tag.
 ### Mainnet Staging
 
 - [ ] Delete all API deployments and let flux reconcile and recreate them to drop manual changes
-  - `kubectl delete deployments mirror-grpc mirror-rest mirror-restjava mirror-web3`
+  - `kubectl -n mainnet-citus delete deployments --all`
 - [ ] Deployed
 - [ ] Helm Controller logs show successful reconciliation check
 - [ ] Helm release status is healthy
