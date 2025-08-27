@@ -98,7 +98,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     }
 
     @Test
-    void missingStartBlockInNodeA_DifferentPriorities() {
+    void missingStartBlockInNodeADifferentPriorities() {
         // given
         // Node A has higher priority, has only blocks [5,6,7] and does NOT have start block 0
         var firstGenerator = new BlockGenerator(5);
@@ -134,7 +134,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     }
 
     @Test
-    void missingStartBlockInNodeA_SamePriorities() {
+    void missingStartBlockInNodeASamePriorities() {
         // given:
         // Node A has priority 0, but it has only blocks 5,6,7 and does NOT have start block 0
         var firstGenerator = new BlockGenerator(5);
@@ -396,11 +396,11 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         var nodeCProperties = nodeCSimulator.toClientProperties();
         nodeCProperties.setPriority(2);
 
-        var subscriber = getBlockNodeSubscriber(List.of(nodeAProperties, nodeBProperties, nodeCProperties));
+        subscriber = getBlockNodeSubscriber(List.of(nodeAProperties, nodeBProperties, nodeCProperties));
 
         // Capture logs to verify which node handled block 1
-        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(BlockNodeSubscriber.class);
-        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        var logger = (Logger) LoggerFactory.getLogger(BlockNodeSubscriber.class);
+        var appender = new ListAppender<ILoggingEvent>();
         appender.start();
         logger.addAppender(appender);
 
@@ -413,7 +413,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
             verify(streamFileNotifier, never()).verified(argThat((RecordFile rf) -> rf.getIndex() == 2L));
 
             var block0LogMessage = appender.list.stream()
-                    .map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                    .map(ILoggingEvent::getFormattedMessage)
                     .filter(m -> m.startsWith("Start streaming block 0 from "))
                     .findFirst()
                     .orElseThrow(() -> new AssertionError("Missing 'Start streaming block 0' log"));
@@ -429,7 +429,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
             // Verify that block 1 is processed from Node C
             var block1LogMessage = appender.list.stream()
-                    .map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                    .map(ILoggingEvent::getFormattedMessage)
                     .filter(m -> m.startsWith("Start streaming block 1 from "))
                     .findFirst()
                     .orElseThrow(() -> new AssertionError("Missing 'Start streaming block 1' log"));
@@ -538,7 +538,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
             // Verify that logs explicitly show that it starts processing from block 5
             String startLogMessage = appender.list.stream()
-                    .map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                    .map(ILoggingEvent::getFormattedMessage)
                     .filter(m -> m.startsWith("Start streaming block 5 from "))
                     .findFirst()
                     .orElseThrow(() -> new AssertionError("Missing 'Start streaming block 5' log"));
@@ -575,7 +575,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     }
     // OK
     @Test
-    void switchesNodeAtoNodeBtoNodeCForNextBlocks_samePriorities() {
+    void switchesNodeAtoNodeBtoNodeCForNextBlockssamePriorities() {
         var generator = new BlockGenerator(0);
         var blocks = new ArrayList<>(generator.next(3));
 
@@ -650,7 +650,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     }
     // OK
     @Test
-    void switchesToLowerPriority_whenHigherPriorityHasMalformedBlock1_afterFailuresThreshold() {
+    void switchesToLowerPriorityWhenHigherPriorityHasMalformedBlock() {
 
         var generator = new BlockGenerator(0);
         var blocks = new ArrayList<>(generator.next(3));
@@ -686,7 +686,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         subscriberLogger.addAppender(subscriberAppender);
 
         // Appender for BlockNode
-        var nodeLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(BlockNode.class);
+        var nodeLogger = (Logger) LoggerFactory.getLogger(BlockNode.class);
         var nodeAppender = new ListAppender<ILoggingEvent>();
         nodeAppender.start();
         nodeLogger.addAppender(nodeAppender);
@@ -722,7 +722,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
             var startFor1 = subscriberAppender.list.stream()
                     .map(ILoggingEvent::getFormattedMessage)
                     .filter(m -> m.startsWith("Start streaming block 1 from "))
-                    .reduce((first, second) -> second) // take the latest one
+                    .reduce((first, second) -> second)
                     .orElseThrow(() -> new AssertionError("Missing 'Start streaming block 1' log"));
             assertThat(startFor1).contains(":" + nodeBProperties.getPort());
         } finally {
