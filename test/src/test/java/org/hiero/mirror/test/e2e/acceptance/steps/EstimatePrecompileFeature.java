@@ -2049,8 +2049,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         APPROVE_NFT_GET_ALLOWANCE("approveTokenGetAllowance", 733127),
         DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER("associateTokenDissociateFailTransfer", 1482987),
         DISSOCIATE_NFT_AND_TRANSFER("associateTokenDissociateFailTransfer", 1525177),
-        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 904053),
-        APPROVE_NFT_TOKEN_AND_TRANSFER_FROM("approveNftAndTransfer", 901766);
+        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 785631),
+        APPROVE_NFT_TOKEN_AND_TRANSFER_FROM("approveNftAndTransfer", 797670);
 
         private final String selector;
         private final int actualGas;
@@ -2093,7 +2093,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         TRANSFER_FROM_NFT("transferFromNFTExternal", 42745),
         BALANCE_OF("balanceOf", 30277),
         ALLOWANCE("allowanceExternal", 28778),
-        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 904053);
+        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 800603);
 
         private final String selector;
         private final int actualGas;

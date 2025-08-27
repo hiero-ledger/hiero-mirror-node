@@ -72,7 +72,7 @@ jobs:
           java-version: 21
 
       - name: Install Solo CLI via npm
-        run: npm install -g @hashgraph/solo
+        run: npm install -g @hashgraph/solo@v0.43.0
 
       - name: Build Mirror Node Test JAR
         run: ./gradlew test:build -x test
