@@ -71,7 +71,6 @@ const contractCreateType = Number(TransactionType.getProtoId('CONTRACTCREATEINST
 const ethereumTransactionType = Number(TransactionType.getProtoId('ETHEREUMTRANSACTION'));
 const duplicateTransactionResult = TransactionResult.getProtoId('DUPLICATE_TRANSACTION');
 const wrongNonceTransactionResult = TransactionResult.getProtoId('WRONG_NONCE');
-const successTransactionResult = TransactionResult.getProtoId('SUCCESS');
 
 /**
  * Extracts the sql where clause, params, order and limit values to be used from the provided contract query
@@ -1116,7 +1115,10 @@ class ContractController extends BaseController {
     const excludeTransactionResults = [duplicateTransactionResult, wrongNonceTransactionResult];
     const {transactionIdOrHash} = req.params;
     if (utils.isValidEthHash(transactionIdOrHash)) {
-      transactionDetails = await this.getEthTransactionDetails(transactionIdOrHash, excludeTransactionResults);
+      const detailsByHash = await ContractService.getContractTransactionDetailsByHash(
+        utils.parseHexStr(transactionIdOrHash)
+      );
+      transactionDetails = detailsByHash[0];
     } else {
       const transactionId = TransactionId.fromString(transactionIdOrHash);
       const nonce = getLastNonceParamValue(req.query);
@@ -1214,41 +1216,6 @@ class ContractController extends BaseController {
         contractDetails.contractIds
       ),
     ]);
-  };
-
-  getEthTransactionDetails = async (transactionIdOrHash, excludeTransactionResults) => {
-    const detailsByHash = await ContractService.getContractTransactionDetailsByHash(
-      utils.parseHexStr(transactionIdOrHash),
-      excludeTransactionResults
-    );
-
-    const detailsByHashSuccessful = detailsByHash.filter((t) => t.transactionResult === successTransactionResult);
-    // If there is more than 1 successful transaction -> return the first successful.
-    if (detailsByHashSuccessful.length > 1) {
-      this.sortTransactionsByConsensusTimestampAsc(detailsByHashSuccessful);
-    }
-    let transactionDetails = detailsByHashSuccessful[0];
-
-    if (!transactionDetails) {
-      // If there are no successful transactions -> return the earliest unsuccessful.
-      const detailsByHashUnsuccessful = detailsByHash.filter((t) => t.transactionResult !== successTransactionResult);
-      if (detailsByHashUnsuccessful.length > 1) {
-        this.sortTransactionsByConsensusTimestampAsc(detailsByHashUnsuccessful);
-      }
-      transactionDetails = detailsByHashUnsuccessful[0];
-    }
-    return transactionDetails;
-  };
-
-  sortTransactionsByConsensusTimestampAsc = (transactions) => {
-    if (transactions.length > 1) {
-      transactions.sort((a, b) => {
-        if (a.consensusTimestamp < b.consensusTimestamp) return -1;
-        if (a.consensusTimestamp > b.consensusTimestamp) return 1;
-        return 0;
-      });
-    }
-    return transactions;
   };
 
   getContractActions = async (req, res) => {
