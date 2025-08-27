@@ -1,14 +1,14 @@
-@network @fullsuite
+@network @fullsuite @acceptance
 Feature: Network Coverage Feature
 
-  @networkstake @acceptance
+  @networkstake
   Scenario: Get network stake
     When I verify the network stake
 
-  @networkfees @acceptance
+  @networkfees
   Scenario: Get network fees
     When I verify the network fees
 
-  @networksupply @acceptance
+  @networksupply
   Scenario: Get network supply
     When I verify the network supply

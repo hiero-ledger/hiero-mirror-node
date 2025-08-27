@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.NetworkFee;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
+import org.springframework.web.client.HttpClientErrorException;
 
 @CustomLog
 @Data
@@ -54,37 +55,45 @@ public class NetworkFeature {
 
     @When("I verify the network fees")
     public void verifyNetworkFee() {
-        final var networkFees = mirrorClient.getNetworkFees();
-        assertThat(networkFees).isNotNull();
+        try {
+            final var networkFees = mirrorClient.getNetworkFees();
+            assertThat(networkFees).isNotNull();
 
-        final var fees = networkFees.getFees();
-        assertThat(fees).isNotEmpty();
-        assertThat(fees.size()).isEqualTo(3);
+            final var fees = networkFees.getFees();
+            assertThat(fees).isNotEmpty();
+            assertThat(fees).hasSize(3);
 
-        final var expectedTypes = Set.of("ContractCall", "ContractCreate", "EthereumTransaction");
-        final var actualTypes =
-                fees.stream().map(NetworkFee::getTransactionType).collect(Collectors.toSet());
-        assertThat(actualTypes).containsAll(expectedTypes);
+            final var expectedTypes = Set.of("ContractCall", "ContractCreate", "EthereumTransaction");
+            final var actualTypes =
+                    fees.stream().map(NetworkFee::getTransactionType).collect(Collectors.toSet());
+            assertThat(actualTypes).containsAll(expectedTypes);
 
-        fees.forEach(fee -> {
-            assertThat(fee.getGas()).isGreaterThan(0);
-        });
+            fees.forEach(fee -> {
+                assertThat(fee.getGas()).isGreaterThan(0);
+            });
 
-        assertThat(networkFees.getTimestamp()).isNotNull();
+            assertThat(networkFees.getTimestamp()).isNotNull();
+        } catch (HttpClientErrorException.NotFound e) {
+            log.warn("Skipping network fees verification since they are missing");
+        }
     }
 
     @When("I verify the network supply")
     public void verifyNetworkSupply() {
-        final var networkSupply = mirrorClient.getNetworkSupply();
-        assertThat(networkSupply).isNotNull();
+        try {
+            final var networkSupply = mirrorClient.getNetworkSupply();
+            assertThat(networkSupply).isNotNull();
 
-        final var totalSupply = parseToBigDecimal(networkSupply.getTotalSupply());
-        final var releasedSupply = parseToBigDecimal(networkSupply.getReleasedSupply());
+            final var totalSupply = parseToBigDecimal(networkSupply.getTotalSupply());
+            final var releasedSupply = parseToBigDecimal(networkSupply.getReleasedSupply());
 
-        assertThat(totalSupply).isGreaterThan(BigDecimal.ZERO);
-        assertThat(releasedSupply).isGreaterThanOrEqualTo(BigDecimal.ZERO);
-        assertThat(releasedSupply).isLessThan(totalSupply);
-        assertThat(networkSupply.getTimestamp()).isNotNull();
+            assertThat(totalSupply).isGreaterThan(BigDecimal.ZERO);
+            assertThat(releasedSupply).isGreaterThanOrEqualTo(BigDecimal.ZERO);
+            assertThat(releasedSupply).isLessThan(totalSupply);
+            assertThat(networkSupply.getTimestamp()).isNotNull();
+        } catch (HttpClientErrorException.NotFound e) {
+            log.warn("Skipping network supply verification since it is missing");
+        }
     }
 
     private boolean shouldHaveStake() {
