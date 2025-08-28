@@ -74,29 +74,6 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     @Mock
     private BlockFileSource fileSource;
 
-    @AfterEach
-    void cleanup() {
-        if (subscriber != null) {
-            subscriber.close();
-            subscriber = null;
-        }
-
-        if (nodeASimulator != null) {
-            nodeASimulator.close();
-            nodeASimulator = null;
-        }
-
-        if (nodeBSimulator != null) {
-            nodeBSimulator.close();
-            nodeBSimulator = null;
-        }
-
-        if (nodeCSimulator != null) {
-            nodeCSimulator.close();
-            nodeCSimulator = null;
-        }
-    }
-
     @Test
     void missingStartBlockInNodeADifferentPriorities() {
         // given
@@ -179,9 +156,8 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .withHttpChannel()
                 .start();
 
-        var secondGenerator = new BlockGenerator(0);
         nodeBSimulator = new BlockNodeSimulator()
-                .withBlocks(secondGenerator.next(3))
+                .withBlocks(firstGenerator.next(3))
                 .withHttpChannel()
                 .start();
 
@@ -196,10 +172,14 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         subscriber.get();
         // then
         // Verify that Exactly 2 blocks were processed (0 and 1) from Node A
-        verify(streamFileNotifier, times(2)).verified(any(RecordFile.class));
-        verify(streamFileNotifier, times(1)).verified(argThat(rf -> rf.getIndex() == 0L));
-        verify(streamFileNotifier, times(1)).verified(argThat(rf -> rf.getIndex() == 1L));
-        verify(streamFileNotifier, never()).verified(argThat(rf -> rf.getIndex() == 2L));
+        var captor = ArgumentCaptor.forClass(RecordFile.class);
+        verify(streamFileNotifier, times(2)).verified(captor.capture());
+
+        var indices = captor.getAllValues().stream()
+                .map(RecordFile::getIndex)
+                .toList();
+
+        assertThat(indices).containsExactly(0L, 1L);
     }
 
     @Test
@@ -213,9 +193,8 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .start();
 
         // node B (priority 1)
-        var secondGenerator = new BlockGenerator(0);
         nodeBSimulator = new BlockNodeSimulator()
-                .withBlocks(secondGenerator.next(3))
+                .withBlocks(firstGenerator.next(3))
                 .withHttpChannel()
                 .start();
 
@@ -238,10 +217,13 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
             // when
             subscriber.get();
 
-            verify(streamFileNotifier, times(3)).verified(any(RecordFile.class));
-            verify(streamFileNotifier, times(1)).verified(argThat(rf -> rf.getIndex() == 0L));
-            verify(streamFileNotifier, times(1)).verified(argThat(rf -> rf.getIndex() == 1L));
-            verify(streamFileNotifier, times(1)).verified(argThat(rf -> rf.getIndex() == 2L));
+            var captor = ArgumentCaptor.forClass(RecordFile.class);
+            verify(streamFileNotifier, times(3)).verified(captor.capture());
+
+            var indices = captor.getAllValues().stream()
+                    .map(RecordFile::getIndex)
+                    .toList();
+            assertThat(indices).containsExactly(0L, 1L, 2L);
 
             var startMessage = appender.list.stream()
                     .map(ILoggingEvent::getFormattedMessage)
@@ -291,7 +273,6 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         verify(fileSource, times(1)).get();
     }
 
-    // OK
     @Test
     void switchFromNodeAToNodeBWhenHigherPriorityLacksNextBlock() {
         // Node A has priority 0, has blocks with bad order [0,2,1]
@@ -364,7 +345,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
             }
         }
     }
-    // OK
+
     @Test
     void switchFromNodeAToNodeCWhenHigherPriorityLacksNextBlock() {
 
@@ -441,7 +422,6 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         }
     }
 
-    // OK
     @Test
     void pickBlocksFromNodeAThenSwitchToNodeB() {
         var firstGenerator = new BlockGenerator(0);
@@ -506,7 +486,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
             logger.detachAppender(appender);
         }
     }
-    // OK
+
     @Test
     void startsStreamingAtSpecificStartBlockNumber() {
         var generator = new BlockGenerator(0);
@@ -550,7 +530,6 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         }
     }
 
-    // OK
     @Test
     void autoSwitchesToFileSourceWhenNoBlockNodesConfigured() {
 
@@ -573,7 +552,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         verify(filesSubscriber, times(1)).get();
         verify(nodeSubscriber, never()).get();
     }
-    // OK
+
     @Test
     void switchesNodeAtoNodeBtoNodeCForNextBlockssamePriorities() {
         var generator = new BlockGenerator(0);
@@ -648,7 +627,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
             logger.detachAppender(appender);
         }
     }
-    // OK
+
     @Test
     void switchesToLowerPriorityWhenHigherPriorityHasMalformedBlock() {
 
