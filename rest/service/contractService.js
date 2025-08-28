@@ -199,20 +199,29 @@ class ContractService extends BaseService {
         and ${EthereumTransaction.CONSENSUS_TIMESTAMP} >= $3
         and ${EthereumTransaction.CONSENSUS_TIMESTAMP} <= $4`;
 
-  static transactionHashDetailsQuery = `select ${ContractTransactionHash.HASH}, 
-                                              ${ContractTransactionHash.PAYER_ACCOUNT_ID}, 
-                                              ${ContractTransactionHash.CONSENSUS_TIMESTAMP}, 
-                                              ${ContractTransactionHash.ENTITY_ID},
-                                              ${ContractTransactionHash.TRANSACTION_RESULT}
-                                              from ${ContractTransactionHash.tableName} 
-                                       where ${ContractTransactionHash.HASH} = $1 
-                                       `;
   static involvedContractsQuery = `select ${ContractTransaction.PAYER_ACCOUNT_ID},
                                           ${ContractTransaction.ENTITY_ID},
                                           ${ContractTransaction.CONTRACT_IDS},
                                           ${ContractTransaction.CONSENSUS_TIMESTAMP}
                    from ${ContractTransaction.tableName}
                    where ${ContractTransaction.CONSENSUS_TIMESTAMP} = $1 and ${ContractTransaction.ENTITY_ID} = $2`;
+
+  static ethereumTransactionsByHashQuery = `select * from ${ContractTransactionHash.tableName}
+        where ${ContractTransactionHash.HASH} = $1 and ${ContractTransactionHash.CONSENSUS_TIMESTAMP} = (
+          select coalesce((
+              select ${ContractTransactionHash.CONSENSUS_TIMESTAMP}
+              from ${ContractTransactionHash.tableName}
+              where ${ContractTransactionHash.HASH} = $1 and ${ContractTransactionHash.TRANSACTION_RESULT} = ${successTransactionResult}
+              order by ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc
+              limit 1
+          ), (
+              select ${ContractTransactionHash.CONSENSUS_TIMESTAMP}
+              from ${ContractTransactionHash.tableName}
+              where ${ContractTransactionHash.HASH} = $1 and ${ContractTransactionHash.TRANSACTION_RESULT} not in (${duplicateTransactionResult}, ${wrongNonceTransactionResult})
+              order by ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc
+              limit 1
+          ))
+       )`;
 
   getContractResultsByIdAndFiltersQuery(whereConditions, whereParams, order, limit) {
     const params = whereParams;
@@ -303,28 +312,10 @@ class ContractService extends BaseService {
    * Retrieves contract transaction details based on the eth hash
    *
    * @param {Buffer} hash eth transaction hash or 32-byte hedera transaction hash prefix
-   * @return {Promise<{ContractResult}[]>}
+   * @return {Promise<{ContractTransactionHash}[]>}
    */
   async getContractTransactionDetailsByHash(hash) {
-    const query = [
-      `select * from ${ContractTransactionHash.tableName}`,
-      `where ${ContractTransactionHash.HASH} = $1 and ${ContractTransactionHash.CONSENSUS_TIMESTAMP} = (`,
-      `  select coalesce((`,
-      `      select ${ContractTransactionHash.CONSENSUS_TIMESTAMP}`,
-      `      from ${ContractTransactionHash.tableName}`,
-      `      where ${ContractTransactionHash.HASH} = $1 and ${ContractTransactionHash.TRANSACTION_RESULT} = ${successTransactionResult}`,
-      `      order by ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc`,
-      `      limit 1`,
-      `    ), (`,
-      `      select ${ContractTransactionHash.CONSENSUS_TIMESTAMP}`,
-      `      from ${ContractTransactionHash.tableName}`,
-      `      where ${ContractTransactionHash.HASH} = $1 and ${ContractTransactionHash.TRANSACTION_RESULT} not in (${duplicateTransactionResult}, ${wrongNonceTransactionResult})`,
-      `      order by ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc`,
-      `      limit 1`,
-      `    ))`,
-      `)`,
-    ].join('\n');
-    const rows = await super.getRows(query, [hash]);
+    const rows = await super.getRows(ContractService.ethereumTransactionsByHashQuery, [hash]);
     return rows.map((row) => new ContractTransactionHash(row));
   }
 

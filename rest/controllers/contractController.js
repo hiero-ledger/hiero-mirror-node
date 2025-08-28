@@ -39,7 +39,6 @@ import {
   ContractStateViewModel,
   ContractViewModel,
 } from '../viewmodel';
-import ContractTransactionHash from '../model/contractTransactionHash.js';
 
 const contractSelectFields = [
   Entity.AUTO_RENEW_ACCOUNT_ID,
