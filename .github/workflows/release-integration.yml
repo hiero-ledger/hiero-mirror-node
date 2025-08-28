@@ -73,6 +73,8 @@ jobs:
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@26f734c2779b00b7dda794207734c511110a4368 # v3.0.0
+        with:
+          cache: true
 
       - name: Configure Docker
         run: gcloud auth configure-docker gcr.io,marketplace.gcr.io
