@@ -121,7 +121,8 @@ public class MirrorNodeState implements MerkleNodeState {
             List.of(),
             Bytes.EMPTY,
             List.of(),
-            true);
+            true,
+            Bytes.EMPTY);
     private static final Metrics NO_OP_METRICS = new NoOpMetrics();
 
     @PostConstruct

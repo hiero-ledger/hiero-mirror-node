@@ -60,6 +60,7 @@ config: {}
 # Environment variables to add to the container. The value can either be a string or an EnvVarSource. Evaluated as a template.
 env:
   SPRING_CONFIG_ADDITIONAL_LOCATION: "file:/usr/etc/hiero/"
+  SPRING_PROFILES_ACTIVE: "kubernetes"
   # FOO:
   #   valueFrom:
   #     secretKeyRef:

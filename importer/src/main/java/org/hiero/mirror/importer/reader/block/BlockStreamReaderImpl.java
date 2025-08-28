@@ -19,6 +19,7 @@ import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
 import com.hederahashgraph.api.proto.java.Transaction;
+import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,7 +27,6 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Objects;
 import lombok.CustomLog;
-import lombok.NonNull;
 import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
@@ -40,7 +40,7 @@ import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 public class BlockStreamReaderImpl implements BlockStreamReader {
 
     @Override
-    public BlockFile read(@NonNull BlockStream blockStream) {
+    public BlockFile read(@Nonnull BlockStream blockStream) {
         var context = new ReaderContext(blockStream.blockItems(), blockStream.filename());
         byte[] bytes = blockStream.bytes();
         Integer size = bytes != null ? bytes.length : null;
@@ -216,7 +216,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
         @Setter
         private Long lastMetaTimestamp; // The last consensus timestamp from metadata
 
-        ReaderContext(List<BlockItem> blockItems, String filename) {
+        ReaderContext(@Nonnull List<BlockItem> blockItems, @Nonnull String filename) {
             this.blockFile = BlockFile.builder();
             this.blockItems = blockItems;
             this.blockRootHashDigest = new BlockRootHashDigest();

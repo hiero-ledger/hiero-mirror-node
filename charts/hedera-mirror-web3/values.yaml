@@ -104,13 +104,6 @@ hpa:
         target:
           type: Utilization
           averageUtilization: 80
-    - type: Pods
-      pods:
-        metric:
-          name: evm_gas_used_per_second
-        target:
-          type: AverageValue
-          averageValue: 6750k
   minReplicas: 1
 
 image:
@@ -288,9 +281,6 @@ prometheusRules:
       application: web3
       severity: warning
 
-rbac:
-  enabled: true
-
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness
@@ -370,4 +360,4 @@ volumes:
   temp:
     emptyDir:
       medium: Memory
-      sizeLimit: 500Mi
+      sizeLimit: 100Mi
