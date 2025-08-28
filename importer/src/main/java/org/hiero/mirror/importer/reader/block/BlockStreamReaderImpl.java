@@ -61,7 +61,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
         readBlockHeader(context);
         readRounds(context);
-        readStandaloneStateChanges(context);
+        readNonTransactionStateChanges(context);
         readBlockProof(context);
 
         var blockFile = blockFileBuilder.build();
@@ -178,22 +178,24 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         BlockItem blockItem;
         while ((blockItem = context.readBlockItemFor(ROUND_HEADER)) != null) {
             context.getBlockFile().onNewRound(blockItem.getRoundHeader().getRoundNumber());
-            readStandaloneStateChanges(context);
+            readNonTransactionStateChanges(context);
             readEvents(context);
+            readNonTransactionStateChanges(context);
         }
     }
 
     /**
-     * Read standalone state changes. There are two types of such state changes: one that only appears in a network's
-     * genesis block, between the first round header and the first event header; one that always appears before the
-     * block proof
+     * Read non-transaction state changes. There are three possible places for such state changes
+     * - in a network's genesis block, between the first round header and the first event header
+     * - at the end of a round, right before the next round header
+     * - before block proof
      *
      * @param context - The reader context
      */
-    private void readStandaloneStateChanges(ReaderContext context) {
+    private void readNonTransactionStateChanges(ReaderContext context) {
         BlockItem blockItem;
         while ((blockItem = context.readBlockItemFor(STATE_CHANGES)) != null) {
-            // read all standalone statechanges
+            // read all non-transaction state changes
             context.setLastMetaTimestamp(
                     DomainUtils.timestampInNanosMax(blockItem.getStateChanges().getConsensusTimestamp()));
         }

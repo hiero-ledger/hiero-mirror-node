@@ -318,28 +318,40 @@ public final class BlockStreamReaderTest {
 
     @Test
     void mixedStateChanges() {
-        // given standalone state changes immediately follows transactional state changes
+        // given non-transaction state changes
+        // - appear after first round header and before the first even header in the round
+        // - appear right before the next round header
+        // - right before block proof
         var roundHeader = BlockItem.newBuilder().setRoundHeader(RoundHeader.getDefaultInstance());
         var eventHeader = BlockItem.newBuilder().setEventHeader(EventHeader.getDefaultInstance());
-        var now = Instant.now();
-        var transactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano());
+        var nonTransactionStateChangesType1 = StateChanges.newBuilder()
+                .setConsensusTimestamp(TestUtils.toTimestamp(domainBuilder.timestamp()))
+                .build();
+        var nonTransactionStateChangesType2 = StateChanges.newBuilder()
+                .setConsensusTimestamp(TestUtils.toTimestamp(domainBuilder.timestamp()))
+                .build();
+        var transactionTimestamp = TestUtils.toTimestamp(domainBuilder.timestamp());
         var transactionResult = TransactionResult.newBuilder()
                 .setConsensusTimestamp(transactionTimestamp)
                 .build();
         var transactionStateChanges = StateChanges.newBuilder()
                 .setConsensusTimestamp(transactionTimestamp)
                 .build();
-        var nonTransactionStateChange = StateChanges.newBuilder()
-                .setConsensusTimestamp(TestUtils.toTimestamp(now.getEpochSecond() + 1, now.getNano()))
+        var nonTransactionStateChangeType3 = StateChanges.newBuilder()
+                .setConsensusTimestamp(TestUtils.toTimestamp(domainBuilder.timestamp()))
                 .build();
         var block = Block.newBuilder()
                 .addItems(blockHeader())
+                .addItems(roundHeader)
+                .addItems(BlockItem.newBuilder().setStateChanges(nonTransactionStateChangesType1))
+                .addItems(eventHeader)
+                .addItems(BlockItem.newBuilder().setStateChanges(nonTransactionStateChangesType2))
                 .addItems(roundHeader)
                 .addItems(eventHeader)
                 .addItems(signedTransaction())
                 .addItems(BlockItem.newBuilder().setTransactionResult(transactionResult))
                 .addItems(BlockItem.newBuilder().setStateChanges(transactionStateChanges))
-                .addItems(BlockItem.newBuilder().setStateChanges(nonTransactionStateChange))
+                .addItems(BlockItem.newBuilder().setStateChanges(nonTransactionStateChangeType3))
                 .addItems(blockProof())
                 .build();
         var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
