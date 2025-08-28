@@ -11,15 +11,14 @@ import io.cucumber.java.en.When;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.rest.model.NetworkFee;
+import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
-import org.springframework.web.client.HttpClientErrorException;
 
 @CustomLog
 @Data
@@ -55,45 +54,38 @@ public class NetworkFeature {
 
     @When("I verify the network fees")
     public void verifyNetworkFee() {
-        try {
-            final var networkFees = mirrorClient.getNetworkFees();
-            assertThat(networkFees).isNotNull();
-
-            final var fees = networkFees.getFees();
-            assertThat(fees).isNotEmpty();
-            assertThat(fees).hasSize(3);
-
-            final var expectedTypes = Set.of("ContractCall", "ContractCreate", "EthereumTransaction");
-            final var actualTypes =
-                    fees.stream().map(NetworkFee::getTransactionType).collect(Collectors.toSet());
-            assertThat(actualTypes).containsAll(expectedTypes);
-
-            fees.forEach(fee -> {
-                assertThat(fee.getGas()).isGreaterThan(0);
-            });
-
-            assertThat(networkFees.getTimestamp()).isNotNull();
-        } catch (HttpClientErrorException.NotFound e) {
-            log.warn("Skipping network fees verification since they are missing");
+        if (mirrorClient.hasPartialState()) {
+            log.warn("Skipping network fees verification in case of partial state");
+            return;
         }
+        final var networkFees = mirrorClient.getNetworkFees();
+        assertThat(networkFees)
+                .isNotNull()
+                .satisfies(f -> assertThat(f.getTimestamp()).isNotNull())
+                .extracting(NetworkFeesResponse::getFees, InstanceOfAssertFactories.list(NetworkFee.class))
+                .hasSize(3)
+                .allSatisfy(fee -> {
+                    assertThat(fee.getTransactionType()).isIn("ContractCall", "ContractCreate", "EthereumTransaction");
+                    assertThat(fee.getGas()).isGreaterThan(0);
+                });
     }
 
     @When("I verify the network supply")
     public void verifyNetworkSupply() {
-        try {
-            final var networkSupply = mirrorClient.getNetworkSupply();
-            assertThat(networkSupply).isNotNull();
-
-            final var totalSupply = parseToBigDecimal(networkSupply.getTotalSupply());
-            final var releasedSupply = parseToBigDecimal(networkSupply.getReleasedSupply());
-
-            assertThat(totalSupply).isGreaterThan(BigDecimal.ZERO);
-            assertThat(releasedSupply).isGreaterThanOrEqualTo(BigDecimal.ZERO);
-            assertThat(releasedSupply).isLessThan(totalSupply);
-            assertThat(networkSupply.getTimestamp()).isNotNull();
-        } catch (HttpClientErrorException.NotFound e) {
-            log.warn("Skipping network supply verification since it is missing");
+        if (mirrorClient.hasPartialState()) {
+            log.warn("Skipping network fees verification in case of partial state");
+            return;
         }
+        final var networkSupply = mirrorClient.getNetworkSupply();
+        assertThat(networkSupply).isNotNull();
+
+        final var totalSupply = parseToBigDecimal(networkSupply.getTotalSupply());
+        final var releasedSupply = parseToBigDecimal(networkSupply.getReleasedSupply());
+
+        assertThat(totalSupply).isGreaterThan(BigDecimal.ZERO);
+        assertThat(releasedSupply).isGreaterThanOrEqualTo(BigDecimal.ZERO);
+        assertThat(releasedSupply).isLessThan(totalSupply);
+        assertThat(networkSupply.getTimestamp()).isNotNull();
     }
 
     private boolean shouldHaveStake() {
