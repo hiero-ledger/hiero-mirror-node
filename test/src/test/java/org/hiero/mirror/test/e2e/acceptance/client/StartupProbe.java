@@ -91,18 +91,6 @@ public class StartupProbe {
         SubscriptionHandle subscription = null;
 
         try {
-            log.info("Subscribing to topic {}", topicId);
-            var retry = retryOperations(stopwatch);
-            subscription = retry.execute(x -> new TopicMessageQuery()
-                    .setTopicId(topicId)
-                    .setMaxAttempts(Integer.MAX_VALUE)
-                    .setRetryHandler(t -> {
-                        log.info("Retrying exception: {}", t.getMessage());
-                        return true;
-                    })
-                    .setStartTime(Instant.EPOCH)
-                    .subscribe(client, resp -> messageLatch.countDown()));
-
             log.info("Submitting a message to the network");
             var transactionIdMessage = executeTransaction(client, stopwatch, () -> new TopicMessageSubmitTransaction()
                             .setTopicId(topicId)
@@ -111,10 +99,33 @@ public class StartupProbe {
 
             executeQuery(client, stopwatch, () -> new TransactionReceiptQuery().setTransactionId(transactionIdMessage));
             log.info("Waiting for the mirror node to publish the topic message");
+            callRestEndpoint(stopwatch, transactionIdMessage);
+            var retry = retryOperations(stopwatch);
+            long remaining;
 
-            if (!messageLatch.await(startupTimeout.minus(stopwatch.elapsed()).toNanos(), TimeUnit.NANOSECONDS)) {
-                throw new TimeoutException("Timer expired while waiting on message latch");
-            }
+            do {
+                if (subscription != null) {
+                    subscription.unsubscribe();
+                    subscription = null;
+                }
+
+                log.info("Subscribing to topic {}", topicId);
+                subscription = retry.execute(x -> new TopicMessageQuery()
+                        .setTopicId(topicId)
+                        .setMaxAttempts(Integer.MAX_VALUE)
+                        .setRetryHandler(t -> {
+                            log.info("Retrying exception: {}", t.getMessage());
+                            return true;
+                        })
+                        .setStartTime(Instant.EPOCH)
+                        .subscribe(client, resp -> messageLatch.countDown()));
+
+                remaining = startupTimeout.minus(stopwatch.elapsed()).toNanos();
+
+                if (remaining <= 0L) {
+                    throw new TimeoutException("Timer expired while waiting on message latch");
+                }
+            } while (!messageLatch.await(Math.min(10_000_000_000L, remaining), TimeUnit.NANOSECONDS));
 
             log.info("Received the topic message");
         } finally {
