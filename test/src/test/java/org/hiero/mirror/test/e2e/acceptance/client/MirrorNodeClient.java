@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.test.e2e.acceptance.client;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.test.e2e.acceptance.config.RestProperties.URL_PREFIX;
 
@@ -299,7 +300,7 @@ public class MirrorNodeClient {
 
     public NetworkStakeResponse getNetworkStake() {
         String stakeEndpoint = "/network/stake";
-        return callRestEndpoint(stakeEndpoint, NetworkStakeResponse.class);
+        return callConvertedRestEndpoint(stakeEndpoint, NetworkStakeResponse.class);
     }
 
     public NetworkFeesResponse getNetworkFees() {
@@ -418,6 +419,25 @@ public class MirrorNodeClient {
 
     public boolean hasPartialState() {
         return partialStateSupplier.get();
+    }
+
+    private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
+        final var restResponse = callRestEndpoint(uri, classType, uriVariables);
+
+        if (restClient != restJavaClient) {
+            // Retry since the db might've been updated right after calling REST
+            retryTemplate.execute(x -> {
+                final var restJavaResponse = callRestJavaEndpoint(uri, classType, uriVariables);
+                try {
+                    assertThat(restJavaResponse).isEqualTo(restResponse);
+                } catch (AssertionError e) {
+                    throw new RuntimeException(e);
+                }
+                return null;
+            });
+        }
+
+        return restResponse;
     }
 
     private <T> T callRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
