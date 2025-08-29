@@ -76,16 +76,16 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     void missingStartBlockInNodeADifferentPriorities() {
         // given
         // Node A has higher priority, has only blocks [5,6,7] and does NOT have start block 0
-        var firstGenerator = new BlockGenerator(5);
+        var generator = new BlockGenerator(0);
+        var blocks = new ArrayList<>(generator.next(7));
         nodeASimulator = new BlockNodeSimulator()
-                .withBlocks(firstGenerator.next(3))
+                .withBlocks(List.of(blocks.get(4), blocks.get(5), blocks.get(6)))
                 .withHttpChannel()
                 .start();
 
         // Node B has lower priority, has blocks [0,1,2] and should be picked
-        var secondGenerator = new BlockGenerator(0);
         nodeBSimulator = new BlockNodeSimulator()
-                .withBlocks(secondGenerator.next(3))
+                .withBlocks(List.of(blocks.get(0), blocks.get(1), blocks.get(2)))
                 .withHttpChannel()
                 .start();
 
@@ -113,16 +113,16 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     void missingStartBlockInNodeASamePriorities() {
         // given:
         // Node A has priority 0, but it has only blocks 5,6,7 and does NOT have start block 0
-        var firstGenerator = new BlockGenerator(5);
+        var generator = new BlockGenerator(0);
+        var blocks = new ArrayList<>(generator.next(7));
         nodeASimulator = new BlockNodeSimulator()
-                .withBlocks(firstGenerator.next(3))
+                .withBlocks(List.of(blocks.get(4), blocks.get(5), blocks.get(6)))
                 .withHttpChannel()
                 .start();
 
-        // Node B has priority 0, has blocks 0,1,2 and should be picked
-        var secondGenerator = new BlockGenerator(0);
+        // Node B has lower priority, has blocks [0,1,2] and should be picked
         nodeBSimulator = new BlockNodeSimulator()
-                .withBlocks(secondGenerator.next(3))
+                .withBlocks(List.of(blocks.get(0), blocks.get(1), blocks.get(2)))
                 .withHttpChannel()
                 .start();
 
