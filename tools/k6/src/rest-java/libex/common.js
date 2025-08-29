@@ -26,7 +26,7 @@ class RestJavaTestScenarioBuilder extends TestScenarioBuilder {
     super();
     this.fallbackRequest((testParameters) => {
       // Fallback to a known account ID. Replace this with another API endpoint when one exists not requiring an entity ID.
-      const url = `${testParameters['BASE_URL_PREFIX']}/accounts/2/allowances/nfts`;
+      const url = `${testParameters['BASE_URL_PREFIX']}/accounts/0.0.2/allowances/nfts`;
       return http.get(url);
     });
   }
