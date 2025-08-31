@@ -712,7 +712,7 @@ EOF
 
   log "Fixing passwords and pg_dist_authinfo for all pods in the cluster"
   for pod in $(kubectl get pods -n "${namespace}" -l "${STACKGRES_MASTER_LABELS}" -o name); do
-    waitUntilOutOfRecovery "${namespace}"  "${pod}" #TODO call this from somewhere else
+    waitUntilOutOfRecovery "${namespace}" "${pod}"
     log "Updating passwords and pg_dist_authinfo for ${pod}"
     echo "$sql" | kubectl exec -n "${namespace}" -i "${pod}" -c postgres-util -- psql -U "${superuserUsername}" -f -
   done

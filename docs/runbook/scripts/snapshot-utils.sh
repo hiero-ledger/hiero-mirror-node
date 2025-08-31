@@ -18,7 +18,7 @@ function waitUntilOutOfRecovery() {
 
     case "${res}" in
       f)
-        log "${pod} is writable (pg_is_in_recovery = f)"
+        log "${pod} is out of recovery"
         return 0
         ;;
       t)
@@ -233,7 +233,6 @@ function snapshotCitusDisks() {
   local zfsVolumes
   zfsVolumes=$(getZFSVolumes)
 
-  #TODO can probably remove this
   mapfile -t CITUS_NAMESPACES < <(echo "${zfsVolumes}" | jq -r '.[].namespace' | sort -u)
 
   pauseClustersIfNeeded "${pauseCluster}"
@@ -295,7 +294,6 @@ function getSnapshotsById() {
     SNAPSHOT_ID="$(promptSnapshotId "${GCP_SNAPSHOT_PROJECT}")"
   fi
 
-  # TODO handle MINIO snapshot ????
   local snapshots
   snapshots=$(gcloud compute snapshots list \
   --project "${GCP_SNAPSHOT_PROJECT}" \
@@ -314,35 +312,90 @@ function getSnapshotsById() {
   echo "${snapshots}"
 }
 
-getNodeIdToPvcSnapshotsMap() {
-if [[ -z "${SNAPSHOTS_TO_RESTORE}" ]]; then
-  SNAPSHOTS_TO_RESTORE="$(getSnapshotsById)"
-fi
+function getNodeIdToPvcSnapshotsMap() {
+  if [[ -z "${SNAPSHOTS_TO_RESTORE}" ]]; then
+    SNAPSHOTS_TO_RESTORE="$(getSnapshotsById)"
+  fi
 
-if [[ -z "${ZFS_VOLUMES}" ]]; then
-ZFS_VOLUMES="$(getZFSVolumes)"
-fi
+  if [[ -z "${ZFS_VOLUMES}" ]]; then
+    ZFS_VOLUMES="$(getZFSVolumes)"
+  fi
 
-echo -e "${SNAPSHOTS_TO_RESTORE}\n${ZFS_VOLUMES}" |
-jq -s '.[0] as $snapshots |
-       .[1] as $volumes |
-       $volumes | group_by(.nodeId) |
-       map((.[0].nodeId) as $nodeId |
-         map(.)|sort_by(.volumeName) as $pvcs |
-         $pvcs |
-         map(
-           {
-             pvcName: .pvcName,
-             namespace: .namespace
-           }
-         ) as $pvcMatchData|
-         {
-           ($nodeId) :  {
-              pvcs: ($pvcs),
-              snapshot: ($snapshots | map(select(.description|contains($pvcMatchData))))
-           }
-         }
-      )|add'
+  echo -e "${SNAPSHOTS_TO_RESTORE}\n${ZFS_VOLUMES}" \
+  | jq -s --arg swapWithPrimary "${KEEP_SNAPSHOTS}" '
+      .[0] as $snapshots |
+      .[1] as $volumes   |
+      $volumes
+      | group_by(.nodeId)
+      | map(
+          (.[0].nodeId) as $nodeId
+          | (map(.) | sort_by(.volumeName)) as $pvcs
+          | ($pvcs | map({pvcName, namespace})) as $pvcMatchData
+          | ($snapshots
+              | map(
+                  select(
+                    (.description | any(
+                      . as $d
+                      | any($pvcMatchData[]; (.pvcName == $d.pvcName and .namespace == $d.namespace))
+                    ))
+                  )
+                )
+            ) as $nodeSnaps
+          | ($pvcs[0].citusCluster.clusterName // null) as $clusterName
+          | ($nodeSnaps[0]) as $currSnap
+          | (($currSnap.description // []) | any(.primary == false)) as $hasNonPrimary
+          | (($swapWithPrimary // "" | ascii_downcase) == "true") as $wantSwap
+          | ($wantSwap and $hasNonPrimary and ($clusterName != null)) as $shouldSwap
+          | (
+              if $shouldSwap then
+                (
+                  $snapshots
+                  | map(
+                      select(
+                        (.description | any(.primary == true and (.pvcName | contains($clusterName))))
+                      )
+                    )
+                  | first
+                ) as $primarySnap
+                |
+                if $primarySnap != null then
+                  # Pick the primary description entry for this cluster
+                  ($primarySnap.description
+                    | map(select(.primary == true and (.pvcName | contains($clusterName))))
+                    | first
+                  ) as $primDesc
+                  |
+                  {
+                    ($nodeId): {
+                      pvcs: $pvcs,
+                      snapshot: [
+                        {
+                          name: $primarySnap.name,
+                          description: [
+                            $pvcs[] |
+                            {
+                              pvcName: .pvcName,
+                              namespace: $primDesc.namespace,
+                              volumeName: $primDesc.volumeName,
+                              pvcSize: $primDesc.pvcSize,
+                              primary: true,
+                              pgVersion: $primDesc.pgVersion
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                else
+                  { ($nodeId): { pvcs: $pvcs, snapshot: $nodeSnaps } }
+                end
+              else
+                { ($nodeId): { pvcs: $pvcs, snapshot: $nodeSnaps } }
+              end
+            )
+        )
+      | add
+    '
 }
 
 function renameDataset() {
@@ -407,15 +460,8 @@ function renameZfsPvcVolumes() {
 
     renameDataset "${pod}" "${ZFS_POOL_NAME}/${sourceVolumeName}" "${ZFS_POOL_NAME}/${currentVolumeName}"
     renameZfsSnapshots "${pod}" "${nodeData}"
-    # TODO use common var to control all snapshot keep logic
-    if [[ -n "${SOURCE_LATEST_BACKUPS}" && -n "${KEEP_SNAPSHOTS}" ]]; then
-      isPrimary=$(echo "${nodeData}" | jq -r --argjson i "${i}" '.snapshot[0].description[$i].primary')
-      if [[ "${isPrimary}" == "true" ]]; then
-        rollbackToSnapshot "${pod}" "${sourceVolumeName}" "${currentVolumeName}" "${pvcNamespace}" "${pvcName}"
-      else
-        #TODO need to update restore logic to try and restore the primary snapshot to the replica disk
-        log "Skipping ${currentVolumeName} as it is not a primary"
-      fi
+    if [[ -n "${SOURCE_LATEST_BACKUPS}" && "${KEEP_SNAPSHOTS}" == "true" ]]; then
+      rollbackToSnapshot "${pod}" "${sourceVolumeName}" "${currentVolumeName}" "${pvcNamespace}" "${pvcName}"
     fi
   done
 }
@@ -755,7 +801,6 @@ MINIO_SNAPSHOT_PREFIX="${MINIO_SNAPSHOT_PREFIX:-minio-sg-snapshot}"
 KEEP_SNAPSHOTS="${KEEP_SNAPSHOTS:-false}"
 MINIO_RESOURCE_SELECTOR="${MINIO_RESOURCE_SELECTOR:-app.kubernetes.io/component=minio}"
 SOURCE_LATEST_BACKUPS=
-#TODO Need to test
 SOURCE_BACKUP_PATHS=
 GCP_SNAPSHOT_PROJECT="${GCP_SNAPSHOT_PROJECT:-}"
 GCP_TARGET_PROJECT="${GCP_TARGET_PROJECT:-}"

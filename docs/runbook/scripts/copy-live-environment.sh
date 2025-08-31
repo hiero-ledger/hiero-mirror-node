@@ -11,6 +11,8 @@ source ./snapshot-utils.sh
 KEEP_SNAPSHOTS="true"
 K8S_SOURCE_CLUSTER_CONTEXT=${K8S_SOURCE_CLUSTER_CONTEXT:-}
 K8S_TARGET_CLUSTER_CONTEXT=${K8S_TARGET_CLUSTER_CONTEXT:-}
+DEFAULT_POOL_NAME="${DEFAULT_POOL_NAME:-default-pool}"
+DEFAULT_POOL_MAX_PER_ZONE="${DEFAULT_POOL_MAX_PER_ZONE:-5}"
 
 function deleteBackupsFromSource() {
   local lines
@@ -225,11 +227,7 @@ function changeContext() {
 
 function snapshotSource() {
   changeContext "${K8S_SOURCE_CLUSTER_CONTEXT}"
-  #TODO size up default node pool
   if [[ -z "${SNAPSHOT_ID}" ]]; then
-    log "Creating new backup"
-
-    log "Snapshotting source disks"
     PAUSE_CLUSTER="false"
     BACKUPS_MAP=$(runBackupsForAllNamespaces)
     SOURCE_LATEST_BACKUPS="$(getLatestBackup)"
@@ -247,6 +245,67 @@ function snapshotSource() {
   fi
 }
 
+function patchBackupPaths() {
+  local lines
+  lines="$(
+    jq -r '
+      to_entries[] as $ns
+      | $ns.value
+      | to_entries[]
+      | "\($ns.key)\t\(.key)\t\( (.value // []) | tojson )"
+    ' <<<"${SOURCE_BACKUP_PATHS}" 2>/dev/null
+  )" || { log "Failed to parse SOURCE_BACKUP_PATHS JSON"; return 1; }
+
+  if [[ -z "${lines}" ]]; then
+    log "No entries to patch."
+    return 0
+  fi
+
+  local namespace cluster patch pathsJson
+  while IFS=$'\t' read -r namespace cluster pathsJson; do
+    [[ -z "${namespace}" || -z "${cluster}" ]] && continue
+
+    log "Patching SGShardedCluster/${cluster} in namespace=${namespace}"
+
+    patch="$(jq -n --argjson arr "${pathsJson}" \
+      '[{"op":"replace","path":"/spec/configurations/backups/0/paths","value":$arr}]')"
+
+    if kubectl -n "${namespace}" patch sgshardedclusters.stackgres.io "${cluster}" \
+         --type='json' -p "${patch}" 1>&2; then
+      log "replaced paths"
+    fi
+  done <<< "${lines}"
+}
+
+function scaleupResources() {
+  gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
+    --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
+    --node-pool="${DEFAULT_POOL_NAME}" \
+    --project="${GCP_TARGET_PROJECT}" \
+    --num-nodes=1 \
+    --quiet
+
+  gcloud container node-pools update "${DEFAULT_POOL_NAME}" \
+    --cluster="${GCP_K8S_TARGET_CLUSTER_NAME}" \
+    --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
+    --project="${GCP_TARGET_PROJECT}" \
+    --enable-autoscaling \
+    --min-nodes=1 \
+    --max-nodes="${DEFAULT_POOL_MAX_PER_ZONE}" \
+    --quiet
+
+  log "Waiting for Kubernetes API to become READY..."
+  while true; do
+    if kubectl --request-timeout=5s get --raw='/readyz' 2>/dev/null | grep -q '^ok$'; then
+      log "K8S API is ready"
+      return 0
+    fi
+
+    log "K8S API not ready yet"
+    sleep 5
+  done
+}
+
 function restoreTarget() {
   if [[ -z "${SNAPSHOT_ID}" ]]; then
     log "SNAPSHOT_ID is not set"
@@ -255,17 +314,19 @@ function restoreTarget() {
 
   PAUSE_CLUSTER="true"
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
-
-  log "Configuring snapshot restore"
   configureAndValidateSnapshotRestore
-
-  log "Restoring disks from snapshot"
+  scaleupResources
+  patchBackupPaths
   replaceDisks
 }
 
+function teardownResources() {
+  log "Tearing down resources"
+}
+
 if [[ -z "${K8S_SOURCE_CLUSTER_CONTEXT}" || -z "${K8S_TARGET_CLUSTER_CONTEXT}" ]]; then
-    log "K8S_SOURCE_CLUSTER_CONTEXT and K8S_TARGET_CLUSTER_CONTEXT are required"
-    exit 1
+  log "K8S_SOURCE_CLUSTER_CONTEXT and K8S_TARGET_CLUSTER_CONTEXT are required"
+  exit 1
 elif ! contextExists "${K8S_SOURCE_CLUSTER_CONTEXT}"; then
   log "context ${K8S_SOURCE_CLUSTER_CONTEXT} doesn't exist"
   exit 1
