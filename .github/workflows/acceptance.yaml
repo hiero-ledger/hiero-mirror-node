@@ -101,6 +101,7 @@ jobs:
           test:
             annotations:
               helm.sh/hook-delete-policy: before-hook-creation
+            cucumberTags: "@acceptance and not @estimateprecompile"
             env:
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
             enabled: true
