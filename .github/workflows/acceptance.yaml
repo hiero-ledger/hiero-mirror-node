@@ -104,56 +104,52 @@ jobs:
           solo node start --deployment "${SOLO_DEPLOYMENT}" -i node1
 
           if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
-            cat <<EOF > temp-values.yaml
-            grpc:
-              image:
-                tag: "${{ github.base_ref }}"
+          cat <<EOF > temp-values.yaml
+          grpc:
+            image:
+              tag: "${{ github.base_ref }}"
+          rest:
+            image:
+              tag: "${{ github.base_ref }}"
+          restjava:
+            image:
+              tag: "${{ github.base_ref }}"
+          web3:
+            image:
+              tag: "${{ github.base_ref }}"
+          importer:
+            env:
+              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-0."${SOLO_NAMESPACE}".svc.cluster.local'
+              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_PORT: '40840'
+              SPRING_PROFILES_ACTIVE: 'blocknode'
+            image:
+              registry: docker.io
+              repository: xinatswirlds/importer
+              tag: e741ea2b2
+          test:
+            cucumberTags: "@acceptance and not @ethereum and not @equivalence and not @contract and not @topic and not @schedulebase and not @token"
+            image:
+              tag: pr-test
+            env:
+              HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
+            enabled: true
+          EOF
 
-            rest:
-              image:
-                tag: "${{ github.base_ref }}"
-
-            restjava:
-              image:
-                tag: "${{ github.base_ref }}"
-
-            web3:
-              image:
-                tag: "${{ github.base_ref }}"
-
-            importer:
-              env:
-                HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-0."${SOLO_NAMESPACE}".svc.cluster.local'
-                HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_PORT: '40840'
-                SPRING_PROFILES_ACTIVE: 'blocknode'
-              image:
-                registry: docker.io
-                repository: xinatswirlds/importer
-                tag: e741ea2b2
-
-            test:
-              cucumberTags: "@acceptance and not @ethereum and not @equivalence and not @contract and not @topic and not @schedulebase and not @token"
-              image:
-                tag: pr-test
-              env:
-                HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
-              enabled: true
-            EOF
           else
-            cat <<EOF > temp-values.yaml
-            global:
-              image:
-                tag: "${{ github.base_ref }}"
-            test:
-              image:
-                tag: pr-test
-              annotations:
-                helm.sh/hook-delete-policy: before-hook-creation
-              env:
-                HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
-              cucumberTags: "@acceptance and not @estimateprecompile"
-              enabled: true
-            EOF
+          cat <<EOF > temp-values.yaml
+          global:
+            image:
+              tag: "${{ github.base_ref }}"
+          test:
+            image:
+              tag: pr-test
+            annotations:
+              helm.sh/hook-delete-policy: before-hook-creation
+            env:
+              HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
+            cucumberTags: "@acceptance and not @estimateprecompile"
+            enabled: true
+          EOF
           fi
 
           solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f=temp-values.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --pinger
