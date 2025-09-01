@@ -119,7 +119,7 @@ jobs:
               tag: "${{ github.base_ref }}"
           importer:
             env:
-              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-0."${SOLO_NAMESPACE}".svc.cluster.local'
+              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-0.${SOLO_NAMESPACE}.svc.cluster.local'
               HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_PORT: '40840'
               SPRING_PROFILES_ACTIVE: 'blocknode'
             image:
