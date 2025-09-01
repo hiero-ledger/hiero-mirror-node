@@ -122,9 +122,10 @@ public class ContractFeature extends BaseContractFeature {
 
     @Then("the mirror node REST API should verify the contract")
     public void verifyContract() {
-        verifyContractFromMirror(false);
+        var contractResponse = verifyContractFromMirror(false);
         verifyContractExecutionResultsById();
         verifyContractExecutionResultsByTransactionId();
+        verifyContractExecutionResultByIdAndTimestamp(contractResponse.getCreatedTimestamp());
     }
 
     @Then("the mirror node REST API should verify the updated contract entity")
@@ -290,6 +291,18 @@ public class ContractFeature extends BaseContractFeature {
         verifyNonceForChildContracts();
     }
 
+    @Then("I verify parent and child contracts are deleted")
+    public void verifyParentAndChildContractsAreDeleted() {
+        var contracts = mirrorClient.getContracts(5);
+        if (contracts.getContracts().isEmpty()) {
+            return;
+        }
+        for (var contract : contracts.getContracts()) {
+            assertThat(contract.getContractId()).isNotEqualTo(deployedParentContract.contractId());
+            assertThat(contract.getContractId()).isNotEqualTo(create2ChildContractContractId);
+        }
+    }
+
     @When("I successfully delete the child contract by calling it and causing it to self destruct")
     public void deleteChildContractUsingSelfDestruct() {
         executeSelfDestructTransaction();
@@ -298,6 +311,7 @@ public class ContractFeature extends BaseContractFeature {
     @Override
     protected ContractResponse verifyContractFromMirror(boolean isDeleted) {
         var mirrorContract = super.verifyContractFromMirror(isDeleted);
+
         assertThat(mirrorContract.getAdminKey()).isNotNull();
         assertThat(mirrorContract.getAdminKey().getKey())
                 .isEqualTo(contractClient

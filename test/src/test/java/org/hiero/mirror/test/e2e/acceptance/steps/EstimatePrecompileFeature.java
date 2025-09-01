@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.FUNGIBLE;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.FUNGIBLE_KYC_UNFROZEN;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.NFT;
@@ -244,6 +245,13 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Then("the mirror node REST API should return status {int} for the HAPI transaction")
     public void verifyMirrorAPIResponses(int status) {
         verifyMirrorTransactionsResponse(mirrorClient, status);
+    }
+
+    @Then("I verify the mirror node REST API returns contract states for deployed contract")
+    public void verifyContractStatesAPIResponse() {
+        var contractStates = mirrorClient.getContractStatesById(
+                deployedEstimatePrecompileContract.contractId().toString(), 15);
+        assertThat(contractStates.getState().size()).isEqualTo(11);
     }
 
     @And("I set lower deviation at {int}% and upper deviation at {int}%")

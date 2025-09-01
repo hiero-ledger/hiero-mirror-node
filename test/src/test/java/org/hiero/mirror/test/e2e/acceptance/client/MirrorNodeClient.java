@@ -36,6 +36,8 @@ import org.hiero.mirror.rest.model.ContractCallResponse;
 import org.hiero.mirror.rest.model.ContractResponse;
 import org.hiero.mirror.rest.model.ContractResult;
 import org.hiero.mirror.rest.model.ContractResultsResponse;
+import org.hiero.mirror.rest.model.ContractStateResponse;
+import org.hiero.mirror.rest.model.ContractsResponse;
 import org.hiero.mirror.rest.model.CryptoAllowancesResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
@@ -246,6 +248,11 @@ public class MirrorNodeClient {
                 spenderId);
     }
 
+    public ContractsResponse getContracts(int limit) {
+        log.debug("Verify last '{}' contracts are returned by Mirror Node", limit);
+        return callRestEndpoint("/contracts?limit={limit}&order=desc", ContractsResponse.class, limit);
+    }
+
     public ContractResponse getContractInfo(String contractId) {
         log.debug("Verify contract '{}' is returned by Mirror Node", contractId);
         return callRestEndpoint("/contracts/{contractId}", ContractResponse.class, contractId);
@@ -261,9 +268,21 @@ public class MirrorNodeClient {
         return callRestEndpoint("/contracts/{contractId}/results", ContractResultsResponse.class, contractId);
     }
 
+    public ContractResult getContractResultsByIdAndTimestamp(String contractId, String timestamp) {
+        log.debug("Verify contract results '{}' is returned by Mirror Node", contractId);
+        return callRestEndpoint(
+                "/contracts/{contractId}/results/{timestamp}", ContractResult.class, contractId, timestamp);
+    }
+
     public ContractResult getContractResultByTransactionId(String transactionId) {
         log.debug("Verify contract result '{}' is returned by Mirror Node", transactionId);
         return callRestEndpoint("/contracts/results/{transactionId}", ContractResult.class, transactionId);
+    }
+
+    public ContractStateResponse getContractStatesById(String contractId, int limit) {
+        log.debug("Verify contract states '{}' are returned by Mirror Node", contractId);
+        return callRestEndpoint(
+                "/contracts/{contractId}/state?limit={limit}", ContractStateResponse.class, contractId, limit);
     }
 
     public ContractActionsResponse getContractResultActionsByTransactionId(String transactionId) {
