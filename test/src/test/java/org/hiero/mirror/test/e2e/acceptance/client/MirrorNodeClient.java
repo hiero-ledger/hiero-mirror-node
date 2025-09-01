@@ -27,6 +27,7 @@ import org.awaitility.Awaitility;
 import org.awaitility.Durations;
 import org.hiero.mirror.rest.model.AccountBalanceTransactions;
 import org.hiero.mirror.rest.model.AccountInfo;
+import org.hiero.mirror.rest.model.Block;
 import org.hiero.mirror.rest.model.BlocksResponse;
 import org.hiero.mirror.rest.model.ContractActionsResponse;
 import org.hiero.mirror.rest.model.ContractCallRequest;
@@ -46,6 +47,7 @@ import org.hiero.mirror.rest.model.NftAllowancesResponse;
 import org.hiero.mirror.rest.model.NftTransactionHistory;
 import org.hiero.mirror.rest.model.Nfts;
 import org.hiero.mirror.rest.model.Schedule;
+import org.hiero.mirror.rest.model.SchedulesResponse;
 import org.hiero.mirror.rest.model.TokenAirdropsResponse;
 import org.hiero.mirror.rest.model.TokenAllowancesResponse;
 import org.hiero.mirror.rest.model.TokenBalancesResponse;
@@ -284,6 +286,11 @@ public class MirrorNodeClient {
         return callRestEndpoint("/blocks?order={order}&limit={limit}", BlocksResponse.class, order, limit);
     }
 
+    public Block getBlockByHash(String hash) {
+        log.debug("Get block hash by Mirror Node");
+        return callRestEndpoint("/blocks/{hash}", Block.class, hash);
+    }
+
     public List<NetworkNode> getNetworkNodes() {
         List<NetworkNode> nodes = new ArrayList<>();
         String next = "/network/nodes?limit=25";
@@ -332,6 +339,11 @@ public class MirrorNodeClient {
     public Schedule getScheduleInfo(String scheduleId) {
         log.debug("Verify schedule '{}' is returned by Mirror Node", scheduleId);
         return callRestEndpoint("/schedules/{scheduleId}", Schedule.class, scheduleId);
+    }
+
+    public SchedulesResponse getSchedules(Order order, long limit) {
+        log.debug("Get schedules data by Mirror Node");
+        return callRestEndpoint("/schedules?order={order}&limit={limit}", SchedulesResponse.class, order, limit);
     }
 
     public TokenBalancesResponse getTokenBalances(String tokenId) {

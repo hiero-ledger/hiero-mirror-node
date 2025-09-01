@@ -32,6 +32,7 @@ import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.client.ScheduleClient;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
+import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.boot.convert.DurationStyle;
 import org.springframework.http.HttpStatus;
@@ -166,6 +167,13 @@ public class ScheduleFeature extends AbstractFeature {
             String scheduleStatus, String expirationTimeInSeconds, String waitForExpiry) {
         verifyScheduleFromMirror(
                 ScheduleStatus.valueOf(scheduleStatus), expirationTimeInSeconds, Boolean.parseBoolean(waitForExpiry));
+    }
+
+    @Then("the mirror node REST API should list all schedules")
+    public void verifyListIncludesCreatedSchedule() {
+        final var schedulesResponse = mirrorClient.getSchedules(Order.ASC, 10);
+        assertNotNull(schedulesResponse);
+        assertThat(schedulesResponse.getSchedules()).isNotEmpty();
     }
 
     private void verifyScheduleFromMirror(
