@@ -15,12 +15,14 @@ import com.hedera.hashgraph.sdk.TopicMessageQuery;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
@@ -465,34 +467,40 @@ public class MirrorNodeClient {
 
     public BalancesResponse getBalances(BalancesFeature.BalancesQueryParams params) {
         log.debug("Retrieving balances with query parameters from Mirror Node");
-        StringBuilder urlBuilder = new StringBuilder("/balances");
-        boolean first = true;
 
+        Map<String, Object> queryParams = new HashMap<>();
         if (params.getAccountId() != null) {
-            urlBuilder.append(first ? "?" : "&").append("account.id=").append(params.getAccountId());
-            first = false;
+            queryParams.put("account.id", params.getAccountId());
         }
         if (params.getAccountBalance() != null) {
-            urlBuilder.append(first ? "?" : "&").append("account.balance=").append(params.getAccountBalance());
-            first = false;
+            queryParams.put("account.balance", params.getAccountBalance());
         }
         if (params.getPublicKey() != null) {
-            urlBuilder.append(first ? "?" : "&").append("account.publickey=").append(params.getPublicKey());
-            first = false;
+            queryParams.put("account.publickey", params.getPublicKey());
         }
         if (params.getLimit() != null) {
-            urlBuilder.append(first ? "?" : "&").append("limit=").append(params.getLimit());
-            first = false;
+            queryParams.put("limit", params.getLimit());
         }
         if (params.getOrder() != null) {
-            urlBuilder.append(first ? "?" : "&").append("order=").append(params.getOrder());
-            first = false;
+            queryParams.put("order", params.getOrder());
         }
         if (params.getTimestamp() != null) {
-            urlBuilder.append(first ? "?" : "&").append("timestamp=").append(params.getTimestamp());
+            queryParams.put("timestamp", params.getTimestamp());
         }
 
-        return callRestEndpoint(urlBuilder.toString(), BalancesResponse.class);
+        String url = buildUrlWithParams("/balances", queryParams);
+        return callRestEndpoint(url, BalancesResponse.class);
+    }
+
+    private String buildUrlWithParams(String basePath, Map<String, Object> params) {
+        if (params.isEmpty()) {
+            return basePath;
+        }
+
+        return basePath + "?"
+                + params.entrySet().stream()
+                        .map(entry -> entry.getKey() + "=" + entry.getValue())
+                        .collect(Collectors.joining("&"));
     }
 
     private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
