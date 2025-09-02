@@ -113,12 +113,12 @@ EOF
 }
 
 function createSnapshot() {
-  local gcpProject="$1" diskName="$2" epochSeconds="$3" snapshotDescription="$4" \
-  snapshotName="$5" snapshotRegion="$6" diskZone="$7"
+  local diskName="$1" epochSeconds="$2" snapshotDescription="$3" \
+  snapshotName="$4" snapshotRegion="$5" diskZone="$6"
 
   log "Creating snapshot ${snapshotName} for ${diskName} with ${snapshotDescription} in ${snapshotRegion}"
   watchInBackground "$$" gcloud compute snapshots create "${snapshotName}" \
-  --project="${gcpProject}" \
+  --project="${GCP_SNAPSHOT_PROJECT}" \
   --source-disk="${diskName}" \
   --source-disk-zone="${diskZone}" \
   --storage-location="${snapshotRegion}" \
@@ -178,14 +178,13 @@ function getZoneFromPv() {
   printf '%s\n' "$zone"
 }
 
-#TODO use snapshot source project instead of gcpProject
 function snapshotMinioDisk() {
   if [[  "${KEEP_SNAPSHOTS}" != "true" ]]; then
     log "KEEP_SNAPSHOTS is set to false. Skipping MinIO disk snapshot"
     return
   fi
 
-  local gcpProject="$1" epochSeconds="$2"
+  local epochSeconds="${1}"
   local diskName snapshotDescription diskRegion diskZone
 
   diskName="$(getMinioDiskName)"
@@ -194,8 +193,7 @@ function snapshotMinioDisk() {
   snapshotDescription="[{\"purpose\": \"${MINIO_SNAPSHOT_PREFIX}\"}]"
   diskRegion="${diskZone%-*}"
 
-  createSnapshot "${gcpProject}" \
-  "${diskName}" \
+  createSnapshot "${diskName}" \
   "${epochSeconds}" \
   "${snapshotDescription}" \
   "${snapshotName}" \
@@ -241,7 +239,7 @@ function snapshotCitusDisks() {
   epochSeconds=$(date +%s)
   citusClusters=$(getCitusClusters)
 
-  snapshotMinioDisk "${GCP_SNAPSHOT_PROJECT}" "${epochSeconds}"
+  snapshotMinioDisk "${epochSeconds}"
 
   for diskName in "${diskNames[@]}"; do
     local diskNodeId nodeVolumes snapshotDescription snapshotName snapshotRegion diskZone
@@ -268,8 +266,7 @@ function snapshotCitusDisks() {
               pgVersion: .pgVersion
             })')
 
-    createSnapshot "${GCP_SNAPSHOT_PROJECT}" \
-    "${diskName}" \
+    createSnapshot "${diskName}" \
     "${epochSeconds}" \
     "${snapshotDescription}" \
     "${snapshotName}" \
@@ -531,22 +528,28 @@ waitForDiskNotInUse() {
   done
 }
 
-function replaceDiskFromSnapshot() {
-  local diskName="$1" diskZone="$2" snapshotName="$3" diskType="${4:-pd-balanced}"
-  local createPidRef="${5:-}"
+function deleteDisk() {
+  local diskName="${1}" diskZone="${2}"
+
   if gcloud compute disks describe "${diskName}" \
-          --project "${GCP_TARGET_PROJECT}" \
-          --zone "${diskZone}" \
-          --format="value(name)" >/dev/null 2>&1; then
-    log "Deleting existing disk ${diskName} in ${diskZone}"
-    waitForDiskNotInUse "${diskName}" "${diskZone}"
-    gcloud compute disks delete "${diskName}" \
-      --project "${GCP_TARGET_PROJECT}" \
-      --zone "${diskZone}" \
-      --quiet
+            --project "${GCP_TARGET_PROJECT}" \
+            --zone "${diskZone}" \
+            --format="value(name)" >/dev/null 2>&1; then
+      log "Deleting disk ${diskName} in ${diskZone}"
+      waitForDiskNotInUse "${diskName}" "${diskZone}"
+      gcloud compute disks delete "${diskName}" \
+        --project "${GCP_TARGET_PROJECT}" \
+        --zone "${diskZone}" \
+        --quiet
   else
     log "Disk ${diskName} does not exist in ${diskZone}, skipping delete"
   fi
+}
+
+function replaceDiskFromSnapshot() {
+  local diskName="${1}" diskZone="${2}" snapshotName="${3}" diskType="${4:-pd-balanced}"
+  local createPidRef="${5:-}"
+  deleteDisk "${diskName}" "${diskZone}"
   local snapshotFullName
   snapshotFullName="projects/${GCP_SNAPSHOT_PROJECT}/global/snapshots/${snapshotName}"
 

@@ -207,7 +207,7 @@ function checkCitusMetadataSyncStatus() {
 
 function doContinue() {
   if [[ "${AUTO_CONFIRM}" == "true" ]]; then
-    log "Continuing with the next step"
+    log "Skipping confirm"
     return 0
   fi
   while true; do

@@ -6,11 +6,10 @@ set -euo pipefail
 
 function promptGcpProject() {
   local projectPurpose="${1:-source}"
-  local gcpProject="${2:-}" #TODO can probably drop this parameter
+  local gcpProject
 
-  if [[ -z "${gcpProject}" ]]; then
-    gcpProject="$(readUserInput "Enter GCP Project for ${projectPurpose}: ")"
-  fi
+  gcpProject="$(readUserInput "Enter GCP Project for ${projectPurpose}: ")"
+
   if [[ -z "${gcpProject}" ]]; then
     log "gcpProject is not set and is required. Exiting"
     exit 1

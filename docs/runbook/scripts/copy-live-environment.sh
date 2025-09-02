@@ -13,17 +13,20 @@ K8S_SOURCE_CLUSTER_CONTEXT=${K8S_SOURCE_CLUSTER_CONTEXT:-}
 K8S_TARGET_CLUSTER_CONTEXT=${K8S_TARGET_CLUSTER_CONTEXT:-}
 DEFAULT_POOL_NAME="${DEFAULT_POOL_NAME:-default-pool}"
 DEFAULT_POOL_MAX_PER_ZONE="${DEFAULT_POOL_MAX_PER_ZONE:-5}"
+WAIT_FOR_K6="${WAIT_FOR_K6:-false}"
+CREATE_NEW_BACKUPS="${CREATE_NEW_BACKUPS:-true}"
+TEST_KUBE_NAMESPACE="${TEST_KUBE_NAMESPACE:-testkube}"
 
 function deleteBackupsFromSource() {
   local lines
   lines="$(
     jq -r '
       to_entries[]
-      | .key as $ns
+      | .key as $namespace
       | .value
       | to_entries[]
       | select(.value != null and .value != "")
-      | "\($ns)\t\(.value)"
+      | "\($namespace)\t\(.value)"
     ' <<<"${BACKUPS_MAP}"
   )" || {
     log "Failed to parse BACKUPS_MAP"
@@ -70,7 +73,6 @@ spec:
   managedLifecycle: true
   maxRetries: 0
 EOF
-
     log "Attempt ${attempt}: waiting for SGShardedBackup/${backupName} (namespace=${namespace}, cluster=${sgCluster})."
     while true; do
       status="$(
@@ -109,6 +111,10 @@ EOF
 }
 
 function runBackupsForAllNamespaces() {
+  if [[ "${CREATE_NEW_BACKUPS}"  != "true" ]]; then
+    retrun 0
+  fi
+
   local shardedClusters
   shardedClusters="$(kubectl get sgshardedclusters -A -o json 2>/dev/null | jq -c '.items[]?')"
   if [[ -z "${shardedClusters}" ]]; then
@@ -152,8 +158,6 @@ function getBackupPaths() {
       | add'
 }
 
-# TODO probably do not need to group by namespace
-#TODO update to use the created backup
 function getLatestBackup() {
   local backups zfsSnapshots
   backups=$(kubectl get sgbackups.stackgres.io -A -o json | jq '
@@ -249,10 +253,10 @@ function patchBackupPaths() {
   local lines
   lines="$(
     jq -r '
-      to_entries[] as $ns
-      | $ns.value
+      to_entries[] as $namespace
+      | $namespace.value
       | to_entries[]
-      | "\($ns.key)\t\(.key)\t\( (.value // []) | tojson )"
+      | "\($namespace.key)\t\(.key)\t\( (.value // []) | tojson )"
     ' <<<"${SOURCE_BACKUP_PATHS}" 2>/dev/null
   )" || { log "Failed to parse SOURCE_BACKUP_PATHS JSON"; return 1; }
 
@@ -320,8 +324,107 @@ function restoreTarget() {
   replaceDisks
 }
 
+function deleteSnapshots() {
+  local snapshots name
+  snapshots="$(getSnapshotsById)"
+
+  log "Deleting snapshots ${snapshots}"
+  doContinue
+  jq -r '.[].name' <<< "${snapshots}" | while read -r name; do
+    [[ -z "${name}" ]] && continue
+    log "Deleting snapshot ${name} from project ${GCP_SNAPSHOT_PROJECT}"
+    if ! gcloud compute snapshots delete "${name}" \
+        --project "${GCP_SNAPSHOT_PROJECT}" \
+        --quiet; then
+      log "ERROR: failed to delete snapshot ${name}"
+    fi
+  done
+
+  return 0
+}
+
+function scaleDownNodePools() {
+  resizeCitusNodePools 0
+
+  gcloud container node-pools update "${DEFAULT_POOL_NAME}" \
+    --cluster="${GCP_K8S_TARGET_CLUSTER_NAME}" \
+    --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
+    --project="${GCP_TARGET_PROJECT}" \
+    --no-enable-autoscaling \
+    --quiet
+  gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
+    --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
+    --node-pool="${DEFAULT_POOL_NAME}" \
+    --project="${GCP_TARGET_PROJECT}" \
+    --num-nodes=0 \
+    --quiet \
+    --async
+}
+
+function removeDisks() {
+  local disksToDelete diskJson diskName diskZone zoneLink
+  disksToDelete="$(getCitusDiskNames "${GCP_TARGET_PROJECT}" "${DISK_PREFIX}")"
+  log "Will delete disks ${disksToDelete}"
+  doContinue
+  jq -c '.[]' <<< "${disksToDelete}" | while read -r diskJson; do
+    diskName="$(jq -r '.name' <<<"${diskJson}")"
+    zoneLink="$(jq -r '.zone' <<<"${diskJson}")"
+    diskZone="${zoneLink##*/}"
+    log "Deleting ${diskName}"
+    deleteDisk "${diskName}" "${diskZone}"
+  done
+
+  diskName="$(getMinioDiskName)"
+  diskZone="$(getZoneFromPv "${diskName}")"
+
+  log "Deleting minio sg backup disk"
+  doContinue
+  deleteDisk "${diskName}" "${diskZone}"
+}
+
 function teardownResources() {
   log "Tearing down resources"
+  for namespace in "${CITUS_NAMESPACES[@]}"; do
+    unrouteTraffic "${namespace}"
+  done
+
+  scaleDownNodePools
+  removeDisks
+}
+
+function waitForK6PodExecution() {
+  local testName="$1"
+  local job
+
+  while true; do
+    job="$(
+      kubectl get jobs -n "${TEST_KUBE_NAMESPACE}" -l "executor=k6-custom-executor" -o json \
+        | jq -r --arg testName "$testName" '
+            .items[]
+            | select(.metadata.labels["test-name"] != null
+                     and (.metadata.labels["test-name"] | test("^(test-" + $testName + ".*)$")))
+            | .metadata.name
+          ' \
+        | head -n1
+    )"
+    if [[ -n "${job}" ]]; then
+      log "Found job ${job} for test ${testName}"
+      break
+    fi
+    log "waiting for test ${testName} to start"
+    sleep 30
+  done
+
+  log "Waiting on job for test ${testName} to complete"
+  kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}" --timeout=-1s
+  until kubectl get job -n "${TEST_KUBE_NAMESPACE}" "${job}-scraper" >/dev/null 2>&1; do
+    log "Waiting for scraper"
+    sleep 1
+  done
+  kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}-scraper" --timeout=-1s
+  sleep 5
+  kubectl testkube download artifacts "${job}"
+  cat artifacts/report.md
 }
 
 if [[ -z "${K8S_SOURCE_CLUSTER_CONTEXT}" || -z "${K8S_TARGET_CLUSTER_CONTEXT}" ]]; then
@@ -337,3 +440,13 @@ fi
 
 snapshotSource
 restoreTarget
+deleteSnapshots
+
+if [[ "${WAIT_FOR_K6}" ]]; then
+  log "Awaiting k6 results"
+  waitForK6PodExecution "rest"
+  waitForK6PodExecution "rest-java"
+  waitForK6PodExecution "web3"
+  log "K6 tests completed"
+  teardownResources
+fi
