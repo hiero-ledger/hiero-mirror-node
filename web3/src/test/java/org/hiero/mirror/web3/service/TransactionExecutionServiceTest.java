@@ -297,8 +297,8 @@ class TransactionExecutionServiceTest {
             final String detail,
             final ResponseCodeEnum childResponseCode) {
         // Given
-        Logger logger = (Logger) LoggerFactory.getLogger(TransactionExecutionService.class);
-        ListAppender<ILoggingEvent> listAppender = new ListAppender<>();
+        var logger = (Logger) LoggerFactory.getLogger(TransactionExecutionService.class);
+        var listAppender = new ListAppender<ILoggingEvent>();
         listAppender.start();
         logger.addAppender(listAppender);
 
