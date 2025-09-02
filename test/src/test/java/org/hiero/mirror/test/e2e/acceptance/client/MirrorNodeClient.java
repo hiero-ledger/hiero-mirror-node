@@ -27,8 +27,7 @@ import org.awaitility.Awaitility;
 import org.awaitility.Durations;
 import org.hiero.mirror.rest.model.AccountBalanceTransactions;
 import org.hiero.mirror.rest.model.AccountInfo;
-import org.hiero.mirror.rest.model.AccountsResponse;
-import org.hiero.mirror.rest.model.BalancesResponse;
+import org.hiero.mirror.rest.model.Block;
 import org.hiero.mirror.rest.model.BlocksResponse;
 import org.hiero.mirror.rest.model.ContractActionsResponse;
 import org.hiero.mirror.rest.model.ContractCallRequest;
@@ -48,7 +47,7 @@ import org.hiero.mirror.rest.model.NftAllowancesResponse;
 import org.hiero.mirror.rest.model.NftTransactionHistory;
 import org.hiero.mirror.rest.model.Nfts;
 import org.hiero.mirror.rest.model.Schedule;
-import org.hiero.mirror.rest.model.StakingRewardsResponse;
+import org.hiero.mirror.rest.model.SchedulesResponse;
 import org.hiero.mirror.rest.model.TokenAirdropsResponse;
 import org.hiero.mirror.rest.model.TokenAllowancesResponse;
 import org.hiero.mirror.rest.model.TokenBalancesResponse;
@@ -287,6 +286,16 @@ public class MirrorNodeClient {
         return callRestEndpoint("/blocks?order={order}&limit={limit}", BlocksResponse.class, order, limit);
     }
 
+    public Block getBlockByHash(String hash) {
+        log.debug("Get block by hash from Mirror Node");
+        return callRestEndpoint("/blocks/{hash}", Block.class, hash);
+    }
+
+    public Block getBlockByNumber(Integer number) {
+        log.debug("Get block by number from Mirror Node");
+        return callRestEndpoint("/blocks/{number}", Block.class, number);
+    }
+
     public List<NetworkNode> getNetworkNodes() {
         List<NetworkNode> nodes = new ArrayList<>();
         String next = "/network/nodes?limit=25";
@@ -335,6 +344,11 @@ public class MirrorNodeClient {
     public Schedule getScheduleInfo(String scheduleId) {
         log.debug("Verify schedule '{}' is returned by Mirror Node", scheduleId);
         return callRestEndpoint("/schedules/{scheduleId}", Schedule.class, scheduleId);
+    }
+
+    public SchedulesResponse getSchedules(Order order, long limit) {
+        log.debug("Get schedules data by Mirror Node");
+        return callRestEndpoint("/schedules?order={order}&limit={limit}", SchedulesResponse.class, order, limit);
     }
 
     public TokenBalancesResponse getTokenBalances(String tokenId) {
@@ -421,82 +435,6 @@ public class MirrorNodeClient {
 
     public boolean hasPartialState() {
         return partialStateSupplier.get();
-    }
-
-    public AccountsResponse getAccounts() {
-        log.debug("Retrieving all accounts from Mirror Node");
-        return callRestEndpoint("/accounts", AccountsResponse.class);
-    }
-
-    public AccountsResponse getAccounts(int limit) {
-        log.debug("Retrieving accounts with limit {} from Mirror Node", limit);
-        return callRestEndpoint("/accounts?limit={limit}", AccountsResponse.class, limit);
-    }
-
-    public StakingRewardsResponse getAccountRewards(String accountId) {
-        log.debug("Retrieving staking rewards for account '{}' from Mirror Node", accountId);
-        return callRestEndpoint("/accounts/{accountId}/rewards", StakingRewardsResponse.class, accountId);
-    }
-
-    public StakingRewardsResponse getAccountRewards(String accountId, int limit) {
-        log.debug("Retrieving staking rewards for account '{}' with limit {} from Mirror Node", accountId, limit);
-        return callRestEndpoint(
-                "/accounts/{accountId}/rewards?limit={limit}", StakingRewardsResponse.class, accountId, limit);
-    }
-
-    public BalancesResponse getBalances() {
-        log.debug("Retrieving all balances from Mirror Node");
-        return callRestEndpoint("/balances", BalancesResponse.class);
-    }
-
-    public BalancesResponse getBalances(int limit) {
-        log.debug("Retrieving balances with limit {} from Mirror Node", limit);
-        return callRestEndpoint("/balances?limit={limit}", BalancesResponse.class, limit);
-    }
-
-    public BalancesResponse getBalancesByAccountId(String accountId) {
-        log.debug("Retrieving balances for account '{}' from Mirror Node", accountId);
-        return callRestEndpoint("/balances?account.id={accountId}", BalancesResponse.class, accountId);
-    }
-
-    public BalancesResponse getBalancesByAccountId(String accountId, int limit) {
-        log.debug("Retrieving balances for account '{}' with limit {} from Mirror Node", accountId, limit);
-        return callRestEndpoint(
-                "/balances?account.id={accountId}&limit={limit}", BalancesResponse.class, accountId, limit);
-    }
-
-    public BalancesResponse getBalancesByAccountBalance(String balance) {
-        log.debug("Retrieving balances with account.balance '{}' from Mirror Node", balance);
-        return callRestEndpoint("/balances?account.balance={balance}", BalancesResponse.class, balance);
-    }
-
-    public BalancesResponse getBalancesByPublicKey(String publicKey) {
-        log.debug("Retrieving balances for public key '{}' from Mirror Node", publicKey);
-        return callRestEndpoint("/balances?account.publickey={publicKey}", BalancesResponse.class, publicKey);
-    }
-
-    public BalancesResponse getBalancesByTimestamp(String timestamp) {
-        log.debug("Retrieving balances at timestamp '{}' from Mirror Node", timestamp);
-        return callRestEndpoint("/balances?timestamp={timestamp}", BalancesResponse.class, timestamp);
-    }
-
-    public BalancesResponse getBalancesWithOrder(String order) {
-        log.debug("Retrieving balances with order '{}' from Mirror Node", order);
-        return callRestEndpoint("/balances?order={order}", BalancesResponse.class, order);
-    }
-
-    public BalancesResponse getBalancesWithAllParams(
-            String accountId, String accountBalance, String publicKey, int limit, String order, String timestamp) {
-        log.debug("Retrieving balances with all parameters from Mirror Node");
-        return callRestEndpoint(
-                "/balances?account.id={accountId}&account.balance={accountBalance}&account.publickey={publicKey}&limit={limit}&order={order}&timestamp={timestamp}",
-                BalancesResponse.class,
-                accountId,
-                accountBalance,
-                publicKey,
-                limit,
-                order,
-                timestamp);
     }
 
     private <T> T callRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
