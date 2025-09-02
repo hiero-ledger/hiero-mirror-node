@@ -349,6 +349,16 @@ public class MirrorNodeClient {
         return callRestEndpoint("/tokens/?token.id={tokenId}", TokensResponse.class, tokenId);
     }
 
+    public TokensResponse getTokensWithTreasuryAccount(String accountId) {
+        log.debug("Get tokens with treasury account id '{}'", accountId);
+        return callRestEndpoint("/tokens?account.id={accountId}", TokensResponse.class, accountId);
+    }
+
+    public TokensResponse getTokensAssociatedWithPublicKey(String publicKey) {
+        log.debug("Get tokens associated with publicKey '{}'", publicKey);
+        return callRestEndpoint("/tokens?publickey={publicKey}", TokensResponse.class, publicKey);
+    }
+
     public Topic getTopic(String topicId) {
         return callRestJavaEndpoint("/topics/{topicId}", Topic.class, topicId);
     }
@@ -360,6 +370,11 @@ public class MirrorNodeClient {
     public TopicMessage getTopicMessageBySequenceNumber(String topicId, String sequenceNumber) {
         return callRestEndpoint(
                 "/topics/{topicId}/messages/{sequenceNumber}", TopicMessage.class, topicId, sequenceNumber);
+    }
+
+    public TopicMessage getTopicMessageByConsensusTimestamp(String timestamp) {
+        log.debug("Get topic message by consensus timestamp '{}'", timestamp);
+        return callRestEndpoint("/topics/messages/{timestamp}", TopicMessage.class, timestamp);
     }
 
     public TransactionsResponse getTransactionInfoByTimestamp(String timestamp) {

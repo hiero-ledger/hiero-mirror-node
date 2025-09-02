@@ -7,6 +7,8 @@ Feature: HTS Base Coverage Feature
     Then the mirror node REST API should return the transaction
     Then I ensure token has the correct properties
     And I ensure token has the expected metadata and key
+    And I verify the number of tokens with given treasury account
+    And I verify the number of tokens associated with account
     Given I update the token metadata key
     Then the mirror node REST API should return the transaction
     And I ensure token has the expected metadata and key

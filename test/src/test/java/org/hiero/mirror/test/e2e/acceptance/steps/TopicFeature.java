@@ -404,6 +404,19 @@ public class TopicFeature extends AbstractFeature {
         assertThat(getTopicMessageResponse.getMessage()).isEqualTo(base64EncodedMessage);
     }
 
+    @Then("I verify the published message can be retrieved by consensus timestamp")
+    public void getTopicMessageByTimestamp() {
+        var topicMsgBySeqNumber = mirrorClient.getTopicMessageBySequenceNumber(
+                consensusTopicId.toString(), String.valueOf(topicSequenceNumber));
+        assertThat(topicMsgBySeqNumber).isNotNull();
+
+        String consensusTimestamp = topicMsgBySeqNumber.getConsensusTimestamp();
+
+        var topicMsgByConsTimestamp = mirrorClient.getTopicMessageByConsensusTimestamp(consensusTimestamp);
+        assertThat(topicMsgByConsTimestamp).isNotNull();
+        assertThat(topicMsgBySeqNumber).isEqualTo(topicMsgByConsTimestamp);
+    }
+
     @Then("I verify the publish message transaction from {account} in mirror node REST API")
     public void verifySubmitMessageTransaction(AccountNameEnum accountName) {
         var mirrorTransactionsResponse = Objects.requireNonNull(
