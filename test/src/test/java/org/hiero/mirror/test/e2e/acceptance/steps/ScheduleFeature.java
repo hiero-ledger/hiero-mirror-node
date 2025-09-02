@@ -173,7 +173,7 @@ public class ScheduleFeature extends AbstractFeature {
 
     @Then("the mirror node REST API should list all schedules")
     public void verifySchedules() {
-        final var schedulesResponse = mirrorClient.getSchedules(Order.ASC, 10);
+        final var schedulesResponse = mirrorClient.getSchedules(Order.DESC, 10);
         assertThat(schedulesResponse)
                 .isNotNull()
                 .extracting(SchedulesResponse::getSchedules)
