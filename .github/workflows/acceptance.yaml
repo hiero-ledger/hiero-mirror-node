@@ -127,7 +127,7 @@ jobs:
               repository: xinatswirlds/importer
               tag: e741ea2b2
           test:
-            cucumberTags: "@acceptance and not @ethereum and not @equivalence and not @contract and not @topic and not @schedulebase and not @token"
+            cucumberTags: "@cryptoallowance and @ethcall and @erc and @estimate and @network and @nftallowance and @tokenallowance and @topicmessagesfilter"
             image:
               tag: pr-test
             annotations:
