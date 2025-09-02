@@ -7,6 +7,7 @@ import com.hedera.hashgraph.sdk.AccountAllowanceApproveTransaction;
 import com.hedera.hashgraph.sdk.AccountCreateTransaction;
 import com.hedera.hashgraph.sdk.AccountDeleteTransaction;
 import com.hedera.hashgraph.sdk.AccountId;
+import com.hedera.hashgraph.sdk.AccountUpdateTransaction;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.EvmAddress;
 import com.hedera.hashgraph.sdk.Hbar;
@@ -330,6 +331,32 @@ public class AccountClient extends AbstractNetworkClient {
                 spender,
                 tokenId,
                 response.getTransactionId());
+        return response;
+    }
+
+    public NetworkTransactionResponse stakeAccountToNode(ExpandedAccountId accountId, long nodeId) {
+        var transaction = new AccountUpdateTransaction()
+                .setAccountId(accountId.getAccountId())
+                .setStakedNodeId(nodeId)
+                .setDeclineStakingReward(false) // Ensure account can receive rewards
+                .freezeWith(client)
+                .sign(accountId.getPrivateKey());
+
+        var response = executeTransactionAndRetrieveReceipt(transaction);
+        log.info("Staked account {} to node {} via {}", accountId.getAccountId(), nodeId, response.getTransactionId());
+        return response;
+    }
+
+    public NetworkTransactionResponse unstakeAccount(ExpandedAccountId accountId) {
+        var transaction = new AccountUpdateTransaction()
+                .setAccountId(accountId.getAccountId())
+                .clearStakedAccountId()
+                .clearStakedNodeId()
+                .freezeWith(client)
+                .sign(accountId.getPrivateKey());
+
+        var response = executeTransactionAndRetrieveReceipt(transaction);
+        log.info("Unstaked account {} via {}", accountId.getAccountId(), response.getTransactionId());
         return response;
     }
 

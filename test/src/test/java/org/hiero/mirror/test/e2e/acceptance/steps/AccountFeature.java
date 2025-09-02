@@ -24,7 +24,9 @@ import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.rest.model.AccountsResponse;
 import org.hiero.mirror.rest.model.CryptoAllowance;
+import org.hiero.mirror.rest.model.StakingRewardsResponse;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.rest.model.TransactionDetail;
 import org.hiero.mirror.rest.model.TransactionTransfersInner;
@@ -257,5 +259,77 @@ public class AccountFeature extends AbstractFeature {
                 accountClient.approveCryptoAllowance(spenderAccountId.getAccountId(), Hbar.fromTinybars(amount));
         assertNotNull(networkTransactionResponse.getTransactionId());
         assertNotNull(networkTransactionResponse.getReceipt());
+    }
+
+    @Then("the mirror node REST API should return the accounts list")
+    public void verifyAccountsList() {
+        log.info("Calling getAccounts() without limit parameter");
+        AccountsResponse accountsResponse = mirrorClient.getAccounts();
+        assertThat(accountsResponse).isNotNull();
+        assertThat(accountsResponse.getAccounts()).isNotNull();
+        assertThat(accountsResponse.getLinks()).isNotNull();
+        log.info(
+                "Retrieved {} accounts from Mirror Node (no limit specified)",
+                accountsResponse.getAccounts().size());
+    }
+
+    @Then("the mirror node REST API should return the accounts list with limit {int}")
+    public void verifyAccountsListWithLimit(int limit) {
+        log.info("Calling getAccounts({}) with limit parameter", limit);
+        AccountsResponse accountsResponse = mirrorClient.getAccounts(limit);
+        assertThat(accountsResponse).isNotNull();
+        assertThat(accountsResponse.getAccounts()).isNotNull();
+        assertThat(accountsResponse.getAccounts().size()).isLessThanOrEqualTo(limit);
+        assertThat(accountsResponse.getLinks()).isNotNull();
+        log.info(
+                "Retrieved {} accounts with limit {} from Mirror Node",
+                accountsResponse.getAccounts().size(),
+                limit);
+    }
+
+    @Then("the mirror node REST API should return the staking rewards for the account")
+    public void verifyAccountStakingRewards() {
+        String accountId = senderAccountId.getAccountId().toString();
+        log.info("Calling getAccountRewards({}) to retrieve staking rewards", accountId);
+        StakingRewardsResponse rewardsResponse = mirrorClient.getAccountRewards(accountId);
+        assertThat(rewardsResponse).isNotNull();
+        assertThat(rewardsResponse.getRewards()).isNotNull();
+        assertThat(rewardsResponse.getLinks()).isNotNull();
+        log.info(
+                "Retrieved {} staking rewards for account {} from Mirror Node",
+                rewardsResponse.getRewards().size(),
+                accountId);
+    }
+
+    @Then("the mirror node REST API should return the staking rewards for the account with limit {int}")
+    public void verifyAccountStakingRewardsWithLimit(int limit) {
+        String accountId = senderAccountId.getAccountId().toString();
+        log.info("Calling getAccountRewards({}, {}) to retrieve staking rewards with limit", accountId, limit);
+        StakingRewardsResponse rewardsResponse = mirrorClient.getAccountRewards(accountId, limit);
+        assertThat(rewardsResponse).isNotNull();
+        assertThat(rewardsResponse.getRewards()).isNotNull();
+        assertThat(rewardsResponse.getRewards().size()).isLessThanOrEqualTo(limit);
+        assertThat(rewardsResponse.getLinks()).isNotNull();
+        log.info(
+                "Retrieved {} staking rewards for account {} with limit {} from Mirror Node",
+                rewardsResponse.getRewards().size(),
+                accountId,
+                limit);
+    }
+
+    @When("I stake the account to node {long}")
+    public void stakeAccountToNode(long nodeId) {
+        networkTransactionResponse = accountClient.stakeAccountToNode(senderAccountId, nodeId);
+        assertNotNull(networkTransactionResponse.getTransactionId());
+        assertNotNull(networkTransactionResponse.getReceipt());
+        log.info("Account {} staked to node {}", senderAccountId.getAccountId(), nodeId);
+    }
+
+    @When("I unstake the account")
+    public void unstakeAccount() {
+        networkTransactionResponse = accountClient.unstakeAccount(senderAccountId);
+        assertNotNull(networkTransactionResponse.getTransactionId());
+        assertNotNull(networkTransactionResponse.getReceipt());
+        log.info("Account {} unstaked", senderAccountId.getAccountId());
     }
 }
