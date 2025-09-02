@@ -127,7 +127,7 @@ jobs:
               repository: xinatswirlds/importer
               tag: e741ea2b2
           test:
-            cucumberTags: "@acceptance and not @accounts and not @contract and not @equivalence and not @estimateprecompile and not @ethereum and not @historical and not @precompile and not @filebase and not @schedulebase and not @token and not @topic"
+            cucumberTags: "@acceptance and not @accounts and not @contract and not @equivalence and not @estimateprecompile and not @ethereum and not @historical and not @precompile and not @filebase and not @schedulebase and not @token and not @topic and not @nftallowance and not @erc and not @cryptoallowance and not @tokenallowance"
             image:
               tag: pr-test
             annotations:
