@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`SignatureObject checksum mismatch 1`] = `"Error reading length and bytes, expect length 16777600 within [1, 384]"`;
 

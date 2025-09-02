@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`validateExtractNetworkNodesQuery throw file.id gt 1`] = `"Only equals (eq) comparison operator is supported for file.id"`;
 
