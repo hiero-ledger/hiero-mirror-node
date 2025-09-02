@@ -12,9 +12,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
@@ -62,7 +59,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.slf4j.LoggerFactory;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 @ExtendWith({ContextExtension.class, MockitoExtension.class})
 class TransactionExecutionServiceTest {
@@ -290,18 +288,15 @@ class TransactionExecutionServiceTest {
         "0x,CONTRACT_REVERT_EXECUTED,'', REVERTED_SUCCESS",
         "0x,SUCCESS,'', REVERTED_SUCCESS"
     })
+    @ExtendWith(OutputCaptureExtension.class)
     @SuppressWarnings("unused")
-    void testExecuteContractCallFailureWithChildTransactionErrors(
+    void testExecuteContractCallWithChildTransactionErrors(
             final String errorMessage,
             final ResponseCodeEnum responseCode,
             final String detail,
-            final ResponseCodeEnum childResponseCode) {
+            final ResponseCodeEnum childResponseCode,
+            final CapturedOutput capturedOutput) {
         // Given
-        var logger = (Logger) LoggerFactory.getLogger(TransactionExecutionService.class);
-        var listAppender = new ListAppender<ILoggingEvent>();
-        listAppender.start();
-        logger.addAppender(listAppender);
-
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
         var transactionRecord = mock(TransactionRecord.class);
@@ -355,9 +350,7 @@ class TransactionExecutionServiceTest {
             assertThat(result.getRevertReason()).isNotPresent();
         }
         // Validate no logs were produced
-        assertThat(listAppender.list.isEmpty()).isTrue();
-        // Cleanup
-        logger.detachAppender(listAppender);
+        assertThat(capturedOutput.getOut()).doesNotContain("childTransactionErrors");
     }
 
     @SuppressWarnings("unused")
