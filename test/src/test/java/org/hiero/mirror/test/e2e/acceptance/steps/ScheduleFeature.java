@@ -23,7 +23,9 @@ import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.rest.model.ScheduleSignature;
+import org.hiero.mirror.rest.model.SchedulesResponse;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.rest.model.TransactionDetail;
 import org.hiero.mirror.rest.model.TransactionsResponse;
@@ -172,8 +174,11 @@ public class ScheduleFeature extends AbstractFeature {
     @Then("the mirror node REST API should list all schedules")
     public void verifySchedules() {
         final var schedulesResponse = mirrorClient.getSchedules(Order.ASC, 10);
-        assertNotNull(schedulesResponse);
-        assertThat(schedulesResponse.getSchedules()).isNotEmpty();
+        assertThat(schedulesResponse)
+                .isNotNull()
+                .extracting(SchedulesResponse::getSchedules)
+                .asInstanceOf(InstanceOfAssertFactories.LIST)
+                .isNotEmpty();
     }
 
     private void verifyScheduleFromMirror(

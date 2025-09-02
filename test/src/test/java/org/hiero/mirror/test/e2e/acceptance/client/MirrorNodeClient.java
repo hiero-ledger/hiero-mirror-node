@@ -287,8 +287,13 @@ public class MirrorNodeClient {
     }
 
     public Block getBlockByHash(String hash) {
-        log.debug("Get block hash by Mirror Node");
+        log.debug("Get block by hash from Mirror Node");
         return callRestEndpoint("/blocks/{hash}", Block.class, hash);
+    }
+
+    public Block getBlockByNumber(Integer number) {
+        log.debug("Get block by number from Mirror Node");
+        return callRestEndpoint("/blocks/{number}", Block.class, number);
     }
 
     public List<NetworkNode> getNetworkNodes() {

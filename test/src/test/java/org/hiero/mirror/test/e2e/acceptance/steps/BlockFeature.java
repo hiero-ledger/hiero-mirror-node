@@ -17,18 +17,20 @@ public class BlockFeature {
 
     private final MirrorNodeClient mirrorClient;
 
-    @When("I verify block by hash")
-    public void verifyBlockByHash() {
-        final var blocks = mirrorClient.getBlocks(Order.ASC, 1);
+    @When("I verify block by hash and number")
+    public void verifyBlockByHashAndNumber() {
+        final var blocks = mirrorClient.getBlocks(Order.DESC, 1);
+
         if (CollectionUtils.isEmpty(blocks.getBlocks())) {
-            log.warn("Skipping block by hash verification since there are no blocks");
+            log.warn("Skipping block verification since there are no blocks");
             return;
         }
         final var firstBlock = blocks.getBlocks().getFirst();
-        final var blockHash = firstBlock.getHash();
-        final var blockResponse = mirrorClient.getBlockByHash(blockHash);
 
-        assertThat(blockResponse).isNotNull();
-        assertThat(blockResponse).isEqualTo(firstBlock);
+        final var blockByHash = mirrorClient.getBlockByHash(firstBlock.getHash());
+        assertThat(blockByHash).isNotNull().isEqualTo(firstBlock);
+
+        final var blockByNumber = mirrorClient.getBlockByNumber(firstBlock.getNumber());
+        assertThat(blockByNumber).isNotNull().isEqualTo(firstBlock);
     }
 }
