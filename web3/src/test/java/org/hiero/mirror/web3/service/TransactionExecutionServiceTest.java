@@ -279,6 +279,53 @@ class TransactionExecutionServiceTest {
                 .containsExactly(childResponseCode.protoName());
     }
 
+    @ParameterizedTest
+    @CsvSource({"0x,CONTRACT_REVERT_EXECUTED,'', SUCCESS", "0x,CONTRACT_REVERT_EXECUTED,'', REVERTED_SUCCESS"})
+    @SuppressWarnings("unused")
+    void testExecuteContractCallFailureWithChildTransactionErrors(
+            final String errorMessage,
+            final ResponseCodeEnum responseCode,
+            final String detail,
+            final ResponseCodeEnum childResponseCode) {
+        // Given
+        // Mock the SingleTransactionRecord and TransactionRecord
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+
+        var childSingleTransactionRecord = mock(SingleTransactionRecord.class);
+        var childTransactionRecord = mock(TransactionRecord.class);
+        var childTransactionReceipt = mock(TransactionReceipt.class);
+
+        when(transactionReceipt.status()).thenReturn(responseCode);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+
+        when(childTransactionReceipt.status()).thenReturn(childResponseCode);
+        when(childTransactionRecord.receiptOrThrow()).thenReturn(childTransactionReceipt);
+        when(childSingleTransactionRecord.transactionRecord()).thenReturn(childTransactionRecord);
+
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+        when(transactionRecord.contractCallResult()).thenReturn(contractFunctionResult);
+        when(contractFunctionResult.errorMessage()).thenReturn(errorMessage);
+
+        // Mock the executor to return a List with the mocked SingleTransactionRecord
+        when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord, childSingleTransactionRecord));
+
+        var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, Address.ZERO);
+
+        // Then
+        assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
+                .isInstanceOf(MirrorEvmTransactionException.class)
+                .hasMessageContaining(responseCode.name())
+                .hasFieldOrPropertyWithValue("detail", detail)
+                .hasFieldOrProperty("childTransactionErrors")
+                .extracting("childTransactionErrors")
+                .asInstanceOf(collection(String.class))
+                .isEmpty();
+    }
+
     @SuppressWarnings("unused")
     @Test
     void testExecuteContractCallFailureOnPreChecks() {
