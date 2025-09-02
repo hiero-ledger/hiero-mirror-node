@@ -67,6 +67,7 @@ import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.RestJavaProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
+import org.hiero.mirror.test.e2e.acceptance.steps.BalancesFeature;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 import org.springframework.retry.RetryContext;
 import org.springframework.retry.policy.MaxAttemptsRetryPolicy;
@@ -462,59 +463,36 @@ public class MirrorNodeClient {
                 "/accounts/{accountId}/rewards?limit={limit}", StakingRewardsResponse.class, accountId, limit);
     }
 
-    public BalancesResponse getBalances() {
-        log.debug("Retrieving all balances from Mirror Node");
-        return callRestEndpoint("/balances", BalancesResponse.class);
-    }
+    public BalancesResponse getBalances(BalancesFeature.BalancesQueryParams params) {
+        log.debug("Retrieving balances with query parameters from Mirror Node");
+        StringBuilder urlBuilder = new StringBuilder("/balances");
+        boolean first = true;
 
-    public BalancesResponse getBalances(int limit) {
-        log.debug("Retrieving balances with limit {} from Mirror Node", limit);
-        return callRestEndpoint("/balances?limit={limit}", BalancesResponse.class, limit);
-    }
+        if (params.getAccountId() != null) {
+            urlBuilder.append(first ? "?" : "&").append("account.id=").append(params.getAccountId());
+            first = false;
+        }
+        if (params.getAccountBalance() != null) {
+            urlBuilder.append(first ? "?" : "&").append("account.balance=").append(params.getAccountBalance());
+            first = false;
+        }
+        if (params.getPublicKey() != null) {
+            urlBuilder.append(first ? "?" : "&").append("account.publickey=").append(params.getPublicKey());
+            first = false;
+        }
+        if (params.getLimit() != null) {
+            urlBuilder.append(first ? "?" : "&").append("limit=").append(params.getLimit());
+            first = false;
+        }
+        if (params.getOrder() != null) {
+            urlBuilder.append(first ? "?" : "&").append("order=").append(params.getOrder());
+            first = false;
+        }
+        if (params.getTimestamp() != null) {
+            urlBuilder.append(first ? "?" : "&").append("timestamp=").append(params.getTimestamp());
+        }
 
-    public BalancesResponse getBalancesByAccountId(String accountId) {
-        log.debug("Retrieving balances for account '{}' from Mirror Node", accountId);
-        return callRestEndpoint("/balances?account.id={accountId}", BalancesResponse.class, accountId);
-    }
-
-    public BalancesResponse getBalancesByAccountId(String accountId, int limit) {
-        log.debug("Retrieving balances for account '{}' with limit {} from Mirror Node", accountId, limit);
-        return callRestEndpoint(
-                "/balances?account.id={accountId}&limit={limit}", BalancesResponse.class, accountId, limit);
-    }
-
-    public BalancesResponse getBalancesByAccountBalance(String balance) {
-        log.debug("Retrieving balances with account.balance '{}' from Mirror Node", balance);
-        return callRestEndpoint("/balances?account.balance={balance}", BalancesResponse.class, balance);
-    }
-
-    public BalancesResponse getBalancesByPublicKey(String publicKey) {
-        log.debug("Retrieving balances for public key '{}' from Mirror Node", publicKey);
-        return callRestEndpoint("/balances?account.publickey={publicKey}", BalancesResponse.class, publicKey);
-    }
-
-    public BalancesResponse getBalancesByTimestamp(String timestamp) {
-        log.debug("Retrieving balances at timestamp '{}' from Mirror Node", timestamp);
-        return callRestEndpoint("/balances?timestamp={timestamp}", BalancesResponse.class, timestamp);
-    }
-
-    public BalancesResponse getBalancesWithOrder(String order) {
-        log.debug("Retrieving balances with order '{}' from Mirror Node", order);
-        return callRestEndpoint("/balances?order={order}", BalancesResponse.class, order);
-    }
-
-    public BalancesResponse getBalancesWithAllParams(
-            String accountId, String accountBalance, String publicKey, int limit, String order, String timestamp) {
-        log.debug("Retrieving balances with all parameters from Mirror Node");
-        return callRestEndpoint(
-                "/balances?account.id={accountId}&account.balance={accountBalance}&account.publickey={publicKey}&limit={limit}&order={order}&timestamp={timestamp}",
-                BalancesResponse.class,
-                accountId,
-                accountBalance,
-                publicKey,
-                limit,
-                order,
-                timestamp);
+        return callRestEndpoint(urlBuilder.toString(), BalancesResponse.class);
     }
 
     private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {

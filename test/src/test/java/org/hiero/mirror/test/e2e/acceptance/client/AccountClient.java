@@ -338,7 +338,7 @@ public class AccountClient extends AbstractNetworkClient {
         var transaction = new AccountUpdateTransaction()
                 .setAccountId(accountId.getAccountId())
                 .setStakedNodeId(nodeId)
-                .setDeclineStakingReward(false) // Ensure account can receive rewards
+                .setDeclineStakingReward(false)
                 .freezeWith(client)
                 .sign(accountId.getPrivateKey());
 

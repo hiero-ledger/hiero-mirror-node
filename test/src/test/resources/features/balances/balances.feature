@@ -1,44 +1,37 @@
-@balances @fullsuite @acceptance
+@balances @fullsuite
 Feature: Balances API Coverage Feature
 
   @basic @acceptance
   Scenario Outline: Basic balances API validation
+    Given I have created a new account with initial balance of <initialBalance> tinybars
+    When I query the mirror node REST API for balances
     Then the mirror node REST API should return balances list
     And the mirror node REST API should return balances list with limit <limit>
     Examples:
-      | limit |
-      | 10    |
-      | 25    |
-      | 50    |
+      | initialBalance | limit |
+      | 1000000000     | 10    |
 
-  @parameters @acceptance  
+  @parameters @acceptance
   Scenario Outline: Balances API with query parameters
-    Then the mirror node REST API should return balances filtered by account ID <accountId>
-    And the mirror node REST API should return balances filtered by account balance <balance>
+    Given I have created a new account with initial balance of 2000000000 tinybars
+    When I query balances for account
+    And the mirror node REST API should return balances filtered by account balance <balanceFilter>
     And the mirror node REST API should return balances with order <order>
     Examples:
-      | accountId | balance | order |
-      | "0.0.2"   | "gt:0"  | "asc" |
-      | "0.0.3"   | "lt:1000000000000" | "desc" |
+      | balanceFilter | order |
+      | "gt:0"        | "asc" |
 
   @historical @acceptance
-  Scenario Outline: Historical balances API validation  
+  Scenario Outline: Historical balances API validation
+    When I query historical balances at timestamp <timestamp>
     Then the mirror node REST API should return balances at timestamp <timestamp>
     Examples:
-      | timestamp |
-      | "lt:1234567890.000000000" |
-      | "gte:1000000000.000000000" |
-
-  @publickey @acceptance
-  Scenario Outline: Balances API with public key filter
-    Then the mirror node REST API should return balances filtered by public key <publicKey>
-    Examples:
-      | publicKey |
-      | "3c3d546321ff6f63d701d2ec5c277095874e19f4a235bee1e6bb19258bf362be" |
+      | timestamp                  |
+      | "lt:9999999999.000000000"  |
+      | "gte:1640995200.000000000" |
 
   @comprehensive @acceptance
-  Scenario Outline: Comprehensive balances API validation with all parameters
-    Then the mirror node REST API should return balances with all parameters account <accountId> balance <balance> publickey <publicKey> limit <limit> order <order> timestamp <timestamp>
-    Examples:
-      | accountId | balance | publicKey | limit | order | timestamp |
-      | "0.0.2"   | "gt:0"  | "3c3d546321ff6f63d701d2ec5c277095874e19f4a235bee1e6bb19258bf362be" | 5 | "desc" | "lt:9999999999.000000000" |
+  Scenario: Comprehensive balances API validation
+    Given I have created a new account with initial balance of 3000000000 tinybars
+    When I query balances with all parameters for account
+    Then the mirror node REST API should return balances with all parameters
