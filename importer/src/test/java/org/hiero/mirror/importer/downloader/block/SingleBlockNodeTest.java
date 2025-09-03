@@ -15,13 +15,11 @@ import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.stream.LongStream;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
-import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
@@ -34,11 +32,8 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     void multipleBlocks() {
         // given
         var generator = new BlockGenerator(0);
-        var simulator = addSimulator(new BlockNodeSimulator()
-                .withChunksPerBlock(2)
-                .withBlocks(generator.next(10))
-                .start());
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+        addSimulatorWithBlocks(generator.next(10)).withChunksPerBlock(2).withInProcessChannel();
+        subscriber = getBlockNodeSubscriber();
 
         // when
         subscriber.get();
@@ -55,12 +50,8 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     void outOfOrder() {
         // given
         var generator = new BlockGenerator(0);
-        var simulator = addSimulator(new BlockNodeSimulator()
-                .withBlocks(generator.next(10))
-                .withHttpChannel()
-                .withOutOfOrder()
-                .start());
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+        addSimulatorWithBlocks(generator.next(10)).withOutOfOrder();
+        subscriber = getBlockNodeSubscriber();
 
         // when, then
         assertThatThrownBy(subscriber::get)
@@ -72,12 +63,8 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     void missingBlock() {
         // given
         var generator = new BlockGenerator(0);
-        var simulator = addSimulator(new BlockNodeSimulator()
-                .withBlocks(generator.next(10))
-                .withHttpChannel()
-                .withMissingBlock()
-                .start());
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+        addSimulatorWithBlocks(generator.next(10)).withMissingBlock();
+        subscriber = getBlockNodeSubscriber();
 
         // when, then
         assertThatThrownBy(subscriber::get)
@@ -99,9 +86,8 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 block1.block().toBuilder().removeBlockItems(proofIndex).build();
         blocks.set(1, new BlockGenerator.BlockRecord(block1WithoutProof));
 
-        var simulator = addSimulator(
-                new BlockNodeSimulator().withBlocks(blocks).withHttpChannel().start());
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+        addSimulatorWithBlocks(blocks);
+        subscriber = getBlockNodeSubscriber();
 
         // when, then
         assertThatCode(subscriber::get).doesNotThrowAnyException();
@@ -125,9 +111,8 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 BlockItemSet.newBuilder().addAllBlockItems(itemsWithoutHeader).build();
         blocks.set(0, new BlockGenerator.BlockRecord(block0WithoutHeader));
 
-        var simulator = addSimulator(
-                new BlockNodeSimulator().withBlocks(blocks).withHttpChannel().start());
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+        addSimulatorWithBlocks(blocks);
+        subscriber = getBlockNodeSubscriber();
 
         // when, then
         // Detect missing header and fail
@@ -167,9 +152,8 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .build();
         blocks.set(1, new BlockGenerator.BlockRecord(corruptedB1));
 
-        var simulator = addSimulator(
-                new BlockNodeSimulator().withBlocks(blocks).withHttpChannel().start());
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+        addSimulatorWithBlocks(blocks);
+        subscriber = getBlockNodeSubscriber();
 
         // when, then
         assertThatThrownBy(subscriber::get)
@@ -204,11 +188,8 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         blocks.remove(1);
         blocks.add(new BlockGenerator.BlockRecord(builder.build()));
 
-        var simulator = addSimulator(new BlockNodeSimulator()
-                .withChunksPerBlock(2)
-                .withBlocks(blocks)
-                .start());
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+        addSimulatorWithBlocks(blocks).withChunksPerBlock(2);
+        subscriber = getBlockNodeSubscriber();
 
         // when, then
         assertThatThrownBy(subscriber::get)
@@ -243,11 +224,8 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         blocks.remove(1);
         blocks.add(new BlockGenerator.BlockRecord(builder.build()));
 
-        var simulator = addSimulator(new BlockNodeSimulator()
-                .withChunksPerBlock(2)
-                .withBlocks(blocks)
-                .start());
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+        addSimulatorWithBlocks(blocks).withChunksPerBlock(2);
+        subscriber = getBlockNodeSubscriber();
 
         // when, then
         assertThatThrownBy(subscriber::get)

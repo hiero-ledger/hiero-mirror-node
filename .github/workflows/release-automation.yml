@@ -113,16 +113,10 @@ jobs:
 
       - name: Create Release Notes
         if: ${{ steps.version_parser.outputs.prerelease == '' }}
-        uses: steven-sheehy/github-changelog-generator@587a63ffdd931b656ca33566d55fe76179e2046b
+        uses: steven-sheehy/github-changelog-generator@b4174ba12a75add137b35a1e28907d1ac0511f92
         with:
           config-file: .github/release-notes.yml
           milestone: ${{ steps.version_parser.outputs.release }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Output Release Notes
-        if: ${{ steps.version_parser.outputs.prerelease == '' }}
-        continue-on-error: true
-        run: cat changelog.md
 
       - name: Commit and Tag
         uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0 # v6.0.1

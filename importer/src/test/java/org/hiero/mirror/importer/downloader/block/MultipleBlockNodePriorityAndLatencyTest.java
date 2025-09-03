@@ -38,37 +38,23 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
         var interval = Duration.ofMillis(200);
         var generator = new BlockGenerator(interval, 0, Instant.now().minus(Duration.ofMinutes(10)));
         var blocks = generator.next(20);
-        simulators.add(new BlockNodeSimulator()
-                .withBlocks(blocks)
-                .withHttpChannel()
+        addSimulatorWithBlocks(blocks)
                 .withBlockInterval(interval)
                 .withLatency(10)
-                .withPriority(0)
-                .start());
-        simulators.add(new BlockNodeSimulator()
-                .withBlocks(blocks)
-                .withHttpChannel()
+                .withPriority(0);
+        addSimulatorWithBlocks(blocks)
                 .withBlockInterval(interval)
                 .withLatency(100)
-                .withPriority(0)
-                .start());
-        simulators.add(new BlockNodeSimulator()
-                .withBlocks(blocks)
-                .withHttpChannel()
+                .withPriority(0);
+        addSimulatorWithBlocks(blocks)
                 .withBlockInterval(interval)
                 .withLatency(10)
-                .withPriority(1)
-                .start());
-        simulators.add(new BlockNodeSimulator()
-                .withBlocks(blocks)
-                .withHttpChannel()
+                .withPriority(1);
+        addSimulatorWithBlocks(blocks)
                 .withBlockInterval(interval)
                 .withLatency(10)
-                .withPriority(1)
-                .start());
-        var blockNodeProperties =
-                simulators.stream().map(BlockNodeSimulator::toClientProperties).toList();
-        subscriber = getBlockNodeSubscriber(blockNodeProperties);
+                .withPriority(1);
+        subscriber = getBlockNodeSubscriber();
 
         // when, then
         await().atMost(Duration.ofSeconds(10)).pollDelay(Duration.ofMillis(1)).untilAsserted(() -> assertThatThrownBy(
@@ -99,37 +85,23 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
         var interval = Duration.ofMillis(200);
         var generator = new BlockGenerator(interval, 0, Instant.now().minus(Duration.ofMinutes(10)));
         var blocks = generator.next(40);
-        simulators.add(new BlockNodeSimulator()
-                .withBlocks(blocks.subList(0, 15))
-                .withHttpChannel()
+        addSimulatorWithBlocks(blocks.subList(0, 15))
                 .withBlockInterval(interval)
                 .withLatency(10)
-                .withPriority(0)
-                .start());
-        simulators.add(new BlockNodeSimulator()
-                .withBlocks(blocks.subList(0, 15))
-                .withHttpChannel()
+                .withPriority(0);
+        addSimulatorWithBlocks(blocks.subList(0, 15))
                 .withBlockInterval(interval)
                 .withLatency(100)
-                .withPriority(0)
-                .start());
-        simulators.add(new BlockNodeSimulator()
-                .withBlocks(blocks.subList(13, 30))
-                .withHttpChannel()
+                .withPriority(0);
+        addSimulatorWithBlocks(blocks.subList(13, 30))
                 .withBlockInterval(interval)
                 .withLatency(100)
-                .withPriority(1)
-                .start());
-        simulators.add(new BlockNodeSimulator()
-                .withBlocks(blocks.subList(20, 40))
-                .withHttpChannel()
+                .withPriority(1);
+        addSimulatorWithBlocks(blocks.subList(20, 40))
                 .withBlockInterval(interval)
                 .withLatency(5)
-                .withPriority(1)
-                .start());
-        var blockNodeProperties =
-                simulators.stream().map(BlockNodeSimulator::toClientProperties).toList();
-        subscriber = getBlockNodeSubscriber(blockNodeProperties);
+                .withPriority(1);
+        subscriber = getBlockNodeSubscriber();
 
         // when, then
         await().atMost(Duration.ofSeconds(20)).pollDelay(Duration.ofMillis(1)).untilAsserted(() -> assertThatThrownBy(

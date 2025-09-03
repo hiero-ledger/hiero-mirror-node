@@ -1,4 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`extractStakingRewardsQuery throw timestamp ne 1`] = `"Not equals (ne) operator is not supported for timestamp"`;
 
 exports[`extractTokenMultiUnionQuery throw no token.id 1`] = `"serialnumber without a token.id parameter filter"`;
 
@@ -29,5 +31,3 @@ exports[`extractTokenMultiUnionQuery throw token.id multiple lower bounds 1`] = 
 exports[`extractTokenMultiUnionQuery throw token.id multiple upper bounds 1`] = `"Only one lt/lte operator is allowed for token.id"`;
 
 exports[`extractTokenMultiUnionQuery throw token.id ne 1`] = `"Not equal (ne) operator is not supported for token.id"`;
-
-exports[`extractStakingRewardsQuery throw timestamp ne 1`] = `"Not equals (ne) operator is not supported for timestamp"`;

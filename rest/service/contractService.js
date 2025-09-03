@@ -17,6 +17,8 @@ import {
   ContractTransactionHash,
   Entity,
   EthereumTransaction,
+  Transaction,
+  TransactionResult,
 } from '../model';
 import ContractTransaction from '../model/contractTransaction';
 import {RecordFileService} from './index';
@@ -58,6 +60,9 @@ ${ContractResult.getFullName(ContractResult.TRANSACTION_INDEX)},
 ${ContractResult.getFullName(ContractResult.TRANSACTION_NONCE)},
 ${ContractResult.getFullName(ContractResult.TRANSACTION_RESULT)}
 `;
+const duplicateTransactionResult = TransactionResult.getProtoId('DUPLICATE_TRANSACTION');
+const wrongNonceTransactionResult = TransactionResult.getProtoId('WRONG_NONCE');
+const successTransactionResult = TransactionResult.getProtoId('SUCCESS');
 
 /**
  * Contract retrieval business logic
@@ -194,19 +199,29 @@ class ContractService extends BaseService {
         and ${EthereumTransaction.CONSENSUS_TIMESTAMP} >= $3
         and ${EthereumTransaction.CONSENSUS_TIMESTAMP} <= $4`;
 
-  static transactionHashDetailsQuery = `select ${ContractTransactionHash.HASH}, 
-                                              ${ContractTransactionHash.PAYER_ACCOUNT_ID}, 
-                                              ${ContractTransactionHash.CONSENSUS_TIMESTAMP}, 
-                                              ${ContractTransactionHash.ENTITY_ID}
-                                              from ${ContractTransactionHash.tableName} 
-                                       where ${ContractTransactionHash.HASH} = $1 
-                                       `;
   static involvedContractsQuery = `select ${ContractTransaction.PAYER_ACCOUNT_ID},
                                           ${ContractTransaction.ENTITY_ID},
                                           ${ContractTransaction.CONTRACT_IDS},
                                           ${ContractTransaction.CONSENSUS_TIMESTAMP}
                    from ${ContractTransaction.tableName}
                    where ${ContractTransaction.CONSENSUS_TIMESTAMP} = $1 and ${ContractTransaction.ENTITY_ID} = $2`;
+
+  static ethereumTransactionsByHashQuery = `select * from ${ContractTransactionHash.tableName}
+        where ${ContractTransactionHash.HASH} = $1 and ${ContractTransactionHash.CONSENSUS_TIMESTAMP} = (
+          select coalesce((
+              select ${ContractTransactionHash.CONSENSUS_TIMESTAMP}
+              from ${ContractTransactionHash.tableName}
+              where ${ContractTransactionHash.HASH} = $1 and ${ContractTransactionHash.TRANSACTION_RESULT} = ${successTransactionResult}
+              order by ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc
+              limit 1
+          ), (
+              select ${ContractTransactionHash.CONSENSUS_TIMESTAMP}
+              from ${ContractTransactionHash.tableName}
+              where ${ContractTransactionHash.HASH} = $1 and ${ContractTransactionHash.TRANSACTION_RESULT} not in (${duplicateTransactionResult}, ${wrongNonceTransactionResult})
+              order by ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc
+              limit 1
+          ))
+       )`;
 
   getContractResultsByIdAndFiltersQuery(whereConditions, whereParams, order, limit) {
     const params = whereParams;
@@ -297,33 +312,11 @@ class ContractService extends BaseService {
    * Retrieves contract transaction details based on the eth hash
    *
    * @param {Buffer} hash eth transaction hash or 32-byte hedera transaction hash prefix
-   * @param {[]}excludeTransactionResults transaction result codes to exclude in result
-   * @param {number} limit number of results to return
-   * @return {Promise<{ContractResult}[]>}
+   * @return {Promise<{ContractTransactionHash}[]>}
    */
-  async getContractTransactionDetailsByHash(hash, excludeTransactionResults = [], limit = undefined) {
-    let transactionsFilter;
-
-    if (excludeTransactionResults != null) {
-      if (Array.isArray(excludeTransactionResults)) {
-        transactionsFilter =
-          excludeTransactionResults.length > 0
-            ? ` and ${ContractTransactionHash.TRANSACTION_RESULT} not in (${excludeTransactionResults.join(', ')})`
-            : '';
-      } else {
-        transactionsFilter = ` and ${ContractResult.TRANSACTION_RESULT} <> ${excludeTransactionResults}`;
-      }
-    }
-    const query = [
-      ContractService.transactionHashDetailsQuery,
-      transactionsFilter,
-      `order by ${ContractTransactionHash.CONSENSUS_TIMESTAMP} asc`,
-      limit ? `limit ${limit}` : '',
-    ];
-    const transactionHashRows = await super.getRows(query.join('\n'), [hash]);
-    return transactionHashRows.map((row) => {
-      return new ContractTransactionHash(row);
-    });
+  async getContractTransactionDetailsByHash(hash) {
+    const rows = await super.getRows(ContractService.ethereumTransactionsByHashQuery, [hash]);
+    return rows.map((row) => new ContractTransactionHash(row));
   }
 
   async getInvolvedContractsByTimestampAndContractId(timestamp, contractId) {

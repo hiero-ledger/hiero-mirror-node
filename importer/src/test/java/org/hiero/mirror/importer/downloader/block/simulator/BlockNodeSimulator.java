@@ -138,6 +138,11 @@ public final class BlockNodeSimulator implements AutoCloseable {
         return this;
     }
 
+    public BlockNodeSimulator withInProcessChannel() {
+        inProcessChannel = true;
+        return this;
+    }
+
     public BlockNodeSimulator withLatency(int latency) {
         this.latency.set(latency);
         return this;

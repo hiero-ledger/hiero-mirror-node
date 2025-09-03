@@ -72,7 +72,9 @@ jobs:
           workload_identity_provider: "projects/521285740332/locations/global/workloadIdentityPools/mirrornode-gh-actions/providers/mirrornode-gh-actions"
 
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@cb1e50a9932213ecece00a606661ae9ca44f3397 # v2.2.0
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          cache: true
 
       - name: Configure Docker
         run: gcloud auth configure-docker gcr.io,marketplace.gcr.io

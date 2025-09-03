@@ -1115,9 +1115,7 @@ class ContractController extends BaseController {
     const {transactionIdOrHash} = req.params;
     if (utils.isValidEthHash(transactionIdOrHash)) {
       const detailsByHash = await ContractService.getContractTransactionDetailsByHash(
-        utils.parseHexStr(transactionIdOrHash),
-        excludeTransactionResults,
-        1
+        utils.parseHexStr(transactionIdOrHash)
       );
       transactionDetails = detailsByHash[0];
     } else {

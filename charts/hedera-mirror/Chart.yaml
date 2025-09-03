@@ -31,11 +31,11 @@ dependencies:
     condition: postgresql.enabled
     name: postgresql-ha
     repository: oci://registry-1.docker.io/bitnamicharts
-    version: 15.3.12
+    version: 15.3.17
   - condition: redis.enabled
     name: redis
     repository: oci://registry-1.docker.io/bitnamicharts
-    version: 20.11.5
+    version: 22.0.7
   - alias: rest
     condition: rest.enabled
     name: hedera-mirror-rest

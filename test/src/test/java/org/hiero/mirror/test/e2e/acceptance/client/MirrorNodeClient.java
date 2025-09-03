@@ -2,10 +2,12 @@
 
 package org.hiero.mirror.test.e2e.acceptance.client;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.test.e2e.acceptance.config.RestProperties.URL_PREFIX;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.base.Suppliers;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.SubscriptionHandle;
 import com.hedera.hashgraph.sdk.TokenId;
@@ -18,6 +20,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
@@ -25,6 +28,7 @@ import org.awaitility.Awaitility;
 import org.awaitility.Durations;
 import org.hiero.mirror.rest.model.AccountBalanceTransactions;
 import org.hiero.mirror.rest.model.AccountInfo;
+import org.hiero.mirror.rest.model.Block;
 import org.hiero.mirror.rest.model.BlocksResponse;
 import org.hiero.mirror.rest.model.ContractActionsResponse;
 import org.hiero.mirror.rest.model.ContractCallRequest;
@@ -34,14 +38,17 @@ import org.hiero.mirror.rest.model.ContractResult;
 import org.hiero.mirror.rest.model.ContractResultsResponse;
 import org.hiero.mirror.rest.model.CryptoAllowancesResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
+import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkNode;
 import org.hiero.mirror.rest.model.NetworkNodesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
+import org.hiero.mirror.rest.model.NetworkSupplyResponse;
 import org.hiero.mirror.rest.model.Nft;
 import org.hiero.mirror.rest.model.NftAllowancesResponse;
 import org.hiero.mirror.rest.model.NftTransactionHistory;
 import org.hiero.mirror.rest.model.Nfts;
 import org.hiero.mirror.rest.model.Schedule;
+import org.hiero.mirror.rest.model.SchedulesResponse;
 import org.hiero.mirror.rest.model.TokenAirdropsResponse;
 import org.hiero.mirror.rest.model.TokenAllowancesResponse;
 import org.hiero.mirror.rest.model.TokenBalancesResponse;
@@ -61,6 +68,7 @@ import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 import org.springframework.retry.RetryContext;
 import org.springframework.retry.policy.MaxAttemptsRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestClient;
 
 @CustomLog
@@ -73,6 +81,7 @@ public class MirrorNodeClient {
     private final RetryTemplate retryTemplate;
     private final RestClient web3Client;
     private final Web3Properties web3Properties;
+    private final Supplier<Boolean> partialStateSupplier = Suppliers.memoize(this::computeHasPartialState);
 
     public MirrorNodeClient(
             AcceptanceTestProperties acceptanceTestProperties,
@@ -278,6 +287,16 @@ public class MirrorNodeClient {
         return callRestEndpoint("/blocks?order={order}&limit={limit}", BlocksResponse.class, order, limit);
     }
 
+    public Block getBlockByHash(String hash) {
+        log.debug("Get block by hash from Mirror Node");
+        return callRestEndpoint("/blocks/{hash}", Block.class, hash);
+    }
+
+    public Block getBlockByNumber(Integer number) {
+        log.debug("Get block by number from Mirror Node");
+        return callRestEndpoint("/blocks/{number}", Block.class, number);
+    }
+
     public List<NetworkNode> getNetworkNodes() {
         List<NetworkNode> nodes = new ArrayList<>();
         String next = "/network/nodes?limit=25";
@@ -293,7 +312,17 @@ public class MirrorNodeClient {
 
     public NetworkStakeResponse getNetworkStake() {
         String stakeEndpoint = "/network/stake";
-        return callRestEndpoint(stakeEndpoint, NetworkStakeResponse.class);
+        return callConvertedRestEndpoint(stakeEndpoint, NetworkStakeResponse.class);
+    }
+
+    public NetworkFeesResponse getNetworkFees() {
+        String feesEndpoint = "/network/fees";
+        return callRestEndpoint(feesEndpoint, NetworkFeesResponse.class);
+    }
+
+    public NetworkSupplyResponse getNetworkSupply() {
+        String supplyEndpoint = "/network/supply";
+        return callRestEndpoint(supplyEndpoint, NetworkSupplyResponse.class);
     }
 
     public Nft getNftInfo(String tokenId, long serialNumber) {
@@ -316,6 +345,11 @@ public class MirrorNodeClient {
     public Schedule getScheduleInfo(String scheduleId) {
         log.debug("Verify schedule '{}' is returned by Mirror Node", scheduleId);
         return callRestEndpoint("/schedules/{scheduleId}", Schedule.class, scheduleId);
+    }
+
+    public SchedulesResponse getSchedules(Order order, long limit) {
+        log.debug("Get schedules data by Mirror Node");
+        return callRestEndpoint("/schedules?order={order}&limit={limit}", SchedulesResponse.class, order, limit);
     }
 
     public TokenBalancesResponse getTokenBalances(String tokenId) {
@@ -400,6 +434,29 @@ public class MirrorNodeClient {
                 "/accounts/{accountId}/airdrops/outstanding", TokenAirdropsResponse.class, accountId.toString());
     }
 
+    public boolean hasPartialState() {
+        return partialStateSupplier.get();
+    }
+
+    private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
+        final var restResponse = callRestEndpoint(uri, classType, uriVariables);
+
+        if (restClient != restJavaClient) {
+            // Retry since the db might've been updated right after calling REST
+            retryTemplate.execute(x -> {
+                final var restJavaResponse = callRestJavaEndpoint(uri, classType, uriVariables);
+                try {
+                    assertThat(restJavaResponse).isEqualTo(restResponse);
+                } catch (AssertionError e) {
+                    throw new RuntimeException(e);
+                }
+                return null;
+            });
+        }
+
+        return restResponse;
+    }
+
     private <T> T callRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
         String normalizedUri = normalizeUri(uri);
         return retryTemplate.execute(x ->
@@ -430,5 +487,19 @@ public class MirrorNodeClient {
         }
 
         return uri.substring(URL_PREFIX.length());
+    }
+
+    private boolean computeHasPartialState() {
+        final var resp = getBlocks(Order.ASC, 1);
+        if (CollectionUtils.isEmpty(resp.getBlocks())) {
+            // No blocks = partial state
+            return true;
+        }
+
+        final var first = resp.getBlocks().getFirst();
+        final var number = first.getNumber();
+
+        // If the first block doesn't start at 0 => partial state
+        return number == null || number > 0;
     }
 }

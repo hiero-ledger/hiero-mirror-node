@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`from v6 buffer or compact object check individual field from v6 buffer - toCompactObject - ["0.0.1-123-123456789"] 1`] = `"Transaction 0.0.1-123-123456789 not found in the successful transactions map"`;
 

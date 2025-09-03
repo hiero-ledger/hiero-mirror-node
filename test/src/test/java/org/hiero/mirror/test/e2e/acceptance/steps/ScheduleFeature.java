@@ -23,7 +23,9 @@ import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.rest.model.ScheduleSignature;
+import org.hiero.mirror.rest.model.SchedulesResponse;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.rest.model.TransactionDetail;
 import org.hiero.mirror.rest.model.TransactionsResponse;
@@ -32,6 +34,7 @@ import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.client.ScheduleClient;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
+import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.boot.convert.DurationStyle;
 import org.springframework.http.HttpStatus;
@@ -73,7 +76,7 @@ public class ScheduleFeature extends AbstractFeature {
         createNewSchedule(scheduledTransaction, expirationTime, Boolean.parseBoolean(waitForExpiry));
     }
 
-    @Given("I wait until the schedule's expiration time")
+    @Then("I wait until the schedule's expiration time")
     public void waitForScheduleToExpire() {
         var scheduleExpirationTimeInstant = convertTimestamp(this.scheduleExpirationTime);
 
@@ -107,6 +110,7 @@ public class ScheduleFeature extends AbstractFeature {
                 null,
                 expirationTime,
                 waitForExpiry);
+
         assertNotNull(networkTransactionResponse.getTransactionId());
         assertNotNull(networkTransactionResponse.getReceipt());
         scheduleId = networkTransactionResponse.getReceipt().scheduleId;
@@ -117,6 +121,7 @@ public class ScheduleFeature extends AbstractFeature {
 
         // cache schedule create transaction id for confirmation of scheduled transaction later
         scheduledTransactionId = networkTransactionResponse.getReceipt().scheduledTransactionId;
+
         assertNotNull(scheduledTransactionId);
     }
 
@@ -127,20 +132,16 @@ public class ScheduleFeature extends AbstractFeature {
         assertNotNull(networkTransactionResponse.getReceipt());
 
         scheduledTransactionId = networkTransactionResponse.getReceipt().scheduledTransactionId;
+
         assertNotNull(scheduledTransactionId);
     }
 
-    @Then("the scheduled transaction is signed by {account}")
-    public void accountSignsSignature(AccountNameEnum accountName) {
-        signSignature(accountClient.getAccount(accountName));
-    }
-
-    @Then("the scheduled transaction is signed by treasuryAccount")
+    @When("the scheduled transaction is signed by treasuryAccount")
     public void treasurySignsSignature() {
         signSignature(accountClient.getAccount(AccountNameEnum.TOKEN_TREASURY));
     }
 
-    @When("I successfully delete the schedule")
+    @Given("I successfully delete the schedule")
     public void deleteSchedule() {
         networkTransactionResponse = scheduleClient.deleteSchedule(scheduleId);
 
@@ -168,6 +169,16 @@ public class ScheduleFeature extends AbstractFeature {
             String scheduleStatus, String expirationTimeInSeconds, String waitForExpiry) {
         verifyScheduleFromMirror(
                 ScheduleStatus.valueOf(scheduleStatus), expirationTimeInSeconds, Boolean.parseBoolean(waitForExpiry));
+    }
+
+    @Then("the mirror node REST API should list all schedules")
+    public void verifySchedules() {
+        final var schedulesResponse = mirrorClient.getSchedules(Order.DESC, 10);
+        assertThat(schedulesResponse)
+                .isNotNull()
+                .extracting(SchedulesResponse::getSchedules)
+                .asInstanceOf(InstanceOfAssertFactories.LIST)
+                .isNotEmpty();
     }
 
     private void verifyScheduleFromMirror(

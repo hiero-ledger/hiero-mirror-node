@@ -37,6 +37,8 @@ Deployed automatically on every tag.
 
 ### Mainnet Staging
 
+- [ ] Delete all deployments in `mainnet-citus` and let flux reconcile and recreate them to drop manual changes
+  - `kubectl -n mainnet-citus delete deployments --all`
 - [ ] Deployed
 - [ ] Helm Controller logs show successful reconciliation check
 - [ ] Helm release status is healthy

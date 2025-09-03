@@ -1832,26 +1832,24 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Then("I call estimate gas that approves a FUNGIBLE token and transfers it")
     public void estimateGasApproveFungibleTokenTransferFromGetAllowanceGetBalance() {
+        final var methodInterface = getFlaggedValue(APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER);
         var data = encodeData(
-                PRECOMPILE,
-                APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER,
-                fungibleTokenAddress,
-                receiverAccountAliasAddress,
-                new BigInteger("1"));
+                PRECOMPILE, methodInterface, fungibleTokenAddress, receiverAccountAliasAddress, new BigInteger("1"));
 
-        validateGasEstimation(data, APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER, precompileTestContractSolidityAddress);
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @Then("I call estimate gas that approves a NFT token and transfers it")
     public void approveNftTokenTransferFromGetAllowanceGetBalance() {
+        final var methodInterface = getFlaggedValue(APPROVE_NFT_TOKEN_AND_TRANSFER_FROM);
         var data = encodeData(
                 PRECOMPILE,
-                APPROVE_NFT_TOKEN_AND_TRANSFER_FROM,
+                methodInterface,
                 nonFungibleTokenAddress,
                 secondReceiverAccountAddress,
                 new BigInteger("1"));
 
-        validateGasEstimation(data, APPROVE_NFT_TOKEN_AND_TRANSFER_FROM, precompileTestContractSolidityAddress);
+        validateGasEstimation(data, methodInterface, precompileTestContractSolidityAddress);
     }
 
     @And("I approve and transfer NFT tokens to the precompile contract")
@@ -2083,7 +2081,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         TRANSFER_FROM_NFT("transferFromNFTExternal", 42745),
         BALANCE_OF("balanceOf", 30277),
         ALLOWANCE("allowanceExternal", 28778),
-        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 800603);
+        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 840000),
+        APPROVE_NFT_TOKEN_AND_TRANSFER_FROM("approveNftAndTransfer", 830000);
 
         private final String selector;
         private final int actualGas;

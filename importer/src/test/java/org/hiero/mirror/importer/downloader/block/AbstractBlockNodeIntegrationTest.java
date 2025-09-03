@@ -12,15 +12,18 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.downloader.block.scheduler.LatencyService;
 import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerSupplier;
+import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,7 +57,7 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
     private BlockStreamReader blockStreamReader;
 
     @Resource
-    private CommonDownloaderProperties commonDownloaderProperties;
+    protected CommonDownloaderProperties commonDownloaderProperties;
 
     @Resource
     private ManagedChannelBuilderProvider managedChannelBuilderProvider;
@@ -83,12 +86,18 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         executor.scheduleWithFixedDelay(() -> latencyService.schedule(), 5, 5, TimeUnit.MILLISECONDS);
     }
 
-    protected BlockNodeSimulator addSimulator(BlockNodeSimulator simulator) {
-        simulators.add(simulator);
-        return simulator;
+    @AfterEach
+    void teardown() {
+        commonDownloaderProperties.getImporterProperties().setStartBlockNumber(null);
     }
 
-    protected final BlockNodeSubscriber getBlockNodeSubscriber(List<BlockNodeProperties> nodes) {
+    protected final BlockNodeSubscriber getBlockNodeSubscriber() {
+        return getBlockNodeSubscriber(false);
+    }
+
+    protected final BlockNodeSubscriber getBlockNodeSubscriber(boolean reversedNodes) {
+        startAll();
+        var nodes = reversedNodes ? getBlockNodeProperties().reversed() : getBlockNodeProperties();
         blockProperties.setNodes(nodes);
         var channelBuilderProvider = nodes.getFirst().getPort() == -1
                 ? InProcessManagedChannelBuilderProvider.INSTANCE
@@ -96,6 +105,20 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         var schedulerSupplier = new SchedulerSupplier(blockProperties, latencyService, channelBuilderProvider);
         return new BlockNodeSubscriber(
                 blockStreamReader, blockStreamVerifier, commonDownloaderProperties, blockProperties, schedulerSupplier);
+    }
+
+    protected final BlockNodeSimulator addSimulatorWithBlocks(List<BlockGenerator.BlockRecord> blocks) {
+        var simulator = new BlockNodeSimulator().withBlocks(blocks).withHttpChannel();
+        simulators.add(simulator);
+        return simulator;
+    }
+
+    private List<BlockNodeProperties> getBlockNodeProperties() {
+        return simulators.stream().map(BlockNodeSimulator::toClientProperties).collect(Collectors.toList());
+    }
+
+    private void startAll() {
+        simulators.forEach(BlockNodeSimulator::start);
     }
 
     protected static class AutoCloseArrayList<E extends AutoCloseable> extends ArrayList<E> {
