@@ -167,7 +167,7 @@ public class BalancesFeature extends AbstractFeature {
         //        assertThat(balancesResponse.getBalances().get(0).getBalance()).isEqualTo(initialBalance);
     }
 
-    private static class QueryParamsBuilder {
+    private static final class QueryParamsBuilder {
 
         private String queryParam;
 
