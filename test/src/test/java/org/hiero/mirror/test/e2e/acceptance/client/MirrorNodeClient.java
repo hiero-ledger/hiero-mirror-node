@@ -15,14 +15,12 @@ import com.hedera.hashgraph.sdk.TopicMessageQuery;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
@@ -69,7 +67,6 @@ import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.RestJavaProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
-import org.hiero.mirror.test.e2e.acceptance.steps.BalancesFeature;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 import org.springframework.retry.RetryContext;
 import org.springframework.retry.policy.MaxAttemptsRetryPolicy;
@@ -465,42 +462,18 @@ public class MirrorNodeClient {
                 "/accounts/{accountId}/rewards?limit={limit}", StakingRewardsResponse.class, accountId, limit);
     }
 
-    public BalancesResponse getBalances(BalancesFeature.BalancesQueryParams params) {
+    public BalancesResponse getBalancesForQuery(String queryParams) {
         log.debug("Retrieving balances with query parameters from Mirror Node");
-
-        Map<String, Object> queryParams = new HashMap<>();
-        if (params.getAccountId() != null) {
-            queryParams.put("account.id", params.getAccountId());
-        }
-        if (params.getAccountBalance() != null) {
-            queryParams.put("account.balance", params.getAccountBalance());
-        }
-        if (params.getPublicKey() != null) {
-            queryParams.put("account.publickey", params.getPublicKey());
-        }
-        if (params.getLimit() != null) {
-            queryParams.put("limit", params.getLimit());
-        }
-        if (params.getOrder() != null) {
-            queryParams.put("order", params.getOrder());
-        }
-        if (params.getTimestamp() != null) {
-            queryParams.put("timestamp", params.getTimestamp());
-        }
-
         String url = buildUrlWithParams("/balances", queryParams);
         return callRestEndpoint(url, BalancesResponse.class);
     }
 
-    private String buildUrlWithParams(String basePath, Map<String, Object> params) {
-        if (params.isEmpty()) {
+    private String buildUrlWithParams(String basePath, String params) {
+        if (params == null || params.isBlank()) {
             return basePath;
         }
 
-        return basePath + "?"
-                + params.entrySet().stream()
-                        .map(entry -> entry.getKey() + "=" + entry.getValue())
-                        .collect(Collectors.joining("&"));
+        return basePath + "?" + params;
     }
 
     private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {

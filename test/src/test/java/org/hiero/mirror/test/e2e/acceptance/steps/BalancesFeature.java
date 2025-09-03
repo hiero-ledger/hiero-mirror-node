@@ -8,9 +8,7 @@ import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
-import lombok.Builder;
 import lombok.CustomLog;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.BalancesResponse;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
@@ -37,8 +35,7 @@ public class BalancesFeature extends AbstractFeature {
     @When("I query the mirror node REST API for balances")
     public void queryBalances() {
         log.info("Calling getBalances() to retrieve all balances");
-        var params = BalancesQueryParams.builder().build();
-        balancesResponse = mirrorClient.getBalances(params);
+        balancesResponse = mirrorClient.getBalancesForQuery(null);
     }
 
     @Then("the mirror node REST API should return balances list")
@@ -54,8 +51,9 @@ public class BalancesFeature extends AbstractFeature {
     @And("the mirror node REST API should return balances list with limit {int}")
     public void verifyBalancesListWithLimit(int limit) {
         log.info("Calling getBalances() to retrieve balances with limit {}", limit);
-        var params = BalancesQueryParams.builder().limit(limit).build();
-        BalancesResponse limitedResponse = mirrorClient.getBalances(params);
+        var params =
+                QueryParamsBuilder.builder().buildQueryParam("limit", limit).build();
+        BalancesResponse limitedResponse = mirrorClient.getBalancesForQuery(params);
         assertThat(limitedResponse).isNotNull();
         assertThat(limitedResponse.getBalances()).isNotNull();
         assertThat(limitedResponse.getBalances().size()).isLessThanOrEqualTo(limit);
@@ -69,8 +67,9 @@ public class BalancesFeature extends AbstractFeature {
     @And("the mirror node REST API should return balances with order {string}")
     public void verifyBalancesWithOrder(String order) {
         log.info("Calling getBalances() to retrieve balances with order {}", order);
-        var params = BalancesQueryParams.builder().order(order).build();
-        BalancesResponse orderResponse = mirrorClient.getBalances(params);
+        String params =
+                QueryParamsBuilder.builder().buildQueryParam("order", order).build();
+        BalancesResponse orderResponse = mirrorClient.getBalancesForQuery(params);
         assertThat(orderResponse).isNotNull();
         assertThat(orderResponse.getBalances()).isNotNull();
         assertThat(orderResponse.getLinks()).isNotNull();
@@ -83,8 +82,10 @@ public class BalancesFeature extends AbstractFeature {
     @And("the mirror node REST API should return balances filtered by account balance {string}")
     public void verifyBalancesFilteredByAccountBalance(String balance) {
         log.info("Calling getBalances() to retrieve balances with balance filter {}", balance);
-        var params = BalancesQueryParams.builder().accountBalance(balance).build();
-        BalancesResponse filterResponse = mirrorClient.getBalances(params);
+        String params = QueryParamsBuilder.builder()
+                .buildQueryParam("account.balance", balance)
+                .build();
+        BalancesResponse filterResponse = mirrorClient.getBalancesForQuery(params);
         assertThat(filterResponse).isNotNull();
         assertThat(filterResponse.getBalances()).isNotNull();
         assertThat(filterResponse.getLinks()).isNotNull();
@@ -97,8 +98,10 @@ public class BalancesFeature extends AbstractFeature {
     @When("I query historical balances at timestamp {string}")
     public void queryHistoricalBalances(String timestamp) {
         log.info("Calling getBalances() to retrieve historical balances at timestamp {}", timestamp);
-        var params = BalancesQueryParams.builder().timestamp(timestamp).build();
-        balancesResponse = mirrorClient.getBalances(params);
+        final String queryParam = QueryParamsBuilder.builder()
+                .buildQueryParam("timestamp", timestamp)
+                .build();
+        balancesResponse = mirrorClient.getBalancesForQuery(queryParam);
     }
 
     @Then("the mirror node REST API should return balances at timestamp {string}")
@@ -124,15 +127,15 @@ public class BalancesFeature extends AbstractFeature {
         String accountId = targetAccount.getAccountId().toString();
         String publicKey = targetAccount.getPrivateKey().getPublicKey().toStringDER();
         log.info("Calling getBalances() with all parameters for account {}", accountId);
-        var params = BalancesQueryParams.builder()
-                .accountId(accountId)
-                .accountBalance("gt:0")
-                .publicKey(publicKey)
-                .limit(5)
-                .order("desc")
-                .timestamp("lt:9999999999.000000000")
+        String params = QueryParamsBuilder.builder()
+                .buildQueryParam("account.id", accountId)
+                .buildQueryParam("account.balance", "gt:0")
+                .buildQueryParam("account.publicKey", publicKey)
+                .buildQueryParam("limit", 5L)
+                .buildQueryParam("order", "desc")
+                .buildQueryParam("timestamp", "lt:9999999999.000000000")
                 .build();
-        balancesResponse = mirrorClient.getBalances(params);
+        balancesResponse = mirrorClient.getBalancesForQuery(params);
     }
 
     @Then("the mirror node REST API should return balances with all parameters")
@@ -151,8 +154,10 @@ public class BalancesFeature extends AbstractFeature {
     public void theMirrorNodeBalanceShouldMatchInitialBalanceOfInitialBalance(long initialBalance) {
         String accountId = createdAccountId.getAccountId().toString();
         log.info("Calling getBalances() to retrieve balances for account {}", createdAccountId.getAccountId());
-        var params = BalancesQueryParams.builder().accountId(accountId).build();
-        balancesResponse = mirrorClient.getBalances(params);
+        var params = QueryParamsBuilder.builder()
+                .buildQueryParam("account.id", accountId)
+                .build();
+        balancesResponse = mirrorClient.getBalancesForQuery(params);
         assertThat(balancesResponse).isNotNull();
         assertThat(balancesResponse.getBalances()).isNotNull();
         assertThat(balancesResponse.getLinks()).isNotNull();
@@ -162,14 +167,29 @@ public class BalancesFeature extends AbstractFeature {
         //        assertThat(balancesResponse.getBalances().get(0).getBalance()).isEqualTo(initialBalance);
     }
 
-    @Builder
-    @Getter
-    public static class BalancesQueryParams {
-        private final String accountId;
-        private final String accountBalance;
-        private final String publicKey;
-        private final Integer limit;
-        private final String order;
-        private final String timestamp;
+    private static class QueryParamsBuilder {
+
+        private String queryParam;
+
+        public static QueryParamsBuilder builder() {
+            return new QueryParamsBuilder();
+        }
+
+        public QueryParamsBuilder buildQueryParam(String key, Object value) {
+            if (key == null) {
+                return this;
+            }
+            final String newQueryParam = String.format("&%s=%s", key, value);
+            if (queryParam != null) {
+                queryParam += newQueryParam;
+            } else {
+                queryParam = newQueryParam;
+            }
+            return this;
+        }
+
+        public String build() {
+            return queryParam;
+        }
     }
 }

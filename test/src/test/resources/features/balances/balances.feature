@@ -1,7 +1,7 @@
 @balances @fullsuite @acceptance
 Feature: Balances API Coverage Feature
 
-  Scenario Outline: Basic balances API validation
+  Scenario Outline: Balances API validation
     Given I have created a new account with initial balance of <initialBalance> tinybars
     When I query the mirror node REST API for balances
     Then the mirror node REST API should return balances list
