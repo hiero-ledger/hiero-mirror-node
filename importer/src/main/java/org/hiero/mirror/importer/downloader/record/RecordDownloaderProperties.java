@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.downloader.record;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Data;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.DownloaderProperties;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
@@ -20,6 +22,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class RecordDownloaderProperties implements DownloaderProperties {
 
+    private final BlockProperties blockProperties;
     private final CommonDownloaderProperties common;
 
     private boolean enabled = true;
@@ -36,5 +39,12 @@ public class RecordDownloaderProperties implements DownloaderProperties {
     @Override
     public StreamType getStreamType() {
         return StreamType.RECORD;
+    }
+
+    @PostConstruct
+    void init() {
+        if (enabled && blockProperties.isEnabled()) {
+            throw new IllegalStateException("Cannot enable both block source and record downloader");
+        }
     }
 }

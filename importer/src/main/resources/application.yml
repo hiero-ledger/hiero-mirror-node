@@ -126,6 +126,22 @@ spring:
         size: 6
 
 ---
+hiero:
+  mirror:
+    importer:
+      block:
+        enabled: true
+        sourceType: BLOCK_NODE
+      downloader:
+        record:
+          enabled: false
+      startDate: 1970-01-01T00:00:00Z
+spring:
+  config:
+    activate:
+      on-profile: blocknode
+
+---
 spring:
   config:
     activate:

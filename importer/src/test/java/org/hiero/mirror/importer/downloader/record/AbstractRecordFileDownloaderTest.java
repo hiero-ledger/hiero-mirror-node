@@ -21,6 +21,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.downloader.AbstractLinkedStreamDownloaderTest;
 import org.hiero.mirror.importer.downloader.Downloader;
 import org.hiero.mirror.importer.downloader.DownloaderProperties;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 import org.hiero.mirror.importer.reader.record.CompositeRecordFileReader;
@@ -51,7 +52,7 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
 
     @Override
     protected DownloaderProperties getDownloaderProperties() {
-        return new RecordDownloaderProperties(commonDownloaderProperties);
+        return new RecordDownloaderProperties(new BlockProperties(), commonDownloaderProperties);
     }
 
     @Override

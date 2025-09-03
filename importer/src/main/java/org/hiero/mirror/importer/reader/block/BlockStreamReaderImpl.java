@@ -9,6 +9,7 @@ import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.RECORD_FILE
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.ROUND_HEADER;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.SIGNED_TRANSACTION;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.STATE_CHANGES;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRACE_DATA;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_OUTPUT;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_RESULT;
 
@@ -140,6 +141,10 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 while ((protoBlockItem = context.readBlockItemFor(TRANSACTION_OUTPUT)) != null) {
                     var transactionOutput = protoBlockItem.getTransactionOutput();
                     transactionOutputs.put(transactionOutput.getTransactionCase(), transactionOutput);
+                }
+
+                while (context.readBlockItemFor(TRACE_DATA) != null) {
+                    // just for root hash calculation, parsing logic will come in future PRs
                 }
 
                 var stateChangesList = new ArrayList<StateChanges>();
