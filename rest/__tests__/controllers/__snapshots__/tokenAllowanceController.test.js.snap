@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`extractTokenMultiUnionQuery throw spender.id multiple equal 1`] = `"Only one equal (eq) operator is allowed for spender.id"`;
 

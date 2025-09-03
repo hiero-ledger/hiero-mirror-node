@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`from signature file buffer incorrect signature mark 1`] = `"Unexpected type delimiter '16' in signature file"`;
 

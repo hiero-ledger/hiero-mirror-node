@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.test.e2e.acceptance.client;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.test.e2e.acceptance.config.RestProperties.URL_PREFIX;
 
@@ -27,6 +28,7 @@ import org.awaitility.Awaitility;
 import org.awaitility.Durations;
 import org.hiero.mirror.rest.model.AccountBalanceTransactions;
 import org.hiero.mirror.rest.model.AccountInfo;
+import org.hiero.mirror.rest.model.Block;
 import org.hiero.mirror.rest.model.BlocksResponse;
 import org.hiero.mirror.rest.model.ContractActionsResponse;
 import org.hiero.mirror.rest.model.ContractCallRequest;
@@ -46,6 +48,7 @@ import org.hiero.mirror.rest.model.NftAllowancesResponse;
 import org.hiero.mirror.rest.model.NftTransactionHistory;
 import org.hiero.mirror.rest.model.Nfts;
 import org.hiero.mirror.rest.model.Schedule;
+import org.hiero.mirror.rest.model.SchedulesResponse;
 import org.hiero.mirror.rest.model.TokenAirdropsResponse;
 import org.hiero.mirror.rest.model.TokenAllowancesResponse;
 import org.hiero.mirror.rest.model.TokenBalancesResponse;
@@ -284,6 +287,16 @@ public class MirrorNodeClient {
         return callRestEndpoint("/blocks?order={order}&limit={limit}", BlocksResponse.class, order, limit);
     }
 
+    public Block getBlockByHash(String hash) {
+        log.debug("Get block by hash from Mirror Node");
+        return callRestEndpoint("/blocks/{hash}", Block.class, hash);
+    }
+
+    public Block getBlockByNumber(Integer number) {
+        log.debug("Get block by number from Mirror Node");
+        return callRestEndpoint("/blocks/{number}", Block.class, number);
+    }
+
     public List<NetworkNode> getNetworkNodes() {
         List<NetworkNode> nodes = new ArrayList<>();
         String next = "/network/nodes?limit=25";
@@ -299,7 +312,7 @@ public class MirrorNodeClient {
 
     public NetworkStakeResponse getNetworkStake() {
         String stakeEndpoint = "/network/stake";
-        return callRestEndpoint(stakeEndpoint, NetworkStakeResponse.class);
+        return callConvertedRestEndpoint(stakeEndpoint, NetworkStakeResponse.class);
     }
 
     public NetworkFeesResponse getNetworkFees() {
@@ -332,6 +345,11 @@ public class MirrorNodeClient {
     public Schedule getScheduleInfo(String scheduleId) {
         log.debug("Verify schedule '{}' is returned by Mirror Node", scheduleId);
         return callRestEndpoint("/schedules/{scheduleId}", Schedule.class, scheduleId);
+    }
+
+    public SchedulesResponse getSchedules(Order order, long limit) {
+        log.debug("Get schedules data by Mirror Node");
+        return callRestEndpoint("/schedules?order={order}&limit={limit}", SchedulesResponse.class, order, limit);
     }
 
     public TokenBalancesResponse getTokenBalances(String tokenId) {
@@ -418,6 +436,25 @@ public class MirrorNodeClient {
 
     public boolean hasPartialState() {
         return partialStateSupplier.get();
+    }
+
+    private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
+        final var restResponse = callRestEndpoint(uri, classType, uriVariables);
+
+        if (restClient != restJavaClient) {
+            // Retry since the db might've been updated right after calling REST
+            retryTemplate.execute(x -> {
+                final var restJavaResponse = callRestJavaEndpoint(uri, classType, uriVariables);
+                try {
+                    assertThat(restJavaResponse).isEqualTo(restResponse);
+                } catch (AssertionError e) {
+                    throw new RuntimeException(e);
+                }
+                return null;
+            });
+        }
+
+        return restResponse;
     }
 
     private <T> T callRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {

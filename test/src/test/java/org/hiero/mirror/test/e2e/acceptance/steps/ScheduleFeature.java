@@ -23,7 +23,9 @@ import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.rest.model.ScheduleSignature;
+import org.hiero.mirror.rest.model.SchedulesResponse;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.rest.model.TransactionDetail;
 import org.hiero.mirror.rest.model.TransactionsResponse;
@@ -32,6 +34,7 @@ import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.client.ScheduleClient;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
+import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.boot.convert.DurationStyle;
 import org.springframework.http.HttpStatus;
@@ -166,6 +169,16 @@ public class ScheduleFeature extends AbstractFeature {
             String scheduleStatus, String expirationTimeInSeconds, String waitForExpiry) {
         verifyScheduleFromMirror(
                 ScheduleStatus.valueOf(scheduleStatus), expirationTimeInSeconds, Boolean.parseBoolean(waitForExpiry));
+    }
+
+    @Then("the mirror node REST API should list all schedules")
+    public void verifySchedules() {
+        final var schedulesResponse = mirrorClient.getSchedules(Order.DESC, 10);
+        assertThat(schedulesResponse)
+                .isNotNull()
+                .extracting(SchedulesResponse::getSchedules)
+                .asInstanceOf(InstanceOfAssertFactories.LIST)
+                .isNotEmpty();
     }
 
     private void verifyScheduleFromMirror(

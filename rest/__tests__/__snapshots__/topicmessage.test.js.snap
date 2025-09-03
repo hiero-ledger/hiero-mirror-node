@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`getRangeFromFilters expect exception given ne operator 1`] = `"Not equal (ne) operator is not supported for sequencenumber"`;
 
