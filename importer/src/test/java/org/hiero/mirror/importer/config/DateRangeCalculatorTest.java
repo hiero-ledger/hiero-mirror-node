@@ -24,7 +24,6 @@ import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.DownloaderProperties;
 import org.hiero.mirror.importer.downloader.balance.BalanceDownloaderProperties;
-import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.exception.InvalidConfigurationException;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
@@ -61,8 +60,7 @@ class DateRangeCalculatorTest {
         importerProperties.setNetwork(ImporterProperties.HederaNetwork.TESTNET);
         var commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
         var balanceDownloaderProperties = new BalanceDownloaderProperties(commonDownloaderProperties);
-        var recordDownloaderProperties =
-                new RecordDownloaderProperties(new BlockProperties(), commonDownloaderProperties);
+        var recordDownloaderProperties = new RecordDownloaderProperties(commonDownloaderProperties);
         downloaderPropertiesList = List.of(balanceDownloaderProperties, recordDownloaderProperties);
         dateRangeCalculator =
                 new DateRangeCalculator(importerProperties, accountBalanceFileRepository, recordFileRepository);
