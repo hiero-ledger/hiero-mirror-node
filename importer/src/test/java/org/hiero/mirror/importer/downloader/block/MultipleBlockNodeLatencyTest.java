@@ -39,10 +39,14 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
         var generator = new BlockGenerator(interval, 0, Instant.now().minus(Duration.ofMinutes(10)));
         var blocks = generator.next(20);
         addSimulatorWithBlocks(blocks)
+                .withHostPrefix("a")
+                .withInProcessChannel()
                 .withBlockInterval(interval)
                 .withLatency(10)
                 .withPriority(1);
         addSimulatorWithBlocks(blocks)
+                .withHostPrefix("b")
+                .withInProcessChannel()
                 .withBlockInterval(interval)
                 .withLatency(100)
                 .withPriority(0);
@@ -62,13 +66,13 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
 
         // it's non-deterministic that at exactly which block, based on latency, the scheduler will switch from one
         // block node server to the lower latency one. However, there should be two switches
-        int port1 = simulators.getFirst().getPort();
-        int port2 = simulators.get(1).getPort();
-        assertThat(findAllMatches(output.getAll(), "from BlockNode\\(localhost:\\d+\\)"))
+        //        int port1 = simulators.getFirst().getPort();
+        //        int port2 = simulators.get(1).getPort();
+        assertThat(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)"))
                 .containsExactly(
-                        String.format("from BlockNode(localhost:%d)", port1),
-                        String.format("from BlockNode(localhost:%d)", port2),
-                        String.format("from BlockNode(localhost:%d)", port1));
+                        String.format("from BlockNode(%s)", endpoint(0)),
+                        String.format("from BlockNode(%s)", endpoint(1)),
+                        String.format("from BlockNode(%s)", endpoint(0)));
     }
 
     @Test
@@ -78,19 +82,27 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
         var generator = new BlockGenerator(interval, 0, Instant.now().minus(Duration.ofMinutes(10)));
         var blocks = generator.next(40);
         addSimulatorWithBlocks(blocks.subList(0, 15))
+                .withHostPrefix("a")
                 .withBlockInterval(interval)
+                .withInProcessChannel()
                 .withLatency(10)
                 .withPriority(3);
         addSimulatorWithBlocks(blocks.subList(0, 15))
+                .withHostPrefix("b")
                 .withBlockInterval(interval)
+                .withInProcessChannel()
                 .withLatency(100)
                 .withPriority(2);
         addSimulatorWithBlocks(blocks.subList(13, 30))
                 .withBlockInterval(interval)
+                .withHostPrefix("c")
+                .withInProcessChannel()
                 .withLatency(20)
                 .withPriority(1);
         addSimulatorWithBlocks(blocks.subList(20, 40))
                 .withBlockInterval(interval)
+                .withHostPrefix("d")
+                .withInProcessChannel()
                 .withLatency(100)
                 .withPriority(0);
         subscriber = getBlockNodeSubscriber();
@@ -117,13 +129,13 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
         // Note the last two subscriptions are both with node3, because the scheduler is triggered for a rescheduling
         // and find out lower latency nodes simply don't have the next block
         var ports = simulators.stream().map(BlockNodeSimulator::getPort).toList();
-        assertThat(findAllMatches(output.getAll(), "from BlockNode\\(localhost:\\d+\\)"))
+        assertThat(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)"))
                 .containsExactly(
-                        String.format("from BlockNode(localhost:%d)", ports.get(0)),
-                        String.format("from BlockNode(localhost:%d)", ports.get(1)),
-                        String.format("from BlockNode(localhost:%d)", ports.get(0)),
-                        String.format("from BlockNode(localhost:%d)", ports.get(2)),
-                        String.format("from BlockNode(localhost:%d)", ports.get(3)),
-                        String.format("from BlockNode(localhost:%d)", ports.get(3)));
+                        String.format("from BlockNode(%s)", endpoint(0)),
+                        String.format("from BlockNode(%s)", endpoint(1)),
+                        String.format("from BlockNode(%s)", endpoint(0)),
+                        String.format("from BlockNode(%s)", endpoint(2)),
+                        String.format("from BlockNode(%s)", endpoint(3)),
+                        String.format("from BlockNode(%s)", endpoint(3)));
     }
 }

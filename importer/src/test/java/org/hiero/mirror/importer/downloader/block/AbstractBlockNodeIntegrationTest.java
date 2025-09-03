@@ -91,6 +91,10 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         commonDownloaderProperties.getImporterProperties().setStartBlockNumber(null);
     }
 
+    protected final String endpoint(int index) {
+        return simulators.get(index).getEndpoint();
+    }
+
     protected final BlockNodeSubscriber getBlockNodeSubscriber() {
         return getBlockNodeSubscriber(false);
     }

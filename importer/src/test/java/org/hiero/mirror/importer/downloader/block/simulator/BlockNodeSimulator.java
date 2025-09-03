@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -37,6 +38,7 @@ public final class BlockNodeSimulator implements AutoCloseable {
     private int chunksPerBlock = 1;
     private long firstBlockNumber;
     private String host;
+    private String hostPrefix;
     private boolean inProcessChannel = true;
     private Duration interval;
     private long lastBlockNumber;
@@ -63,6 +65,11 @@ public final class BlockNodeSimulator implements AutoCloseable {
         started = false;
     }
 
+    public String getEndpoint() {
+        validateState(started, "BlockNodeSimulator has not been started");
+        return String.format("%s:%d", host, port);
+    }
+
     @SneakyThrows
     public BlockNodeSimulator start() {
         validateState(!started, "BlockNodeSimulator has already been started");
@@ -78,7 +85,8 @@ public final class BlockNodeSimulator implements AutoCloseable {
 
         ForwardingServerBuilder<?> serverBuilder;
         if (inProcessChannel) {
-            host = RandomStringUtils.secure().nextAlphabetic(8);
+            host = Objects.requireNonNullElse(hostPrefix, "")
+                    + RandomStringUtils.secure().nextAlphabetic(8);
             serverBuilder = InProcessServerBuilder.forName(host);
         } else {
             host = "localhost";
@@ -130,6 +138,11 @@ public final class BlockNodeSimulator implements AutoCloseable {
     public BlockNodeSimulator withChunksPerBlock(int chunksPerBlock) {
         validateArg(chunksPerBlock > 0, "chunksPerBlock must be greater than 0");
         this.chunksPerBlock = chunksPerBlock;
+        return this;
+    }
+
+    public BlockNodeSimulator withHostPrefix(String hostPrefix) {
+        this.hostPrefix = hostPrefix;
         return this;
     }
 
