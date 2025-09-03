@@ -132,6 +132,8 @@ jobs:
               repository: xinatswirlds/importer
               tag: e741ea2b2
           test:
+            image:
+              tag: ${TAG}
             cucumberTags: "@acceptance and not @accounts and not @crud and not @equivalence and not @estimateprecompile and not @ethereum and not @historical and not @precompile and not @filebase and not @schedulebase and not @token and not @topic and not @nftallowance and not @erc and not @cryptoallowance and not @tokenallowance and not @ethcall"
             annotations:
               helm.sh/hook-delete-policy: before-hook-creation
