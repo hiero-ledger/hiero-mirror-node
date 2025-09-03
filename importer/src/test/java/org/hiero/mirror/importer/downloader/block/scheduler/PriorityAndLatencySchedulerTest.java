@@ -31,7 +31,7 @@ final class PriorityAndLatencySchedulerTest extends AbstractSchedulerTest {
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getFirst());
 
         // when server-00's latency becomes higher then server-01
-        node.recordLatency(500);
+        setLatency(node, 500);
         node = scheduler.getNode(1);
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.get(1));
 
@@ -40,7 +40,7 @@ final class PriorityAndLatencySchedulerTest extends AbstractSchedulerTest {
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.get(2));
 
         // when server-02's latency becomes higher than server-03
-        node.recordLatency(600);
+        setLatency(node, 600);
         node = scheduler.getNode(3);
 
         // then

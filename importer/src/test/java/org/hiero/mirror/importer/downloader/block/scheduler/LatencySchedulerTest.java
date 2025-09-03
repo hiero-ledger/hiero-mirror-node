@@ -35,14 +35,14 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getFirst());
 
         // when server-00's latency gets updated
-        node.recordLatency(500);
+        setLatency(node, 500);
         node = scheduler.getNode(1);
 
         // then
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getLast());
 
         // when server-01's latency becomes higher
-        node.recordLatency(700);
+        setLatency(node, 700);
         node = scheduler.getNode(1);
 
         // then

@@ -19,7 +19,7 @@ final class Latency {
 
     void record(long latency) {
         history[count++ % HISTORY_SIZE] = latency;
-        if (count < 5) {
+        if (count < HISTORY_SIZE) {
             return;
         }
 

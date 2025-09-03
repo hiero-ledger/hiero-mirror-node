@@ -51,7 +51,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 
 @ExtendWith(GrpcCleanupExtension.class)
-class BlockNodeTest extends BlockNodeTestBase {
+final class BlockNodeTest extends BlockNodeTestBase {
 
     private static final Function<BlockStream, Boolean> IGNORE = b -> false;
     private static final String SERVER = "test1";
@@ -108,10 +108,12 @@ class BlockNodeTest extends BlockNodeTestBase {
         // then
         assertThat(all).containsExactly(first, second, third, forth);
 
-        // when latency changes and sorts again
-        third.recordLatency(1);
-        second.recordLatency(2);
-        first.recordLatency(5);
+        // when latency changes and sorts again. Note it needs at least 5 latency recorded for an update
+        for (int i = 0; i < 5; i++) {
+            third.recordLatency(1);
+            second.recordLatency(2);
+            first.recordLatency(5);
+        }
         Collections.sort(all);
 
         // then
@@ -169,7 +171,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         for (int i = 0; i < 2; i++) {
             assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
                     .isInstanceOf(BlockStreamException.class)
-                    .hasMessageContaining("Received status NOT_AVAILABLE from block node");
+                    .hasMessageContaining("Received status NOT_AVAILABLE from " + node);
             assertThat(node.isActive()).isTrue();
         }
 
@@ -189,7 +191,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         for (int i = 0; i < 3; i++) {
             assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
                     .isInstanceOf(BlockStreamException.class)
-                    .hasMessageContaining("Received status NOT_AVAILABLE from block node");
+                    .hasMessageContaining("Received status NOT_AVAILABLE from " + node);
             boolean expected = i < 2;
             assertThat(node.isActive()).isEqualTo(expected);
         }
@@ -226,7 +228,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         // when, then
         assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
                 .isInstanceOf(BlockStreamException.class)
-                .hasMessage("Received status NOT_AVAILABLE from block node");
+                .hasMessage("Received status NOT_AVAILABLE from " + node);
     }
 
     @Test
@@ -341,11 +343,6 @@ class BlockNodeTest extends BlockNodeTestBase {
     void stringify() {
         var expected = String.format("BlockNode(%s)", blockNodeProperties.getEndpoint());
         assertThat(node.toString()).isEqualTo(expected);
-
-        blockNodeProperties.setHost("localhost");
-        blockNodeProperties.setPort(50000);
-        expected = "BlockNode(localhost:50000)";
-        assertThat(node.toString()).isEqualTo(expected);
     }
 
     @Test
@@ -360,7 +357,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         for (int i = 0; i < 3; i++) {
             assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
                     .isInstanceOf(BlockStreamException.class)
-                    .hasMessageContaining("Received status NOT_AVAILABLE from block node");
+                    .hasMessageContaining("Received status NOT_AVAILABLE from " + node);
         }
 
         // then
@@ -371,7 +368,7 @@ class BlockNodeTest extends BlockNodeTestBase {
         for (int i = 0; i < 3; i++) {
             assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
                     .isInstanceOf(BlockStreamException.class)
-                    .hasMessageContaining("Received status NOT_AVAILABLE from block node");
+                    .hasMessageContaining("Received status NOT_AVAILABLE from " + node);
         }
 
         // and readmit delay elapsed

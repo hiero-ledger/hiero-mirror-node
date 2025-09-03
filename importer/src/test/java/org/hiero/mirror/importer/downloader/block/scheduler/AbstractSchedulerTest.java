@@ -14,6 +14,7 @@ import lombok.SneakyThrows;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.ServerStatusResponse;
+import org.hiero.mirror.importer.downloader.block.BlockNode;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.junit.jupiter.api.AutoClose;
@@ -70,6 +71,12 @@ abstract class AbstractSchedulerTest {
         properties.setHost(name);
         properties.setPriority(priority);
         return properties;
+    }
+
+    protected void setLatency(BlockNode blockNode, long latency) {
+        for (int i = 0; i < 5; i++) {
+            blockNode.recordLatency(latency);
+        }
     }
 
     protected static ServerStatusResponse withAllBlocks() {
