@@ -83,4 +83,10 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
         final var now = Instant.now();
         return DomainUtils.convertToNanos(now.getEpochSecond(), now.getNano());
     }
+
+    @Nonnull
+    @Override
+    public String getServiceName() {
+        return "FileService";
+    }
 }

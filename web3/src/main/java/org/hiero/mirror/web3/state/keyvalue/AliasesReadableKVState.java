@@ -63,4 +63,10 @@ public class AliasesReadableKVState extends AbstractAliasedAccountReadableKVStat
                 })
                 .orElse(null);
     }
+
+    @Nonnull
+    @Override
+    public String getServiceName() {
+        return "TokenService";
+    }
 }

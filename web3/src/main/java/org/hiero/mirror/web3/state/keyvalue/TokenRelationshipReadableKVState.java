@@ -127,4 +127,10 @@ public class TokenRelationshipReadableKVState extends AbstractReadableKVState<En
     private Optional<TokenTypeEnum> findTokenType(final long tokenId) {
         return tokenRepository.findTypeByTokenId(tokenId);
     }
+
+    @Nonnull
+    @Override
+    public String getServiceName() {
+        return "TokenService";
+    }
 }

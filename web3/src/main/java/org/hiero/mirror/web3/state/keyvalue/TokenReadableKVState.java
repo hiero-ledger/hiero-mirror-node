@@ -238,4 +238,10 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
 
         return royaltyFees;
     }
+
+    @Nonnull
+    @Override
+    public String getServiceName() {
+        return "TokenService";
+    }
 }

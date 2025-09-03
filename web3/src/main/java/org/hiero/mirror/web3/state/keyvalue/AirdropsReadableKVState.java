@@ -52,4 +52,10 @@ public class AirdropsReadableKVState extends AbstractReadableKVState<PendingAird
     private PendingAirdropValue mapToPendingAirdropValue(final long amount) {
         return PendingAirdropValue.newBuilder().amount(amount).build();
     }
+
+    @Nonnull
+    @Override
+    public String getServiceName() {
+        return "TokenService";
+    }
 }

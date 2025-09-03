@@ -120,4 +120,10 @@ class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedu
                     .collect(Collectors.toList());
         });
     }
+
+    @Nonnull
+    @Override
+    public String getServiceName() {
+        return "ScheduleService";
+    }
 }
