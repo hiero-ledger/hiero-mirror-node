@@ -21,7 +21,7 @@ public class Web3Properties {
 
     private boolean enabled = false;
 
-    private boolean modularizedServices;
+    private boolean modularizedServices = true;
 
     public String getBaseUrl() {
         if (baseUrl != null && !baseUrl.endsWith(URL_PREFIX)) {
