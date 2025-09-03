@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import jakarta.inject.Named;
-import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -15,22 +14,26 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.AccessLevel;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.downloader.block.BlockStreamVerifier;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.springframework.scheduling.annotation.Scheduled;
 
 /**
- * A latency service measures a selection of block nodes' streaming latency in background. The latency measuring tasks
- * are scheduled in fixed delay, and limited to up to 2 at a time.
+ * A latency service to measure a selection of block nodes' streaming latency in background. The latency measuring tasks
+ * are scheduled in fixed delay, and limited to up to 1 + backlog at a time.
  */
+@CustomLog
 @Named
 @RequiredArgsConstructor
 public class LatencyService implements AutoCloseable {
 
+    private final BlockProperties blockProperties;
     private final BlockStreamReader blockStreamReader;
     private final BlockStreamVerifier blockStreamVerifier;
 
@@ -55,6 +58,11 @@ public class LatencyService implements AutoCloseable {
         tasks.clear();
     }
 
+    /**
+     * Set the block nodes to asynchronously measure latency for
+     *
+     * @param nodes - Block nodes
+     */
     void setNodes(Collection<BlockNode> nodes) {
         cancelAll();
 
@@ -62,8 +70,8 @@ public class LatencyService implements AutoCloseable {
         nodes.forEach(blockNode -> tasks.add(new Task(bornGeneration, blockNode)));
     }
 
-    @Scheduled(fixedDelay = 5000)
-    void scheduleTasks() {
+    @Scheduled(fixedDelayString = "#{@blockProperties.scheduler().getLatencyService().getFrequency().toMillis()}")
+    public void schedule() {
         // drain completed futures
         results.removeIf(Future::isDone);
 
@@ -72,7 +80,8 @@ public class LatencyService implements AutoCloseable {
         }
 
         var executor = getExecutor();
-        for (int i = 0; i < 2; i++) {
+        int backlog = blockProperties.getScheduler().getLatencyService().getBacklog();
+        for (int i = 0; i < backlog + 1; i++) {
             Task task = null;
             try {
                 task = tasks.removeFirst();
@@ -87,9 +96,15 @@ public class LatencyService implements AutoCloseable {
     }
 
     private ThreadPoolExecutor createExecutor() {
-        // a single thread threadpool executor with a blocking queue with capacity 1, to limit to 1 running task and 1
-        // pending task
-        return new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1));
+        // a single-thread threadpool executor with a blocking queue to holding the backlog, to schedule 1 running
+        // + backlog pending scheduled tasks
+        return new ThreadPoolExecutor(
+                1,
+                1,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(
+                        blockProperties.getScheduler().getLatencyService().getBacklog()));
     }
 
     @RequiredArgsConstructor
@@ -110,9 +125,12 @@ public class LatencyService implements AutoCloseable {
                 return;
             }
 
-            node.streamBlocks(nextBlockNumber, nextBlockNumber, this::measureLatency, Duration.ofSeconds(5));
+            log.info("Measuring {}'s latency by streaming block {}", node, nextBlockNumber);
+            var timeout = blockProperties.getScheduler().getLatencyService().getTimeout();
+            node.streamBlocks(nextBlockNumber, nextBlockNumber, this::measureLatency, timeout);
 
             if (bornGeneration == generation.get()) {
+                // add the task back to the list if it's still the current generation, so it'll get rescheduled
                 tasks.add(this);
             }
         }

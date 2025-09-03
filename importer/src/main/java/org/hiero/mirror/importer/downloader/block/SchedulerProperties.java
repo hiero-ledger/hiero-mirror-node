@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Data;
@@ -11,9 +13,11 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-public final class SchedulingProperties {
+public final class SchedulerProperties {
 
-    private boolean latencySchedulingEnabled = true;
+    @NotNull
+    @Valid
+    private LatencyServiceProperties latencyService = new LatencyServiceProperties();
 
     @DurationMin(millis = 100)
     @NotNull
@@ -29,4 +33,19 @@ public final class SchedulingProperties {
 
     @NotNull
     private SchedulerType type = SchedulerType.PRIORITY;
+
+    @Data
+    @Validated
+    public static class LatencyServiceProperties {
+
+        @Min(1)
+        private int backlog = 1;
+
+        @NotNull
+        private Duration frequency = Duration.ofSeconds(10);
+
+        @DurationMin(millis = 500)
+        @NotNull
+        private Duration timeout = Duration.ofSeconds(5);
+    }
 }

@@ -6,6 +6,7 @@ import static org.apache.commons.lang3.StringUtils.countMatches;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.importer.TestUtils.S3_PROXY_PORT;
+import static org.hiero.mirror.importer.TestUtils.findAllMatches;
 import static org.hiero.mirror.importer.TestUtils.generateRandomByteArray;
 import static org.hiero.mirror.importer.TestUtils.gzip;
 import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_BLOCK_FILES;
@@ -28,12 +29,9 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
@@ -466,14 +464,5 @@ class BlockFileSourceTest {
         assertThat(actualFile).isFile();
         byte[] actual = FileUtils.readFileToByteArray(actualFile);
         assertThat(actual).isEqualTo(expected);
-    }
-
-    private Collection<String> findAllMatches(String message, String pattern) {
-        var matcher = Pattern.compile(pattern).matcher(message);
-        var result = new ArrayList<String>();
-        while (matcher.find()) {
-            result.add(matcher.group());
-        }
-        return result;
     }
 }

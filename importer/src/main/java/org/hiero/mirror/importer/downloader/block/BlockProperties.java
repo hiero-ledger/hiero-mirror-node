@@ -34,7 +34,7 @@ public class BlockProperties {
 
     @NotNull
     @Valid
-    private SchedulingProperties scheduling = new SchedulingProperties();
+    private SchedulerProperties scheduler = new SchedulerProperties();
 
     @NotNull
     private BlockSourceType sourceType = BlockSourceType.AUTO;

@@ -10,36 +10,26 @@ import java.util.List;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
-import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
-
-    @AutoClose
-    private BlockNodeSimulator firstSimulator;
-
-    @AutoClose
-    private BlockNodeSimulator secondSimulator;
-
-    @AutoClose
-    private BlockNodeSubscriber subscriber;
 
     @Test
     void missingStartBlockInHighPriorityNode() {
         // given:
         // firstGenerator (higher priority) has only blocks 56,7 → does NOT have start block 0
         var firstGenerator = new BlockGenerator(5);
-        firstSimulator = new BlockNodeSimulator()
+        var firstSimulator = addSimulator(new BlockNodeSimulator()
                 .withBlocks(firstGenerator.next(3))
                 .withHttpChannel()
-                .start();
+                .start());
         // secondGenerator (lower priority) has blocks 0,1,2 → should be picked
         var secondGenerator = new BlockGenerator(0);
-        secondSimulator = new BlockNodeSimulator()
+        var secondSimulator = addSimulator(new BlockNodeSimulator()
                 .withBlocks(secondGenerator.next(3))
                 .withHttpChannel()
-                .start();
+                .start());
 
         // Set priorities
         var firstSimulatorProperties = firstSimulator.toClientProperties();

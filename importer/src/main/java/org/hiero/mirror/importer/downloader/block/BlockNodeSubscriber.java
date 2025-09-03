@@ -3,9 +3,9 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import jakarta.inject.Named;
+import java.util.function.Supplier;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.block.scheduler.Scheduler;
-import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerFactory;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 
@@ -19,10 +19,9 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
             BlockStreamVerifier blockStreamVerifier,
             CommonDownloaderProperties commonDownloaderProperties,
             BlockProperties properties,
-            SchedulerFactory schedulerFactory) {
+            Supplier<Scheduler> schedulerSupplier) {
         super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, properties);
-        scheduler = schedulerFactory.getScheduler(
-                properties.getNodes(), properties.getScheduling().getType());
+        scheduler = schedulerSupplier.get();
     }
 
     @Override
@@ -40,6 +39,6 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
 
     private boolean handleBlockStream(BlockStream blockStream) {
         var blockFile = onBlockStream(blockStream);
-        return scheduler.shouldRescheduleOnBlockProcessed(blockFile, blockStream);
+        return scheduler.shouldReschedule(blockFile, blockStream);
     }
 }

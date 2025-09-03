@@ -10,9 +10,22 @@ public interface Scheduler extends AutoCloseable {
 
     void close();
 
+    /**
+     * Selects a block node to stream blocks from starting from the specified block number
+     *
+     * @param blockNumber The block number of the first block to stream
+     * @return The block node, or null if none can provide the block
+     */
     BlockNode getNode(long blockNumber);
 
-    default boolean shouldRescheduleOnBlockProcessed(BlockFile blockFile, BlockStream blockStream) {
+    /**
+     * Checks if block node rescheduling is needed given a processed {@link BlockFile} and the {@link BlockStream}
+     *
+     * @param blockFile The processed {@link BlockFile}
+     * @param blockStream The {@link BlockStream}
+     * @return True if rescheduling is needed, otherwise False
+     */
+    default boolean shouldReschedule(BlockFile blockFile, BlockStream blockStream) {
         return false;
     }
 }

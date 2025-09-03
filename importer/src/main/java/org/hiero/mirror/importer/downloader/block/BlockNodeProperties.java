@@ -17,7 +17,7 @@ public class BlockNodeProperties {
 
     @Max(65535)
     @Min(0)
-    private int port = 8080;
+    private int port = 40840;
 
     @Min(0)
     private int priority = 0;

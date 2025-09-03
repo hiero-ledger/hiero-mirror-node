@@ -4,34 +4,39 @@ package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import com.google.common.collect.Lists;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
-import org.hiero.mirror.importer.downloader.block.BlockProperties;
+import org.hiero.mirror.importer.downloader.block.SchedulerProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 
 @RequiredArgsConstructor
 abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
 
-    protected final BlockProperties blockProperties;
     protected final LatencyService latencyService;
+    protected final SchedulerProperties schedulerProperties;
+
+    protected final List<BlockNode> candidates = new CopyOnWriteArrayList<>();
+    protected final AtomicReference<BlockNode> current = new AtomicReference<>();
+    protected final AtomicLong lastScheduledTime = new AtomicLong(0);
 
     protected long lastPostProcessingLatency;
-    protected AtomicReference<BlockNode> current;
-
-    private Collection<BlockNode> candidates = Collections.emptyList();
 
     @Override
     public BlockNode getNode(long blockNumber) {
         try {
             latencyService.cancelAll();
             current.set(super.getNode(blockNumber));
-            candidates = getCandidates();
+            candidates.clear();
+            candidates.addAll(getCandidates());
             latencyService.setNodes(candidates);
+            lastScheduledTime.set(System.currentTimeMillis());
             return current.get();
         } catch (BlockStreamException ex) {
             current.set(null);
@@ -40,24 +45,32 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
     }
 
     @Override
-    public boolean shouldRescheduleOnBlockProcessed(BlockFile blockFile, BlockStream blockStream) {
+    public boolean shouldReschedule(BlockFile blockFile, BlockStream blockStream) {
         long previousPostProcessingLatency = lastPostProcessingLatency;
         lastPostProcessingLatency = System.currentTimeMillis() - blockStream.blockCompleteTime();
 
-        var scheduling = blockProperties.getScheduling();
         // when post-processing takes too long, it can significantly delay block stream response processing and skew the
         // latency. Therefore, latency should only be measured and recorded under low post-processing latency conditions
         if (previousPostProcessingLatency
-                > scheduling.getMaxPostProcessingLatency().toMillis()) {
+                > schedulerProperties.getMaxPostProcessingLatency().toMillis()) {
             return false;
         }
 
         long latency = Utils.getLatency(blockFile, blockStream);
         current.get().recordLatency(latency);
+
+        if (System.currentTimeMillis() - lastScheduledTime.get()
+                < schedulerProperties.getMinRescheduleInterval().toMillis()) {
+            return false;
+        }
+
         long updatedLatency = current.get().getLatency();
         for (var candidate : candidates) {
-            if (updatedLatency - candidate.getLatency()
-                    >= scheduling.getMaxPostProcessingLatency().toMillis()) {
+            if (updatedLatency
+                    >= candidate.getLatency()
+                            + schedulerProperties
+                                    .getRescheduleLatencyThreshold()
+                                    .toMillis()) {
                 return true;
             }
         }

@@ -47,9 +47,11 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
     private static final long UNKNOWN_NODE_ID = -1;
+
     private final ManagedChannel channel;
     private final AtomicInteger errors = new AtomicInteger();
     private final Latency latency = new Latency();
+    private final String name;
 
     @Getter
     private final BlockNodeProperties properties;
@@ -69,6 +71,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                 .maxInboundMessageSize(
                         (int) streamProperties.getMaxStreamResponseSize().toBytes())
                 .build();
+        this.name = String.format("BlockNode(%s)", properties.getEndpoint());
         this.properties = properties;
         this.streamProperties = streamProperties;
     }
@@ -120,16 +123,15 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                     request));
             SubscribeStreamResponse response;
 
-            boolean shouldStop = false;
-            while (!shouldStop
-                    && (response = grpcCall.get().read(assembler.timeout(), TimeUnit.MILLISECONDS)) != null) {
+            boolean running = true;
+            while (running && (response = grpcCall.get().read(assembler.timeout(), TimeUnit.MILLISECONDS)) != null) {
                 switch (response.getResponseCase()) {
                     case BLOCK_ITEMS -> {
                         var blockStream = assembler.assemble(response.getBlockItems());
                         if (blockStream != null) {
-                            shouldStop = Boolean.TRUE.equals(onBlockStream.apply(blockStream));
-                            if (shouldStop) {
-                                log.info("Cancel the subscription");
+                            running = Boolean.FALSE.equals(onBlockStream.apply(blockStream));
+                            if (!running) {
+                                log.info("Cancel the subscription to try rescheduling");
                             }
                         }
                     }
@@ -138,14 +140,16 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                         if (status == SubscribeStreamResponse.Code.SUCCESS) {
                             // The server may end the stream gracefully for various reasons, and this shouldn't be
                             // treated as an error.
-                            log.info("Block server ended the subscription with {}", status);
-                            shouldStop = true;
+                            log.info("{} ended the subscription with {}", name, status);
+                            running = false;
                             break;
                         }
 
-                        throw new BlockStreamException("Received status " + response.getStatus() + " from block node");
+                        throw new BlockStreamException("Received status " + response.getStatus() + " from " + name);
                     }
-                    default -> throw new BlockStreamException("Unknown response case " + response.getResponseCase());
+                    default ->
+                        throw new BlockStreamException(
+                                "Unknown response case " + response.getResponseCase() + " from " + name);
                 }
 
                 errors.set(0);
@@ -174,7 +178,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     @Override
     public String toString() {
-        return String.format("BlockNode(%s)", properties.getEndpoint());
+        return name;
     }
 
     public BlockNode tryReadmit(boolean force) {

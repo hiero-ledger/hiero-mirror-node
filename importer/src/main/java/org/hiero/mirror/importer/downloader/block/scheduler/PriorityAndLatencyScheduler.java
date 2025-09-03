@@ -10,8 +10,9 @@ import java.util.TreeMap;
 import lombok.Value;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
-import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.downloader.block.ManagedChannelBuilderProvider;
+import org.hiero.mirror.importer.downloader.block.SchedulerProperties;
+import org.hiero.mirror.importer.downloader.block.StreamProperties;
 
 final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
 
@@ -19,14 +20,15 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
 
     PriorityAndLatencyScheduler(
             Collection<BlockNodeProperties> blockNodeProperties,
-            BlockProperties blockProperties,
             LatencyService latencyService,
-            ManagedChannelBuilderProvider managedChannelBuilderProvider) {
-        super(blockProperties, latencyService);
+            ManagedChannelBuilderProvider managedChannelBuilderProvider,
+            SchedulerProperties schedulerProperties,
+            StreamProperties streamProperties) {
+        super(latencyService, schedulerProperties);
 
         priorityGroups = new TreeMap<>();
         for (var blockNodeProperty : blockNodeProperties) {
-            var node = new BlockNode(managedChannelBuilderProvider, blockNodeProperty, blockProperties.getStream());
+            var node = new BlockNode(managedChannelBuilderProvider, blockNodeProperty, streamProperties);
             priorityGroups
                     .computeIfAbsent(node.getPriority(), PriorityGroup::new)
                     .getNodes()

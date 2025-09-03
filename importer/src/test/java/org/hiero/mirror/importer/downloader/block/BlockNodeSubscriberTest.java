@@ -38,7 +38,7 @@ import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.block.scheduler.LatencyService;
-import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerFactory;
+import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerSupplier;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
@@ -85,7 +85,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 blockNodeProperties(0, SERVER_NAMES[1]),
                 blockNodeProperties(1, SERVER_NAMES[2])));
         var schedulerFactory =
-                new SchedulerFactory(blockProperties, latencyService, InProcessManagedChannelBuilderProvider.INSTANCE);
+                new SchedulerSupplier(blockProperties, latencyService, InProcessManagedChannelBuilderProvider.INSTANCE);
         blockNodeSubscriber = new BlockNodeSubscriber(
                 blockStreamReader, blockStreamVerifier, commonDownloaderProperties, blockProperties, schedulerFactory);
     }

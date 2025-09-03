@@ -19,6 +19,10 @@ final class Latency {
 
     void record(long latency) {
         history[count++ % HISTORY_SIZE] = latency;
+        if (count < 5) {
+            return;
+        }
+
         if (count >= 10) {
             // avoid overflow
             count = HISTORY_SIZE + (count % HISTORY_SIZE);
