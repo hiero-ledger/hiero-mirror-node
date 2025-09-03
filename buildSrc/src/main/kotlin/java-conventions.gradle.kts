@@ -65,7 +65,6 @@ tasks.withType<Test>().configureEach {
     systemProperty("spring.test.constructor.autowire.mode", "ALL")
     systemProperty("spring.main.cloud-platform", "NONE")
     useJUnitPlatform {}
-    retry { maxRetries = 3 }
 }
 
 tasks.jacocoTestReport {
