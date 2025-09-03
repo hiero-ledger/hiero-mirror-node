@@ -756,86 +756,16 @@ function buildNodeIdToPodMap() {
     ) | add'
 }
 
-function deleteZfsSnapshots() {
-  local pod="$1" nodeId="$2"
-  local snapshots
-  snapshots=$(kubectl_common exec "${pod}" -c openebs-zfs-plugin -- bash -c 'zfs list -H -o name -t snapshot')
-  if [[ -z "${snapshots}" ]]; then
-    log "No snapshots found for ${ZFS_POOL_NAME} on node ${nodeId}"
-  else
-    log "Deleting all snapshots for ${ZFS_POOL_NAME} on node ${nodeId}"
-    kubectl_common exec "${pod}" -c openebs-zfs-plugin -- zfs destroy -r ${snapshots}
-  fi
-}
-
-function replaceDisksFromSnapshot() {
-  local snapshotSourceProject="${1}"
-  local targetProject="${2}"
-  local rollbackToLatestSnapshot="${3:-false}"
-
-  local nodeIdToPodMap uniqueNodeIds diskPrefix
-  nodeIdToPodMap=$(buildNodeIdToPodMap)
-  diskPrefix=$(getDiskPrefix)
-  mapfile -t uniqueNodeIds < <(echo "${nodeIdToPodMap}" | jq -r 'keys[]')
-  log "Will delete disks ${diskPrefix}-(${uniqueNodeIds[*]})-zfs in project ${GCP_TARGET_PROJECT}"
-  doContinue
-
-  prepareCitusDisksForReplacement
-
-  for nodeId in "${uniqueNodeIds[@]}"; do
-    local nodeInfo diskName diskZone snapshotName snapshotFullName
-
-    nodeInfo=$(echo "${nodeIdToPodMap}" | jq -r --arg NODE_ID "${nodeId}" '.[$NODE_ID]')
-    diskName="${diskPrefix}-${nodeId}-zfs"
-    diskZone=$(echo "${nodeId}" | cut -d '-' -f 2-4)
-    snapshotName=$(echo "${nodeInfo}" | jq -r '.snapshot[0].name')
-    snapshotFullName="projects/${snapshotSourceProject}/global/snapshots/${snapshotName}"
-    log "Recreating disk ${diskName} in ${targetProject} with snapshot ${snapshotName}"
-    gcloud compute disks delete "${diskName}" --project "${targetProject}" --zone "${diskZone}" --quiet
-    watchInBackground "$$" gcloud compute disks create "${diskName}" --project "${targetProject}" --zone "${diskZone}" --source-snapshot "${snapshotFullName}" --type=pd-balanced --quiet &
-  done
-
-  log "Waiting for disks to be created"
-  wait
-
-  resizeCitusNodePools 1
-  renameZfsVolumes "${rollbackToLatestSnapshot}"
-}
-
-function swapPv() {
-  local pvcs=($1 $2)
-  volumeNames=($(kubectl get pvc "${pvcs[@]}" -o json | jq -r '.items[].spec.volumeName'))
-  firstPvcConfig=$(kubectl get pvc "${pvcs[0]}" -o json | \
-    jq --arg volumeName "${volumeNames[1]}" \
-      'del(.metadata.annotations["volume.kubernetes.io/selected-node"],.metadata.creationTimestamp,.metadata.resourceVersion,.metadata.uid,.status)
-      | .spec.volumeName = $volumeName')
-  secondPvcConfig=$(kubectl get pvc "${pvcs[1]}" -o json | \
-      jq --arg volumeName "${volumeNames[0]}" \
-        'del(.metadata.annotations["volume.kubernetes.io/selected-node"],.metadata.creationTimestamp,.metadata.resourceVersion,.metadata.uid,.status)
-        | .spec.volumeName = $volumeName')
-
-  log "Removing coordinator PVCs"
-  kubectl delete pvc "${pvcs[@]}"
-
-  log "Removing claimRef from coordinator PVs"
-  for volumeName in "${volumeNames[@]}"; do
-    kubectl patch pv/"${volumeName}" --type=json -p='[{"op": "remove", "path": "/spec/claimRef"}]' || true
-  done
-
-  log "Recreating coordinator PVCs to swap the volumes"
-  echo "$firstPvcConfig" | kubectl apply -f -
-  echo "$secondPvcConfig" | kubectl apply -f -
-  kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc "${pvcs[@]}" --timeout=-1s
+function setCitusNamespaces() {
+  mapfile -t CITUS_NAMESPACES < <(
+      kubectl get sgshardedclusters -A \
+        -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}'
+    )
 }
 
 AUTO_CONFIRM="${AUTO_CONFIRM:-false}"
 AUTO_UNROUTE="${AUTO_UNROUTE:-true}"
-if [[ -z "${CITUS_NAMESPACES:-}" ]]; then
-  mapfile -t CITUS_NAMESPACES < <(
-    kubectl get sgshardedclusters -A \
-      -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}'
-  )
-fi
+CITUS_NAMESPACES=
 COMMON_NAMESPACE="${COMMON_NAMESPACE:-common}"
 CURRENT_CONTEXT="$(kubectl config current-context)"
 DISK_PREFIX=

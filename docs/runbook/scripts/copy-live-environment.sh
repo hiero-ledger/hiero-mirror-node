@@ -8,14 +8,13 @@ source ./utils.sh
 source ./input-utils.sh
 source ./snapshot-utils.sh
 
-KEEP_SNAPSHOTS="true"
+CREATE_NEW_BACKUPS="${CREATE_NEW_BACKUPS:-true}"
+DEFAULT_POOL_MAX_PER_ZONE="${DEFAULT_POOL_MAX_PER_ZONE:-5}"
+DEFAULT_POOL_NAME="${DEFAULT_POOL_NAME:-default-pool}"
 K8S_SOURCE_CLUSTER_CONTEXT=${K8S_SOURCE_CLUSTER_CONTEXT:-}
 K8S_TARGET_CLUSTER_CONTEXT=${K8S_TARGET_CLUSTER_CONTEXT:-}
-DEFAULT_POOL_NAME="${DEFAULT_POOL_NAME:-default-pool}"
-DEFAULT_POOL_MAX_PER_ZONE="${DEFAULT_POOL_MAX_PER_ZONE:-5}"
-WAIT_FOR_K6="${WAIT_FOR_K6:-false}"
-CREATE_NEW_BACKUPS="${CREATE_NEW_BACKUPS:-true}"
 TEST_KUBE_NAMESPACE="${TEST_KUBE_NAMESPACE:-testkube}"
+WAIT_FOR_K6="${WAIT_FOR_K6:-false}"
 
 function deleteBackupsFromSource() {
   local lines
@@ -221,22 +220,18 @@ function changeContext() {
     log "Context ${context} doesn't exist"
     exit 1
   fi
-
-  mapfile -t CITUS_NAMESPACES < <(
-        kubectl get sgshardedclusters -A \
-          -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}'
-      )
   DISK_PREFIX="$(getDiskPrefix)"
 }
 
 function snapshotSource() {
+  KEEP_SNAPSHOTS="true"
   changeContext "${K8S_SOURCE_CLUSTER_CONTEXT}"
   if [[ -z "${SNAPSHOT_ID}" ]]; then
     PAUSE_CLUSTER="false"
     BACKUPS_MAP=$(runBackupsForAllNamespaces)
     SOURCE_LATEST_BACKUPS="$(getLatestBackup)"
     SOURCE_BACKUP_PATHS="$(getBackupPaths)"
-    SNAPSHOT_ID="$(snapshotCitusDisks "false" "${GCP_SNAPSHOT_PROJECT}")"
+    SNAPSHOT_ID="$(snapshotCitusDisks)"
     printf "%s" "${SOURCE_LATEST_BACKUPS}" > "shardedBackups-${SNAPSHOT_ID}.json"
     deleteBackupsFromSource
   else

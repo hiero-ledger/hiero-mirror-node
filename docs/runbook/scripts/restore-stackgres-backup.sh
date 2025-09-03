@@ -318,6 +318,32 @@ function rollbackZfsVolumes() {
   log "Rolled back all ZFS volumes to the snapshots created by the backup ${BACKUP_TO_RESTORE}"
 }
 
+function swapPv() {
+  local pvcs=($1 $2)
+  volumeNames=($(kubectl get pvc "${pvcs[@]}" -o json | jq -r '.items[].spec.volumeName'))
+  firstPvcConfig=$(kubectl get pvc "${pvcs[0]}" -o json | \
+    jq --arg volumeName "${volumeNames[1]}" \
+      'del(.metadata.annotations["volume.kubernetes.io/selected-node"],.metadata.creationTimestamp,.metadata.resourceVersion,.metadata.uid,.status)
+      | .spec.volumeName = $volumeName')
+  secondPvcConfig=$(kubectl get pvc "${pvcs[1]}" -o json | \
+      jq --arg volumeName "${volumeNames[0]}" \
+        'del(.metadata.annotations["volume.kubernetes.io/selected-node"],.metadata.creationTimestamp,.metadata.resourceVersion,.metadata.uid,.status)
+        | .spec.volumeName = $volumeName')
+
+  log "Removing coordinator PVCs"
+  kubectl delete pvc "${pvcs[@]}"
+
+  log "Removing claimRef from coordinator PVs"
+  for volumeName in "${volumeNames[@]}"; do
+    kubectl patch pv/"${volumeName}" --type=json -p='[{"op": "remove", "path": "/spec/claimRef"}]' || true
+  done
+
+  log "Recreating coordinator PVCs to swap the volumes"
+  echo "$firstPvcConfig" | kubectl apply -f -
+  echo "$secondPvcConfig" | kubectl apply -f -
+  kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc "${pvcs[@]}" --timeout=-1s
+}
+
 CURRENT_NAMESPACE=$(kubectl config view --minify --output 'jsonpath={..namespace}')
 
 prepare

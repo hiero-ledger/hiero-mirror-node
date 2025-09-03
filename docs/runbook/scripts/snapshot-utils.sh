@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 
-set -euox pipefail
+set -euo pipefail
 
 source ./utils.sh
 
@@ -80,7 +80,6 @@ spec:
 
           if [[ -n "\${BACKUP_LABEL_B64:-}" ]]; then
             echo "Writing backup_label from provided base64..."
-            # remove any existing file first
             rm -f /pgdata/data/backup_label
             printf "%s" "\${BACKUP_LABEL_B64}" | base64 -d > /pgdata/data/backup_label
             chown 999:999 /pgdata/data/backup_label
@@ -210,12 +209,12 @@ function getCitusDiskNames() {
 }
 
 function snapshotCitusDisks() {
-  local pauseCluster="${1:-true}"
   local diskPrefix disksToSnapshot diskNames
 
   if [[ -z "${GCP_SNAPSHOT_PROJECT}" ]]; then
     GCP_SNAPSHOT_PROJECT=$(promptGcpProject "source")
   fi
+  setCitusNamespaces
   diskPrefix="$(getDiskPrefix)"
   disksToSnapshot=$(getCitusDiskNames "${GCP_SNAPSHOT_PROJECT}" "${diskPrefix}")
 
@@ -231,9 +230,7 @@ function snapshotCitusDisks() {
   local zfsVolumes
   zfsVolumes=$(getZFSVolumes)
 
-  mapfile -t CITUS_NAMESPACES < <(echo "${zfsVolumes}" | jq -r '.[].namespace' | sort -u)
-
-  pauseClustersIfNeeded "${pauseCluster}"
+  pauseClustersIfNeeded
 
   local epochSeconds citusClusters
   epochSeconds=$(date +%s)
@@ -278,7 +275,7 @@ function snapshotCitusDisks() {
   wait
   log "Snapshots finished for id ${epochSeconds}"
 
-  resumeClustersIfNeeded "${pauseCluster}"
+  resumeClustersIfNeeded
   echo "${epochSeconds}"
 }
 
@@ -312,10 +309,6 @@ function getSnapshotsById() {
 function getNodeIdToPvcSnapshotsMap() {
   if [[ -z "${SNAPSHOTS_TO_RESTORE}" ]]; then
     SNAPSHOTS_TO_RESTORE="$(getSnapshotsById)"
-  fi
-
-  if [[ -z "${ZFS_VOLUMES}" ]]; then
-    ZFS_VOLUMES="$(getZFSVolumes)"
   fi
 
   echo -e "${SNAPSHOTS_TO_RESTORE}\n${ZFS_VOLUMES}" \
@@ -469,29 +462,29 @@ function cleanupBackupStorage() {
   local minioPod
   minioPod=$(kubectl_common get pods -l 'app.kubernetes.io/name=minio' -o json | jq -r '.items[0].metadata.name')
   if [[ "${minioPod}" == "null" ]]; then
-  echo "Minio pod not found. Skipping cleanup"
+    log "Minio pod not found. Skipping cleanup"
   else
-  local backups minioDataPath backupStorages
-  backups=$(kubectl get sgshardedclusters.stackgres.io -n "${namespace}" "${shardedClusterName}" -o json | jq -r '.spec.configurations.backups')
-  if [[ "${backups}" == "null" ]]; then
-    echo "No backup configuration found for sharded cluster ${shardedClusterName} in namespace ${namespace}. Skipping cleanup"
-    return
-  fi
+    local backups minioDataPath backupStorages
+    backups=$(kubectl get sgshardedclusters.stackgres.io -n "${namespace}" "${shardedClusterName}" -o json | jq -r '.spec.configurations.backups')
+    if [[ "${backups}" == "null" ]]; then
+      log "No backup configuration found for sharded cluster ${shardedClusterName} in namespace ${namespace}. Skipping cleanup"
+      return
+    fi
 
-  kubectl patch sgshardedclusters.stackgres.io "${shardedClusterName}" -n "${namespace}" --type='json' -p '[{"op": "remove", "path": "/spec/configurations/backups"}]';
+    kubectl patch sgshardedclusters.stackgres.io "${shardedClusterName}" -n "${namespace}" --type='json' -p '[{"op": "remove", "path": "/spec/configurations/backups"}]';
 
-  minioDataPath=$(kubectl_common exec "${minioPod}" -- sh -c 'echo $MINIO_DATA_DIR')
-  mapfile -t backupStorages < <(echo "${backups}" | jq -r '.[].sgObjectStorage')
-  for backupStorage in "${backupStorages[@]}"; do
-    local minioBucket pathToDelete
+    minioDataPath=$(kubectl_common exec "${minioPod}" -- sh -c 'echo $MINIO_DATA_DIR')
+    mapfile -t backupStorages < <(echo "${backups}" | jq -r '.[].sgObjectStorage')
+    for backupStorage in "${backupStorages[@]}"; do
+      local minioBucket pathToDelete
 
-    minioBucket=$(kubectl get sgObjectStorage.stackgres.io -n "${namespace}" "${backupStorage}" -o json | jq -r '.spec.s3Compatible.bucket')
-    pathToDelete="${minioDataPath}/${minioBucket}/${STACKGRES_MINIO_ROOT}/${namespace}"
+      minioBucket=$(kubectl get sgObjectStorage.stackgres.io -n "${namespace}" "${backupStorage}" -o json | jq -r '.spec.s3Compatible.bucket')
+      pathToDelete="${minioDataPath}/${minioBucket}/${STACKGRES_MINIO_ROOT}/${namespace}"
 
-    echo "Cleaning up wal files in minio bucket ${minioBucket}. Will delete all files at path ${pathToDelete}"
-    doContinue
-    kubectl_common exec "${minioPod}" -- mc rm --recursive --force "${pathToDelete}"
-  done
+      log "Cleaning up wal files in minio bucket ${minioBucket}. Will delete all files at path ${pathToDelete}"
+      doContinue
+      kubectl_common exec "${minioPod}" -- mc rm --recursive --force "${pathToDelete}"
+    done
   fi
 }
 
@@ -602,6 +595,18 @@ function renameZfsSnapshots() {
       fi
     done
   done <<< "${snapshots}"
+}
+
+function deleteZfsSnapshots() {
+  local pod="$1" nodeId="$2"
+  local snapshots
+  snapshots=$(kubectl_common exec "${pod}" -c openebs-zfs-plugin -- bash -c 'zfs list -H -o name -t snapshot')
+  if [[ -z "${snapshots}" ]]; then
+    log "No snapshots found for ${ZFS_POOL_NAME} on node ${nodeId}"
+  else
+    log "Deleting all snapshots for ${ZFS_POOL_NAME} on node ${nodeId}"
+    kubectl_common exec "${pod}" -c openebs-zfs-plugin -- zfs destroy -r ${snapshots}
+  fi
 }
 
 function renameZfsVolumes() {
@@ -796,18 +801,18 @@ function configureAndValidateSnapshotRestore() {
   ZFS_VOLUMES="$(getZFSVolumes)"
   NODE_ID_MAP="$(getNodeIdToPvcSnapshotsMap)"
   mapfile -t UNIQUE_NODE_IDS < <(echo "${NODE_ID_MAP}" | jq -r 'keys[]')
-  mapfile -t CITUS_NAMESPACES < <(echo "${ZFS_VOLUMES}" | jq -r '.[].namespace' | sort -u)
+  setCitusNamespaces
 }
 
-STACKGRES_MINIO_ROOT="${STACKGRES_MINIO_ROOT:-sgbackups.stackgres.io}"
-MINIO_SNAPSHOT_PREFIX="${MINIO_SNAPSHOT_PREFIX:-minio-sg-snapshot}"
-KEEP_SNAPSHOTS="${KEEP_SNAPSHOTS:-false}"
-MINIO_RESOURCE_SELECTOR="${MINIO_RESOURCE_SELECTOR:-app.kubernetes.io/component=minio}"
-SOURCE_LATEST_BACKUPS=
-SOURCE_BACKUP_PATHS=
+GCP_K8S_TARGET_CLUSTER_NAME="${GCP_K8S_TARGET_CLUSTER_NAME:-}"
+GCP_K8S_TARGET_CLUSTER_REGION="${GCP_K8S_TARGET_CLUSTER_REGION:-}"
 GCP_SNAPSHOT_PROJECT="${GCP_SNAPSHOT_PROJECT:-}"
 GCP_TARGET_PROJECT="${GCP_TARGET_PROJECT:-}"
-GCP_K8S_TARGET_CLUSTER_REGION="${GCP_K8S_TARGET_CLUSTER_REGION:-}"
-GCP_K8S_TARGET_CLUSTER_NAME="${GCP_K8S_TARGET_CLUSTER_NAME:-}"
+KEEP_SNAPSHOTS="${KEEP_SNAPSHOTS:-false}"
+MINIO_SNAPSHOT_PREFIX="${MINIO_SNAPSHOT_PREFIX:-minio-sg-snapshot}"
+MINIO_RESOURCE_SELECTOR="${MINIO_RESOURCE_SELECTOR:-app.kubernetes.io/component=minio}"
 REPLACE_DISKS="${REPLACE_DISKS:-true}"
 SNAPSHOT_ID="${SNAPSHOT_ID:-}"
+SOURCE_BACKUP_PATHS=
+SOURCE_LATEST_BACKUPS=
+STACKGRES_MINIO_ROOT="${STACKGRES_MINIO_ROOT:-sgbackups.stackgres.io}"
