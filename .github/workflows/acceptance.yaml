@@ -82,16 +82,17 @@ jobs:
       - name: Build Mirror Node Test JAR
         run: ./gradlew test:build -x test
 
+      - name: Initialize TAG name based on event type
+        run: echo "TAG=${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}" >> $GITHUB_ENV
+
       - name: Build Mirror Node Test Docker image
         run: |
-          TAG=${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}
           docker build -t gcr.io/mirrornode/hedera-mirror-test:${TAG} ./test
 
       - name: Setup Solo Cluster
         run: |
           set -ex
 
-          TAG=${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}
           kind create cluster -n "${SOLO_CLUSTER_NAME}"
           solo init
           solo cluster-ref connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --context kind-"${SOLO_CLUSTER_NAME}"
