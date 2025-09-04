@@ -248,9 +248,9 @@ public class MirrorNodeClient {
                 spenderId);
     }
 
-    public ContractsResponse getContracts(int limit) {
-        log.debug("Verify last '{}' contracts are returned by Mirror Node", limit);
-        return callRestEndpoint("/contracts?limit={limit}&order=desc", ContractsResponse.class, limit);
+    public ContractsResponse getContracts(String contractId) {
+        log.debug("Verify contract '{}' is returned by Mirror Node", contractId);
+        return callRestEndpoint("/contracts?contract.id={contractId}", ContractsResponse.class, contractId);
     }
 
     public ContractResponse getContractInfo(String contractId) {

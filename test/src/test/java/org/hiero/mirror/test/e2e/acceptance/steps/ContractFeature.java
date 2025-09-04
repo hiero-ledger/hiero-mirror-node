@@ -122,10 +122,10 @@ public class ContractFeature extends BaseContractFeature {
 
     @Then("the mirror node REST API should verify the contract")
     public void verifyContract() {
-        var contractResponse = verifyContractFromMirror(false);
+        verifyContractFromMirror(false);
         verifyContractExecutionResultsById();
-        verifyContractExecutionResultsByTransactionId();
-        verifyContractExecutionResultByIdAndTimestamp(contractResponse.getCreatedTimestamp());
+        var contractResultTimestamp = verifyContractExecutionResultsByTransactionId();
+        verifyContractExecutionResultByIdAndTimestamp(contractResultTimestamp);
     }
 
     @Then("the mirror node REST API should verify the updated contract entity")
@@ -181,6 +181,10 @@ public class ContractFeature extends BaseContractFeature {
     @Then("the mirror node REST API should verify the deleted contract entity")
     public void verifyDeletedContractMirror() {
         verifyContractFromMirror(true);
+
+        var parentContract =
+                mirrorClient.getContracts(deployedParentContract.contractId().toString());
+        assertThat(parentContract.getContracts().getFirst().getDeleted()).isTrue();
     }
 
     @Given("I call the parent contract to retrieve child contract bytecode")
@@ -289,18 +293,6 @@ public class ContractFeature extends BaseContractFeature {
     public void verifyContractNonce() {
         verifyNonceForParentContract();
         verifyNonceForChildContracts();
-    }
-
-    @Then("I verify parent and child contracts are deleted")
-    public void verifyParentAndChildContractsAreDeleted() {
-        var contracts = mirrorClient.getContracts(5);
-        if (contracts.getContracts().isEmpty()) {
-            return;
-        }
-        for (var contract : contracts.getContracts()) {
-            assertThat(contract.getContractId()).isNotEqualTo(deployedParentContract.contractId());
-            assertThat(contract.getContractId()).isNotEqualTo(create2ChildContractContractId);
-        }
     }
 
     @When("I successfully delete the child contract by calling it and causing it to self destruct")

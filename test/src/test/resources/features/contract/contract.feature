@@ -46,7 +46,6 @@ Feature: Contract Base Coverage Feature
         When I successfully delete the parent contract
         Then the mirror node REST API should return status <httpStatusCode> for the contract transaction
         And the mirror node REST API should verify the deleted contract entity
-        And I verify parent and child contracts are deleted
         Then I successfully delete the parent contract bytecode file
         Examples:
             | httpStatusCode | transferAmount |
