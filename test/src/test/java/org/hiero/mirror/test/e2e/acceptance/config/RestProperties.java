@@ -20,7 +20,7 @@ import org.springframework.web.client.HttpClientErrorException;
 @Data
 @RequiredArgsConstructor
 @Validated
-public class RestProperties {
+public class RestProperties implements ApiProperties {
 
     public static final String URL_PREFIX = "/api/v1";
 
